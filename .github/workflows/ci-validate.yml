@@ -1,0 +1,35 @@
+name: CI Validate
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/${{ github.repository }}/ai-workspace-runner:latest
+      credentials:
+        username: ${{ github.repository_owner }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Validate Environment Parity
+        run: |
+          node --version
+          pnpm --version
+          python3 --version
+
+      - name: Bootstrap Agent Workspace
+        run: ./setup-agent.sh
