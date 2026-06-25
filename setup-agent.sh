@@ -13,7 +13,7 @@ else
 fi
 
 # 2. Dependency Installation
-pnpm install --frozen-lockfile || pnpm install
+pnpm install --frozen-lockfile
 
 # 3. Environment Check
 node --version
