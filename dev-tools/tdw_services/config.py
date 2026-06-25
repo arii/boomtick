@@ -9,7 +9,7 @@ from typing import Any
 class ProjectConfig:
     github_repo: str | None = None
     github_token_env: str = "GITHUB_TOKEN"
-    gh_token_env: str = "GH_TOKEN"
+    gemini_api_key_env: str = "GEMINI_API_KEY"
     jules_api_url: str | None = None
 
 def load_project_config(path: str | Path = "dev-tools/project_config.json") -> ProjectConfig:
@@ -22,6 +22,6 @@ def load_project_config(path: str | Path = "dev-tools/project_config.json") -> P
     return ProjectConfig(
         github_repo=raw.get("github_repo") or raw.get("repo_name"),
         github_token_env=raw.get("github_token_env", "GITHUB_TOKEN"),
-        gh_token_env=raw.get("gh_token_env", "GH_TOKEN"),
+        gemini_api_key_env=raw.get("gemini_api_key_env", "GEMINI_API_KEY"),
         jules_api_url=raw.get("jules_api_url"),
     )
