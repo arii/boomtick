@@ -7,14 +7,20 @@ on:
     branches: [ "main" ]
   workflow_dispatch:
 
+permissions:
+  contents: read
+  packages: read
+
 jobs:
   validate:
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/${{ github.repository }}/ai-workspace-runner:latest
       credentials:
-        username: ${{ github.actor }}
+        username: ${{ github.repository_owner }}
         password: ${{ secrets.GITHUB_TOKEN }}
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
