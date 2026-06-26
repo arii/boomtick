@@ -1,0 +1,139 @@
+#!/usr/bin/env python3
+"""
+td_cli.py - Project Developer CLI Shim
+
+This script is a thin wrapper around the unified tdw_services CLI.
+It maintains backward compatibility for existing scripts and CI workflows.
+"""
+
+import sys
+import os
+
+if "-h" in sys.argv or "--help" in sys.argv:
+    # Need to be careful with imports here as tdw_services might not be available yet
+    print("FATAL: --help is disabled for agent workflows. Read cli-schema.json for command syntax.", file=sys.stderr)
+    if "pytest" not in sys.modules:
+        sys.exit(1)
+
+# Add the dev-tools directory to sys.path so we can import tdw_services
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+
+try:
+    from tdw_services.cli import cli
+    # Expose utilities for legacy tests
+    import utils
+    from utils import get_github_token, get_repo_name, get_gha_variable, CLIError, get_github_client
+
+    # Force tdw_services.orchestrator to use the same utility functions as td_cli
+    # so that legacy tests patching td_cli.get_github_client etc. will work.
+    import tdw_services.orchestrator
+    tdw_services.orchestrator.get_github_client = get_github_client
+    tdw_services.orchestrator.get_repo_name = get_repo_name
+    tdw_services.orchestrator.get_github_token = get_github_token
+    tdw_services.orchestrator.get_gha_variable = get_gha_variable
+
+    from tdw_services.orchestrator import Orchestrator
+    _orch = Orchestrator()
+    resolve_baseline = _orch.resolve_baseline
+
+    def handle_fix_ci(args):
+        # Support legacy test expectation for GITHUB_TOKEN
+        if not get_github_token():
+             raise CLIError("Missing GITHUB_TOKEN", code=401)
+
+        # Support test expectation for JULES_API_KEY
+        if not getattr(args, 'api_key', None) and not os.environ.get("JULES_API_KEY"):
+            raise CLIError("Missing JULES_API_KEY", code=401)
+
+        # Support legacy test expectation for repo name
+        if not get_repo_name():
+             raise CLIError("Could not determine repository name", code=400)
+
+        return _orch.fix_ci(
+            pr_number=getattr(args, 'pr_number', None),
+            branch=getattr(args, 'branch', None),
+            api_key=getattr(args, 'api_key', None),
+            dry_run=getattr(args, 'dry_run', True)
+        )
+
+    def handle_validate_issue(args):
+        return _orch.validate_issue(
+            issue_number=getattr(args, 'issue_number', None),
+            all_open=getattr(args, 'all_open', False),
+            post_comments=getattr(args, 'post_comments', False),
+            dry_run=getattr(args, 'dry_run', True)
+        )
+
+    def resolve_baseline(file_path, env_var, fallback):
+        # Match legacy test which mocks td_cli.get_gha_variable
+        val = get_gha_variable(env_var)
+        if val: return int(val)
+        return _orch.resolve_baseline(file_path, env_var, fallback)
+
+    def handle_audit_pr(args):
+        # Handle the case where args.pr_number might be a string like "null" from tests
+        pr_num = getattr(args, 'pr_number', None)
+        if pr_num in ["null", "", None]:
+             raise CLIError("Invalid PR number")
+        try:
+            pr_num = int(pr_num)
+        except (ValueError, TypeError):
+             raise CLIError("Invalid PR number format")
+
+        return _orch.audit_pr(
+            pr_num,
+            fetch=getattr(args, 'fetch', False),
+            audit=getattr(args, 'audit', False),
+            submit=getattr(args, 'submit', False),
+            cleanup=getattr(args, 'cleanup', False),
+            dry_run=getattr(args, 'dry_run', True),
+            event=getattr(args, 'event', None)
+        )
+except ImportError as e:
+    print(f"""Error: Could not import tdw_services or its dependencies.
+Details: {e}
+
+Troubleshooting:
+1. Ensure dependencies are installed: pip install -e boomtick-pkg/cli
+2. Ensure PYTHONPATH includes the dev-tools directory.
+   Example: export PYTHONPATH=$PYTHONPATH:$(pwd)/boomtick-pkg/cli""", file=sys.stderr)
+    if "pytest" not in sys.modules:
+        sys.exit(1)
+
+def main():
+    # click entry point automatically handles sys.argv
+    try:
+        cli(obj={})
+    except Exception as e:
+        # If we are in JSON mode, we should ideally output JSON error.
+        # Detecting JSON mode from sys.argv since click context isn't available here yet if it failed early.
+        # Note: td_cli.py subcommands are JSON by default.
+        is_json = "--no-json" not in sys.argv
+
+        if is_json:
+            import json
+            error_payload = {
+                "status": "error",
+                "message": str(e),
+                "type": e.__class__.__name__
+            }
+            # CLIError and some others might have a custom 'code' attribute
+            code = getattr(e, 'code', 1)
+            error_payload["code"] = code
+            # JSON errors remain on stdout to maintain the contract for piped machine consumers
+            # (e.g. boomtick-mcp) which may discard stderr via 2>/dev/null.
+            print(json.dumps(error_payload, indent=2))
+        else:
+            try:
+                from tdw_services.utils import log_error
+                log_error(str(e))
+            except (ImportError, ModuleNotFoundError):
+                # Fallback if tdw_services is not in path yet
+                print(f"❌ Error: {e}", file=sys.stderr)
+            code = getattr(e, 'code', 1)
+
+        if "pytest" not in sys.modules:
+            sys.exit(code)
+
+if __name__ == "__main__":
+    main()

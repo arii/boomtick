@@ -1,0 +1,13 @@
+name: BoomTick AI Review
+description: Runs AI code review via td CLI
+inputs:
+  pr_number:
+    description: PR number to review
+    required: true
+runs:
+  using: composite
+  steps:
+    - uses: ./boomtick-pkg/mcp/actions/setup
+    - name: AI review
+      run: td gh audit-pr ${{ inputs.pr_number }} --fetch --audit
+      shell: bash

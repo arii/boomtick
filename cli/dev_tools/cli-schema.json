@@ -1,0 +1,300 @@
+{
+  "tool_name": "td_cli.py",
+  "schema_authority": "This file is the single source of truth for td_cli.py. Consult before every CLI call. Takes precedence over examples in AGENTS.md or any agent-specific instruction file.",
+  "description": "Custom developer CLI for BoomTick repository management. Do not use interactive menus, and NEVER use the -h or --help flags. Always reference this schema for valid commands.",
+  "base_command": "python3 boomtick-pkg/cli/dev_tools/td_cli.py",
+  "never_do": [
+    "Do not chain subcommands in a single shell call",
+    "Do not use --help or -h to discover flags — use this schema",
+    "Do not guess flags not listed here",
+    "Do not run td_cli.py without checking this schema first",
+    "Do not use interactive menus if prompted"
+  ],
+  "subcommands": {
+    "doctor": {
+      "description": "Performs a runtime consistency check (Node.js and pnpm versions) to ensure the environment matches the project contract.",
+      "exact_usage": "python3 boomtick-pkg/cli/dev_tools/td_cli.py doctor",
+      "required_flags": []
+    },
+    "gh search-prs": {
+      "description": "Lists open Pull Requests with optional filtering by state, limit, draft status, and labels.",
+      "exact_usage": "python3 boomtick-pkg/cli/dev_tools/td_cli.py gh search-prs [--state <STATE>] [--limit <LIMIT>] [--no-include-drafts] [--labels <LABELS>]",
+      "optional_flags": [
+        { "flag": "--state", "type": "string", "description": "PR state (open, closed, all)." },
+        { "flag": "--limit", "type": "integer", "description": "Maximum results." },
+        { "flag": "--no-include-drafts", "type": "boolean", "description": "Exclude draft PRs." },
+        { "flag": "--labels", "type": "string", "description": "Comma-separated labels." }
+      ]
+    },
+    "gh pr-diff": {
+      "description": "Fetches PR diff and file list, applying truncation and shaping.",
+      "exact_usage": "python3 boomtick-pkg/cli/dev_tools/td_cli.py gh pr-diff <PR_NUMBER>",
+      "required_arguments": [
+        { "name": "pr_number", "type": "integer", "description": "PR ID." }
+      ]
+    },
+    "gh merge-conflicts": {
+      "description": "Detects merge conflicts for a PR against a base branch.",
+      "exact_usage": "python3 boomtick-pkg/cli/dev_tools/td_cli.py gh merge-conflicts <PR_NUMBER> [--base <BASE_BRANCH>]",
+      "required_arguments": [
+        { "name": "pr_number", "type": "integer", "description": "PR ID." }
+      ],
+      "optional_flags": [
+        { "flag": "--base", "type": "string", "description": "Base branch (default: origin/main)." }
+      ]
+    },
+    "repo ci-logs": {
+      "description": "Fetches CI logs for failing (or all) check runs in a PR.",
+      "exact_usage": "python3 boomtick-pkg/cli/dev_tools/td_cli.py repo ci-logs <PR_NUMBER> [--all]",
+      "required_arguments": [
+        { "name": "pr_number", "type": "integer", "description": "PR ID." }
+      ],
+      "optional_flags": [
+        { "flag": "--all", "type": "boolean", "description": "Include logs for successful runs." }
+      ]
+    },
+    "repo logs": {
+      "description": "Fetches and combines CI logs for all jobs in a PR, optionally filtered by grep.",
+      "exact_usage": "python3 boomtick-pkg/cli/dev_tools/td_cli.py repo logs <PR_NUMBER> [--grep <PATTERN>]",
+      "required_arguments": [
+        { "name": "pr_number", "type": "integer", "description": "PR ID." }
+      ],
+      "optional_flags": [
+        { "flag": "--grep", "type": "string", "description": "Filter logs by pattern." }
+      ]
+    },
+    "repo run-playwright": {
+      "description": "Runs Playwright tests and returns failed tests in JSON.",
+      "exact_usage": "python3 boomtick-pkg/cli/dev_tools/td_cli.py repo run-playwright [--grep <PATTERN>] [--worktree <PATH>]",
+      "optional_flags": [
+        { "flag": "--grep", "type": "string", "description": "Grep pattern for tests." },
+        { "flag": "--worktree", "type": "string", "description": "Path to worktree." }
+      ]
+    },
+    "gh conflicts": {
+      "description": "Runs a global check across the repository to detect any active PR merge conflicts.",
+      "exact_usage": "python3 boomtick-pkg/cli/dev_tools/td_cli.py gh conflicts",
+      "required_flags": [],
+      "expected_output": "A list of conflicting files and branches. Does not resolve conflicts."
+    },
+    "gh resolve-conflicts": {
+      "description": "Sets up a separate git worktree, checks out the PR branch, and attempts to merge the target branch to surface conflicts for resolution.",
+      "exact_usage": "python3 boomtick-pkg/cli/dev_tools/td_cli.py gh resolve-conflicts --pr <PR_NUMBER>",
+      "required_flags": [
+        {
+          "flag": "--pr",
+          "type": "integer",
+          "description": "The GitHub Pull Request ID."
+        }
+      ]
+    },
+    "gh detect-conflicts": {
+      "description": "Detects conflicts for a single, specific Pull Request.",
+      "exact_usage": "python3 boomtick-pkg/cli/dev_tools/td_cli.py gh detect-conflicts --pr <PR_NUMBER>",
+      "required_flags": [
+        {
+          "flag": "--pr",
+          "type": "integer",
+          "description": "The GitHub Pull Request ID (e.g., 2280)"
+        }
+      ]
+    },
+    "gh status-board": {
+      "description": "Retrieves the current high-level status board for open PRs and background tasks.",
+      "exact_usage": "python3 boomtick-pkg/cli/dev_tools/td_cli.py gh status-board",
+      "required_flags": []
+    },
+    "gh overlaps": {
+      "description": "Identify and propose consolidation of PRs with high functional or structural overlap.",
+      "exact_usage": "python3 boomtick-pkg/cli/dev_tools/td_cli.py gh overlaps [--limit <LIMIT>]",
+      "optional_flags": [
+        {
+          "flag": "--limit",
+          "type": "integer",
+          "description": "Maximum number of open PRs to process (default: 50)."
+        },
+        {
+          "flag": "--no-cache",
+          "type": "boolean",
+          "description": "Bust the cache and force fetching data from GitHub."
+        }
+      ]
+    },
+    "gh audit-pr": {
+      "description": "Perform an automated audit on a specific Pull Request.",
+      "exact_usage": "python3 boomtick-pkg/cli/dev_tools/td_cli.py gh audit-pr <PR_NUMBER> --fetch --audit --submit --cleanup --execute",
+      "examples": [
+        "python3 boomtick-pkg/cli/dev_tools/td_cli.py gh audit-pr 2280 --fetch --audit --submit --execute",
+        "python3 boomtick-pkg/cli/dev_tools/td_cli.py gh audit-pr 2280 --fetch"
+      ],
+      "required_arguments": [
+        {
+          "name": "pr_number",
+          "type": "integer",
+          "description": "The GitHub Pull Request ID."
+        }
+      ],
+      "optional_flags": [
+        {
+          "flag": "--fetch",
+          "type": "boolean",
+          "description": "Fetch PR details and diffs."
+        },
+        {
+          "flag": "--audit",
+          "type": "boolean",
+          "description": "Run heuristic-based audit."
+        },
+        {
+          "flag": "--submit",
+          "type": "boolean",
+          "description": "Submit the audit results as a comment."
+        },
+        {
+          "flag": "--cleanup",
+          "type": "boolean",
+          "description": "Clean up temporary audit files."
+        },
+        {
+          "flag": "--execute",
+          "type": "boolean",
+          "description": "Run without dry-run mode (default is --dry-run)."
+        },
+        {
+          "flag": "--event",
+          "type": "string",
+          "description": "The type of GitHub event (e.g., COMMENT)."
+        }
+      ]
+    },
+    "gh manage-reviews": {
+      "description": "Check and manage responses to automated PR reviews.",
+      "exact_usage": "python3 boomtick-pkg/cli/dev_tools/td_cli.py gh manage-reviews --check-responses --execute",
+      "optional_flags": [
+        {
+          "flag": "--check-responses",
+          "type": "boolean",
+          "description": "Verify if feedback responses have been addressed."
+        },
+        {
+          "flag": "--cleanup-comments",
+          "type": "boolean",
+          "description": "Remove stale audit comments."
+        },
+        {
+          "flag": "--execute",
+          "type": "boolean",
+          "description": "Run without dry-run mode (default is --dry-run)."
+        }
+      ]
+    },
+    "gh pre-submit": {
+      "description": "Run automated repository validation and quality gates prior to code submission.",
+      "exact_usage": "python3 boomtick-pkg/cli/dev_tools/td_cli.py gh pre-submit",
+      "required_flags": []
+    },
+    "gh create-issue": {
+      "description": "Creates a new GitHub issue using a title and a markdown file for the body.",
+      "exact_usage": "python3 boomtick-pkg/cli/dev_tools/td_cli.py gh create-issue --title <TITLE> --file <PATH_TO_BODY_FILE>",
+      "required_flags": [
+        { "flag": "--title", "type": "string", "description": "The title of the issue." },
+        { "flag": "--file", "type": "string", "description": "Path to the Markdown file containing the issue body." }
+      ]
+    },
+    "gh validate-issue": {
+      "description": "Validates that a GitHub issue follows the Spec-Driven Issue Template.",
+      "exact_usage": "python3 boomtick-pkg/cli/dev_tools/td_cli.py gh validate-issue --issue-number <ISSUE_NUMBER> --execute",
+      "optional_flags": [
+        {
+          "flag": "--issue-number",
+          "type": "integer",
+          "description": "The GitHub issue number to validate."
+        },
+        {
+          "flag": "--all-open",
+          "type": "boolean",
+          "description": "Validate all open issues."
+        },
+        {
+          "flag": "--post-comments",
+          "type": "boolean",
+          "description": "Post validation results as comments on the issue."
+        },
+        {
+          "flag": "--execute",
+          "type": "boolean",
+          "description": "Run without dry-run mode (default is --dry-run)."
+        }
+      ]
+    },
+    "agent fix-ci": {
+      "description": "Initialize an AI agent (Jules) session to fix CI failures for a PR or branch.",
+      "exact_usage": "python3 boomtick-pkg/cli/dev_tools/td_cli.py agent fix-ci --pr-number <PR_NUMBER> --execute",
+      "optional_flags": [
+        {
+          "flag": "--pr-number",
+          "type": "integer",
+          "description": "The PR number to fix CI for."
+        },
+        {
+          "flag": "--branch",
+          "type": "string",
+          "description": "The branch name to fix CI for (if no PR exists)."
+        },
+        {
+          "flag": "--execute",
+          "type": "boolean",
+          "description": "Run without dry-run mode (default is --dry-run)."
+        }
+      ]
+    },
+    "agent dispatch": {
+      "description": "Initialize a Jules session for a specific branch and task.",
+      "exact_usage": "python3 boomtick-pkg/cli/dev_tools/td_cli.py agent dispatch <BRANCH> <TASK>",
+      "required_arguments": [
+        {
+          "name": "branch",
+          "type": "string",
+          "description": "The target branch for the task."
+        },
+        {
+          "name": "task",
+          "type": "string",
+          "description": "The task description for Jules."
+        }
+      ]
+    },
+    "agent sync": {
+      "description": "Sync and list active agent sessions.",
+      "exact_usage": "python3 boomtick-pkg/cli/dev_tools/td_cli.py agent sync",
+      "required_flags": []
+    },
+    "agent messages": {
+      "description": "Retrieve message history for a specific agent session.",
+      "exact_usage": "python3 boomtick-pkg/cli/dev_tools/td_cli.py agent messages <SESSION_ID>",
+      "required_arguments": [
+        {
+          "name": "session_id",
+          "type": "string",
+          "description": "The ID of the Jules session."
+        }
+      ]
+    },
+    "agent send": {
+      "description": "Send a message to an active agent session.",
+      "exact_usage": "python3 boomtick-pkg/cli/dev_tools/td_cli.py agent send <SESSION_ID> <MESSAGE>",
+      "required_arguments": [
+        {
+          "name": "session_id",
+          "type": "string",
+          "description": "The ID of the Jules session."
+        },
+        {
+          "name": "message",
+          "type": "string",
+          "description": "The message text to send."
+        }
+      ]
+    }
+  }
+}

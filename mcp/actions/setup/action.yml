@@ -1,0 +1,22 @@
+name: BoomTick Setup
+description: Installs node/pnpm, workspace dependencies, td CLI and builds MCP server
+runs:
+  using: composite
+  steps:
+    - uses: ./.github/actions/setup-node-pnpm
+
+    - name: Install workspace dependencies
+      run: pnpm install --frozen-lockfile
+      shell: bash
+
+    - name: Install td CLI
+      run: pip install -e ./boomtick-pkg/cli --break-system-packages
+      shell: bash
+
+    - name: Build MCP server
+      run: pnpm --filter ./boomtick-pkg/mcp build
+      shell: bash
+
+    - name: Verify td CLI
+      run: td doctor
+      shell: bash

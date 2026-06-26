@@ -1,0 +1,59 @@
+{
+  "core_dirs": [
+    "src/layouts/",
+    "src/components/"
+  ],
+  "monolithic_pr_threshold": 3,
+  "base_branch": "origin/main",
+  "max_diff_chars": 40000,
+  "content_scopes": {
+    "resources": "content/resources/",
+    "posts": "content/posts/",
+    "blog": "content/blog/",
+    "studies": "content/studies/"
+  },
+  "ai_synthesis_model": "gpt-4o-mini",
+  "ai_review_model": "gpt-4o",
+  "ai_vision_model": "gpt-4o",
+  "ui_indicators": [
+    "src/components",
+    "src/pages",
+    "src/layouts",
+    "src/index.css",
+    "tailwind"
+  ],
+  "tailwind_indicators": [
+    "px-",
+    "py-",
+    "mt-",
+    "flex",
+    "grid",
+    "text-["
+  ],
+  "audit_check_dirs": [
+    "src/features",
+    "src/pages",
+    "src/components",
+    "src/layouts",
+    "src/App.tsx"
+  ],
+  "allowed_bots": [
+    "github-actions[bot]",
+    "tech-dancer-bot",
+    "ariii"
+  ],
+  "worktree_prefix": "tech-dancer-repair-",
+  "spec_sections": [
+    "Problem Statement",
+    "Goal",
+    "Non-Goals",
+    "Proposed Approach",
+    "Alternatives Considered",
+    "Architectural Impact",
+    "Scope",
+    "UNDERSTAND THE ISSUE",
+    "DETERMINE APPROACH",
+    "SPECIFY SCOPE",
+    "DEFINITION OF DONE"
+  ]
+}

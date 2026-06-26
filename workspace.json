@@ -1,0 +1,11 @@
+{
+  "$schema": "./workspace-schema.json",
+  "name": "boomtick-pkg",
+  "version": "0.1.0",
+  "type": "monorepo-package",
+  "description": "BoomTick developer tools and MCP package",
+  "scripts": {
+    "install": "bash install.sh",
+    "install:cli": "bash install.sh --no-mcp"
+  }
+}
