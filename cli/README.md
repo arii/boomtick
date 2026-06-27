@@ -87,7 +87,7 @@ After `./dev-tools/setup-agent.sh`, use the following workflow-specific setup:
 
 `.agent-context.json` (repository root) is the pre-built index that
 `boomtick-mcp` reads on every tool call. It contains `file_tree`, `cli_schema`,
-and `package_json` metadata — built by `scripts/build-repo-context.py`.
+and `package_json` metadata — built by `boomtick-pkg/scripts/build-repo-context.py`.
 
 **The index is kept fresh automatically** by the git hooks registered during
 `./setup-agent.sh`:

@@ -12,7 +12,7 @@ Before executing **any** command, agents MUST:
 
 1. **Consult `.agent-context.json`** — ground truth for repository structure,
    `file_tree`, `cli_schema`, current feature flags, and metadata. This file is
-   built by `scripts/build-repo-context.py` and kept fresh by the git hooks in
+   built by `boomtick-pkg/scripts/build-repo-context.py` and kept fresh by the git hooks in
    `.githooks/`.
 2. **Consult `boomtick-pkg/cli/dev_tools/cli-schema.json`** — canonical authority for local CLI
    commands. Never guess flags. Never run `--help`. The schema is also embedded
@@ -110,7 +110,7 @@ repo.read_agent_context
 ### Why This Matters
 
 `.agent-context.json` contains the full `file_tree` and `cli_schema` already
-indexed by `scripts/build-repo-context.py`. Using `repo.read_agent_context`
+indexed by `boomtick-pkg/scripts/build-repo-context.py`. Using `repo.read_agent_context`
 provides pre-indexed structure for free — no redundant filesystem traversal,
 no duplicate diff fetches, no re-indexing on every run.
 
