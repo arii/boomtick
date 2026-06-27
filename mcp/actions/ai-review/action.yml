@@ -9,5 +9,7 @@ runs:
   steps:
     - uses: ./boomtick-pkg/mcp/actions/setup
     - name: AI review
-      run: td gh audit-pr ${{ inputs.pr_number }} --fetch --audit
+      env:
+        PR_NUMBER: ${{ inputs.pr_number }}
+      run: td gh audit-pr "$PR_NUMBER" --fetch --audit
       shell: bash

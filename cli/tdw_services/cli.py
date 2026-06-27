@@ -52,6 +52,11 @@ def _handle_unexpected_error(ctx, command_name, e):
     err(ctx, f"An unexpected error occurred in {command_name}.")
 
 def _get_body_content(ctx, orch, file, body):
+    if file and body:
+        err(ctx, "Provide --file or --body, not both")
+    if not file and not body:
+        err(ctx, "Provide either --file or --body")
+
     content = body if body is not None else (orch._read_safe_file(file) if file else None)
     if content is None:
         err(ctx, "Provide --file or --body")
@@ -186,10 +191,6 @@ def audit_pr(ctx, pr_number, fetch, run_audit, submit, cleanup, dry_run, base, e
 @click.pass_context
 def create_issue(ctx, title, file, body):
     """Create a new GitHub issue."""
-    if file and body:
-        err(ctx, "Provide --file or --body, not both")
-    if not file and not body:
-        err(ctx, "Provide either --file or --body")
     orch = ctx.obj['ORCHESTRATOR']
     try:
         content = _get_body_content(ctx, orch, file, body)
@@ -222,10 +223,6 @@ def issue_view(ctx, issue_number):
 @click.pass_context
 def issue_update(ctx, issue_number, file, body):
     """Update a GitHub issue's body."""
-    if file and body:
-        err(ctx, "Provide --file or --body, not both")
-    if not file and not body:
-        err(ctx, "Provide either --file or --body")
     orch = ctx.obj['ORCHESTRATOR']
     try:
         content = _get_body_content(ctx, orch, file, body)
@@ -243,10 +240,6 @@ def issue_update(ctx, issue_number, file, body):
 @click.pass_context
 def issue_comment(ctx, issue_number, file, body):
     """Post a comment to a GitHub issue."""
-    if file and body:
-        err(ctx, "Provide --file or --body, not both")
-    if not file and not body:
-        err(ctx, "Provide either --file or --body")
     orch = ctx.obj['ORCHESTRATOR']
     try:
         content = _get_body_content(ctx, orch, file, body)
@@ -317,6 +310,48 @@ def resolve_conflicts(ctx, pr, allow_unrelated, strategy, push):
         out(ctx, res['message'], data=res)
     except CLIError as e:
         err(ctx, str(e), code=e.code)
+
+@gh.command()
+@click.argument('diff_input', required=False)
+@click.pass_context
+def verify_versions(ctx, diff_input):
+    """Verify version changes in a diff for downgrades or hard blocks."""
+    import subprocess
+    import tempfile
+    script_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'verify_versions.py')
+
+    if not diff_input:
+        # If no input provided, try to get diff against main
+        try:
+            diff_input = run_command(["git", "diff", PROJECT_CONFIG.base_branch])
+        except Exception as e:
+            err(ctx, f"Failed to get git diff: {e}")
+
+    # Use a temporary file to avoid E2BIG/ARG_MAX issues with large diffs
+    with tempfile.NamedTemporaryFile(mode='w', delete=False) as tmp:
+        tmp.write(diff_input)
+        tmp_path = tmp.name
+
+    cmd = [sys.executable, script_path, tmp_path]
+    try:
+        proc = subprocess.run(cmd, capture_output=True, text=True)
+        os.unlink(tmp_path)
+        if proc.stdout:
+            try:
+                findings = json.loads(proc.stdout)
+                if findings:
+                    status = "error" if any(f['severity'] == 'error' for f in findings) else "success"
+                    out(ctx, f"Found {len(findings)} version issues.", data={"status": status, "findings": findings})
+                    if status == "error":
+                        sys.exit(1)
+                else:
+                    out(ctx, "✅ No version issues detected.", data={"status": "success", "findings": []})
+            except json.JSONDecodeError:
+                err(ctx, f"Invalid validator output: {proc.stdout}")
+        else:
+            err(ctx, f"Validator failed: {proc.stderr}")
+    except Exception as e:
+        err(ctx, f"Error running validator: {e}")
 
 @gh.command()
 @click.option('--pr', type=int)
@@ -449,6 +484,26 @@ def doctor(ctx):
         out(ctx, f"✅ Runtime OK: node {res['node']}, pnpm {res['pnpm']}", data=res)
     except CLIError as e:
         err(ctx, str(e), code=e.code)
+
+@gh.command()
+@click.pass_context
+def verify_metrics(ctx):
+    """Verify CI metrics against established thresholds."""
+    orch = ctx.obj['ORCHESTRATOR']
+    res = orch.verify_ci_metrics()
+    if res['status'] == 'error':
+        err(ctx, res['message'], data=res)
+    else:
+        out(ctx, res['message'], data=res)
+
+@gh.command()
+@click.pass_context
+def summary_report(ctx):
+    """Generate a markdown report of CI metrics for GHA Step Summary."""
+    orch = ctx.obj['ORCHESTRATOR']
+    report = orch.generate_ci_summary_report()
+    # Always print as raw text to stdout for GHA redirection
+    click.echo(report)
 
 @gh.command()
 @click.pass_context

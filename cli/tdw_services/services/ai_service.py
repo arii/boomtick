@@ -15,6 +15,7 @@ from utils import (
     get_ai_model,
     get_ai_review_model,
     get_ai_synthesis_model,
+    get_stack_versions,
     get_gemini_model
 )
 from tdw_services.services.dependency_graph import DependencyGraph
@@ -162,6 +163,33 @@ class AIClient:
 
             if "<<<<<<<" in resolved:
                 return False
+
+            # Post-processing: Prevent version downgrades in resolved conflict
+            try:
+                # Files that define runtime/dependency versions
+                sensitive_files = [".nvmrc", ".node-version", "package.json", ".github/workflows/"]
+                if any(sf in file_path for sf in sensitive_files):
+                    from verify_versions import parse_diff, verify_changes
+
+                    # Synthesize a diff representing the new content to validate it against HEAD versions.
+                    # We treat lines in the new file as additions to ensure the validator
+                    # catches any version mentioned in the file that might be a downgrade from HEAD.
+                    diff_lines = [f"+++ b/{file_path}"]
+                    for line in resolved.splitlines():
+                        line = line.strip()
+                        # We only care about lines that look like version assignments/usage
+                        if any(kw in line for kw in ["node", "pnpm", "uses:", "@v", "packageManager"]):
+                             diff_lines.append(f"+{line}")
+
+                    if len(diff_lines) > 1:
+                        # Re-use the validation logic on the synthesized diff
+                        findings = verify_changes(parse_diff("\n".join(diff_lines)))
+                        if any(f["severity"] == "error" for f in findings):
+                             log_error(f"AI-generated resolution for {file_path} contains version violations: {findings}")
+                             # Re-try or block to prevent regression
+                             return False
+            except Exception as e:
+                log_warn(f"Failed to post-process AI resolution for {file_path}: {e}")
 
             with open(file_path, 'w') as f:
                 f.write(resolved)
@@ -353,12 +381,17 @@ class AIClient:
         context = self._get_context_for_chunk(chunk)
         context_section = f"\n\n## Repository Context\n{context}" if context else ""
 
+        stack_versions = get_stack_versions(fetch_latest=True)
+        versions_block = "\n".join([f"- {k}: {v}" for k, v in stack_versions.items()])
+
         return (
             f'You are a strict code reviewer. Review ONLY the diff below for file "{chunk["file"]}".\n'
             f'PR title: {pr_title}\n'
             f'CI status: {checks_summary}\n'
+            f'\n## Current Stack Versions (Source of Truth)\n{versions_block}\n'
             f'{context_section}\n\n'
             f'Rules:\n'
+            f'- DO NOT suggest downgrading any versions listed in the "Current Stack Versions" section.\n'
             f'- Flag ONLY real problems: bugs, type unsafety, broken logic, design rule violations.\n'
             f'- Use severity "error" for blocking issues, "warn" for improvements, "info" for nits.\n'
             f'- Set verdict to "ok" (no issues), "needs_changes" (warn/info only), or "blocking" (any error).\n'

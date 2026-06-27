@@ -8,6 +8,7 @@ import urllib.error
 import urllib.parse
 import re
 import random
+from pathlib import Path
 from typing import Optional, Union, List, Dict
 try:
     from tdw_services.utils import log_info, log_error, log_warn
@@ -180,6 +181,74 @@ def call_github_models(prompt: str, model: str = None, max_retries: int = 3, sch
 
     return res["choices"][0]["message"]["content"] if res and "choices" in res else None
 
+def verify_ci_metrics(input_threshold: Optional[int] = None, output_threshold: Optional[int] = None, total_threshold: Optional[int] = None):
+    """Verifies that the aggregated AI token usage in the current run is within limits."""
+    # Use environment variables if provided, otherwise use documented defaults
+    # Note: Docs specify 150k input, 50k output, 200k total.
+    def get_limit(val, env_key, default):
+        if val is not None: return int(val)
+        try:
+            return int(os.environ.get(env_key, default))
+        except (ValueError, TypeError):
+            return default
+
+    input_limit = get_limit(input_threshold, "MAX_INPUT_TOKENS", 150000)
+    output_limit = get_limit(output_threshold, "MAX_OUTPUT_TOKENS", 50000)
+    total_limit = get_limit(total_threshold, "MAX_TOTAL_TOKENS", 200000)
+
+    # Threshold validation
+    if input_limit < 0 or output_limit < 0 or total_limit < 0:
+        raise CLIError("Thresholds must be non-negative integers.")
+
+    # Use Path for robust path resolution
+    log_file = Path(os.getcwd()) / "boomtick-pkg" / "cli" / "logs" / "ai" / "review-run.jsonl"
+
+    if not log_file.exists():
+        # In multi-job CI, this might happen if logs weren't shared.
+        return {"status": "warning", "message": f"No AI usage logs found at {log_file}. Ensure logs are shared between jobs."}
+
+    total_input = 0
+    total_output = 0
+
+    try:
+        with log_file.open("r") as f:
+            for line in f:
+                if not line.strip(): continue
+                entry = json.loads(line)
+                total_input += entry.get("inputTokens", 0)
+                total_output += entry.get("outputTokens", 0)
+    except Exception as e:
+        log_error(f"Failed to read AI logs: {e}")
+        return {"status": "error", "message": f"Could not verify metrics: {e}"}
+
+    total_tokens = total_input + total_output
+
+    result = {
+        "inputTokens": total_input,
+        "outputTokens": total_output,
+        "totalTokens": total_tokens,
+        "inputThreshold": input_limit,
+        "outputThreshold": output_limit,
+        "totalThreshold": total_limit
+    }
+
+    errors = []
+    if total_input > input_limit:
+        errors.append(f"Input tokens ({total_input}) exceeded limit ({input_limit})")
+    if total_output > output_limit:
+        errors.append(f"Output tokens ({total_output}) exceeded limit ({output_limit})")
+    if total_tokens > total_limit:
+        errors.append(f"Total tokens ({total_tokens}) exceeded limit ({total_limit})")
+
+    if errors:
+        return {
+            "status": "error",
+            "message": "AI Token threshold exceeded: " + "; ".join(errors),
+            "metrics": result
+        }
+
+    return {"status": "success", "message": "AI Token usage is within limits.", "metrics": result}
+
 def call_gemini(prompt: str, model: str = None, max_retries: int = 3, schema = None) -> Optional[str]:
     """Unified helper to call Gemini API using LangChain."""
     try:
@@ -299,6 +368,7 @@ class GHAConfigManager:
         if getattr(self, "_initialized", False):
             return
         try:
+            # nosemgrep: python.lang.compatibility.python37.python37-compatibility-importlib2
             from importlib.resources import files
             self.config_path = "config.json"
             self.config = json.loads(files("dev_tools").joinpath("config.json").read_text())
@@ -495,3 +565,23 @@ def get_github_client():
     if not token:
         raise CLIError("GitHub token not found", code=401)
     return Github(auth=Auth.Token(token))
+
+def get_stack_versions(fetch_latest: bool = False) -> Dict[str, str]:
+    from version_utils import get_stack_versions as _get
+    return _get(fetch_latest=fetch_latest)
+
+def compare_versions(v1: str, v2: str) -> int:
+    from version_utils import compare_versions as _cmp
+    return _cmp(v1, v2)
+
+def fetch_latest_npm(package_name: str) -> Optional[str]:
+    from version_utils import fetch_latest_npm as _fetch
+    return _fetch(package_name)
+
+def fetch_latest_gh_action(action_path: str) -> Optional[str]:
+    from version_utils import fetch_latest_gh_action as _fetch
+    return _fetch(action_path)
+
+def fetch_latest_node() -> Optional[str]:
+    from version_utils import fetch_latest_node as _fetch
+    return _fetch()

@@ -6,7 +6,7 @@ ai_reviewer.py - Standalone AI Code Reviewer CLI
 import os
 import sys
 import argparse
-from utils import call_ai
+from utils import call_ai, get_stack_versions
 from dev_tools_sdk.config import load_project_config
 
 PROJECT_CONFIG = load_project_config()
@@ -45,7 +45,21 @@ def review_file(file_path, silent=False):
         print(f"Error reading file {file_path}: {e}", file=sys.stderr)
         sys.exit(1)
 
-    prompt = f"Please review the following code:\n\n```\n{content}\n```"
+    try:
+        stack_versions = get_stack_versions(fetch_latest=True)
+    except Exception as e:
+        print(f"Warning: Failed to extract stack versions: {e}", file=sys.stderr)
+        stack_versions = {}
+
+    versions_block = "\n".join([f"- {k}: {v}" for k, v in stack_versions.items()]) if stack_versions else "Unknown"
+
+    prompt = (
+        f"You are a strict code reviewer.\n"
+        f"## Current Stack Versions (Source of Truth)\n{versions_block}\n\n"
+        f"Rules:\n"
+        f"- DO NOT suggest downgrading any versions listed in the 'Current Stack Versions' section.\n\n"
+        f"Please review the following code:\n\n```\n{content}\n```"
+    )
 
     if not silent:
         print(f"--- Reviewing {file_path} using AI service ---")

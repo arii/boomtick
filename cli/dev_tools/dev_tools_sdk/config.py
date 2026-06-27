@@ -72,6 +72,7 @@ def load_project_config(path: str | Path = "project_config.json") -> ProjectConf
             pass
     else:
         try:
+            # nosemgrep: python.lang.compatibility.python37.python37-compatibility-importlib2
             from importlib.resources import files
             raw = json.loads(files("dev_tools").joinpath("project_config.json").read_text())
         except Exception:

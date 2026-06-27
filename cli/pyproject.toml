@@ -9,6 +9,7 @@ description = "BoomTick CLI — agentic dev-tools for GitHub + AI workflows"
 requires-python = ">=3.8"
 dependencies = [
     "requests>=2.0.0",
+    "packaging>=21.3",
     "google-genai",
     "python-dotenv",
     "pydantic",

@@ -39,10 +39,10 @@ SPEC_SECTIONS = PROJECT_CONFIG.spec_sections
 UI_INDICATORS = PROJECT_CONFIG.ui_indicators
 
 class Orchestrator:
-    def __init__(self):
-        self._github = None
-        self._ai = None
-        self._jules = None
+    def __init__(self) -> None:
+        self._github: Optional[GitHubClient] = None
+        self._ai: Optional[AIClient] = None
+        self._jules: Optional[JulesClient] = None
 
     @property
     def github(self) -> GitHubClient:
@@ -65,7 +65,7 @@ class Orchestrator:
     def _hash_content(self, content: str) -> str:
         return hashlib.md5(content.encode('utf-8')).hexdigest()
 
-    def _cleanup_worktree(self, worktree_path: str):
+    def _cleanup_worktree(self, worktree_path: str) -> None:
         """Robustly cleans up a git worktree and its directory."""
         # Unregister and attempt to remove the worktree via git
         run_command(["git", "worktree", "remove", "-f", worktree_path], check=False, log_on_error=False)
@@ -232,7 +232,7 @@ class Orchestrator:
         if val is not None and str(val).strip() != "": return int(val)
         return fallback_value
 
-    def get_audit_results(self, content: str = None, targets: list[str] = None):
+    def get_audit_results(self, content: Optional[str] = None, targets: Optional[List[str]] = None) -> Dict[str, Any]:
         cmd = ["node", "scripts/detect-antipatterns.mjs", "--json"]
         if targets:
             cmd.extend(targets)
@@ -244,13 +244,13 @@ class Orchestrator:
         except json.JSONDecodeError:
             return {"violations": {}, "config": {}}
 
-    def extract_code_blocks(self, text: str) -> list[str]:
+    def extract_code_blocks(self, text: str) -> List[str]:
         return re.findall(r'```(?:tsx?|jsx?|html)?\n(.*?)```', text, re.DOTALL)
 
-    def get_pr_files(self, pr) -> set[str]:
+    def get_pr_files(self, pr: Any) -> set[str]:
         return {f.filename for f in pr.get_files()}
 
-    def detect_conflicts(self, target_pr_num=None):
+    def detect_conflicts(self, target_pr_num: Optional[int] = None) -> Dict[Tuple[int, ...], List[str]]:
         repo = get_github_client().get_repo(get_repo_name())
         open_prs = list(repo.get_pulls(state='open'))
         file_to_prs = defaultdict(list)
@@ -263,7 +263,7 @@ class Orchestrator:
                 conflicts[tuple(sorted(prs))].append(filename)
         return conflicts
 
-    def _has_spec_section(self, section_name, text):
+    def _has_spec_section(self, section_name: str, text: str) -> bool:
         """Robustly checks for the presence of a markdown section or numbered list item."""
         # Matches markdown headers (# Section Name) or numbered items (1. SECTION NAME)
         header_pattern = rf"^\s*#+\s*{re.escape(section_name)}\b"
@@ -292,7 +292,7 @@ class Orchestrator:
         with open(abs_path, 'r', encoding='utf-8') as f:
             return f.read()
 
-    def create_issue(self, title: str, body: str) -> Dict[str, Any]:
+    def create_issue(self, title: str, body: Optional[str]) -> Dict[str, Any]:
         """
         Creates a new GitHub issue.
         """
@@ -312,7 +312,7 @@ class Orchestrator:
         except Exception as e:
             raise CLIError(f"Failed to fetch GitHub issue details: {str(e)}")
 
-    def update_issue_body(self, issue_number: int, body: str) -> Dict[str, Any]:
+    def update_issue_body(self, issue_number: int, body: Optional[str]) -> Dict[str, Any]:
         """
         Updates an issue's body.
         """
@@ -323,11 +323,11 @@ class Orchestrator:
         except Exception as e:
             raise CLIError(f"Failed to update GitHub issue body: {str(e)}")
 
-    def post_comment(self, entity_number: int, body: str) -> Dict[str, Any]:
+    def post_comment(self, entity_number: int, body: Optional[str]) -> Dict[str, Any]:
         """
         Posts a comment to a Pull Request or Issue.
         """
-        if not body or not body.strip():
+        if body is None or not body.strip():
             raise CLIError("Comment body cannot be empty.")
         try:
             return self.github.create_issue_comment(entity_number, body)
@@ -397,14 +397,14 @@ class Orchestrator:
 
         return {"status": "success" if total_findings == 0 else "error", "issues": results, "total_findings": total_findings}
 
-    def handle_detect_conflicts(self, pr_num=None):
+    def handle_detect_conflicts(self, pr_num: Optional[int] = None) -> List[Dict[str, Any]]:
         conflicts = self.detect_conflicts(pr_num)
         formatted = []
         for pr_pair, files in conflicts.items():
             formatted.append({"prs": list(pr_pair), "files": files})
         return formatted
 
-    def handle_status_board(self):
+    def handle_status_board(self) -> List[Dict[str, Any]]:
         repo = get_github_client().get_repo(get_repo_name())
         prs_data = []
         for pr in repo.get_pulls(state='open'):
@@ -412,7 +412,7 @@ class Orchestrator:
             prs_data.append({"branch": pr.head.ref, "issue": issue, "status": "Draft" if pr.draft else "Open", "number": pr.number})
         return prs_data
 
-    def ratchet_any(self, update=False, baseline_file=None, dry_run=True):
+    def ratchet_any(self, update: bool = False, baseline_file: Optional[str] = None, dry_run: bool = True) -> Dict[str, Any]:
         current = get_any_count()
         baseline = self.resolve_baseline(baseline_file, 'ANY_COUNT_BASELINE', 0)
         res = {"current": current, "baseline": baseline, "status": "success" if current <= baseline else "error"}
@@ -425,7 +425,7 @@ class Orchestrator:
             res["updated"] = not dry_run
         return res
 
-    def check_bundle_size(self, update=False, baseline_file=None, threshold=50, dry_run=True):
+    def check_bundle_size(self, update: bool = False, baseline_file: Optional[str] = None, threshold: int = 50, dry_run: bool = True) -> Dict[str, Any]:
         size = get_bundle_size()
         baseline = self.resolve_baseline(baseline_file, 'BUNDLE_BASELINE_KB', 3080)
         threshold_kb = baseline + threshold
@@ -439,7 +439,7 @@ class Orchestrator:
             res["updated"] = not dry_run
         return res
 
-    def migrate_tokens(self, find=None, migrate=None, dry_run=True):
+    def migrate_tokens(self, find: Optional[str] = None, migrate: Optional[Tuple[str, str]] = None, dry_run: bool = True) -> List[Dict[str, Any]]:
         root_dir = 'src'; matches = []
         if find:
             for filepath in walk_tsx(root_dir):
@@ -456,7 +456,7 @@ class Orchestrator:
                         with open(filepath, 'w') as f: f.write(c.replace(old, new))
         return matches
 
-    def update_issues(self, dry_run=True):
+    def update_issues(self, dry_run: bool = True) -> List[Dict[str, Any]]:
         repo = get_github_client().get_repo(get_repo_name()); updates = []
         audit_base = self.get_audit_results(content=""); config = audit_base.get("config", {})
         deprecated = config.get("deprecated", {})
@@ -474,7 +474,7 @@ class Orchestrator:
                 if not dry_run: issue.create_comment("## 🤖 Automated Issue Update\n\n" + "\n".join(f"- {f}" for f in findings) + "\n\n---\n*Generated by `td_cli update-issues`*")
         return updates
 
-    def audit_pr(self, pr_number: int, fetch: bool = False, audit: bool = False, submit: bool = False, cleanup: bool = False, dry_run: bool = True, event=None):
+    def audit_pr(self, pr_number: int, fetch: bool = False, audit: bool = False, submit: bool = False, cleanup: bool = False, dry_run: bool = True, event: Optional[str] = None) -> Dict[str, Any]:
         review_dir = os.path.join(os.getcwd(), "boomtick-pkg", "cli", "logs", "reviews")
         ctx_path = os.path.join(review_dir, f"pr-context-{pr_number}.md"); rev_path = os.path.join(review_dir, f"pr-review-{pr_number}.md")
         res = {"pr": pr_number, "files": {}}
@@ -578,7 +578,7 @@ class Orchestrator:
         handler = CommandHandler(self)
         return handler.handle(pr_number, command, comment_id)
 
-    def runtime_check(self):
+    def runtime_check(self) -> Dict[str, str]:
         """Ensures the runtime environment matches the contract."""
         run_command(["corepack", "enable"], check=False)
         run_command(["corepack", "prepare", "pnpm@10.28.2", "--activate"], check=False)
@@ -620,8 +620,41 @@ class Orchestrator:
 
         return {"node": actual_node, "pnpm": actual_pnpm}
 
-    def pre_submit_checks(self):
-        results = {"steps": []}
+
+    def verify_ci_metrics(self, **kwargs):
+        """Verifies CI metrics against predefined thresholds."""
+        from dev_tools.utils import verify_ci_metrics
+        return verify_ci_metrics(**kwargs)
+
+    def generate_ci_summary_report(self):
+        """Generates a markdown summary of CI metrics."""
+        metrics_res = self.verify_ci_metrics()
+
+        report = ["## 📊 CI Metrics Verification"]
+
+        if metrics_res['status'] == 'error':
+            report.append(f"❌ **FAILED**: {metrics_res['message']}")
+        elif metrics_res['status'] == 'warning':
+            report.append(f"⚠️  **WARNING**: {metrics_res['message']}")
+        else:
+            report.append("✅ **PASSED**: All metrics within limits.")
+
+        if 'metrics' in metrics_res:
+            m = metrics_res['metrics']
+            report.append("\n### AI Token Usage")
+            report.append(f"- **Input:** {m['inputTokens']} / {m['inputThreshold']}")
+            report.append(f"- **Output:** {m['outputTokens']} / {m['outputThreshold']}")
+            report.append(f"- **Total:** {m['totalTokens']} / {m['totalThreshold']}")
+
+            report.append("\n<details><summary>Raw Metrics JSON</summary>\n")
+            report.append("```json")
+            report.append(json.dumps(metrics_res, indent=2))
+            report.append("```\n</details>")
+
+        return "\n".join(report)
+
+    def pre_submit_checks(self) -> Dict[str, Any]:
+        results: Dict[str, Any] = {"steps": []}
 
         # 1. Runtime Check (Fail Fast)
         try:
@@ -631,7 +664,7 @@ class Orchestrator:
             results["steps"].append({"name": "Runtime Check", "status": "failure", "error": str(e)})
             raise e
 
-        def run_step(name, cmd):
+        def run_step(name: str, cmd: List[str]) -> None:
             try:
                 run_command(cmd)
                 results["steps"].append({"name": name, "status": "success"})
@@ -639,6 +672,7 @@ class Orchestrator:
                 results["steps"].append({"name": name, "status": "failure", "error": str(e)})
                 raise e
         run_step("Anti-Pattern Audit", ["node", "scripts/detect-antipatterns.mjs"])
+        run_step("Version Downgrade Check", [sys.executable, os.path.join(os.path.dirname(os.path.dirname(__file__)), "td_cli.py"), "gh", "verify-versions"])
         run_step("TypeScript", ["pnpm", "run", "type-check"])
         run_step("Lint", ["pnpm", "run", "lint"])
         missing_vars = [v for v in ["BUNDLE_BASELINE_KB", "ANY_COUNT_BASELINE"] if not (os.environ.get(v) or get_gha_variable(v))]
@@ -652,7 +686,7 @@ class Orchestrator:
         except Exception: pass
         return results
 
-    def repair_local(self, logs_path=None, stdin=False, worktree=False):
+    def repair_local(self, logs_path: Optional[str] = None, stdin: bool = False, worktree: bool = False) -> Dict[str, Any]:
         logs_content = ""
         if stdin: logs_content = sys.stdin.read()
         elif logs_path:
@@ -685,7 +719,7 @@ class Orchestrator:
             else: return {"status": "error", "message": f"Repair failed with code {proc.returncode}"}
         finally: os.chdir(original_cwd)
 
-    def handle_audit_gate(self):
+    def handle_audit_gate(self) -> Dict[str, Any]:
         current_count = int(run_command(["node", "scripts/detect-antipatterns.mjs", "--count-only"]) or 0)
         baseline_count = self.resolve_baseline(None, 'AUDIT_BASELINE', -1)
         if baseline_count == -1:
@@ -702,7 +736,7 @@ class Orchestrator:
             except Exception: pass
         return {"current": current_count, "baseline": baseline_count, "status": "success" if current_count <= baseline_count else "error"}
 
-    def fix_ci(self, pr_number=None, branch=None, api_key=None, dry_run=True):
+    def fix_ci(self, pr_number: Optional[int] = None, branch: Optional[str] = None, api_key: Optional[str] = None, dry_run: bool = True) -> Dict[str, Any]:
         repo_name = get_repo_name(); g = get_github_client(); repo = g.get_repo(repo_name)
         if pr_number:
             pr = repo.get_pull(int(pr_number))
@@ -803,7 +837,7 @@ Respond only after the PR is created or updated:
         if pr and not dry_run: pr.create_issue_comment(feedback)
         return {"session": session_name, "branch": branch, "feedback": feedback, "agent_name": agent_name}
 
-    def manage_reviews(self, check_responses=False, cleanup_comments=False, dry_run=True):
+    def manage_reviews(self, check_responses: bool = False, cleanup_comments: bool = False, dry_run: bool = True) -> List[Dict[str, Any]]:
         g = get_github_client(); repo = g.get_repo(get_repo_name()); login = g.get_user().login; prs_data = []
         for pr in repo.get_pulls(state='open', sort='updated', direction='desc'):
             last_review = next((r for r in pr.get_reviews().reversed if r.user.login == login), None)
@@ -820,7 +854,7 @@ Respond only after the PR is created or updated:
             prs_data.append(item)
         return prs_data
 
-    def track_review(self, pr_num, status, auditor, dry_run=True):
+    def track_review(self, pr_num: int, status: str, auditor: str, dry_run: bool = True) -> Dict[str, Any]:
         tracking_file = "REVIEW_TRACKING.md"; now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
         content = open(tracking_file).read() if os.path.exists(tracking_file) else "# PR Review Tracking\n\n| PR | Status | Auditor | Last Updated |\n|----|--------|---------|--------------|\n"
         lines = content.splitlines(); new_lines = []; found = False
@@ -833,7 +867,7 @@ Respond only after the PR is created or updated:
             with open(tracking_file, "w") as f: f.write("\n".join(new_lines) + "\n")
         return {"pr": pr_num, "status": status, "updated": not dry_run}
 
-    def resolve_conflicts_headless(self):
+    def resolve_conflicts_headless(self) -> List[str]:
         files = self.find_conflict_files(); resolved, failed = [], []
         for f in files:
             if self.resolve_conflict(f): resolved.append(f)
@@ -841,7 +875,7 @@ Respond only after the PR is created or updated:
         if failed: raise CLIError(f"Failed to resolve: {', '.join(failed)}")
         return resolved
 
-    def repair_context(self, log=None, log_file=None, pr_number=None):
+    def repair_context(self, log: Optional[str] = None, log_file: Optional[str] = None, pr_number: Optional[int] = None) -> List[str]:
         from error_rag import RAGPipeline
         pipeline = RAGPipeline(); prompts = []
         if log: prompts.append(pipeline.generate_prompt(log))
@@ -864,7 +898,7 @@ Respond only after the PR is created or updated:
                         if p: prompts.append(p)
         return prompts
 
-    def run_ux_audit(self, route=None, all_routes=False, desktop=False, mobile=False, screenshots_only=False, images_only=False, contrast_only=False, overflow_only=False):
+    def run_ux_audit(self, route: Optional[str] = None, all_routes: bool = False, desktop: bool = False, mobile: bool = False, screenshots_only: bool = False, images_only: bool = False, contrast_only: bool = False, overflow_only: bool = False) -> Dict[str, Any]:
         """
         Runs the UX audit suite using Playwright.
         """
@@ -900,7 +934,7 @@ Respond only after the PR is created or updated:
 
         return {"status": "success", "results": results}
 
-    def run_lighthouse(self, route=None):
+    def run_lighthouse(self, route: Optional[str] = None) -> Dict[str, Any]:
         """
         Runs Lighthouse audits.
         """
@@ -916,7 +950,7 @@ Respond only after the PR is created or updated:
         res = run_command(cmd, check=False)
         return {"status": "success" if res.returncode == 0 else "error", "output": res.stdout}
 
-    def generate_ux_report(self):
+    def generate_ux_report(self) -> Dict[str, Any]:
         """
         Aggregates results into a Markdown report.
         """
@@ -1181,7 +1215,7 @@ Respond only after the PR is created or updated:
         """
         Aggregates multiple PRs into a single target branch and creates a consolidated PR.
         """
-        def run(cmd, check=True):
+        def run(cmd: List[str], check: bool = True) -> subprocess.CompletedProcess:
             return run_command(cmd, check=check)
 
         base_branch = PROJECT_CONFIG.base_branch_name
