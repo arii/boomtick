@@ -130,6 +130,14 @@ class GitHubClient:
         """Creates a new GitHub issue."""
         return self._request('POST', f'/repos/{self.repo}/issues', json_data={'title': title, 'body': body})
 
+    def fetch_issue_details(self, number: int) -> Dict[str, Any]:
+        """Fetches the details of a GitHub issue."""
+        return self._request('GET', f'/repos/{self.repo}/issues/{number}')
+
+    def update_issue(self, number: int, body: str) -> Dict[str, Any]:
+        """Updates the body of a GitHub issue."""
+        return self._request('PATCH', f'/repos/{self.repo}/issues/{number}', json_data={'body': body})
+
     def create_review(self, number: int, body: str, comments: List[Dict[str, Any]], event: str) -> Dict[str, Any]:
         data = {
             "body": body,

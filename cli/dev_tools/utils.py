@@ -55,6 +55,10 @@ def get_ai_model() -> str:
         return variant
     return _get_model_config("AI_MODEL", "ai_synthesis_model", "gpt-4o-mini")
 
+def get_gemini_model() -> str:
+    """Dynamic getter for the Gemini model."""
+    return _get_model_config("GEMINI_MODEL", "ai_synthesis_model", "gemini-2.5-flash-lite")
+
 def clean_llm_output(text: str) -> str:
     """Removes markdown code blocks if present."""
     match = re.search(r"```(?:\w+)?\s*\n(.*?)\n\s*```", text, re.DOTALL)
@@ -190,7 +194,7 @@ def call_gemini(prompt: str, model: str = None, max_retries: int = 3, schema = N
         return None
 
     llm = ChatGoogleGenerativeAI(
-        model=model or "gemini-1.5-flash",
+        model=model or get_gemini_model(),
         google_api_key=api_key,
         temperature=0.7,
         max_retries=max_retries,
@@ -222,7 +226,7 @@ def call_ai_service(prompt: str, model: str = None, schema = None) -> Optional[s
 
     return None
 
-def run_command(cmd: Union[str, List[str]], shell: bool = False, check: bool = True, input_str: Optional[str] = None, log_on_error: bool = True) -> Union[str, subprocess.CompletedProcess]:
+def run_command(cmd: Union[str, List[str]], shell: bool = False, check: bool = True, input_str: Optional[str] = None, log_on_error: bool = True, **kwargs) -> Union[str, subprocess.CompletedProcess]:
     """
     Unified command execution helper.
     - If check=True (default): returns stripped stdout string, raises CLIError on non-zero exit.
@@ -234,7 +238,8 @@ def run_command(cmd: Union[str, List[str]], shell: bool = False, check: bool = T
         input=input_str,
         capture_output=True,
         text=True,
-        check=False
+        check=False,
+        **kwargs
     )
     if proc.returncode != 0 and log_on_error:
         log_error(f"Command failed (exit {proc.returncode}): {proc.args}")

@@ -27,6 +27,10 @@ import { runPlaywrightHandler, RunPlaywrightInputSchema } from "../tools/repo.ru
 import { commitPatchHandler, CommitPatchInputSchema } from "../tools/repo.commit_patch.js";
 import { openReplacementPrHandler, OpenReplacementPrInputSchema } from "../tools/github.open_replacement_pr.js";
 import { commentTriageSummaryHandler, CommentTriageSummaryInputSchema } from "../tools/github.comment_triage_summary.js";
+import { createPullRequestHandler, CreatePullRequestInputSchema } from "../tools/github.create_pull_request.js";
+import { issueViewHandler, IssueViewInputSchema } from "../tools/github.issue_view.js";
+import { issueUpdateHandler, IssueUpdateInputSchema } from "../tools/github.issue_update.js";
+import { issueCommentHandler, IssueCommentInputSchema } from "../tools/github.issue_comment.js";
 
 
 import { createJulesSessionHandler, CreateJulesSessionInputSchema } from "../tools/jules/create-session.js";
@@ -428,6 +432,21 @@ export class BoomtickMCPServer {
             },
           },
           {
+            name: "github.create_pull_request",
+            description: "Creates a pull request on GitHub using the MCP server's integrated credentials. Bypasses terminal CLI constraints.",
+            inputSchema: {
+              type: "object",
+              properties: {
+                title: { type: "string", description: "PR Title." },
+                body: { type: "string", description: "Description of changes." },
+                head: { type: "string", description: "The branch containing changes to merge." },
+                base: { type: "string", default: "main", description: "The target branch to merge into." },
+                draft: { type: "boolean", default: false, description: "Whether to create the PR as a draft." }
+              },
+              required: ["title", "body", "head", "base"]
+            }
+          },
+          {
             name: "github.comment_triage_summary",
             description: "Comment on the original PR with a diagnosis and replacement link.",
             inputSchema: {
@@ -437,6 +456,41 @@ export class BoomtickMCPServer {
                 body: { type: "string", description: "The content of the comment." },
               },
               required: ["prNumber", "body"],
+            },
+          },
+          {
+            name: "github.issue_view",
+            description: "View details of a GitHub issue including title, body, and state.",
+            inputSchema: {
+              type: "object",
+              properties: {
+                issueNumber: { type: "number", description: "The number of the issue to view." },
+              },
+              required: ["issueNumber"],
+            },
+          },
+          {
+            name: "github.issue_update",
+            description: "Update the body of a GitHub issue.",
+            inputSchema: {
+              type: "object",
+              properties: {
+                issueNumber: { type: "number", description: "The number of the issue to update." },
+                body: { type: "string", description: "The new body content for the issue." },
+              },
+              required: ["issueNumber", "body"],
+            },
+          },
+          {
+            name: "github.issue_comment",
+            description: "Add a new comment to a GitHub issue.",
+            inputSchema: {
+              type: "object",
+              properties: {
+                issueNumber: { type: "number", description: "The number of the issue to comment on." },
+                body: { type: "string", description: "The content of the comment." },
+              },
+              required: ["issueNumber", "body"],
             },
           },
           {
@@ -584,6 +638,14 @@ export class BoomtickMCPServer {
             return createSuccessResult(await openReplacementPrHandler(OpenReplacementPrInputSchema.parse(request.params.arguments)));
           case "github.comment_triage_summary":
             return createSuccessResult(await commentTriageSummaryHandler(CommentTriageSummaryInputSchema.parse(request.params.arguments)));
+          case "github.create_pull_request":
+            return createSuccessResult(await createPullRequestHandler(CreatePullRequestInputSchema.parse(request.params.arguments)));
+          case "github.issue_view":
+            return createSuccessResult(await issueViewHandler(IssueViewInputSchema.parse(request.params.arguments)));
+          case "github.issue_update":
+            return createSuccessResult(await issueUpdateHandler(IssueUpdateInputSchema.parse(request.params.arguments)));
+          case "github.issue_comment":
+            return createSuccessResult(await issueCommentHandler(IssueCommentInputSchema.parse(request.params.arguments)));
 
 
 

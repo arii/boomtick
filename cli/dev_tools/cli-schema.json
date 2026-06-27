@@ -88,6 +88,21 @@
         }
       ]
     },
+    "gh post-comment": {
+      "description": "Adds a new comment to a Pull Request from a file or literal text.",
+      "exact_usage": "python3 dev-tools/td_cli.py gh post-comment --pr <PR_NUMBER> [--file <PATH> | --body <TEXT>]",
+      "required_flags": [
+        {
+          "flag": "--pr",
+          "type": "integer",
+          "description": "The GitHub Pull Request ID."
+        }
+      ],
+      "optional_flags": [
+        { "flag": "--file", "type": "string", "description": "Path to the Markdown file containing the comment body." },
+        { "flag": "--body", "type": "string", "description": "The literal body text for the comment." }
+      ]
+    },
     "gh detect-conflicts": {
       "description": "Detects conflicts for a single, specific Pull Request.",
       "exact_usage": "python3 boomtick-pkg/cli/dev_tools/td_cli.py gh detect-conflicts --pr <PR_NUMBER>",
@@ -194,11 +209,43 @@
       "required_flags": []
     },
     "gh create-issue": {
-      "description": "Creates a new GitHub issue using a title and a markdown file for the body.",
-      "exact_usage": "python3 boomtick-pkg/cli/dev_tools/td_cli.py gh create-issue --title <TITLE> --file <PATH_TO_BODY_FILE>",
+      "description": "Creates a new GitHub issue using a title and either a markdown file or literal text for the body.",
+      "exact_usage": "python3 boomtick-pkg/cli/dev_tools/td_cli.py gh create-issue --title <TITLE> [--file <PATH> | --body <TEXT>]",
       "required_flags": [
-        { "flag": "--title", "type": "string", "description": "The title of the issue." },
-        { "flag": "--file", "type": "string", "description": "Path to the Markdown file containing the issue body." }
+        { "flag": "--title", "type": "string", "description": "The title of the issue." }
+      ],
+      "optional_flags": [
+        { "flag": "--file", "type": "string", "description": "Path to the Markdown file containing the issue body." },
+        { "flag": "--body", "type": "string", "description": "The literal body text for the issue." }
+      ]
+    },
+    "gh issue-view": {
+      "description": "Fetches details of a GitHub issue including title, body, and state.",
+      "exact_usage": "python3 dev-tools/td_cli.py gh issue-view <ISSUE_NUMBER>",
+      "required_arguments": [
+        { "name": "issue_number", "type": "integer", "description": "The GitHub issue number." }
+      ]
+    },
+    "gh issue-update": {
+      "description": "Updates the body of a GitHub issue from a file or literal text.",
+      "exact_usage": "python3 dev-tools/td_cli.py gh issue-update <ISSUE_NUMBER> [--file <PATH> | --body <TEXT>]",
+      "required_arguments": [
+        { "name": "issue_number", "type": "integer", "description": "The GitHub issue number." }
+      ],
+      "optional_flags": [
+        { "flag": "--file", "type": "string", "description": "Path to the Markdown file containing the new issue body." },
+        { "flag": "--body", "type": "string", "description": "The literal body text for the issue." }
+      ]
+    },
+    "gh issue-comment": {
+      "description": "Adds a new comment to a GitHub issue from a file or literal text.",
+      "exact_usage": "python3 dev-tools/td_cli.py gh issue-comment <ISSUE_NUMBER> [--file <PATH> | --body <TEXT>]",
+      "required_arguments": [
+        { "name": "issue_number", "type": "integer", "description": "The GitHub issue number." }
+      ],
+      "optional_flags": [
+        { "flag": "--file", "type": "string", "description": "Path to the Markdown file containing the comment body." },
+        { "flag": "--body", "type": "string", "description": "The literal body text for the comment." }
       ]
     },
     "gh validate-issue": {
