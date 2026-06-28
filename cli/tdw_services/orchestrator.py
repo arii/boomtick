@@ -39,6 +39,15 @@ SPEC_SECTIONS = PROJECT_CONFIG.spec_sections
 UI_INDICATORS = PROJECT_CONFIG.ui_indicators
 
 class Orchestrator:
+    # Command detection patterns with word boundaries to avoid false positives
+    _CMD_PATTERNS = {
+        "conflict_resolve": r"(?<!\w)@conflict-resolve\b",
+        "update_snapshots": r"(?<!\w)@update-snapshots\b",
+        "ai_fix": r"(?<!\w)/ai-fix\b",
+        "ai_review": r"(?<!\w)/ai-review\b",
+        "jules_fix_ci": r"(?<!\w)@jules-fix-ci\b",
+    }
+
     def __init__(self) -> None:
         self._github: Optional[GitHubClient] = None
         self._ai: Optional[AIClient] = None
@@ -577,6 +586,20 @@ class Orchestrator:
         """
         handler = CommandHandler(self)
         return handler.handle(pr_number, command, comment_id)
+
+    def parse_comment(self, body: str, author_association: str) -> Dict[str, Any]:
+        """
+        Parses a comment body and returns the intended actions.
+        Consolidates detection logic using regex patterns with word boundaries.
+        """
+        results = {k: bool(re.search(v, body)) for k, v in self._CMD_PATTERNS.items()}
+
+        return {
+            "conflict_resolve": results["conflict_resolve"],
+            "update_snapshots": results["update_snapshots"],
+            "ai_chatops": results["ai_fix"] or results["ai_review"],
+            "jules_fix_ci": results["jules_fix_ci"] and author_association in ['OWNER', 'MEMBER', 'COLLABORATOR']
+        }
 
     def runtime_check(self) -> Dict[str, str]:
         """Ensures the runtime environment matches the contract."""

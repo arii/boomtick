@@ -368,6 +368,24 @@ def detect_conflicts(ctx, pr):
 
 
 @gh.command()
+@click.option('--body', help="The comment body text.")
+@click.option('--author-association', required=True, help="The author association (e.g. OWNER, MEMBER).")
+@click.pass_context
+def parse_comment(ctx, body, author_association):
+    """Parse a comment body and return intended actions."""
+    orch = ctx.obj['ORCHESTRATOR']
+    try:
+        # Security: Allow reading body from COMMENT_BODY env var to avoid shell injection in CI
+        content = body if body else os.environ.get("COMMENT_BODY")
+        if not content:
+            err(ctx, "Comment body is required (use --body or COMMENT_BODY env var)")
+
+        actions = orch.parse_comment(content, author_association)
+        out(ctx, "Comment parsed successfully.", data={"actions": actions})
+    except Exception as e:
+        _handle_unexpected_error(ctx, "parse-comment", e)
+
+@gh.command()
 @click.option('--pr', required=True, type=int, help="The PR number to comment on.")
 @click.option('--file', type=str, help="Path to the file containing the comment body.")
 @click.option('--body', type=str, help="Literal comment text.")

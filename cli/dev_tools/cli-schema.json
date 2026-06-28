@@ -88,6 +88,14 @@
         }
       ]
     },
+    "gh parse-comment": {
+      "description": "Parses a comment body to determine intended actions (e.g. @conflict-resolve).",
+      "exact_usage": "python3 boomtick-pkg/cli/dev_tools/td_cli.py gh parse-comment --body <BODY> --author-association <ASSOC>",
+      "required_flags": [
+        { "flag": "--body", "type": "string", "description": "The comment body text." },
+        { "flag": "--author-association", "type": "string", "description": "The author association (e.g. OWNER, MEMBER, COLLABORATOR)." }
+      ]
+    },
     "gh post-comment": {
       "description": "Adds a new comment to a Pull Request from a file or literal text.",
       "exact_usage": "python3 dev-tools/td_cli.py gh post-comment --pr <PR_NUMBER> [--file <PATH> | --body <TEXT>]",
