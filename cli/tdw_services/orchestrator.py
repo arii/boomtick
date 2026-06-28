@@ -672,7 +672,7 @@ class Orchestrator:
                 results["steps"].append({"name": name, "status": "failure", "error": str(e)})
                 raise e
         run_step("Anti-Pattern Audit", ["node", "scripts/detect-antipatterns.mjs"])
-        run_step("Version Downgrade Check", [sys.executable, os.path.join(os.path.dirname(os.path.dirname(__file__)), "td_cli.py"), "gh", "verify-versions"])
+        run_step("Version Downgrade Check", [sys.executable, os.path.join(os.path.dirname(os.path.dirname(__file__)), "dev_tools", "td_cli.py"), "gh", "verify-versions"])
         run_step("TypeScript", ["pnpm", "run", "type-check"])
         run_step("Lint", ["pnpm", "run", "lint"])
         missing_vars = [v for v in ["BUNDLE_BASELINE_KB", "ANY_COUNT_BASELINE"] if not (os.environ.get(v) or get_gha_variable(v))]

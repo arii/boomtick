@@ -302,7 +302,7 @@
         {
           "name": "branch",
           "type": "string",
-          "description": "The target branch for the task."
+          "description": "The target branch for the task. Note: Use 'main' branch for PR consolidation tasks to avoid rebasing issues."
         },
         {
           "name": "task",
