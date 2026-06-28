@@ -225,3 +225,20 @@ All workflows must use `actions/setup-node` with
 `node-version-file: '.node-version'`. Do not hardcode Node versions in
 workflow files. Keep GitHub Actions pinned to their latest major versions
 (e.g. `actions/checkout@v7`, `docker/setup-buildx-action@v4`).
+
+## Appendix: CLI Entrypoint & Packaging Standards
+
+### 1. Deterministic Imports over sys.path Manipulation
+* **Rule:** Runtime mutations of the system path (sys.path.append, sys.path.insert) are strictly prohibited.
+* **Reasoning:** Dynamic path manipulation opens up vectors for local path injection exploits, breaks static analysis tools, and causes unpredictable module resolution failures during containerized execution.
+* **Remediation:** All internal utilities, engines, and sidecar components must be structured as absolute subpackages or declared as explicit project dependencies in pyproject.toml. Developers must install the package locally using editable installations (pip install -e .) during development.
+
+### 2. Elimination of Test Leakage in Production
+* **Rule:** Production logic must never be conditionally executed based on the presence of testing modules or frameworks (e.g., checking "pytest" in sys.modules).
+* **Reasoning:** Infiltrating production blocks with test logic obscures code flow, complicates static typing, and creates brittle runtime behaviors that differ wildly between execution environments.
+* **Remediation:** Rely entirely on testing framework idioms—such as pytest's monkeypatch and mocking libraries—to mimic runtime state, override environment attributes, and assert execution constraints cleanly.
+
+### 3. Native Argument Handling
+* **Rule:** Raw iteration or evaluation of sys.argv to emulate validation constraints is banned.
+* **Reasoning:** Manual slicing and string matching bypass standard syntax verification engines, leading to redundant checks, unreachable dead code, and unhandled edge-case flag configurations.
+* **Remediation:** Utilize concrete structural definition classes (argparse, click). If default features (such as standard help banners) must be suppressed for machine-to-machine integrations, explicitly pass configuration attributes (add_help=False) directly to the parser factory.
