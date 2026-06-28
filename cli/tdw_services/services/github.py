@@ -34,29 +34,6 @@ class GitHubClient:
         except Exception:
             return ""
 
-    def run_authenticated_gh(self, command_args: List[str]) -> str:
-        """Executes a GH CLI command using the PAT from environment."""
-        env = os.environ.copy()
-        # Forces GH to use the token without needing 'gh auth login'
-        env["GH_TOKEN"] = self.token
-        env["GITHUB_TOKEN"] = self.token
-
-        proc = subprocess.run(["gh"] + command_args, env=env, capture_output=True, text=True)
-        if proc.returncode != 0:
-            raise Exception(f"GH command failed: {proc.stderr}")
-        return proc.stdout
-
-    def run_authenticated_gh_with_retry(self, command_args: List[str], max_retries: int = 3, delay: int = 5) -> str:
-        """Executes a GH CLI command using the PAT with retry mechanism."""
-        for attempt in range(max_retries):
-            try:
-                return self.run_authenticated_gh(command_args)
-            except Exception as e:
-                log_info(f"Attempt {attempt+1} failed: {e}")
-                if attempt < max_retries - 1:
-                    time.sleep(delay)
-                else:
-                    raise
 
     def _request(self, method: str, path: str, json_data: Optional[Dict] = None, params: Optional[Dict] = None, is_text: bool = False, accept: Optional[str] = None, allow_redirects: bool = True) -> Any:
         url = f"{self.base_url}{path}"
@@ -110,62 +87,67 @@ class GitHubClient:
         except Exception:
             return []
 
-    def fetch_check_suites(self, ref: str) -> Dict[str, Any]:
-        return self._request('GET', f'/repos/{self.repo}/commits/{ref}/check-suites')
+    def fetch_check_suites(self, ref: str) -> List[Dict[str, Any]]:
+        try:
+            data = self._request('GET', f'/repos/{self.repo}/commits/{ref}/check-suites')
+            return data.get('check_suites', [])
+        except Exception:
+            return []
 
-    def fetch_check_runs_for_suite(self, suite_id: int) -> Dict[str, Any]:
-        return self._request('GET', f'/repos/{self.repo}/check-suites/{suite_id}/check-runs')
+    def fetch_check_runs_for_suite(self, suite_id: int) -> List[Dict[str, Any]]:
+        try:
+            data = self._request('GET', f'/repos/{self.repo}/check-suites/{suite_id}/check-runs')
+            return data.get('check_runs', [])
+        except Exception:
+            return []
 
     def list_pull_requests(self, state: str = 'open', limit: int = 100, labels: Optional[List[str]] = None) -> List[Dict[str, Any]]:
-        if labels:
-            # If labels are provided, use Search API as /repos/:owner/:repo/pulls does not support label filtering
-            all_results = []
-            page = 1
-            per_page = min(limit, 100)
-            while len(all_results) < limit:
-                q = f"repo:{self.repo} is:pr state:{state}"
-                for label in labels:
-                    q += f' label:"{label}"'
-                params = {'q': q, 'per_page': per_page, 'page': page}
-                data = self._request('GET', '/search/issues', params=params)
-                batch = data.get('items', [])
-                if not batch:
+        prs = []
+        page = 1
+        per_page = min(limit, 100)
+
+        while len(prs) < limit:
+            params = f"?state={state}&per_page={per_page}&page={page}"
+            data = self._request('GET', f'/repos/{self.repo}/pulls{params}')
+
+            if not data:
+                break
+
+            for pr in data:
+                if labels:
+                    pr_labels = [l.get('name') for l in pr.get('labels', [])]
+                    if not all(label in pr_labels for label in labels):
+                        continue
+
+                # Map REST API response to GH CLI compatible format
+                prs.append({
+                    "number": pr.get("number"),
+                    "title": pr.get("title"),
+                    "author": {"login": pr.get("user", {}).get("login")},
+                    "headRefName": pr.get("head", {}).get("ref"),
+                    "baseRefName": pr.get("base", {}).get("ref"),
+                    "isDraft": pr.get("draft"),
+                    "mergeStateStatus": pr.get("mergeable_state"),
+                    "updatedAt": pr.get("updated_at"),
+                    "url": pr.get("html_url")
+                })
+                if len(prs) >= limit:
                     break
 
-                # Fetch full PR details for each search result to ensure head/base fields are populated
-                for item in batch:
-                    full_pr = self.fetch_pr_details(item['number'])
-                    all_results.append(full_pr)
-                    if len(all_results) >= limit:
-                        break
+            if len(data) < per_page:
+                break
+            page += 1
 
-                if len(batch) < per_page or len(all_results) >= limit:
-                    break
-                page += 1
-            return all_results[:limit]
-        else:
-            all_prs = []
-            page = 1
-            per_page = min(limit, 100)
-            while len(all_prs) < limit:
-                params = {'state': state, 'per_page': per_page, 'page': page}
-                batch = self._request('GET', f'/repos/{self.repo}/pulls', params=params)
-                if not batch:
-                    break
-                all_prs.extend(batch)
-                if len(batch) < per_page:
-                    break
-                page += 1
-            return all_prs[:limit]
+        return prs
 
     def create_pull_request(self, title: str, body: str, head: str, base: str) -> Dict[str, Any]:
-        data = {'title': title, 'body': body, 'head': head, 'base': base}
+        data = {
+            "title": title,
+            "body": body,
+            "head": head,
+            "base": base
+        }
         return self._request('POST', f'/repos/{self.repo}/pulls', json_data=data)
-
-    def fetch_comments(self, number: int, endpoint: str = 'issues') -> List[Dict[str, Any]]:
-        """Fetches comments for an issue or pull request."""
-        # endpoint can be 'issues' or 'pulls' (for review comments)
-        return self._request('GET', f'/repos/{self.repo}/{endpoint}/{number}/comments')
 
     def fetch_check_run_logs(self, check_run_id: int, external_id: Optional[str] = None) -> str:
         """Fetches logs for a specific check run, using external_id (job_id) if available. Gracefully fallback to check_run_id if external_id 404s."""

@@ -63,7 +63,7 @@ def filter_ai_comments(comments: List[Dict[str, Any]], pr_number: int, comment_t
 def fetch_comments_for_pr(client: GitHubClient, repo: str, pr_number: int, endpoint: str, comment_type: str) -> List[Dict[str, Any]]:
     """Fetches comments for a given PR endpoint and applies filtering."""
     try:
-        comments = client.fetch_comments(pr_number, endpoint=endpoint)
+        comments = client._request('GET', f'/repos/{repo}/{endpoint}/{pr_number}/comments')
         return filter_ai_comments(comments, pr_number, comment_type)
     except Exception as e:
         print(f"Error fetching {comment_type} comments for PR #{pr_number}: {e}")
@@ -72,7 +72,7 @@ def fetch_comments_for_pr(client: GitHubClient, repo: str, pr_number: int, endpo
 def collect_reviews(client: GitHubClient, repo: str, pr_limit: int = 50) -> List[Dict[str, Any]]:
     """Main workflow to collect reviews from recent PRs."""
     print("Fetching PRs...")
-    prs = client.list_pull_requests(state='all', limit=100)
+    prs = client._request('GET', f'/repos/{repo}/pulls?state=all&per_page=100')
 
     ai_comments: List[Dict[str, Any]] = []
     print(f"Collecting AI review comments from the last {pr_limit} PRs...")

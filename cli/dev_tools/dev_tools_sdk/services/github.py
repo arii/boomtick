@@ -3,9 +3,7 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass
 
-import os
-import requests
-from ..utils.auth import get_github_token
+from tdw_services.services.github import GitHubClient
 
 
 @dataclass
@@ -18,22 +16,11 @@ class PullRequestSummary:
 
 class GitHubService:
     def __init__(self, repo: str | None = None):
-        self.repo = repo or os.environ.get("GITHUB_REPOSITORY") or os.environ.get("GH_REPO")
-        self.token = get_github_token()
-        self.base_url = "https://api.github.com"
-
-    def _request(self, method: str, path: str, accept: str = "application/vnd.github.v3+json") -> dict:
-        url = f"{self.base_url}{path}"
-        headers = {
-            "Authorization": f"Bearer {self.token}",
-            "Accept": accept,
-        }
-        response = requests.request(method, url, headers=headers, timeout=30)
-        response.raise_for_status()
-        return response.json()
+        self.repo = repo
+        self._client = GitHubClient(repo=repo)
 
     def view_pr(self, number: int) -> PullRequestSummary:
-        payload = self._request("GET", f"/repos/{self.repo}/pulls/{number}")
+        payload = self._client.fetch_pr_details(number)
         return PullRequestSummary(
             number=payload["number"],
             title=payload["title"],
@@ -42,11 +29,11 @@ class GitHubService:
         )
 
     def list_changed_files(self, number: int) -> list[str]:
-        payload = self._request("GET", f"/repos/{self.repo}/pulls/{number}/files")
+        payload = self._client.fetch_pr_files(number)
         return [f["filename"] for f in payload]
 
     def diff_stats(self, number: int) -> dict[str, int]:
-        payload = self._request("GET", f"/repos/{self.repo}/pulls/{number}")
+        payload = self._client.fetch_pr_details(number)
         return {
             "additions": int(payload.get("additions", 0)),
             "deletions": int(payload.get("deletions", 0)),

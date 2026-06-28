@@ -13,7 +13,7 @@ from collections import defaultdict
 from tdw_services.services.github import GitHubClient
 from tdw_services.services.ai_service import AIClient
 from tdw_services.services.jules import JulesClient
-from tdw_services.utils import log_error, ensure_dir
+from tdw_services.utils import log_error, get_or_create_log_dir
 from tdw_services.handlers.command_handler import CommandHandler
 from utils import (
     get_github_token,
@@ -175,8 +175,9 @@ class Orchestrator:
 
         pr_diff = self.github.fetch_pr_diff(pr_number)
         diff_hash = self._hash_content(pr_diff)
-        cache_dir = ensure_dir("logs", "cache")
-        cache_file = os.path.join(cache_dir, f"review_cache_{pr_number}_{diff_hash}.json")
+        # Store cache in local logs directory to avoid /tmp Security Error
+        review_dir = get_or_create_log_dir("reviews")
+        cache_file = os.path.join(review_dir, f"review_cache_{pr_number}_{diff_hash}.json")
         if os.path.exists(cache_file):
             with open(cache_file, 'r') as f: return json.load(f)
         review_result = self.ai.generate_code_review(pr_details, pr_diff)
@@ -485,7 +486,7 @@ class Orchestrator:
         return updates
 
     def audit_pr(self, pr_number: int, fetch: bool = False, audit: bool = False, submit: bool = False, cleanup: bool = False, dry_run: bool = True, event: Optional[str] = None) -> Dict[str, Any]:
-        review_dir = ensure_dir("logs", "reviews")
+        review_dir = get_or_create_log_dir("reviews")
         ctx_path = os.path.join(review_dir, f"pr-context-{pr_number}.md"); rev_path = os.path.join(review_dir, f"pr-review-{pr_number}.md")
         res = {"pr": pr_number, "files": {}}
         if fetch:
@@ -728,12 +729,16 @@ class Orchestrator:
             if worktree:
                 branch_name = f"repair/local-{datetime.now().strftime('%H%M%S')}"
                 prefix = PROJECT_CONFIG.worktree_prefix
-                worktree_path = tempfile.mkdtemp(prefix=prefix)
+                # Create temporary worktree within repo root to avoid Security Error
+                worktree_path = os.path.join(original_cwd, f"{prefix}{datetime.now().strftime('%H%M%S')}")
+                os.makedirs(worktree_path, exist_ok=True)
                 run_command(["git", "worktree", "add", "-b", branch_name, worktree_path, "HEAD"])
                 os.chdir(worktree_path)
                 if os.path.exists(os.path.join(original_cwd, "node_modules")):
                     os.symlink(os.path.join(original_cwd, "node_modules"), os.path.join(worktree_path, "node_modules"))
-            with tempfile.NamedTemporaryFile(mode='w', suffix=".log", delete=False) as tmp_log:
+            # Create temporary log file within repo root logs/
+            log_dir = get_or_create_log_dir("repair")
+            with tempfile.NamedTemporaryFile(mode='w', suffix=".log", delete=False, dir=log_dir) as tmp_log:
                 tmp_log.write(logs_content); tmp_log_path = tmp_log.name
             cmd = [sys.executable, repair_script, tmp_log_path]
             proc = run_command(cmd, check=False)
@@ -1030,16 +1035,14 @@ Respond only after the PR is created or updated:
 
         logs = {}
         # Get check suites to find workflow runs
-        check_suites_data = self.github.fetch_check_suites(head_sha)
-        check_suites = check_suites_data.get("check_suites", [])
+        check_suites = self.github.fetch_check_suites(head_sha)
 
         for suite in check_suites:
-            runs_data = self.github.fetch_check_runs_for_suite(suite['id'])
-            runs = runs_data.get("check_runs", [])
+            runs = self.github.fetch_check_runs_for_suite(suite['id'])
             for run in runs:
                 if include_all or run.get("conclusion") == "failure":
                     try:
-                        log_content = self.github.fetch_check_run_logs(run['id'], external_id=run.get('external_id'))
+                        log_content = self.github.fetch_check_run_logs(run.get('id'), external_id=run.get('external_id'))
                         logs[run["name"]] = log_content[:10000]
                     except Exception:
                         pass
@@ -1060,18 +1063,14 @@ Respond only after the PR is created or updated:
             raise CLIError(f"Could not determine head SHA for PR #{pr_number}")
 
         # Get all check runs for this SHA
-        # Use full API response to be more robust
-        try:
-            check_runs = self.github.fetch_check_runs(head_sha)
-        except Exception as e:
-            raise CLIError(f"Failed to fetch check runs for PR #{pr_number}: {e}")
+        check_runs = self.github.fetch_check_runs(head_sha)
 
         all_logs = []
         # Limit to latest 20 jobs to avoid extreme memory usage
         for run in check_runs[:20]:
             try:
                 # Fetch logs via API to avoid terminal paging/buffering issues
-                log_content = self.github.fetch_check_run_logs(run['id'], external_id=run.get('external_id'))
+                log_content = self.github.fetch_check_run_logs(run.get('id'), external_id=run.get('external_id'))
                 header = f"--- LOGS FOR JOB: {run['name']} (ID: {run['id']}) ---"
                 all_logs.append(header)
                 # Truncate each log to 20k chars to balance detail vs memory
@@ -1172,23 +1171,7 @@ Respond only after the PR is created or updated:
 
     def list_prs(self, state: str = "open", limit: int = 100, include_drafts: bool = True, labels: Optional[List[str]] = None) -> Dict[str, Any]:
         """Lists PRs with optional filtering."""
-        prs_raw = self.github.list_pull_requests(state=state, limit=limit, labels=labels)
-
-        # Map to the format expected by the CLI (which matches gh pr list --json output)
-        prs = []
-        for pr in prs_raw:
-            prs.append({
-                "number": pr.get("number"),
-                "title": pr.get("title"),
-                "author": {"login": pr.get("user", {}).get("login")},
-                "headRefName": pr.get("head", {}).get("ref"),
-                "baseRefName": pr.get("base", {}).get("ref"),
-                "isDraft": pr.get("draft"),
-                "mergeStateStatus": pr.get("mergeable_state", "unknown"),
-                "reviewDecision": "REVIEW_REQUIRED" if pr.get("requested_reviewers") else "APPROVED", # Heuristic mapping
-                "url": pr.get("html_url"),
-                "updatedAt": pr.get("updated_at")
-            })
+        prs = self.github.list_pull_requests(state=state, limit=limit, labels=labels)
 
         if not include_drafts:
             prs = [pr for pr in prs if not pr.get("isDraft")]
@@ -1224,7 +1207,7 @@ Respond only after the PR is created or updated:
                     raise CLIError(f"Could not determine head ref for PR #{pr_num}")
 
                 # 2.5 Handle forks by using git fetch
-                # This ensures the branch is available locally
+                # This ensures the branch is available locally and handles forks correctly
                 run(["git", "fetch", "origin", f"pull/{pr_num}/head:{head_ref}"])
 
                 # Switch back to the target branch
@@ -1255,7 +1238,7 @@ Respond only after the PR is created or updated:
         # Create consolidated PR
         pr_title = f"Aggregated Feature: {target_branch}"
         pr_res = self.github.create_pull_request(pr_title, aggregate_body, target_branch, base_branch)
-        pr_url = pr_res.get('html_url', 'N/A')
+        pr_url = pr_res.get("html_url")
 
         return {
             "status": "success",

@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 from typing import List, Dict, Any
 import click
 from tdw_services.orchestrator import Orchestrator
+from tdw_services.utils import get_or_create_log_dir
 
 # Import legacy utils for backwards compatibility during migration
 from repo_utils import walk_tsx, find_patterns_in_file, get_bundle_size, get_any_count
@@ -649,9 +650,10 @@ def ai():
 def review(ctx, pr_number, no_cache):
     import glob
 
-    # Optionally bust the /tmp review cache so stale results are not silently returned
+    # Optionally bust the review cache so stale results are not silently returned
     if no_cache:
-        pattern = f"/tmp/review_cache_{pr_number}_*.json"
+        review_dir = get_or_create_log_dir("reviews")
+        pattern = os.path.join(review_dir, f"review_cache_{pr_number}_*.json")
         removed = glob.glob(pattern)
         for f in removed:
             import os as _os

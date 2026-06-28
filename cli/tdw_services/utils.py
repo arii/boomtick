@@ -1,5 +1,12 @@
 import sys
 import re
+import os
+
+def get_or_create_log_dir(subdir: str) -> str:
+    """Returns the path to a specific log subdirectory and ensures it exists."""
+    log_dir = os.path.join(os.getcwd(), "boomtick-pkg", "cli", "logs", subdir)
+    os.makedirs(log_dir, exist_ok=True)
+    return log_dir
 
 def mask_sensitive_data(msg: str) -> str:
     """Redacts sensitive information like GitHub tokens from strings."""
