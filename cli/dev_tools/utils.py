@@ -399,12 +399,32 @@ class GHAConfigManager:
             pass
 
     def get_variable(self, name: str) -> Optional[str]:
-        """Retrieves a variable, checking local cache first, then the gh CLI."""
+        """Retrieves a variable, checking local cache first, then the REST API (if token available), then gh CLI."""
         # 1. Check local cache
         if name in self.cache:
             return str(self.cache[name])
 
-        # 2. Check gh CLI availability
+        # 2. Try REST API if token and repo are available
+        token = get_github_token()
+        repo = get_repo_name()
+        if token and repo:
+            try:
+                # Use urllib since we might not want to depend on 'requests' here if it's a core util
+                # But 'requests' is already used in other parts of the monorepo
+                url = f"https://api.github.com/repos/{repo}/actions/variables/{name}"
+                req = urllib.request.Request(url)
+                req.add_header("Authorization", f"Bearer {token}")
+                req.add_header("Accept", "application/vnd.github+json")
+                with urllib.request.urlopen(req, timeout=10) as response:
+                    data = json.loads(response.read().decode())
+                    val = str(data.get("value", ""))
+                    self.cache[name] = val
+                    self._save_cache()
+                    return val
+            except Exception:
+                pass
+
+        # 3. Check gh CLI availability
         if self.gh_available is None:
             try:
                 run_command(["gh", "--version"], log_on_error=False)
@@ -415,7 +435,7 @@ class GHAConfigManager:
         if not self.gh_available:
             return None
 
-        # 3. Fetch from gh CLI
+        # 4. Fetch from gh CLI
         try:
             # First fetch all variables since 'gh variable get' is not a valid command
             result = run_command(
@@ -457,12 +477,41 @@ class GHAConfigManager:
         return None
 
     def set_variable(self, name: str, value: str) -> bool:
-        """Sets a variable using the gh CLI and updates local cache."""
+        """Sets a variable using the gh CLI (or REST API) and updates local cache."""
         # 1. Update local cache
         self.cache[name] = value
         self._save_cache()
 
-        # 2. Check gh CLI availability
+        # 2. Try REST API if token and repo are available
+        token = get_github_token()
+        repo = get_repo_name()
+        if token and repo:
+            try:
+                url = f"https://api.github.com/repos/{repo}/actions/variables/{name}"
+                data = json.dumps({"name": name, "value": str(value)}).encode("utf-8")
+                req = urllib.request.Request(url, data=data, method="PATCH")
+                req.add_header("Authorization", f"Bearer {token}")
+                req.add_header("Accept", "application/vnd.github+json")
+                req.add_header("Content-Type", "application/json")
+                try:
+                    with urllib.request.urlopen(req, timeout=10) as response:
+                        if response.status in [200, 204]:
+                            return True
+                except urllib.error.HTTPError as e:
+                    if e.code == 404:
+                        # Create instead of update
+                        url = f"https://api.github.com/repos/{repo}/actions/variables"
+                        req = urllib.request.Request(url, data=data, method="POST")
+                        req.add_header("Authorization", f"Bearer {token}")
+                        req.add_header("Accept", "application/vnd.github+json")
+                        req.add_header("Content-Type", "application/json")
+                        with urllib.request.urlopen(req, timeout=10) as response:
+                            if response.status in [201, 204]:
+                                return True
+            except Exception:
+                pass
+
+        # 3. Check gh CLI availability
         if self.gh_available is None:
             try:
                 run_command(["gh", "--version"], log_on_error=False)
@@ -473,7 +522,7 @@ class GHAConfigManager:
         if not self.gh_available:
             return False
 
-        # 3. Set via gh CLI
+        # 4. Set via gh CLI
         try:
             run_command(
                 ["gh", "variable", "set", name, "--body", str(value)],

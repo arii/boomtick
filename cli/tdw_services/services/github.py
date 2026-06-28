@@ -18,6 +18,11 @@ class GitHubClient:
         if not self.repo:
             self.repo = self._detect_repo()
         self.base_url = "https://api.github.com"
+        self._session = requests.Session()
+        self._session.headers.update({
+            "Authorization": f"Bearer {self.token}",
+            "Accept": "application/vnd.github.v3+json",
+        })
 
     def _detect_repo(self) -> str:
         try:
@@ -53,19 +58,21 @@ class GitHubClient:
                 else:
                     raise
 
-    def _request(self, method: str, path: str, json_data: Optional[Dict] = None, is_text: bool = False, accept: Optional[str] = None, allow_redirects: bool = True) -> Any:
+    def _request(self, method: str, path: str, json_data: Optional[Dict] = None, params: Optional[Dict] = None, is_text: bool = False, accept: Optional[str] = None, allow_redirects: bool = True) -> Any:
         url = f"{self.base_url}{path}"
-        headers = {
-            "Authorization": f"Bearer {self.token}",
-            "Accept": accept or ("application/vnd.github.v3.diff" if is_text else "application/vnd.github.v3+json"),
-        }
+        headers = {}
+        if accept:
+            headers["Accept"] = accept
+        elif is_text:
+            headers["Accept"] = "application/vnd.github.v3.diff"
 
         try:
-            response = requests.request(
+            response = self._session.request(
                 method,
                 url,
                 headers=headers,
                 json=json_data,
+                params=params,
                 timeout=30,
                 allow_redirects=allow_redirects
             )
@@ -91,8 +98,7 @@ class GitHubClient:
 
     def fetch_check_runs(self, ref: str) -> List[Dict[str, Any]]:
         try:
-            res = self.run_authenticated_gh(['api', f'/repos/{self.repo}/commits/{ref}/check-runs'])
-            data = json.loads(res)
+            data = self._request('GET', f'/repos/{self.repo}/commits/{ref}/check-runs')
             return [{
                 'id': run.get('id'),
                 'name': run.get('name'),
@@ -104,21 +110,78 @@ class GitHubClient:
         except Exception:
             return []
 
+    def fetch_check_suites(self, ref: str) -> Dict[str, Any]:
+        return self._request('GET', f'/repos/{self.repo}/commits/{ref}/check-suites')
+
+    def fetch_check_runs_for_suite(self, suite_id: int) -> Dict[str, Any]:
+        return self._request('GET', f'/repos/{self.repo}/check-suites/{suite_id}/check-runs')
+
+    def list_pull_requests(self, state: str = 'open', limit: int = 100, labels: Optional[List[str]] = None) -> List[Dict[str, Any]]:
+        if labels:
+            # If labels are provided, use Search API as /repos/:owner/:repo/pulls does not support label filtering
+            all_results = []
+            page = 1
+            per_page = min(limit, 100)
+            while len(all_results) < limit:
+                q = f"repo:{self.repo} is:pr state:{state}"
+                for label in labels:
+                    q += f' label:"{label}"'
+                params = {'q': q, 'per_page': per_page, 'page': page}
+                data = self._request('GET', '/search/issues', params=params)
+                batch = data.get('items', [])
+                if not batch:
+                    break
+
+                # Fetch full PR details for each search result to ensure head/base fields are populated
+                for item in batch:
+                    full_pr = self.fetch_pr_details(item['number'])
+                    all_results.append(full_pr)
+                    if len(all_results) >= limit:
+                        break
+
+                if len(batch) < per_page or len(all_results) >= limit:
+                    break
+                page += 1
+            return all_results[:limit]
+        else:
+            all_prs = []
+            page = 1
+            per_page = min(limit, 100)
+            while len(all_prs) < limit:
+                params = {'state': state, 'per_page': per_page, 'page': page}
+                batch = self._request('GET', f'/repos/{self.repo}/pulls', params=params)
+                if not batch:
+                    break
+                all_prs.extend(batch)
+                if len(batch) < per_page:
+                    break
+                page += 1
+            return all_prs[:limit]
+
+    def create_pull_request(self, title: str, body: str, head: str, base: str) -> Dict[str, Any]:
+        data = {'title': title, 'body': body, 'head': head, 'base': base}
+        return self._request('POST', f'/repos/{self.repo}/pulls', json_data=data)
+
+    def fetch_comments(self, number: int, endpoint: str = 'issues') -> List[Dict[str, Any]]:
+        """Fetches comments for an issue or pull request."""
+        # endpoint can be 'issues' or 'pulls' (for review comments)
+        return self._request('GET', f'/repos/{self.repo}/{endpoint}/{number}/comments')
+
     def fetch_check_run_logs(self, check_run_id: int, external_id: Optional[str] = None) -> str:
         """Fetches logs for a specific check run, using external_id (job_id) if available. Gracefully fallback to check_run_id if external_id 404s."""
         # Ensure we have a valid ID and it's a string for the URL path
         job_id = str(external_id) if external_id is not None else str(check_run_id)
         try:
             # GitHub API returns a 302 redirect to a URL that expires after a few minutes
-            # We explicitly set Accept to None or a generic type to avoid the .diff default in _request
-            return self._request('GET', f'/repos/{self.repo}/actions/jobs/{job_id}/logs', is_text=True, accept="application/vnd.github.v3+json", allow_redirects=True)
+            # Using 'application/vnd.github.v3.raw' ensures we get the plain text logs
+            return self._request('GET', f'/repos/{self.repo}/actions/jobs/{job_id}/logs', is_text=True, accept="application/vnd.github.v3.raw", allow_redirects=True)
         except Exception as e:
             error_msg = str(e)
             if external_id is not None and "404" in error_msg:
                 # Fallback to query by raw check_run_id
                 job_id = str(check_run_id)
                 try:
-                    return self._request('GET', f'/repos/{self.repo}/actions/jobs/{job_id}/logs', is_text=True, accept="application/vnd.github.v3+json")
+                    return self._request('GET', f'/repos/{self.repo}/actions/jobs/{job_id}/logs', is_text=True, accept="application/vnd.github.v3.raw")
                 except Exception as fallback_e:
                     return f"Failed to fetch logs for job {job_id} after fallback: {str(fallback_e)}"
             return f"Failed to fetch logs for job {job_id}: {error_msg}"

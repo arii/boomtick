@@ -3,7 +3,7 @@ import sys
 import time
 import json
 from typing import Optional, Dict, Any, List, Set
-from tdw_services.utils import log_info, log_error, log_warn
+from tdw_services.utils import log_info, log_error, log_warn, ensure_dir
 
 # Ensure dev-tools is at the front of sys.path so we import the global utils.py,
 # not the local tdw_services/utils.py
@@ -407,11 +407,7 @@ class AIClient:
         cache_dir: str,
     ) -> None:
         """Write a live progress file after each chunk so intermediate results are visible."""
-        output_dir = os.path.join(
-            os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
-            'logs', 'reviews'
-        )
-        os.makedirs(output_dir, exist_ok=True)
+        output_dir = ensure_dir('logs', 'reviews')
         progress_path = os.path.join(output_dir, f'pr-review-{pr_num}-progress.md')
 
         total = len(reviewable)
@@ -671,11 +667,7 @@ DO NOT REMOVE THE BACKTICKS.
 {comments_json}
 ```
 """
-        output_dir = os.path.join(
-            os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
-            'logs', 'reviews'
-        )
-        os.makedirs(output_dir, exist_ok=True)
+        output_dir = ensure_dir('logs', 'reviews')
         output_path = os.path.join(output_dir, f'pr-review-{pr_num}.md')
         with open(output_path, 'w', encoding='utf-8') as f:
             f.write(content)

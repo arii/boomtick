@@ -30,3 +30,15 @@ def log_warn(msg: str):
 def log_debug(msg: str):
     """Logs a debug message to stderr."""
     print(f"DEBUG: {mask_sensitive_data(msg)}", file=sys.stderr)
+
+def get_base_dir() -> str:
+    """Returns the absolute path to the CLI package root."""
+    import os
+    return os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+
+def ensure_dir(*parts: str) -> str:
+    """Joins path parts, ensures the directory exists, and returns the absolute path."""
+    import os
+    path = os.path.join(get_base_dir(), *parts)
+    os.makedirs(path, exist_ok=True)
+    return path
