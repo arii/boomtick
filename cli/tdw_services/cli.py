@@ -83,11 +83,13 @@ def run_playwright(ctx, grep, worktree):
 @repo.command()
 @click.argument('pr_number', type=int)
 @click.option('--all', 'include_all', is_flag=True, help='Include logs for successful runs')
+@click.option('--clean', is_flag=True, help='Clean and extract failing details from logs')
 @click.pass_context
-def ci_logs(ctx, pr_number, include_all):
+def ci_logs(ctx, pr_number, include_all, clean):
     orch = ctx.obj['ORCHESTRATOR']
-    res = orch.get_ci_logs(pr_number, include_all=include_all)
+    res = orch.get_ci_logs(pr_number, include_all=include_all, clean=clean)
     out(ctx, f"Fetched CI logs for PR #{pr_number}", data=res)
+
 
 @repo.command()
 @click.argument('pr_number', type=int)
@@ -735,6 +737,8 @@ def dispatch(ctx, branch, task):
     res = orch.dispatch_jules_review(branch, task)
     out(ctx, f"✅ Dispatched task on branch {branch}", data=res)
 
+
+
 @agent_group.command()
 @click.pass_context
 def sync(ctx):
@@ -836,6 +840,7 @@ for group in [jules_group]:
     group.add_command(repair)
     group.add_command(messages)
     group.add_command(send)
+
 
 if __name__ == "__main__":
     cli(obj={})
