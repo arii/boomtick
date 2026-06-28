@@ -57,9 +57,9 @@ Add the following to your MCP client configuration (e.g. `claude_desktop_config.
       "args": ["/absolute/path/to/boomtick-mcp/dist/index.js"],
       "env": {
         "GITHUB_TOKEN": "your_pat",
-        "GITHUB_OWNER": "arii",
-        "GITHUB_REPO": "tech-dancer",
-        "BOOMTICK_REPO_PATH": "/absolute/path/to/tech-dancer"
+        "GITHUB_OWNER": "your_org",
+        "GITHUB_REPO": "your_repo",
+        "BOOMTICK_REPO_PATH": "/absolute/path/to/repo"
       }
     }
   }
@@ -70,9 +70,9 @@ Add the following to your MCP client configuration (e.g. `claude_desktop_config.
 Create a `.env` file in the `boomtick-mcp` directory:
 ```env
 GITHUB_TOKEN=your_pat
-GITHUB_OWNER=arii
-GITHUB_REPO=tech-dancer
-BOOMTICK_REPO_PATH=/path/to/tech-dancer
+GITHUB_OWNER=your_org
+GITHUB_REPO=your_repo
+BOOMTICK_REPO_PATH=/path/to/repo
 ```
 
 ## Usage

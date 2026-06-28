@@ -36,9 +36,9 @@ class ProjectConfig:
         "src/features", "src/pages", "src/components", "src/layouts", "src/App.tsx"
     ])
     allowed_bots: List[str] = field(default_factory=lambda: [
-        "github-actions[bot]", "tech-dancer-bot", "ariii"
+        "github-actions[bot]"
     ])
-    worktree_prefix: str = "tech-dancer-repair-"
+    worktree_prefix: str = "bt-repair-"
     spec_sections: List[str] = field(default_factory=lambda: [
         "Problem Statement",
         "Goal",
@@ -71,12 +71,7 @@ def load_project_config(path: str | Path = "project_config.json") -> ProjectConf
         except (json.JSONDecodeError, IOError):
             pass
     else:
-        try:
-            # nosemgrep: python.lang.compatibility.python37.python37-compatibility-importlib2
-            from importlib.resources import files
-            raw = json.loads(files("dev_tools").joinpath("project_config.json").read_text())
-        except Exception:
-            return ProjectConfig()
+        return ProjectConfig()
 
     def get_list(key: str) -> Optional[List[str]]:
         val = raw.get(key)

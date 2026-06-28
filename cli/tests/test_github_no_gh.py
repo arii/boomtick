@@ -31,12 +31,12 @@ class TestGitHubClientNoGH(unittest.TestCase):
     @patch('tdw_services.services.github.requests.Session.request')
     def test_list_pull_requests_pagination(self, mock_request):
         mock_response1 = MagicMock()
-        mock_response1.json.return_value = [{"number": i} for i in range(1, 101)]
+        mock_response1.json.return_value = [{"number": i, "user": {"login": "u"}, "head": {"ref": "h"}, "base": {"ref": "b"}} for i in range(1, 101)]
         mock_response1.status_code = 200
         mock_response1.raise_for_status.return_value = None
 
         mock_response2 = MagicMock()
-        mock_response2.json.return_value = [{"number": 101}]
+        mock_response2.json.return_value = [{"number": 101, "user": {"login": "u"}, "head": {"ref": "h"}, "base": {"ref": "b"}}]
         mock_response2.status_code = 200
         mock_response2.raise_for_status.return_value = None
 
@@ -58,11 +58,16 @@ class TestGitHubClientNoGH(unittest.TestCase):
 
     @patch('tdw_services.services.github.requests.Session.request')
     def test_list_pull_requests_labels_search(self, mock_request):
-        # Page 1 response
+        # GitHubClient.list_pull_requests performs local filtering on labels,
+        # so it doesn't use the /search/issues endpoint but rather /repos/.../pulls.
+
+        # Details response with labels
         mock_response = MagicMock()
-        mock_response.json.return_value = [{"number": 123, "labels": [{"name": "bug"}, {"name": "ui"}]}]
+        mock_response.json.return_value = [
+            {"number": 123, "title": "Bug PR", "labels": [{"name": "bug"}, {"name": "ui"}], "user": {"login": "u"}, "head": {"ref": "h"}, "base": {"ref": "b"}},
+            {"number": 456, "title": "Other PR", "labels": [{"name": "feat"}], "user": {"login": "u"}, "head": {"ref": "h"}, "base": {"ref": "b"}}
+        ]
         mock_response.status_code = 200
-        mock_response.raise_for_status.return_value = None
 
         mock_request.return_value = mock_response
 
@@ -72,10 +77,9 @@ class TestGitHubClientNoGH(unittest.TestCase):
         self.assertEqual(len(prs), 1)
         self.assertEqual(prs[0]['number'], 123)
 
-        # Verify call
+        # Verify endpoint
         call_args_list = mock_request.call_args_list
-        url = call_args_list[0][0][1]
-        self.assertIn("labels=bug,ui", url)
+        self.assertIn("/repos/owner/repo/pulls", call_args_list[0][0][1])
 
     @patch('tdw_services.services.github.requests.Session.request')
     @patch('tdw_services.services.github.subprocess.run')

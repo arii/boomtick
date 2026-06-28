@@ -39,14 +39,9 @@ def build_repo_context():
     # 2. Project Config (Repo Root)
     project_config = {}
     try:
-        from importlib.resources import files
-        try:
-            # Try to load from the dev_tools python package if available
-            project_config = json.loads(files("dev_tools").joinpath("project_config.json").read_text())
-        except Exception:
-            project_config_path = repo_root / "project_config.json"
-            if project_config_path.exists():
-                project_config = json.loads(project_config_path.read_text())
+        project_config_path = repo_root / "project_config.json"
+        if project_config_path.exists():
+            project_config = json.loads(project_config_path.read_text())
     except Exception as e:
         print(f"Error reading project_config.json: {e}", file=sys.stderr)
 
@@ -72,13 +67,9 @@ def build_repo_context():
     # 4. CLI Schema (Package Internal)
     cli_schema = {}
     try:
-        from importlib.resources import files
-        try:
-            cli_schema = json.loads(files("dev_tools").joinpath("cli-schema.json").read_text())
-        except Exception:
-            cli_schema_path = package_root / "cli" / "dev_tools" / "cli-schema.json"
-            if cli_schema_path.exists():
-                cli_schema = json.loads(cli_schema_path.read_text())
+        cli_schema_path = package_root / "cli" / "dev_tools" / "cli-schema.json"
+        if cli_schema_path.exists():
+            cli_schema = json.loads(cli_schema_path.read_text())
     except Exception as e:
         print(f"Error reading cli-schema.json: {e}", file=sys.stderr)
 
