@@ -108,6 +108,8 @@ class GitHubClient:
 
         while len(prs) < limit:
             params = f"?state={state}&per_page={per_page}&page={page}"
+            if labels:
+                params += f"&labels={','.join(labels)}"
             data = self._request('GET', f'/repos/{self.repo}/pulls{params}')
 
             if not data:

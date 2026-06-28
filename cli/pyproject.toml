@@ -31,3 +31,10 @@ include = ["dev_tools*", "tdw_services*"]
 [tool.setuptools.package-data]
 "dev_tools" = ["cli-schema.json", "config.json", "project_config.json", "*.json"]
 "*" = ["*.json"]
+
+[tool.pytest.ini_options]
+pythonpath = [
+  ".",
+  "dev_tools"
+]
+testpaths = ["tests"]

@@ -635,6 +635,28 @@ def lint(ctx):
     run_command(["pnpm", "run", "lint"])
     out(ctx, "✅ Lint complete")
 
+@cli.group()
+def test():
+    """Testing Operations"""
+    pass
+
+@test.command(name='cli')
+@click.pass_context
+def test_cli(ctx):
+    """Run CLI package tests"""
+    orch = ctx.obj['ORCHESTRATOR']
+    orch.runtime_check()
+    # pytest options are now in pyproject.toml
+    import subprocess
+    import sys
+    # Get the directory of the current file to find the cli package root
+    cli_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    try:
+        subprocess.run([sys.executable, "-m", "pytest", "tests/"], cwd=cli_dir, check=True)
+        out(ctx, "✅ CLI tests passed")
+    except subprocess.CalledProcessError as e:
+        err(ctx, f"CLI tests failed with exit code {e.returncode}")
+
 # ==========================================
 # AI COMMAND GROUP
 # ==========================================
