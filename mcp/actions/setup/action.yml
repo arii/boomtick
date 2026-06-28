@@ -3,14 +3,10 @@ description: Installs node/pnpm, workspace dependencies, td CLI and builds MCP s
 runs:
   using: composite
   steps:
-    - uses: ./.github/actions/setup-node-pnpm
+    - uses: ./.github/actions/setup-workspace
 
     - name: Install workspace dependencies
       run: pnpm install --frozen-lockfile
-      shell: bash
-
-    - name: Install td CLI
-      run: pip install -e ./boomtick-pkg/cli --break-system-packages
       shell: bash
 
     - name: Build MCP server
