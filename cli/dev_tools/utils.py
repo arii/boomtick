@@ -410,8 +410,34 @@ class GHAConfigManager:
         # 2. Fetch from GitHub API
         import requests
         token = get_github_token()
-        _, repo_name = self._get_github_client_and_repo()
-        if not token or not repo_name:
+        repo = get_repo_name()
+        if token and repo:
+            try:
+                import requests
+                url = f"https://api.github.com/repos/{repo}/actions/variables/{name}"
+                headers = {
+                    "Authorization": f"Bearer {token}",
+                    "Accept": "application/vnd.github+json"
+                }
+                response = requests.get(url, headers=headers, timeout=10)
+                if response.status_code == 200:
+                    data = response.json()
+                    val = str(data.get("value", ""))
+                    self.cache[name] = val
+                    self._save_cache()
+                    return val
+            except Exception:
+                pass
+
+        # 3. Check gh CLI availability
+        if self.gh_available is None:
+            try:
+                run_command(["gh", "--version"], log_on_error=False)
+                self.gh_available = True
+            except (CLIError, FileNotFoundError):
+                self.gh_available = False
+
+        if not self.gh_available:
             return None
 
         try:
@@ -443,8 +469,38 @@ class GHAConfigManager:
         # 2. Set via GitHub API
         import requests
         token = get_github_token()
-        _, repo_name = self._get_github_client_and_repo()
-        if not token or not repo_name:
+        repo = get_repo_name()
+        if token and repo:
+            try:
+                import requests
+                url = f"https://api.github.com/repos/{repo}/actions/variables/{name}"
+                payload = {"name": name, "value": str(value)}
+                headers = {
+                    "Authorization": f"Bearer {token}",
+                    "Accept": "application/vnd.github+json",
+                    "Content-Type": "application/json"
+                }
+                response = requests.patch(url, json=payload, headers=headers, timeout=10)
+                if response.status_code in [200, 204]:
+                    return True
+                elif response.status_code == 404:
+                    # Create instead of update
+                    create_url = f"https://api.github.com/repos/{repo}/actions/variables"
+                    create_response = requests.post(create_url, json=payload, headers=headers, timeout=10)
+                    if create_response.status_code in [201, 204]:
+                        return True
+            except Exception:
+                pass
+
+        # 3. Check gh CLI availability
+        if self.gh_available is None:
+            try:
+                run_command(["gh", "--version"], log_on_error=False)
+                self.gh_available = True
+            except (CLIError, FileNotFoundError):
+                self.gh_available = False
+
+        if not self.gh_available:
             return False
 
         try:
