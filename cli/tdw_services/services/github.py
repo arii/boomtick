@@ -225,6 +225,157 @@ class GitHubClient:
         }
         return self._request('POST', f'/repos/{self.repo}/pulls/{number}/reviews', json_data=data)
 
+    def add_labels(self, number: int, labels: List[str]) -> List[Dict[str, Any]]:
+        """Adds labels to an issue or pull request."""
+        return self._request('POST', f'/repos/{self.repo}/issues/{number}/labels', json_data={"labels": labels})
+
+    @staticmethod
+    def validate_review_payload(payload: Dict[str, Any]):
+        """
+        Validates that the review payload is not just boilerplate or empty.
+        """
+        from tdw_services.utils import CLIError
+        import re
+        if not isinstance(payload, dict):
+            raise CLIError("Review rejected: Invalid payload format (expected dict).")
+
+        body = payload.get("body", "")
+        if not isinstance(body, str):
+            body = str(body)
+
+        comments = payload.get("comments", [])
+        if not isinstance(comments, list):
+            raise CLIError("Review rejected: 'comments' must be a list.")
+
+        # Robust placeholder detection using regex to handle minor variants
+        placeholders = [
+            r"<findings\s*/?>",
+            r"<summary\s*/?>",
+            r"<filename\s*/?>",
+            r"<feedback\s*/?>",
+            r"<Approved\s*\|\s*Approved\s*with\s*Minor\s*Changes\s*\|\s*Not\s*Approved>"
+        ]
+
+        # Check body for placeholders
+        for p in placeholders:
+            if re.search(p, body, re.IGNORECASE):
+                 raise CLIError(f"Review rejected: Contains boilerplate placeholder matching '{p}'")
+
+        # Check for real comments (not placeholders)
+        real_comments = []
+        for c in comments:
+            if not isinstance(c, dict):
+                continue
+
+            c_body = str(c.get("body", ""))
+            c_path = str(c.get("path", ""))
+
+            # Check if comment fields contain placeholders
+            is_placeholder = False
+            for p in placeholders:
+                if re.search(p, c_body, re.IGNORECASE) or re.search(p, c_path, re.IGNORECASE):
+                    is_placeholder = True
+                    break
+
+            if is_placeholder:
+                raise CLIError(f"Review rejected: Comment contains boilerplate placeholder.")
+
+            if c_body.strip() and c_path != "<filename>":
+                real_comments.append(c)
+
+        # Check for empty/meaningless body
+        clean_body = body
+        clean_body = re.sub(r'^#+.*$', '', clean_body, flags=re.MULTILINE)
+        clean_body = re.sub(r'<!--.*?-->', '', clean_body, flags=re.DOTALL)
+        clean_body = re.sub(r'Approved\s*\|\s*Approved\s*with\s*Minor\s*Changes\s*\|\s*Not\s*Approved', '', clean_body, flags=re.IGNORECASE)
+        clean_body = clean_body.strip()
+
+        if not clean_body and not real_comments:
+            raise CLIError("Review rejected: No meaningful content found in body or comments.")
+
+    def submit_pr_review(self, pr_number: int, filepath: str, cleanup: bool = False, dry_run: bool = True, event_override: Optional[str] = None, is_json: bool = False):
+        """
+        Submits a PR review from a markdown file containing a JSON payload.
+        """
+        from tdw_services.utils import CLIError, log_info, log_warn
+        import re
+        import json
+
+        if not os.path.exists(filepath):
+            raise CLIError(f"Review file missing: {filepath}")
+
+        with open(filepath, 'r') as f:
+            content = f.read()
+
+        json_match = re.search(r'```json\n(.*?)\n```', content, re.DOTALL)
+        if not json_match:
+            raise CLIError("Could not find JSON block in review document")
+
+        try:
+            payload = json.loads(json_match.group(1))
+        except json.JSONDecodeError as e:
+            raise CLIError(f"Failed to parse JSON block: {str(e)}")
+
+        # Validate payload before proceeding
+        self.validate_review_payload(payload)
+
+        pr_details = self.fetch_pr_details(pr_number)
+        check_runs = self.fetch_check_runs(pr_details.get('head', {}).get('sha'))
+        failing_checks = [run.get('name') for run in check_runs if run.get('conclusion') == 'failure']
+
+        event = event_override or ("REQUEST_CHANGES" if "Not Approved" in payload.get("body","") else "APPROVE" if "Approved" in payload.get("body","") else "COMMENT")
+
+        if failing_checks and event == "APPROVE":
+            event = "COMMENT"
+            warning = f"> ⚠️ **BLOCKING CI FAILURE**: Approval overridden to COMMENT because the following checks are failing: {', '.join(failing_checks)}. Please resolve CI issues before approval.\n\n"
+            payload["body"] = warning + payload.get("body", "")
+
+        if not dry_run:
+            def try_create_review(review_body, review_comments, review_event):
+                try:
+                    return self.create_review(pr_number, review_body, review_comments, review_event)
+                except requests.exceptions.HTTPError as e:
+                    if e.response is not None and e.response.status_code == 422:
+                        try:
+                            error_data = e.response.json()
+                            error_msg = json.dumps(error_data)
+                        except Exception:
+                            error_msg = e.response.text
+
+                        if "Can not approve your own pull request" in error_msg and review_event != "COMMENT":
+                            log_warn("Cannot approve own PR. Retrying as COMMENT...")
+                            return try_create_review(review_body, review_comments, "COMMENT")
+                        if review_comments:
+                            log_warn("Failed to post inline comments due to line resolution error. Retrying with body comments...")
+                            fallback_body = review_body
+                            fallback_body += "\n\n### Inline Comments (Fallback due to Github line resolution errors)\n"
+                            for comment in review_comments:
+                                fallback_body += f"- **{comment.get('path')}:{comment.get('line')}**: {comment.get('body')}\n"
+                            return try_create_review(fallback_body, [], review_event)
+                    raise e
+
+            try_create_review(payload.get("body",""), payload.get("comments",[]), event)
+
+            if event == "REQUEST_CHANGES":
+                labels = [l.get('name') if isinstance(l, dict) else l for l in pr_details.get('labels', [])]
+                if "needs-design-system-fix" not in labels and any(k in payload.get("body","").lower() for k in ['tailwind', 'token']):
+                    self.add_labels(pr_number, ["needs-design-system-fix"])
+
+            if not is_json:
+                log_info(f"✅ Submitted {event} for PR #{pr_number}")
+
+            if cleanup:
+                if os.path.exists(filepath):
+                    os.remove(filepath)
+                ctx = filepath.replace('pr-review-', 'pr-context-')
+                if os.path.exists(ctx):
+                    os.remove(ctx)
+        else:
+            if not is_json:
+                log_info(f"[DRY-RUN] Would submit {event} for PR #{pr_number}")
+
+        return {"status": "success", "event": event, "pr": pr_number}
+
     def download_zipball(self, ref: str, dest: str = "repo.zip") -> None:
         """A stateless download helper for the Orchestrator"""
         url = f"{self.base_url}/repos/{self.repo}/zipball/{ref}"

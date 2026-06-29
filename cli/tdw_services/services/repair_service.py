@@ -2,8 +2,9 @@ import re
 import os
 import json
 import sys
+from typing import Optional, List, Dict, Any
 
-def resolve_file_path(path):
+def resolve_file_path(path: str) -> Optional[str]:
     """Resolves path relative to current working directory or via filename lookup."""
     if not path:
         return None
@@ -37,7 +38,7 @@ def resolve_file_path(path):
 
     return None
 
-def strip_ansi(text):
+def strip_ansi(text: str) -> str:
     """Strips ANSI color codes from string."""
     ansi_escape = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
     return ansi_escape.sub('', text)
@@ -57,7 +58,7 @@ class SignatureExtractor:
     TS_ALT_PATTERN = re.compile(r'^(.*?)\((\d+),(\d+)\): error (TS\d+): (.*)$')
 
     @classmethod
-    def extract(cls, log_line):
+    def extract(cls, log_line: str) -> Optional[Dict[str, Any]]:
         log_line = strip_ansi(log_line.strip())
 
         # Try ESLint
@@ -102,7 +103,7 @@ class ASTContextualizer:
     """Extracts surrounding code block for a given line."""
 
     @staticmethod
-    def extract_context(filepath, line_number, window=15):
+    def extract_context(filepath: str, line_number: int, window: int = 15) -> Optional[str]:
         """
         Extracts a deterministic window of code around line_number.
         Uses a fixed window to avoid brittle indentation heuristics.
@@ -131,10 +132,10 @@ class ASTContextualizer:
         context_lines = lines[start_idx:end_idx+1]
         return "".join(context_lines)
 
-class RAGPipeline:
+class RepairService:
     """Coordinates extraction, lookup, and prompt construction."""
 
-    def __init__(self, knowledge_base_path=None):
+    def __init__(self, knowledge_base_path: Optional[str] = None):
         if knowledge_base_path is None:
             if os.path.exists(".agents/knowledge/errors.json"):
                 knowledge_base_path = ".agents/knowledge/errors.json"
@@ -143,7 +144,7 @@ class RAGPipeline:
         self.knowledge_base_path = knowledge_base_path
         self.knowledge_base = self._load_kb()
 
-    def _load_kb(self):
+    def _load_kb(self) -> Dict[str, Any]:
         if not os.path.exists(self.knowledge_base_path):
             return {}
         try:
@@ -156,7 +157,7 @@ class RAGPipeline:
             print(f"⚠️ Warning: Failed to load knowledge base: {e}", file=sys.stderr)
             return {}
 
-    def generate_prompt(self, log_line):
+    def generate_prompt(self, log_line: str) -> Optional[str]:
         extracted = SignatureExtractor.extract(log_line)
         if not extracted:
             return None
@@ -190,20 +191,3 @@ class RAGPipeline:
             prompt += f"```tsx\n{context}\n```\n"
 
         return prompt
-
-if __name__ == "__main__":
-    # Quick manual test
-    test_logs = [
-        "/app/src/App.tsx:10:5: 'unused' is defined but never used. [no-unused-vars]",
-        "/app/src/App.tsx:11:5: Some hook error. [react-hooks/rules-of-hooks]",
-        "src/App.tsx:10:5 - error TS2322: Type 'string' is not assignable to type 'number'.",
-        "src/App.tsx(10,5): error TS2322: Type 'string' is not assignable to type 'number'."
-    ]
-    pipeline = RAGPipeline()
-    for log in test_logs:
-        print(f"--- Processing Log: {log} ---")
-        prompt = pipeline.generate_prompt(log)
-        if prompt:
-            print(prompt)
-        else:
-            print("Failed to generate prompt.")

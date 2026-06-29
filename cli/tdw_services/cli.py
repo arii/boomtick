@@ -781,6 +781,30 @@ def send(ctx, session_id, message):
     res = orch.jules.send_message(session_id, message)
     out(ctx, f"✅ Message sent to session {session_id}", data=res)
 
+@agent_group.command(name='plan-review')
+@click.option('--pr', 'pr_number', required=True, type=int, help='Pull Request number')
+@click.option('--issue', 'issue_number', type=int, help='Issue number')
+@click.pass_context
+def plan_review(ctx, pr_number, issue_number):
+    """Generate a deterministic review workflow plan for an agent."""
+    orch = ctx.obj['ORCHESTRATOR']
+    try:
+        res = orch.generate_review_workflow(pr_number, issue_number)
+        out(ctx, f"Workflow plan generated: {res['plan_path']}", data=res)
+    except Exception as e:
+        _handle_unexpected_error(ctx, "agent plan-review", e)
+
+@agent_group.command(name='plan-aggregation')
+@click.pass_context
+def plan_aggregation(ctx):
+    """Generate a deterministic aggregation workflow plan for an agent."""
+    orch = ctx.obj['ORCHESTRATOR']
+    try:
+        res = orch.generate_aggregate_prs_workflow()
+        out(ctx, f"Workflow plan generated: {res['plan_path']}", data=res)
+    except Exception as e:
+        _handle_unexpected_error(ctx, "agent plan-aggregation", e)
+
 # Register aliases for backwards compatibility
 @cli.group(name='jules')
 def jules_group():
@@ -795,6 +819,8 @@ for group in [jules_group]:
     group.add_command(repair)
     group.add_command(messages)
     group.add_command(send)
+    group.add_command(plan_review)
+    group.add_command(plan_aggregation)
 
 
 def main():

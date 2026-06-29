@@ -13,6 +13,8 @@ from collections import defaultdict
 from tdw_services.services.github import GitHubClient
 from tdw_services.services.ai_service import AIClient
 from tdw_services.services.jules import JulesClient
+from tdw_services.services.repair_service import RepairService
+from tdw_services.services.vision_service import VisionService
 from tdw_services.utils import log_error, log_warn, get_or_create_log_dir, CLIError
 from tdw_services.handlers.command_handler import CommandHandler
 from dev_tools.utils import (
@@ -69,6 +71,10 @@ class Orchestrator:
         if self._jules is None:
             self._jules = JulesClient()
         return self._jules
+
+    @property
+    def vision(self) -> VisionService:
+        return VisionService()
 
     def _hash_content(self, content: str) -> str:
         return hashlib.md5(content.encode('utf-8')).hexdigest()
@@ -568,8 +574,7 @@ class Orchestrator:
                             auto_findings.append({"path": filepath, "issue": f"{v['pattern']}: {v['message']} (value: {v.get('value', 'N/A')})", "severity": v.get('severity', 'minor')})
             res["auto_findings"] = auto_findings
         if submit:
-            from dev_tools.submit_review import submit_review
-            submit_review(pr_number, rev_path, cleanup=cleanup, dry_run=dry_run, event_override=event)
+            self.github.submit_pr_review(pr_number, rev_path, cleanup=cleanup, dry_run=dry_run, event_override=event)
         return res
 
     def handle_comment_command(self, pr_number: int, command: str, comment_id: Optional[str] = None) -> Dict[str, Any]:
@@ -902,8 +907,7 @@ Respond only after the PR is created or updated:
         return resolved
 
     def repair_context(self, log: Optional[str] = None, log_file: Optional[str] = None, pr_number: Optional[int] = None) -> List[str]:
-        from error_rag import RAGPipeline
-        pipeline = RAGPipeline(); prompts = []
+        pipeline = RepairService(); prompts = []
         if log: prompts.append(pipeline.generate_prompt(log))
         elif log_file:
             with open(log_file) as f:
@@ -1232,6 +1236,331 @@ Respond only after the PR is created or updated:
             "pr_url": pr_url,
             "message": f"Successfully aggregated {len(successfully_merged)} PRs into {target_branch}"
         }
+
+    def generate_review_workflow(self, pr_number: int, issue_number: Optional[int] = None) -> Dict[str, Any]:
+        """Generates a deterministic review workflow plan for an agent."""
+        # 1. Environment Validation
+        try:
+            env_res = self.runtime_check()
+            env_output = f"Runtime OK: node {env_res['node']}, pnpm {env_res['pnpm']}"
+        except Exception as e:
+            env_output = f"Runtime Check Failed: {e}"
+
+        # 2. Issue Validation
+        issue_output = "No issue number provided."
+        if issue_number:
+            try:
+                res = self.validate_issue(issue_number=issue_number)
+                issue_output = json.dumps(res, indent=2)
+            except Exception as e:
+                issue_output = f"Issue validation failed: {e}"
+
+        # 3. Conflict Detection
+        try:
+            conflicts = self.handle_detect_conflicts(pr_num=pr_number)
+            conflict_output = json.dumps(conflicts, indent=2)
+        except Exception as e:
+            conflict_output = f"Conflict detection failed: {e}"
+
+        # 4. PR Context Generation
+        try:
+            audit_res = self.audit_pr(pr_number, fetch=True)
+            pr_context_file = audit_res["files"]["context"]
+        except Exception as e:
+            raise CLIError(f"Failed to fetch PR context: {e}")
+
+        pr_summary = ""
+        ci_status = ""
+        failure_logs = ""
+
+        if os.path.exists(pr_context_file):
+            with open(pr_context_file, "r") as f:
+                pr_context_content = f.read()
+
+            summary_match = re.search(r'(# PR Context:.*?)(?=## CI Status|## Diff Stats)', pr_context_content, re.DOTALL)
+            if summary_match: pr_summary = summary_match.group(1).strip()
+
+            ci_status_match = re.search(r'(## CI Status.*?)(?=## Diff Stats|## Failing Tests)', pr_context_content, re.DOTALL)
+            if ci_status_match: ci_status = ci_status_match.group(1).strip()
+
+            failure_logs_match = re.search(r'(## Failing Tests.*?)(?=## Diff Stats|$)', pr_context_content, re.DOTALL)
+            if failure_logs_match: failure_logs = failure_logs_match.group(1).strip()
+
+            if not pr_summary: pr_summary = "See " + pr_context_file
+            if not ci_status: ci_status = "See " + pr_context_file
+            if not failure_logs: failure_logs = "See " + pr_context_file
+
+        # 5. Impact Analysis
+        impact_output = "Not available."
+        if os.path.exists("scripts/impact-analysis.ts"):
+            res = run_command(["npx", "tsx", "scripts/impact-analysis.ts"], check=False)
+            impact_output = res.stdout + res.stderr
+
+        # 6. Existing Review Data
+        gemini_review = "None."
+        if os.path.exists("artifacts/gemini-code-review.md"):
+            with open("artifacts/gemini-code-review.md", "r") as f: gemini_review = f.read()
+
+        github_models_review = "None."
+        if os.path.exists("artifacts/github-models-code-review.md"):
+            with open("artifacts/github-models-code-review.md", "r") as f: github_models_review = f.read()
+
+        # Generate workflow plan
+        plan_dir = get_or_create_log_dir("workflows")
+        plan_path = os.path.join(plan_dir, f"workflow-plan-pr-{pr_number}.md")
+
+        with open(plan_path, "w") as f:
+            f.write(f"""# Workflow Plan: PR #{pr_number}
+
+## Agent Instructions
+
+- setup complete
+- validation complete
+- context collected
+- diagnostics collected
+
+Agent must not repeat these steps.
+
+---
+
+## Workflow State
+
+[x] Environment Validation
+[x] Issue Validation
+[x] Conflict Detection
+[x] Context Collection
+[x] Impact Analysis
+[ ] Review Analysis
+[ ] Review Authoring
+[ ] Completion Verification
+
+---
+
+## Collected Context
+
+### Validation Output
+```text
+{env_output}
+```
+
+### Issue Validation Output
+```text
+{issue_output}
+```
+
+### Conflict Output
+```text
+{conflict_output}
+```
+
+### PR Summary
+Relevant excerpts from:
+`{pr_context_file}`
+
+```text
+{pr_summary}
+```
+
+### CI Status
+Relevant excerpts:
+```text
+{ci_status}
+```
+
+### Failure Logs
+Relevant excerpts:
+```text
+{failure_logs}
+```
+
+### Impact Analysis
+Relevant excerpts:
+```text
+{impact_output}
+```
+
+### Existing AI Reviews
+**Gemini:**
+```markdown
+{gemini_review}
+```
+
+**GitHub Models:**
+```markdown
+{github_models_review}
+```
+
+---
+
+## Allowed Files
+
+Agent may read:
+`.agents/workflows/REVIEW_INSTRUCTIONS.md`
+`boomtick-pkg/cli/logs/reviews/pr-review-{pr_number}.md`
+
+---
+
+## Writable Files
+
+Agent may modify:
+`boomtick-pkg/cli/logs/reviews/pr-review-{pr_number}.md`
+
+---
+
+## Remaining Tasks
+
+### Step 1
+Review supplied evidence.
+
+### Step 2
+Populate review file.
+
+### Step 3
+Verify:
+- JSON valid
+- checklist complete
+- comments reference valid diff lines
+
+---
+
+## Completion Criteria
+
+All checklist items resolved.
+No placeholders remain.
+No guessed line numbers.
+No invented findings.
+Every finding must reference supplied evidence.
+
+---
+
+## Final Output
+
+Output exactly:
+
+```bash
+td gh audit-pr {pr_number} --submit --cleanup --execute
+```
+
+Only after successful completion.
+""")
+        return {"status": "success", "plan_path": plan_path}
+
+    def generate_aggregate_prs_workflow(self) -> Dict[str, Any]:
+        """Generates a deterministic aggregation workflow plan for an agent."""
+        # 1. Environment Validation
+        try:
+            env_res = self.runtime_check()
+            env_output = f"Runtime OK: node {env_res['node']}, pnpm {env_res['pnpm']}"
+        except Exception as e:
+            env_output = f"Runtime Check Failed: {e}"
+
+        # 2. Get Open PRs and Overlaps
+        prs_output = "No data."
+        try:
+            # Re-implement minimal overlap logic without pickle
+            repo = get_github_client().get_repo(get_repo_name())
+            pulls = list(repo.get_pulls(state='open'))[:50]
+
+            file_to_prs = defaultdict(list)
+            pr_titles = {}
+            for pr in pulls:
+                num = str(pr.number)
+                pr_titles[num] = pr.title
+                # Standardize file fetch to avoid visual snapshots
+                files = {f.filename for f in pr.get_files() if not f.filename.startswith("tests/visual.spec.ts-snapshots/")}
+                for f in files:
+                    file_to_prs[f].append(num)
+
+            overlap_groups = defaultdict(list)
+            for file, prs in file_to_prs.items():
+                if len(prs) > 1:
+                    overlap_groups[frozenset(prs)].append(file)
+
+            report = ["--- EXACT OVERLAP GROUPS ---"]
+            for pr_set, files in sorted(overlap_groups.items(), key=lambda x: len(x[1]), reverse=True):
+                pr_list = sorted(list(pr_set), key=int)
+                report.append(f"PRs {', '.join(pr_list)} overlap on {len(files)} files:")
+                for pr_num in pr_list:
+                    report.append(f"  [{pr_num}] {pr_titles.get(pr_num)}")
+
+            prs_output = "\n".join(report)
+        except Exception as e:
+            prs_output = f"Overlap analysis failed: {e}"
+
+        # Generate workflow plan
+        plan_dir = get_or_create_log_dir("workflows")
+        plan_path = os.path.join(plan_dir, "workflow-plan-aggregate-prs.md")
+
+        with open(plan_path, "w") as f:
+            f.write(f"""# Workflow Plan: Aggregate PRs
+
+## Agent Instructions
+
+- setup complete
+- validation complete
+- open PRs retrieved
+
+Agent must not repeat these steps.
+
+---
+
+## Workflow State
+
+[x] Environment Validation
+[x] Retrieve Open PRs
+[ ] Review Overlaps
+[ ] Consolidate/Abandon PRs
+[ ] Completion Verification
+
+---
+
+## Collected Context
+
+### Validation Output
+```text
+{env_output}
+```
+
+### Open PRs Output
+```text
+{prs_output}
+```
+
+---
+
+## Allowed Files
+
+Agent may read:
+`.agents/workflows/REVIEW_INSTRUCTIONS.md`
+
+---
+
+## Writable Files
+
+Agent may modify:
+(Any relevant branch or PR metadata using `td`)
+
+---
+
+## Remaining Tasks
+
+### Step 1
+Review the overlap output.
+
+### Step 2
+Use `td gh` commands to merge, close, or consolidate redundant pull requests.
+
+### Step 3
+Verify all related PRs have been appropriately tagged or closed.
+
+---
+
+## Completion Criteria
+
+Overlapping functionality identified and resolved.
+
+""")
+        return {"status": "success", "plan_path": plan_path}
 
     def resolve_pr_conflicts(self, pr_number: int, allow_unrelated: bool = False, strategy: Optional[str] = None, push: bool = False) -> Dict[str, Any]:
         """

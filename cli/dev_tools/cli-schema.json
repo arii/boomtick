@@ -860,6 +860,28 @@
         }
       ]
     },
+    "agent plan-review": {
+      "description": "Generate a deterministic review workflow plan for an agent.",
+      "exact_usage": "python3 boomtick-pkg/cli/dev_tools/td_cli.py agent plan-review --pr <PR> [--issue <ISSUE>]",
+      "required_flags": [
+        {
+          "flag": "--pr",
+          "type": "integer",
+          "description": "Pull Request number"
+        }
+      ],
+      "optional_flags": [
+        {
+          "flag": "--issue",
+          "type": "integer",
+          "description": "Issue number"
+        }
+      ]
+    },
+    "agent plan-aggregation": {
+      "description": "Generate a deterministic aggregation workflow plan for an agent.",
+      "exact_usage": "python3 boomtick-pkg/cli/dev_tools/td_cli.py agent plan-aggregation"
+    },
     "jules dispatch": {
       "description": "",
       "exact_usage": "python3 boomtick-pkg/cli/dev_tools/td_cli.py jules dispatch <BRANCH> <TASK>",
@@ -974,6 +996,28 @@
           "description": ""
         }
       ]
+    },
+    "jules plan-review": {
+      "description": "Generate a deterministic review workflow plan for an agent.",
+      "exact_usage": "python3 boomtick-pkg/cli/dev_tools/td_cli.py jules plan-review --pr <PR> [--issue <ISSUE>]",
+      "required_flags": [
+        {
+          "flag": "--pr",
+          "type": "integer",
+          "description": "Pull Request number"
+        }
+      ],
+      "optional_flags": [
+        {
+          "flag": "--issue",
+          "type": "integer",
+          "description": "Issue number"
+        }
+      ]
+    },
+    "jules plan-aggregation": {
+      "description": "Generate a deterministic aggregation workflow plan for an agent.",
+      "exact_usage": "python3 boomtick-pkg/cli/dev_tools/td_cli.py jules plan-aggregation"
     }
   }
 }
