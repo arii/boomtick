@@ -192,33 +192,28 @@ class Orchestrator:
     def analyze_file(self, file_path: str) -> str:
         if not os.path.exists(file_path):
             raise CLIError(f"File not found: {file_path}")
-        try:
-            with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
-                content = f.read()
-            prompt = f"Analyze this file for bugs, style issues, and potential improvements:\n\n{content[:20000]}"
-            return self.ai.generate(prompt)
-        except Exception as e:
-            raise CLIError(f"Failed to analyze file: {e}")
+
+        with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
+            content = f.read()
+        prompt = f"Analyze this file for bugs, style issues, and potential improvements:\n\n{content[:20000]}"
+        return self.ai.generate(prompt)
 
     def find_conflict_files(self) -> List[str]:
         """
         Robustly finds files with git conflict markers, ignoring build artifacts and dependencies.
         """
-        try:
-            res = run_command([
-                "grep", "-lrE", "^<<<<<<<|^=======|^>>>>>>>", ".",
-                "--exclude-dir=boomtick-pkg",
-                "--exclude-dir=node_modules",
-                "--exclude-dir=dist",
-                "--exclude-dir=.git",
-                "--exclude-dir=build",
-                "--exclude-dir=target",
-                "--exclude-dir=.venv"
-            ], check=False, log_on_error=False)
-            if res.returncode == 0 and res.stdout:
-                return [f.strip() for f in res.stdout.splitlines() if f.strip()]
-        except subprocess.SubprocessError as e:
-            log_warn(f"Failed to find conflict files: {e}")
+        res = run_command([
+            "grep", "-lrE", "^<<<<<<<|^=======|^>>>>>>>", ".",
+            "--exclude-dir=boomtick-pkg",
+            "--exclude-dir=node_modules",
+            "--exclude-dir=dist",
+            "--exclude-dir=.git",
+            "--exclude-dir=build",
+            "--exclude-dir=target",
+            "--exclude-dir=.venv"
+        ], check=False, log_on_error=False)
+        if res.returncode == 0 and res.stdout:
+            return [f.strip() for f in res.stdout.splitlines() if f.strip()]
         return []
 
     def dispatch_jules_review(self, branch: str, prompt: str) -> Optional[Dict[str, Any]]:
@@ -319,19 +314,13 @@ class Orchestrator:
         """
         if body is None or not body.strip():
             raise CLIError("Issue body cannot be empty.")
-        try:
-            return self.github.create_issue(title, body)
-        except Exception as e:
-            raise CLIError(f"Failed to create GitHub issue: {str(e)}")
+        return self.github.create_issue(title, body)
 
     def get_issue_details(self, issue_number: int) -> Dict[str, Any]:
         """
         Fetches details of a GitHub issue.
         """
-        try:
-            return self.github.fetch_issue_details(issue_number)
-        except Exception as e:
-            raise CLIError(f"Failed to fetch GitHub issue details: {str(e)}")
+        return self.github.fetch_issue_details(issue_number)
 
     def update_issue_body(self, issue_number: int, body: Optional[str]) -> Dict[str, Any]:
         """
@@ -339,10 +328,7 @@ class Orchestrator:
         """
         if body is None or not body.strip():
             raise CLIError("Issue body cannot be empty.")
-        try:
-            return self.github.update_issue(issue_number, body)
-        except Exception as e:
-            raise CLIError(f"Failed to update GitHub issue body: {str(e)}")
+        return self.github.update_issue(issue_number, body)
 
     def post_comment(self, entity_number: int, body: Optional[str]) -> Dict[str, Any]:
         """
@@ -350,10 +336,7 @@ class Orchestrator:
         """
         if body is None or not body.strip():
             raise CLIError("Comment body cannot be empty.")
-        try:
-            return self.github.create_issue_comment(entity_number, body)
-        except Exception as e:
-            raise CLIError(f"Failed to post GitHub comment: {str(e)}")
+        return self.github.create_issue_comment(entity_number, body)
 
     def validate_issue(self, issue_number: Optional[int] = None, all_open: bool = False, post_comments: bool = False, dry_run: bool = True) -> Dict[str, Any]:
         repo = get_github_client().get_repo(get_repo_name())
@@ -577,15 +560,12 @@ class Orchestrator:
                 audit_res = run_command(["node", "scripts/detect-antipatterns.mjs", "--json"] + files_to_audit, check=False)
                 output = audit_res.stdout
                 if output and "{" in output:
-                    try:
-                        json_start = output.find("{")
-                        json_end = output.rfind("}") + 1
-                        audit_data = json.loads(output[json_start:json_end])
-                        for filepath, violations in audit_data.items():
-                            for v in violations:
-                                auto_findings.append({"path": filepath, "issue": f"{v['pattern']}: {v['message']} (value: {v.get('value', 'N/A')})", "severity": v.get('severity', 'minor')})
-                    except json.JSONDecodeError:
-                        log_error(f"Failed to parse audit results as JSON. Output: {output}")
+                    json_start = output.find("{")
+                    json_end = output.rfind("}") + 1
+                    audit_data = json.loads(output[json_start:json_end])
+                    for filepath, violations in audit_data.items():
+                        for v in violations:
+                            auto_findings.append({"path": filepath, "issue": f"{v['pattern']}: {v['message']} (value: {v.get('value', 'N/A')})", "severity": v.get('severity', 'minor')})
             res["auto_findings"] = auto_findings
         if submit:
             from dev_tools.submit_review import submit_review
@@ -715,11 +695,8 @@ class Orchestrator:
         else: results["steps"].append({"name": "Baseline Check", "status": "success"})
         scope_warning = verify_pr_scope()
         if scope_warning: results["steps"].append({"name": "PR Scope Check", "status": "warning", "message": scope_warning})
-        try:
-            conflicts = self.detect_conflicts()
-            results["conflicts"] = [{"prs": list(p), "files": f} for p, f in conflicts.items()]
-        except Exception as e:
-            results["steps"].append({"name": "Conflict Detection", "status": "warning", "message": f"Conflict detection failed: {str(e)}"})
+        conflicts = self.detect_conflicts()
+        results["conflicts"] = [{"prs": list(p), "files": f} for p, f in conflicts.items()]
         return results
 
     def repair_local(self, logs_path: Optional[str] = None, stdin: bool = False, worktree: bool = False) -> Dict[str, Any]:
@@ -775,17 +752,14 @@ class Orchestrator:
                  log_warn("Shallow repository detected and no AUDIT_BASELINE variable found. Falling back to 0.")
 
             baseline_count = 0
-            try:
-                base = PROJECT_CONFIG.base_branch
-                base_files = run_command(["git", "ls-tree", "-r", base, "--name-only"]).splitlines()
-                # Ensure AUDIT_CHECK_DIRS are handled as a list of prefixes
-                relevant = [mf for mf in base_files if (mf.endswith('.tsx') or mf.endswith('.ts')) and any(mf == d or mf.startswith(d + '/') for d in AUDIT_CHECK_DIRS)]
-                for mf in relevant:
-                    res_show = run_command(["git", "show", f"{base}:{mf}"], check=False, log_on_error=False)
-                    if res_show.returncode == 0:
-                        baseline_count += int(run_command(["node", "scripts/detect-antipatterns.mjs", "--count-only", "-"], input_str=res_show.stdout) or 0)
-            except Exception as e:
-                log_warn(f"Failed to resolve baseline from git history: {e}")
+            base = PROJECT_CONFIG.base_branch
+            base_files = run_command(["git", "ls-tree", "-r", base, "--name-only"]).splitlines()
+            # Ensure AUDIT_CHECK_DIRS are handled as a list of prefixes
+            relevant = [mf for mf in base_files if (mf.endswith('.tsx') or mf.endswith('.ts')) and any(mf == d or mf.startswith(d + '/') for d in AUDIT_CHECK_DIRS)]
+            for mf in relevant:
+                res_show = run_command(["git", "show", f"{base}:{mf}"], check=False, log_on_error=False)
+                if res_show.returncode == 0:
+                    baseline_count += int(run_command(["node", "scripts/detect-antipatterns.mjs", "--count-only", "-"], input_str=res_show.stdout) or 0)
         return {"current": current_count, "baseline": baseline_count, "status": "success" if current_count <= baseline_count else "error"}
 
     def fix_ci(self, pr_number: Optional[int] = None, branch: Optional[str] = None, api_key: Optional[str] = None, dry_run: bool = True) -> Dict[str, Any]:
@@ -1065,11 +1039,8 @@ Respond only after the PR is created or updated:
             runs = self.github.fetch_check_runs_for_suite(suite['id'])
             for run in runs:
                 if include_all or run.get("conclusion") == "failure":
-                    try:
-                        log_content = self.github.fetch_check_run_logs(run.get('id'), external_id=run.get('external_id'))
-                        logs[run["name"]] = log_content[:10000]
-                    except Exception:
-                        pass
+                    log_content = self.github.fetch_check_run_logs(run.get('id'), external_id=run.get('external_id'))
+                    logs[run["name"]] = log_content[:10000]
 
         return {
             "checks": checks,
@@ -1092,17 +1063,13 @@ Respond only after the PR is created or updated:
         all_logs = []
         # Limit to latest 20 jobs to avoid extreme memory usage
         for run in check_runs[:20]:
-            try:
-                # Fetch logs via API to avoid terminal paging/buffering issues
-                log_content = self.github.fetch_check_run_logs(run.get('id'), external_id=run.get('external_id'))
-                header = f"--- LOGS FOR JOB: {run['name']} (ID: {run['id']}) ---"
-                all_logs.append(header)
-                # Truncate each log to 20k chars to balance detail vs memory
-                all_logs.append(log_content[-20000:])
-                all_logs.append("\n")
-            except Exception as e:
-                log_error(f"Failed to fetch logs for job {run.get('id')} ({run.get('name')}): {e}")
-                all_logs.append(f"--- FAILED TO FETCH LOGS FOR JOB: {run['name']} ({str(e)}) ---")
+            # Fetch logs via API to avoid terminal paging/buffering issues
+            log_content = self.github.fetch_check_run_logs(run.get('id'), external_id=run.get('external_id'))
+            header = f"--- LOGS FOR JOB: {run['name']} (ID: {run['id']}) ---"
+            all_logs.append(header)
+            # Truncate each log to 20k chars to balance detail vs memory
+            all_logs.append(log_content[-20000:])
+            all_logs.append("\n")
 
         combined_logs = "\n".join(all_logs)
 
@@ -1221,40 +1188,34 @@ Respond only after the PR is created or updated:
 
         for pr_num in pr_numbers:
             # 2. Sequential Extraction & Deterministic Sequence
-            try:
-                pr_data = self.github.fetch_pr_details(pr_num)
-                head_ref = pr_data.get('head', {}).get('ref')
-                title = pr_data.get('title')
-                body = pr_data.get('body') or ""
+            pr_data = self.github.fetch_pr_details(pr_num)
+            head_ref = pr_data.get('head', {}).get('ref')
+            title = pr_data.get('title')
+            body = pr_data.get('body') or ""
 
-                if not head_ref:
-                    raise CLIError(f"Could not determine head ref for PR #{pr_num}")
+            if not head_ref:
+                raise CLIError(f"Could not determine head ref for PR #{pr_num}")
 
-                # 2.5 Handle forks by using git fetch
-                # This ensures the branch is available locally and handles forks correctly
-                run(["git", "fetch", "origin", f"pull/{pr_num}/head:{head_ref}"])
+            # 2.5 Handle forks by using git fetch
+            # This ensures the branch is available locally and handles forks correctly
+            run(["git", "fetch", "origin", f"pull/{pr_num}/head:{head_ref}"])
 
-                # Switch back to the target branch
-                run(["git", "checkout", target_branch])
+            # Switch back to the target branch
+            run(["git", "checkout", target_branch])
 
-                # 3. Safety First: Attempt automated integration merge
-                # Use 'ort' strategy implicitly by standard merge if git version supports it,
-                # or just standard merge.
-                res = run_command(["git", "merge", head_ref, "-m", f"Merging PR #{pr_num}: {title}"], check=False)
+            # 3. Safety First: Attempt automated integration merge
+            # Use 'ort' strategy implicitly by standard merge if git version supports it,
+            # or just standard merge.
+            res = run_command(["git", "merge", head_ref, "-m", f"Merging PR #{pr_num}: {title}"], check=False)
 
-                if res.returncode != 0:
-                    # Conflict encountered
-                    run(["git", "merge", "--abort"])
-                    raise CLIError(f"CRITICAL: Conflict in PR #{pr_num}. Restored stable state of {target_branch}.", code=res.returncode)
+            if res.returncode != 0:
+                # Conflict encountered
+                run(["git", "merge", "--abort"])
+                raise CLIError(f"CRITICAL: Conflict in PR #{pr_num}. Restored stable state of {target_branch}.", code=res.returncode)
 
-                # 4. Metadata Preservation
-                successfully_merged.append(pr_num)
-                aggregate_body += f"Closes #{pr_num}\n\n### Description from PR #{pr_num} ({title}):\n{body}\n\n---\n"
-
-            except Exception as e:
-                # Restore stable state is handled by checkout -f or similar if needed,
-                # but since we abort merge, we are back to the state before this PR.
-                raise e
+            # 4. Metadata Preservation
+            successfully_merged.append(pr_num)
+            aggregate_body += f"Closes #{pr_num}\n\n### Description from PR #{pr_num} ({title}):\n{body}\n\n---\n"
 
         # Push the compiled branch
         run(["git", "push", "-u", "origin", target_branch])
@@ -1348,8 +1309,6 @@ Respond only after the PR is created or updated:
             }
         except CLIError:
             raise
-        except Exception as e:
-            raise CLIError(f"Failed to setup conflict resolution worktree: {str(e)}")
         finally:
             if changed_dir:
                 os.chdir(original_cwd)

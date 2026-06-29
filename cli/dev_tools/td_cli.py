@@ -94,38 +94,7 @@ Troubleshooting:
 
 def main():
     # click entry point automatically handles sys.argv
-    try:
-        cli(obj={})
-    except Exception as e:
-        # If we are in JSON mode, we should ideally output JSON error.
-        # Detecting JSON mode from sys.argv since click context isn't available here yet if it failed early.
-        # Note: td_cli.py subcommands are JSON by default.
-        is_json = "--no-json" not in sys.argv
-
-        if is_json:
-            import json
-            error_payload = {
-                "status": "error",
-                "message": str(e),
-                "type": e.__class__.__name__
-            }
-            # CLIError and some others might have a custom 'code' attribute
-            code = getattr(e, 'code', 1)
-            error_payload["code"] = code
-            # JSON errors remain on stdout to maintain the contract for piped machine consumers
-            # (e.g. boomtick-mcp) which may discard stderr via 2>/dev/null.
-            print(json.dumps(error_payload, indent=2))
-        else:
-            try:
-                from tdw_services.utils import log_error
-                log_error(str(e))
-            except (ImportError, ModuleNotFoundError):
-                # Fallback if tdw_services is not in path yet
-                print(f"❌ Error: {e}", file=sys.stderr)
-            code = getattr(e, 'code', 1)
-
-        if "pytest" not in sys.modules:
-            sys.exit(code)
+    cli(obj={})
 
 if __name__ == "__main__":
     main()

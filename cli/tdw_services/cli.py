@@ -47,11 +47,6 @@ def err(ctx, msg, code=1, data=None):
         click.echo(f"❌ Error: {msg}", err=True)
     sys.exit(code)
 
-def _handle_unexpected_error(ctx, command_name, e):
-    from tdw_services.utils import log_error
-    log_error(f"Unexpected error in {command_name}: {e}")
-    err(ctx, f"An unexpected error occurred in {command_name}.")
-
 def _get_body_content(ctx, orch, file, body):
     if file and body:
         err(ctx, "Provide --file or --body, not both")
@@ -180,11 +175,8 @@ def audit(ctx, check_dirs):
 @click.pass_context
 def audit_pr(ctx, pr_number, fetch, run_audit, submit, cleanup, dry_run, base, event):
     orch = ctx.obj['ORCHESTRATOR']
-    try:
-        res = orch.audit_pr(pr_number, fetch=fetch, audit=run_audit, submit=submit, cleanup=cleanup, dry_run=dry_run, event=event)
-        out(ctx, f"✅ Audit PR #{pr_number} action complete.", data=res)
-    except CLIError as e:
-        err(ctx, str(e), code=e.code)
+    res = orch.audit_pr(pr_number, fetch=fetch, audit=run_audit, submit=submit, cleanup=cleanup, dry_run=dry_run, event=event)
+    out(ctx, f"✅ Audit PR #{pr_number} action complete.", data=res)
 
 @gh.command()
 @click.option('--title', required=True, help='Issue title')
@@ -194,14 +186,9 @@ def audit_pr(ctx, pr_number, fetch, run_audit, submit, cleanup, dry_run, base, e
 def create_issue(ctx, title, file, body):
     """Create a new GitHub issue."""
     orch = ctx.obj['ORCHESTRATOR']
-    try:
-        content = _get_body_content(ctx, orch, file, body)
-        res = orch.create_issue(title, content)
-        out(ctx, f"✅ Successfully created issue: {res.get('html_url')}", data={"issue": res})
-    except CLIError as e:
-        err(ctx, str(e), code=e.code)
-    except Exception as e:
-        _handle_unexpected_error(ctx, "create-issue", e)
+    content = _get_body_content(ctx, orch, file, body)
+    res = orch.create_issue(title, content)
+    out(ctx, f"✅ Successfully created issue: {res.get('html_url')}", data={"issue": res})
 
 @gh.command()
 @click.argument('issue_number', type=int)
@@ -209,14 +196,9 @@ def create_issue(ctx, title, file, body):
 def issue_view(ctx, issue_number):
     """View details of a GitHub issue."""
     orch = ctx.obj['ORCHESTRATOR']
-    try:
-        issue = orch.get_issue_details(issue_number)
-        msg = f"Issue #{issue.get('number')}: {issue.get('title')}\nState: {issue.get('state')}\n\n{issue.get('body')}"
-        out(ctx, msg, data={"issue": issue})
-    except CLIError as e:
-        err(ctx, str(e), code=e.code)
-    except Exception as e:
-        _handle_unexpected_error(ctx, "issue-view", e)
+    issue = orch.get_issue_details(issue_number)
+    msg = f"Issue #{issue.get('number')}: {issue.get('title')}\nState: {issue.get('state')}\n\n{issue.get('body')}"
+    out(ctx, msg, data={"issue": issue})
 
 @gh.command()
 @click.argument('issue_number', type=int)
@@ -226,14 +208,9 @@ def issue_view(ctx, issue_number):
 def issue_update(ctx, issue_number, file, body):
     """Update a GitHub issue's body."""
     orch = ctx.obj['ORCHESTRATOR']
-    try:
-        content = _get_body_content(ctx, orch, file, body)
-        res = orch.update_issue_body(issue_number, content)
-        out(ctx, f"✅ Successfully updated issue #{issue_number}", data={"issue": res})
-    except CLIError as e:
-        err(ctx, str(e), code=e.code)
-    except Exception as e:
-        _handle_unexpected_error(ctx, "issue-update", e)
+    content = _get_body_content(ctx, orch, file, body)
+    res = orch.update_issue_body(issue_number, content)
+    out(ctx, f"✅ Successfully updated issue #{issue_number}", data={"issue": res})
 
 @gh.command()
 @click.argument('issue_number', type=int)
@@ -243,14 +220,9 @@ def issue_update(ctx, issue_number, file, body):
 def issue_comment(ctx, issue_number, file, body):
     """Post a comment to a GitHub issue."""
     orch = ctx.obj['ORCHESTRATOR']
-    try:
-        content = _get_body_content(ctx, orch, file, body)
-        res = orch.post_comment(issue_number, content)
-        out(ctx, f"✅ Successfully posted comment to issue #{issue_number}", data={"comment": res})
-    except CLIError as e:
-        err(ctx, str(e), code=e.code)
-    except Exception as e:
-        _handle_unexpected_error(ctx, "issue-comment", e)
+    content = _get_body_content(ctx, orch, file, body)
+    res = orch.post_comment(issue_number, content)
+    out(ctx, f"✅ Successfully posted comment to issue #{issue_number}", data={"comment": res})
 
 @gh.command()
 @click.option('--issue-number', type=int)
@@ -280,11 +252,8 @@ def aggregate(ctx, target_branch, pr_numbers):
     if not pr_numbers:
         err(ctx, "Provide at least one PR number to aggregate.")
     orch = ctx.obj['ORCHESTRATOR']
-    try:
-        res = orch.aggregate_prs(target_branch, list(pr_numbers))
-        out(ctx, res['message'], data=res)
-    except CLIError as e:
-        err(ctx, str(e), code=e.code)
+    res = orch.aggregate_prs(target_branch, list(pr_numbers))
+    out(ctx, res['message'], data=res)
 
 @gh.command()
 @click.pass_context
@@ -307,11 +276,8 @@ def conflicts(ctx):
 def resolve_conflicts(ctx, pr, allow_unrelated, strategy, push):
     """Resolve merge conflicts for a PR in a separate worktree."""
     orch = ctx.obj['ORCHESTRATOR']
-    try:
-        res = orch.resolve_pr_conflicts(pr, allow_unrelated=allow_unrelated, strategy=strategy, push=push)
-        out(ctx, res['message'], data=res)
-    except CLIError as e:
-        err(ctx, str(e), code=e.code)
+    res = orch.resolve_pr_conflicts(pr, allow_unrelated=allow_unrelated, strategy=strategy, push=push)
+    out(ctx, res['message'], data=res)
 
 @gh.command()
 @click.argument('diff_input', required=False)
@@ -376,16 +342,13 @@ def detect_conflicts(ctx, pr):
 def parse_comment(ctx, body, author_association):
     """Parse a comment body and return intended actions."""
     orch = ctx.obj['ORCHESTRATOR']
-    try:
-        # Security: Allow reading body from COMMENT_BODY env var to avoid shell injection in CI
-        content = body if body else os.environ.get("COMMENT_BODY")
-        if not content:
-            err(ctx, "Comment body is required (use --body or COMMENT_BODY env var)")
+    # Security: Allow reading body from COMMENT_BODY env var to avoid shell injection in CI
+    content = body if body else os.environ.get("COMMENT_BODY")
+    if not content:
+        err(ctx, "Comment body is required (use --body or COMMENT_BODY env var)")
 
-        actions = orch.parse_comment(content, author_association)
-        out(ctx, "Comment parsed successfully.", data={"actions": actions})
-    except Exception as e:
-        _handle_unexpected_error(ctx, "parse-comment", e)
+    actions = orch.parse_comment(content, author_association)
+    out(ctx, "Comment parsed successfully.", data={"actions": actions})
 
 @gh.command()
 @click.option('--pr', required=True, type=int, help="The PR number to comment on.")
@@ -395,14 +358,9 @@ def parse_comment(ctx, body, author_association):
 def post_comment(ctx, pr, file, body):
     """Post a comment to a PR."""
     orch = ctx.obj['ORCHESTRATOR']
-    try:
-        content = _get_body_content(ctx, orch, file, body)
-        res = orch.post_comment(pr, content)
-        out(ctx, f"✅ Successfully posted comment to PR #{pr}", data=res)
-    except CLIError as e:
-        err(ctx, str(e), code=e.code)
-    except Exception as e:
-        _handle_unexpected_error(ctx, "post-comment", e)
+    content = _get_body_content(ctx, orch, file, body)
+    res = orch.post_comment(pr, content)
+    out(ctx, f"✅ Successfully posted comment to PR #{pr}", data=res)
 
 @gh.command()
 @click.pass_context
@@ -499,11 +457,8 @@ def bundle_size(ctx, baseline_file, threshold, update, dry_run):
 def doctor(ctx):
     """Runtime Consistency Check"""
     orch = ctx.obj['ORCHESTRATOR']
-    try:
-        res = orch.runtime_check()
-        out(ctx, f"✅ Runtime OK: node {res['node']}, pnpm {res['pnpm']}", data=res)
-    except CLIError as e:
-        err(ctx, str(e), code=e.code)
+    res = orch.runtime_check()
+    out(ctx, f"✅ Runtime OK: node {res['node']}, pnpm {res['pnpm']}", data=res)
 
 @gh.command()
 @click.pass_context
@@ -824,10 +779,7 @@ def send(ctx, session_id, message):
     """Send a message to an active Jules session."""
     orch = ctx.obj['ORCHESTRATOR']
     res = orch.jules.send_message(session_id, message)
-    if res.get('status') == 'success':
-        out(ctx, f"✅ Message sent to session {session_id}", data=res)
-    else:
-        err(ctx, f"Failed to send message: {res.get('message')}", data=res)
+    out(ctx, f"✅ Message sent to session {session_id}", data=res)
 
 # Register aliases for backwards compatibility
 @cli.group(name='jules')

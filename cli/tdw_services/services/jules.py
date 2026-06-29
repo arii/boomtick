@@ -22,35 +22,23 @@ class JulesClient:
 
     def list_sources(self) -> List[Dict[str, Any]]:
         url = f"{self.base_url}/sources"
-        try:
-            response = requests.get(url, headers=self.headers, timeout=10)
-            response.raise_for_status()
-            return response.json().get("sources", [])
-        except Exception as e:
-            log_warn(f"Jules API list_sources failed: {e}")
-            return []
+        response = requests.get(url, headers=self.headers, timeout=10)
+        response.raise_for_status()
+        return response.json().get("sources", [])
 
     def list_sessions(self, pageSize: int = 100) -> List[Dict[str, Any]]:
         url = f"{self.base_url}/sessions"
         params = {"pageSize": pageSize}
-        try:
-            response = requests.get(url, headers=self.headers, params=params, timeout=10)
-            response.raise_for_status()
-            return response.json().get("sessions", [])
-        except Exception as e:
-            log_warn(f"Jules API list_sessions failed: {e}")
-            return []
+        response = requests.get(url, headers=self.headers, params=params, timeout=10)
+        response.raise_for_status()
+        return response.json().get("sessions", [])
 
     def get_session(self, session_id: str) -> Optional[Dict[str, Any]]:
         clean_id = self._get_clean_id(session_id, "sessions")
         url = f"{self.base_url}/sessions/{clean_id}"
-        try:
-            response = requests.get(url, headers=self.headers, timeout=10)
-            response.raise_for_status()
-            return response.json()
-        except Exception as e:
-            log_warn(f"Jules API get_session failed: {e}")
-            return None
+        response = requests.get(url, headers=self.headers, timeout=10)
+        response.raise_for_status()
+        return response.json()
 
     def discover_source_id(self, repo_full_name: str) -> Optional[str]:
         sources = self.list_sources()
@@ -78,15 +66,9 @@ class JulesClient:
         log_debug(f"Creating Jules session at {url}")
         log_debug(f"Payload: {payload}")
 
-        try:
-            response = requests.post(url, headers=self.headers, json=payload, timeout=15)
-            response.raise_for_status()
-            return response.json()
-        except Exception as e:
-            log_warn(f"Jules API create_session failed: {e}")
-            if hasattr(e, 'response') and e.response is not None:
-                log_debug(f"Response Body: {e.response.text}")
-            return None
+        response = requests.post(url, headers=self.headers, json=payload, timeout=15)
+        response.raise_for_status()
+        return response.json()
 
     def create_session(self, prompt: str, branch: str, title: str, owner: str, repo_name: str) -> str:
         """Creates a new Jules session via the legacy API."""
@@ -125,31 +107,23 @@ class JulesClient:
     def get_messages(self, session_id: str) -> List[Dict[str, Any]]:
         clean_id = self._get_clean_id(session_id, "sessions")
         url = f"{self.base_url}/sessions/{clean_id}/activities"
-        try:
-            response = requests.get(url, headers=self.headers, timeout=10)
-            response.raise_for_status()
-            activities = response.json().get("activities", [])
-            messages = []
-            for act in activities:
-                content = self._extract_activity_content(act)
-                if content:
-                    messages.append({
-                        "role": "user" if act.get("originator") == "user" else "jules",
-                        "content": content,
-                        "time": act.get("createTime")
-                    })
-            return messages
-        except Exception as e:
-            log_warn(f"Jules API get_messages failed: {e}")
-            return []
+        response = requests.get(url, headers=self.headers, timeout=10)
+        response.raise_for_status()
+        activities = response.json().get("activities", [])
+        messages = []
+        for act in activities:
+            content = self._extract_activity_content(act)
+            if content:
+                messages.append({
+                    "role": "user" if act.get("originator") == "user" else "jules",
+                    "content": content,
+                    "time": act.get("createTime")
+                })
+        return messages
 
     def send_message(self, session_id: str, message: str) -> Dict[str, Any]:
         clean_id = self._get_clean_id(session_id, "sessions")
         url = f"{self.base_url}/sessions/{clean_id}:sendMessage"
-        try:
-            response = requests.post(url, headers=self.headers, json={"prompt": message}, timeout=10)
-            response.raise_for_status()
-            return {"status": "success", "message": "Message sent successfully"}
-        except Exception as e:
-            log_warn(f"Jules API send_message failed: {e}")
-            return {"status": "error", "message": str(e)}
+        response = requests.post(url, headers=self.headers, json={"prompt": message}, timeout=10)
+        response.raise_for_status()
+        return {"status": "success", "message": "Message sent successfully"}

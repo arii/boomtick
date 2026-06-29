@@ -91,32 +91,23 @@ class GitHubClient:
         return self._request('GET', f'/repos/{self.repo}/commits/{commit_sha}/pulls')
 
     def fetch_check_runs(self, ref: str) -> List[Dict[str, Any]]:
-        try:
-            data = self._request('GET', f'/repos/{self.repo}/commits/{ref}/check-runs')
-            return [{
-                'id': run.get('id'),
-                'name': run.get('name'),
-                'status': run.get('status'),
-                'conclusion': run.get('conclusion'),
-                'url': run.get('html_url'),
-                'external_id': run.get('external_id')
-            } for run in data.get('check_runs', [])]
-        except Exception:
-            return []
+        data = self._request('GET', f'/repos/{self.repo}/commits/{ref}/check-runs')
+        return [{
+            'id': run.get('id'),
+            'name': run.get('name'),
+            'status': run.get('status'),
+            'conclusion': run.get('conclusion'),
+            'url': run.get('html_url'),
+            'external_id': run.get('external_id')
+        } for run in data.get('check_runs', [])]
 
     def fetch_check_suites(self, ref: str) -> List[Dict[str, Any]]:
-        try:
-            data = self._request('GET', f'/repos/{self.repo}/commits/{ref}/check-suites')
-            return data.get('check_suites', [])
-        except Exception:
-            return []
+        data = self._request('GET', f'/repos/{self.repo}/commits/{ref}/check-suites')
+        return data.get('check_suites', [])
 
     def fetch_check_runs_for_suite(self, suite_id: int) -> List[Dict[str, Any]]:
-        try:
-            data = self._request('GET', f'/repos/{self.repo}/check-suites/{suite_id}/check-runs')
-            return data.get('check_runs', [])
-        except Exception:
-            return []
+        data = self._request('GET', f'/repos/{self.repo}/check-suites/{suite_id}/check-runs')
+        return data.get('check_runs', [])
 
     def list_pull_requests(self, state: str = 'open', limit: int = 100, labels: Optional[List[str]] = None) -> List[Dict[str, Any]]:
         """Lists pull requests with optional server-side label filtering or standard Pulls API."""
@@ -199,20 +190,17 @@ class GitHubClient:
         """Fetches logs for a specific check run, using external_id (job_id) if available. Gracefully fallback to check_run_id if external_id 404s."""
         # Ensure we have a valid ID and it's a string for the URL path
         job_id = str(external_id) if external_id is not None else str(check_run_id)
+
+        # GitHub API returns a 302 redirect to a URL that expires after a few minutes
+        # Using 'application/vnd.github.v3.raw' ensures we get the plain text logs
         try:
-            # GitHub API returns a 302 redirect to a URL that expires after a few minutes
-            # Using 'application/vnd.github.v3.raw' ensures we get the plain text logs
             return self._request('GET', f'/repos/{self.repo}/actions/jobs/{job_id}/logs', is_text=True, accept="application/vnd.github.v3.raw", allow_redirects=True)
-        except Exception as e:
-            error_msg = str(e)
-            if external_id is not None and "404" in error_msg:
+        except requests.exceptions.HTTPError as e:
+            if external_id is not None and e.response.status_code == 404:
                 # Fallback to query by raw check_run_id
                 job_id = str(check_run_id)
-                try:
-                    return self._request('GET', f'/repos/{self.repo}/actions/jobs/{job_id}/logs', is_text=True, accept="application/vnd.github.v3.raw")
-                except Exception as fallback_e:
-                    return f"Failed to fetch logs for job {job_id} after fallback: {str(fallback_e)}"
-            return f"Failed to fetch logs for job {job_id}: {error_msg}"
+                return self._request('GET', f'/repos/{self.repo}/actions/jobs/{job_id}/logs', is_text=True, accept="application/vnd.github.v3.raw")
+            raise
 
     def create_issue_comment(self, number: int, body: str) -> Dict[str, Any]:
         return self._request('POST', f'/repos/{self.repo}/issues/{number}/comments', json_data={'body': body})
