@@ -3,6 +3,8 @@ import sys
 import os
 import json
 import time
+import subprocess
+import re
 
 # Ensure imports work regardless of execution directory
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
@@ -104,8 +106,7 @@ def main():
                 all_passed = False
                 failed_checks.append(run)
 
-        # If checks are still running, we skip (handled above)
-        # If checks failed, we send failure logs
+        # Generate initial feedback based on CI status
         if failed_checks:
             feedback = "The CI pipeline reported failures. Here are the details:\n\n"
             for run in failed_checks:
@@ -128,15 +129,95 @@ def main():
                     lines = clean_logs.splitlines()
                     snippet = "\n".join(lines[-30:]) if lines else "No logs found."
                     feedback += f"```\n{snippet}\n```\n"
-
-            print(f"  Sending failure feedback to session {session_id}...")
-            jules_client.send_message(session_id, feedback)
-            print("  Feedback sent.")
-
         elif all_passed and check_runs:
-            print(f"  All checks passed for session {session_id}. Sending success feedback...")
-            jules_client.send_message(session_id, "All checks passed successfully. You may proceed.")
-            print("  Success feedback sent.")
+            feedback = "All checks passed successfully. You may proceed.\n\n"
+        else:
+            feedback = ""
+
+        # Perform full dev-tools pipeline: Audit, AI Review, UX Report
+        pr_num = matched_pr.get('number')
+        if not isinstance(pr_num, int) or pr_num <= 0:
+            print(f"  Invalid PR number {pr_num}, skipping.")
+            continue
+
+        print(f"  Running dev-tools pipeline for PR #{pr_num}...")
+        try:
+            env = os.environ.copy()
+            # Ensure PYTHONPATH includes the cli root for td_cli.py
+            cli_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            env["PYTHONPATH"] = f"{cli_root}:{env.get('PYTHONPATH', '')}"
+            td_cli_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "td_cli.py")
+            pr_num_str = str(pr_num)
+
+            # 1. Heuristic Code Audit
+            print(f"    - Running Heuristic Audit...")
+            audit_res = subprocess.run(
+                [sys.executable, td_cli_path, "gh", "audit-pr", pr_num_str, "--fetch", "--audit"],
+                capture_output=True, text=True, env=env
+            )
+            if audit_res.returncode == 0:
+                try:
+                    audit_data = json.loads(audit_res.stdout)
+                    auto_findings = audit_data.get("auto_findings", [])
+                    if auto_findings:
+                        feedback += f"## Heuristic Audit Findings\n"
+                        for finding in auto_findings:
+                            feedback += f"- **{finding.get('severity', 'info')}** ({finding.get('path')}): {finding.get('issue')}\n"
+                        feedback += "\n"
+                except json.JSONDecodeError as e:
+                    feedback += f"## Heuristic Audit Findings\nFailed to parse JSON output: {e}\n\n"
+
+            # 2. AI Code Review
+            print(f"    - Running AI Code Review...")
+            review_res = subprocess.run(
+                [sys.executable, td_cli_path, "ai", "review", pr_num_str],
+                capture_output=True, text=True, env=env
+            )
+            if review_res.returncode == 0:
+                try:
+                    review_data = json.loads(review_res.stdout)
+                    feedback += f"## Automated Code Review\n{review_data.get('reviewComment', '')}\n"
+                    if review_data.get('recommendation'):
+                        feedback += f"**Recommendation:** {review_data.get('recommendation')}\n\n"
+                except json.JSONDecodeError:
+                    feedback += f"## Automated Code Review\nFailed to parse JSON output.\n\n"
+            else:
+                feedback += f"## Automated Code Review\nFailed to run AI review. Return code: {review_res.returncode}\n\n"
+
+            # 3. UX Visual Impact Analysis
+            print(f"    - Running UX Report...")
+            ux_res = subprocess.run(
+                [sys.executable, td_cli_path, "ux", "report"],
+                capture_output=True, text=True, env=env
+            )
+            if ux_res.returncode == 0:
+                try:
+                    ux_data = json.loads(ux_res.stdout)
+                    report_path = ux_data.get("report")
+                    if report_path and os.path.exists(report_path):
+                        with open(report_path, "r") as f:
+                            report_content = f.read()
+                        # Extract the key findings summary to avoid spamming the PR
+                        match = re.search(r'## Key Findings\n(.*?)(?=\n##|$)', report_content, re.DOTALL)
+                        if match:
+                            feedback += f"## UX Impact Analysis\n{match.group(1).strip()}\n\n"
+                        else:
+                            feedback += f"## UX Impact Analysis\nReport generated but no key findings extracted.\n\n"
+                except json.JSONDecodeError as e:
+                    feedback += f"## UX Impact Analysis\nFailed to parse JSON output: {e}\n\n"
+
+        except Exception as e:
+            feedback += f"## Dev-Tools Pipeline Error\nFailed to execute pipeline tasks: {e}\n\n"
+            print(f"  Sending error feedback to session {session_id}...")
+            jules_client.send_message(session_id, feedback)
+            sys.exit(1)
+
+        if not feedback:
+            feedback = "No diagnostic information could be generated for this PR."
+
+        print(f"  Sending feedback to session {session_id}...")
+        jules_client.send_message(session_id, feedback)
+        print("  Feedback sent.")
 
 if __name__ == "__main__":
     main()
