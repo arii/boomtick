@@ -4,9 +4,7 @@ import re
 import json
 from typing import Dict, List, Optional, Tuple
 
-# Add dev-tools to path
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-from utils import (
+from dev_tools.utils import (
     get_stack_versions,
     log_info,
     log_error,
@@ -122,7 +120,7 @@ def verify_changes(changes: List[Dict]) -> List[Dict]:
                 })
 
         # 2. Compare against Latest (Outdated detection - optional warning)
-        from utils import fetch_latest_node # Import node fetcher
+        from dev_tools.utils import fetch_latest_node # Import node fetcher
         latest = None
         if c["name"] == "node":
             latest = fetch_latest_node()

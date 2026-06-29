@@ -7,8 +7,7 @@ import os
 import pickle
 from collections import defaultdict
 
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-from utils import get_github_client, get_repo_name
+from dev_tools.utils import get_github_client, get_repo_name
 
 
 def main():

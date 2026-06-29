@@ -3,15 +3,11 @@ from unittest.mock import patch, MagicMock
 import sys
 import os
 
-# Add paths to sys.path
-sys.path.append(os.path.join(os.getcwd(), "boomtick-pkg", "cli"))
-sys.path.append(os.path.join(os.getcwd(), "boomtick-pkg", "cli", "dev_tools"))
-
 from tdw_services.services.github import GitHubClient
 
 class TestGitHubClientPagination(unittest.TestCase):
     def setUp(self):
-        patcher = patch('utils.get_github_token')
+        patcher = patch('dev_tools.utils.get_github_token')
         self.mock_token = patcher.start()
         self.mock_token.return_value = "dummy_token"
         self.addCleanup(patcher.stop)

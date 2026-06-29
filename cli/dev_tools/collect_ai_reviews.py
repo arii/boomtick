@@ -5,7 +5,7 @@ from typing import List, Dict, Any
 
 try:
     from tdw_services.services.github import GitHubClient
-    from dev_tools_sdk.config import load_project_config
+    from dev_tools.dev_tools_sdk.config import load_project_config
 except ImportError:
     print("Error: Could not import tdw_services or dev_tools_sdk. Ensure you have run `pip install -e dev-tools/` and your PYTHONPATH is set correctly (e.g., `export PYTHONPATH=$PYTHONPATH:$(pwd)/dev-tools`).")
     sys.exit(1)

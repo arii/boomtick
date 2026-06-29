@@ -21,8 +21,8 @@ dependencies = [
 ]
 
 [project.scripts]
-td = "dev_tools.td_cli:main"
-td-cli = "dev_tools.td_cli:main"
+td = "tdw_services.cli:main"
+td-cli = "tdw_services.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["."]

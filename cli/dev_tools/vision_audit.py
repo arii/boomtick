@@ -8,7 +8,7 @@ import json
 import base64
 import argparse
 from typing import Optional, List, Dict
-from dev_tools_sdk.config import load_project_config
+from dev_tools.dev_tools_sdk.config import load_project_config
 
 PROJECT_CONFIG = load_project_config()
 VISION_MODEL = os.environ.get("VISION_MODEL", PROJECT_CONFIG.ai_vision_model)

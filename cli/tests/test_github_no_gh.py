@@ -3,11 +3,6 @@ from unittest.mock import patch, MagicMock
 import os
 import sys
 
-# Setup PYTHONPATH
-sys.path.insert(0, os.path.abspath("."))
-sys.path.insert(0, os.path.abspath("dev_tools"))
-sys.path.insert(0, os.path.abspath("dev_tools/dev_tools_sdk"))
-
 from tdw_services.services.github import GitHubClient
 
 class TestGitHubClientNoGH(unittest.TestCase):

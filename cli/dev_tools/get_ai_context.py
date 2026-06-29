@@ -2,9 +2,6 @@ import os
 import sys
 import json
 
-# Add dev-tools to path
-sys.path.append(os.path.join(os.getcwd(), "dev-tools"))
-
 from tdw_services.services.dependency_graph import DependencyGraph
 from tdw_services.services.vector_store import VectorStore
 

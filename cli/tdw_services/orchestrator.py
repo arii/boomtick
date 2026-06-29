@@ -13,9 +13,9 @@ from collections import defaultdict
 from tdw_services.services.github import GitHubClient
 from tdw_services.services.ai_service import AIClient
 from tdw_services.services.jules import JulesClient
-from tdw_services.utils import log_error, get_or_create_log_dir, CLIError
+from tdw_services.utils import log_error, log_warn, get_or_create_log_dir, CLIError
 from tdw_services.handlers.command_handler import CommandHandler
-from utils import (
+from dev_tools.utils import (
     get_github_token,
     get_github_client,
     get_repo_name,
@@ -26,9 +26,9 @@ from utils import (
     extract_failing_info,
     clean_gha_logs
 )
-from repo_utils import walk_tsx, find_patterns_in_file, get_bundle_size, get_any_count
-from scope_check import verify_pr_scope
-from dev_tools_sdk.config import load_project_config
+from dev_tools.repo_utils import walk_tsx, find_patterns_in_file, get_bundle_size, get_any_count
+from dev_tools.scope_check import verify_pr_scope
+from dev_tools.dev_tools_sdk.config import load_project_config
 
 PROJECT_CONFIG = load_project_config()
 AUDIT_CHECK_DIRS = PROJECT_CONFIG.audit_check_dirs
@@ -217,7 +217,8 @@ class Orchestrator:
             ], check=False, log_on_error=False)
             if res.returncode == 0 and res.stdout:
                 return [f.strip() for f in res.stdout.splitlines() if f.strip()]
-        except Exception: pass
+        except subprocess.SubprocessError as e:
+            log_warn(f"Failed to find conflict files: {e}")
         return []
 
     def dispatch_jules_review(self, branch: str, prompt: str) -> Optional[Dict[str, Any]]:
@@ -583,10 +584,11 @@ class Orchestrator:
                         for filepath, violations in audit_data.items():
                             for v in violations:
                                 auto_findings.append({"path": filepath, "issue": f"{v['pattern']}: {v['message']} (value: {v.get('value', 'N/A')})", "severity": v.get('severity', 'minor')})
-                    except Exception: pass
+                    except json.JSONDecodeError:
+                        log_error(f"Failed to parse audit results as JSON. Output: {output}")
             res["auto_findings"] = auto_findings
         if submit:
-            from submit_review import submit_review
+            from dev_tools.submit_review import submit_review
             submit_review(pr_number, rev_path, cleanup=cleanup, dry_run=dry_run, event_override=event)
         return res
 
@@ -716,7 +718,8 @@ class Orchestrator:
         try:
             conflicts = self.detect_conflicts()
             results["conflicts"] = [{"prs": list(p), "files": f} for p, f in conflicts.items()]
-        except Exception: pass
+        except Exception as e:
+            results["steps"].append({"name": "Conflict Detection", "status": "warning", "message": f"Conflict detection failed: {str(e)}"})
         return results
 
     def repair_local(self, logs_path: Optional[str] = None, stdin: bool = False, worktree: bool = False) -> Dict[str, Any]:
@@ -759,7 +762,18 @@ class Orchestrator:
     def handle_audit_gate(self) -> Dict[str, Any]:
         current_count = int(run_command(["node", "scripts/detect-antipatterns.mjs", "--count-only"]) or 0)
         baseline_count = self.resolve_baseline(None, 'AUDIT_BASELINE', -1)
-        if baseline_count == -1:
+
+        is_shallow = run_command(["git", "rev-parse", "--is-shallow-repository"], check=False).stdout.strip() == "true"
+
+        if baseline_count == -1 or is_shallow:
+            if is_shallow:
+                 # In a shallow clone, git ls-tree/show on base branch will fail or be incomplete.
+                 # Fall back to GHA variable if possible.
+                 val = self.get_env_or_gha('AUDIT_BASELINE')
+                 if val: return {"current": current_count, "baseline": int(val), "status": "success" if current_count <= int(val) else "error"}
+                 # If no GHA variable, we cannot determine baseline accurately in shallow clone.
+                 log_warn("Shallow repository detected and no AUDIT_BASELINE variable found. Falling back to 0.")
+
             baseline_count = 0
             try:
                 base = PROJECT_CONFIG.base_branch
@@ -770,7 +784,8 @@ class Orchestrator:
                     res_show = run_command(["git", "show", f"{base}:{mf}"], check=False, log_on_error=False)
                     if res_show.returncode == 0:
                         baseline_count += int(run_command(["node", "scripts/detect-antipatterns.mjs", "--count-only", "-"], input_str=res_show.stdout) or 0)
-            except Exception: pass
+            except Exception as e:
+                log_warn(f"Failed to resolve baseline from git history: {e}")
         return {"current": current_count, "baseline": baseline_count, "status": "success" if current_count <= baseline_count else "error"}
 
     def fix_ci(self, pr_number: Optional[int] = None, branch: Optional[str] = None, api_key: Optional[str] = None, dry_run: bool = True) -> Dict[str, Any]:

@@ -10,7 +10,7 @@ import json
 import re
 
 from tdw_services.orchestrator import Orchestrator
-from utils import extract_failing_info
+from dev_tools.utils import extract_failing_info
 
 MAX_RETRIES = 3
 

@@ -7,10 +7,10 @@ try:
 except ImportError:
     def log_info(msg): print(msg, file=sys.stderr)
 
-from dev_tools_sdk.config import load_project_config
+from dev_tools.dev_tools_sdk.config import load_project_config
 
 # Import run_command from utils
-from utils import run_command
+from dev_tools.utils import run_command
 
 def get_changed_files():
     """Returns the list of files changed in the current branch."""

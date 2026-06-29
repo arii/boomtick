@@ -4,7 +4,7 @@ import json
 import re
 from typing import Dict, Any, List
 from tdw_services.utils import log_info, log_warn
-from utils import get_github_token, get_github_client, get_repo_name, CLIError
+from dev_tools.utils import get_github_token, get_github_client, get_repo_name, CLIError
 
 def validate_review_payload(payload: Dict[str, Any]):
     """

@@ -6,12 +6,9 @@ import time
 import subprocess
 import re
 
-# Ensure imports work regardless of execution directory
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-
 from tdw_services.services.jules import JulesClient
 from tdw_services.services.github import GitHubClient
-from utils import clean_gha_logs, extract_failing_info
+from dev_tools.utils import clean_gha_logs, extract_failing_info
 
 
 def main():

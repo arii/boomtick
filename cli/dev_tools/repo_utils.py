@@ -7,7 +7,7 @@ from typing import Optional, List, Tuple, Union
 from collections import defaultdict
 
 # Import run_command from utils
-from utils import run_command, CLIError
+from dev_tools.utils import run_command, CLIError
 try:
     from tdw_services.utils import log_error, log_warn
 except ImportError:

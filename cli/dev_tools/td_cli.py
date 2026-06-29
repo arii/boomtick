@@ -8,16 +8,13 @@ It maintains backward compatibility for existing scripts and CI workflows.
 
 import sys
 import os
-# Add the dev-tools directory to sys.path so we can import tdw_services
-# Note: We keep this append for backward compatibility until all dependent scripts are updated to standard imports
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 
 try:
     from tdw_services.cli import cli
     # Expose utilities for legacy tests
-    import utils
-    from utils import get_github_token, get_repo_name, get_gha_variable, CLIError, get_github_client
+    from dev_tools import utils
+    from dev_tools.utils import get_github_token, get_repo_name, get_gha_variable, CLIError, get_github_client
 
     # Force tdw_services.orchestrator to use the same utility functions as td_cli
     # so that legacy tests patching td_cli.get_github_client etc. will work.

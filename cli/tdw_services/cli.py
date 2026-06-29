@@ -9,11 +9,11 @@ from tdw_services.orchestrator import Orchestrator
 from tdw_services.utils import get_or_create_log_dir, CLIError
 
 # Import legacy utils for backwards compatibility during migration
-from repo_utils import walk_tsx, find_patterns_in_file, get_bundle_size, get_any_count
-from scope_check import verify_pr_scope
+from dev_tools.repo_utils import walk_tsx, find_patterns_in_file, get_bundle_size, get_any_count
+from dev_tools.scope_check import verify_pr_scope
 import os
-from utils import get_github_client, get_repo_name, run_command, set_gha_variable, get_gha_variable
-from dev_tools_sdk.config import load_project_config
+from dev_tools.utils import get_github_client, get_repo_name, run_command, set_gha_variable, get_gha_variable
+from dev_tools.dev_tools_sdk.config import load_project_config
 
 PROJECT_CONFIG = load_project_config()
 
@@ -83,11 +83,10 @@ def run_playwright(ctx, grep, worktree):
 @repo.command()
 @click.argument('pr_number', type=int)
 @click.option('--all', 'include_all', is_flag=True, help='Include logs for successful runs')
-@click.option('--clean', is_flag=True, help='Clean and extract failing details from logs')
 @click.pass_context
-def ci_logs(ctx, pr_number, include_all, clean):
+def ci_logs(ctx, pr_number, include_all):
     orch = ctx.obj['ORCHESTRATOR']
-    res = orch.get_ci_logs(pr_number, include_all=include_all, clean=clean)
+    res = orch.get_ci_logs(pr_number, include_all=include_all)
     out(ctx, f"Fetched CI logs for PR #{pr_number}", data=res)
 
 
@@ -846,5 +845,40 @@ for group in [jules_group]:
     group.add_command(send)
 
 
+def main():
+    # click entry point automatically handles sys.argv
+    try:
+        cli(obj={})
+    except Exception as e:
+        # If we are in JSON mode, we should ideally output JSON error.
+        # Detecting JSON mode from sys.argv since click context isn't available here yet if it failed early.
+        # Note: td_cli.py subcommands are JSON by default.
+        is_json = "--no-json" not in sys.argv
+
+        if is_json:
+            import json
+            error_payload = {
+                "status": "error",
+                "message": str(e),
+                "type": e.__class__.__name__
+            }
+            # CLIError and some others might have a custom 'code' attribute
+            code = getattr(e, 'code', 1)
+            error_payload["code"] = code
+            # JSON errors remain on stdout to maintain the contract for piped machine consumers
+            # (e.g. boomtick-mcp) which may discard stderr via 2>/dev/null.
+            print(json.dumps(error_payload, indent=2))
+        else:
+            try:
+                from tdw_services.utils import log_error
+                log_error(str(e))
+            except (ImportError, ModuleNotFoundError):
+                # Fallback if tdw_services is not in path yet
+                print(f"❌ Error: {e}", file=sys.stderr)
+            code = getattr(e, 'code', 1)
+
+        if "pytest" not in sys.modules:
+            sys.exit(code)
+
 if __name__ == "__main__":
-    cli(obj={})
+    main()

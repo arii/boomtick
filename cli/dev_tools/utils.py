@@ -37,7 +37,7 @@ def _get_model_config(env_key: str, config_attr: str, fallback: str) -> str:
     if env_val:
         return env_val
     try:
-        from dev_tools_sdk.config import load_project_config
+        from dev_tools.dev_tools_sdk.config import load_project_config
         config = load_project_config()
         return getattr(config, config_attr)
     except Exception:
