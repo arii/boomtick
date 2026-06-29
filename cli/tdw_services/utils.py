@@ -38,6 +38,14 @@ def log_debug(msg: str):
     """Logs a debug message to stderr."""
     print(f"DEBUG: {mask_sensitive_data(msg)}", file=sys.stderr)
 
+class CLIError(Exception):
+    """Base class for CLI errors with optional exit code and data."""
+    def __init__(self, message, code=1, data=None):
+        self.message = message
+        self.code = code
+        self.data = data
+        super().__init__(self.message)
+
 def get_base_dir() -> str:
     """Returns the absolute path to the CLI package root."""
     import os

@@ -17,12 +17,15 @@ except ImportError:
     def log_error(msg): print(f"❌ Error: {msg}", file=sys.stderr)
     def log_warn(msg): print(f"⚠️  Warning: {msg}", file=sys.stderr)
 
-class CLIError(Exception):
-    def __init__(self, message, code=1, data=None):
-        self.message = message
-        self.code = code
-        self.data = data
-        super().__init__(self.message)
+try:
+    from tdw_services.utils import CLIError
+except ImportError:
+    class CLIError(Exception):
+        def __init__(self, message, code=1, data=None):
+            self.message = message
+            self.code = code
+            self.data = data
+            super().__init__(self.message)
 
 class APIConnectionError(Exception):
     """Custom exception for retriable API connection issues."""

@@ -13,7 +13,7 @@ from collections import defaultdict
 from tdw_services.services.github import GitHubClient
 from tdw_services.services.ai_service import AIClient
 from tdw_services.services.jules import JulesClient
-from tdw_services.utils import log_error, get_or_create_log_dir
+from tdw_services.utils import log_error, get_or_create_log_dir, CLIError
 from tdw_services.handlers.command_handler import CommandHandler
 from utils import (
     get_github_token,
@@ -21,7 +21,6 @@ from utils import (
     get_repo_name,
     get_gha_variable,
     set_gha_variable,
-    CLIError,
     run_command,
     is_ai_available,
     extract_failing_info,
@@ -225,8 +224,13 @@ class Orchestrator:
         """
         Automates the creation of Jules sessions.
         """
+        if not self.github.branch_exists(branch):
+            raise CLIError(f"Branch '{branch}' does not exist in the repository.")
+
         source_id = self.jules.discover_source_id(self.github.repo)
-        if not source_id: raise ValueError(f"Could not find a Jules source mapping for repository: {self.github.repo}")
+        if not source_id:
+            raise CLIError(f"Could not find a Jules source mapping for repository: {self.github.repo}")
+
         session = self.jules.create_session_from_source(source_id, branch, prompt)
         return session
 

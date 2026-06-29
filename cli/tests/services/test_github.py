@@ -17,11 +17,10 @@ class TestGitHubClientPagination(unittest.TestCase):
 
     @patch('tdw_services.services.github.requests.Session.request')
     def test_list_pull_requests_pagination_and_filtering(self, mock_request):
-        # Mocking 2 pages of PRs
-        # Page 1: 100 PRs, none with 'bug' label
-        page1_data = [
-            {"number": i, "title": f"PR {i}", "user": {"login": "user"}, "head": {"ref": "b"}, "base": {"ref": "m"}, "draft": False, "mergeable_state": "clean", "updated_at": "2023", "html_url": "url", "labels": [{"name": "feat"}]}
-            for i in range(1, 101)
+        # When labels are used, it uses Search API which returns {"items": [...]}
+        # Search API results are already filtered by labels.
+        search_data = [
+            {"number": 101, "title": "Bug PR", "user": {"login": "user"}, "draft": False, "updated_at": "2023", "html_url": "url", "labels": [{"name": "bug"}]}
         ]
         mock_response_p1 = MagicMock()
         mock_response_p1.json.return_value = page1_data
@@ -38,16 +37,15 @@ class TestGitHubClientPagination(unittest.TestCase):
         mock_response_p2.status_code = 200
         mock_response_p2.raise_for_status.return_value = None
 
-        mock_request.side_effect = [mock_response_p1, mock_response_p2]
+        mock_request.return_value = mock_response
 
-        # Request up to 150 PRs with label 'bug'
+        # Request PRs with label 'bug'
         prs = self.client.list_pull_requests(limit=150, labels=["bug"])
 
-        # Should only find 1 PR
         self.assertEqual(len(prs), 1)
         self.assertEqual(prs[0]["number"], 101)
-        # Should have called API twice to get all 150 PRs
-        self.assertEqual(mock_request.call_count, 2)
+        # Verify Search API was called
+        self.assertIn("/search/issues", mock_request.call_args[0][1])
 
 if __name__ == '__main__':
     unittest.main()
