@@ -1,0 +1,37 @@
+name: BoomTick Anti-Pattern Audit
+description: Runs UI anti-pattern and design token compliance audits
+inputs:
+  github_token:
+    description: 'GitHub token'
+    required: true
+runs:
+  using: composite
+  steps:
+    - uses: ./boomtick-pkg/mcp/actions/setup
+
+    - name: Install dependencies
+      run: pnpm install --frozen-lockfile --prefer-offline
+      shell: bash
+
+    - name: UI Anti-Pattern Audit - Gate
+      env:
+        GITHUB_TOKEN: ${{ inputs.github_token }}
+      run: |
+        echo "::group::Audit"
+        trap 'echo "::endgroup::"' EXIT
+        export PATH="$HOME/.local/bin:/github/home/.local/bin:$PATH"
+        if ! node scripts/detect-antipatterns.mjs; then echo "Audit failed"; exit 1; fi
+        td gh audit-gate
+      shell: bash
+
+    - name: Design Token Compliance
+      run: |
+        VIOLATIONS=$(find . -name "*.tsx" -not -path "*/node_modules/*" -type f | xargs grep -h '#[0-9a-fA-F]\{3,6\}' \
+          | grep -vc "design-tokens\|tokens.css\|// impeccable-ignore" || echo 0)
+        if [ "$VIOLATIONS" -gt 0 ]; then
+          echo "⚠️ Found $VIOLATIONS raw hex color(s) in tsx files. Use CSS variables instead."
+          find . -name "*.tsx" -not -path "*/node_modules/*" -type f | xargs grep -rn '#[0-9a-fA-F]\{3,6\}' | grep -v "design-tokens\|tokens.css"
+          exit 1
+        fi
+        echo "✅ Design token compliance passed."
+      shell: bash

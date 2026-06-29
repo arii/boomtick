@@ -5,349 +5,973 @@
   "base_command": "python3 boomtick-pkg/cli/dev_tools/td_cli.py",
   "never_do": [
     "Do not chain subcommands in a single shell call",
-    "Do not use --help or -h to discover flags — use this schema",
+    "Do not use --help or -h to discover flags \u2014 use this schema",
     "Do not guess flags not listed here",
     "Do not run td_cli.py without checking this schema first",
     "Do not use interactive menus if prompted"
   ],
   "subcommands": {
-    "doctor": {
-      "description": "Performs a runtime consistency check (Node.js and pnpm versions) to ensure the environment matches the project contract.",
-      "exact_usage": "python3 boomtick-pkg/cli/dev_tools/td_cli.py doctor",
-      "required_flags": []
-    },
-    "gh search-prs": {
-      "description": "Lists open Pull Requests with optional filtering by state, limit, draft status, and labels.",
-      "exact_usage": "python3 boomtick-pkg/cli/dev_tools/td_cli.py gh search-prs [--state <STATE>] [--limit <LIMIT>] [--no-include-drafts] [--labels <LABELS>]",
+    "repo run-playwright": {
+      "description": "",
+      "exact_usage": "python3 boomtick-pkg/cli/dev_tools/td_cli.py repo run-playwright [--grep <GREP>] [--worktree <WORKTREE>]",
       "optional_flags": [
-        { "flag": "--state", "type": "string", "description": "PR state (open, closed, all)." },
-        { "flag": "--limit", "type": "integer", "description": "Maximum results." },
-        { "flag": "--no-include-drafts", "type": "boolean", "description": "Exclude draft PRs." },
-        { "flag": "--labels", "type": "string", "description": "Comma-separated labels." }
-      ]
-    },
-    "gh pr-diff": {
-      "description": "Fetches PR diff and file list, applying truncation and shaping.",
-      "exact_usage": "python3 boomtick-pkg/cli/dev_tools/td_cli.py gh pr-diff <PR_NUMBER>",
-      "required_arguments": [
-        { "name": "pr_number", "type": "integer", "description": "PR ID." }
-      ]
-    },
-    "gh merge-conflicts": {
-      "description": "Detects merge conflicts for a PR against a base branch.",
-      "exact_usage": "python3 boomtick-pkg/cli/dev_tools/td_cli.py gh merge-conflicts <PR_NUMBER> [--base <BASE_BRANCH>]",
-      "required_arguments": [
-        { "name": "pr_number", "type": "integer", "description": "PR ID." }
-      ],
-      "optional_flags": [
-        { "flag": "--base", "type": "string", "description": "Base branch (default: origin/main)." }
+        {
+          "flag": "--grep",
+          "type": "text",
+          "description": ""
+        },
+        {
+          "flag": "--worktree",
+          "type": "text",
+          "description": ""
+        }
       ]
     },
     "repo ci-logs": {
-      "description": "Fetches CI logs for failing (or all) check runs in a PR.",
-      "exact_usage": "python3 boomtick-pkg/cli/dev_tools/td_cli.py repo ci-logs <PR_NUMBER> [--all]",
-      "required_arguments": [
-        { "name": "pr_number", "type": "integer", "description": "PR ID." }
-      ],
-      "optional_flags": [
-        { "flag": "--all", "type": "boolean", "description": "Include logs for successful runs." }
-      ]
-    },
-    "repo logs": {
-      "description": "Fetches and combines CI logs for all jobs in a PR, optionally filtered by grep.",
-      "exact_usage": "python3 boomtick-pkg/cli/dev_tools/td_cli.py repo logs <PR_NUMBER> [--grep <PATTERN>]",
-      "required_arguments": [
-        { "name": "pr_number", "type": "integer", "description": "PR ID." }
-      ],
-      "optional_flags": [
-        { "flag": "--grep", "type": "string", "description": "Filter logs by pattern." }
-      ]
-    },
-    "repo run-playwright": {
-      "description": "Runs Playwright tests and returns failed tests in JSON.",
-      "exact_usage": "python3 boomtick-pkg/cli/dev_tools/td_cli.py repo run-playwright [--grep <PATTERN>] [--worktree <PATH>]",
-      "optional_flags": [
-        { "flag": "--grep", "type": "string", "description": "Grep pattern for tests." },
-        { "flag": "--worktree", "type": "string", "description": "Path to worktree." }
-      ]
-    },
-    "gh conflicts": {
-      "description": "Runs a global check across the repository to detect any active PR merge conflicts.",
-      "exact_usage": "python3 boomtick-pkg/cli/dev_tools/td_cli.py gh conflicts",
-      "required_flags": [],
-      "expected_output": "A list of conflicting files and branches. Does not resolve conflicts."
-    },
-    "gh resolve-conflicts": {
-      "description": "Sets up a separate git worktree, checks out the PR branch, and attempts to merge the target branch to surface conflicts for resolution.",
-      "exact_usage": "python3 boomtick-pkg/cli/dev_tools/td_cli.py gh resolve-conflicts --pr <PR_NUMBER>",
-      "required_flags": [
-        {
-          "flag": "--pr",
-          "type": "integer",
-          "description": "The GitHub Pull Request ID."
-        }
-      ]
-    },
-    "gh parse-comment": {
-      "description": "Parses a comment body to determine intended actions (e.g. @conflict-resolve).",
-      "exact_usage": "python3 boomtick-pkg/cli/dev_tools/td_cli.py gh parse-comment --body <BODY> --author-association <ASSOC>",
-      "required_flags": [
-        { "flag": "--body", "type": "string", "description": "The comment body text." },
-        { "flag": "--author-association", "type": "string", "description": "The author association (e.g. OWNER, MEMBER, COLLABORATOR)." }
-      ]
-    },
-    "gh post-comment": {
-      "description": "Adds a new comment to a Pull Request from a file or literal text.",
-      "exact_usage": "python3 dev-tools/td_cli.py gh post-comment --pr <PR_NUMBER> [--file <PATH> | --body <TEXT>]",
-      "required_flags": [
-        {
-          "flag": "--pr",
-          "type": "integer",
-          "description": "The GitHub Pull Request ID."
-        }
-      ],
-      "optional_flags": [
-        { "flag": "--file", "type": "string", "description": "Path to the Markdown file containing the comment body." },
-        { "flag": "--body", "type": "string", "description": "The literal body text for the comment." }
-      ]
-    },
-    "gh detect-conflicts": {
-      "description": "Detects conflicts for a single, specific Pull Request.",
-      "exact_usage": "python3 boomtick-pkg/cli/dev_tools/td_cli.py gh detect-conflicts --pr <PR_NUMBER>",
-      "required_flags": [
-        {
-          "flag": "--pr",
-          "type": "integer",
-          "description": "The GitHub Pull Request ID (e.g., 2280)"
-        }
-      ]
-    },
-    "gh status-board": {
-      "description": "Retrieves the current high-level status board for open PRs and background tasks.",
-      "exact_usage": "python3 boomtick-pkg/cli/dev_tools/td_cli.py gh status-board",
-      "required_flags": []
-    },
-    "gh overlaps": {
-      "description": "Identify and propose consolidation of PRs with high functional or structural overlap.",
-      "exact_usage": "python3 boomtick-pkg/cli/dev_tools/td_cli.py gh overlaps [--limit <LIMIT>]",
-      "optional_flags": [
-        {
-          "flag": "--limit",
-          "type": "integer",
-          "description": "Maximum number of open PRs to process (default: 50)."
-        },
-        {
-          "flag": "--no-cache",
-          "type": "boolean",
-          "description": "Bust the cache and force fetching data from GitHub."
-        }
-      ]
-    },
-    "gh audit-pr": {
-      "description": "Perform an automated audit on a specific Pull Request.",
-      "exact_usage": "python3 boomtick-pkg/cli/dev_tools/td_cli.py gh audit-pr <PR_NUMBER> --fetch --audit --submit --cleanup --execute",
-      "examples": [
-        "python3 boomtick-pkg/cli/dev_tools/td_cli.py gh audit-pr 2280 --fetch --audit --submit --execute",
-        "python3 boomtick-pkg/cli/dev_tools/td_cli.py gh audit-pr 2280 --fetch"
-      ],
+      "description": "",
+      "exact_usage": "python3 boomtick-pkg/cli/dev_tools/td_cli.py repo ci-logs [--all] [--clean] <PR_NUMBER>",
       "required_arguments": [
         {
           "name": "pr_number",
           "type": "integer",
-          "description": "The GitHub Pull Request ID."
+          "description": ""
+        }
+      ],
+      "optional_flags": [
+        {
+          "flag": "--all",
+          "type": "boolean",
+          "description": "Include logs for successful runs"
+        },
+        {
+          "flag": "--clean",
+          "type": "boolean",
+          "description": "Clean and extract failing details from logs"
+        }
+      ]
+    },
+    "repo logs": {
+      "description": "",
+      "exact_usage": "python3 boomtick-pkg/cli/dev_tools/td_cli.py repo logs [--grep <GREP>] <PR_NUMBER>",
+      "required_arguments": [
+        {
+          "name": "pr_number",
+          "type": "integer",
+          "description": ""
+        }
+      ],
+      "optional_flags": [
+        {
+          "flag": "--grep",
+          "type": "text",
+          "description": "Filter logs by pattern"
+        }
+      ]
+    },
+    "gh search-prs": {
+      "description": "",
+      "exact_usage": "python3 boomtick-pkg/cli/dev_tools/td_cli.py gh search-prs [--state <STATE>] [--limit <LIMIT>] [--include-drafts] [--labels <LABELS>]",
+      "optional_flags": [
+        {
+          "flag": "--state",
+          "type": "text",
+          "description": ""
+        },
+        {
+          "flag": "--limit",
+          "type": "integer",
+          "description": ""
+        },
+        {
+          "flag": "--include-drafts",
+          "type": "boolean",
+          "description": ""
+        },
+        {
+          "flag": "--labels",
+          "type": "text",
+          "description": ""
+        }
+      ]
+    },
+    "gh merge-conflicts": {
+      "description": "",
+      "exact_usage": "python3 boomtick-pkg/cli/dev_tools/td_cli.py gh merge-conflicts [--base <BASE>] <PR_NUMBER>",
+      "required_arguments": [
+        {
+          "name": "pr_number",
+          "type": "integer",
+          "description": ""
+        }
+      ],
+      "optional_flags": [
+        {
+          "flag": "--base",
+          "type": "text",
+          "description": ""
+        }
+      ]
+    },
+    "gh pr-diff": {
+      "description": "",
+      "exact_usage": "python3 boomtick-pkg/cli/dev_tools/td_cli.py gh pr-diff <PR_NUMBER>",
+      "required_arguments": [
+        {
+          "name": "pr_number",
+          "type": "integer",
+          "description": ""
+        }
+      ]
+    },
+    "gh view": {
+      "description": "",
+      "exact_usage": "python3 boomtick-pkg/cli/dev_tools/td_cli.py gh view <PR_NUMBER>",
+      "required_arguments": [
+        {
+          "name": "pr_number",
+          "type": "integer",
+          "description": ""
+        }
+      ]
+    },
+    "gh resolve": {
+      "description": "",
+      "exact_usage": "python3 boomtick-pkg/cli/dev_tools/td_cli.py gh resolve [--base <BASE>] <FILE>",
+      "required_arguments": [
+        {
+          "name": "file",
+          "type": "text",
+          "description": ""
+        }
+      ],
+      "optional_flags": [
+        {
+          "flag": "--base",
+          "type": "text",
+          "description": ""
+        }
+      ]
+    },
+    "gh audit": {
+      "description": "Run a headless UI audit on the codebase.",
+      "exact_usage": "python3 boomtick-pkg/cli/dev_tools/td_cli.py gh audit [--check-dirs <CHECK-DIRS>]",
+      "optional_flags": [
+        {
+          "flag": "--check-dirs",
+          "type": "text",
+          "description": "Comma-separated list of directories to audit"
+        }
+      ]
+    },
+    "gh audit-pr": {
+      "description": "",
+      "exact_usage": "python3 boomtick-pkg/cli/dev_tools/td_cli.py gh audit-pr [--fetch] [--audit] [--submit] [--cleanup] [--dry-run] [--base <BASE>] [--event <EVENT>] <PR_NUMBER>",
+      "required_arguments": [
+        {
+          "name": "pr_number",
+          "type": "integer",
+          "description": ""
         }
       ],
       "optional_flags": [
         {
           "flag": "--fetch",
           "type": "boolean",
-          "description": "Fetch PR details and diffs."
+          "description": ""
         },
         {
           "flag": "--audit",
           "type": "boolean",
-          "description": "Run heuristic-based audit."
+          "description": ""
         },
         {
           "flag": "--submit",
           "type": "boolean",
-          "description": "Submit the audit results as a comment."
+          "description": ""
         },
         {
           "flag": "--cleanup",
           "type": "boolean",
-          "description": "Clean up temporary audit files."
+          "description": ""
         },
         {
-          "flag": "--execute",
+          "flag": "--dry-run",
           "type": "boolean",
-          "description": "Run without dry-run mode (default is --dry-run)."
+          "description": ""
+        },
+        {
+          "flag": "--base",
+          "type": "text",
+          "description": ""
         },
         {
           "flag": "--event",
-          "type": "string",
-          "description": "The type of GitHub event (e.g., COMMENT)."
+          "type": "text",
+          "description": ""
         }
       ]
-    },
-    "gh manage-reviews": {
-      "description": "Check and manage responses to automated PR reviews.",
-      "exact_usage": "python3 boomtick-pkg/cli/dev_tools/td_cli.py gh manage-reviews --check-responses --execute",
-      "optional_flags": [
-        {
-          "flag": "--check-responses",
-          "type": "boolean",
-          "description": "Verify if feedback responses have been addressed."
-        },
-        {
-          "flag": "--cleanup-comments",
-          "type": "boolean",
-          "description": "Remove stale audit comments."
-        },
-        {
-          "flag": "--execute",
-          "type": "boolean",
-          "description": "Run without dry-run mode (default is --dry-run)."
-        }
-      ]
-    },
-    "gh pre-submit": {
-      "description": "Run automated repository validation and quality gates prior to code submission.",
-      "exact_usage": "python3 boomtick-pkg/cli/dev_tools/td_cli.py gh pre-submit",
-      "required_flags": []
     },
     "gh create-issue": {
-      "description": "Creates a new GitHub issue using a title and either a markdown file or literal text for the body.",
-      "exact_usage": "python3 boomtick-pkg/cli/dev_tools/td_cli.py gh create-issue --title <TITLE> [--file <PATH> | --body <TEXT>]",
+      "description": "Create a new GitHub issue.",
+      "exact_usage": "python3 boomtick-pkg/cli/dev_tools/td_cli.py gh create-issue --title <TITLE> [--file <FILE>] [--body <BODY>]",
       "required_flags": [
-        { "flag": "--title", "type": "string", "description": "The title of the issue." }
+        {
+          "flag": "--title",
+          "type": "text",
+          "description": "Issue title"
+        }
       ],
       "optional_flags": [
-        { "flag": "--file", "type": "string", "description": "Path to the Markdown file containing the issue body." },
-        { "flag": "--body", "type": "string", "description": "The literal body text for the issue." }
+        {
+          "flag": "--file",
+          "type": "text",
+          "description": "Path to file containing issue body"
+        },
+        {
+          "flag": "--body",
+          "type": "text",
+          "description": "Literal body text"
+        }
       ]
     },
     "gh issue-view": {
-      "description": "Fetches details of a GitHub issue including title, body, and state.",
-      "exact_usage": "python3 dev-tools/td_cli.py gh issue-view <ISSUE_NUMBER>",
+      "description": "View details of a GitHub issue.",
+      "exact_usage": "python3 boomtick-pkg/cli/dev_tools/td_cli.py gh issue-view <ISSUE_NUMBER>",
       "required_arguments": [
-        { "name": "issue_number", "type": "integer", "description": "The GitHub issue number." }
+        {
+          "name": "issue_number",
+          "type": "integer",
+          "description": ""
+        }
       ]
     },
     "gh issue-update": {
-      "description": "Updates the body of a GitHub issue from a file or literal text.",
-      "exact_usage": "python3 dev-tools/td_cli.py gh issue-update <ISSUE_NUMBER> [--file <PATH> | --body <TEXT>]",
+      "description": "Update a GitHub issue's body.",
+      "exact_usage": "python3 boomtick-pkg/cli/dev_tools/td_cli.py gh issue-update [--file <FILE>] [--body <BODY>] <ISSUE_NUMBER>",
       "required_arguments": [
-        { "name": "issue_number", "type": "integer", "description": "The GitHub issue number." }
+        {
+          "name": "issue_number",
+          "type": "integer",
+          "description": ""
+        }
       ],
       "optional_flags": [
-        { "flag": "--file", "type": "string", "description": "Path to the Markdown file containing the new issue body." },
-        { "flag": "--body", "type": "string", "description": "The literal body text for the issue." }
+        {
+          "flag": "--file",
+          "type": "text",
+          "description": "Path to file containing new issue body"
+        },
+        {
+          "flag": "--body",
+          "type": "text",
+          "description": "Literal body text"
+        }
       ]
     },
     "gh issue-comment": {
-      "description": "Adds a new comment to a GitHub issue from a file or literal text.",
-      "exact_usage": "python3 dev-tools/td_cli.py gh issue-comment <ISSUE_NUMBER> [--file <PATH> | --body <TEXT>]",
+      "description": "Post a comment to a GitHub issue.",
+      "exact_usage": "python3 boomtick-pkg/cli/dev_tools/td_cli.py gh issue-comment [--file <FILE>] [--body <BODY>] <ISSUE_NUMBER>",
       "required_arguments": [
-        { "name": "issue_number", "type": "integer", "description": "The GitHub issue number." }
+        {
+          "name": "issue_number",
+          "type": "integer",
+          "description": ""
+        }
       ],
       "optional_flags": [
-        { "flag": "--file", "type": "string", "description": "Path to the Markdown file containing the comment body." },
-        { "flag": "--body", "type": "string", "description": "The literal body text for the comment." }
+        {
+          "flag": "--file",
+          "type": "text",
+          "description": "Path to file containing comment body"
+        },
+        {
+          "flag": "--body",
+          "type": "text",
+          "description": "Literal body text"
+        }
       ]
     },
     "gh validate-issue": {
-      "description": "Validates that a GitHub issue follows the Spec-Driven Issue Template.",
-      "exact_usage": "python3 boomtick-pkg/cli/dev_tools/td_cli.py gh validate-issue --issue-number <ISSUE_NUMBER> --execute",
+      "description": "",
+      "exact_usage": "python3 boomtick-pkg/cli/dev_tools/td_cli.py gh validate-issue [--issue-number <ISSUE-NUMBER>] [--all-open] [--post-comments] [--dry-run]",
       "optional_flags": [
         {
           "flag": "--issue-number",
           "type": "integer",
-          "description": "The GitHub issue number to validate."
+          "description": ""
         },
         {
           "flag": "--all-open",
           "type": "boolean",
-          "description": "Validate all open issues."
+          "description": ""
         },
         {
           "flag": "--post-comments",
           "type": "boolean",
-          "description": "Post validation results as comments on the issue."
+          "description": ""
         },
         {
-          "flag": "--execute",
+          "flag": "--dry-run",
           "type": "boolean",
-          "description": "Run without dry-run mode (default is --dry-run)."
+          "description": ""
         }
       ]
     },
-    "agent fix-ci": {
-      "description": "Initialize an AI agent (Jules) session to fix CI failures for a PR or branch.",
-      "exact_usage": "python3 boomtick-pkg/cli/dev_tools/td_cli.py agent fix-ci --pr-number <PR_NUMBER> --execute",
+    "gh aggregate": {
+      "description": "Aggregate multiple PRs into a single branch.",
+      "exact_usage": "python3 boomtick-pkg/cli/dev_tools/td_cli.py gh aggregate <TARGET_BRANCH> <PR_NUMBERS...>",
+      "required_arguments": [
+        {
+          "name": "target_branch",
+          "type": "text",
+          "description": ""
+        },
+        {
+          "name": "pr_numbers",
+          "type": "integer",
+          "description": ""
+        }
+      ]
+    },
+    "gh conflicts": {
+      "description": "",
+      "exact_usage": "python3 boomtick-pkg/cli/dev_tools/td_cli.py gh conflicts"
+    },
+    "gh resolve-conflicts": {
+      "description": "Resolve merge conflicts for a PR in a separate worktree.",
+      "exact_usage": "python3 boomtick-pkg/cli/dev_tools/td_cli.py gh resolve-conflicts --pr <PR> [--allow-unrelated] [--strategy <STRATEGY>] [--push]",
+      "required_flags": [
+        {
+          "flag": "--pr",
+          "type": "integer",
+          "description": "The PR number to resolve conflicts for."
+        }
+      ],
       "optional_flags": [
         {
-          "flag": "--pr-number",
-          "type": "integer",
-          "description": "The PR number to fix CI for."
-        },
-        {
-          "flag": "--branch",
-          "type": "string",
-          "description": "The branch name to fix CI for (if no PR exists)."
-        },
-        {
-          "flag": "--execute",
+          "flag": "--allow-unrelated",
           "type": "boolean",
-          "description": "Run without dry-run mode (default is --dry-run)."
+          "description": "Allow merging unrelated histories."
+        },
+        {
+          "flag": "--strategy",
+          "type": "choice",
+          "description": "Merge strategy option (-X ours/theirs)."
+        },
+        {
+          "flag": "--push",
+          "type": "boolean",
+          "description": "Automatically push the resolution to origin."
+        }
+      ]
+    },
+    "gh verify-versions": {
+      "description": "Verify version changes in a diff for downgrades or hard blocks.",
+      "exact_usage": "python3 boomtick-pkg/cli/dev_tools/td_cli.py gh verify-versions <DIFF_INPUT>",
+      "required_arguments": [
+        {
+          "name": "diff_input",
+          "type": "text",
+          "description": ""
+        }
+      ]
+    },
+    "gh detect-conflicts": {
+      "description": "",
+      "exact_usage": "python3 boomtick-pkg/cli/dev_tools/td_cli.py gh detect-conflicts [--pr <PR>]",
+      "optional_flags": [
+        {
+          "flag": "--pr",
+          "type": "integer",
+          "description": ""
+        }
+      ]
+    },
+    "gh parse-comment": {
+      "description": "Parse a comment body and return intended actions.",
+      "exact_usage": "python3 boomtick-pkg/cli/dev_tools/td_cli.py gh parse-comment --author-association <AUTHOR-ASSOCIATION> [--body <BODY>]",
+      "required_flags": [
+        {
+          "flag": "--author-association",
+          "type": "text",
+          "description": "The author association (e.g. OWNER, MEMBER)."
+        }
+      ],
+      "optional_flags": [
+        {
+          "flag": "--body",
+          "type": "text",
+          "description": "The comment body text."
+        }
+      ]
+    },
+    "gh post-comment": {
+      "description": "Post a comment to a PR.",
+      "exact_usage": "python3 boomtick-pkg/cli/dev_tools/td_cli.py gh post-comment --pr <PR> [--file <FILE>] [--body <BODY>]",
+      "required_flags": [
+        {
+          "flag": "--pr",
+          "type": "integer",
+          "description": "The PR number to comment on."
+        }
+      ],
+      "optional_flags": [
+        {
+          "flag": "--file",
+          "type": "text",
+          "description": "Path to the file containing the comment body."
+        },
+        {
+          "flag": "--body",
+          "type": "text",
+          "description": "Literal comment text."
+        }
+      ]
+    },
+    "gh status-board": {
+      "description": "",
+      "exact_usage": "python3 boomtick-pkg/cli/dev_tools/td_cli.py gh status-board"
+    },
+    "gh migrate-tokens": {
+      "description": "",
+      "exact_usage": "python3 boomtick-pkg/cli/dev_tools/td_cli.py gh migrate-tokens [--find <FIND>] [--migrate <MIGRATE>] [--dry-run]",
+      "optional_flags": [
+        {
+          "flag": "--find",
+          "type": "text",
+          "description": ""
+        },
+        {
+          "flag": "--migrate",
+          "type": "text",
+          "description": ""
+        },
+        {
+          "flag": "--dry-run",
+          "type": "boolean",
+          "description": ""
+        }
+      ]
+    },
+    "gh update-issues": {
+      "description": "",
+      "exact_usage": "python3 boomtick-pkg/cli/dev_tools/td_cli.py gh update-issues [--dry-run]",
+      "optional_flags": [
+        {
+          "flag": "--dry-run",
+          "type": "boolean",
+          "description": ""
+        }
+      ]
+    },
+    "gh manage-reviews": {
+      "description": "",
+      "exact_usage": "python3 boomtick-pkg/cli/dev_tools/td_cli.py gh manage-reviews [--check-responses] [--cleanup-comments] [--dry-run]",
+      "optional_flags": [
+        {
+          "flag": "--check-responses",
+          "type": "boolean",
+          "description": ""
+        },
+        {
+          "flag": "--cleanup-comments",
+          "type": "boolean",
+          "description": ""
+        },
+        {
+          "flag": "--dry-run",
+          "type": "boolean",
+          "description": ""
+        }
+      ]
+    },
+    "gh audit-gate": {
+      "description": "",
+      "exact_usage": "python3 boomtick-pkg/cli/dev_tools/td_cli.py gh audit-gate"
+    },
+    "gh track-review": {
+      "description": "",
+      "exact_usage": "python3 boomtick-pkg/cli/dev_tools/td_cli.py gh track-review --pr <PR> --status <STATUS> --auditor <AUDITOR> [--dry-run]",
+      "required_flags": [
+        {
+          "flag": "--pr",
+          "type": "integer",
+          "description": ""
+        },
+        {
+          "flag": "--status",
+          "type": "text",
+          "description": ""
+        },
+        {
+          "flag": "--auditor",
+          "type": "text",
+          "description": ""
+        }
+      ],
+      "optional_flags": [
+        {
+          "flag": "--dry-run",
+          "type": "boolean",
+          "description": ""
+        }
+      ]
+    },
+    "gh ratchet-any": {
+      "description": "",
+      "exact_usage": "python3 boomtick-pkg/cli/dev_tools/td_cli.py gh ratchet-any [--baseline-file <BASELINE-FILE>] [--update] [--dry-run]",
+      "optional_flags": [
+        {
+          "flag": "--baseline-file",
+          "type": "text",
+          "description": ""
+        },
+        {
+          "flag": "--update",
+          "type": "boolean",
+          "description": ""
+        },
+        {
+          "flag": "--dry-run",
+          "type": "boolean",
+          "description": ""
+        }
+      ]
+    },
+    "gh bundle-size": {
+      "description": "",
+      "exact_usage": "python3 boomtick-pkg/cli/dev_tools/td_cli.py gh bundle-size [--baseline-file <BASELINE-FILE>] [--threshold <THRESHOLD>] [--update] [--dry-run]",
+      "optional_flags": [
+        {
+          "flag": "--baseline-file",
+          "type": "text",
+          "description": ""
+        },
+        {
+          "flag": "--threshold",
+          "type": "integer",
+          "description": ""
+        },
+        {
+          "flag": "--update",
+          "type": "boolean",
+          "description": ""
+        },
+        {
+          "flag": "--dry-run",
+          "type": "boolean",
+          "description": ""
+        }
+      ]
+    },
+    "gh verify-metrics": {
+      "description": "Verify CI metrics against established thresholds.",
+      "exact_usage": "python3 boomtick-pkg/cli/dev_tools/td_cli.py gh verify-metrics"
+    },
+    "gh summary-report": {
+      "description": "Generate a markdown report of CI metrics for GHA Step Summary.",
+      "exact_usage": "python3 boomtick-pkg/cli/dev_tools/td_cli.py gh summary-report"
+    },
+    "gh pre-submit": {
+      "description": "",
+      "exact_usage": "python3 boomtick-pkg/cli/dev_tools/td_cli.py gh pre-submit"
+    },
+    "gh overlaps": {
+      "description": "Identify and propose consolidation of PRs with high functional or structural overlap.",
+      "exact_usage": "python3 boomtick-pkg/cli/dev_tools/td_cli.py gh overlaps [--limit <LIMIT>] [--no-cache]",
+      "optional_flags": [
+        {
+          "flag": "--limit",
+          "type": "integer",
+          "description": "Limit the number of open PRs to process"
+        },
+        {
+          "flag": "--no-cache",
+          "type": "boolean",
+          "description": "Bust the cache and force fetching data from GitHub"
+        }
+      ]
+    },
+    "doctor": {
+      "description": "Runtime Consistency Check",
+      "exact_usage": "python3 boomtick-pkg/cli/dev_tools/td_cli.py doctor"
+    },
+    "ux audit": {
+      "description": "",
+      "exact_usage": "python3 boomtick-pkg/cli/dev_tools/td_cli.py ux audit [--route <ROUTE>] [--all-routes] [--desktop] [--mobile]",
+      "optional_flags": [
+        {
+          "flag": "--route",
+          "type": "text",
+          "description": "Specific route to audit"
+        },
+        {
+          "flag": "--all-routes",
+          "type": "boolean",
+          "description": "Audit all discovered routes"
+        },
+        {
+          "flag": "--desktop",
+          "type": "boolean",
+          "description": "Audit desktop viewports"
+        },
+        {
+          "flag": "--mobile",
+          "type": "boolean",
+          "description": "Audit mobile viewports"
+        }
+      ]
+    },
+    "ux report": {
+      "description": "",
+      "exact_usage": "python3 boomtick-pkg/cli/dev_tools/td_cli.py ux report"
+    },
+    "ux lighthouse": {
+      "description": "",
+      "exact_usage": "python3 boomtick-pkg/cli/dev_tools/td_cli.py ux lighthouse [--route <ROUTE>]",
+      "optional_flags": [
+        {
+          "flag": "--route",
+          "type": "text",
+          "description": "Specific route for Lighthouse"
+        }
+      ]
+    },
+    "ux screenshots": {
+      "description": "",
+      "exact_usage": "python3 boomtick-pkg/cli/dev_tools/td_cli.py ux screenshots [--route <ROUTE>]",
+      "optional_flags": [
+        {
+          "flag": "--route",
+          "type": "text",
+          "description": "Specific route for screenshots"
+        }
+      ]
+    },
+    "ux images": {
+      "description": "",
+      "exact_usage": "python3 boomtick-pkg/cli/dev_tools/td_cli.py ux images [--route <ROUTE>]",
+      "optional_flags": [
+        {
+          "flag": "--route",
+          "type": "text",
+          "description": "Specific route for image audit"
+        }
+      ]
+    },
+    "ux contrast": {
+      "description": "",
+      "exact_usage": "python3 boomtick-pkg/cli/dev_tools/td_cli.py ux contrast [--route <ROUTE>]",
+      "optional_flags": [
+        {
+          "flag": "--route",
+          "type": "text",
+          "description": "Specific route for contrast check"
+        }
+      ]
+    },
+    "ux overflow": {
+      "description": "",
+      "exact_usage": "python3 boomtick-pkg/cli/dev_tools/td_cli.py ux overflow [--route <ROUTE>]",
+      "optional_flags": [
+        {
+          "flag": "--route",
+          "type": "text",
+          "description": "Specific route for overflow check"
+        }
+      ]
+    },
+    "build": {
+      "description": "Build the project after runtime check",
+      "exact_usage": "python3 boomtick-pkg/cli/dev_tools/td_cli.py build"
+    },
+    "lint": {
+      "description": "Lint the project after runtime check",
+      "exact_usage": "python3 boomtick-pkg/cli/dev_tools/td_cli.py lint"
+    },
+    "test cli": {
+      "description": "Run CLI package tests",
+      "exact_usage": "python3 boomtick-pkg/cli/dev_tools/td_cli.py test cli"
+    },
+    "ai review": {
+      "description": "",
+      "exact_usage": "python3 boomtick-pkg/cli/dev_tools/td_cli.py ai review [--no-cache] <PR_NUMBER>",
+      "required_arguments": [
+        {
+          "name": "pr_number",
+          "type": "integer",
+          "description": ""
+        }
+      ],
+      "optional_flags": [
+        {
+          "flag": "--no-cache",
+          "type": "boolean",
+          "description": "Bust the diff cache and force a fresh review call"
+        }
+      ]
+    },
+    "ai analyze": {
+      "description": "",
+      "exact_usage": "python3 boomtick-pkg/cli/dev_tools/td_cli.py ai analyze <FILE>",
+      "required_arguments": [
+        {
+          "name": "file",
+          "type": "text",
+          "description": ""
+        }
+      ]
+    },
+    "ai comment": {
+      "description": "",
+      "exact_usage": "python3 boomtick-pkg/cli/dev_tools/td_cli.py ai comment --pr <PR> --command <COMMAND> [--comment-id <COMMENT-ID>]",
+      "required_flags": [
+        {
+          "flag": "--pr",
+          "type": "integer",
+          "description": ""
+        },
+        {
+          "flag": "--command",
+          "type": "text",
+          "description": ""
+        }
+      ],
+      "optional_flags": [
+        {
+          "flag": "--comment-id",
+          "type": "text",
+          "description": ""
         }
       ]
     },
     "agent dispatch": {
-      "description": "Initialize a Jules session for a specific branch and task.",
+      "description": "",
       "exact_usage": "python3 boomtick-pkg/cli/dev_tools/td_cli.py agent dispatch <BRANCH> <TASK>",
       "required_arguments": [
         {
           "name": "branch",
-          "type": "string",
-          "description": "The target branch for the task. Note: Use 'main' branch for PR consolidation tasks to avoid rebasing issues."
+          "type": "text",
+          "description": ""
         },
         {
           "name": "task",
-          "type": "string",
-          "description": "The task description for Jules."
+          "type": "text",
+          "description": ""
         }
       ]
     },
     "agent sync": {
-      "description": "Sync and list active agent sessions.",
-      "exact_usage": "python3 boomtick-pkg/cli/dev_tools/td_cli.py agent sync",
-      "required_flags": []
+      "description": "Sync active agent sessions.",
+      "exact_usage": "python3 boomtick-pkg/cli/dev_tools/td_cli.py agent sync"
+    },
+    "agent fix-ci": {
+      "description": "",
+      "exact_usage": "python3 boomtick-pkg/cli/dev_tools/td_cli.py agent fix-ci [--pr-number <PR-NUMBER>] [--branch <BRANCH>] [--api-key <API-KEY>] [--dry-run]",
+      "optional_flags": [
+        {
+          "flag": "--pr-number",
+          "type": "integer",
+          "description": ""
+        },
+        {
+          "flag": "--branch",
+          "type": "text",
+          "description": ""
+        },
+        {
+          "flag": "--api-key",
+          "type": "text",
+          "description": ""
+        },
+        {
+          "flag": "--dry-run",
+          "type": "boolean",
+          "description": ""
+        }
+      ]
+    },
+    "agent repair-context": {
+      "description": "",
+      "exact_usage": "python3 boomtick-pkg/cli/dev_tools/td_cli.py agent repair-context [--log <LOG>] [--file <FILE>] [--pr <PR>]",
+      "optional_flags": [
+        {
+          "flag": "--log",
+          "type": "text",
+          "description": ""
+        },
+        {
+          "flag": "--file",
+          "type": "text",
+          "description": ""
+        },
+        {
+          "flag": "--pr",
+          "type": "integer",
+          "description": ""
+        }
+      ]
+    },
+    "agent repair": {
+      "description": "",
+      "exact_usage": "python3 boomtick-pkg/cli/dev_tools/td_cli.py agent repair [--logs <LOGS>] [--stdin] [--worktree]",
+      "optional_flags": [
+        {
+          "flag": "--logs",
+          "type": "text",
+          "description": ""
+        },
+        {
+          "flag": "--stdin",
+          "type": "boolean",
+          "description": ""
+        },
+        {
+          "flag": "--worktree",
+          "type": "boolean",
+          "description": ""
+        }
+      ]
     },
     "agent messages": {
-      "description": "Retrieve message history for a specific agent session.",
+      "description": "Get message history for a Jules session.",
       "exact_usage": "python3 boomtick-pkg/cli/dev_tools/td_cli.py agent messages <SESSION_ID>",
       "required_arguments": [
         {
           "name": "session_id",
-          "type": "string",
-          "description": "The ID of the Jules session."
+          "type": "text",
+          "description": ""
         }
       ]
     },
     "agent send": {
-      "description": "Send a message to an active agent session.",
+      "description": "Send a message to an active Jules session.",
       "exact_usage": "python3 boomtick-pkg/cli/dev_tools/td_cli.py agent send <SESSION_ID> <MESSAGE>",
       "required_arguments": [
         {
           "name": "session_id",
-          "type": "string",
-          "description": "The ID of the Jules session."
+          "type": "text",
+          "description": ""
         },
         {
           "name": "message",
-          "type": "string",
-          "description": "The message text to send."
+          "type": "text",
+          "description": ""
+        }
+      ]
+    },
+    "jules dispatch": {
+      "description": "",
+      "exact_usage": "python3 boomtick-pkg/cli/dev_tools/td_cli.py jules dispatch <BRANCH> <TASK>",
+      "required_arguments": [
+        {
+          "name": "branch",
+          "type": "text",
+          "description": ""
+        },
+        {
+          "name": "task",
+          "type": "text",
+          "description": ""
+        }
+      ]
+    },
+    "jules sync": {
+      "description": "Sync active agent sessions.",
+      "exact_usage": "python3 boomtick-pkg/cli/dev_tools/td_cli.py jules sync"
+    },
+    "jules fix-ci": {
+      "description": "",
+      "exact_usage": "python3 boomtick-pkg/cli/dev_tools/td_cli.py jules fix-ci [--pr-number <PR-NUMBER>] [--branch <BRANCH>] [--api-key <API-KEY>] [--dry-run]",
+      "optional_flags": [
+        {
+          "flag": "--pr-number",
+          "type": "integer",
+          "description": ""
+        },
+        {
+          "flag": "--branch",
+          "type": "text",
+          "description": ""
+        },
+        {
+          "flag": "--api-key",
+          "type": "text",
+          "description": ""
+        },
+        {
+          "flag": "--dry-run",
+          "type": "boolean",
+          "description": ""
+        }
+      ]
+    },
+    "jules repair-context": {
+      "description": "",
+      "exact_usage": "python3 boomtick-pkg/cli/dev_tools/td_cli.py jules repair-context [--log <LOG>] [--file <FILE>] [--pr <PR>]",
+      "optional_flags": [
+        {
+          "flag": "--log",
+          "type": "text",
+          "description": ""
+        },
+        {
+          "flag": "--file",
+          "type": "text",
+          "description": ""
+        },
+        {
+          "flag": "--pr",
+          "type": "integer",
+          "description": ""
+        }
+      ]
+    },
+    "jules repair": {
+      "description": "",
+      "exact_usage": "python3 boomtick-pkg/cli/dev_tools/td_cli.py jules repair [--logs <LOGS>] [--stdin] [--worktree]",
+      "optional_flags": [
+        {
+          "flag": "--logs",
+          "type": "text",
+          "description": ""
+        },
+        {
+          "flag": "--stdin",
+          "type": "boolean",
+          "description": ""
+        },
+        {
+          "flag": "--worktree",
+          "type": "boolean",
+          "description": ""
+        }
+      ]
+    },
+    "jules messages": {
+      "description": "Get message history for a Jules session.",
+      "exact_usage": "python3 boomtick-pkg/cli/dev_tools/td_cli.py jules messages <SESSION_ID>",
+      "required_arguments": [
+        {
+          "name": "session_id",
+          "type": "text",
+          "description": ""
+        }
+      ]
+    },
+    "jules send": {
+      "description": "Send a message to an active Jules session.",
+      "exact_usage": "python3 boomtick-pkg/cli/dev_tools/td_cli.py jules send <SESSION_ID> <MESSAGE>",
+      "required_arguments": [
+        {
+          "name": "session_id",
+          "type": "text",
+          "description": ""
+        },
+        {
+          "name": "message",
+          "type": "text",
+          "description": ""
         }
       ]
     }

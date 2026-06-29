@@ -158,6 +158,13 @@ class GitHubClient:
                 break
 
             for pr in data:
+                if labels:
+                    # Depending on API endpoint (pulls vs search), labels might be strings or dicts
+                    raw_labels = pr.get('labels', [])
+                    pr_labels = [l.get('name') if isinstance(l, dict) else (l if isinstance(l, str) else "") for l in raw_labels]
+                    if not all(label in pr_labels for label in labels):
+                        continue
+
                 # Map REST API response to GH CLI compatible format
                 prs.append({
                     "number": pr.get("number"),

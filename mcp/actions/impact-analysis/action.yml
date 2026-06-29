@@ -1,0 +1,208 @@
+name: BoomTick Impact Analysis
+description: Comprehensive deployment impact analysis, diffing, AI reviews, and reporting
+inputs:
+  github_token:
+    description: 'GitHub token'
+    required: true
+  gemini_api_key:
+    description: 'Gemini API key'
+    required: true
+  pr_number:
+    description: 'PR number'
+    required: true
+  jules_api_key:
+    description: 'Jules API key'
+    required: true
+runs:
+  using: composite
+  steps:
+    - uses: ./boomtick-pkg/mcp/actions/setup
+
+    - run: pnpm install --frozen-lockfile --prefer-offline
+      shell: bash
+
+    - name: Deployment Impact Analysis
+      run: pnpm run impact:analysis
+      shell: bash
+
+    - name: Build Main
+      env:
+        DISABLE_MINIFY: true
+      run: pnpm run impact:build-main
+      shell: bash
+
+    - name: Build PR
+      env:
+        VITE_BASE_PATH: /
+        DISABLE_MINIFY: true
+      run: pnpm run build:review
+      shell: bash
+
+    - name: Code review agent
+      if: always() && github.event_name == 'pull_request'
+      continue-on-error: true
+      env:
+        GEMINI_API_KEY: ${{ inputs.gemini_api_key }}
+        GITHUB_TOKEN: ${{ inputs.github_token }}
+      run: pnpm run impact:gemini-code-review
+      shell: bash
+
+    - name: Code review github models agent
+      if: always() && github.event_name == 'pull_request'
+      continue-on-error: true
+      env:
+        GITHUB_TOKEN: ${{ inputs.github_token }}
+      run: pnpm run impact:github-models-code-review
+      shell: bash
+
+    - name: Visual Diff
+      run: pnpm run impact:visual-diff
+      shell: bash
+
+    - name: DOM Diff
+      run: pnpm run impact:dom-diff
+      shell: bash
+
+    - name: Check if visual changes exist
+      id: check_visuals
+      env:
+        VISUAL_DIFF_THRESHOLD: 1.5
+      run: pnpm exec tsx scripts/check-visual-changes.ts >> "$GITHUB_OUTPUT"
+      shell: bash
+
+    - name: Visual review agent
+      if: always() && steps.check_visuals.outputs.changed_routes != '0' && steps.check_visuals.outputs.changed_routes != ''
+      env:
+        GEMINI_API_KEY: ${{ inputs.gemini_api_key }}
+        GITHUB_TOKEN: ${{ inputs.github_token }}
+      run: pnpm run impact:gemini-review
+      shell: bash
+
+    - name: Visual review github models agent
+      if: always() && steps.check_visuals.outputs.changed_routes != '0' && steps.check_visuals.outputs.changed_routes != ''
+      env:
+        GITHUB_TOKEN: ${{ inputs.github_token }}
+      run: pnpm run impact:github-models-review
+      shell: bash
+
+    - name: Report Summary
+      if: always()
+      run: |
+        if [ -f artifacts/deployment-review.md ]; then
+          cat artifacts/deployment-review.md >> "$GITHUB_STEP_SUMMARY"
+          {
+            echo "IMPACT_BODY<<EOF"
+            cat artifacts/deployment-review.md
+            echo "EOF"
+          } >> "$GITHUB_ENV"
+        elif [ -f artifacts/impact-analysis/impact.md ]; then
+          cat artifacts/impact-analysis/impact.md >> "$GITHUB_STEP_SUMMARY"
+          {
+            echo "IMPACT_BODY<<EOF"
+            cat artifacts/impact-analysis/impact.md
+            echo "EOF"
+          } >> "$GITHUB_ENV"
+        else
+          {
+            echo "## Deployment Impact Analysis"
+            echo "No impact report found."
+          } >> "$GITHUB_STEP_SUMMARY"
+          {
+            echo "IMPACT_BODY<<EOF"
+            echo "No impact report found."
+            echo "EOF"
+          } >> "$GITHUB_ENV"
+        fi
+
+        if [ -f artifacts/gemini-review.md ]; then
+          { echo ""; cat artifacts/gemini-review.md; } >> "$GITHUB_STEP_SUMMARY"
+        fi
+        if [ -f artifacts/github-models-review.md ]; then
+          { echo ""; cat artifacts/github-models-review.md; } >> "$GITHUB_STEP_SUMMARY"
+        fi
+        if [ -f artifacts/gemini-code-review.md ]; then
+          { echo ""; cat artifacts/gemini-code-review.md; } >> "$GITHUB_STEP_SUMMARY"
+        fi
+        if [ -f artifacts/github-models-code-review.md ]; then
+          { echo ""; cat artifacts/github-models-code-review.md; } >> "$GITHUB_STEP_SUMMARY"
+        fi
+
+        FAILED=0
+        for f in artifacts/*-verdict.json; do
+          [ -f "$f" ] || continue
+          PASSED=$(jq -r '.passed' "$f" || echo "error")
+          if [ "$PASSED" = "false" ]; then
+            HIGH=$(jq -r '.highCount' "$f" || echo "unknown")
+            echo "❌ Review failed: $HIGH HIGH severity issues found ($f)" >&2
+            FAILED=1
+          elif [ "$PASSED" = "error" ]; then
+            echo "❌ Review failed: Could not parse verdict file ($f)" >&2
+            FAILED=1
+          fi
+        done
+        exit $FAILED
+      shell: bash
+
+    - name: Parse Jules session ID from PR description
+      if: always()
+      id: parse_jules
+      env:
+        PR_BODY: ${{ github.event.pull_request.body }}
+      run: |
+        TASK_ID=$(echo "$PR_BODY" | grep -oP 'jules\.google\.com/task/\K[0-9]+' | head -1)
+        if [ -z "$TASK_ID" ]; then
+          echo "No Jules task ID found in PR description. Skipping."
+          exit 0
+        fi
+        echo "Found Jules task ID: $TASK_ID"
+        echo "task_id=$TASK_ID" >> "$GITHUB_OUTPUT"
+      shell: bash
+
+    - name: Send impact analysis to Jules session
+      if: always() && steps.parse_jules.outputs.task_id != ''
+      env:
+        TASK_ID: ${{ steps.parse_jules.outputs.task_id }}
+        JULES_API_KEY: ${{ inputs.jules_api_key }}
+      run: python3 scripts/send-jules-impact.py
+      shell: bash
+
+    - name: Update Impact Analysis Feedback (Final Result)
+      if: always()
+      uses: ./.github/actions/update-pr-comment
+      with:
+        github_token: ${{ inputs.github_token }}
+        status_line: '✅ **Impact Analysis Complete**'
+        impact_body: ${{ env.IMPACT_BODY }}
+
+    - name: Merge AI Logs into Artifacts
+      if: always()
+      run: |
+        if [ -f boomtick-pkg/cli/logs/ai/review-run.json ]; then
+          mv boomtick-pkg/cli/logs/ai/review-run.json boomtick-pkg/cli/logs/ai/review-run.json.bak || true
+        fi
+        if [ -f artifacts/review-run.json ]; then
+          mv artifacts/review-run.json artifacts/review-run.json.bak || true
+        fi
+        mkdir -p artifacts/logs/ai
+        cp -r boomtick-pkg/cli/logs/ai/* artifacts/logs/ai/ || true
+      shell: bash
+
+    - name: Upload Deployment Review Artifacts
+      if: always()
+      uses: actions/upload-artifact@v7
+      with:
+        name: deployment-review
+        path: artifacts/
+
+    - name: Verify CI Metrics
+      if: always()
+      env:
+        GITHUB_TOKEN: ${{ inputs.github_token }}
+        PYTHONPATH: boomtick-pkg/cli
+      run: |
+        python3 boomtick-pkg/cli/dev_tools/td_cli.py gh summary-report >> "$GITHUB_STEP_SUMMARY"
+        if ! python3 boomtick-pkg/cli/dev_tools/td_cli.py gh verify-metrics > /dev/null 2>&1; then
+          echo "❌ CI Metrics verification failed."
+          exit 1
+        fi
+      shell: bash

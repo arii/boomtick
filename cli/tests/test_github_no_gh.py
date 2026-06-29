@@ -4,8 +4,9 @@ import os
 import sys
 
 # Setup PYTHONPATH
-sys.path.insert(0, os.path.abspath("boomtick-pkg/cli"))
-sys.path.insert(0, os.path.abspath("boomtick-pkg/cli/dev_tools"))
+sys.path.insert(0, os.path.abspath("."))
+sys.path.insert(0, os.path.abspath("dev_tools"))
+sys.path.insert(0, os.path.abspath("dev_tools/dev_tools_sdk"))
 
 from tdw_services.services.github import GitHubClient
 
@@ -49,26 +50,26 @@ class TestGitHubClientNoGH(unittest.TestCase):
         self.assertEqual(mock_request.call_count, 2)
 
         # Verify params
-        call1_url = mock_request.call_args_list[0][0][1]
-        self.assertIn("page=1", call1_url)
-        self.assertIn("per_page=100", call1_url)
+        # Verify params
+        call1_kwargs = mock_request.call_args_list[0][1]
+        params1 = call1_kwargs.get('params', {})
+        self.assertEqual(params1.get('page'), 1)
+        self.assertEqual(params1.get('per_page'), 100)
 
-        call2_url = mock_request.call_args_list[1][0][1]
-        self.assertIn("page=2", call2_url)
+        call2_kwargs = mock_request.call_args_list[1][1]
+        params2 = call2_kwargs.get('params', {})
+        self.assertEqual(params2.get('page'), 2)
 
     @patch('tdw_services.services.github.requests.Session.request')
     def test_list_pull_requests_labels_search(self, mock_request):
-        # GitHubClient.list_pull_requests performs local filtering on labels,
-        # so it doesn't use the /search/issues endpoint but rather /repos/.../pulls.
-
-        # Details response with labels
+        # Mocks Search API response
         mock_response = MagicMock()
-        mock_response.json.return_value = [
-            {"number": 123, "title": "Bug PR", "labels": [{"name": "bug"}, {"name": "ui"}], "user": {"login": "u"}, "head": {"ref": "h"}, "base": {"ref": "b"}},
-            {"number": 456, "title": "Other PR", "labels": [{"name": "feat"}], "user": {"login": "u"}, "head": {"ref": "h"}, "base": {"ref": "b"}}
-        ]
+        mock_response.json.return_value = {
+            "items": [
+                {"number": 123, "title": "Bug PR", "user": {"login": "u"}, "draft": False, "updated_at": "2023", "html_url": "url"}
+            ]
+        }
         mock_response.status_code = 200
-
         mock_request.return_value = mock_response
 
         client = GitHubClient(token="fake_token", repo="owner/repo")
@@ -77,9 +78,12 @@ class TestGitHubClientNoGH(unittest.TestCase):
         self.assertEqual(len(prs), 1)
         self.assertEqual(prs[0]['number'], 123)
 
-        # Verify endpoint
+        # Verify endpoint and query params
         call_args_list = mock_request.call_args_list
-        self.assertIn("/repos/owner/repo/pulls", call_args_list[0][0][1])
+        self.assertIn("/search/issues", call_args_list[0][0][1])
+        params = call_args_list[0][1].get('params', {})
+        self.assertIn('label:"bug"', params.get('q', ''))
+        self.assertIn('label:"ui"', params.get('q', ''))
 
     @patch('tdw_services.services.github.requests.Session.request')
     @patch('tdw_services.services.github.subprocess.run')

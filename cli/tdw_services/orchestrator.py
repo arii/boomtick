@@ -227,6 +227,11 @@ class Orchestrator:
         if not self.github.branch_exists(branch):
             raise CLIError(f"Branch '{branch}' does not exist in the repository.")
 
+        # Prevent dispatching Jules for consolidation/aggregation tasks
+        import re
+        if re.search(r"\b(consolidate|aggregate)\s+pr(s)?\b", prompt.lower()):
+            raise CLIError("PR consolidation and aggregation tasks should be performed directly using the 'gh aggregate' command instead of dispatching a Jules session.")
+
         source_id = self.jules.discover_source_id(self.github.repo)
         if not source_id:
             raise CLIError(f"Could not find a Jules source mapping for repository: {self.github.repo}")

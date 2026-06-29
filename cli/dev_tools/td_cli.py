@@ -8,20 +8,10 @@ It maintains backward compatibility for existing scripts and CI workflows.
 
 import sys
 import os
+# Add the dev-tools directory to sys.path so we can import tdw_services
+# Note: We keep this append for backward compatibility until all dependent scripts are updated to standard imports
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-if "-h" in sys.argv or "--help" in sys.argv:
-    # Need to be careful with imports here as tdw_services might not be available yet
-    print("FATAL: --help is disabled for agent workflows. Read cli-schema.json for command syntax.", file=sys.stderr)
-    if "pytest" not in sys.modules:
-        sys.exit(1)
-
-# Add the CLI package root and dev-tools directory to sys.path so we can import tdw_services and its dependencies
-current_dir = os.path.dirname(os.path.abspath(__file__))
-package_root = os.path.dirname(current_dir)
-if package_root not in sys.path:
-    sys.path.append(package_root)
-if current_dir not in sys.path:
-    sys.path.append(current_dir)
 
 try:
     from tdw_services.cli import cli

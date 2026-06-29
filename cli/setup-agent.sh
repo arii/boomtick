@@ -282,7 +282,7 @@ run_validation() {
   python3 --version
   have gh && gh --version | head -n 1 || warn "gh not installed."
 
-  [ -x "dev-tools/snapshot.sh" ] && bash dev-tools/snapshot.sh || warn "dev-tools/snapshot.sh not found/executable; skipped."
+  [ -x "$SCRIPT_DIR/snapshot.sh" ] && bash "$SCRIPT_DIR/snapshot.sh" || warn "$SCRIPT_DIR/snapshot.sh not found/executable; skipped."
   if have pnpm; then
     pnpm run check:runtime-files || warn "Runtime file check failed."
     pnpm run doctor || warn "Runtime doctor check failed."

@@ -67,11 +67,128 @@ def build_repo_context():
     # 4. CLI Schema (Package Internal)
     cli_schema = {}
     try:
+        # Dynamically generate cli-schema.json from code
+        import click
+        cli_dir = os.path.join(package_root, "cli")
+        dev_tools_dir = os.path.join(cli_dir, "dev_tools")
+        if cli_dir not in sys.path:
+            sys.path.append(cli_dir)
+        if dev_tools_dir not in sys.path:
+            sys.path.append(dev_tools_dir)
+
+        from tdw_services.cli import cli
+
+        def get_type_name(param):
+            t = param.type
+            if isinstance(t, click.Choice):
+                return "choice"
+            if hasattr(t, "name"):
+                return t.name
+            t_str = str(t).lower()
+            if "int" in t_str:
+                return "integer"
+            if "bool" in t_str:
+                return "boolean"
+            return "string"
+
+        def collect_commands(cmd, prefix=""):
+            subcmds = {}
+            if isinstance(cmd, click.Group):
+                for sub_name, sub_cmd in cmd.commands.items():
+                    new_prefix = f"{prefix} {sub_name}".strip()
+                    subcmds.update(collect_commands(sub_cmd, new_prefix))
+            else:
+                cmd_name = prefix
+                cmd_help = cmd.help or ""
+
+                args_str = []
+                req_args = []
+                opt_flags = []
+                req_flags = []
+
+                for param in cmd.params:
+                    param_type = get_type_name(param)
+                    if isinstance(param, click.Argument):
+                        arg_name = param.name.upper()
+                        if param.nargs == -1:
+                            args_str.append(f"<{arg_name}...>")
+                        else:
+                            args_str.append(f"<{arg_name}>")
+                        req_args.append({
+                            "name": param.name,
+                            "type": param_type,
+                            "description": getattr(param, "help", "") or ""
+                        })
+                    elif isinstance(param, click.Option):
+                        flag_name = param.opts[0]
+                        flag_desc = param.help or ""
+                        option_dict = {
+                            "flag": flag_name,
+                            "type": param_type,
+                            "description": flag_desc
+                        }
+                        if param.required:
+                            req_flags.append(option_dict)
+                        else:
+                            opt_flags.append(option_dict)
+
+                usage = f"python3 boomtick-pkg/cli/dev_tools/td_cli.py {cmd_name}"
+                if req_flags:
+                    usage += " " + " ".join([f"{f['flag']} <{f['flag'].lstrip('-').upper()}>" for f in req_flags])
+                if opt_flags:
+                    usage_parts = []
+                    for f in opt_flags:
+                        if f['type'] == 'boolean':
+                            usage_parts.append(f"{f['flag']}")
+                        else:
+                            usage_parts.append(f"{f['flag']} <{f['flag'].lstrip('-').upper()}>")
+                    usage += " " + " ".join([f"[{u}]" for u in usage_parts])
+                if args_str:
+                    usage += " " + " ".join(args_str)
+
+                cmd_info = {
+                    "description": cmd_help,
+                    "exact_usage": usage
+                }
+                if req_args:
+                    cmd_info["required_arguments"] = req_args
+                if req_flags:
+                    cmd_info["required_flags"] = req_flags
+                if opt_flags:
+                    cmd_info["optional_flags"] = opt_flags
+
+                subcmds[cmd_name] = cmd_info
+            return subcmds
+
+        generated_subcommands = collect_commands(cli)
         cli_schema_path = package_root / "cli" / "dev_tools" / "cli-schema.json"
-        if cli_schema_path.exists():
-            cli_schema = json.loads(cli_schema_path.read_text())
+        
+        schema_authority_payload = {
+            "tool_name": "td_cli.py",
+            "schema_authority": "This file is the single source of truth for td_cli.py. Consult before every CLI call. Takes precedence over examples in AGENTS.md or any agent-specific instruction file.",
+            "description": "Custom developer CLI for BoomTick repository management. Do not use interactive menus, and NEVER use the -h or --help flags. Always reference this schema for valid commands.",
+            "base_command": "python3 boomtick-pkg/cli/dev_tools/td_cli.py",
+            "never_do": [
+                "Do not chain subcommands in a single shell call",
+                "Do not use --help or -h to discover flags — use this schema",
+                "Do not guess flags not listed here",
+                "Do not run td_cli.py without checking this schema first",
+                "Do not use interactive menus if prompted"
+            ],
+            "subcommands": generated_subcommands
+        }
+        
+        cli_schema_path.write_text(json.dumps(schema_authority_payload, indent=2))
+        cli_schema = schema_authority_payload
     except Exception as e:
-        print(f"Error reading cli-schema.json: {e}", file=sys.stderr)
+        print(f"Error generating cli-schema.json dynamically: {e}", file=sys.stderr)
+        # Fallback to reading file if generation failed
+        try:
+            cli_schema_path = package_root / "cli" / "dev_tools" / "cli-schema.json"
+            if cli_schema_path.exists():
+                cli_schema = json.loads(cli_schema_path.read_text())
+        except Exception as read_err:
+            print(f"Fallback read of cli-schema.json failed: {read_err}", file=sys.stderr)
 
     # 5. File Tree (Repo Root)
     def get_dir_structure(path, max_depth=2, current_depth=0):

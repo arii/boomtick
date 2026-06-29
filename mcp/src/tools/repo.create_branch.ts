@@ -6,7 +6,9 @@ export const CreateBranchInputSchema = z.object({
   baseBranch: z.string().optional().default("main"),
 });
 
-export async function createBranchHandler(args: z.input<typeof CreateBranchInputSchema>) {
+export type CreateBranchInput = z.input<typeof CreateBranchInputSchema>;
+
+export async function createBranchHandler(args: CreateBranchInput) {
   const params = CreateBranchInputSchema.parse(args);
 
   // Ensure latest base branch

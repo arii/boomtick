@@ -10,9 +10,11 @@ sys.path.append(os.path.join(os.getcwd(), "boomtick-pkg", "cli", "dev_tools"))
 from tdw_services.services.github import GitHubClient
 
 class TestGitHubClientPagination(unittest.TestCase):
-    @patch('utils.get_github_token')
-    def setUp(self, mock_token):
-        mock_token.return_value = "dummy_token"
+    def setUp(self):
+        patcher = patch('utils.get_github_token')
+        self.mock_token = patcher.start()
+        self.mock_token.return_value = "dummy_token"
+        self.addCleanup(patcher.stop)
         self.client = GitHubClient(repo="owner/repo")
 
     @patch('tdw_services.services.github.requests.Session.request')
@@ -23,21 +25,11 @@ class TestGitHubClientPagination(unittest.TestCase):
             {"number": 101, "title": "Bug PR", "user": {"login": "user"}, "draft": False, "updated_at": "2023", "html_url": "url", "labels": [{"name": "bug"}]}
         ]
         mock_response_p1 = MagicMock()
-        mock_response_p1.json.return_value = page1_data
+        mock_response_p1.json.return_value = {"items": search_data}
         mock_response_p1.status_code = 200
         mock_response_p1.raise_for_status.return_value = None
 
-        # Page 2: 50 PRs, one with 'bug' label
-        page2_data = [
-            {"number": i, "title": f"PR {i}", "user": {"login": "user"}, "head": {"ref": "b"}, "base": {"ref": "m"}, "draft": False, "mergeable_state": "clean", "updated_at": "2023", "html_url": "url", "labels": [{"name": "bug"} if i == 101 else {"name": "feat"}]}
-            for i in range(101, 151)
-        ]
-        mock_response_p2 = MagicMock()
-        mock_response_p2.json.return_value = page2_data
-        mock_response_p2.status_code = 200
-        mock_response_p2.raise_for_status.return_value = None
-
-        mock_request.return_value = mock_response
+        mock_request.return_value = mock_response_p1
 
         # Request PRs with label 'bug'
         prs = self.client.list_pull_requests(limit=150, labels=["bug"])
@@ -46,6 +38,7 @@ class TestGitHubClientPagination(unittest.TestCase):
         self.assertEqual(prs[0]["number"], 101)
         # Verify Search API was called
         self.assertIn("/search/issues", mock_request.call_args[0][1])
+
 
 if __name__ == '__main__':
     unittest.main()

@@ -1,11 +1,12 @@
 #!/usr/bin/env bash
 set -u
 
-cd "$(dirname "$0")/.."
+cd "$(dirname "$0")/../.."
 source ./.agent-env.sh 2>/dev/null || true
+export ALLOW_HELP=1
 
-REPORT="cli/logs/workflow-verification.md"
-mkdir -p cli/logs
+REPORT="boomtick-pkg/cli/logs/workflow-verification.md"
+mkdir -p boomtick-pkg/cli/logs
 
 echo "# Workflow Verification" > "$REPORT"
 echo >> "$REPORT"
@@ -45,16 +46,16 @@ repair_origin
 
 run_check "shared" "python3 --version"
 run_check "shared" "pnpm --version"
-run_check "shared" "python3 dev-tools/td_cli.py gh --help"
-run_check "shared" "python3 dev-tools/td_cli.py jules --help"
+run_check "shared" "PYTHONPATH=\"boomtick-pkg/cli:boomtick-pkg/cli/dev_tools\" python3 boomtick-pkg/cli/dev_tools/td_cli.py gh --help"
+run_check "shared" "PYTHONPATH=\"boomtick-pkg/cli:boomtick-pkg/cli/dev_tools\" python3 boomtick-pkg/cli/dev_tools/td_cli.py jules --help"
 
 run_check "ai-slop-audit.md" "python3 .agents/scripts/audit-ai-slop.py"
 
-run_check "dev-tools-cli-guide.md" "python3 dev-tools/td_cli.py gh pre-submit --help"
-run_check "dev-tools-cli-guide.md" "python3 dev-tools/td_cli.py gh audit-pr --help"
-run_check "dev-tools-cli-guide.md" "python3 dev-tools/td_cli.py gh validate-issue --help"
+run_check "dev-tools-cli-guide.md" "PYTHONPATH=\"boomtick-pkg/cli:boomtick-pkg/cli/dev_tools\" python3 boomtick-pkg/cli/dev_tools/td_cli.py gh pre-submit --help"
+run_check "dev-tools-cli-guide.md" "PYTHONPATH=\"boomtick-pkg/cli:boomtick-pkg/cli/dev_tools\" python3 boomtick-pkg/cli/dev_tools/td_cli.py gh audit-pr --help"
+run_check "dev-tools-cli-guide.md" "PYTHONPATH=\"boomtick-pkg/cli:boomtick-pkg/cli/dev_tools\" python3 boomtick-pkg/cli/dev_tools/td_cli.py gh validate-issue --help"
 
-run_check "review-pr.md" "python3 dev-tools/td_cli.py gh audit-pr 2821 --fetch"
+run_check "review-pr.md" "PYTHONPATH=\"boomtick-pkg/cli:boomtick-pkg/cli/dev_tools\" python3 boomtick-pkg/cli/dev_tools/td_cli.py gh audit-pr 2821 --fetch"
 
 run_check "review-ux.md" "npx playwright --version"
 run_check "review-ux.md" "node scripts/detect-antipatterns.mjs --help"

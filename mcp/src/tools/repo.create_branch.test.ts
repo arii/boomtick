@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { createBranchHandler, CreateBranchInputSchema } from "./repo.create_branch.js";
+import { createBranchHandler, CreateBranchInput } from "./repo.create_branch.js";
 import * as shell from "../lib/shell.js";
 
 vi.mock("../lib/shell.js", () => ({
@@ -12,7 +12,7 @@ describe("repo.create_branch", () => {
   });
 
   it("should create a new branch from a base branch", async () => {
-    const args = {
+    const args: CreateBranchInput = {
       branchName: "new-feature",
       baseBranch: "main",
     };
@@ -31,7 +31,7 @@ describe("repo.create_branch", () => {
   });
 
   it("should use default base branch 'main' if not provided", async () => {
-    const args = {
+    const args: CreateBranchInput = {
       branchName: "another-feature",
     };
 
@@ -44,7 +44,7 @@ describe("repo.create_branch", () => {
   });
 
   it("should throw error if git command fails", async () => {
-    const args = {
+    const args: CreateBranchInput = {
       branchName: "fail-branch",
     };
 
