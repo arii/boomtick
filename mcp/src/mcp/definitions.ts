@@ -342,6 +342,18 @@ export const MCP_TOOLS: Tool[] = [
     },
   },
   {
+    name: "github.create_issue",
+    description: "Create a new GitHub issue.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        title: { type: "string", description: "The title of the issue." },
+        body: { type: "string", description: "The body/description of the issue." },
+      },
+      required: ["title", "body"],
+    },
+  },
+  {
     name: "jules.create_session",
     description: "Create a Jules session that performs work externally and may generate a GitHub pull request.",
     inputSchema: {

@@ -15,8 +15,13 @@ if "-h" in sys.argv or "--help" in sys.argv:
     if "pytest" not in sys.modules:
         sys.exit(1)
 
-# Add the dev-tools directory to sys.path so we can import tdw_services
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+# Add the CLI package root and dev-tools directory to sys.path so we can import tdw_services and its dependencies
+current_dir = os.path.dirname(os.path.abspath(__file__))
+package_root = os.path.dirname(current_dir)
+if package_root not in sys.path:
+    sys.path.append(package_root)
+if current_dir not in sys.path:
+    sys.path.append(current_dir)
 
 try:
     from tdw_services.cli import cli

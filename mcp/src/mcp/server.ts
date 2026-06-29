@@ -33,6 +33,7 @@ import { createPullRequestHandler, CreatePullRequestInputSchema } from "../tools
 import { issueViewHandler, IssueViewInputSchema } from "../tools/github.issue_view.js";
 import { issueUpdateHandler, IssueUpdateInputSchema } from "../tools/github.issue_update.js";
 import { issueCommentHandler, IssueCommentInputSchema } from "../tools/github.issue_comment.js";
+import { createIssueHandler, CreateIssueInputSchema } from "../tools/github.create_issue.js";
 
 
 import { createJulesSessionHandler, CreateJulesSessionInputSchema } from "../tools/jules/create-session.js";
@@ -221,6 +222,8 @@ export class BoomtickMCPServer {
             return createSuccessResult(await issueUpdateHandler(IssueUpdateInputSchema.parse(request.params.arguments)));
           case "github.issue_comment":
             return createSuccessResult(await issueCommentHandler(IssueCommentInputSchema.parse(request.params.arguments)));
+          case "github.create_issue":
+            return createSuccessResult(await createIssueHandler(CreateIssueInputSchema.parse(request.params.arguments)));
 
 
 
