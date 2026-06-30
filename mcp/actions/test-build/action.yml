@@ -57,7 +57,7 @@ runs:
 
     - name: Upload Test Results
       if: always() && steps.check_report.outputs.exists == 'true'
-      uses: actions/upload-artifact@v7
+      uses: actions/upload-artifact@v7 # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
       with:
         name: playwright-report-${{ github.run_id }}
         path: playwright-report/

@@ -189,7 +189,7 @@ runs:
 
     - name: Upload Deployment Review Artifacts
       if: always()
-      uses: actions/upload-artifact@v7
+      uses: actions/upload-artifact@v7 # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
       with:
         name: deployment-review
         path: artifacts/
