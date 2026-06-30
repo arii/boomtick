@@ -2,6 +2,7 @@ import os
 import sys
 import time
 import json
+import requests
 from typing import Optional, Dict, Any, List, Set
 from tdw_services.utils import log_info, log_error, log_warn, ensure_dir
 
