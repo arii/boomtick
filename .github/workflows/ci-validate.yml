@@ -21,6 +21,7 @@ jobs:
         password: ${{ secrets.GITHUB_TOKEN }}
     env:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      ALLOW_NODE_VERSION_CHANGE: "true"
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4

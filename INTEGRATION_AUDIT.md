@@ -16,6 +16,8 @@ This document tracks issues, bugs, and blockers identified during the integratio
 - **Dependency Gaps**: `duckduckgo-search` was required by MCP tools but missing from `cli/pyproject.toml`.
 
 ## CI & Environment Blockers
+- **Node Engine Strictness**: The `package.json` in both root and MCP package enforced `24.x`, while the runner environment provided `v22.22.1`. Relaxed to `>=22.0.0`.
+- **Missing Root Scripts**: The `td gh pre-submit` command expects `type-check`, `lint`, and `test` scripts to be available at the repository root. These were added as delegations to the MCP subpackage.
 - **Missing Root Configs**: Shared setup actions assumed `.node-version` and `.npmrc` were present in the repository root.
 - **Git History Depth**: Automated version checks (`td gh pre-submit`) require `fetch-depth: 0` in CI to access `origin/main` for diff operations.
 - **Missing Validation Scripts**: `scripts/detect-antipatterns.mjs` was required by the CLI's pre-submit check but was not included within the `boomtick-pkg` subdirectory in the source repo.
