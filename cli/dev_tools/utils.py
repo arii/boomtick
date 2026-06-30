@@ -3,13 +3,12 @@ import sys
 import subprocess
 import json
 import time
-import urllib.request
-import urllib.error
 import urllib.parse
+import requests
 import re
 import random
 from pathlib import Path
-from typing import Optional, Union, List, Dict
+from typing import Optional, Union, List, Dict, Any
 def mask_sensitive_data(msg: str) -> str:
     """Redacts sensitive information like GitHub tokens from strings."""
     if not isinstance(msg, str):
@@ -36,6 +35,32 @@ def log_warn(msg: str):
 def log_debug(msg: str):
     """Logs a debug message to stderr."""
     print(f"DEBUG: {mask_sensitive_data(msg)}", file=sys.stderr)
+
+def _call_api_with_retry(method: str, url: str, **kwargs) -> requests.Response:
+    """Internal helper for making API calls with standard retry logic."""
+    from requests.adapters import HTTPAdapter
+    from urllib3.util import Retry
+
+    timeout = kwargs.pop('timeout', 30)
+    max_retries = kwargs.pop('max_retries', 3)
+
+    session = requests.Session()
+    retries = Retry(
+        total=max_retries,
+        backoff_factor=1,
+        status_forcelist=[500, 502, 503, 504],
+        raise_on_status=True
+    )
+    session.mount("https://", HTTPAdapter(max_retries=retries))
+    session.mount("http://", HTTPAdapter(max_retries=retries))
+
+    response = session.request(method, url, timeout=timeout, **kwargs)
+    response.raise_for_status()
+    return response
+
+def post_api_result(url: str, payload: Dict[str, Any]):
+    """Standardizes API results back to a provided webhook or service."""
+    _call_api_with_retry("POST", url, json=payload, timeout=10, max_retries=5)
 
 class CLIError(Exception):
     """Base class for CLI errors with optional exit code and data."""
@@ -196,11 +221,20 @@ def call_github_models(prompt: str, model: str = None, max_retries: int = 3, sch
             "content": f"Output MUST be valid JSON matching this schema: {json.dumps(norm_schema)}"
         })
 
-    req = urllib.request.Request(target_url, data=json.dumps(data).encode("utf-8"),
-                                headers={"Content-Type": "application/json", "Authorization": f"Bearer {token}"})
-
     start_time = time.time()
-    res = _call_api_with_retry(req, max_retries=max_retries)
+    try:
+        response = _call_api_with_retry(
+            "POST",
+            target_url,
+            json=data,
+            headers={"Authorization": f"Bearer {token}"},
+            max_retries=max_retries
+        )
+        res = response.json()
+    except Exception as e:
+        log_error(f"GitHub Models call failed: {e}")
+        return None
+
     duration_ms = int((time.time() - start_time) * 1000)
 
     if res and "usage" in res:
