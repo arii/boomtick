@@ -27,6 +27,9 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Fetch base branch
+        run: git fetch origin main:main
+
       - name: Validate Environment Parity
         run: |
           node --version

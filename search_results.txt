@@ -1,0 +1,8 @@
+boomtick-pkg/cli/dev_tools/cli-schema.json:        { "flag": "--base", "type": "string", "description": "Base branch (default: origin/main)." }
+boomtick-pkg/cli/dev_tools/dev_tools_sdk/config.py:    base_branch: str = "origin/main"
+boomtick-pkg/cli/dev_tools/dev_tools_sdk/config.py:        """Returns the base branch name without the remote prefix (e.g., 'main' for 'origin/main')."""
+boomtick-pkg/cli/aggregate-prs.sh:# Load base branch from project_config.json if possible, fallback to origin/main
+boomtick-pkg/cli/aggregate-prs.sh:BASE_BRANCH="origin/main"
+boomtick-pkg/cli/aggregate-prs.sh:# Extract name without remote prefix (handles origin/main, upstream/develop, etc)
+boomtick-pkg/cli/tests/test_config.py:    assert config.base_branch == "origin/main"
+boomtick-pkg/cli/tests/test_config.py:    assert config.base_branch == "origin/main"

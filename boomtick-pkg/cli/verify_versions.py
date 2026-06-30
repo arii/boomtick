@@ -5,7 +5,7 @@ import json
 from typing import Dict, List, Optional, Tuple
 
 # Add dev-tools to path
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), "dev_tools"))
 from utils import (
     get_stack_versions,
     log_info,
