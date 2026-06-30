@@ -1173,6 +1173,73 @@ Respond only after the PR is created or updated:
 
         return {"prs": prs}
 
+    def trigger_jules_feedback(self, session_id: str) -> Dict[str, Any]:
+        """Ports logic from trigger-feedback.ts to provide CI feedback to Jules."""
+        session = self.jules.get_session(session_id)
+        if not session:
+             raise CLIError(f"Session {session_id} not found.")
+
+        pr_number = None
+        # Try to find PR in session outputs
+        if session.get("outputs") and isinstance(session["outputs"], list):
+            for output in session["outputs"]:
+                if output.get("pullRequest") and output["pullRequest"].get("url"):
+                    match = re.search(r"/pull/(\d+)", output["pullRequest"]["url"])
+                    if match:
+                        pr_number = int(match.group(1))
+                        break
+
+        # Search via gh for PRs mentioning session ID if not found
+        if not pr_number:
+            prs = self.github.list_pull_requests(state='open')
+            clean_id = session_id.replace("sessions/", "")
+            for pr in prs:
+                # Need full details for body
+                full_pr = self.github.fetch_pr_details(pr['number'])
+                if clean_id in (full_pr.get('title') or "") or clean_id in (full_pr.get('body') or ""):
+                    pr_number = pr['number']
+                    break
+
+        if not pr_number:
+            return {
+                "status": "no_pr_found",
+                "message": "Could not associate session with an open PR."
+            }
+
+        pr_details = self.github.fetch_pr_details(pr_number)
+        sha = pr_details.get("head", {}).get("sha")
+        check_runs = self.github.fetch_check_runs(sha)
+
+        if not check_runs:
+            return {"status": "no_checks", "message": "No CI checks found for this PR head."}
+
+        failed_checks = [run for run in check_runs if run.get("status") == "completed" and run.get("conclusion") == "failure"]
+        in_progress = any(run.get("status") != "completed" for run in check_runs)
+
+        if in_progress:
+            return {"status": "in_progress", "message": "CI checks are still in progress."}
+
+        feedback = ""
+        if failed_checks:
+            feedback = "The CI pipeline reported failures. Here are the details:\n\n"
+            for run in failed_checks:
+                feedback += f"### Failed Check: {run['name']}\n"
+                logs = self.github.fetch_check_run_logs(run['id'], external_id=run.get('external_id'))
+                findings = extract_failing_info(logs)
+                if findings:
+                    for f in findings:
+                        feedback += f"- File: `{f['file']}:{f['line']}` ({f['type']})\n  Message: {f['message']}\n"
+                else:
+                    # Clean logs and take a smart snippet as fallback
+                    cleaned_logs = clean_gha_logs(logs)
+                    feedback += f"```\n{cleaned_logs[-2000:]}\n```\n"
+                feedback += "\n"
+        else:
+            feedback = "All checks passed successfully. You may proceed."
+
+        self.jules.send_message(session_id, feedback)
+        return {"status": "success", "feedback": feedback}
+
     def aggregate_prs(self, target_branch: str, pr_numbers: List[int]) -> Dict[str, Any]:
         """
         Aggregates multiple PRs into a single target branch and creates a consolidated PR.

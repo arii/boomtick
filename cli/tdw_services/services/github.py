@@ -177,12 +177,13 @@ class GitHubClient:
 
         return prs
 
-    def create_pull_request(self, title: str, body: str, head: str, base: str) -> Dict[str, Any]:
+    def create_pull_request(self, title: str, body: str, head: str, base: str, draft: bool = False) -> Dict[str, Any]:
         data = {
             "title": title,
             "body": body,
             "head": head,
-            "base": base
+            "base": base,
+            "draft": draft
         }
         return self._request('POST', f'/repos/{self.repo}/pulls', json_data=data)
 

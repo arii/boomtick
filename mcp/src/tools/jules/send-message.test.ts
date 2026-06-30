@@ -1,31 +1,37 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { sendJulesMessageHandler } from "./send-message.js";
+import * as shell from "../../lib/shell.js";
 import { setupTestEnv, teardownTestEnv } from "../../lib/test-utils.js";
 
-describe("sendJulesMessageHandler", () => {
-  const originalFetch = global.fetch;
+vi.mock("../../lib/shell.js", () => ({
+  runCommand: vi.fn(),
+}));
 
+describe("sendJulesMessageHandler", () => {
   beforeEach(() => {
     setupTestEnv();
-    global.fetch = vi.fn().mockImplementation(() =>
-      Promise.resolve({
-        ok: true,
-        json: () =>
-          Promise.resolve({
-            name: "sessions/123",
-          }),
-      })
-    ) as any;
   });
 
   afterEach(() => {
     teardownTestEnv();
-    global.fetch = originalFetch;
+    vi.clearAllMocks();
   });
 
-  it("should send a message", async () => {
+  it("should send a message via td-cli", async () => {
+    vi.mocked(shell.runCommand).mockResolvedValue({
+      stdout: JSON.stringify({ status: "success", message: "Message sent successfully" }),
+      stderr: "",
+      exitCode: 0,
+      durationMs: 0,
+      command: "td-cli agent send"
+    });
+
     const result = await sendJulesMessageHandler({ id: "123", message: "hi" });
     expect(result.id).toBe("123");
     expect(result.status).toBe("success");
+
+    expect(shell.runCommand).toHaveBeenCalledWith("td-cli", [
+      "agent", "send", "123", "hi"
+    ]);
   });
 });

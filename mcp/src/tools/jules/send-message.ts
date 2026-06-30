@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { runCommand } from "../../lib/shell.js";
 
 export const SendJulesMessageInputSchema = z.object({
   id: z.string(),
@@ -6,30 +7,19 @@ export const SendJulesMessageInputSchema = z.object({
 });
 
 export async function sendJulesMessageHandler(input: z.infer<typeof SendJulesMessageInputSchema>) {
-  const apiKey = process.env.JULES_API_KEY;
-  if (!apiKey) {
-    throw new Error("JULES_API_KEY environment variable is not set.");
+  const result = await runCommand("td-cli", ["agent", "send", input.id, input.message]);
+
+  if (result.exitCode !== 0) {
+    throw new Error(`Failed to send message: ${result.stderr}`);
   }
 
-  const cleanId = input.id.replace("sessions/", "");
-  const response = await fetch(`https://jules.googleapis.com/v1alpha/sessions/${cleanId}:sendMessage`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-goog-api-key": apiKey,
-    },
-    body: JSON.stringify({
-      prompt: input.message,
-    }),
-  });
-
-  if (!response.ok) {
-    const errText = await response.text();
-    throw new Error(`Jules API error (${response.status}): ${errText}`);
+  const output = JSON.parse(result.stdout);
+  if (output.status === "error") {
+    throw new Error(`Failed to send message: ${output.message}`);
   }
 
   return {
-    id: cleanId,
+    id: input.id.replace("sessions/", ""),
     status: "success",
     message: "Message sent successfully",
   };

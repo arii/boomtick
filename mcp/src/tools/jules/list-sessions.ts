@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { JulesSession, JulesStatus } from "../types.js";
+import { runCommand } from "../../lib/shell.js";
 
 export const ListJulesSessionsInputSchema = z.object({
   pageSize: z.number().optional(),
@@ -7,41 +8,18 @@ export const ListJulesSessionsInputSchema = z.object({
 });
 
 export async function listJulesSessionsHandler(input: z.infer<typeof ListJulesSessionsInputSchema>): Promise<JulesSession[]> {
-  ListJulesSessionsInputSchema.parse(input);
-  const apiKey = process.env.JULES_API_KEY;
-  if (!apiKey) {
-    throw new Error("JULES_API_KEY environment variable is not set.");
+  const result = await runCommand("td-cli", ["agent", "sync"]);
+
+  if (result.exitCode !== 0) {
+    throw new Error(`Failed to list sessions: ${result.stderr}`);
   }
 
-  if (apiKey.length < 20) {
-    throw new Error("JULES_API_KEY appears to be invalid (too short).");
+  const output = JSON.parse(result.stdout);
+  if (output.status === "error") {
+    throw new Error(`Failed to list sessions: ${output.message}`);
   }
 
-  const url = new URL("https://jules.googleapis.com/v1alpha/sessions");
-  url.searchParams.set("pageSize", (input.pageSize ?? 100).toString());
-  if (input.pageToken) {
-    url.searchParams.set("pageToken", input.pageToken);
-  }
-
-  let response;
-  try {
-    response = await fetch(url.toString(), {
-      method: "GET",
-      headers: {
-        "x-goog-api-key": apiKey,
-      },
-    });
-  } catch (e) {
-    throw new Error(`Network error fetching sessions: ${e instanceof Error ? e.message : String(e)}`);
-  }
-
-  if (!response.ok) {
-    const errText = await response.text();
-    throw new Error(`Jules API error (${response.status}): ${errText}`);
-  }
-
-  const data = (await response.json()) as any;
-  const sessions = data.sessions || [];
+  const sessions = output.sessions || [];
 
   return sessions.map((session: any) => {
     const name = session.name || "";
@@ -54,9 +32,9 @@ export async function listJulesSessionsHandler(input: z.infer<typeof ListJulesSe
 
     let pullRequestUrl: string | undefined;
     if (session.outputs && Array.isArray(session.outputs)) {
-      for (const output of session.outputs) {
-        if (output.pullRequest && output.pullRequest.url) {
-          pullRequestUrl = output.pullRequest.url;
+      for (const out of session.outputs) {
+        if (out.pullRequest && out.pullRequest.url) {
+          pullRequestUrl = out.pullRequest.url;
           break;
         }
       }

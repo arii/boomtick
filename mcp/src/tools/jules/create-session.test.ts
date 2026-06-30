@@ -8,26 +8,25 @@ vi.mock("../../lib/shell.js", () => ({
 }));
 
 describe("createJulesSessionHandler", () => {
-  const originalFetch = global.fetch;
-
   beforeEach(() => {
     setupTestEnv();
-    global.fetch = vi.fn().mockImplementation(() =>
-      Promise.resolve({
-        ok: true,
-        json: () =>
-          Promise.resolve({
-            name: "sessions/1234567890",
-            state: "PENDING",
-            createTime: new Date().toISOString(),
-          }),
-      })
-    ) as any;
+    vi.mocked(shell.runCommand).mockResolvedValue({
+      stdout: JSON.stringify({
+        session: {
+          name: "sessions/1234567890",
+          state: "IN_PROGRESS",
+          createTime: new Date().toISOString(),
+        }
+      }),
+      stderr: "",
+      exitCode: 0,
+      durationMs: 10,
+      command: "td-cli agent dispatch"
+    });
   });
 
   afterEach(() => {
     teardownTestEnv();
-    global.fetch = originalFetch;
     vi.clearAllMocks();
   });
 
@@ -37,52 +36,56 @@ describe("createJulesSessionHandler", () => {
     expect(result.status).toBe("IN_PROGRESS");
     expect(result.createdAt).toBeInstanceOf(Date);
 
-    expect(global.fetch).toHaveBeenCalledWith(
-      expect.any(String),
-      expect.objectContaining({
-        body: expect.stringContaining('"startingBranch":"main"')
-      })
-    );
+    expect(shell.runCommand).toHaveBeenCalledWith("td-cli", [
+      "agent", "dispatch", "main", "do work"
+    ]);
   });
 
   it("should create a session with specific branch", async () => {
     const result = await createJulesSessionHandler({ task: "do work", branch: "feature-x" });
     expect(result.id).toBe("1234567890");
 
-    expect(global.fetch).toHaveBeenCalledWith(
-      expect.any(String),
-      expect.objectContaining({
-        body: expect.stringContaining('"startingBranch":"feature-x"')
-      })
-    );
+    expect(shell.runCommand).toHaveBeenCalledWith("td-cli", [
+      "agent", "dispatch", "feature-x", "do work"
+    ]);
   });
 
   it("should create a session with PR number", async () => {
-    vi.mocked(shell.runCommand).mockResolvedValue({
-      stdout: JSON.stringify({ headRefName: "pr-branch" }),
-      stderr: "",
-      exitCode: 0,
-      durationMs: 10,
-      command: "gh pr view"
+    vi.mocked(shell.runCommand).mockImplementation(async (cmd, args) => {
+      if (args[1] === "view") {
+        return {
+          stdout: JSON.stringify({ pr: { headRefName: "pr-branch" } }),
+          stderr: "",
+          exitCode: 0,
+          durationMs: 10,
+          command: "td-cli gh view"
+        };
+      }
+      return {
+        stdout: JSON.stringify({
+          session: {
+            name: "sessions/1234567890",
+            state: "IN_PROGRESS",
+            createTime: new Date().toISOString(),
+          }
+        }),
+        stderr: "",
+        exitCode: 0,
+        durationMs: 10,
+        command: "td-cli agent dispatch"
+      };
     });
 
     const result = await createJulesSessionHandler({ task: "do work", pr: 42 });
     expect(result.id).toBe("1234567890");
 
-    expect(shell.runCommand).toHaveBeenCalledWith("gh", [
-      "pr",
-      "view",
-      "42",
-      "--json",
-      "headRefName"
+    expect(shell.runCommand).toHaveBeenCalledWith("td-cli", [
+      "gh", "view", "42"
     ]);
 
-    expect(global.fetch).toHaveBeenCalledWith(
-      expect.any(String),
-      expect.objectContaining({
-        body: expect.stringContaining('"startingBranch":"pr-branch"')
-      })
-    );
+    expect(shell.runCommand).toHaveBeenCalledWith("td-cli", [
+      "agent", "dispatch", "pr-branch", "do work"
+    ]);
   });
 
   it("should throw error if PR view fails", async () => {
@@ -91,11 +94,11 @@ describe("createJulesSessionHandler", () => {
       stderr: "PR not found",
       exitCode: 1,
       durationMs: 10,
-      command: "gh pr view"
+      command: "td-cli gh view"
     });
 
     await expect(createJulesSessionHandler({ task: "do work", pr: 999 }))
-      .rejects.toThrow("Failed to get PR info for PR #999: PR not found");
+      .rejects.toThrow("Failed to create session: PR not found");
   });
 
   it("should throw descriptive error if PR JSON is invalid", async () => {
@@ -104,10 +107,10 @@ describe("createJulesSessionHandler", () => {
       stderr: "",
       exitCode: 0,
       durationMs: 10,
-      command: "gh pr view"
+      command: "td-cli gh view"
     });
 
     await expect(createJulesSessionHandler({ task: "do work", pr: 42 }))
-      .rejects.toThrow(/Failed to parse PR info for PR #42/);
+      .rejects.toThrow(/Unexpected token/);
   });
 });

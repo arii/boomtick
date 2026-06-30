@@ -7,10 +7,10 @@ export const CommentTriageSummaryInputSchema = z.object({
 });
 
 export async function commentTriageSummaryHandler(args: z.infer<typeof CommentTriageSummaryInputSchema>) {
-  const result = await runCommand("gh", [
-    "pr",
-    "comment",
-    args.prNumber.toString(),
+  const result = await runCommand("td-cli", [
+    "gh",
+    "post-comment",
+    "--pr", args.prNumber.toString(),
     "--body", args.body
   ]);
 
@@ -18,8 +18,13 @@ export async function commentTriageSummaryHandler(args: z.infer<typeof CommentTr
     throw new Error(`Failed to comment on PR: ${result.stderr}`);
   }
 
+  const output = JSON.parse(result.stdout);
+  if (output.status === "error") {
+    throw new Error(`Failed to comment on PR: ${output.message}`);
+  }
+
   return {
     success: true,
-    commentUrl: result.stdout.trim()
+    commentUrl: output.html_url || output.url
   };
 }

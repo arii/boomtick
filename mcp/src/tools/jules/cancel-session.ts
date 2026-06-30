@@ -1,31 +1,25 @@
 import { z } from "zod";
 import { JulesSession } from "../types.js";
+import { runCommand } from "../../lib/shell.js";
 
 export const CancelJulesSessionInputSchema = z.object({
   id: z.string(),
 });
 
 export async function cancelJulesSessionHandler(input: z.infer<typeof CancelJulesSessionInputSchema>): Promise<JulesSession> {
-  const apiKey = process.env.JULES_API_KEY;
-  if (!apiKey) {
-    throw new Error("JULES_API_KEY environment variable is not set.");
+  const result = await runCommand("td-cli", ["agent", "cancel", input.id]);
+
+  if (result.exitCode !== 0) {
+    throw new Error(`Failed to cancel session: ${result.stderr}`);
   }
 
-  const cleanId = input.id.replace("sessions/", "");
-  const response = await fetch(`https://jules.googleapis.com/v1alpha/sessions/${cleanId}`, {
-    method: "DELETE",
-    headers: {
-      "x-goog-api-key": apiKey,
-    },
-  });
-
-  if (!response.ok) {
-    const errText = await response.text();
-    throw new Error(`Jules API error (${response.status}): ${errText}`);
+  const output = JSON.parse(result.stdout);
+  if (output.status === "error") {
+    throw new Error(`Failed to cancel session: ${output.message}`);
   }
 
   return {
-    id: cleanId,
+    id: input.id.replace("sessions/", ""),
     status: "FAILED",
     createdAt: new Date(),
   };

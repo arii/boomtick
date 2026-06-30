@@ -1,42 +1,35 @@
 import { z } from "zod";
+import { runCommand } from "../../lib/shell.js";
 
 export const GetJulesPullRequestInputSchema = z.object({
   id: z.string(),
 });
 
 export async function getJulesPullRequestHandler(input: z.infer<typeof GetJulesPullRequestInputSchema>) {
-  const apiKey = process.env.JULES_API_KEY;
-  if (!apiKey) {
-    throw new Error("JULES_API_KEY environment variable is not set.");
+  const result = await runCommand("td-cli", ["agent", "get-session", input.id]);
+
+  if (result.exitCode !== 0) {
+    throw new Error(`Failed to get session: ${result.stderr}`);
   }
 
-  const cleanId = input.id.replace("sessions/", "");
-  const response = await fetch(`https://jules.googleapis.com/v1alpha/sessions/${cleanId}`, {
-    method: "GET",
-    headers: {
-      "x-goog-api-key": apiKey,
-    },
-  });
-
-  if (!response.ok) {
-    const errText = await response.text();
-    throw new Error(`Jules API error (${response.status}): ${errText}`);
+  const output = JSON.parse(result.stdout);
+  if (output.status === "error") {
+    throw new Error(`Failed to get session: ${output.message}`);
   }
 
-  const data = (await response.json()) as any;
-
+  const data = output.session;
   let pullRequestUrl: string | undefined;
   if (data.outputs && Array.isArray(data.outputs)) {
-    for (const output of data.outputs) {
-      if (output.pullRequest && output.pullRequest.url) {
-        pullRequestUrl = output.pullRequest.url;
+    for (const out of data.outputs) {
+      if (out.pullRequest && out.pullRequest.url) {
+        pullRequestUrl = out.pullRequest.url;
         break;
       }
     }
   }
 
   return {
-    id: cleanId,
+    id: input.id.replace("sessions/", ""),
     pullRequestUrl,
   };
 }

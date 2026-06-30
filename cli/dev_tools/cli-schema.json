@@ -27,6 +27,50 @@
         }
       ]
     },
+    "gh create-pr": {
+      "description": "Create a new pull request.",
+      "exact_usage": "python3 boomtick-pkg/cli/dev_tools/td_cli.py gh create-pr --title <TITLE> --body <BODY> --head <HEAD> [--base <BASE>] [--draft]",
+      "required_flags": [
+        {
+          "flag": "--title",
+          "type": "text",
+          "description": ""
+        },
+        {
+          "flag": "--body",
+          "type": "text",
+          "description": ""
+        },
+        {
+          "flag": "--head",
+          "type": "text",
+          "description": ""
+        }
+      ],
+      "optional_flags": [
+        {
+          "flag": "--base",
+          "type": "text",
+          "description": ""
+        },
+        {
+          "flag": "--draft",
+          "type": "boolean",
+          "description": ""
+        }
+      ]
+    },
+    "gh checkout": {
+      "description": "Checkout a branch.",
+      "exact_usage": "python3 boomtick-pkg/cli/dev_tools/td_cli.py gh checkout <BRANCH>",
+      "required_arguments": [
+        {
+          "name": "branch",
+          "type": "text",
+          "description": ""
+        }
+      ]
+    },
     "repo ci-logs": {
       "description": "",
       "exact_usage": "python3 boomtick-pkg/cli/dev_tools/td_cli.py repo ci-logs [--all] [--clean] <PR_NUMBER>",
@@ -47,6 +91,39 @@
           "flag": "--clean",
           "type": "boolean",
           "description": "Clean and extract failing details from logs"
+        }
+      ]
+    },
+    "agent cancel": {
+      "description": "Cancel a Jules session.",
+      "exact_usage": "python3 boomtick-pkg/cli/dev_tools/td_cli.py agent cancel <SESSION_ID>",
+      "required_arguments": [
+        {
+          "name": "session_id",
+          "type": "text",
+          "description": ""
+        }
+      ]
+    },
+    "agent get-session": {
+      "description": "Get details of a Jules session.",
+      "exact_usage": "python3 boomtick-pkg/cli/dev_tools/td_cli.py agent get-session <SESSION_ID>",
+      "required_arguments": [
+        {
+          "name": "session_id",
+          "type": "text",
+          "description": ""
+        }
+      ]
+    },
+    "agent trigger-feedback": {
+      "description": "Trigger CI feedback for a Jules session.",
+      "exact_usage": "python3 boomtick-pkg/cli/dev_tools/td_cli.py agent trigger-feedback <SESSION_ID>",
+      "required_arguments": [
+        {
+          "name": "session_id",
+          "type": "text",
+          "description": ""
         }
       ]
     },

@@ -127,3 +127,10 @@ class JulesClient:
         response = requests.post(url, headers=self.headers, json={"prompt": message}, timeout=10)
         response.raise_for_status()
         return {"status": "success", "message": "Message sent successfully"}
+
+    def cancel_session(self, session_id: str) -> Dict[str, Any]:
+        clean_id = self._get_clean_id(session_id, "sessions")
+        url = f"{self.base_url}/sessions/{clean_id}"
+        response = requests.delete(url, headers=self.headers, timeout=10)
+        response.raise_for_status()
+        return {"status": "success", "message": "Session cancelled successfully"}

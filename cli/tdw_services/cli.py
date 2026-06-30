@@ -137,7 +137,16 @@ def pr_diff(ctx, pr_number):
 def view(ctx, pr_number):
     orch = ctx.obj['ORCHESTRATOR']
     pr = orch.github.fetch_pr_details(pr_number)
-    out(ctx, f"PR #{pr.get('number')}: {pr.get('title')}\nState: {pr.get('state')}", data={"pr": pr})
+    # Normalize for tool consumption
+    normalized_pr = {
+        "number": pr.get("number"),
+        "title": pr.get("title"),
+        "state": pr.get("state"),
+        "headRefName": pr.get("head", {}).get("ref"),
+        "baseRefName": pr.get("base", {}).get("ref"),
+        "html_url": pr.get("html_url")
+    }
+    out(ctx, f"PR #{normalized_pr['number']}: {normalized_pr['title']}\nState: {normalized_pr['state']}", data={"pr": normalized_pr})
 
 @gh.command()
 @click.argument('file', required=False)
@@ -242,6 +251,27 @@ def validate_issue(ctx, issue_number, all_open, post_comments, dry_run):
         err(ctx, f"Found {res['total_findings']} blocking findings.", data=res)
     else:
         out(ctx, "✅ Issue validation complete.", data=res)
+
+@gh.command()
+@click.option('--title', required=True)
+@click.option('--body', required=True)
+@click.option('--head', required=True)
+@click.option('--base', default=PROJECT_CONFIG.base_branch_name)
+@click.option('--draft', is_flag=True)
+@click.pass_context
+def create_pr(ctx, title, body, head, base, draft):
+    """Create a new pull request."""
+    orch = ctx.obj['ORCHESTRATOR']
+    res = orch.github.create_pull_request(title, body, head, base, draft=draft)
+    out(ctx, f"✅ Created PR: {res.get('html_url')}", data={"pr": res})
+
+@gh.command()
+@click.argument('branch')
+@click.pass_context
+def checkout(ctx, branch):
+    """Checkout a branch."""
+    run_command(["git", "checkout", branch])
+    out(ctx, f"✅ Checked out branch {branch}")
 
 @gh.command()
 @click.argument('target_branch')
@@ -756,6 +786,33 @@ def repair(ctx, logs, stdin, worktree):
 @agent_group.command()
 @click.argument('session_id')
 @click.pass_context
+def cancel(ctx, session_id):
+    """Cancel a Jules session."""
+    orch = ctx.obj['ORCHESTRATOR']
+    res = orch.jules.cancel_session(session_id)
+    out(ctx, f"✅ Session {session_id} cancelled", data=res)
+
+@agent_group.command()
+@click.argument('session_id')
+@click.pass_context
+def get_session(ctx, session_id):
+    """Get details of a Jules session."""
+    orch = ctx.obj['ORCHESTRATOR']
+    session = orch.jules.get_session(session_id)
+    out(ctx, f"Session {session_id} details retrieved", data={"session": session})
+
+@agent_group.command()
+@click.argument('session_id')
+@click.pass_context
+def trigger_feedback(ctx, session_id):
+    """Trigger CI feedback for a Jules session."""
+    orch = ctx.obj['ORCHESTRATOR']
+    res = orch.trigger_jules_feedback(session_id)
+    out(ctx, "Feedback triggered", data=res)
+
+@agent_group.command()
+@click.argument('session_id')
+@click.pass_context
 def messages(ctx, session_id):
     """Get message history for a Jules session."""
     orch = ctx.obj['ORCHESTRATOR']
@@ -817,6 +874,9 @@ for group in [jules_group]:
     group.add_command(fix_ci)
     group.add_command(repair_context)
     group.add_command(repair)
+    group.add_command(cancel)
+    group.add_command(get_session)
+    group.add_command(trigger_feedback)
     group.add_command(messages)
     group.add_command(send)
     group.add_command(plan_review)

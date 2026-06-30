@@ -10,27 +10,32 @@ export const CreatePullRequestInputSchema = z.object({
 });
 
 export async function createPullRequestHandler(args: z.infer<typeof CreatePullRequestInputSchema>) {
-  const prArgs = [
-    "pr",
-    "create",
-    "--base", args.base,
-    "--head", args.head,
+  const tdArgs = [
+    "gh",
+    "create-pr",
     "--title", args.title,
-    "--body", args.body
+    "--body", args.body,
+    "--head", args.head,
+    "--base", args.base
   ];
 
   if (args.draft) {
-    prArgs.push("--draft");
+    tdArgs.push("--draft");
   }
 
-  const result = await runCommand("gh", prArgs);
+  const result = await runCommand("td-cli", tdArgs);
 
   if (result.exitCode !== 0) {
     throw new Error(`Failed to create pull request: ${result.stderr}`);
   }
 
+  const output = JSON.parse(result.stdout);
+  if (output.status === "error") {
+    throw new Error(`Failed to create pull request: ${output.message}`);
+  }
+
   return {
     success: true,
-    url: result.stdout.trim()
+    url: output.pr.html_url
   };
 }
