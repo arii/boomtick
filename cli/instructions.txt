@@ -8,4 +8,4 @@
 >  3. Ensure the Verification section includes specific visual checks relevant to the issue.
 >  4. Keep the tone professional and concise.
 >  5. Adhere strictly to the architectural and styling conventions documented in `AGENTS.md`.
->  6. **Prioritize Specialized Tooling:** Always consult the Tooling and MCP Protocol in `.agents/AGENTS.md`. Favor MCP tools and `td_cli.py` over raw terminal commands.
+>  6. **Prioritize Specialized Tooling:** Always consult the Tooling and MCP Protocol in `.agents/AGENTS.md`. Favor MCP tools and `td-cli` over raw terminal commands.

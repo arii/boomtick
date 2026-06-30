@@ -1,15 +1,22 @@
-import sys
-import os
-from dev_tools.utils import log_info
+import glob
 import json
+import os
+import subprocess
+import sys
+import tempfile
+from dataclasses import asdict
 from datetime import datetime, timezone
-from typing import List, Dict, Any
-import click
-from dev_tools.orchestrator import Orchestrator
-from dev_tools.utils import get_or_create_log_dir, CLIError
+from typing import Any, Dict, List
 
-# Import legacy utils for backwards compatibility during migration
+import click
+
+from dev_tools.orchestrator import Orchestrator
 from dev_tools.utils import (
+    get_or_create_log_dir,
+    CLIError,
+    log_info,
+    log_error,
+    log_warn,
     get_github_client,
     get_repo_name,
     run_command,
@@ -21,10 +28,10 @@ from dev_tools.utils import (
     get_any_count,
     verify_pr_scope
 )
-from dev_tools.config import load_project_config
+from dev_tools.config import get_config
 
 
-PROJECT_CONFIG = load_project_config()
+PROJECT_CONFIG = get_config()
 
 # CLI Group
 @click.group()
@@ -66,6 +73,27 @@ def _get_body_content(ctx, orch, file, body):
     if content is None:
         err(ctx, "Provide --file or --body")
     return content
+
+# ==========================================
+# CONFIG COMMAND GROUP
+# ==========================================
+@cli.group()
+def config():
+    """Configuration Operations"""
+    pass
+
+@config.command(name='view')
+@click.pass_context
+def config_view(ctx):
+    """View the current project configuration as JSON."""
+    # ctx.obj might be None if the command is called directly or during unit tests
+    is_json = ctx.obj.get('JSON', True) if ctx.obj is not None else True
+
+    if is_json:
+        click.echo(json.dumps(asdict(PROJECT_CONFIG), indent=2))
+    else:
+        click.echo("Current configuration:")
+        click.echo(json.dumps(asdict(PROJECT_CONFIG), indent=2))
 
 # ==========================================
 # REPO COMMAND GROUP
@@ -345,8 +373,6 @@ def resolve_conflicts(ctx, pr, allow_unrelated, strategy, push):
 @click.pass_context
 def verify_versions(ctx, diff_input):
     """Verify version changes in a diff for downgrades or hard blocks."""
-    import subprocess
-    import tempfile
     script_path = os.path.join(os.path.dirname(__file__), 'verify_versions.py')
 
     if not diff_input:
@@ -554,10 +580,6 @@ def pre_submit(ctx):
 @click.pass_context
 def overlaps(ctx, limit, no_cache):
     """Identify and propose consolidation of PRs with high functional or structural overlap."""
-    import subprocess
-    import sys
-    import os
-
     script_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'dev_tools', 'pr_overlap.py')
     cmd = [sys.executable, script_path, '--limit', str(limit)]
     if no_cache:
@@ -664,8 +686,6 @@ def test_cli(ctx):
     orch = ctx.obj['ORCHESTRATOR']
     orch.runtime_check()
     # pytest options are now in pyproject.toml
-    import subprocess
-    import sys
     # Get the directory of the current file to find the cli package root
     cli_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     try:
@@ -687,16 +707,13 @@ def ai():
 @click.option('--no-cache', is_flag=True, default=False, help='Bust the diff cache and force a fresh review call')
 @click.pass_context
 def review(ctx, pr_number, no_cache):
-    import glob
-
     # Optionally bust the review cache so stale results are not silently returned
     if no_cache:
         review_dir = get_or_create_log_dir("reviews")
         pattern = os.path.join(review_dir, f"review_cache_{pr_number}_*.json")
         removed = glob.glob(pattern)
         for f in removed:
-            import os as _os
-            _os.remove(f)
+            os.remove(f)
         if removed:
             log_info(f"🗑  Removed {len(removed)} cached diff file(s): {removed}")
         else:
@@ -713,6 +730,67 @@ def review(ctx, pr_number, no_cache):
     reviewComment  : {res.get('reviewComment', '')[:500]}""")
 
     out(ctx, f"✅ Generated review for PR #{pr_number}", data=res)
+
+@ai.command(name='get-context')
+@click.pass_context
+def ai_get_context(ctx):
+    """Retrieve dependency and semantic context for a set of changed files."""
+    try:
+        raw_data = sys.stdin.read()
+        if not raw_data.strip():
+            err(ctx, "Empty input from stdin")
+        input_data = json.loads(raw_data)
+    except Exception as e:
+        err(ctx, f"Failed to parse input JSON: {e}")
+        sys.exit(1)
+
+    if not isinstance(input_data, dict):
+        err(ctx, "Input JSON must be a dictionary")
+
+    if "files" not in input_data:
+        err(ctx, "Input JSON missing required 'files' key")
+
+    files_data = input_data.get("files", [])
+    if not files_data:
+        click.echo(json.dumps([]))
+        return
+
+    orch = ctx.obj['ORCHESTRATOR']
+    results = []
+
+    ai_client = orch.ai
+    graph = ai_client.dependency_graph
+    store = ai_client.vector_store
+
+    for item in files_data:
+        filepath = item.get("path")
+        diff_text = item.get("diff")
+        if not filepath:
+            continue
+
+        context = {
+            "path": filepath,
+            "dependencies": graph.get_dependencies(filepath),
+            "dependents": graph.get_dependents(filepath),
+            "semantic": []
+        }
+
+        if diff_text and store.is_available():
+            try:
+                semantic_results = store.query(diff_text, n_results=3)
+                for res in semantic_results:
+                    if res['metadata'].get('path') != filepath:
+                        context["semantic"].append({
+                            "path": res['metadata'].get('path'),
+                            "document": res['document']
+                        })
+            except Exception as e:
+                log_warn(f"Error querying vector store for {filepath}: {e}")
+
+        results.append(context)
+
+    # Output raw JSON list for compatibility with existing consumers
+    click.echo(json.dumps(results))
 
 @ai.command()
 @click.argument('file')
@@ -921,11 +999,10 @@ def main():
     except Exception as e:
         # If we are in JSON mode, we should ideally output JSON error.
         # Detecting JSON mode from sys.argv since click context isn't available here yet if it failed early.
-        # Note: td_cli.py subcommands are JSON by default.
+        # Note: {PROJECT_CONFIG.cli_alias} subcommands are JSON by default.
         is_json = "--no-json" not in sys.argv
 
         if is_json:
-            import json
             error_payload = {
                 "status": "error",
                 "message": str(e),
@@ -938,12 +1015,7 @@ def main():
             # (e.g. boomtick-mcp) which may discard stderr via 2>/dev/null.
             print(json.dumps(error_payload, indent=2))
         else:
-            try:
-                from dev_tools.utils import log_error
-                log_error(str(e))
-            except (ImportError, ModuleNotFoundError):
-                # Fallback if dev_tools is not in path yet
-                print(f"❌ Error: {e}", file=sys.stderr)
+            log_error(str(e))
             code = getattr(e, 'code', 1)
 
         if "pytest" not in sys.modules:

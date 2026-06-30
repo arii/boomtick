@@ -126,7 +126,7 @@ def build_repo_context():
                         else:
                             opt_flags.append(option_dict)
 
-                usage = f"python3 boomtick-pkg/cli/dev_tools/td_cli.py {cmd_name}"
+                usage = f"td-cli {cmd_name}"
                 if req_flags:
                     usage += " " + " ".join([f"{f['flag']} <{f['flag'].lstrip('-').upper()}>" for f in req_flags])
                 if opt_flags:
@@ -158,15 +158,15 @@ def build_repo_context():
         cli_schema_path = package_root / "cli" / "dev_tools" / "cli-schema.json"
         
         schema_authority_payload = {
-            "tool_name": "td_cli.py",
-            "schema_authority": "This file is the single source of truth for td_cli.py. Consult before every CLI call. Takes precedence over examples in AGENTS.md or any agent-specific instruction file.",
+            "tool_name": "td-cli",
+            "schema_authority": "This file is the single source of truth for td-cli. Consult before every CLI call. Takes precedence over examples in AGENTS.md or any agent-specific instruction file.",
             "description": "Custom developer CLI for BoomTick repository management. Do not use interactive menus, and NEVER use the -h or --help flags. Always reference this schema for valid commands.",
-            "base_command": "python3 boomtick-pkg/cli/dev_tools/td_cli.py",
+            "base_command": "td-cli",
             "never_do": [
                 "Do not chain subcommands in a single shell call",
                 "Do not use --help or -h to discover flags — use this schema",
                 "Do not guess flags not listed here",
-                "Do not run td_cli.py without checking this schema first",
+                "Do not run td-cli without checking this schema first",
                 "Do not use interactive menus if prompted"
             ],
             "subcommands": generated_subcommands

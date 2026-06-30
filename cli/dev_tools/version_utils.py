@@ -2,6 +2,7 @@ import os
 import re
 import json
 import requests
+from dev_tools.utils import log_warn, log_error
 from packaging import version
 from typing import Dict, Optional
 
@@ -19,8 +20,8 @@ def fetch_latest_npm(package_name: str) -> Optional[str]:
             ver = res.json().get("version")
             _NPM_CACHE[package_name] = ver
             return ver
-    except Exception:
-        pass
+    except Exception as e:
+        log_warn(f"Failed to fetch latest NPM version for {package_name}: {e}")
     return None
 
 def fetch_latest_node() -> Optional[str]:
@@ -34,8 +35,8 @@ def fetch_latest_node() -> Optional[str]:
             ver = res.json()[0].get("version").lstrip('v')
             _NPM_CACHE["node"] = ver
             return ver
-    except Exception:
-        pass
+    except Exception as e:
+        log_warn(f"Failed to fetch latest Node.js version: {e}")
     return None
 
 def fetch_latest_gh_action(action_path: str) -> Optional[str]:
@@ -54,8 +55,8 @@ def fetch_latest_gh_action(action_path: str) -> Optional[str]:
             tag = res.json().get("tag_name")
             _GITHUB_CACHE[action_path] = tag
             return tag
-    except Exception:
-        pass
+    except Exception as e:
+        log_warn(f"Failed to fetch latest GitHub Action version for {action_path}: {e}")
     return None
 
 def compare_versions(v1: str, v2: str) -> int:
@@ -123,7 +124,8 @@ def get_stack_versions(fetch_latest: bool = False) -> Dict[str, str]:
                             current_v = versions.get(action)
                             if not current_v or compare_versions(v_str, current_v) > 0:
                                 versions[action] = v_str
-                except Exception: pass
+                except Exception as e:
+                    log_warn(f"Failed to read workflow {filename}: {e}")
 
         if fetch_latest:
             latest_node = fetch_latest_node()
@@ -136,7 +138,7 @@ def get_stack_versions(fetch_latest: bool = False) -> Dict[str, str]:
                 latest_a = fetch_latest_gh_action(action)
                 if latest_a: versions[f"latest_{action}"] = latest_a
 
-    except Exception:
-        pass
+    except Exception as e:
+        log_error(f"Unexpected error in get_stack_versions: {e}")
 
     return versions

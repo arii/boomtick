@@ -2,6 +2,7 @@ import re
 import os
 import json
 import sys
+from dev_tools.utils import log_warn
 from typing import Optional, List, Dict, Any
 
 def resolve_file_path(path: str) -> Optional[str]:
@@ -114,9 +115,9 @@ class ASTContextualizer:
         try:
             with open(filepath, 'r') as f:
                 lines = f.readlines()
-        except Exception:
+        except Exception as e:
+            log_warn(f"Failed to read file {filepath} for context extraction: {e}")
             return None
-
         if not lines:
             return None
 

@@ -200,8 +200,8 @@ runs:
         GITHUB_TOKEN: ${{ inputs.github_token }}
         PYTHONPATH: boomtick-pkg/cli
       run: |
-        python3 boomtick-pkg/cli/dev_tools/td_cli.py gh summary-report >> "$GITHUB_STEP_SUMMARY"
-        if ! python3 boomtick-pkg/cli/dev_tools/td_cli.py gh verify-metrics > /dev/null 2>&1; then
+        td-cli gh summary-report >> "$GITHUB_STEP_SUMMARY"
+        if ! td-cli gh verify-metrics > /dev/null 2>&1; then
           echo "❌ CI Metrics verification failed."
           exit 1
         fi

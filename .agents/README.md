@@ -8,7 +8,7 @@ workflows, and supporting scripts for automated operations in this repository.
 ## Core Standards
 
 - **`AGENTS.md`** — Primary Tooling and MCP Protocol. Defines the three-tier
-  tool hierarchy (MCP → `td_cli.py` → bash), the full tool mapping table, and
+  tool hierarchy (MCP → `td-cli` → bash), the full tool mapping table, and
   enforcement rules. **Read this before any GitHub or repository operation.**
 - **`AGENT_CONTRACT.md`** — Invariant rules for agent behavior. Always wins
   over other instruction layers.
@@ -43,7 +43,7 @@ MCP tools — do not invoke directly unless a workflow explicitly instructs it.
 `boomtick-mcp` on every tool call. It contains:
 
 - `file_tree` — repository structure snapshot
-- `cli_schema` — full `td_cli.py` command/flag reference
+- `cli_schema` — full `td-cli` command/flag reference
 - `package_json` — dependency and script metadata
 
 It is rebuilt automatically by:

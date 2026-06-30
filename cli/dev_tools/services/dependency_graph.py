@@ -2,7 +2,7 @@ import json
 import sys
 import os
 import subprocess
-from dev_tools.utils import log_warn, log_error
+from dev_tools.utils import log_warn, log_error, CLIError
 from typing import Dict, List, Set, Optional
 
 class DependencyGraph:
@@ -34,26 +34,32 @@ class DependencyGraph:
 
                     result = subprocess.run(cmd, capture_output=True, text=True, cwd=self.root_dir)
                     if result.returncode != 0:
-                        # Fallback or error
-                        log_warn(f"dependency-cruiser failed: {result.stderr}")
-                        data = {"modules": []}
-                    else:
-                        data = json.loads(result.stdout)
-                except (FileNotFoundError, subprocess.CalledProcessError):
-                    log_warn("npx or depcruise not found. Ensure dependencies are installed.")
-                    data = {"modules": []}
+                        log_error(f"dependency-cruiser failed (exit {result.returncode}): {result.stderr}")
+                        raise CLIError(f"dependency-cruiser failed: {result.stderr}")
 
-                if data.get("modules"):
+                    try:
+                        data = json.loads(result.stdout)
+                    except json.JSONDecodeError as e:
+                        log_error(f"Failed to parse dependency-cruiser output: {e}\nRaw output: {result.stdout}")
+                        raise CLIError(f"Failed to parse dependency-cruiser output: {e}")
+                except (FileNotFoundError, subprocess.CalledProcessError) as e:
+                    log_error(f"npx or depcruise not found or failed: {e}")
+                    raise CLIError("npx or depcruise not found. Ensure dependencies are installed.")
+
+                if data and data.get("modules"):
                     # Cache it
                     os.makedirs(os.path.dirname(cache_path), exist_ok=True)
                     with open(cache_path, 'w') as f:
                         json.dump(data, f)
 
             self._parse_modules(data.get("modules", []))
+        except CLIError:
+            raise
         except Exception as e:
             log_error(f"loading dependency graph: {e}")
             self.graph = {}
             self.reverse_graph = {}
+            raise CLIError(f"Unexpected error loading dependency graph: {e}")
 
     def _parse_modules(self, modules: List[Dict]):
         for mod in modules:

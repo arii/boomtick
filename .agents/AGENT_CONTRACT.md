@@ -27,7 +27,7 @@ Read the matching workflow before starting these task types:
 
 ## What You Will Never Do
 
-- Call `td_cli.py` directly when an MCP tool covers the same operation.
+- Call `td-cli` directly when an MCP tool covers the same operation.
 - Call raw bash (`gh`, `git`) when a Tier 1 or Tier 2 tool covers the operation.
 - Use `--help` or `-h` to discover CLI flags — read `cli_schema` from
   `.agent-context.json` instead.

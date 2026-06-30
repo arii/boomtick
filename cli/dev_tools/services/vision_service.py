@@ -3,6 +3,7 @@ import json
 import base64
 from typing import Optional, List, Dict
 from dev_tools.config import load_project_config
+from dev_tools.utils import log_error
 
 
 
@@ -64,7 +65,11 @@ class VisionService:
         try:
             with open(summary_path, 'r') as f:
                 data = json.load(f)
-        except (json.JSONDecodeError, FileNotFoundError):
+        except FileNotFoundError:
+            log_error(f"Visual summary file not found: {summary_path}")
+            return {}
+        except json.JSONDecodeError as e:
+            log_error(f"Malformed visual summary JSON: {e}")
             return {}
 
         routes = data.get('routes', [])
