@@ -33,3 +33,6 @@ jobs:
 
       - name: Bootstrap Agent Workspace
         run: ./setup-agent.sh
+
+      - name: BoomTick CI Validate
+        uses: ./boomtick-pkg/mcp/actions/ci-validate

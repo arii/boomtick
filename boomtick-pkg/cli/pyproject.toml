@@ -1,0 +1,40 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "boomtick-cli"
+version = "0.1.0"
+description = "BoomTick CLI — agentic dev-tools for GitHub + AI workflows"
+requires-python = ">=3.8"
+dependencies = [
+    "requests>=2.0.0",
+    "packaging>=21.3",
+    "google-genai",
+    "python-dotenv",
+    "pydantic",
+    "click",
+    "PyGithub",
+    "semgrep",
+    "chromadb>=1.5.9",
+    "sentence-transformers>=5.6.0"
+]
+
+[project.scripts]
+td = "dev_tools.td_cli:main"
+td-cli = "dev_tools.td_cli:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["dev_tools*", "tdw_services*"]
+
+[tool.setuptools.package-data]
+"dev_tools" = ["cli-schema.json", "config.json", "project_config.json", "*.json"]
+"*" = ["*.json"]
+
+[tool.pytest.ini_options]
+pythonpath = [
+  ".",
+  "dev_tools"
+]
+testpaths = ["tests"]

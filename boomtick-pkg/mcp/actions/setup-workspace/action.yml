@@ -1,0 +1,84 @@
+name: 'Setup Workspace'
+description: 'Bootstraps the workspace by installing Node.js, Python, and dev-tools'
+inputs:
+  setup-node:
+    description: "Install Node.js and pnpm"
+    required: false
+    default: 'true'
+  setup-python:
+    description: "Install dev-tools (Python)"
+    required: false
+    default: 'true'
+  node-version-file:
+    description: "Path to .node-version file"
+    required: false
+    default: ".node-version"
+  pnpm-version:
+    description: "Version of pnpm to activate"
+    required: false
+    default: "10.28.2"
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Configure Environment
+      shell: bash
+      run: |
+        # Set canonical bin paths for pip-installed tools
+        echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+        echo "/github/home/.local/bin" >> "$GITHUB_PATH"
+
+        # Determine CLI root directory
+        REPO_DIR=$(pwd)
+        if [ -d "$REPO_DIR/boomtick-pkg/cli" ]; then
+          CLI_DIR="$REPO_DIR/boomtick-pkg/cli"
+        else
+          CLI_DIR="$REPO_DIR/cli"
+        fi
+
+        echo "CLI_DIR=$CLI_DIR" >> "$GITHUB_ENV"
+        echo "PYTHONPATH=$CLI_DIR" >> "$GITHUB_ENV"
+        echo "✅ Environment configured: CLI_DIR=$CLI_DIR"
+
+    - name: Setup pnpm
+      if: inputs.setup-node == 'true'
+      uses: pnpm/action-setup@v4
+
+    - name: Setup Node.js
+      if: inputs.setup-node == 'true'
+      uses: actions/setup-node@v4
+      with:
+        cache: 'pnpm'
+        cache-dependency-path: pnpm-lock.yaml
+        node-version-file: ${{ inputs.node-version-file }}
+
+    - name: Enable Corepack
+      if: inputs.setup-node == 'true'
+      run: corepack enable
+      shell: bash
+
+    - name: Activate pinned pnpm
+      if: inputs.setup-node == 'true'
+      env:
+        PNPM_VERSION: ${{ inputs.pnpm-version }}
+      run: corepack prepare pnpm@"$PNPM_VERSION" --activate
+      shell: bash
+
+    - name: Install dev-tools
+      if: inputs.setup-python == 'true'
+      shell: bash
+      run: |
+        echo "::group::Install dev-tools"
+        # Uses $CLI_DIR set in the environment step
+        pip install -e "$CLI_DIR" --break-system-packages
+        echo "::endgroup::"
+
+    - name: Verify td-cli
+      if: inputs.setup-python == 'true'
+      shell: bash
+      run: |
+        if ! command -v td-cli >/dev/null 2>&1; then
+          echo "::error::td-cli not found on PATH. Expected bin directory in: $HOME/.local/bin"
+          exit 1
+        fi
+        echo "✅ td-cli is resolvable."

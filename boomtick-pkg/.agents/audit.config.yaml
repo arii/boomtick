@@ -1,0 +1,87 @@
+categories:
+  weak_intensifiers:
+    terms:
+      - actually
+      - really
+      - basically
+      - kind of
+      - sort of
+    priority: high
+    fix: "Delete or replace with direct statement"
+  corporate_speak:
+    terms:
+      - curated
+      - synergy
+      - next-level
+      - cutting-edge
+      - empower
+      - industry-leading
+    priority: high
+    fix: "Replace with specific, active verbs (e.g. selected, tested, chosen)"
+  credential_crutch:
+    terms:
+      - As a PhD
+      - In my research
+      - Given my robotics
+      - My analysis suggests
+    priority: high
+    fix: "Delete or provide specific examples instead"
+  academic_scaffolding:
+    terms:
+      - Utilize
+      - Facilitate
+      - Methodology
+      - Pedagogical
+      - It was observed
+    priority: high
+    fix: "Replace with active verbs (Use, Fix, Help, Method, Teaching, etc.)"
+  wcs_conflicts:
+    terms:
+      - The Circuit
+      - Circuit Points
+      - Point Chasing
+    priority: high
+    fix: "Use approved terminology (WCS Events, WSDC Database, Registry Standing, etc.)"
+  robotics_jargon:
+    terms:
+      - Kinetics
+      - Signal Latency
+      - Actuate
+      - Interface
+    priority: high
+    fix: "Use dance terminology (Momentum, Connection Delay, Move, Communication)"
+  passive_voice:
+    terms:
+      - can be
+      - will be
+      - is seen
+      - is applied
+      - is facilitated
+    priority: high
+    fix: "Convert to active voice"
+  false_authority:
+    terms:
+      - Studies show
+      - Everyone agrees
+      - As we can see
+      - It's important to note
+    priority: high
+    fix: "Delete or provide specific evidence"
+  ai_cliches:
+    terms:
+      - Tapestry
+      - Vibrant
+      - Testament
+      - Unlock your potential
+      - Game-changing
+      - Unprecedented
+      - Journey
+      - Heartbeat
+      - Quintessential
+      - Strategic Vulnerability
+      - Narrative Grounding
+      - In the world of
+      - But the reality is
+      - Picture this
+    priority: high
+    fix: "Delete immediately"

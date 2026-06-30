@@ -15,7 +15,14 @@ fi
 # 2. Dependency Installation
 pnpm install --frozen-lockfile
 
-# 3. Environment Check
+# 3. BoomTick Installation
+if [ -f "./boomtick-pkg/install.sh" ]; then
+  echo "--- Installing BoomTick Package ---"
+  chmod +x ./boomtick-pkg/install.sh
+  ./boomtick-pkg/install.sh
+fi
+
+# 4. Environment Check
 node --version
 pnpm --version
 python3 --version
