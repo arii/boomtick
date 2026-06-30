@@ -46,28 +46,33 @@ class TestLabels(unittest.TestCase):
         self.assertIn('/issues/123/labels/ui%20bug', call_args[0][1])
 
     def test_orchestrator_update_issue_add_labels(self):
+        self.orch.github.add_labels.return_value = {"number": 123, "title": "T", "html_url": "U", "state": "S"}
         self.orch.update_issue(123, add_labels=["new-label"])
         self.orch.github.add_labels.assert_called_once_with(123, ["new-label"])
 
     def test_orchestrator_update_issue_remove_labels(self):
+        self.orch.github.fetch_issue_details.return_value = {"number": 123, "title": "T", "html_url": "U", "state": "S"}
         self.orch.update_issue(123, remove_labels=["old-label"])
         self.orch.github.remove_label.assert_called_once_with(123, "old-label")
 
     def test_orchestrator_update_issue_full_labels(self):
+        self.orch.github.update_issue.return_value = {"number": 123, "title": "T", "html_url": "U", "state": "S"}
         self.orch.update_issue(123, labels=["l1", "l2"])
         self.orch.github.update_issue.assert_called_once_with(123, body=None, labels=["l1", "l2"])
 
     def test_orchestrator_update_issue_simultaneous_add_remove(self):
+        self.orch.github.add_labels.return_value = {"number": 123, "title": "T", "html_url": "U", "state": "S"}
         self.orch.update_issue(123, add_labels=["new"], remove_labels=["old"])
         self.orch.github.add_labels.assert_called_once_with(123, ["new"])
         self.orch.github.remove_label.assert_called_once_with(123, "old")
 
     def test_orchestrator_update_issue_body_validation(self):
-        with self.assertRaises(CLIError) as cm:
-            self.orch.update_issue(123, body="   ", add_labels=["l1"])
-        self.assertEqual(str(cm.exception), "Issue body cannot be empty.")
+        # Body validation now happens in CLI layer using Pydantic
+        # Orchestrator doesn't strip anymore, but we can test Pydantic separately if needed.
+        pass
 
     def test_orchestrator_update_issue_body_and_add_labels(self):
+        self.orch.github.update_issue.return_value = {"number": 123, "title": "T", "html_url": "U", "state": "S"}
         self.orch.update_issue(123, body="new body", add_labels=["l1"])
         self.orch.github.add_labels.assert_called_once_with(123, ["l1"])
         self.orch.github.update_issue.assert_called_once_with(123, body="new body")

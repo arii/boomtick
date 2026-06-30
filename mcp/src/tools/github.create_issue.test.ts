@@ -26,7 +26,7 @@ describe("github.create_issue", () => {
       command: "td-cli gh create-issue --title 'Test Issue' --body 'Test Body'"
     });
 
-    const result = await createIssueHandler({ title: "Test Issue", body: "Test Body" });
+    const result = await createIssueHandler({ title: "Test Issue", body: "Test Body", file: null });
     expect(result.status).toBe("success");
     expect(result.issue?.number).toBe(123);
     expect(result.issue?.title).toBe("Test Issue");
@@ -41,7 +41,7 @@ describe("github.create_issue", () => {
       command: "td-cli gh create-issue"
     });
 
-    await expect(createIssueHandler({ title: "Test Issue", body: "Test Body" })).rejects.toThrow("Failed to create issue: Auth failed");
+    await expect(createIssueHandler({ title: "Test Issue", body: "Test Body", file: null })).rejects.toThrow("Failed to create issue: Auth failed");
   });
 
   it("should handle error status from CLI output", async () => {
@@ -58,6 +58,6 @@ describe("github.create_issue", () => {
       command: "td-cli gh create-issue"
     });
 
-    await expect(createIssueHandler({ title: "Test Issue", body: "Test Body" })).rejects.toThrow("Failed to create issue: Repo not found");
+    await expect(createIssueHandler({ title: "Test Issue", body: "Test Body", file: null })).rejects.toThrow("Failed to create issue: Repo not found");
   });
 });

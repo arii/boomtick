@@ -20,6 +20,7 @@ from dev_tools.services.vision_service import VisionService
 from dev_tools.utils import verify_ci_metrics
 from dev_tools.utils import log_error, log_warn, get_or_create_log_dir, CLIError
 from dev_tools.handlers.command_handler import CommandHandler
+from dev_tools.models import IssueSummary, PRSummary
 from dev_tools.utils import (
     get_github_token,
     get_github_client,
@@ -321,13 +322,15 @@ class Orchestrator:
         with open(abs_path, 'r', encoding='utf-8') as f:
             return f.read()
 
-    def create_issue(self, title: str, body: Optional[str]) -> Dict[str, Any]:
+    def create_issue(self, title: str, body: str) -> Dict[str, Any]:
         """
         Creates a new GitHub issue.
         """
-        if body is None or not body.strip():
-            raise CLIError("Issue body cannot be empty.")
-        return self.github.create_issue(title, body)
+        res = self.github.create_issue(title, body)
+        return {
+            "status": "success",
+            "issue": IssueSummary(**res).model_dump()
+        }
 
     def get_issue_details(self, issue_number: int) -> Dict[str, Any]:
         """
@@ -339,9 +342,6 @@ class Orchestrator:
         """
         Updates an issue's body and/or labels.
         """
-        if body is not None and not body.strip():
-            raise CLIError("Issue body cannot be empty.")
-
         res = None
         # Handle full label replacement first as it is mutually exclusive with incremental changes
         if labels is not None:
@@ -365,7 +365,10 @@ class Orchestrator:
         if res is None:
             raise CLIError("Nothing to update. Provide body or labels.")
 
-        return res
+        return {
+            "status": "success",
+            "issue": IssueSummary(**res).model_dump()
+        }
 
     def post_comment(self, entity_number: int, body: Optional[str]) -> Dict[str, Any]:
         """
@@ -1196,7 +1199,10 @@ Respond only after the PR is created or updated:
         if not include_drafts:
             prs = [pr for pr in prs if not pr.get("isDraft")]
 
-        return {"prs": prs}
+        return {
+            "status": "success",
+            "prs": [PRSummary(**pr).model_dump() for pr in prs]
+        }
 
     def trigger_jules_feedback(self, session_id: str) -> Dict[str, Any]:
         """Ports logic from trigger-feedback.ts to provide CI feedback to Jules."""
