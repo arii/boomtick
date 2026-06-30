@@ -1,8 +1,8 @@
 import unittest
 from unittest.mock import patch, MagicMock
-from tdw_services.services.github import GitHubClient
-from tdw_services.orchestrator import Orchestrator
-from tdw_services.utils import CLIError
+from dev_tools.services.github import GitHubClient
+from dev_tools.orchestrator import Orchestrator
+from dev_tools.utils import CLIError
 
 class TestLabels(unittest.TestCase):
     def setUp(self):
@@ -15,7 +15,7 @@ class TestLabels(unittest.TestCase):
         self.orch = Orchestrator()
         self.orch._github = MagicMock(spec=GitHubClient)
 
-    @patch('tdw_services.services.github.requests.Session.request')
+    @patch('dev_tools.services.github.requests.Session.request')
     def test_github_client_update_issue_labels(self, mock_request):
         mock_response = MagicMock()
         mock_response.json.return_value = {"number": 123, "labels": [{"name": "bug"}]}
@@ -31,7 +31,7 @@ class TestLabels(unittest.TestCase):
         self.assertIn('/issues/123', call_args[0][1])
         self.assertEqual(call_args[1]['json']['labels'], ["bug"])
 
-    @patch('tdw_services.services.github.requests.Session.request')
+    @patch('dev_tools.services.github.requests.Session.request')
     def test_github_client_remove_label(self, mock_request):
         mock_response = MagicMock()
         mock_response.raise_for_status.return_value = None

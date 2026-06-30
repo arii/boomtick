@@ -1,7 +1,7 @@
 import os
 import sys
 import requests
-from tdw_services.utils import log_warn, log_debug
+from dev_tools.utils import log_warn, log_debug
 from typing import Optional, List, Dict, Any
 
 class JulesClient:

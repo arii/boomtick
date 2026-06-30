@@ -50,10 +50,10 @@ fi
 
 echo "--- 4. Checking CLI Tooling ---"
 # Just test if the CLI runs
-if PYTHONPATH=./cli:./cli/dev_tools python3 ./cli/tdw_services/cli.py --help > /dev/null; then
-    echo "✅ tdw_services CLI is functional."
+if PYTHONPATH=./cli:./cli/dev_tools python3 ./cli/dev_tools/cli.py --help > /dev/null; then
+    echo "✅ dev_tools CLI is functional."
 else
-    echo "❌ Error: tdw_services CLI failed to execute."
+    echo "❌ Error: dev_tools CLI failed to execute."
     return 1
 fi
 

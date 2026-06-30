@@ -2,7 +2,7 @@ import json
 import sys
 import os
 import subprocess
-from tdw_services.utils import log_warn, log_error
+from dev_tools.utils import log_warn, log_error
 from typing import Dict, List, Set, Optional
 
 class DependencyGraph:

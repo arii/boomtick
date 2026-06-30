@@ -2,7 +2,8 @@ import os
 import json
 import base64
 from typing import Optional, List, Dict
-from dev_tools.dev_tools_sdk.config import load_project_config
+from dev_tools.config import load_project_config
+
 
 
 PROJECT_CONFIG = load_project_config()

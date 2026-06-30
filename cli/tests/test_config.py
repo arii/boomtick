@@ -2,7 +2,8 @@ import json
 import os
 import pytest
 from pathlib import Path
-from dev_tools.dev_tools_sdk.config import load_project_config, ProjectConfig
+from dev_tools.config import load_project_config, ProjectConfig
+
 
 def test_load_default_config(tmp_path):
     # Test loading when file doesn't exist

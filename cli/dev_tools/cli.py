@@ -1,19 +1,28 @@
 import sys
 import os
-from tdw_services.utils import log_info
+from dev_tools.utils import log_info
 import json
 from datetime import datetime, timezone
 from typing import List, Dict, Any
 import click
-from tdw_services.orchestrator import Orchestrator
-from tdw_services.utils import get_or_create_log_dir, CLIError
+from dev_tools.orchestrator import Orchestrator
+from dev_tools.utils import get_or_create_log_dir, CLIError
 
 # Import legacy utils for backwards compatibility during migration
-from dev_tools.repo_utils import walk_tsx, find_patterns_in_file, get_bundle_size, get_any_count
-from dev_tools.scope_check import verify_pr_scope
-import os
-from dev_tools.utils import get_github_client, get_repo_name, run_command, set_gha_variable, get_gha_variable
-from dev_tools.dev_tools_sdk.config import load_project_config
+from dev_tools.utils import (
+    get_github_client,
+    get_repo_name,
+    run_command,
+    set_gha_variable,
+    get_gha_variable,
+    walk_tsx,
+    find_patterns_in_file,
+    get_bundle_size,
+    get_any_count,
+    verify_pr_scope
+)
+from dev_tools.config import load_project_config
+
 
 PROJECT_CONFIG = load_project_config()
 
@@ -324,8 +333,12 @@ def conflicts(ctx):
 def resolve_conflicts(ctx, pr, allow_unrelated, strategy, push):
     """Resolve merge conflicts for a PR in a separate worktree."""
     orch = ctx.obj['ORCHESTRATOR']
-    res = orch.resolve_pr_conflicts(pr, allow_unrelated=allow_unrelated, strategy=strategy, push=push)
-    out(ctx, res['message'], data=res)
+    try:
+        res = orch.resolve_pr_conflicts(pr, allow_unrelated=allow_unrelated, strategy=strategy, push=push)
+        out(ctx, res['message'], data=res)
+    except CLIError as e:
+        err(ctx, str(e), code=e.code)
+
 
 @gh.command()
 @click.argument('diff_input', required=False)
@@ -334,7 +347,7 @@ def verify_versions(ctx, diff_input):
     """Verify version changes in a diff for downgrades or hard blocks."""
     import subprocess
     import tempfile
-    script_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'verify_versions.py')
+    script_path = os.path.join(os.path.dirname(__file__), 'verify_versions.py')
 
     if not diff_input:
         # If no input provided, try to get diff against main
@@ -926,10 +939,10 @@ def main():
             print(json.dumps(error_payload, indent=2))
         else:
             try:
-                from tdw_services.utils import log_error
+                from dev_tools.utils import log_error
                 log_error(str(e))
             except (ImportError, ModuleNotFoundError):
-                # Fallback if tdw_services is not in path yet
+                # Fallback if dev_tools is not in path yet
                 print(f"❌ Error: {e}", file=sys.stderr)
             code = getattr(e, 'code', 1)
 

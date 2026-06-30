@@ -2,7 +2,7 @@ import os
 import subprocess
 import json
 import sys
-from tdw_services.utils import log_info
+from dev_tools.utils import log_info
 import base64
 import requests
 import time
@@ -246,7 +246,7 @@ class GitHubClient:
         """
         Validates that the review payload is not just boilerplate or empty.
         """
-        from tdw_services.utils import CLIError
+        from dev_tools.utils import CLIError
         import re
         if not isinstance(payload, dict):
             raise CLIError("Review rejected: Invalid payload format (expected dict).")
@@ -309,7 +309,7 @@ class GitHubClient:
         """
         Submits a PR review from a markdown file containing a JSON payload.
         """
-        from tdw_services.utils import CLIError, log_info, log_warn
+        from dev_tools.utils import CLIError, log_info, log_warn
         import re
         import json
 

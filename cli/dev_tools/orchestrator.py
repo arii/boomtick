@@ -10,13 +10,13 @@ from typing import Dict, Any, List, Optional, Tuple
 from urllib.parse import quote, urlparse
 from collections import defaultdict
 
-from tdw_services.services.github import GitHubClient
-from tdw_services.services.ai_service import AIClient
-from tdw_services.services.jules import JulesClient
-from tdw_services.services.repair_service import RepairService
-from tdw_services.services.vision_service import VisionService
-from tdw_services.utils import log_error, log_warn, get_or_create_log_dir, CLIError
-from tdw_services.handlers.command_handler import CommandHandler
+from dev_tools.services.github import GitHubClient
+from dev_tools.services.ai_service import AIClient
+from dev_tools.services.jules import JulesClient
+from dev_tools.services.repair_service import RepairService
+from dev_tools.services.vision_service import VisionService
+from dev_tools.utils import log_error, log_warn, get_or_create_log_dir, CLIError
+from dev_tools.handlers.command_handler import CommandHandler
 from dev_tools.utils import (
     get_github_token,
     get_github_client,
@@ -26,11 +26,16 @@ from dev_tools.utils import (
     run_command,
     is_ai_available,
     extract_failing_info,
-    clean_gha_logs
+    clean_gha_logs,
+    walk_tsx,
+    find_patterns_in_file,
+    get_bundle_size,
+    get_any_count,
+    verify_pr_scope
 )
-from dev_tools.repo_utils import walk_tsx, find_patterns_in_file, get_bundle_size, get_any_count
-from dev_tools.scope_check import verify_pr_scope
-from dev_tools.dev_tools_sdk.config import load_project_config
+from dev_tools.config import load_project_config
+
+
 
 PROJECT_CONFIG = load_project_config()
 AUDIT_CHECK_DIRS = PROJECT_CONFIG.audit_check_dirs
@@ -1008,7 +1013,7 @@ Respond only after the PR is created or updated:
         """
         Aggregates results into a Markdown report.
         """
-        from tdw_services.ux_report import generate_report
+        from dev_tools.ux_report import generate_report
         generate_report()
         return {"status": "success", "report": "artifacts/ux-audit/ux-audit-report.md"}
 

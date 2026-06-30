@@ -3,7 +3,7 @@ from unittest.mock import patch, MagicMock
 import sys
 import os
 
-from tdw_services.services.github import GitHubClient
+from dev_tools.services.github import GitHubClient
 
 class TestGitHubClientPagination(unittest.TestCase):
     def setUp(self):
@@ -13,7 +13,7 @@ class TestGitHubClientPagination(unittest.TestCase):
         self.addCleanup(patcher.stop)
         self.client = GitHubClient(repo="owner/repo")
 
-    @patch('tdw_services.services.github.requests.Session.request')
+    @patch('dev_tools.services.github.requests.Session.request')
     def test_list_pull_requests_pagination_and_filtering(self, mock_request):
         # When labels are used, it uses Search API which returns {"items": [...]}
         # Search API results are already filtered by labels.

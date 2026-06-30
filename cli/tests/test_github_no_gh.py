@@ -3,11 +3,11 @@ from unittest.mock import patch, MagicMock
 import os
 import sys
 
-from tdw_services.services.github import GitHubClient
+from dev_tools.services.github import GitHubClient
 
 class TestGitHubClientNoGH(unittest.TestCase):
-    @patch('tdw_services.services.github.requests.Session.request')
-    @patch('tdw_services.services.github.subprocess.run')
+    @patch('dev_tools.services.github.requests.Session.request')
+    @patch('dev_tools.services.github.subprocess.run')
     def test_fetch_check_runs_no_gh(self, mock_run, mock_request):
         # Mock requests response
         mock_response = MagicMock()
@@ -24,7 +24,7 @@ class TestGitHubClientNoGH(unittest.TestCase):
             if isinstance(args, list) and args[0] == "gh":
                 self.fail(f"gh was called with {args}")
 
-    @patch('tdw_services.services.github.requests.Session.request')
+    @patch('dev_tools.services.github.requests.Session.request')
     def test_list_pull_requests_pagination(self, mock_request):
         mock_response1 = MagicMock()
         mock_response1.json.return_value = [{"number": i, "user": {"login": "u"}, "head": {"ref": "h"}, "base": {"ref": "b"}} for i in range(1, 101)]
@@ -55,7 +55,7 @@ class TestGitHubClientNoGH(unittest.TestCase):
         params2 = call2_kwargs.get('params', {})
         self.assertEqual(params2.get('page'), 2)
 
-    @patch('tdw_services.services.github.requests.Session.request')
+    @patch('dev_tools.services.github.requests.Session.request')
     def test_list_pull_requests_labels_search(self, mock_request):
         # Mocks Search API response
         mock_response = MagicMock()
@@ -80,8 +80,8 @@ class TestGitHubClientNoGH(unittest.TestCase):
         self.assertIn('label:"bug"', params.get('q', ''))
         self.assertIn('label:"ui"', params.get('q', ''))
 
-    @patch('tdw_services.services.github.requests.Session.request')
-    @patch('tdw_services.services.github.subprocess.run')
+    @patch('dev_tools.services.github.requests.Session.request')
+    @patch('dev_tools.services.github.subprocess.run')
     def test_list_pull_requests_no_gh(self, mock_run, mock_request):
         mock_response = MagicMock()
         mock_response.json.return_value = []

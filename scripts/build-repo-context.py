@@ -69,14 +69,8 @@ def build_repo_context():
     try:
         # Dynamically generate cli-schema.json from code
         import click
-        cli_dir = os.path.join(package_root, "cli")
-        dev_tools_dir = os.path.join(cli_dir, "dev_tools")
-        if cli_dir not in sys.path:
-            sys.path.append(cli_dir)
-        if dev_tools_dir not in sys.path:
-            sys.path.append(dev_tools_dir)
 
-        from tdw_services.cli import cli
+        from dev_tools.cli import cli
 
         def get_type_name(param):
             t = param.type

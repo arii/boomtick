@@ -3,7 +3,7 @@ import sys
 import time
 import json
 from typing import Optional, Dict, Any, List, Set
-from tdw_services.utils import log_info, log_error, log_warn, ensure_dir
+from dev_tools.utils import log_info, log_error, log_warn, ensure_dir
 
 from dev_tools.utils import (
     call_ai,
@@ -15,8 +15,8 @@ from dev_tools.utils import (
     get_stack_versions,
     get_gemini_model
 )
-from tdw_services.services.dependency_graph import DependencyGraph
-from tdw_services.services.vector_store import VectorStore
+from dev_tools.services.dependency_graph import DependencyGraph
+from dev_tools.services.vector_store import VectorStore
 
 # Model used for per-file chunk review (code-aware, focused)
 _REVIEW_MODEL = get_ai_review_model()
@@ -161,12 +161,11 @@ class AIClient:
             if "<<<<<<<" in resolved:
                 return False
 
-            # Post-processing: Prevent version downgrades in resolved conflict
             try:
                 # Files that define runtime/dependency versions
                 sensitive_files = [".nvmrc", ".node-version", "package.json", ".github/workflows/"]
                 if any(sf in file_path for sf in sensitive_files):
-                    from verify_versions import parse_diff, verify_changes
+                    from dev_tools.verify_versions import parse_diff, verify_changes
 
                     # Synthesize a diff representing the new content to validate it against HEAD versions.
                     # We treat lines in the new file as additions to ensure the validator

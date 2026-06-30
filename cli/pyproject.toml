@@ -21,12 +21,12 @@ dependencies = [
 ]
 
 [project.scripts]
-td = "tdw_services.cli:main"
-td-cli = "tdw_services.cli:main"
+td = "dev_tools.cli:main"
+td-cli = "dev_tools.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["dev_tools*", "tdw_services*"]
+include = ["dev_tools*"]
 
 [tool.setuptools.package-data]
 "dev_tools" = ["cli-schema.json", "config.json", "project_config.json", "*.json"]

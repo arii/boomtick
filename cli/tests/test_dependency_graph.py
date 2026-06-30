@@ -1,7 +1,7 @@
 import json
 import os
 import pytest
-from tdw_services.services.dependency_graph import DependencyGraph
+from dev_tools.services.dependency_graph import DependencyGraph
 
 def test_dependency_graph_parsing(tmp_path):
     graph_data = {

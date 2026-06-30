@@ -1,6 +1,6 @@
 import os
 import sys
-from tdw_services.utils import log_info
+from dev_tools.utils import log_info
 import json
 import glob
 from datetime import datetime
