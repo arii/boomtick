@@ -8,6 +8,7 @@ This document tracks issues, bugs, and blockers identified during the integratio
 - **Invalid Action Versions**: Composite actions in `mcp/actions/setup-workspace/action.yml` referenced non-existent versions of standard actions (e.g., `actions/setup-node@v6` instead of `v4`).
 
 ## Implementation Flaws
+- **Redundant Configuration**: A duplicate `current_config.py` was present in the root of the source package, which mirrored logic already contained within the `dev_tools_sdk`.
 - **Import Errors**:
     - `verify_versions.py`: Incorrect `sys.path` logic prevented importing the local `utils` module.
     - `ai_service.py`: Used `requests` in the Gemini fallback path without importing it.
