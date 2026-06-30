@@ -213,12 +213,30 @@ def issue_view(ctx, issue_number):
 @click.argument('issue_number', type=int)
 @click.option('--file', help='Path to file containing new issue body')
 @click.option('--body', help='Literal body text')
+@click.option('--labels', help='Comma-separated list of labels to set (replaces existing labels)')
+@click.option('--add-labels', help='Comma-separated list of labels to add')
+@click.option('--remove-labels', help='Comma-separated list of labels to remove')
 @click.pass_context
-def issue_update(ctx, issue_number, file, body):
-    """Update a GitHub issue's body."""
+def issue_update(ctx, issue_number, file, body, labels, add_labels, remove_labels):
+    """Update a GitHub issue's body and/or labels."""
     orch = ctx.obj['ORCHESTRATOR']
-    content = _get_body_content(ctx, orch, file, body)
-    res = orch.update_issue_body(issue_number, content)
+    content = None
+    if file or body:
+        content = _get_body_content(ctx, orch, file, body)
+    elif not any([labels, add_labels, remove_labels]):
+        err(ctx, "Provide --file, --body, --labels, --add-labels, or --remove-labels")
+
+    label_list = [l.strip() for l in labels.split(',')] if labels else None
+    add_label_list = [l.strip() for l in add_labels.split(',')] if add_labels else None
+    remove_label_list = [l.strip() for l in remove_labels.split(',')] if remove_labels else None
+
+    res = orch.update_issue(
+        issue_number,
+        body=content,
+        labels=label_list,
+        add_labels=add_label_list,
+        remove_labels=remove_label_list
+    )
     out(ctx, f"✅ Successfully updated issue #{issue_number}", data={"issue": res})
 
 @gh.command()
