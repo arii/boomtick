@@ -319,14 +319,15 @@ export const MCP_TOOLS: Tool[] = [
   },
   {
     name: "github.issue_update",
-    description: "Update the body of a GitHub issue.",
+    description: "Update a GitHub issue's body, labels, and/or state.",
     inputSchema: {
       type: "object",
       properties: {
         issueNumber: { type: "number", description: "The number of the issue to update." },
         body: { type: "string", description: "The new body content for the issue." },
+        state: { type: "string", description: "The state to set the issue to (open or closed)." },
       },
-      required: ["issueNumber", "body"],
+      required: ["issueNumber"],
     },
   },
   {
