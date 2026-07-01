@@ -2,6 +2,8 @@ import os
 import sys
 import json
 
+import click
+
 from dev_tools.services.dependency_graph import DependencyGraph
 from dev_tools.services.vector_store import VectorStore
 
@@ -33,12 +35,14 @@ def get_context(filepath: str, diff_text: str, graph: DependencyGraph, store: Ve
 
     return context
 
-if __name__ == "__main__":
-    # Load input from stdin to avoid E2BIG
+@click.command()
+@click.argument('input_file', type=click.File('r'), default='-')
+def main(input_file):
+    """Retrieve dependency and semantic context for a set of changed files."""
     try:
-        input_data = json.load(sys.stdin)
+        input_data = json.load(input_file)
     except Exception as e:
-        print(f"Error parsing input JSON: {e}", file=sys.stderr)
+        click.echo(f"Error parsing input JSON: {e}", err=True)
         sys.exit(1)
 
     files_data = input_data.get("files", [])
@@ -57,4 +61,7 @@ if __name__ == "__main__":
         if filepath and diff_text:
             results.append(get_context(filepath, diff_text, graph, store))
 
-    print(json.dumps(results))
+    click.echo(json.dumps(results))
+
+if __name__ == "__main__":
+    main()

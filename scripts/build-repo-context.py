@@ -178,7 +178,11 @@ def build_repo_context():
         # Also trigger Pydantic model contract generation
         try:
             from dev_tools.schema_gen import generate_schema
-            generate_schema()
+            import io
+            from contextlib import redirect_stdout
+            # Capture stdout to ensure clean JSON output for build-repo-context.py
+            with redirect_stdout(io.StringIO()):
+                generate_schema()
             # Note: sync-contracts.ts is run via pnpm run verify:schemas or manually
         except Exception as schema_err:
             print(f"Error generating model schemas: {schema_err}", file=sys.stderr)

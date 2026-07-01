@@ -38,7 +38,8 @@ def generate_schema():
     with open(output_path, "w") as f:
         json.dump(existing, f, indent=2)
 
-    print(f"Updated cli-schema.json with models at {output_path}")
+    import sys
+    print(f"Updated cli-schema.json with models at {output_path}", file=sys.stderr)
 
 if __name__ == "__main__":
     generate_schema()

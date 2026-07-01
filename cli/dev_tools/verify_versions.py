@@ -4,6 +4,8 @@ import re
 import json
 from typing import Dict, List, Optional, Tuple
 
+import click
+
 from dev_tools.utils import (
     get_stack_versions,
     log_info,
@@ -152,17 +154,15 @@ def verify_changes(changes: List[Dict]) -> List[Dict]:
 
     return findings
 
-def main():
-    if len(sys.argv) < 2:
-        print("Usage: python3 verify_versions.py <diff_file_or_text>")
-        sys.exit(1)
-
-    input_val = sys.argv[1]
-    if os.path.exists(input_val):
-        with open(input_val, "r") as f:
+@click.command()
+@click.argument('diff_input')
+def main(diff_input):
+    """Verifies version changes in a diff."""
+    if os.path.exists(diff_input):
+        with open(diff_input, "r") as f:
             diff_text = f.read()
     else:
-        diff_text = input_val
+        diff_text = diff_input
 
     changes = parse_diff(diff_text)
     findings = verify_changes(changes)

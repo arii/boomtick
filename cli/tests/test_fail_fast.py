@@ -1,11 +1,5 @@
-import sys
-import os
-import json
 import pytest
 from unittest.mock import MagicMock, patch
-
-# Add the parent directory to sys.path to import dev_tools
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from dev_tools.services.dependency_graph import DependencyGraph
 from dev_tools.utils import CLIError
