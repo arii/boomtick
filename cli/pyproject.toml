@@ -17,7 +17,11 @@ dependencies = [
     "PyGithub",
     "semgrep",
     "chromadb>=1.5.9",
-    "sentence-transformers>=5.6.0"
+    "sentence-transformers>=5.6.0",
+    "duckduckgo-search>=6.0.0",
+    "setuptools<81.0.0",
+    "langchain-google-genai",
+    "langchain-openai"
 ]
 
 [project.scripts]
@@ -31,10 +35,3 @@ include = ["dev_tools*"]
 [tool.setuptools.package-data]
 "dev_tools" = ["cli-schema.json", "config.json", "project_config.json", "*.json"]
 "*" = ["*.json"]
-
-[tool.pytest.ini_options]
-pythonpath = [
-  ".",
-  "dev_tools"
-]
-testpaths = ["tests"]

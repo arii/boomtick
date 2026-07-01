@@ -338,14 +338,17 @@ class Orchestrator:
         """
         return self.github.fetch_issue_details(issue_number)
 
-    def update_issue(self, issue_number: int, body: Optional[str] = None, labels: Optional[List[str]] = None, add_labels: Optional[List[str]] = None, remove_labels: Optional[List[str]] = None) -> Dict[str, Any]:
+    def update_issue(self, issue_number: int, body: Optional[str] = None, labels: Optional[List[str]] = None, add_labels: Optional[List[str]] = None, remove_labels: Optional[List[str]] = None, state: Optional[str] = None) -> Dict[str, Any]:
         """
-        Updates an issue's body and/or labels.
+        Updates an issue's body, labels, and/or state.
         """
         res = None
         # Handle full label replacement first as it is mutually exclusive with incremental changes
-        if labels is not None:
-            res = self.github.update_issue(issue_number, body=body, labels=labels)
+        if labels is not None or state is not None:
+            kwargs = {"body": body, "labels": labels}
+            if state is not None:
+                kwargs["state"] = state
+            res = self.github.update_issue(issue_number, **kwargs)
         else:
             # Handle incremental label changes (can happen together)
             if add_labels:

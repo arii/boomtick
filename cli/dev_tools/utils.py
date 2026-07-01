@@ -7,8 +7,26 @@ import urllib.parse
 import requests
 import re
 import random
+import glob
+import shlex
+from datetime import datetime
+from requests.adapters import HTTPAdapter
+from urllib3.util import Retry
 from pathlib import Path
-from typing import Optional, Union, List, Dict, Any
+from typing import Optional, Union, List, Dict, Any, Set
+from dev_tools.config import get_config
+from github import Github, Auth
+from langchain_openai import ChatOpenAI
+from langchain_google_genai import ChatGoogleGenerativeAI
+from langchain_core.messages import HumanMessage
+from dev_tools.version_utils import (
+    get_stack_versions as _get_stack_versions,
+    compare_versions as _compare_versions,
+    fetch_latest_npm as _fetch_latest_npm,
+    fetch_latest_gh_action as _fetch_latest_gh_action,
+    fetch_latest_node as _fetch_latest_node
+)
+
 def mask_sensitive_data(msg: str) -> str:
     """Redacts sensitive information like GitHub tokens from strings."""
     if not isinstance(msg, str):
@@ -38,8 +56,6 @@ def log_debug(msg: str):
 
 def _call_api_with_retry(method: str, url: str, **kwargs) -> requests.Response:
     """Internal helper for making API calls with standard retry logic."""
-    from requests.adapters import HTTPAdapter
-    from urllib3.util import Retry
 
     timeout = kwargs.pop('timeout', 30)
     max_retries = kwargs.pop('max_retries', 3)
@@ -97,7 +113,6 @@ def _get_model_config(env_key: str, config_attr: str, fallback: str) -> str:
     if env_val:
         return env_val
     try:
-        from dev_tools.config import get_config
         config = get_config()
         return getattr(config, config_attr)
     except Exception:
@@ -192,9 +207,8 @@ def call_ai(prompt: str, model: str = None, url: Optional[str] = None, max_retri
 def log_ai_run(entry: dict):
     try:
         log_dir = os.path.join(os.getcwd(), "boomtick-pkg", "cli", "logs", "ai")
-        log_file = os.path.join(log_dir, "review-run.jsonl")
         os.makedirs(log_dir, exist_ok=True)
-        from datetime import datetime
+        log_file = os.path.join(log_dir, "review-run.jsonl")
         entry["timestamp"] = datetime.utcnow().isoformat() + "Z"
         with open(log_file, "a") as f:
             f.write(json.dumps(entry) + "\n")
@@ -685,31 +699,25 @@ def clean_gha_logs(logs: str) -> str:
     return "\n".join(cleaned)
 
 def get_github_client():
-    from github import Github, Auth
     token = get_github_token()
     if not token:
         raise CLIError("GitHub token not found", code=401)
     return Github(auth=Auth.Token(token))
 
 def get_stack_versions(fetch_latest: bool = False) -> Dict[str, str]:
-    from dev_tools.version_utils import get_stack_versions as _get
-    return _get(fetch_latest=fetch_latest)
+    return _get_stack_versions(fetch_latest=fetch_latest)
 
 def compare_versions(v1: str, v2: str) -> int:
-    from dev_tools.version_utils import compare_versions as _cmp
-    return _cmp(v1, v2)
+    return _compare_versions(v1, v2)
 
 def fetch_latest_npm(package_name: str) -> Optional[str]:
-    from dev_tools.version_utils import fetch_latest_npm as _fetch
-    return _fetch(package_name)
+    return _fetch_latest_npm(package_name)
 
 def fetch_latest_gh_action(action_path: str) -> Optional[str]:
-    from dev_tools.version_utils import fetch_latest_gh_action as _fetch
-    return _fetch(action_path)
+    return _fetch_latest_gh_action(action_path)
 
 def fetch_latest_node() -> Optional[str]:
-    from dev_tools.version_utils import fetch_latest_node as _fetch
-    return _fetch()
+    return _fetch_latest_node()
 
 def walk_tsx(root_dir='src'):
     for root, dirs, files in os.walk(root_dir):

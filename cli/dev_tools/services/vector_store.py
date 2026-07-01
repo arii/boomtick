@@ -1,5 +1,7 @@
 import os
 from typing import List, Dict, Any, Optional
+import chromadb
+from chromadb.utils import embedding_functions
 
 class VectorStore:
     def __init__(self, persist_directory: str = "artifacts/chroma_db", collection_name: str = "codebase"):
@@ -12,14 +14,12 @@ class VectorStore:
     @property
     def client(self):
         if self._client is None and self.is_available():
-            import chromadb
             self._client = chromadb.PersistentClient(path=self.persist_directory)
         return self._client
 
     @property
     def embedding_fn(self):
         if self._embedding_fn is None and self.is_available():
-            from chromadb.utils import embedding_functions
             self._embedding_fn = embedding_functions.SentenceTransformerEmbeddingFunction(model_name="all-MiniLM-L6-v2")
         return self._embedding_fn
 
@@ -37,11 +37,7 @@ class VectorStore:
 
     def is_available(self) -> bool:
         """Checks if ChromaDB and dependencies are available."""
-        try:
-            import chromadb
-            return True
-        except ImportError:
-            return False
+        return True
 
     def add_documents(self, documents: List[str], metadatas: List[Dict[str, Any]], ids: List[str]):
         """Adds documents to the collection."""

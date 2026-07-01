@@ -71,7 +71,7 @@ export const config = {
     return process.env.GITHUB_REPO || defaultRepo;
   },
   get repoPath() {
-    return process.env.BOOMTICK_REPO_PATH || path.resolve(__dirname, "../../../../");
+    return process.env.BOOMTICK_REPO_PATH || path.resolve(__dirname, "../../../");
   },
   get defaultBaseBranch() {
     return process.env.DEFAULT_BASE_BRANCH || cachedDynamicConfig?.base_branch?.split("/").pop() || "main";

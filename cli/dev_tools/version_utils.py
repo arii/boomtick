@@ -1,10 +1,16 @@
 import os
 import re
 import json
+import sys
 import requests
-from dev_tools.utils import log_warn, log_error
 from packaging import version
 from typing import Dict, Optional
+
+def log_warn(msg: str):
+    print(f"⚠️  Warning: {msg}", file=sys.stderr)
+
+def log_error(msg: str):
+    print(f"ERROR: {msg}", file=sys.stderr)
 
 # Registry Cache
 _NPM_CACHE = {}

@@ -11,7 +11,8 @@ from dev_tools.utils import (
     log_warn,
     fetch_latest_npm,
     fetch_latest_gh_action,
-    compare_versions
+    compare_versions,
+    fetch_latest_node
 )
 
 def parse_diff(diff_text: str) -> List[Dict]:
@@ -120,7 +121,6 @@ def verify_changes(changes: List[Dict]) -> List[Dict]:
                 })
 
         # 2. Compare against Latest (Outdated detection - optional warning)
-        from dev_tools.utils import fetch_latest_node # Import node fetcher
         latest = None
         if c["name"] == "node":
             latest = fetch_latest_node()

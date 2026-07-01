@@ -2,7 +2,8 @@ import os
 import subprocess
 import json
 import sys
-from dev_tools.utils import log_info
+import re
+from dev_tools.utils import log_info, log_warn, get_github_token, CLIError
 import base64
 import requests
 import time
@@ -11,7 +12,6 @@ from urllib.parse import quote
 
 class GitHubClient:
     def __init__(self, token: Optional[str] = None, repo: Optional[str] = None):
-        from dev_tools.utils import get_github_token
         self.token = token or get_github_token()
         if not self.token:
             raise ValueError("Missing GITHUB_TOKEN environment variable.")
@@ -45,7 +45,6 @@ class GitHubClient:
         try:
             proc = subprocess.run(['git', 'config', '--get', 'remote.origin.url'], capture_output=True, text=True)
             url = proc.stdout.strip()
-            import re
             match = re.search(r'[:/]([^/]+/[^/.]+)(\.git)?$', url)
             return match.group(1) if match else url
         except Exception:
@@ -215,13 +214,15 @@ class GitHubClient:
         """Fetches the details of a GitHub issue."""
         return self._request('GET', f'/repos/{self.repo}/issues/{number}')
 
-    def update_issue(self, number: int, body: Optional[str] = None, labels: Optional[List[str]] = None) -> Dict[str, Any]:
-        """Updates a GitHub issue's body and/or labels."""
+    def update_issue(self, number: int, body: Optional[str] = None, labels: Optional[List[str]] = None, state: Optional[str] = None) -> Dict[str, Any]:
+        """Updates a GitHub issue's body, labels, and/or state."""
         data = {}
         if body is not None:
             data['body'] = body
         if labels is not None:
             data['labels'] = labels
+        if state is not None:
+            data['state'] = state
         return self._request('PATCH', f'/repos/{self.repo}/issues/{number}', json_data=data)
 
     def create_review(self, number: int, body: str, comments: List[Dict[str, Any]], event: str) -> Dict[str, Any]:
@@ -246,8 +247,6 @@ class GitHubClient:
         """
         Validates that the review payload is not just boilerplate or empty.
         """
-        from dev_tools.utils import CLIError
-        import re
         if not isinstance(payload, dict):
             raise CLIError("Review rejected: Invalid payload format (expected dict).")
 
@@ -309,9 +308,6 @@ class GitHubClient:
         """
         Submits a PR review from a markdown file containing a JSON payload.
         """
-        from dev_tools.utils import CLIError, log_info, log_warn
-        import re
-        import json
 
         if not os.path.exists(filepath):
             raise CLIError(f"Review file missing: {filepath}")

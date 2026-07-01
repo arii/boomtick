@@ -44,11 +44,12 @@ class IssueUpdateInput(BaseModel):
     labels: Optional[List[str]] = None
     add_labels: Optional[List[str]] = None
     remove_labels: Optional[List[str]] = None
+    state: Optional[str] = None
 
     @model_validator(mode='after')
     def check_updates(self) -> 'IssueUpdateInput':
-        if not any([self.body, self.file, self.labels, self.add_labels, self.remove_labels]):
-            raise ValueError("Provide --file, --body, --labels, --add-labels, or --remove-labels")
+        if not any([self.body, self.file, self.labels, self.add_labels, self.remove_labels, self.state]):
+            raise ValueError("Provide --file, --body, --labels, --add-labels, --remove-labels, or --state")
         if self.body and self.file:
             raise ValueError("Provide --file or --body, not both")
         return self

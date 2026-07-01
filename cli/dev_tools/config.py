@@ -70,11 +70,13 @@ def get_config(path: str | Path = "project_config.json") -> ProjectConfig:
     return load_project_config(path)
 
 
+import subprocess
+import re
+
+
 @functools.lru_cache()
 def _detect_repo_name() -> str | None:
     """Safely detects repository name from git remote."""
-    import subprocess
-    import re
     try:
         res = subprocess.run(['git', 'config', '--get', 'remote.origin.url'],
                            capture_output=True, text=True, check=False)

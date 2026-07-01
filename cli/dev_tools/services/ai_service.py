@@ -1,9 +1,15 @@
 import os
+import requests
 import sys
 import time
 import json
+import hashlib
+import re
+from collections import defaultdict
 from typing import Optional, Dict, Any, List, Set
 from dev_tools.utils import log_info, log_error, log_warn, ensure_dir
+from dev_tools.verify_versions import parse_diff, verify_changes
+from dev_tools.review_read_pass import parse_diff_into_file_chunks
 
 from dev_tools.utils import (
     call_ai,
@@ -143,7 +149,6 @@ class AIClient:
 
             # AI resolution mock mode
             if os.environ.get("AI_RESOLVE_MOCK", "false").lower() == "true":
-                import re
                 mock_pattern = r"<<<<<<<.*?\n(.*?)\n=======.*?\n>>>>>>>.*?\n"
                 resolved = re.sub(mock_pattern, r"\1\n", content, flags=re.DOTALL)
                 with open(file_path, 'w') as f:
@@ -165,8 +170,6 @@ class AIClient:
                 # Files that define runtime/dependency versions
                 sensitive_files = [".nvmrc", ".node-version", "package.json", ".github/workflows/"]
                 if any(sf in file_path for sf in sensitive_files):
-                    from dev_tools.verify_versions import parse_diff, verify_changes
-
                     # Synthesize a diff representing the new content to validate it against HEAD versions.
                     # We treat lines in the new file as additions to ensure the validator
                     # catches any version mentioned in the file that might be a downgrade from HEAD.
@@ -208,8 +211,6 @@ class AIClient:
                    the synthesis model.
         Results are cached per file-chunk so interrupted runs resume cheaply.
         """
-        import hashlib
-        from review_read_pass import parse_diff_into_file_chunks
 
         pr_num = pr.get('number', 'unknown')
         pr_title = pr.get('title', '')
@@ -571,8 +572,6 @@ class AIClient:
         labels_str = ', '.join(labels) if labels else '_None_'
 
         # Per-file findings table
-        # Aggregate chunks by file
-        from collections import defaultdict
         file_data: Dict[str, Dict] = defaultdict(lambda: {"added_lines": 0, "issues": [], "verdict": "ok"})
         for fr in file_reviews:
             f = fr['file']

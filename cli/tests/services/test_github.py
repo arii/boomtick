@@ -7,7 +7,7 @@ from dev_tools.services.github import GitHubClient
 
 class TestGitHubClientPagination(unittest.TestCase):
     def setUp(self):
-        patcher = patch('dev_tools.utils.get_github_token')
+        patcher = patch('dev_tools.services.github.get_github_token')
         self.mock_token = patcher.start()
         self.mock_token.return_value = "dummy_token"
         self.addCleanup(patcher.stop)
