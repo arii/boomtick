@@ -11,19 +11,45 @@ def build_repo_context():
     script_path = pathlib.Path(__file__).resolve()
     # boomtick-pkg/scripts/build-repo-context.py -> boomtick-pkg
     package_root = script_path.parent.parent
-    # boomtick-pkg -> repo_root
-    # We assume we are installed as a subdirectory in the repo
-    repo_root = package_root.parent
+
+    # Check if we are in a monorepo or a standalone repo
+    if (package_root.parent / "package.json").exists() and (package_root.parent / "boomtick-pkg").exists():
+        # Monorepo mode
+        repo_root = package_root.parent
+    else:
+        # Standalone mode
+        repo_root = package_root
 
     # If we are running from a location that isn't boomtick-pkg/scripts,
-    # fallback to CWD as repo_root for compatibility
-    if package_root.name != "boomtick-pkg":
-        repo_root = pathlib.Path(".")
-        package_root = repo_root / "boomtick-pkg"
+    # fallback to discovery based on workspace.json
+    if package_root.name != "boomtick-pkg" or not (package_root / "workspace.json").exists():
+        # Search upwards for workspace.json
+        current = script_path.parent
+        found_pkg = False
+        while current != current.parent:
+            if (current / "workspace.json").exists():
+                package_root = current
+                found_pkg = True
+                break
+            current = current.parent
+
+        if found_pkg:
+            if (package_root.parent / "package.json").exists() and (package_root.parent / "boomtick-pkg").exists():
+                repo_root = package_root.parent
+            else:
+                repo_root = package_root
+        else:
+            # Absolute fallback
+            repo_root = pathlib.Path(".").resolve()
+            package_root = repo_root if (repo_root / "workspace.json").exists() else repo_root / "boomtick-pkg"
 
     # 1. Package JSON (Repo Root)
     try:
         package_json_path = repo_root / "package.json"
+        if not package_json_path.exists() and (repo_root / "workspace.json").exists():
+            # In extracted standalone mode, use workspace.json as the package authority
+            package_json_path = repo_root / "workspace.json"
+
         package_json = json.loads(package_json_path.read_text())
         # simplify package.json to the most important parts for context
         package_summary = {

@@ -1,0 +1,99 @@
+name: 'Update PR Comment'
+description: 'Updates or creates a PR comment with the given status and body'
+
+inputs:
+  github_token:
+    description: 'GitHub Token'
+    required: true
+  status_line:
+    description: 'Status line (e.g., ⏳ **Impact analysis running...**)'
+    required: true
+  impact_body:
+    description: 'Body text (leave empty for initial state)'
+    required: false
+    default: ''
+
+runs:
+  using: 'composite'
+  steps:
+    - uses: actions/github-script@v8 # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
+      env:
+        INPUT_STATUS_LINE: ${{ inputs.status_line }}
+        INPUT_IMPACT_BODY: ${{ inputs.impact_body }}
+      with:
+        github-token: ${{ inputs.github_token }}
+        script: |
+          const owner = context.repo.owner;
+          const repo = context.repo.repo;
+          const branchName = context.ref.replace('refs/heads/', '');
+
+          const pstTime = new Date().toLocaleString('en-US', {
+            timeZone: 'America/Los_Angeles',
+            dateStyle: 'medium',
+            timeStyle: 'short'
+          });
+
+          if (branchName === 'main') return;
+
+          const pullRequests = await github.paginate(github.rest.pulls.list, {
+            owner,
+            repo,
+            state: 'open'
+          });
+          const matchingPRs = pullRequests.filter(pr => pr.head.ref === branchName);
+
+          const statusLine = process.env.INPUT_STATUS_LINE;
+          let impactBodyText = process.env.INPUT_IMPACT_BODY;
+
+          for (const pr of matchingPRs) {
+            const commentTag = `<!-- impact-analysis-comment-${branchName} -->`;
+            const bodyParts = [
+              `🚀 **Impact Analysis Details** (Last updated: ${pstTime} PST)`,
+              '',
+              statusLine,
+              `- **Commit SHA:** \`${process.env.GITHUB_SHA.slice(0, 7)}\``,
+              `- [Link to artifacts](https://github.com/${owner}/${repo}/actions/runs/${context.runId})`,
+              ''
+            ];
+
+            if (impactBodyText) {
+              bodyParts.push(impactBodyText, '');
+            }
+
+            const MAX_LENGTH = 65536;
+            const truncationNotice = '\n\n... (truncated due to GitHub comment size limits)\n';
+            // Determine length of string we are about to join
+            let currentContent = bodyParts.join('\n');
+            // Adding 1 because joining `bodyParts` with `\n` and `commentTag` will add a newline
+            let projectedLength = currentContent.length + commentTag.length + 1;
+
+            if (projectedLength > MAX_LENGTH) {
+               // subtracting 2 to account for the newlines joining bodyParts
+               const availableLength = MAX_LENGTH - commentTag.length - truncationNotice.length - 2;
+               // Truncate safely, avoiding cutting midway through a unicode character or making things weird
+               let safeContent = currentContent.slice(0, availableLength);
+               // Simple attempt to cut at last newline if possible
+               let lastNewline = safeContent.lastIndexOf('\n');
+               if (lastNewline > availableLength * 0.9) {
+                   safeContent = safeContent.slice(0, lastNewline);
+               }
+               bodyParts = [safeContent, truncationNotice];
+            }
+
+            bodyParts.push(commentTag);
+            const body = bodyParts.join('\n');
+
+            const comments = await github.paginate(github.rest.issues.listComments, {
+              owner,
+              repo,
+              issue_number: pr.number,
+            });
+
+            const existingComment = comments.find(c => c.body.includes(commentTag));
+
+            if (existingComment) {
+              await github.rest.issues.updateComment({ owner, repo, comment_id: existingComment.id, body });
+            } else {
+              await github.rest.issues.createComment({ issue_number: pr.number, owner, repo, body });
+            }
+          }

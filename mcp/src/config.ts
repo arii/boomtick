@@ -1,5 +1,6 @@
 import dotenv from "dotenv";
 import path from "path";
+import fs from "fs";
 import { fileURLToPath } from "url";
 import { execSync } from "child_process";
 
@@ -60,6 +61,23 @@ export function initializeConfig() {
   return cachedDynamicConfig;
 }
 
+function findRepoRoot() {
+  if (process.env.BOOMTICK_REPO_PATH) {
+    return process.env.BOOMTICK_REPO_PATH;
+  }
+
+  // Traverse up to find workspace.json or .git
+  let current = __dirname;
+  while (current !== path.parse(current).root) {
+    if (fs.existsSync(path.join(current, "workspace.json")) || fs.existsSync(path.join(current, ".git"))) {
+      return current;
+    }
+    current = path.dirname(current);
+  }
+  // Fallback to the monolithic relative path if discovery fails
+  return path.resolve(__dirname, "../../../");
+}
+
 export const config = {
   get githubToken() { return getGithubToken(); },
   get githubOwner() {
@@ -79,7 +97,7 @@ export const config = {
     return repoString.split("/")[1];
   },
   get repoPath() {
-    return process.env.BOOMTICK_REPO_PATH || path.resolve(__dirname, "../../../");
+    return findRepoRoot();
   },
   get defaultBaseBranch() {
     return process.env.DEFAULT_BASE_BRANCH || cachedDynamicConfig?.base_branch?.split("/").pop() || "main";

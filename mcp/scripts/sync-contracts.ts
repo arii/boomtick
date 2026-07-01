@@ -3,8 +3,20 @@ import * as path from 'path';
 import { jsonSchemaToZod } from 'json-schema-to-zod';
 
 async function syncContracts() {
-  const schemaPath = path.join(process.cwd(), 'boomtick-pkg/cli/dev_tools/cli-schema.json');
-  const outputPath = path.join(process.cwd(), 'boomtick-pkg/mcp/src/tools/contract.ts');
+  let schemaPath = path.join(process.cwd(), 'boomtick-pkg/cli/dev_tools/cli-schema.json');
+  let outputPath = path.join(process.cwd(), 'boomtick-pkg/mcp/src/tools/contract.ts');
+
+  if (!fs.existsSync(schemaPath)) {
+    // Try relative to package root if in extracted mode (run from root)
+    schemaPath = path.join(process.cwd(), 'cli/dev_tools/cli-schema.json');
+    outputPath = path.join(process.cwd(), 'mcp/src/tools/contract.ts');
+  }
+
+  if (!fs.existsSync(schemaPath)) {
+    // Try if run from mcp directory
+    schemaPath = path.join(process.cwd(), '../cli/dev_tools/cli-schema.json');
+    outputPath = path.join(process.cwd(), 'src/tools/contract.ts');
+  }
 
   if (!fs.existsSync(schemaPath)) {
     console.error(`Schema not found at ${schemaPath}`);

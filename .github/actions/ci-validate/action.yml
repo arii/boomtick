@@ -3,7 +3,7 @@ description: Runs pre-submit checks via td CLI
 runs:
   using: composite
   steps:
-    - uses: ./boomtick-pkg/mcp/actions/setup
+    - uses: ./boomtick-pkg/.github/actions/setup
     - name: Pre-submit gate
       run: td gh pre-submit
       shell: bash

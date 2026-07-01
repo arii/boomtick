@@ -1,0 +1,136 @@
+name: "Run Project Gate"
+description: "Abstracted logic for building and testing monorepo sub-projects"
+inputs:
+  target:
+    description: "Target project to validate (e.g., 'root', 'boomtick-mcp')"
+    required: true
+  github_token:
+    description: "GitHub token for API access (e.g., ratchet-any)"
+    required: false
+
+runs:
+  using: "composite"
+  steps:
+    - name: Validate Runtime
+      if: inputs.target == 'root'
+      run: |
+        echo "::group::Validate Runtime"
+        trap 'echo "::endgroup::"' EXIT
+        pnpm run check:runtime-files
+        pnpm run doctor
+      shell: bash
+
+    - name: pnpm install
+      env:
+        TARGET: ${{ inputs.target }}
+      run: |
+        echo "::group::pnpm install"
+        trap 'echo "::endgroup::"' EXIT
+        if [ "$TARGET" = "root" ]; then
+          pnpm install --frozen-lockfile --engine-strict=false
+        else
+          FILTER_PATH="$TARGET"
+          if [ "$TARGET" = "boomtick-mcp" ]; then
+            if [ -d "boomtick-pkg/mcp" ]; then
+              FILTER_PATH="./boomtick-pkg/mcp"
+            else
+              FILTER_PATH="./mcp"
+            fi
+          fi
+          pnpm install --frozen-lockfile --filter "$FILTER_PATH" --engine-strict=false
+        fi
+      shell: bash
+
+    - name: Verify lockfile integrity (root only)
+      if: inputs.target == 'root'
+      run: |
+        if ! git diff --quiet pnpm-lock.yaml; then
+          echo "::error::pnpm-lock.yaml is out of date. Run pnpm install and commit."
+          exit 1
+        fi
+      shell: bash
+
+    - name: Lint
+      if: inputs.target == 'root'
+      run: |
+        pnpm run verify:schemas
+        pnpm run lint
+      shell: bash
+
+    - name: Type-check / Build
+      env:
+        TARGET: ${{ inputs.target }}
+      run: |
+        if [ "$TARGET" = "boomtick-mcp" ]; then
+          if [ -d "boomtick-pkg/cli" ]; then
+            PYTHONPATH=boomtick-pkg/cli python3 boomtick-pkg/cli/dev_tools/schema_gen.py
+            npx tsx boomtick-pkg/mcp/scripts/sync-contracts.ts
+          else
+            PYTHONPATH=cli python3 cli/dev_tools/schema_gen.py
+            npx tsx mcp/scripts/sync-contracts.ts
+          fi
+        fi
+
+        if [ "$TARGET" = "root" ]; then
+          pnpm run type-check
+        else
+          FILTER_PATH="$TARGET"
+          if [ "$TARGET" = "boomtick-mcp" ]; then
+            if [ -d "boomtick-pkg/mcp" ]; then
+              FILTER_PATH="./boomtick-pkg/mcp"
+            else
+              FILTER_PATH="./mcp"
+            fi
+          fi
+          pnpm --filter "$FILTER_PATH" run build
+        fi
+      shell: bash
+
+    - name: Run Unit Tests
+      env:
+        TARGET: ${{ inputs.target }}
+      run: |
+        if [ "$TARGET" = "root" ]; then
+          pnpm test
+        else
+          FILTER_PATH="$TARGET"
+          if [ "$TARGET" = "boomtick-mcp" ]; then
+            if [ -d "boomtick-pkg/mcp" ]; then
+              FILTER_PATH="./boomtick-pkg/mcp"
+            else
+              FILTER_PATH="./mcp"
+            fi
+          fi
+          pnpm --filter "$FILTER_PATH" run test
+        fi
+      shell: bash
+
+    - name: Run CLI Unit Tests
+      if: inputs.target == 'root' || inputs.target == 'boomtick-mcp'
+      run: |
+        echo "::group::Pytest"
+        trap 'echo "::endgroup::"' EXIT
+
+        if [ -d "boomtick-pkg/cli" ]; then
+          PYTHONPATH=boomtick-pkg/cli:boomtick-pkg/cli/dev_tools python3 -m pytest boomtick-pkg/cli/tests/
+        elif [ -d "cli" ]; then
+          PYTHONPATH=cli:cli/dev_tools python3 -m pytest cli/tests/
+        fi
+      shell: bash
+
+    - name: Check for dead code
+      if: inputs.target == 'root'
+      run: pnpm run knip
+      shell: bash
+
+    - name: TypeScript 'any' Ratchet
+      if: inputs.target == 'root'
+      run: |
+        echo "::group::Ratchet Any"
+        trap 'echo "::endgroup::"' EXIT
+        # Ensure local python bin is on path for td-cli
+        export PATH="$HOME/.local/bin:/github/home/.local/bin:$PATH"
+        td-cli gh ratchet-any
+      env:
+        GITHUB_TOKEN: ${{ inputs.github_token }}
+      shell: bash

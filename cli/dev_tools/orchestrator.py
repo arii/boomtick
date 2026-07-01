@@ -663,9 +663,16 @@ class Orchestrator:
             log_error(f"Node version mismatch\nExpected: {expected_node}\nActual:   {actual_node}")
             raise CLIError("Node version mismatch. Do not switch versions manually.")
 
-        with open("package.json", "r") as f:
-            pkg = json.load(f)
-        expected_pnpm = pkg.get("packageManager", "").replace("pnpm@", "") or "10.28.2"
+        manifest_path = "package.json"
+        if not os.path.exists(manifest_path) and os.path.exists("workspace.json"):
+            manifest_path = "workspace.json"
+
+        if os.path.exists(manifest_path):
+            with open(manifest_path, "r") as f:
+                pkg = json.load(f)
+            expected_pnpm = pkg.get("packageManager", "").replace("pnpm@", "") or "10.28.2"
+        else:
+            expected_pnpm = "10.28.2"
 
         actual_pnpm = run_command(["pnpm", "--version"]).strip()
 
