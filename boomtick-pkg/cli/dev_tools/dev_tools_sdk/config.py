@@ -15,7 +15,7 @@ class ProjectConfig:
     jules_api_url: str | None = None
     core_dirs: List[str] = field(default_factory=lambda: ["src/layouts/", "src/components/"])
     monolithic_pr_threshold: int = 3
-    base_branch: str = "main"
+    base_branch: str = os.environ.get("TD_BASE_BRANCH", "main")
     max_diff_chars: int = 40000
     content_scopes: Dict[str, str] = field(default_factory=lambda: {
         "resources": "content/resources/",

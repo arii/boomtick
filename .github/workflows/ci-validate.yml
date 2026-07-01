@@ -22,6 +22,7 @@ jobs:
     env:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       ALLOW_NODE_VERSION_CHANGE: "true"
+      TD_BASE_BRANCH: ${{ github.base_ref || 'main' }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -29,7 +30,9 @@ jobs:
           fetch-depth: 0
 
       - name: Fetch base branch
-        run: git fetch origin main:main
+        run: |
+          BASE_BRANCH="${{ github.base_ref || 'main' }}"
+          git fetch origin "$BASE_BRANCH:$BASE_BRANCH" || git fetch origin "$BASE_BRANCH"
 
       - name: Validate Environment Parity
         run: |
