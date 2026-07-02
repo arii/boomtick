@@ -65,6 +65,11 @@ def err(ctx, msg, code=1, data=None):
         click.echo(f"❌ Error: {msg}", err=True)
     sys.exit(code)
 
+def _handle_unexpected_error(ctx, command_name, error):
+    """Centralized error handling for unexpected exceptions."""
+    message = f"Unexpected error in {command_name}: {str(error)}"
+    err(ctx, message, code=1)
+
 def _get_body_content(ctx, orch, file, body):
     if file and body:
         err(ctx, "Provide --file or --body, not both")
@@ -155,7 +160,7 @@ def search_prs(ctx, state, limit, include_drafts, labels):
     try:
         SearchPRsInput(state=state, limit=limit, include_drafts=include_drafts, labels=label_list)
     except Exception as e:
-        err(ctx, str(e))
+        _handle_unexpected_error(ctx, "pr list", e)
 
     res = orch.list_prs(state=state, limit=limit, include_drafts=include_drafts, labels=label_list)
     out(ctx, f"Found {len(res['prs'])} PRs.", data=res)
@@ -246,7 +251,7 @@ def create_issue(ctx, title, file, body):
     try:
         CreateIssueInput(title=title, body=body, file=file)
     except Exception as e:
-        err(ctx, str(e))
+        _handle_unexpected_error(ctx, "issue create", e)
 
     content = _get_body_content(ctx, orch, file, body)
     res = orch.create_issue(title, content)
@@ -289,7 +294,7 @@ def issue_update(ctx, issue_number, file, body, labels, add_labels, remove_label
             remove_labels=remove_label_list
         )
     except Exception as e:
-        err(ctx, str(e))
+        _handle_unexpected_error(ctx, "issue update", e)
 
     content = None
     if file or body:
@@ -413,7 +418,7 @@ def verify_versions(ctx, diff_input):
         try:
             diff_input = run_command(["git", "diff", PROJECT_CONFIG.base_branch])
         except Exception as e:
-            err(ctx, f"Failed to get git diff: {e}")
+            _handle_unexpected_error(ctx, "check-diff", e)
 
     # Use a temporary file to avoid E2BIG/ARG_MAX issues with large diffs
     with tempfile.NamedTemporaryFile(mode='w', delete=False) as tmp:
@@ -439,7 +444,7 @@ def verify_versions(ctx, diff_input):
         else:
             err(ctx, f"Validator failed: {proc.stderr}")
     except Exception as e:
-        err(ctx, f"Error running validator: {e}")
+        _handle_unexpected_error(ctx, "verify-versions", e)
 
 @gh.command()
 @click.option('--pr', type=int)
@@ -768,8 +773,7 @@ def ai_get_context(ctx):
             err(ctx, "Empty input from stdin")
         input_data = json.loads(raw_data)
     except Exception as e:
-        err(ctx, f"Failed to parse input JSON: {e}")
-        sys.exit(1)
+        _handle_unexpected_error(ctx, "ai batch-context", e)
 
     if not isinstance(input_data, dict):
         err(ctx, "Input JSON must be a dictionary")
