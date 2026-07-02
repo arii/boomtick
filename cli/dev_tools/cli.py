@@ -12,6 +12,7 @@ import click
 
 from dev_tools.models import CreateIssueInput, SearchPRsInput, IssueUpdateInput
 from dev_tools.orchestrator import Orchestrator
+from dev_tools.daemon import JulesFeedbackDaemon
 from dev_tools.utils import (
     get_or_create_log_dir,
     CLIError,
@@ -996,6 +997,17 @@ def plan_aggregation(ctx):
         out(ctx, f"Workflow plan generated: {res['plan_path']}", data=res)
     except Exception as e:
         _handle_unexpected_error(ctx, "agent plan-aggregation", e)
+
+@agent_group.command(name='run-feedback-check')
+@click.pass_context
+def run_feedback_check(ctx):
+    """Run a one-shot Automated Agent Feedback Check to trigger CI feedback for active sessions."""
+    try:
+        daemon_instance = JulesFeedbackDaemon()
+        daemon_instance.run()
+        out(ctx, "Feedback check execution completed.", data={"status": "success"})
+    except Exception as e:
+        _handle_unexpected_error(ctx, "agent run-feedback-check", e)
 
 # Register aliases for backwards compatibility
 @cli.group(name='jules')
