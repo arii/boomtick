@@ -17,7 +17,6 @@ from dev_tools.utils import (
     clean_llm_output,
     get_ai_model,
     get_ai_review_model,
-    get_ai_synthesis_model,
     get_stack_versions,
     get_gemini_model
 )
@@ -26,39 +25,39 @@ from dev_tools.services.vector_store import VectorStore
 
 # Model used for per-file chunk review (code-aware, focused)
 _REVIEW_MODEL = get_ai_review_model()
-# Lighter/faster model used only for the final synthesis step
-_SYNTHESIS_MODEL = get_ai_synthesis_model()
 
-# Per-file chunk review schema (small – easy for a 7B model)
-_CHUNK_SCHEMA = {
+# Combined review schema
+_REVIEW_SCHEMA = {
     "type": "object",
     "properties": {
-        "issues": {
+        "file_reviews": {
             "type": "array",
             "items": {
                 "type": "object",
                 "properties": {
-                    "line":     {"type": "integer"},
-                    "severity": {"type": "string"},
-                    "comment":  {"type": "string"},
+                    "file": {"type": "string"},
+                    "issues": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "line":     {"type": "integer"},
+                                "severity": {"type": "string"},
+                                "comment":  {"type": "string"},
+                            },
+                            "required": ["line", "severity", "comment"],
+                        }
+                    },
+                    "verdict": {"type": "string"},
                 },
-                "required": ["line", "severity", "comment"],
-            },
+                "required": ["file", "issues", "verdict"],
+            }
         },
-        "verdict": {"type": "string"},
-    },
-    "required": ["issues", "verdict"],
-}
-
-# Final synthesis schema
-_SYNTHESIS_SCHEMA = {
-    "type": "object",
-    "properties": {
         "reviewComment": {"type": "string"},
         "labels":        {"type": "array", "items": {"type": "string"}},
         "recommendation": {"type": "string"},
     },
-    "required": ["reviewComment", "labels", "recommendation"],
+    "required": ["file_reviews", "reviewComment", "labels", "recommendation"],
 }
 
 
@@ -199,17 +198,12 @@ class AIClient:
         except Exception as e:
             return False
 
-    # ── Piecemeal review pipeline ─────────────────────────────────────────────
+    # ── Single-pass review pipeline ───────────────────────────────────────────
 
     def generate_code_review(self, pr: Dict, diff: str) -> Dict:
         """
-        Two-phase piecemeal review:
-          Phase A: call AI once per file-chunk (≤50 added lines each) using
-                   the code-reviewer model.  Skips images, lock files, generated
-                   files, and build artefacts.
-          Phase B: synthesise all per-chunk results into a final PR verdict using
-                   the synthesis model.
-        Results are cached per file-chunk so interrupted runs resume cheaply.
+        Single-pass AI review pipeline leveraging large context windows.
+        Skips images, lock files, generated files, and build artefacts.
         """
 
         pr_num = pr.get('number', 'unknown')
@@ -226,7 +220,6 @@ class AIClient:
 
         # ── Diagnostics header ────────────────────────────────────────────────
         ai_ok = self.is_ai_available()
-        # ── Phase A: per-file-chunk reviews ───────────────────────────────────
         chunks = parse_diff_into_file_chunks(diff)
         skipped = [c for c in chunks if c['skip']]
         reviewable = [c for c in chunks if not c['skip']]
@@ -236,13 +229,12 @@ class AIClient:
 
         log_info(f"""
 {'='*60}
-🔍 PR #{pr_num} – Piecemeal Review Diagnostics
+🔍 PR #{pr_num} – Unified Review Diagnostics
 {'='*60}
   AI available : {'✅ YES' if ai_ok else '❌ NO'}
-  Review model     : {_REVIEW_MODEL}
-  Synthesis model  : {_SYNTHESIS_MODEL}
-  Diff size        : {len(diff):,} chars
-  CI failures      : {failing_names}
+  Review model : {_REVIEW_MODEL}
+  Diff size    : {len(diff):,} chars
+  CI failures  : {failing_names}
 
 📂 Files in diff   : {len(chunks)} total
    Reviewable      : {len(reviewable)} chunks across {len(set(c['file'] for c in reviewable))} files
@@ -250,86 +242,85 @@ class AIClient:
 """)
 
         file_reviews: List[Dict] = []
-        cache_dir = f"/tmp/pr_review_{pr_num}"
-        os.makedirs(cache_dir, exist_ok=True)
 
-        for i, chunk in enumerate(reviewable, 1):
-            label = chunk['file']
-            if chunk['total_chunks'] > 1:
-                label += f" [chunk {chunk['chunk_index']+1}/{chunk['total_chunks']}]"
+        if not reviewable:
+            final = {
+                "reviewComment": f"Automated review of PR #{pr_num}.\n\nNo reviewable files found in the diff.",
+                "labels": [],
+                "recommendation": "Approved" if not has_ci_failures else "Not Approved"
+            }
+            self._write_review_file(pr_num, pr, final, chunks, [])
+            return final
 
-            chunk_key = hashlib.md5(chunk['diff_text'].encode()).hexdigest()[:12]
-            cache_path = os.path.join(cache_dir, f"{chunk_key}.json")
+        # Combine diffs up to a reasonable limit (e.g. 100k chars for standard models)
+        MAX_COMBINED_CHARS = 100_000
+        combined_diff = ""
+        for chunk in reviewable:
+            if len(combined_diff) + len(chunk['diff_text']) > MAX_COMBINED_CHARS:
+                combined_diff += "\n\n... (Diff truncated due to size limits)"
+                break
+            combined_diff += f"\n\n{chunk['diff_text']}"
 
-            # Resume from cache if available
-            if os.path.exists(cache_path):
-                try:
-                    with open(cache_path) as f:
-                        cached = json.load(f)
-                    log_info(f"  [{i:>2}/{len(reviewable)}] ♻️  {label} (cached)")
-                    file_reviews.append(cached)
-                    continue
-                except Exception:
-                    pass  # cache corrupt, re-run
+        prompt = (
+            f'You are a strict code reviewer. Review the diff below.\n'
+            f'PR title: {pr_title}\n'
+            f'CI status: {checks_summary}\n\n'
+            f'Rules:\n'
+            f'- Flag ONLY real problems: bugs, type unsafety, broken logic, design rule violations.\n'
+            f'- Use severity "error" for blocking issues, "warn" for improvements, "info" for nits.\n'
+            f'- For file verdicts, set to "ok" (no issues), "needs_changes" (warn/info only), or "blocking" (any error).\n'
+            f'- Provide an overall `reviewComment` summarizing the review.\n'
+            f'- Suggest 1-3 `labels` (e.g. "needs-changes", "lgtm", "ci-failing").\n'
+            f'- Set overall `recommendation` to EXACTLY ONE of: "Approved", "Approved with Minor Changes", or "Not Approved".\n'
+            f'- Output ONLY valid JSON. No prose, no markdown outside the JSON.\n\n'
+            f'Diff:{combined_diff}'
+        )
 
-            t0 = time.time()
-            # print with end=""/flush=True is not easily wrapped by log_info,
-            # we keep it but redirect to stderr manually or just use print(..., file=sys.stderr)
-            print(f"  [{i:>2}/{len(reviewable)}] 🤖 {label} ({chunk['added_lines']} added lines{', truncated' if chunk['truncated'] else ''}) …", end="", flush=True, file=sys.stderr)
-
-            prompt = self._build_chunk_prompt(chunk, pr_title, checks_summary)
-            raw = None
-            try:
-                raw = call_ai(prompt, model=_REVIEW_MODEL, schema=_CHUNK_SCHEMA, max_retries=2)
-            except Exception as e:
-                print(f" ❌ ERROR: {e}", flush=True, file=sys.stderr)
-
-            elapsed = time.time() - t0
-
-            if not raw:
-                print(f" ❌ empty response ({elapsed:.1f}s)", flush=True, file=sys.stderr)
-                fr = {"file": chunk['file'], "chunk_index": chunk['chunk_index'],
-                      "issues": [], "verdict": "error", "error": "empty response"}
-            else:
-                try:
-                    cleaned = clean_llm_output(raw)
-                    parsed = json.loads(cleaned)
-                    issue_count = len(parsed.get('issues', []))
-                    verdict = parsed.get('verdict', '?')
-                    print(f" ✅ {issue_count} issue(s), verdict={verdict} ({elapsed:.1f}s)", flush=True, file=sys.stderr)
-                    fr = {"file": chunk['file'], "chunk_index": chunk['chunk_index'], **parsed}
-                except Exception as e:
-                    print(f" ⚠️  parse error ({elapsed:.1f}s): {e}", flush=True, file=sys.stderr)
-                    print(f"      raw (200 chars): {raw[:200]}", flush=True, file=sys.stderr)
-                    fr = {"file": chunk['file'], "chunk_index": chunk['chunk_index'],
-                          "issues": [], "verdict": "parse_error", "raw": raw[:500]}
-
-            file_reviews.append(fr)
-            # Cache successful parses
-            if fr.get('verdict') not in ('error', 'parse_error'):
-                try:
-                    with open(cache_path, 'w') as f:
-                        json.dump(fr, f)
-                except Exception:
-                    pass
-            # ── Write live progress snapshot ──────────────────────────────────
-            self._write_progress_snapshot(pr_num, reviewable, file_reviews, i, cache_dir)
-
-        log_info("")
-
-        # ── Phase B: synthesis ────────────────────────────────────────────────
-        print(f"🔗 Synthesising {len(file_reviews)} chunk review(s) → final verdict …", end="", flush=True, file=sys.stderr)
         t0 = time.time()
-        final = self._synthesize_review(file_reviews, pr_num, pr_title, has_ci_failures, ci_failures)
+        print(f"🤖 Requesting AI review for {len(reviewable)} chunks ...", end="", flush=True, file=sys.stderr)
+
+        raw = None
+        file_reviews = []
+        try:
+            raw = call_ai(prompt, model=_REVIEW_MODEL, schema=_REVIEW_SCHEMA, max_retries=2)
+        except Exception as e:
+            print(f" ❌ ERROR: {e}", flush=True, file=sys.stderr)
+
         elapsed = time.time() - t0
-        print(f" done ({elapsed:.1f}s)\n", flush=True, file=sys.stderr)
+
+        if not raw:
+            print(f" ❌ empty response ({elapsed:.1f}s)", flush=True, file=sys.stderr)
+            final = {
+                "reviewComment": f"Automated review of PR #{pr_num}.\n\nFailed to get a response from AI.",
+                "labels": ["needs-changes"],
+                "recommendation": "Not Approved"
+            }
+        else:
+            try:
+                cleaned = clean_llm_output(raw)
+                parsed = json.loads(cleaned)
+                file_reviews = parsed.get("file_reviews", [])
+
+                final = {
+                    "reviewComment": parsed.get("reviewComment", f"Automated review of PR #{pr_num}."),
+                    "labels": parsed.get("labels", []),
+                    "recommendation": parsed.get("recommendation", "Unknown")
+                }
+                print(f" ✅ done ({elapsed:.1f}s)", flush=True, file=sys.stderr)
+            except Exception as e:
+                print(f" ⚠️  parse error ({elapsed:.1f}s): {e}", flush=True, file=sys.stderr)
+                final = {
+                    "reviewComment": f"Review complete. (Parse error: {e})\n\nRaw: {raw[:800]}",
+                    "labels": [],
+                    "recommendation": "Not Approved"
+                }
 
         # CI guard: never approve if checks are failing
         if has_ci_failures and final.get('recommendation') == 'Approved':
             final['recommendation'] = 'Not Approved'
             final['reviewComment'] = (
                 f"CI checks are failing ({failing_names}). Recommendation downgraded.\n\n"
-                + final['reviewComment']
+                + final.get('reviewComment', '')
             )
 
         self._write_review_file(pr_num, pr, final, chunks, file_reviews)

@@ -107,10 +107,6 @@ def get_ai_review_model() -> str:
     """Dynamic getter for the dedicated Code Reviewer model."""
     return _get_model_config("AI_REVIEW_MODEL", "ai_review_model", "gpt-4o")
 
-def get_ai_synthesis_model() -> str:
-    """Dynamic getter for the Synthesis model."""
-    return _get_model_config("AI_SYNTHESIS_MODEL", "ai_synthesis_model", "gpt-4o-mini")
-
 def get_ai_model() -> str:
     """Dynamic getter for the primary AI model."""
     # Special case for legacy/variant env key
