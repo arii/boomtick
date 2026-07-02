@@ -338,36 +338,32 @@ class Orchestrator:
         """
         return self.github.fetch_issue_details(issue_number)
 
-    def update_issue(self, issue_number: int, body: Optional[str] = None, labels: Optional[List[str]] = None, add_labels: Optional[List[str]] = None, remove_labels: Optional[List[str]] = None, state: Optional[str] = None) -> Dict[str, Any]:
+    def update_issue(self, issue_number: int, body: Optional[str] = None, labels: Optional[List[str]] = None, add_labels: Optional[List[str]] = None, remove_labels: Optional[List[str]] = None) -> Dict[str, Any]:
         """
-        Updates an issue's body, labels, and/or state.
+        Updates an issue's body and/or labels.
         """
         res = None
-        if labels is not None and (add_labels or remove_labels):
-            raise CLIError("Cannot combine full label replacement (--labels) with incremental changes (--add-labels, --remove-labels)")
-
-        update_kwargs = {}
-        if body is not None:
-            update_kwargs['body'] = body
+        # Handle full label replacement first as it is mutually exclusive with incremental changes
         if labels is not None:
-            update_kwargs['labels'] = labels
-        if state is not None:
-            update_kwargs['state'] = state
+            res = self.github.update_issue(issue_number, body=body, labels=labels)
+        else:
+            # Handle incremental label changes (can happen together)
+            if add_labels:
+                res = self.github.add_labels(issue_number, add_labels)
 
-        if update_kwargs:
-            res = self.github.update_issue(issue_number, **update_kwargs)
+            if remove_labels:
+                for label in remove_labels:
+                    self.github.remove_label(issue_number, label)
+                # If we haven't updated yet (no add_labels or body), fetch current state
+                if res is None and body is None:
+                    res = self.github.fetch_issue_details(issue_number)
 
-        if add_labels:
-            res = self.github.add_labels(issue_number, add_labels)
-
-        if remove_labels:
-            for label in remove_labels:
-                self.github.remove_label(issue_number, label)
-            if res is None and not update_kwargs:
-                res = self.github.fetch_issue_details(issue_number)
+            # Handle body update if not already done via 'labels' PATCH
+            if body is not None:
+                res = self.github.update_issue(issue_number, body=body)
 
         if res is None:
-            raise CLIError("Nothing to update. Provide body, labels, add-labels, remove-labels, or state.")
+            raise CLIError("Nothing to update. Provide body or labels.")
 
         return {
             "status": "success",

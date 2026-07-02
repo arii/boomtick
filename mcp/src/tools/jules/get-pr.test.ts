@@ -22,6 +22,7 @@ describe("getJulesPullRequestHandler", () => {
       stdout: JSON.stringify({
         status: "success",
         session: {
+          name: "sessions/123",
           outputs: [{ pullRequest: { url: "https://github.com/pr/1" } }]
         }
       }),

@@ -90,7 +90,7 @@ describe("createJulesSessionHandler", () => {
 
   it("should throw error if PR view fails", async () => {
     vi.mocked(shell.runCommand).mockResolvedValue({
-      stdout: "",
+      stdout: JSON.stringify({ status: "error", message: "PR not found" }),
       stderr: "PR not found",
       exitCode: 1,
       durationMs: 10,
@@ -98,7 +98,7 @@ describe("createJulesSessionHandler", () => {
     });
 
     await expect(createJulesSessionHandler({ task: "do work", pr: 999 }))
-      .rejects.toThrow("Failed to create session: PR not found");
+      .rejects.toThrow("td-cli command failed (gh view 999): PR not found");
   });
 
   it("should throw descriptive error if PR JSON is invalid", async () => {

@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { runCommand } from "../lib/shell.js";
+import { runTDCli } from "../lib/td-cli.js";
 
 export const RepoLogsInputSchema = z.object({
   prNumber: z.number(),
@@ -7,25 +7,13 @@ export const RepoLogsInputSchema = z.object({
 });
 
 export async function repoLogsHandler(args: z.infer<typeof RepoLogsInputSchema>) {
-  RepoLogsInputSchema.parse(args);
-  const params = [
-    "repo", "logs", args.prNumber.toString()
-  ];
+  const params = ["repo", "logs", args.prNumber.toString()];
 
   if (args.grep) {
     params.push("--grep", args.grep);
   }
 
-  const result = await runCommand("td-cli", params);
-
-  if (result.exitCode !== 0) {
-    throw new Error(`Failed to get CI logs: ${result.stderr}`);
-  }
-
-  const output = JSON.parse(result.stdout);
-  if (output.status === "error") {
-    throw new Error(`Failed to get CI logs: ${output.message}`);
-  }
+  const output = await runTDCli(params);
 
   return {
     logs: output.logs || (output.data ? output.data.logs : undefined)

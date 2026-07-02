@@ -7,26 +7,8 @@ import urllib.parse
 import requests
 import re
 import random
-import glob
-import shlex
-from datetime import datetime
-from requests.adapters import HTTPAdapter
-from urllib3.util import Retry
 from pathlib import Path
-from typing import Optional, Union, List, Dict, Any, Set
-from dev_tools.config import get_config
-from github import Github, Auth
-from langchain_openai import ChatOpenAI
-from langchain_google_genai import ChatGoogleGenerativeAI
-from langchain_core.messages import HumanMessage
-from dev_tools.version_utils import (
-    get_stack_versions as _get_stack_versions,
-    compare_versions as _compare_versions,
-    fetch_latest_npm as _fetch_latest_npm,
-    fetch_latest_gh_action as _fetch_latest_gh_action,
-    fetch_latest_node as _fetch_latest_node
-)
-
+from typing import Optional, Union, List, Dict, Any
 def mask_sensitive_data(msg: str) -> str:
     """Redacts sensitive information like GitHub tokens from strings."""
     if not isinstance(msg, str):
@@ -56,6 +38,8 @@ def log_debug(msg: str):
 
 def _call_api_with_retry(method: str, url: str, **kwargs) -> requests.Response:
     """Internal helper for making API calls with standard retry logic."""
+    from requests.adapters import HTTPAdapter
+    from urllib3.util import Retry
 
     timeout = kwargs.pop('timeout', 30)
     max_retries = kwargs.pop('max_retries', 3)
@@ -113,6 +97,7 @@ def _get_model_config(env_key: str, config_attr: str, fallback: str) -> str:
     if env_val:
         return env_val
     try:
+        from dev_tools.config import get_config
         config = get_config()
         return getattr(config, config_attr)
     except Exception:
@@ -207,8 +192,9 @@ def call_ai(prompt: str, model: str = None, url: Optional[str] = None, max_retri
 def log_ai_run(entry: dict):
     try:
         log_dir = os.path.join(os.getcwd(), "boomtick-pkg", "cli", "logs", "ai")
-        os.makedirs(log_dir, exist_ok=True)
         log_file = os.path.join(log_dir, "review-run.jsonl")
+        os.makedirs(log_dir, exist_ok=True)
+        from datetime import datetime
         entry["timestamp"] = datetime.utcnow().isoformat() + "Z"
         with open(log_file, "a") as f:
             f.write(json.dumps(entry) + "\n")
@@ -494,134 +480,75 @@ class GHAConfigManager:
         except Exception:
             return None, None
 
-    def get_variable(self, name: str) -> Optional[str]:
-        """Retrieves a variable, checking local cache first, then the GitHub API."""
-        # 1. Check local cache
-        if name in self.cache:
-            return str(self.cache[name])
-
-        # 2. Fetch from GitHub API
-        import requests
+    def _gh_api_request(self, method: str, name: str, payload: Optional[dict] = None) -> Optional[requests.Response]:
         token = get_github_token()
         repo = get_repo_name()
-        if token and repo:
-            try:
-                import requests
-                url = f"https://api.github.com/repos/{repo}/actions/variables/{name}"
-                headers = {
-                    "Authorization": f"Bearer {token}",
-                    "Accept": "application/vnd.github+json"
-                }
-                response = requests.get(url, headers=headers, timeout=10)
-                if response.status_code == 200:
-                    data = response.json()
-                    val = str(data.get("value", ""))
-                    self.cache[name] = val
-                    self._save_cache()
-                    return val
-            except Exception as e:
-                log_warn(f"Failed to fetch GHA variable '{name}' via API: {e}")
+        if not (token and repo):
+            return None
 
-        # 3. Check gh CLI availability
+        url = f"https://api.github.com/repos/{repo}/actions/variables"
+        if name:
+            url += f"/{name}"
+
+        headers = {
+            "Authorization": f"Bearer {token}",
+            "Accept": "application/vnd.github+json",
+            "X-GitHub-Api-Version": "2022-11-28"
+        }
+
+        try:
+            response = requests.request(method, url, headers=headers, json=payload, timeout=10)
+            return response
+        except Exception as e:
+            log_warn(f"GitHub API request failed ({method} {url}): {e}")
+            return None
+
+    def _is_gh_cli_available(self) -> bool:
         if self.gh_available is None:
             try:
                 run_command(["gh", "--version"], log_on_error=False)
                 self.gh_available = True
             except (CLIError, FileNotFoundError):
                 self.gh_available = False
+        return self.gh_available
 
-        if not self.gh_available:
+    def get_variable(self, name: str) -> Optional[str]:
+        """Retrieves a variable, checking local cache first, then the GitHub API."""
+        if name in self.cache:
+            return str(self.cache[name])
+
+        resp = self._gh_api_request("GET", name)
+        if resp and resp.status_code == 200:
+            val = str(resp.json().get("value", ""))
+            self.cache[name] = val
+            self._save_cache()
+            return val
+
+        if not self._is_gh_cli_available():
             return None
-
-        try:
-            url = f"https://api.github.com/repos/{repo}/actions/variables/{name}"
-            headers = {
-                "Authorization": f"Bearer {token}",
-                "Accept": "application/vnd.github+json",
-                "X-GitHub-Api-Version": "2022-11-28"
-            }
-            response = requests.get(url, headers=headers, timeout=10)
-            if response.status_code == 200:
-                val = response.json().get("value")
-                self.cache[name] = val
-                self._save_cache()
-                return val
-            elif response.status_code != 404:
-                log_error(f"fetching GHA variable '{name}' via API: {response.status_code} {response.text}")
-        except Exception as e:
-            log_error(f"Unexpected error fetching GHA variable '{name}': {e}")
 
         return None
 
     def set_variable(self, name: str, value: str) -> bool:
         """Sets a variable using the GitHub API and updates local cache."""
-        # 1. Update local cache
         self.cache[name] = value
         self._save_cache()
 
-        # 2. Set via GitHub API
-        import requests
-        token = get_github_token()
-        repo = get_repo_name()
-        if token and repo:
-            try:
-                import requests
-                url = f"https://api.github.com/repos/{repo}/actions/variables/{name}"
-                payload = {"name": name, "value": str(value)}
-                headers = {
-                    "Authorization": f"Bearer {token}",
-                    "Accept": "application/vnd.github+json",
-                    "Content-Type": "application/json"
-                }
-                response = requests.patch(url, json=payload, headers=headers, timeout=10)
-                if response.status_code in [200, 204]:
-                    return True
-                elif response.status_code == 404:
-                    # Create instead of update
-                    create_url = f"https://api.github.com/repos/{repo}/actions/variables"
-                    create_response = requests.post(create_url, json=payload, headers=headers, timeout=10)
-                    if create_response.status_code in [201, 204]:
-                        return True
-            except Exception as e:
-                log_error(f"Failed to set GHA variable '{name}' via API: {e}")
+        payload = {"name": name, "value": str(value)}
+        resp = self._gh_api_request("PATCH", name, payload)
 
-        # 3. Check gh CLI availability
-        if self.gh_available is None:
-            try:
-                run_command(["gh", "--version"], log_on_error=False)
-                self.gh_available = True
-            except (CLIError, FileNotFoundError):
-                self.gh_available = False
-
-        if not self.gh_available:
-            return False
-
-        try:
-            url = f"https://api.github.com/repos/{repo}/actions/variables/{name}"
-            headers = {
-                "Authorization": f"Bearer {token}",
-                "Accept": "application/vnd.github+json",
-                "X-GitHub-Api-Version": "2022-11-28"
-            }
-
-            # Check if variable exists first to decide between POST (create) and PATCH (update)
-            response = requests.get(url, headers=headers, timeout=10)
-            exists = (response.status_code == 200)
-
-            if exists:
-                res = requests.patch(url, headers=headers, json={"name": name, "value": str(value)}, timeout=10)
-            else:
-                create_url = f"https://api.github.com/repos/{repo}/actions/variables"
-                res = requests.post(create_url, headers=headers, json={"name": name, "value": str(value)}, timeout=10)
-
-            if res.status_code in [201, 204]:
+        if resp and resp.status_code in [200, 204]:
+            return True
+        elif resp and resp.status_code == 404:
+            # Try creating instead
+            resp = self._gh_api_request("POST", "", payload)
+            if resp and resp.status_code in [201, 204]:
                 return True
-            else:
-                log_error(f"setting GHA variable '{name}' via API: {res.status_code} {res.text}")
-                return False
-        except Exception as e:
-            log_error(f"setting GHA variable '{name}' via API: {e}")
+
+        if not self._is_gh_cli_available():
             return False
+
+        return False
 
 def get_gha_variable(name: str) -> Optional[str]:
     """Helper function to retrieve a GHA variable via the global manager."""
@@ -699,25 +626,31 @@ def clean_gha_logs(logs: str) -> str:
     return "\n".join(cleaned)
 
 def get_github_client():
+    from github import Github, Auth
     token = get_github_token()
     if not token:
         raise CLIError("GitHub token not found", code=401)
     return Github(auth=Auth.Token(token))
 
 def get_stack_versions(fetch_latest: bool = False) -> Dict[str, str]:
-    return _get_stack_versions(fetch_latest=fetch_latest)
+    from dev_tools.version_utils import get_stack_versions as _get
+    return _get(fetch_latest=fetch_latest)
 
 def compare_versions(v1: str, v2: str) -> int:
-    return _compare_versions(v1, v2)
+    from dev_tools.version_utils import compare_versions as _cmp
+    return _cmp(v1, v2)
 
 def fetch_latest_npm(package_name: str) -> Optional[str]:
-    return _fetch_latest_npm(package_name)
+    from dev_tools.version_utils import fetch_latest_npm as _fetch
+    return _fetch(package_name)
 
 def fetch_latest_gh_action(action_path: str) -> Optional[str]:
-    return _fetch_latest_gh_action(action_path)
+    from dev_tools.version_utils import fetch_latest_gh_action as _fetch
+    return _fetch(action_path)
 
 def fetch_latest_node() -> Optional[str]:
-    return _fetch_latest_node()
+    from dev_tools.version_utils import fetch_latest_node as _fetch
+    return _fetch()
 
 def walk_tsx(root_dir='src'):
     for root, dirs, files in os.walk(root_dir):

@@ -46,6 +46,7 @@ class TestLabels(unittest.TestCase):
         self.assertIn('/issues/123/labels/ui%20bug', call_args[0][1])
 
     def test_orchestrator_update_issue_add_labels(self):
+        self.orch.github.fetch_issue_details.return_value = {"number": 123, "title": "T", "html_url": "U", "state": "S"}
         self.orch.github.add_labels.return_value = {"number": 123, "title": "T", "html_url": "U", "state": "S"}
         self.orch.update_issue(123, add_labels=["new-label"])
         self.orch.github.add_labels.assert_called_once_with(123, ["new-label"])
@@ -58,9 +59,10 @@ class TestLabels(unittest.TestCase):
     def test_orchestrator_update_issue_full_labels(self):
         self.orch.github.update_issue.return_value = {"number": 123, "title": "T", "html_url": "U", "state": "S"}
         self.orch.update_issue(123, labels=["l1", "l2"])
-        self.orch.github.update_issue.assert_called_once_with(123, labels=["l1", "l2"])
+        self.orch.github.update_issue.assert_called_once_with(123, body=None, labels=["l1", "l2"])
 
     def test_orchestrator_update_issue_simultaneous_add_remove(self):
+        self.orch.github.fetch_issue_details.return_value = {"number": 123, "title": "T", "html_url": "U", "state": "S"}
         self.orch.github.add_labels.return_value = {"number": 123, "title": "T", "html_url": "U", "state": "S"}
         self.orch.update_issue(123, add_labels=["new"], remove_labels=["old"])
         self.orch.github.add_labels.assert_called_once_with(123, ["new"])
@@ -73,22 +75,9 @@ class TestLabels(unittest.TestCase):
 
     def test_orchestrator_update_issue_body_and_add_labels(self):
         self.orch.github.update_issue.return_value = {"number": 123, "title": "T", "html_url": "U", "state": "S"}
-        self.orch.github.add_labels.return_value = {"number": 123, "title": "T", "html_url": "U", "state": "S"}
         self.orch.update_issue(123, body="new body", add_labels=["l1"])
         self.orch.github.add_labels.assert_called_once_with(123, ["l1"])
         self.orch.github.update_issue.assert_called_once_with(123, body="new body")
-
-    def test_orchestrator_update_issue_state_and_add_labels(self):
-        self.orch.github.update_issue.return_value = {"number": 123, "title": "T", "html_url": "U", "state": "closed"}
-        self.orch.github.add_labels.return_value = {"number": 123, "title": "T", "html_url": "U", "state": "closed"}
-        self.orch.update_issue(123, state="closed", add_labels=["new"])
-        self.orch.github.update_issue.assert_called_once_with(123, state="closed")
-        self.orch.github.add_labels.assert_called_once_with(123, ["new"])
-
-    def test_orchestrator_update_issue_conflicting_labels_options(self):
-        with self.assertRaises(CLIError) as context:
-            self.orch.update_issue(123, labels=["l1"], add_labels=["new"])
-        self.assertIn("Cannot combine full label replacement", str(context.exception))
 
 if __name__ == '__main__':
     unittest.main()

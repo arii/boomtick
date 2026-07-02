@@ -7,11 +7,10 @@ from dev_tools.services.github import GitHubClient
 
 class TestGitHubClientPagination(unittest.TestCase):
     def setUp(self):
-        patcher = patch('dev_tools.services.github.get_github_token')
-        self.mock_token = patcher.start()
-        self.mock_token.return_value = "dummy_token"
-        self.addCleanup(patcher.stop)
-        self.client = GitHubClient(repo="owner/repo")
+        with patch('dev_tools.utils.get_github_token') as mock_token:
+            mock_token.return_value = "dummy_token"
+            self.client = GitHubClient(repo="owner/repo")
+            self.client.repo = "owner/repo" # Ensure repo is set if init fails
 
     @patch('dev_tools.services.github.requests.Session.request')
     def test_list_pull_requests_pagination_and_filtering(self, mock_request):
