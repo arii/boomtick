@@ -58,6 +58,16 @@ class SignatureExtractor:
     # TS alternate: src/App.tsx(10,5): error TS2322: ...
     TS_ALT_PATTERN = re.compile(r'^(.*?)\((\d+),(\d+)\): error (TS\d+): (.*)$')
 
+    @staticmethod
+    def _parse_ts(match) -> Dict[str, Any]:
+        return {
+            "file": match.group(1),
+            "line": int(match.group(2)),
+            "col": int(match.group(3)),
+            "message": match.group(5),
+            "signature": f"ts/{match.group(4)[2:]}" # Normalize TS2322 to ts/2322
+        }
+
     @classmethod
     def extract(cls, log_line: str) -> Optional[Dict[str, Any]]:
         log_line = strip_ansi(log_line.strip())
@@ -79,24 +89,12 @@ class SignatureExtractor:
         # Try TS
         match = cls.TS_PATTERN.match(log_line)
         if match:
-            return {
-                "file": match.group(1),
-                "line": int(match.group(2)),
-                "col": int(match.group(3)),
-                "message": match.group(5),
-                "signature": f"ts/{match.group(4)[2:]}" # Normalize TS2322 to ts/2322
-            }
+            return cls._parse_ts(match)
 
         # Try TS Alt
         match = cls.TS_ALT_PATTERN.match(log_line)
         if match:
-            return {
-                "file": match.group(1),
-                "line": int(match.group(2)),
-                "col": int(match.group(3)),
-                "message": match.group(5),
-                "signature": f"ts/{match.group(4)[2:]}"
-            }
+            return cls._parse_ts(match)
 
         return None
 
