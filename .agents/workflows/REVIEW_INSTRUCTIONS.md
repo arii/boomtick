@@ -74,7 +74,7 @@ Before suggesting an implementation, verify if it already exists:
 - **Layout primitives**: `src/layouts/` (Box, Stack, Grid, Text, Button)
 - **UI components**: `src/components/ui/`
 - **Custom hooks**: `src/hooks/` (useSearchParam, useGlobalSearch, useHotkeys)
-- **Utilities**: `src/lib/utils.ts` (cn, composeStyles, safeSearch)
+- **Utilities**: `src/lib/utils.ts` (cn, safeSearch)
 - **Design tokens**: `src/styles/design-tokens.ts` and `tokens.css`
 
 **Do NOT request:**
