@@ -32,7 +32,7 @@ describe("getJulesPullRequestHandler", () => {
       command: "td-cli agent get-session"
     });
 
-    const result = await getJulesPullRequestHandler({ id: "123" });
+    const result = await getJulesPullRequestHandler({ sessionId: "123" });
     expect(result.id).toBe("123");
     expect(result.pullRequestUrl).toBe("https://github.com/pr/1");
 

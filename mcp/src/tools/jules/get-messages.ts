@@ -2,11 +2,11 @@ import { z } from "zod";
 import { runCommand } from "../../lib/shell.js";
 
 export const GetJulesMessagesInputSchema = z.object({
-  id: z.string(),
+  sessionId: z.string(),
 });
 
 export async function getJulesMessagesHandler(input: z.infer<typeof GetJulesMessagesInputSchema>) {
-  const result = await runCommand("td-cli", ["agent", "messages", input.id]);
+  const result = await runCommand("td-cli", ["agent", "messages", input.sessionId]);
 
   if (result.exitCode !== 0) {
     throw new Error(`Failed to get messages: ${result.stderr}`);
@@ -18,7 +18,7 @@ export async function getJulesMessagesHandler(input: z.infer<typeof GetJulesMess
   }
 
   return {
-    id: input.id.replace("sessions/", ""),
+    id: input.sessionId.replace("sessions/", ""),
     messages: output.messages,
   };
 }

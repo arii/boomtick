@@ -2,12 +2,12 @@ import { z } from "zod";
 import { runCommand } from "../../lib/shell.js";
 
 export const SendJulesMessageInputSchema = z.object({
-  id: z.string(),
+  sessionId: z.string(),
   message: z.string(),
 });
 
 export async function sendJulesMessageHandler(input: z.infer<typeof SendJulesMessageInputSchema>) {
-  const result = await runCommand("td-cli", ["agent", "send", input.id, input.message]);
+  const result = await runCommand("td-cli", ["agent", "send", input.sessionId, input.message]);
 
   if (result.exitCode !== 0) {
     throw new Error(`Failed to send message: ${result.stderr}`);
@@ -19,7 +19,7 @@ export async function sendJulesMessageHandler(input: z.infer<typeof SendJulesMes
   }
 
   return {
-    id: input.id.replace("sessions/", ""),
+    id: input.sessionId.replace("sessions/", ""),
     status: "success",
     message: "Message sent successfully",
   };

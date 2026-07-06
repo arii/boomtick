@@ -39,7 +39,7 @@ describe("getJulesMessagesHandler", () => {
       command: "td-cli agent messages"
     });
 
-    const result = await getJulesMessagesHandler({ id: "123" });
+    const result = await getJulesMessagesHandler({ sessionId: "123" });
     expect(result.id).toBe("123");
     expect(result.messages.length).toBe(2);
     expect(result.messages[0].role).toBe("user");

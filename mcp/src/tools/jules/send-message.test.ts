@@ -26,7 +26,7 @@ describe("sendJulesMessageHandler", () => {
       command: "td-cli agent send"
     });
 
-    const result = await sendJulesMessageHandler({ id: "123", message: "hi" });
+    const result = await sendJulesMessageHandler({ sessionId: "123", message: "hi" });
     expect(result.id).toBe("123");
     expect(result.status).toBe("success");
 
