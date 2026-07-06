@@ -25,12 +25,26 @@ runs:
       if: inputs.setup-node == 'true'
       uses: pnpm/action-setup@v6 # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
 
+    - name: Get pnpm store directory
+      if: inputs.setup-node == 'true'
+      id: pnpm-cache
+      shell: bash
+      run: |
+        echo "STORE_PATH=$(pnpm store path)" >> "$GITHUB_OUTPUT"
+
+    - name: Cache pnpm store
+      if: inputs.setup-node == 'true'
+      uses: actions/cache@v4 # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
+      with:
+        path: ${{ steps.pnpm-cache.outputs.STORE_PATH }}
+        key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+        restore-keys: |
+          ${{ runner.os }}-pnpm-store-
+
     - name: Setup Node.js
       if: inputs.setup-node == 'true'
       uses: actions/setup-node@v6 # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
       with:
-        cache: 'pnpm'
-        cache-dependency-path: pnpm-lock.yaml
         node-version-file: ${{ inputs.node-version-file }}
 
     - name: Enable Corepack
@@ -44,6 +58,22 @@ runs:
         PNPM_VERSION: ${{ inputs.pnpm-version }}
       run: corepack prepare pnpm@"$PNPM_VERSION" --activate
       shell: bash
+
+    - name: Get pip cache directory
+      if: inputs.setup-python == 'true'
+      id: pip-cache
+      shell: bash
+      run: |
+        echo "DIR=$(pip cache dir)" >> "$GITHUB_OUTPUT"
+
+    - name: Cache pip
+      if: inputs.setup-python == 'true'
+      uses: actions/cache@v4 # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
+      with:
+        path: ${{ steps.pip-cache.outputs.DIR }}
+        key: ${{ runner.os }}-pip-${{ hashFiles('**/pyproject.toml') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
 
     - name: Install dev-tools
       if: inputs.setup-python == 'true'

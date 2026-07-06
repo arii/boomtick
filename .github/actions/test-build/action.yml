@@ -4,6 +4,10 @@ inputs:
   github_token:
     description: 'GitHub token'
     required: true
+  run_lighthouse:
+    description: 'Whether to run Lighthouse CI'
+    required: false
+    default: 'true'
 runs:
   using: composite
   steps:
@@ -32,6 +36,7 @@ runs:
       shell: bash
 
     - name: Run Lighthouse CI
+      if: inputs.run_lighthouse == 'true'
       run: |
         set -eu
         VITE_BASE_PATH="/"
