@@ -11,8 +11,6 @@ from typing import Any, Dict, List
 import click
 
 from dev_tools.models import CreateIssueInput, SearchPRsInput, IssueUpdateInput
-from dev_tools.orchestrator import Orchestrator
-from dev_tools.daemon import JulesFeedbackDaemon
 from dev_tools.utils import (
     get_or_create_log_dir,
     CLIError,
@@ -33,6 +31,30 @@ from dev_tools.utils import (
 from dev_tools.config import get_config
 
 
+
+class LazyOrchestrator:
+    def __init__(self):
+        self._instance = None
+
+    def _get_instance(self):
+        if self._instance is None:
+            from dev_tools.orchestrator import Orchestrator
+            self._instance = Orchestrator()
+        return self._instance
+
+    def __getattr__(self, name):
+        return getattr(self._get_instance(), name)
+
+    def __setattr__(self, name, value):
+        if name in ("_instance",):
+            super().__setattr__(name, value)
+        else:
+            setattr(self._get_instance(), name, value)
+
+    def __dir__(self):
+        return dir(self._get_instance())
+
+
 PROJECT_CONFIG = get_config()
 
 # CLI Group
@@ -45,7 +67,7 @@ def cli(ctx, json_output):
     # If the user explicitly passed --no-json (if supported) or we want to detect if it's a TTY
     # But for now, we follow the requirement to be JSON by default for machine consumption.
     ctx.obj['JSON'] = json_output
-    ctx.obj['ORCHESTRATOR'] = Orchestrator()
+    ctx.obj['ORCHESTRATOR'] = LazyOrchestrator()
 
 # --- Utility Helpers ---
 def out(ctx, msg, data=None):
@@ -1007,6 +1029,7 @@ def plan_aggregation(ctx):
 def run_feedback_check(ctx):
     """Run a one-shot Automated Agent Feedback Check to trigger CI feedback for active sessions."""
     try:
+        from dev_tools.daemon import JulesFeedbackDaemon
         daemon_instance = JulesFeedbackDaemon()
         daemon_instance.run()
         out(ctx, "Feedback check execution completed.", data={"status": "success"})
