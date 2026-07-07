@@ -682,12 +682,9 @@ class Orchestrator:
         return {"node": actual_node, "pnpm": actual_pnpm}
 
 
-    def verify_ci_metrics(self, **kwargs):
-        return verify_ci_metrics(**kwargs)
-
     def generate_ci_summary_report(self):
         """Generates a markdown summary of CI metrics."""
-        metrics_res = self.verify_ci_metrics()
+        metrics_res = verify_ci_metrics()
 
         report = ["## 📊 CI Metrics Verification"]
 
@@ -785,21 +782,32 @@ class Orchestrator:
         is_shallow = run_command(["git", "rev-parse", "--is-shallow-repository"], check=False).stdout.strip() == "true"
 
         if baseline_count == -1 or is_shallow:
+            val = self.get_env_or_gha('AUDIT_BASELINE')
+            if val: return {"current": current_count, "baseline": int(val), "status": "success" if current_count <= int(val) else "error"}
+
             if is_shallow:
                  # In a shallow clone, git ls-tree/show on base branch will fail or be incomplete.
-                 # Fall back to GHA variable if possible.
-                 val = self.get_env_or_gha('AUDIT_BASELINE')
-                 if val: return {"current": current_count, "baseline": int(val), "status": "success" if current_count <= int(val) else "error"}
-                 # If no GHA variable, we cannot determine baseline accurately in shallow clone.
                  log_warn("Shallow repository detected and no AUDIT_BASELINE variable found. Falling back to 0.")
+                 return {"current": current_count, "baseline": 0, "status": "success" if current_count <= 0 else "error"}
 
             baseline_count = 0
-            base = PROJECT_CONFIG.base_branch
-            base_files = run_command(["git", "ls-tree", "-r", base, "--name-only"]).splitlines()
+            # Robust base branch discovery: try config, then origin/main, then main
+            base_candidates = [PROJECT_CONFIG.base_branch, "origin/main", "main"]
+            base_ref = None
+            for cand in base_candidates:
+                if cand and run_command(["git", "rev-parse", "--verify", cand], check=False, log_on_error=False).returncode == 0:
+                    base_ref = cand
+                    break
+
+            if not base_ref:
+                log_warn("Could not determine base branch for audit baseline. Falling back to 0.")
+                return {"current": current_count, "baseline": 0, "status": "success" if current_count <= 0 else "error"}
+
+            base_files = run_command(["git", "ls-tree", "-r", base_ref, "--name-only"]).splitlines()
             # Ensure AUDIT_CHECK_DIRS are handled as a list of prefixes
             relevant = [mf for mf in base_files if (mf.endswith('.tsx') or mf.endswith('.ts')) and any(mf == d or mf.startswith(d + '/') for d in AUDIT_CHECK_DIRS)]
             for mf in relevant:
-                res_show = run_command(["git", "show", f"{base}:{mf}"], check=False, log_on_error=False)
+                res_show = run_command(["git", "show", f"{base_ref}:{mf}"], check=False, log_on_error=False)
                 if res_show.returncode == 0:
                     baseline_count += int(run_command(["node", "scripts/detect-antipatterns.mjs", "--count-only", "-"], input_str=res_show.stdout) or 0)
         return {"current": current_count, "baseline": baseline_count, "status": "success" if current_count <= baseline_count else "error"}

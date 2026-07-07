@@ -26,7 +26,8 @@ from dev_tools.utils import (
     find_patterns_in_file,
     get_bundle_size,
     get_any_count,
-    verify_pr_scope
+    verify_pr_scope,
+    verify_ci_metrics
 )
 from dev_tools.config import get_config
 
@@ -605,8 +606,7 @@ def doctor(ctx):
 @click.pass_context
 def verify_metrics(ctx):
     """Verify CI metrics against established thresholds."""
-    orch = ctx.obj['ORCHESTRATOR']
-    res = orch.verify_ci_metrics()
+    res = verify_ci_metrics()
     if res['status'] == 'error':
         err(ctx, res['message'], data=res)
     else:
