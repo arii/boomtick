@@ -130,11 +130,10 @@ def is_ai_available() -> bool:
     """Checks if AI API token is present."""
     return bool(os.getenv("GITHUB_TOKEN"))
 
-def to_standard_schema(schema, uppercase: bool = False):
+def to_standard_schema(schema):
     """Recursively prepares a standard JSON schema.
     - Ensures top-level 'type: object' if 'properties' is present.
-    - Converts type names to uppercase if uppercase=True (Gemini requirement).
-    - Otherwise ensures lowercase (Standard AI model naming).
+    - Ensures lowercase (Standard AI model naming).
     """
     if isinstance(schema, dict):
         # Auto-inject object type if properties are defined without a type
@@ -144,12 +143,12 @@ def to_standard_schema(schema, uppercase: bool = False):
         new_schema = {}
         for k, v in schema.items():
             if k == "type" and isinstance(v, str):
-                new_schema[k] = v.upper() if uppercase else v.lower()
+                new_schema[k] = v.lower()
             else:
-                new_schema[k] = to_standard_schema(v, uppercase=uppercase)
+                new_schema[k] = to_standard_schema(v)
         return new_schema
     elif isinstance(schema, list):
-        return [to_standard_schema(item, uppercase=uppercase) for item in schema]
+        return [to_standard_schema(item) for item in schema]
     return schema
 
 def call_ai(prompt: str, model: str = None, url: Optional[str] = None, max_retries: int = 3, schema = None) -> Optional[str]:
@@ -210,7 +209,7 @@ def call_github_models(prompt: str, model: str = None, max_retries: int = 3, sch
     data = {"model": model or get_ai_model(), "messages": [{"role": "user", "content": prompt}], "stream": False}
     if schema:
         # OpenAI style: prompt injection + json_object mode
-        norm_schema = to_standard_schema(schema, uppercase=False)
+        norm_schema = to_standard_schema(schema)
         data["response_format"] = {"type": "json_object"}
         data["messages"].insert(0, {
             "role": "system",
@@ -430,129 +429,34 @@ def get_repo_name() -> Optional[str]:
         log_warn(f"Failed to detect repository name: {e}")
         return None
 
-class GHAConfigManager:
-    """Manages GitHub Actions variables with local caching and robust error handling."""
-    _instance = None
-
-    def __new__(cls):
-        if cls._instance is None:
-            cls._instance = super(GHAConfigManager, cls).__new__(cls)
-            cls._instance._initialized = False
-        return cls._instance
-
-    def __init__(self):
-        if getattr(self, "_initialized", False):
-            return
-        self.config_path = os.path.join(os.path.dirname(__file__), "config.json")
-        self.gh_available = None
-        self.warned_auth = False
-        self.warned_repo = False
-        self.cache = self._load_cache()
-        self._initialized = True
-
-    def _load_cache(self) -> dict:
-        if os.path.exists(self.config_path):
-            try:
-                with open(self.config_path, "r") as f:
-                    return json.load(f)
-            except Exception as e:
-                log_warn(f"Failed to load GHA cache: {e}")
-                return {}
-        return {}
-
-    def _save_cache(self):
-        try:
-            with open(self.config_path, "w") as f:
-                json.dump(self.cache, f, indent=2)
-        except Exception as e:
-            log_warn(f"Failed to save GHA cache: {e}")
-
-    def _get_github_client_and_repo(self):
-        """Helper to get GitHub client and repo name."""
-        try:
-            client = get_github_client()
-            repo = get_repo_name()
-            return client, repo
-        except Exception:
-            return None, None
-
-    def _gh_api_request(self, method: str, name: str, payload: Optional[dict] = None) -> Optional[requests.Response]:
-        token = get_github_token()
-        repo = get_repo_name()
-        if not (token and repo):
-            return None
-
-        url = f"https://api.github.com/repos/{repo}/actions/variables"
-        if name:
-            url += f"/{name}"
-
-        headers = {
-            "Authorization": f"Bearer {token}",
-            "Accept": "application/vnd.github+json",
-            "X-GitHub-Api-Version": "2022-11-28"
-        }
-
-        try:
-            response = requests.request(method, url, headers=headers, json=payload, timeout=10)
-            return response
-        except Exception as e:
-            log_warn(f"GitHub API request failed ({method} {url}): {e}")
-            return None
-
-    def _is_gh_cli_available(self) -> bool:
-        if self.gh_available is None:
-            try:
-                run_command(["gh", "--version"], log_on_error=False)
-                self.gh_available = True
-            except (CLIError, FileNotFoundError):
-                self.gh_available = False
-        return self.gh_available
-
-    def get_variable(self, name: str) -> Optional[str]:
-        """Retrieves a variable, checking local cache first, then the GitHub API."""
-        if name in self.cache:
-            return str(self.cache[name])
-
-        resp = self._gh_api_request("GET", name)
-        if resp and resp.status_code == 200:
-            val = str(resp.json().get("value", ""))
-            self.cache[name] = val
-            self._save_cache()
-            return val
-
-        if not self._is_gh_cli_available():
-            return None
-
-        return None
-
-    def set_variable(self, name: str, value: str) -> bool:
-        """Sets a variable using the GitHub API and updates local cache."""
-        self.cache[name] = value
-        self._save_cache()
-
-        payload = {"name": name, "value": str(value)}
-        resp = self._gh_api_request("PATCH", name, payload)
-
-        if resp and resp.status_code in [200, 204]:
-            return True
-        elif resp and resp.status_code == 404:
-            # Try creating instead
-            resp = self._gh_api_request("POST", "", payload)
-            if resp and resp.status_code in [201, 204]:
-                return True
-
-        if not self._is_gh_cli_available():
-            return False
-
-        return False
+_gha_var_cache: Dict[str, str] = {}
 
 def get_gha_variable(name: str) -> Optional[str]:
-    """Helper function to retrieve a GHA variable via the global manager."""
-    return GHAConfigManager().get_variable(name)
+    """Helper function to retrieve a GHA variable via the native gh cli with lightweight memory cache."""
+    if name in _gha_var_cache:
+        return _gha_var_cache[name]
+    try:
+        proc = run_command(["gh", "variable", "get", name], check=False, log_on_error=False)
+        if proc.returncode == 0:
+            val = proc.stdout.strip()
+            _gha_var_cache[name] = val
+            return val
+    except Exception as e:
+        log_warn(f"Failed to get GHA variable {name}: {e}")
+    return None
 
 def set_gha_variable(name: str, value: str) -> bool:
-    """Helper function to set a GHA variable via the global manager."""
-    return GHAConfigManager().set_variable(name, value)
+    """Helper function to set a GHA variable via the native gh cli."""
+    try:
+        proc = run_command(["gh", "variable", "set", name, "--body", str(value)], check=False, log_on_error=False)
+        if proc.returncode == 0:
+            _gha_var_cache[name] = str(value)
+            return True
+        else:
+            log_warn(f"Failed to set GHA variable {name}. stderr: {proc.stderr}")
+    except Exception as e:
+        log_warn(f"Failed to set GHA variable {name}: {e}")
+    return False
 
 def extract_failing_info(logs: str) -> List[dict]:
     """Extracts failing test and build information from logs."""
