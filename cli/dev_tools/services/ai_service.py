@@ -292,7 +292,8 @@ class AIClient:
             f"{_COMMON_REVIEW_GUIDELINES}\n\n"
             "ORDER: Correctness, Security (new input/auth only), Crashes, Data Integrity, Performance, Maintainability.\n"
             "SEVERITY: error (blocking, high confidence only), warn, info. Include 'confidence' (high/medium/low).\n"
-            "OUTPUT: Valid JSON. Counterexamples required for errors.\n\n"
+            "OUTPUT: Valid JSON. Counterexamples required for errors.\n"
+            "JSON MUST be inside a <findings> tag.\n\n"
             f"{truncation_note}Diff:\n{combined_diff}"
         )
 
@@ -398,7 +399,8 @@ class AIClient:
             f"{_COMMON_REVIEW_GUIDELINES}\n\n"
             "ORDER: Correctness > Security > Performance > Maintainability.\n"
             "SEVERITY: error/warn/info. confidence: high/medium/low.\n"
-            "OUTPUT: Valid JSON. Counterexamples required for errors.\n\n"
+            "OUTPUT: Valid JSON. Counterexamples required for errors.\n"
+            "JSON MUST be inside a <findings> tag.\n\n"
             f"Diff:{trunc_note}\n{chunk['diff_text']}"
         )
     def _write_progress_snapshot(

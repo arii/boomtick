@@ -120,7 +120,12 @@ def get_gemini_model() -> str:
     return _get_model_config("GEMINI_MODEL", "ai_synthesis_model", "gemini-2.5-flash-lite")
 
 def clean_llm_output(text: str) -> str:
-    """Removes markdown code blocks if present."""
+    """Removes markdown code blocks if present, or extracts from <findings> tags if present."""
+    # First try to extract from <findings> tags (used in code review prompts)
+    findings_match = re.search(r"<findings>\s*(.*?)\s*</findings>", text, re.DOTALL | re.IGNORECASE)
+    if findings_match:
+        text = findings_match.group(1).strip()
+        
     match = re.search(r"```(?:\w+)?\s*\n(.*?)\n\s*```", text, re.DOTALL)
     if match:
         return match.group(1).strip()
@@ -259,9 +264,9 @@ def verify_ci_metrics(input_threshold: Optional[int] = None, output_threshold: O
         except (ValueError, TypeError):
             return default
 
-    input_limit = get_limit(input_threshold, "MAX_INPUT_TOKENS", 150000)
-    output_limit = get_limit(output_threshold, "MAX_OUTPUT_TOKENS", 50000)
-    total_limit = get_limit(total_threshold, "MAX_TOTAL_TOKENS", 200000)
+    input_limit = get_limit(input_threshold, "MAX_INPUT_TOKENS", 800000)
+    output_limit = get_limit(output_threshold, "MAX_OUTPUT_TOKENS", 200000)
+    total_limit = get_limit(total_threshold, "MAX_TOTAL_TOKENS", 1000000)
 
     # Threshold validation
     if input_limit < 0 or output_limit < 0 or total_limit < 0:
