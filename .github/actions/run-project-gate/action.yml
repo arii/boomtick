@@ -86,6 +86,19 @@ runs:
         fi
       shell: bash
 
+    - name: Python Linting
+      if: inputs.target == 'root'
+      continue-on-error: true
+      run: |
+        echo "::group::Python Linting"
+        trap 'echo "::endgroup::"' EXIT
+        if [ -f "requirements-dev.txt" ]; then
+          pip install -r requirements-dev.txt
+        fi
+        pnpm run lint:python
+        pnpm run type-check:python
+      shell: bash
+
     - name: Run Unit Tests
       env:
         TARGET: ${{ inputs.target }}
