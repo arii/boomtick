@@ -308,6 +308,7 @@ class GitHubClient:
     def submit_pr_review(self, pr_number: int, filepath: str, cleanup: bool = False, dry_run: bool = True, event_override: Optional[str] = None, is_json: bool = False):
         """
         Submits a PR review from a markdown file containing a JSON payload.
+        The file should have standard Markdown at the top and a JSON block at the bottom for metadata.
         """
         from dev_tools.utils import CLIError, log_info, log_warn
         import re
@@ -319,14 +320,42 @@ class GitHubClient:
         with open(filepath, 'r') as f:
             content = f.read()
 
-        json_match = re.search(r'```json\n(.*?)\n```', content, re.DOTALL)
-        if not json_match:
-            raise CLIError("Could not find JSON block in review document")
+        # Find all JSON blocks and identify the metadata block (must contain 'recommendation', 'comments', or 'labels')
+        json_blocks = list(re.finditer(r'```json\n(.*?)\n```', content, re.DOTALL))
+        if not json_blocks:
+            raise CLIError("Could not find any JSON block in review document")
 
-        try:
-            payload = json.loads(json_match.group(1))
-        except json.JSONDecodeError as e:
-            raise CLIError(f"Failed to parse JSON block: {str(e)}")
+        # Known keys used to distinguish the metadata block from other JSON blocks (like code samples)
+        METADATA_IDENTIFIER_KEYS = {"recommendation", "comments", "labels"}
+
+        payload = None
+        metadata_match = None
+        for match in reversed(json_blocks):
+            try:
+                candidate = json.loads(match.group(1))
+                if isinstance(candidate, dict) and any(k in candidate for k in METADATA_IDENTIFIER_KEYS):
+                    payload = candidate
+                    metadata_match = match
+                    break
+            except json.JSONDecodeError:
+                continue
+
+        if not payload:
+            raise CLIError(f"Could not find a valid JSON metadata block (expected keys: {', '.join(METADATA_IDENTIFIER_KEYS)})")
+
+        # Extract Markdown body (everything above the metadata JSON block)
+        body = content[:metadata_match.start()].strip()
+        # Clean up the trailing "Output JSON" instructions if present
+        body = re.split(r'##\s+Output JSON', body, flags=re.IGNORECASE)[0].strip()
+
+        if not body:
+             raise CLIError("Review body (Markdown section) is empty. Provide findings before the JSON block.")
+
+        # Merge extracted body into payload if not already present or if payload body is boilerplate/placeholder
+        existing_body = payload.get("body", "").strip()
+        is_placeholder = any(p in existing_body for p in ["<findings>", "<summary>", "<feedback>"])
+        if not existing_body or is_placeholder:
+            payload["body"] = body
 
         # Validate payload before proceeding
         self.validate_review_payload(payload)
@@ -335,7 +364,21 @@ class GitHubClient:
         check_runs = self.fetch_check_runs(pr_details.get('head', {}).get('sha'))
         failing_checks = [run.get('name') for run in check_runs if run.get('conclusion') == 'failure']
 
-        event = event_override or ("REQUEST_CHANGES" if "Not Approved" in payload.get("body","") else "APPROVE" if "Approved" in payload.get("body","") else "COMMENT")
+        # Determine event based on recommendation field, then fallback to body analysis
+        recommendation = payload.get("recommendation", "")
+        if event_override:
+            event = event_override
+        elif recommendation == "Approved":
+            event = "APPROVE"
+        elif recommendation == "Approved with Minor Changes":
+            # Per code review, minor changes shouldn't automatically approve
+            event = "COMMENT"
+        elif recommendation == "Not Approved":
+            event = "REQUEST_CHANGES"
+        else:
+            event = ("REQUEST_CHANGES" if "Not Approved" in payload.get("body","")
+                     else "APPROVE" if "Approved" in payload.get("body","")
+                     else "COMMENT")
 
         if failing_checks and event == "APPROVE":
             event = "COMMENT"
