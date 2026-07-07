@@ -26,6 +26,9 @@ from dev_tools.services.vector_store import VectorStore
 # Model used for per-file chunk review (code-aware, focused)
 _REVIEW_MODEL = get_ai_review_model()
 
+# Model used for final summary synthesis
+_SYNTHESIS_MODEL = get_ai_model()
+
 # Combined review schema
 _REVIEW_SCHEMA = {
     "type": "object",
@@ -41,11 +44,12 @@ _REVIEW_SCHEMA = {
                         "items": {
                             "type": "object",
                             "properties": {
-                                "line":     {"type": "integer"},
+                                "line": {"type": "integer"},
                                 "severity": {"type": "string"},
-                                "comment":  {"type": "string"},
+                                "comment": {"type": "string"},
+                                "confidence": {"type": "string"},
                             },
-                            "required": ["line", "severity", "comment"],
+                            "required": ["line", "severity", "comment", "confidence"],
                         }
                     },
                     "verdict": {"type": "string"},
@@ -54,11 +58,27 @@ _REVIEW_SCHEMA = {
             }
         },
         "reviewComment": {"type": "string"},
-        "labels":        {"type": "array", "items": {"type": "string"}},
+        "labels": {"type": "array", "items": {"type": "string"}},
         "recommendation": {"type": "string"},
     },
     "required": ["file_reviews", "reviewComment", "labels", "recommendation"],
 }
+
+# Synthesis review schema
+_SYNTHESIS_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "reviewComment": {"type": "string"},
+        "labels": {"type": "array", "items": {"type": "string"}},
+        "recommendation": {"type": "string"},
+    },
+    "required": ["reviewComment", "labels", "recommendation"],
+}
+
+_COMMON_REVIEW_GUIDELINES = """Review ONLY PR changes. Assume original code worked.
+EVIDENCE RULE: Issue must point to exact line + explain runtime consequence.
+FALSE POSITIVE FILTER: No speculation. Design choices are NOT bugs.
+REPO RULES: Prefer removal. Flag redundant wrappers/abstractions. BANNED: Raw Tailwind layout (flex/grid/px-*) in TSX (use Stack/Grid/Box)."""
 
 
 class AIClient:
@@ -255,25 +275,25 @@ class AIClient:
         # Combine diffs up to a reasonable limit (e.g. 100k chars for standard models)
         MAX_COMBINED_CHARS = 100_000
         combined_diff = ""
+        is_truncated = False
         for chunk in reviewable:
             if len(combined_diff) + len(chunk['diff_text']) > MAX_COMBINED_CHARS:
                 combined_diff += "\n\n... (Diff truncated due to size limits)"
+                is_truncated = True
                 break
             combined_diff += f"\n\n{chunk['diff_text']}"
 
+        truncation_note = ""
+        if is_truncated:
+            truncation_note = "\nNOTE: This diff is TRUNCATED. If you need more context to be certain of an issue, state what you are missing instead of speculating.\n"
+
         prompt = (
-            f'You are a strict code reviewer. Review the diff below.\n'
-            f'PR title: {pr_title}\n'
-            f'CI status: {checks_summary}\n\n'
-            f'Rules:\n'
-            f'- Flag ONLY real problems: bugs, type unsafety, broken logic, design rule violations.\n'
-            f'- Use severity "error" for blocking issues, "warn" for improvements, "info" for nits.\n'
-            f'- For file verdicts, set to "ok" (no issues), "needs_changes" (warn/info only), or "blocking" (any error).\n'
-            f'- Provide an overall `reviewComment` summarizing the review.\n'
-            f'- Suggest 1-3 `labels` (e.g. "needs-changes", "lgtm", "ci-failing").\n'
-            f'- Set overall `recommendation` to EXACTLY ONE of: "Approved", "Approved with Minor Changes", or "Not Approved".\n'
-            f'- Output ONLY valid JSON. No prose, no markdown outside the JSON.\n\n'
-            f'Diff:{combined_diff}'
+            f"Review PR: {pr_title}. CI: {checks_summary}\n\n"
+            f"{_COMMON_REVIEW_GUIDELINES}\n\n"
+            "ORDER: Correctness, Security (new input/auth only), Crashes, Data Integrity, Performance, Maintainability.\n"
+            "SEVERITY: error (blocking, high confidence only), warn, info. Include 'confidence' (high/medium/low).\n"
+            "OUTPUT: Valid JSON. Counterexamples required for errors.\n\n"
+            f"{truncation_note}Diff:\n{combined_diff}"
         )
 
         t0 = time.time()
@@ -284,7 +304,7 @@ class AIClient:
         try:
             raw = call_ai(prompt, model=_REVIEW_MODEL, schema=_REVIEW_SCHEMA, max_retries=2)
         except Exception as e:
-            print(f" ❌ ERROR: {e}", flush=True, file=sys.stderr)
+            log_error(f"Review call failed for PR #{pr_num}: {e}")
 
         elapsed = time.time() - t0
 
@@ -373,18 +393,13 @@ class AIClient:
         versions_block = "\n".join([f"- {k}: {v}" for k, v in stack_versions.items()])
 
         return (
-            f'You are a strict code reviewer. Review ONLY the diff below for file "{chunk["file"]}".\n'
-            f'PR title: {pr_title}\n'
-            f'CI status: {checks_summary}\n'
-            f'\n## Current Stack Versions (Source of Truth)\n{versions_block}\n'
-            f'{context_section}\n\n'
-            f'Rules:\n'
-            f'- DO NOT suggest downgrading any versions listed in the "Current Stack Versions" section.\n'
-            f'- Flag ONLY real problems: bugs, type unsafety, broken logic, design rule violations.\n'
-            f'- Use severity "error" for blocking issues, "warn" for improvements, "info" for nits.\n'
-            f'- Set verdict to "ok" (no issues), "needs_changes" (warn/info only), or "blocking" (any error).\n'
-            f'- Output ONLY valid JSON. No prose, no markdown outside the JSON.\n\n'
-            f'Diff:{trunc_note}\n{chunk["diff_text"]}'
+            f"Review {chunk['file']}. PR: {pr_title}. CI: {checks_summary}\n"
+            f"VERSIONS: {versions_block}\n{context_section}\n\n"
+            f"{_COMMON_REVIEW_GUIDELINES}\n\n"
+            "ORDER: Correctness > Security > Performance > Maintainability.\n"
+            "SEVERITY: error/warn/info. confidence: high/medium/low.\n"
+            "OUTPUT: Valid JSON. Counterexamples required for errors.\n\n"
+            f"Diff:{trunc_note}\n{chunk['diff_text']}"
         )
     def _write_progress_snapshot(
         self,
@@ -596,10 +611,11 @@ class AIClient:
         all_issues = []
         for fr in file_reviews:
             for issue in fr.get('issues', []):
+                conf = issue.get('confidence', 'high').upper()
                 all_issues.append({
                     "path": fr['file'],
                     "line": issue.get('line', 1),
-                    "body": f"[{issue.get('severity','?')}] {issue.get('comment','')}",
+                    "body": f"[{issue.get('severity','?')}] (Confidence: {conf}) {issue.get('comment','')}",
                 })
         if not all_issues:
             all_issues = [{"path": "<see reviewComment above>", "line": 1, "body": review_comment[:500]}]
