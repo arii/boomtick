@@ -35,20 +35,22 @@ from dev_tools.config import get_config
 
 
 class LazyOrchestrator:
-    def __init__(self):
-        self._instance = None
+    """Lazy proxy for the Orchestrator to defer heavy imports and initialization."""
+    def __init__(self, factory):
+        # Use super().__setattr__ to avoid recursion during initialization
+        super().__setattr__('_factory', factory)
+        super().__setattr__('_instance', None)
 
     def _get_instance(self):
         if self._instance is None:
-            from dev_tools.orchestrator import Orchestrator
-            self._instance = Orchestrator()
+            super().__setattr__('_instance', self._factory())
         return self._instance
 
     def __getattr__(self, name):
         return getattr(self._get_instance(), name)
 
     def __setattr__(self, name, value):
-        if name in ("_instance",):
+        if name in ("_instance", "_factory"):
             super().__setattr__(name, value)
         else:
             setattr(self._get_instance(), name, value)
@@ -58,18 +60,32 @@ class LazyOrchestrator:
 
 
 PROJECT_CONFIG = get_config()
+DEFAULT_GH_API_LIMIT = PROJECT_CONFIG.default_limit
+
+def limit_option(default_val=DEFAULT_GH_API_LIMIT, help_text='Limit the number of items to process'):
+    def decorator(f):
+        return click.option('--limit', type=int, default=default_val, help=help_text)(f)
+    return decorator
 
 # CLI Group
 @click.group()
-@click.option('--json/--no-json', 'json_output', default=True, help='Output results in JSON format (default: True)')
+@click.option('--json/--no-json', 'json_output', default=True, help='Output results in JSON format')
+@click.option('--no-cache', is_flag=True, default=False, help='Bypass the disk cache for GitHub API calls')
 @click.pass_context
-def cli(ctx, json_output):
+def cli(ctx, json_output, no_cache):
     """Unified Tech-Dancer DevTools CLI"""
     ctx.ensure_object(dict)
+
     # If the user explicitly passed --no-json (if supported) or we want to detect if it's a TTY
     # But for now, we follow the requirement to be JSON by default for machine consumption.
     ctx.obj['JSON'] = json_output
-    ctx.obj['ORCHESTRATOR'] = LazyOrchestrator()
+    ctx.obj['NO_CACHE'] = no_cache
+
+    def orchestrator_factory():
+        from dev_tools.orchestrator import Orchestrator
+        return Orchestrator(no_cache=no_cache)
+
+    ctx.obj['ORCHESTRATOR'] = LazyOrchestrator(orchestrator_factory)
 
 # --- Utility Helpers ---
 def out(ctx, msg, data=None):
@@ -174,7 +190,7 @@ def gh():
 
 @gh.command()
 @click.option('--state', default='open')
-@click.option('--limit', type=int, default=100)
+@limit_option(help_text='Limit the number of PRs to process')
 @click.option('--include-drafts/--no-include-drafts', default=True)
 @click.option('--labels')
 @click.pass_context
@@ -553,10 +569,11 @@ def read_pr_comments(ctx, pr_number):
             click.echo("-" * 20)
 
 @gh.command()
+@limit_option(help_text='Limit the number of open PRs to process')
 @click.pass_context
-def status_board(ctx):
+def status_board(ctx, limit):
     orch = ctx.obj['ORCHESTRATOR']
-    prs = orch.handle_status_board()
+    prs = orch.handle_status_board(limit=limit)
     if not ctx.obj['JSON']:
         click.echo("# Active Agent Work Board\n| Branch | Issue | Status |")
         for pr in prs:
@@ -585,10 +602,11 @@ def update_issues(ctx, dry_run):
 @click.option('--check-responses', is_flag=True)
 @click.option('--cleanup-comments', is_flag=True)
 @click.option('--dry-run/--execute', default=True)
+@limit_option(help_text='Limit the number of PRs to process')
 @click.pass_context
-def manage_reviews(ctx, check_responses, cleanup_comments, dry_run):
+def manage_reviews(ctx, check_responses, cleanup_comments, dry_run, limit):
     orch = ctx.obj['ORCHESTRATOR']
-    prs = orch.manage_reviews(check_responses=check_responses, cleanup_comments=cleanup_comments, dry_run=dry_run)
+    prs = orch.manage_reviews(check_responses=check_responses, cleanup_comments=cleanup_comments, dry_run=dry_run, limit=limit)
     out(ctx, f"Checked {len(prs)} PRs.", data={"prs": prs})
 
 @gh.command()
@@ -676,14 +694,15 @@ def pre_submit(ctx):
     out(ctx, "Pre-submit checks complete.", data={"results": res})
 
 @gh.command()
-@click.option('--limit', type=int, default=50, help='Limit the number of open PRs to process')
-@click.option('--no-cache', is_flag=True, default=False, help='Bust the cache and force fetching data from GitHub')
+@limit_option(help_text='Limit the number of open PRs to process')
 @click.pass_context
-def overlaps(ctx, limit, no_cache):
+def overlaps(ctx, limit):
     """Identify and propose consolidation of PRs with high functional or structural overlap."""
     script_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'dev_tools', 'pr_overlap.py')
     cmd = [sys.executable, script_path, '--limit', str(limit)]
-    if no_cache:
+
+    # Check global NO_CACHE from context object
+    if ctx.obj.get('NO_CACHE'):
         cmd.append('--no-cache')
 
     try:
@@ -937,11 +956,12 @@ def dispatch(ctx, branch, task):
 
 
 @agent_group.command()
+@limit_option(help_text='Limit the number of sessions to retrieve')
 @click.pass_context
-def sync(ctx):
+def sync(ctx, limit):
     """Sync active agent sessions."""
     orch = ctx.obj['ORCHESTRATOR']
-    sessions = orch.jules.list_sessions()
+    sessions = orch.jules.list_sessions(pageSize=limit)
 
     if not ctx.obj['JSON']:
         if not sessions:
@@ -1072,16 +1092,76 @@ def plan_aggregation(ctx):
         _handle_unexpected_error(ctx, "agent plan-aggregation", e)
 
 @agent_group.command(name='run-feedback-check')
+@limit_option(help_text='Limit the number of active sessions to check')
 @click.pass_context
-def run_feedback_check(ctx):
+def run_feedback_check(ctx, limit):
     """Run a one-shot Automated Agent Feedback Check to trigger CI feedback for active sessions."""
     try:
         from dev_tools.daemon import JulesFeedbackDaemon
         daemon_instance = JulesFeedbackDaemon()
-        daemon_instance.run()
+        daemon_instance.run(limit=limit)
         out(ctx, "Feedback check execution completed.", data={"status": "success"})
     except Exception as e:
         _handle_unexpected_error(ctx, "agent run-feedback-check", e)
+
+@cli.command(name='context-warm')
+@click.option('--force', is_flag=True, help='Force re-generation of context even if not stale')
+@click.pass_context
+def context_warm(ctx, force):
+    """Pre-warm the .agent-context.json repository index."""
+    context_file = ".agent-context.json"
+
+    # Determine if the context file is stale or missing
+    is_stale = not os.path.exists(context_file) or force
+
+    if not is_stale:
+        try:
+            # Compare the last commit timestamp of the context file with the HEAD commit
+            # This handles branch switches where the working directory might be clean but context is old
+            res = subprocess.run(
+                ["git", "log", "-1", "--format=%ct", "--", context_file],
+                capture_output=True, text=True, check=True
+            )
+            context_ts = int(res.stdout.strip() or 0)
+
+            res_head = subprocess.run(
+                ["git", "log", "-1", "--format=%ct"],
+                capture_output=True, text=True, check=True
+            )
+            head_ts = int(res_head.stdout.strip() or 0)
+
+            if head_ts > context_ts:
+                is_stale = True
+            else:
+                # Also check for uncommitted changes in the working directory
+                res_diff = subprocess.run(["git", "diff", "--name-only", "HEAD"], capture_output=True, text=True, check=True)
+                is_stale = bool(res_diff.stdout.strip())
+        except Exception as e:
+            log_warn(f"Error checking context staleness via git: {e}")
+            # Fallback to simple mtime check if git fails
+            mtime = os.path.getmtime(context_file)
+            if os.path.exists("package.json") and os.path.getmtime("package.json") > mtime:
+                is_stale = True
+
+    if is_stale:
+        log_info("🧊 Context is stale or missing. Warming up...")
+        try:
+            # Use dynamic resolution from ProjectConfig for the context builder script
+            script_path = PROJECT_CONFIG.context_builder_script
+            if not os.path.exists(script_path):
+                err(ctx, f"Context builder script not found at {script_path}")
+
+            with open(context_file, "w") as f:
+                try:
+                    subprocess.run([sys.executable, script_path], stdout=f, check=True)
+                except subprocess.CalledProcessError as e:
+                    err(ctx, f"Context builder script failed (exit {e.returncode}): {e.stderr or str(e)}")
+
+            out(ctx, "✅ Context pre-warmed successfully.", data={"path": context_file})
+        except Exception as e:
+            _handle_unexpected_error(ctx, "context-warm", e)
+    else:
+        out(ctx, "✅ Context is up-to-date.", data={"path": context_file})
 
 # Register aliases for backwards compatibility
 @cli.group(name='jules')

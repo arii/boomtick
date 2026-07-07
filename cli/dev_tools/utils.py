@@ -7,6 +7,7 @@ import urllib.parse
 import requests
 import re
 import random
+import hashlib
 from pathlib import Path
 from typing import Optional, Union, List, Dict, Any
 def mask_sensitive_data(msg: str) -> str:
@@ -85,6 +86,74 @@ def get_or_create_log_dir(subdir: str) -> str:
     log_dir = os.path.join(get_base_dir(), "logs", subdir)
     os.makedirs(log_dir, exist_ok=True)
     return log_dir
+
+
+class DiskCache:
+    """Lightweight disk-based cache for JSON-serializable data."""
+    def __init__(self, subdir: str = "cache", no_cache: bool = False):
+        self.cache_dir = get_or_create_log_dir(subdir)
+        # Use explicit parameter or TD_NO_CACHE to bypass the cache
+        self.no_cache = no_cache or os.environ.get("TD_NO_CACHE") == "true"
+
+    def _get_path(self, key: str) -> Path:
+        hashed_key = hashlib.sha256(key.encode('utf-8')).hexdigest()
+        return Path(self.cache_dir) / f"{hashed_key}.json"
+
+    def get(self, key: str) -> Optional[Any]:
+        if self.no_cache:
+            return None
+
+        path = self._get_path(key)
+        if not path.exists():
+            return None
+
+        try:
+            with path.open('r') as f:
+                data = json.load(f)
+
+            expires_at = data.get("expires_at")
+            if expires_at and time.time() > expires_at:
+                path.unlink()
+                return None
+
+            return data.get("value")
+        except Exception as e:
+            log_warn(f"Failed to read cache for {key}: {e}")
+            return None
+
+    def set(self, key: str, value: Any, ttl: Optional[int] = None):
+        if self.no_cache:
+            return
+
+        path = self._get_path(key)
+        data = {
+            "value": value,
+            "created_at": time.time(),
+            "expires_at": (time.time() + ttl) if ttl else None
+        }
+
+        try:
+            with path.open('w') as f:
+                json.dump(data, f)
+        except Exception as e:
+            log_warn(f"Failed to write cache for {key}: {e}")
+
+    def delete(self, key: str):
+        path = self._get_path(key)
+        if path.exists():
+            try:
+                path.unlink()
+            except Exception as e:
+                log_warn(f"Failed to delete cache for {key}: {e}")
+
+    def clear(self):
+        """Clears all cached items in this subdir without removing the directory."""
+        try:
+            for file_path in Path(self.cache_dir).iterdir():
+                if file_path.is_file():
+                    file_path.unlink()
+        except Exception as e:
+            log_warn(f"Failed to clear cache: {e}")
 
 
 class APIConnectionError(Exception):

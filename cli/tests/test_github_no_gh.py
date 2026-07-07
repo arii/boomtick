@@ -15,7 +15,7 @@ class TestGitHubClientNoGH(unittest.TestCase):
         mock_response.raise_for_status.return_value = None
         mock_request.return_value = mock_response
 
-        client = GitHubClient(token="fake_token", repo="owner/repo")
+        client = GitHubClient(token="fake_token", repo="owner/repo", no_cache=True)
         client.fetch_check_runs("fake_ref")
 
         # Verify subprocess.run was NOT called with 'gh'
@@ -38,7 +38,7 @@ class TestGitHubClientNoGH(unittest.TestCase):
 
         mock_request.side_effect = [mock_response1, mock_response2]
 
-        client = GitHubClient(token="fake_token", repo="owner/repo")
+        client = GitHubClient(token="fake_token", repo="owner/repo", no_cache=True)
         prs = client.list_pull_requests(limit=105)
 
         self.assertEqual(len(prs), 101)
@@ -67,7 +67,7 @@ class TestGitHubClientNoGH(unittest.TestCase):
         mock_response.status_code = 200
         mock_request.return_value = mock_response
 
-        client = GitHubClient(token="fake_token", repo="owner/repo")
+        client = GitHubClient(token="fake_token", repo="owner/repo", no_cache=True)
         prs = client.list_pull_requests(labels=["bug", "ui"])
 
         self.assertEqual(len(prs), 1)
@@ -88,7 +88,7 @@ class TestGitHubClientNoGH(unittest.TestCase):
         mock_response.raise_for_status.return_value = None
         mock_request.return_value = mock_response
 
-        client = GitHubClient(token="fake_token", repo="owner/repo")
+        client = GitHubClient(token="fake_token", repo="owner/repo", no_cache=True)
         client.list_pull_requests(limit=10)
 
         # Verify subprocess.run was NOT called with 'gh'

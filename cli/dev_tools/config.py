@@ -38,6 +38,7 @@ class ProjectConfig:
         "src/features", "src/pages", "src/components", "src/layouts", "src/App.tsx"
     ])
     cli_alias: str = "td-cli"
+    default_limit: int = 10
     allowed_bots: List[str] = field(default_factory=lambda: [
         "github-actions[bot]"
     ])
@@ -62,6 +63,11 @@ class ProjectConfig:
         if not self.base_branch:
             return "main"
         return self.base_branch.split('/')[-1]
+
+    @property
+    def context_builder_script(self) -> str:
+        """Returns the absolute path to the context builder script."""
+        return os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "scripts", "build-repo-context.py")
 
 
 @functools.lru_cache()

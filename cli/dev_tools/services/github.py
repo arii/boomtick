@@ -2,7 +2,7 @@ import os
 import subprocess
 import json
 import sys
-from dev_tools.utils import log_info
+from dev_tools.utils import log_info, DiskCache
 import base64
 import requests
 import time
@@ -10,7 +10,7 @@ from typing import Optional, List, Dict, Any
 from urllib.parse import quote
 
 class GitHubClient:
-    def __init__(self, token: Optional[str] = None, repo: Optional[str] = None):
+    def __init__(self, token: Optional[str] = None, repo: Optional[str] = None, no_cache: bool = False):
         from dev_tools.utils import get_github_token
         self.token = token or get_github_token()
         if not self.token:
@@ -25,6 +25,7 @@ class GitHubClient:
             "Accept": "application/vnd.github.v3+json",
         })
         self._branch_cache = {}
+        self._cache = DiskCache(subdir="github", no_cache=no_cache)
 
     def branch_exists(self, branch_name: str) -> bool:
         """Checks if a branch exists in the repository, with caching."""
@@ -52,8 +53,17 @@ class GitHubClient:
             return ""
 
 
-    def _request(self, method: str, path: str, json_data: Optional[Dict] = None, params: Optional[Dict] = None, is_text: bool = False, accept: Optional[str] = None, allow_redirects: bool = True) -> Any:
+    def _request(self, method: str, path: str, json_data: Optional[Dict] = None, params: Optional[Dict] = None, is_text: bool = False, accept: Optional[str] = None, allow_redirects: bool = True, ttl: int = 300) -> Any:
         url = f"{self.base_url}{path}"
+
+        # Cache key based on request details
+        cache_key = f"{method}:{path}:{json.dumps(params, sort_keys=True) if params else ''}:{accept}:{is_text}"
+
+        if method == "GET":
+            cached_val = self._cache.get(cache_key)
+            if cached_val is not None:
+                return cached_val
+
         headers = {}
         if accept:
             headers["Accept"] = accept
@@ -71,16 +81,21 @@ class GitHubClient:
                 allow_redirects=allow_redirects
             )
             response.raise_for_status()
-            if is_text:
-                return response.text
-            return response.json()
+
+            result = response.text if is_text else response.json()
+
+            if method == "GET":
+                self._cache.set(cache_key, result, ttl=ttl)
+
+            return result
         except requests.exceptions.RequestException:
              # Preserve the original requests exception for specific status code handling in callers
              raise
 
     def fetch_pr_files(self, number: int) -> List[Dict[str, Any]]:
         """Fetches the list of files changed in a PR."""
-        return self._request('GET', f'/repos/{self.repo}/pulls/{number}/files')
+        # PR files usually don't change once a commit is pushed, but we'll use a shorter TTL
+        return self._request('GET', f'/repos/{self.repo}/pulls/{number}/files', ttl=600)
 
     def fetch_pr_details(self, number: int) -> Dict[str, Any]:
         return self._request('GET', f'/repos/{self.repo}/pulls/{number}')
@@ -110,28 +125,30 @@ class GitHubClient:
         data = self._request('GET', f'/repos/{self.repo}/check-suites/{suite_id}/check-runs')
         return data.get('check_runs', [])
 
+    def search_pull_requests(self, query: str, limit: int = 10) -> List[Dict[str, Any]]:
+        """General search for pull requests using the Search API."""
+        full_query = f"repo:{self.repo} is:pr {query}"
+        data = self._request('GET', '/search/issues', params={"q": full_query, "per_page": limit})
+        items = data.get('items', []) if isinstance(data, dict) else []
+
+        return [{
+            "number": pr.get("number"),
+            "title": pr.get("title"),
+            "body": pr.get("body"),
+            "author": {"login": pr.get("user", {}).get("login")},
+            "isDraft": pr.get("draft"),
+            "updatedAt": pr.get("updated_at"),
+            "url": pr.get("html_url")
+        } for pr in items[:limit]]
+
     def list_pull_requests(self, state: str = 'open', limit: int = 100, labels: Optional[List[str]] = None) -> List[Dict[str, Any]]:
         """Lists pull requests with optional server-side label filtering or standard Pulls API."""
         if labels:
             # Use Search API for efficient server-side label filtering
-            query = f"repo:{self.repo} is:pr state:{state}"
+            query = f"state:{state}"
             for label in labels:
                 query += f' label:"{label}"'
-
-            data = self._request('GET', '/search/issues', params={"q": query, "per_page": limit})
-            # Search API returns { "items": [...] }
-            items = data.get('items', []) if isinstance(data, dict) else []
-
-            # Map search items to the unified internal format
-            return [{
-                "number": pr.get("number"),
-                "title": pr.get("title"),
-                "author": {"login": pr.get("user", {}).get("login")},
-                "isDraft": pr.get("draft"),
-                "updatedAt": pr.get("updated_at"),
-                "url": pr.get("html_url")
-                # Note: Search items lack 'headRefName' and 'baseRefName' without extra API calls
-            } for pr in items[:limit]]
+            return self.search_pull_requests(query, limit=limit)
 
         # Fallback to standard Pulls API if no labels, using internal pagination
         prs = []
