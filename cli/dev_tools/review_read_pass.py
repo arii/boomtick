@@ -10,11 +10,6 @@ parse_diff_into_file_chunks(diff_text) -> list[dict]
     large files) and applies skip rules so non-code assets are never sent
     to the AI reviewer.
 
-parse_diff_into_hunks(diff_text) -> list[dict]
-    Legacy hunk-level parser (kept for backward compatibility).
-
-extract_review_signals(hunks) -> dict
-    Static signal extraction (kept for backward compatibility).
 """
 
 import json
