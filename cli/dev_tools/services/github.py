@@ -215,6 +215,14 @@ class GitHubClient:
         """Fetches the details of a GitHub issue."""
         return self._request('GET', f'/repos/{self.repo}/issues/{number}')
 
+    def fetch_issue_comments(self, number: int) -> List[Dict[str, Any]]:
+        """Fetches the comments on an issue or pull request."""
+        return self._request('GET', f'/repos/{self.repo}/issues/{number}/comments')
+
+    def fetch_review_comments(self, number: int) -> List[Dict[str, Any]]:
+        """Fetches the review comments on a pull request."""
+        return self._request('GET', f'/repos/{self.repo}/pulls/{number}/comments')
+
     def update_issue(self, number: int, body: Optional[str] = None, labels: Optional[List[str]] = None) -> Dict[str, Any]:
         """Updates a GitHub issue's body and/or labels."""
         data = {}

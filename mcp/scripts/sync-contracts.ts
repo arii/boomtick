@@ -37,7 +37,10 @@ async function syncContracts() {
     tsContent += `export type ${name} = z.infer<typeof ${name}Schema>;\n\n`;
   }
 
-  fs.writeFileSync(outputPath, tsContent);
+  // Normalize newlines to \n and ensure exactly one trailing newline at EOF
+  const finalContent = tsContent.replace(/\r\n/g, '\n').trimEnd() + '\n';
+
+  fs.writeFileSync(outputPath, finalContent);
   console.log(`Generated ${outputPath}`);
 }
 

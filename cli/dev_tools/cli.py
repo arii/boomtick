@@ -10,7 +10,7 @@ from typing import Any, Dict, List
 
 import click
 
-from dev_tools.models import CreateIssueInput, SearchPRsInput, IssueUpdateInput
+from dev_tools.models import CreateIssueInput, SearchPRsInput, IssueUpdateInput, ReadPRCommentsInput, ReadPRCommentsResponse
 from dev_tools.utils import (
     get_or_create_log_dir,
     CLIError,
@@ -27,7 +27,8 @@ from dev_tools.utils import (
     get_bundle_size,
     get_any_count,
     verify_pr_scope,
-    verify_ci_metrics
+    verify_ci_metrics,
+    mask_sensitive_data
 )
 from dev_tools.config import get_config
 
@@ -80,12 +81,14 @@ def out(ctx, msg, data=None):
         click.echo(msg)
 
 def err(ctx, msg, code=1, data=None):
+    # Ensure sensitive data is masked in the error message
+    masked_msg = mask_sensitive_data(msg)
     if ctx.obj['JSON']:
-        payload = {"status": "error", "message": msg, "code": code}
+        payload = {"status": "error", "message": masked_msg, "code": code}
         if data: payload.update({"data": data})
         click.echo(json.dumps(payload, indent=2))
     else:
-        click.echo(f"❌ Error: {msg}", err=True)
+        click.echo(f"❌ Error: {masked_msg}", err=True)
     sys.exit(code)
 
 def _handle_unexpected_error(ctx, command_name, error):
@@ -504,6 +507,50 @@ def post_comment(ctx, pr, file, body):
     content = _get_body_content(ctx, orch, file, body)
     res = orch.post_comment(pr, content)
     out(ctx, f"✅ Successfully posted comment to PR #{pr}", data=res)
+
+@gh.command(name='read-pr-comments')
+@click.option('--pr-number', required=True, type=int, help="The PR number to fetch comments for.")
+@click.pass_context
+def read_pr_comments(ctx, pr_number):
+    """Fetch and display standard and review comments for a PR."""
+    if pr_number <= 0:
+        err(ctx, "PR number must be a positive integer.")
+
+    orch = ctx.obj['ORCHESTRATOR']
+
+    # Input contract validation
+    try:
+        ReadPRCommentsInput(pr_number=pr_number)
+    except Exception as e:
+        _handle_unexpected_error(ctx, "read-pr-comments", e)
+
+    res = orch.get_pr_comments(pr_number)
+
+    # Response contract validation
+    try:
+        ReadPRCommentsResponse(**res)
+    except Exception as e:
+        log_warn(f"Response validation failed for read-pr-comments: {e}")
+
+    if ctx.obj['JSON']:
+        out(ctx, f"Fetched comments for PR #{pr_number}", data=res)
+    else:
+        pr = res['pr']
+        click.echo(f"PR #{pr['number']}: {pr['title']}")
+        click.echo("--- Comments ---")
+        for comment in res.get('comments', []):
+            body = click.unstyle(comment.get('body', ''))
+            click.echo(f"[{comment['user']}]: {body}")
+            click.echo("-" * 20)
+
+        click.echo("\n--- Review Comments ---")
+        for comment in res.get('review_comments', []):
+            path = comment.get('path')
+            line = comment.get('line')
+            location = f"{path}:{line}" if line else path
+            body = click.unstyle(comment.get('body', ''))
+            click.echo(f"[{comment['user']}] in {location}: {body}")
+            click.echo("-" * 20)
 
 @gh.command()
 @click.pass_context

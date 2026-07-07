@@ -1222,6 +1222,37 @@ Respond only after the PR is created or updated:
             "prs": [PRSummary(**pr).model_dump() for pr in prs]
         }
 
+    def get_pr_comments(self, pr_number: int) -> Dict[str, Any]:
+        """Fetches and aggregates standard issue comments and inline review comments for a PR."""
+        pr = self.github.fetch_pr_details(pr_number)
+        issue_comments = self.github.fetch_issue_comments(pr_number)
+        review_comments = self.github.fetch_review_comments(pr_number)
+
+        return {
+            "pr": {
+                "number": pr.get("number"),
+                "title": pr.get("title"),
+                "state": pr.get("state"),
+                "html_url": pr.get("html_url")
+            },
+            "comments": [
+                {
+                    "user": c.get("user", {}).get("login"),
+                    "body": c.get("body"),
+                    "created_at": c.get("created_at")
+                } for c in issue_comments
+            ],
+            "review_comments": [
+                {
+                    "user": c.get("user", {}).get("login"),
+                    "path": c.get("path"),
+                    "line": c.get("line"),
+                    "body": c.get("body"),
+                    "created_at": c.get("created_at")
+                } for c in review_comments
+            ]
+        }
+
     def trigger_jules_feedback(self, session_id: str) -> Dict[str, Any]:
         """Ports logic from trigger-feedback.ts to provide CI feedback to Jules."""
         session = self.jules.get_session(session_id)
