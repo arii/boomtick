@@ -1049,6 +1049,89 @@ Respond only after the PR is created or updated:
         generate_report()
         return {"status": "success", "report": "artifacts/ux-audit/ux-audit-report.md"}
 
+    def plan_issue_audit(self, issue_numbers: Optional[List[int]] = None, all_open: bool = False, limit: int = 100) -> Dict[str, Any]:
+        """
+        Builds a deterministic roadmap and status checklist for auditing open issues.
+        """
+        issues = []
+        if all_open:
+            issues = self.github.list_issues(state='open', limit=limit)
+        elif issue_numbers:
+            for num in issue_numbers:
+                issue = self.github.fetch_issue_details(num)
+                # Normalize format to match list_issues
+                issues.append({
+                    "number": issue.get("number"),
+                    "title": issue.get("title"),
+                    "body": issue.get("body"),
+                    "state": issue.get("state"),
+                    "html_url": issue.get("html_url"),
+                    "labels": [l.get('name') if isinstance(l, dict) else l for l in issue.get('labels', [])],
+                    "updated_at": issue.get("updated_at")
+                })
+        else:
+            raise CLIError("Provide --issue or --all-open")
+
+        # 1. Summary Checklist Generation (issue-audit-status.md)
+        status_path = "issue-audit-status.md"
+        status_lines = [
+            "# Issue Audit Status",
+            f"**Generated:** {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC')}",
+            "\n## Open Issues Checklist\n"
+        ]
+        for issue in issues:
+            status_lines.append(f"- [ ] #{issue['number']}: {issue['title']}")
+
+        with open(status_path, "w") as f:
+            f.write("\n".join(status_lines) + "\n")
+
+        # 2. Individual Workflow Plan Generation
+        plan_dir = get_or_create_log_dir("workflows")
+        generated_plans = []
+
+        for issue in issues:
+            plan_path = os.path.join(plan_dir, f"workflow-plan-issue-{issue['number']}.md")
+
+            with open(plan_path, "w") as f:
+                f.write(f"""# Workflow Plan: Issue #{issue['number']}
+
+## Issue Context
+- **Title:** {issue['title']}
+- **URL:** {issue['html_url']}
+- **Labels:** {', '.join(issue['labels']) if issue['labels'] else '_None_'}
+
+## Audit Instructions
+
+Before auditing, read `docs/agent/issue-audit-rules.md`.
+
+### Step 1: Understand Intent
+Analyze the problem statement and goal in the issue description.
+
+### Step 2: Codebase Inspection
+Locate relevant files, components, or routes described in the issue.
+
+### Step 3: Verification
+Verify if the requested change is already implemented, partially addressed, or missing.
+
+### Step 4: Documentation & Closure Recommendation
+Follow the "Audit comment template" in `docs/agent/issue-audit-rules.md` to post your findings.
+
+---
+
+## Issue Body Excerpt
+```markdown
+{issue['body'] or '_No description provided._'}
+```
+""")
+            generated_plans.append(plan_path)
+
+        return {
+            "status": "success",
+            "issues_count": len(issues),
+            "status_file": status_path,
+            "workflow_plans": generated_plans
+        }
+
     def run_playwright(self, grep: Optional[str] = None, worktree_path: Optional[str] = None) -> Dict[str, Any]:
         """Runs Playwright tests and parses the JSON report."""
         playwright_args = ["playwright", "test", "--reporter=json"]

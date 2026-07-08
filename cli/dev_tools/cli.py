@@ -1091,6 +1091,20 @@ def plan_aggregation(ctx):
     except Exception as e:
         _handle_unexpected_error(ctx, "agent plan-aggregation", e)
 
+@agent_group.command(name='plan-issue-audit')
+@click.option('--issue', 'issue_numbers', multiple=True, type=int, help='Issue number(s) to audit')
+@click.option('--all-open', is_flag=True, help='Audit all open issues')
+@limit_option(help_text='Limit the number of open issues to process')
+@click.pass_context
+def plan_issue_audit(ctx, issue_numbers, all_open, limit):
+    """Generate deterministic roadmap and checklist for auditing open issues."""
+    orch = ctx.obj['ORCHESTRATOR']
+    try:
+        res = orch.plan_issue_audit(issue_numbers=list(issue_numbers), all_open=all_open, limit=limit)
+        out(ctx, f"Issue audit plan generated. Summary: {res['status_file']}", data=res)
+    except Exception as e:
+        _handle_unexpected_error(ctx, "agent plan-issue-audit", e)
+
 @agent_group.command(name='run-feedback-check')
 @limit_option(help_text='Limit the number of active sessions to check')
 @click.pass_context

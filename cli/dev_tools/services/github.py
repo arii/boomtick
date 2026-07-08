@@ -232,6 +232,26 @@ class GitHubClient:
         """Fetches the details of a GitHub issue."""
         return self._request('GET', f'/repos/{self.repo}/issues/{number}')
 
+    def list_issues(self, state: str = 'open', limit: int = 100, labels: Optional[List[str]] = None) -> List[Dict[str, Any]]:
+        """Lists issues (excluding pull requests) with optional filters."""
+        query = f"repo:{self.repo} is:issue state:{state}"
+        if labels:
+            for label in labels:
+                query += f' label:"{label}"'
+
+        data = self._request('GET', '/search/issues', params={"q": query, "per_page": limit})
+        items = data.get('items', []) if isinstance(data, dict) else []
+
+        return [{
+            "number": issue.get("number"),
+            "title": issue.get("title"),
+            "body": issue.get("body"),
+            "state": issue.get("state"),
+            "html_url": issue.get("html_url"),
+            "labels": [l.get('name') if isinstance(l, dict) else l for l in issue.get('labels', [])],
+            "updated_at": issue.get("updated_at")
+        } for issue in items[:limit]]
+
     def fetch_issue_comments(self, number: int) -> List[Dict[str, Any]]:
         """Fetches the comments on an issue or pull request."""
         return self._request('GET', f'/repos/{self.repo}/issues/{number}/comments')
