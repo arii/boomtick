@@ -65,9 +65,11 @@ runs:
           if [ -d "boomtick-pkg/cli" ]; then
             PYTHONPATH=boomtick-pkg/cli python3 boomtick-pkg/cli/dev_tools/schema_gen.py
             npx tsx boomtick-pkg/mcp/scripts/sync-contracts.ts
+            pnpm --filter ./boomtick-pkg/mcp run sync:mcp-schemas
           else
             PYTHONPATH=cli python3 cli/dev_tools/schema_gen.py
             npx tsx mcp/scripts/sync-contracts.ts
+            pnpm --filter ./mcp run sync:mcp-schemas
           fi
         fi
 
