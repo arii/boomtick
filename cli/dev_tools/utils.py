@@ -227,18 +227,19 @@ def to_standard_schema(schema):
 
 def call_ai(prompt: str, model: str = None, url: Optional[str] = None, max_retries: int = 3, schema = None) -> Optional[str]:
     """Unified helper to call AI API using LangChain ChatOpenAI with retries."""
+
+    token = get_github_token()
+    if not token:
+        return None
+
+    model = model or get_ai_model()
+
     try:
         from langchain_openai import ChatOpenAI
         from langchain_core.messages import HumanMessage
     except ImportError:
         log_info("langchain_openai or langchain_core is not installed.")
         return None
-
-    token = os.getenv("GITHUB_TOKEN")
-    if not token:
-        return None
-
-    model = model or get_ai_model()
 
     llm = ChatOpenAI(
         base_url="https://models.inference.ai.azure.com",
@@ -392,15 +393,16 @@ def verify_ci_metrics(input_threshold: Optional[int] = None, output_threshold: O
 
 def call_gemini(prompt: str, model: str = None, max_retries: int = 3, schema = None) -> Optional[str]:
     """Unified helper to call Gemini API using LangChain."""
+
+    api_key = os.environ.get("GEMINI_API_KEY")
+    if not api_key:
+        return None
+
     try:
         from langchain_google_genai import ChatGoogleGenerativeAI
         from langchain_core.messages import HumanMessage
     except ImportError:
         log_info("langchain_google_genai or langchain_core is not installed.")
-        return None
-
-    api_key = os.environ.get("GEMINI_API_KEY")
-    if not api_key:
         return None
 
     llm = ChatGoogleGenerativeAI(

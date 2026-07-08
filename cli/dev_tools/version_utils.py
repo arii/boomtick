@@ -52,7 +52,8 @@ def fetch_latest_gh_action(action_path: str) -> Optional[str]:
         url = f"https://api.github.com/repos/{action_path}/releases/latest"
         headers = {}
         # Try to use token if available
-        token = os.environ.get("GITHUB_TOKEN") or os.environ.get("GH_TOKEN")
+        from dev_tools.utils import get_github_token
+        token = get_github_token()
         if token:
             headers["Authorization"] = f"token {token}"
 
