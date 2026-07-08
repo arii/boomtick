@@ -67,8 +67,10 @@ def limit_option(default_val=DEFAULT_GH_API_LIMIT, help_text='Limit the number o
         return click.option('--limit', type=int, default=default_val, help=help_text)(f)
     return decorator
 
+CONTEXT_SETTINGS = dict(help_option_names=["-h", "--help"])
+
 # CLI Group
-@click.group()
+@click.group(context_settings=CONTEXT_SETTINGS)
 @click.option('--json/--no-json', 'json_output', default=True, help='Output results in JSON format')
 @click.option('--no-cache', is_flag=True, default=False, help='Bypass the disk cache for GitHub API calls')
 @click.pass_context
@@ -1196,6 +1198,11 @@ for group in [jules_group]:
     group.add_command(send)
     group.add_command(plan_review)
     group.add_command(plan_aggregation)
+
+for group in [agent_group, jules_group]:
+    group.add_command(get_session, name='session')
+    group.add_command(sync, name='list')
+    group.add_command(sync, name='list-sessions')
 
 
 def main():

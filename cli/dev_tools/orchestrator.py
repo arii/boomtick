@@ -620,7 +620,7 @@ class Orchestrator:
                     json_start = output.find("{")
                     json_end = output.rfind("}") + 1
                     audit_data = json.loads(output[json_start:json_end])
-                    for filepath, violations in audit_data.items():
+                    for filepath, violations in audit_data.get("violations", {}).items():
                         for v in violations:
                             auto_findings.append({"path": filepath, "issue": f"{v['pattern']}: {v['message']} (value: {v.get('value', 'N/A')})", "severity": v.get('severity', 'minor')})
             res["auto_findings"] = auto_findings
