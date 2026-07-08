@@ -27,6 +27,9 @@ find_repo_root() {
 REPO_ROOT="$(find_repo_root "$START_DIR" || find_repo_root "$SCRIPT_DIR" || pwd -P)"
 cd "$REPO_ROOT"
 
+CLI_ROOT="$(bash scripts/resolve-cli.sh)"
+export CLI_ROOT
+
 # -------- configuration --------
 PNPM_VERSION="${PNPM_VERSION:-10.28.2}"
 NODE_MAJOR="${NODE_MAJOR:-24}"
@@ -208,13 +211,9 @@ install_python_deps() {
     pip_install --root-user-action=ignore -r requirements-dev.txt
   fi
 
-  if [ -f "boomtick-pkg/cli/pyproject.toml" ]; then
-    log "Installing boomtick-cli in editable mode..."
-    # Use standard user prefix to ensure deterministic binary location
-    python3 -m pip install --user -e "${REPO_ROOT}/boomtick-pkg/cli" --break-system-packages
-
+  if [ -f "${CLI_ROOT}/pyproject.toml" ]; then
+    (cd "${REPO_ROOT}/boomtick-pkg" && bash install.sh --no-mcp)
     export PATH="$HOME/.local/bin:$PATH"
-
     if ! have td-cli || ! have td; then
       err "td/td-cli not found on PATH after editable install. Path: $PATH"
     fi
@@ -224,8 +223,8 @@ install_python_deps() {
     STATUS_PYTHON="INSTALLED (minimal)"
   fi
 
-  if [ -f "requirements-dev.txt" ]; then
-    pip_install --root-user-action=ignore -r requirements-dev.txt
+  if [ -f "${CLI_ROOT}/requirements-dev.txt" ]; then
+    pip_install --root-user-action=ignore -r "${CLI_ROOT}/requirements-dev.txt"
     STATUS_PYTHON="${STATUS_PYTHON} + DEV"
   fi
 

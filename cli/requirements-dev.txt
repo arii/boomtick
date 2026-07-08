@@ -1,0 +1,16 @@
+pytest
+pytest-mock
+pylint
+mypy
+types-requests
+types-click
+requests
+click
+chromadb
+langchain-openai
+langchain-google-genai
+google-genai
+pydantic
+PyGithub
+langchain-core
+google-generativeai
