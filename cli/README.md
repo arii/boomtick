@@ -47,7 +47,7 @@ export GEMINI_API_KEY="<key>"
 
 - `SKIP_GIT_HOOKS=1` — skip git hook execution (e.g. in CI).
 - `SKIP_VALIDATION=1` — skip post-setup runtime validation.
-- `NODE_MAJOR` — override Node major used for apt installation (defaults to `22`).
+- `NODE_MAJOR` — override Node major used for apt installation (defaults to `24`).
 
 ---
 

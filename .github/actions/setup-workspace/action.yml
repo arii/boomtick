@@ -79,6 +79,9 @@ runs:
       if: inputs.setup-python == 'true'
       run: |
         echo "::group::Install dev-tools"
+        if [ -f "requirements-dev.txt" ]; then
+          pip install -r requirements-dev.txt --break-system-packages
+        fi
         if [ -d "boomtick-pkg/cli" ]; then
           pip install -e boomtick-pkg/cli/ --break-system-packages
         else

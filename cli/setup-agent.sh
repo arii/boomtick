@@ -203,8 +203,18 @@ install_python_deps() {
   # satisfy boomtick-cli requirement of setuptools < 81
   pip_install --root-user-action=ignore --upgrade pip "setuptools<81.0.0" wheel
 
+  if [ -f "requirements-dev.txt" ]; then
+    log "Installing from requirements-dev.txt..."
+    pip_install --root-user-action=ignore -r requirements-dev.txt
+  fi
+
   if [ -f "boomtick-pkg/cli/pyproject.toml" ]; then
-    (cd "${REPO_ROOT}/boomtick-pkg" && bash install.sh --no-mcp)
+    log "Installing boomtick-cli in editable mode..."
+    # Use standard user prefix to ensure deterministic binary location
+    python3 -m pip install --user -e "${REPO_ROOT}/boomtick-pkg/cli" --break-system-packages
+
+    export PATH="$HOME/.local/bin:$PATH"
+
     if ! have td-cli || ! have td; then
       err "td/td-cli not found on PATH after editable install. Path: $PATH"
     fi
@@ -250,7 +260,7 @@ install_playwright() {
   fi
 
   log "Installing Playwright browsers..."
-  if pnpm exec playwright install || npx --yes playwright install; then
+  if pnpm exec playwright install --with-deps || npx --yes playwright install --with-deps; then
     STATUS_PLAYWRIGHT="INSTALLED"
   else
     STATUS_PLAYWRIGHT="FAILED"
@@ -287,10 +297,62 @@ configure_git_hooks() {
   if ! git rev-parse --is-inside-work-tree >/dev/null 2>&1; then return 0; fi
   log "Configuring git hooks path to .githooks..."
   if git config core.hooksPath .githooks; then
-    [ "$STATUS_GIT" = "PENDING" ] && STATUS_GIT="INSTALLED"
+    if [ "$STATUS_GIT" = "PENDING" ]; then
+      STATUS_GIT="INSTALLED"
+    fi
   else
     STATUS_GIT="FAILED (git config)"
   fi
+}
+
+persist_environment() {
+  log "Persisting environment settings to ~/.config/boomtick/env.sh..."
+  local env_file="$HOME/.config/boomtick/env.sh"
+  local target_rc=""
+
+  # Detect user shell to determine appropriate RC file
+  local user_shell
+  user_shell=$(basename "${SHELL:-/bin/bash}")
+
+  case "$user_shell" in
+    bash) target_rc="$HOME/.bashrc" ;;
+    zsh)  target_rc="$HOME/.zshrc" ;;
+    *)
+      warn "Persistence not automatically supported for shell: $user_shell. Manual setup required."
+      target_rc="$HOME/.bashrc" # Fallback to bashrc
+      ;;
+  esac
+
+  mkdir -p "$(dirname "$env_file")"
+
+  # Create or overwrite the env file with current settings
+  cat << EOE > "$env_file"
+# BoomTick Environment Settings
+export NODE_MAJOR="${NODE_MAJOR}"
+export NVM_DIR="\$HOME/.nvm"
+[ -s "\$NVM_DIR/nvm.sh" ] && \. "\$NVM_DIR/nvm.sh"
+nvm use ${NODE_MAJOR} >/dev/null 2>&1 || nvm install ${NODE_MAJOR} >/dev/null 2>&1
+nvm alias default ${NODE_MAJOR} >/dev/null 2>&1
+
+export PATH="\$HOME/.local/bin:\$PATH"
+export PNPM_HOME="\$HOME/.local/share/pnpm"
+export PATH="\$PNPM_HOME:\$PATH"
+EOE
+
+  # Source the env file in target RC if not already present
+  if [ -f "$target_rc" ]; then
+    if ! grep -Fq "source \"$env_file\"" "$target_rc"; then
+      echo "" >> "$target_rc"
+      echo "# Load BoomTick environment settings" >> "$target_rc"
+      echo "[ -f \"$env_file\" ] && source \"$env_file\"" >> "$target_rc"
+      log "Updated $target_rc with BoomTick environment loader."
+    fi
+  else
+    warn "RC file $target_rc not found. Environment may not persist across sessions."
+  fi
+
+  # Apply to current session
+  source "$env_file"
 }
 
 run_validation() {
@@ -361,6 +423,8 @@ main() {
   [ -n "$pid_python" ] && { wait $pid_python || { warn "Python block failed"; failed=1; }; }
   [ -n "$pid_node" ] && { wait $pid_node || { warn "Node block failed"; failed=1; }; }
   [ -n "$pid_git" ] && { wait $pid_git || { warn "Git block failed"; failed=1; }; }
+
+  persist_environment
 
   [ -f .status_python ] && STATUS_PYTHON=$(cat .status_python) && rm .status_python || { [ -n "$pid_python" ] && STATUS_PYTHON="FAILED"; }
   [ -f .status_node ] && STATUS_NODE=$(cat .status_node) && rm .status_node || { [ -n "$pid_node" ] && STATUS_NODE="FAILED"; }
