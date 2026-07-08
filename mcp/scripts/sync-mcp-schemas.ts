@@ -1,6 +1,5 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import { MCP_TOOLS } from '../src/mcp/definitions.js';
 
 const homeDir = process.env.HOME || process.env.USERPROFILE || '';
 const globalTargetDir = homeDir ? path.join(homeDir, '.gemini', 'antigravity-cli', 'mcp', 'boomtick-mcp') : null;
@@ -17,8 +16,31 @@ function isWritable(dir: string): boolean {
   }
 }
 
-function syncSchemas() {
+interface ToolDefinition {
+  name: string;
+  inputSchema: Record<string, unknown>;
+}
+
+/**
+ * Synchronizes MCP tool schemas to target locations.
+ */
+async function syncSchemas() {
   console.log('🔄 Synchronizing MCP tool schemas...');
+
+  let mcpToolsModule;
+  try {
+    mcpToolsModule = await import('../src/mcp/definitions.js');
+  } catch (err: unknown) {
+    const error = err as { code?: string; message?: string };
+    if (error.code === 'ERR_MODULE_NOT_FOUND' || error.message?.includes('Cannot find package')) {
+      console.error('❌ Error: MCP dependencies or source files not found.');
+      console.error('   Please run `pnpm install` in the root directory.');
+      process.exit(1);
+    }
+    throw err;
+  }
+
+  const mcpTools = mcpToolsModule.MCP_TOOLS as ToolDefinition[];
 
   const targets = [projectTargetDir];
   if (globalTargetDir) targets.push(globalTargetDir);
@@ -46,7 +68,7 @@ function syncSchemas() {
     return;
   }
 
-  MCP_TOOLS.forEach(tool => {
+  mcpTools.forEach((tool) => {
     const schemaContent = JSON.stringify(tool.inputSchema, null, 2);
     const fileName = `${tool.name}.json`;
 
@@ -60,13 +82,16 @@ function syncSchemas() {
     });
   });
 
-  console.log(`✅ Synchronized ${MCP_TOOLS.length} tool schemas to ${validTargets.length} locations.`);
+  console.log(`✅ Synchronized ${mcpTools.length} tool schemas to ${validTargets.length} locations.`);
   validTargets.forEach(target => console.log(`   - ${target}`));
 }
 
-try {
-  syncSchemas();
-} catch (error) {
-  console.error('❌ Unexpected error during MCP schema synchronization:', error);
-  process.exit(1);
-}
+// Ensure execution is awaited and errors are caught
+(async () => {
+  try {
+    await syncSchemas();
+  } catch (error) {
+    console.error('❌ Unexpected error during MCP schema synchronization:', error);
+    process.exit(1);
+  }
+})();
