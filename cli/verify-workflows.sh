@@ -55,7 +55,7 @@ run_check "dev-tools-cli-guide.md" "PYTHONPATH=\"boomtick-pkg/cli:boomtick-pkg/c
 run_check "dev-tools-cli-guide.md" "PYTHONPATH=\"boomtick-pkg/cli:boomtick-pkg/cli/dev_tools\" td-cli gh audit-pr --help"
 run_check "dev-tools-cli-guide.md" "PYTHONPATH=\"boomtick-pkg/cli:boomtick-pkg/cli/dev_tools\" td-cli gh validate-issue --help"
 
-run_check "review-pr.md" "PYTHONPATH=\"boomtick-pkg/cli:boomtick-pkg/cli/dev_tools\" td-cli gh audit-pr 2821 --fetch"
+run_check "review-pr.md" "PYTHONPATH=\"boomtick-pkg/cli:boomtick-pkg/cli/dev_tools\" td-cli agent plan-review --pr 2821"
 
 run_check "review-ux.md" "npx playwright --version"
 run_check "review-ux.md" "node scripts/detect-antipatterns.mjs --help"
