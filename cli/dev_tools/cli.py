@@ -1083,12 +1083,14 @@ def plan_review(ctx, pr_number, issue_number):
         _handle_unexpected_error(ctx, "agent plan-review", e)
 
 @agent_group.command(name='plan-aggregation')
+@click.option('--pr', '--prs', 'pr_numbers', required=True, type=int, multiple=True, help='PR numbers to aggregate')
+@click.option('--target', required=True, help='Target branch name for aggregation')
 @click.pass_context
-def plan_aggregation(ctx):
+def plan_aggregation(ctx, pr_numbers, target):
     """Generate a deterministic aggregation workflow plan for an agent."""
     orch = ctx.obj['ORCHESTRATOR']
     try:
-        res = orch.generate_aggregate_prs_workflow()
+        res = orch.generate_aggregation_workflow(list(pr_numbers), target)
         out(ctx, f"Workflow plan generated: {res['plan_path']}", data=res)
     except Exception as e:
         _handle_unexpected_error(ctx, "agent plan-aggregation", e)
