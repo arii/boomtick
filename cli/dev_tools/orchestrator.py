@@ -206,11 +206,12 @@ class Orchestrator:
 
 
 
-    def review_pr(self, pr_number: int) -> Dict[str, Any]:
+    def review_pr(self, prNumber: int, **kwargs) -> Dict[str, Any]:
+        if "pr_number" in kwargs: prNumber = kwargs["pr_number"]
         """
         Fetches a PR, its diff, and generates a code review using LocalAI/Gemini.
         """
-        pr_details = self.github.fetch_pr_details(pr_number)
+        pr_details = self.github.fetch_pr_details(prNumber)
         sha = pr_details.get('head', {}).get('sha')
         check_runs = self.github.fetch_check_runs(sha)
         pr_details['checkResults'] = check_runs
@@ -235,11 +236,11 @@ class Orchestrator:
         pr_details['failingLogs'] = failing_logs
         pr_details['structuredFailures'] = structured_failures
 
-        pr_diff = self.github.fetch_pr_diff(pr_number)
+        pr_diff = self.github.fetch_pr_diff(prNumber)
         diff_hash = self._hash_content(pr_diff)
         # Store cache in local logs directory to avoid /tmp Security Error
         review_dir = get_or_create_log_dir("reviews")
-        cache_file = os.path.join(review_dir, f"review_cache_{pr_number}_{diff_hash}.json")
+        cache_file = os.path.join(review_dir, f"review_cache_{prNumber}_{diff_hash}.json")
         if os.path.exists(cache_file):
             with open(cache_file, 'r') as f: return json.load(f)
         review_result = self.ai.generate_code_review(pr_details, pr_diff)
@@ -385,35 +386,39 @@ class Orchestrator:
             "issue": IssueSummary(**res).model_dump()
         }
 
-    def get_issue_details(self, issue_number: int) -> Dict[str, Any]:
+    def get_issue_details(self, issueNumber: int) -> Dict[str, Any]:
         """
         Fetches details of a GitHub issue.
         """
-        return self.github.fetch_issue_details(issue_number)
+        return self.github.fetch_issue_details(issueNumber)
 
-    def update_issue(self, issue_number: int, body: Optional[str] = None, labels: Optional[List[str]] = None, add_labels: Optional[List[str]] = None, remove_labels: Optional[List[str]] = None) -> Dict[str, Any]:
+    def update_issue(self, issueNumber: int, body: Optional[str] = None, labels: Optional[List[str]] = None, addLabels: Optional[List[str]] = None, removeLabels: Optional[List[str]] = None, **kwargs) -> Dict[str, Any]:
+        if "issue_number" in kwargs and issueNumber is None: issueNumber = kwargs["issue_number"]
         """
         Updates an issue's body and/or labels.
         """
         res = None
+        # Shim for backward compatibility with old snake_case names from tests or older callers
+        if "add_labels" in kwargs and addLabels is None: addLabels = kwargs["add_labels"]
+        if "remove_labels" in kwargs and removeLabels is None: removeLabels = kwargs["remove_labels"]
         # Handle full label replacement first as it is mutually exclusive with incremental changes
         if labels is not None:
-            res = self.github.update_issue(issue_number, body=body, labels=labels)
+            res = self.github.update_issue(issueNumber, body=body, labels=labels)
         else:
             # Handle incremental label changes (can happen together)
-            if add_labels:
-                res = self.github.add_labels(issue_number, add_labels)
+            if addLabels:
+                res = self.github.add_labels(issueNumber, addLabels)
 
-            if remove_labels:
-                for label in remove_labels:
-                    self.github.remove_label(issue_number, label)
+            if removeLabels:
+                for label in removeLabels:
+                    self.github.remove_label(issueNumber, label)
                 # If we haven't updated yet (no add_labels or body), fetch current state
                 if res is None and body is None:
-                    res = self.github.fetch_issue_details(issue_number)
+                    res = self.github.fetch_issue_details(issueNumber)
 
             # Handle body update if not already done via 'labels' PATCH
             if body is not None:
-                res = self.github.update_issue(issue_number, body=body)
+                res = self.github.update_issue(issueNumber, body=body)
 
         if res is None:
             raise CLIError("Nothing to update. Provide body or labels.")
@@ -431,13 +436,16 @@ class Orchestrator:
             raise CLIError("Comment body cannot be empty.")
         return self.github.create_issue_comment(entity_number, body)
 
-    def validate_issue(self, issue_number: Optional[int] = None, all_open: bool = False, post_comments: bool = False, dry_run: bool = True) -> Dict[str, Any]:
+    def validate_issue(self, issueNumber: Optional[int] = None, all_open: bool = False, post_comments: bool = False, dry_run: bool = True, **kwargs) -> Dict[str, Any]:
+        if "issue_number" in kwargs and issueNumber is None: issueNumber = kwargs["issue_number"]
         repo = get_github_client().get_repo(get_repo_name())
         issues = []
+        if "issue_numbers" in kwargs and issueNumbers is None: issueNumbers = kwargs["issue_numbers"]
+        if "limit" in kwargs: limit = kwargs["limit"]
         if all_open:
             issues = list(repo.get_issues(state='open'))
-        elif issue_number:
-            issues = [repo.get_issue(issue_number)]
+        elif issueNumber:
+            issues = [repo.get_issue(issueNumber)]
         else:
             raise CLIError("Provide --issue-number or --all-open")
 
@@ -580,12 +588,13 @@ class Orchestrator:
                 if not dry_run: issue.create_comment(f"## 🤖 Automated Issue Update\n\n{"\n".join(f"- {f}" for f in findings)}\n\n---\n*Generated by `{PROJECT_CONFIG.cli_alias} update-issues`*")
         return updates
 
-    def audit_pr(self, pr_number: int, fetch: bool = False, audit: bool = False, submit: bool = False, cleanup: bool = False, dry_run: bool = True, event: Optional[str] = None) -> Dict[str, Any]:
+    def audit_pr(self, prNumber: int, fetch: bool = False, audit: bool = False, submit: bool = False, cleanup: bool = False, dry_run: bool = True, event: Optional[str] = None, **kwargs) -> Dict[str, Any]:
+        if "pr_number" in kwargs: prNumber = kwargs["pr_number"]
         review_dir = get_or_create_log_dir("reviews")
-        ctx_path = os.path.join(review_dir, f"pr-context-{pr_number}.md"); rev_path = os.path.join(review_dir, f"pr-review-{pr_number}.md")
-        res = {"pr": pr_number, "files": {}}
+        ctx_path = os.path.join(review_dir, f"pr-context-{prNumber}.md"); rev_path = os.path.join(review_dir, f"pr-review-{prNumber}.md")
+        res = {"pr": prNumber, "files": {}}
         if fetch:
-            repo = get_github_client().get_repo(get_repo_name()); pr = repo.get_pull(pr_number)
+            repo = get_github_client().get_repo(get_repo_name()); pr = repo.get_pull(prNumber)
             title = pr.title; author = pr.user.login; desc = pr.body or '_No description provided._'
             context_lines = [f"# PR Context: #{pr.number} — {title}", f"**Author:** @{author}\n", f"## Description\n{desc}\n", "## CI Status"]
 
@@ -642,13 +651,13 @@ class Orchestrator:
             if os.path.exists(template_path):
                 with open(template_path) as f:
                     template = f.read().format(
-                        pr_num=pr_number,
+                        pr_num=prNumber,
                         head_sha=pr.head.sha,
                         failed_checks=failed_checks_str,
                         detected_errors=errors_str
                     )
             else:
-                template = f"# PR Review: #{pr_number}\n- SHA: {pr.head.sha}\n\n## CI Log Triage\n- **Failed Checks:**\n{failed_checks_str}\n- **Detected Errors:**\n{errors_str}\n"
+                template = f"# PR Review: #{prNumber}\n- SHA: {pr.head.sha}\n\n## CI Log Triage\n- **Failed Checks:**\n{failed_checks_str}\n- **Detected Errors:**\n{errors_str}\n"
             with open(rev_path, "w") as f: f.write(template)
             res["files"]["context"] = ctx_path; res["files"]["review"] = rev_path
         if audit:
@@ -688,15 +697,15 @@ class Orchestrator:
                                         })
             res["auto_findings"] = auto_findings
         if submit:
-            self.github.submit_pr_review(pr_number, rev_path, cleanup=cleanup, dry_run=dry_run, event_override=event)
+            self.github.submit_pr_review(prNumber, rev_path, cleanup=cleanup, dry_run=dry_run, event_override=event)
         return res
 
-    def handle_comment_command(self, pr_number: int, command: str, comment_id: Optional[str] = None) -> Dict[str, Any]:
+    def handle_comment_command(self, prNumber: int, command: str, comment_id: Optional[str] = None) -> Dict[str, Any]:
         """
         Delegates command handling to the CommandHandler.
         """
         handler = CommandHandler(self)
-        return handler.handle(pr_number, command, comment_id)
+        return handler.handle(prNumber, command, comment_id)
 
     def parse_comment(self, body: str, author_association: str) -> Dict[str, Any]:
         """
@@ -894,10 +903,11 @@ class Orchestrator:
                     baseline_count += int(run_command(["node", "scripts/detect-antipatterns.mjs", "--count-only", "-"], input_str=res_show.stdout) or 0)
         return {"current": current_count, "baseline": baseline_count, "status": "success" if current_count <= baseline_count else "error"}
 
-    def fix_ci(self, pr_number: Optional[int] = None, branch: Optional[str] = None, api_key: Optional[str] = None, dry_run: bool = True) -> Dict[str, Any]:
+    def fix_ci(self, prNumber: Optional[int] = None, branch: Optional[str] = None, api_key: Optional[str] = None, dry_run: bool = True, **kwargs) -> Dict[str, Any]:
+        if "pr_number" in kwargs and prNumber is None: prNumber = kwargs["pr_number"]
         repo_name = get_repo_name(); g = get_github_client(); repo = g.get_repo(repo_name)
-        if pr_number:
-            pr = repo.get_pull(int(pr_number))
+        if prNumber:
+            pr = repo.get_pull(int(prNumber))
             branch = pr.head.ref
         elif branch: pulls = list(repo.get_pulls(state='open', head=f"{repo.owner.login}:{branch}")); pr = pulls[0] if pulls else None
         else:
@@ -1034,7 +1044,7 @@ Respond only after the PR is created or updated:
         if failed: raise CLIError(f"Failed to resolve: {', '.join(failed)}")
         return resolved
 
-    def repair_context(self, log: Optional[str] = None, log_file: Optional[str] = None, pr_number: Optional[int] = None) -> List[str]:
+    def repair_context(self, log: Optional[str] = None, log_file: Optional[str] = None, prNumber: Optional[int] = None) -> List[str]:
         from dev_tools.services.repair_service import RepairService
         pipeline = RepairService()
         prompts = []
@@ -1044,11 +1054,11 @@ Respond only after the PR is created or updated:
                 for line in f:
                     p = pipeline.generate_prompt(line)
                     if p: prompts.append(p)
-        elif pr_number:
+        elif prNumber:
             repo_name = get_repo_name()
             g = get_github_client()
             repo = g.get_repo(repo_name)
-            pr = repo.get_pull(pr_number)
+            pr = repo.get_pull(prNumber)
             check_runs = self.github.fetch_check_runs(pr.head.sha)
             for run in check_runs:
                 if run.get('conclusion') == 'failure':
@@ -1279,15 +1289,17 @@ Run the workflow (if possible via `gh workflow run` or by pushing a test branch)
             "workflow_plans": generated_plans
         }
 
-    def plan_issue_audit(self, issue_numbers: Optional[List[int]] = None, all_open: bool = False, limit: int = 100) -> Dict[str, Any]:
+    def plan_issue_audit(self, issueNumbers: Optional[List[int]] = None, all_open: bool = False, limit: int = 100, **kwargs) -> Dict[str, Any]:
         """
         Builds a deterministic roadmap and status checklist for auditing open issues.
         """
         issues = []
+        if "issue_numbers" in kwargs and issueNumbers is None: issueNumbers = kwargs["issue_numbers"]
+        if "limit" in kwargs: limit = kwargs["limit"]
         if all_open:
             issues = self.github.list_issues(state='open', limit=limit)
-        elif issue_numbers:
-            for num in issue_numbers:
+        elif issueNumbers:
+            for num in issueNumbers:
                 issue = self.github.fetch_issue_details(num)
                 # Normalize format to match list_issues
                 issues.append({
@@ -1401,14 +1413,15 @@ Follow the "Audit comment template" in `docs/agent/issue-audit-rules.md` to post
             "command": " ".join(["pnpm"] + playwright_args),
             "failedTests": failed_tests
         }
-    def get_ci_logs(self, pr_number: int, include_all: bool = False) -> Dict[str, Any]:
+    def get_ci_logs(self, prNumber: int, include_all: bool = False, **kwargs) -> Dict[str, Any]:
+        if "pr_number" in kwargs: prNumber = kwargs["pr_number"]
         """Fetches CI logs for failing (or all) check runs in a PR."""
         # Get PR head SHA
-        pr_data = self.github.fetch_pr_details(pr_number)
+        pr_data = self.github.fetch_pr_details(prNumber)
         head_sha = pr_data.get("head", {}).get("sha")
 
         if not head_sha:
-            raise CLIError(f"Could not determine head SHA for PR #{pr_number}")
+            raise CLIError(f"Could not determine head SHA for PR #{prNumber}")
 
         # Get check runs
         checks = self.github.fetch_check_runs(head_sha)
@@ -1431,14 +1444,14 @@ Follow the "Audit comment template" in `docs/agent/issue-audit-rules.md` to post
             "logs": logs
         }
 
-    def stream_ci_logs(self, pr_number: int, grep: Optional[str] = None) -> str:
+    def stream_ci_logs(self, prNumber: int, grep: Optional[str] = None) -> str:
         """Fetches and combines all CI logs for the latest workflow run of a PR."""
         # Get PR head SHA
-        pr_data = self.github.fetch_pr_details(pr_number)
+        pr_data = self.github.fetch_pr_details(prNumber)
         head_sha = pr_data.get("head", {}).get("sha")
 
         if not head_sha:
-            raise CLIError(f"Could not determine head SHA for PR #{pr_number}")
+            raise CLIError(f"Could not determine head SHA for PR #{prNumber}")
 
         # Get all check runs for this SHA
         check_runs = self.github.fetch_check_runs(head_sha)
@@ -1464,22 +1477,22 @@ Follow the "Audit comment template" in `docs/agent/issue-audit-rules.md` to post
 
         return combined_logs
 
-    def get_merge_conflicts(self, pr_number: int, base_branch: str = None) -> Dict[str, Any]:
+    def get_merge_conflicts(self, prNumber: int, base_branch: str = None) -> Dict[str, Any]:
         """Detects merge conflicts for a PR against a base branch using a temporary worktree."""
         if base_branch is None:
             base_branch = PROJECT_CONFIG.base_branch_name
         # Get PR head ref
-        pr_data = self.github.fetch_pr_details(pr_number)
+        pr_data = self.github.fetch_pr_details(prNumber)
         head_ref = pr_data.get("head", {}).get("ref")
 
         if not head_ref:
-            raise CLIError(f"Could not determine head ref for PR #{pr_number}")
+            raise CLIError(f"Could not determine head ref for PR #{prNumber}")
 
         # Ensure we have the latest
         run_command(["git", "fetch", "origin", head_ref])
         run_command(["git", "fetch", "origin", base_branch])
 
-        worktree_path = os.path.join(os.getcwd(), f"worktree-conflict-{pr_number}.tmp")
+        worktree_path = os.path.join(os.getcwd(), f"worktree-conflict-{prNumber}.tmp")
         self._cleanup_worktree(worktree_path)
 
         run_command(["git", "worktree", "add", worktree_path, f"origin/{head_ref}"])
@@ -1508,20 +1521,20 @@ Follow the "Audit comment template" in `docs/agent/issue-audit-rules.md` to post
                 shutil.rmtree(worktree_path, ignore_errors=True)
 
         return {
-            "prNumber": pr_number,
+            "prNumber": prNumber,
             "baseBranch": base_branch,
             "headRef": head_ref,
             "conflictFiles": conflict_files,
             "commandLog": command_log
         }
 
-    def get_pr_diff_shapen(self, pr_number: int) -> Dict[str, Any]:
+    def get_pr_diff_shapen(self, prNumber: int) -> Dict[str, Any]:
         """Fetches PR diff, applies truncation and shapes file info."""
         # Get files list
-        files = self.github.fetch_pr_files(pr_number)
+        files = self.github.fetch_pr_files(prNumber)
 
         # Get diff text
-        diff_text = self.github.fetch_pr_diff(pr_number)
+        diff_text = self.github.fetch_pr_diff(prNumber)
 
         MAX_DIFF_SIZE = 50000
         truncated = False
@@ -1530,7 +1543,7 @@ Follow the "Audit comment template" in `docs/agent/issue-audit-rules.md` to post
             truncated = True
 
         return {
-            "prNumber": pr_number,
+            "prNumber": prNumber,
             "files": [
                 {
                     "path": f.get("filename"),
@@ -1543,11 +1556,13 @@ Follow the "Audit comment template" in `docs/agent/issue-audit-rules.md` to post
             "truncated": truncated
         }
 
-    def list_prs(self, state: str = "open", limit: int = 100, include_drafts: bool = True, labels: Optional[List[str]] = None) -> Dict[str, Any]:
+    def list_prs(self, state: str = "open", limit: int = 100, includeDrafts: bool = True, labels: Optional[List[str]] = None, **kwargs) -> Dict[str, Any]:
         """Lists PRs with optional filtering."""
+        if "include_drafts" in kwargs: includeDrafts = kwargs["include_drafts"]
+        if "labels" in kwargs and labels is None: labels = kwargs["labels"]
         prs = self.github.list_pull_requests(state=state, limit=limit, labels=labels)
 
-        if not include_drafts:
+        if not includeDrafts:
             prs = [pr for pr in prs if not pr.get("isDraft")]
 
         return {
@@ -1555,11 +1570,12 @@ Follow the "Audit comment template" in `docs/agent/issue-audit-rules.md` to post
             "prs": [PRSummary(**pr).model_dump() for pr in prs]
         }
 
-    def get_pr_comments(self, pr_number: int) -> Dict[str, Any]:
+    def get_pr_comments(self, prNumber: int, **kwargs) -> Dict[str, Any]:
         """Fetches and aggregates standard issue comments and inline review comments for a PR."""
-        pr = self.github.fetch_pr_details(pr_number)
-        issue_comments = self.github.fetch_issue_comments(pr_number)
-        review_comments = self.github.fetch_review_comments(pr_number)
+        if "prNumber" in kwargs: prNumber = kwargs["prNumber"]
+        pr = self.github.fetch_pr_details(prNumber)
+        issue_comments = self.github.fetch_issue_comments(prNumber)
+        review_comments = self.github.fetch_review_comments(prNumber)
 
         return {
             "pr": {
@@ -1592,34 +1608,34 @@ Follow the "Audit comment template" in `docs/agent/issue-audit-rules.md` to post
         if not session:
             raise CLIError(f"Session {session_id} not found.")
 
-        pr_number = None
+        prNumber = None
         # Try to find PR in session outputs
         if session.get("outputs") and isinstance(session["outputs"], list):
             for output in session["outputs"]:
                 if output.get("pullRequest") and output["pullRequest"].get("url"):
                     match = re.search(r"/pull/(\d+)", output["pullRequest"]["url"])
                     if match:
-                        pr_number = int(match.group(1))
+                        prNumber = int(match.group(1))
                         break
 
         # Search via gh for PRs mentioning session ID if not found
-        if not pr_number:
+        if not prNumber:
             prs = self.github.list_pull_requests(state='open')
             clean_id = session_id.replace("sessions/", "")
             for pr in prs:
                 # Need full details for body
                 full_pr = self.github.fetch_pr_details(pr['number'])
                 if clean_id in (full_pr.get('title') or "") or clean_id in (full_pr.get('body') or ""):
-                    pr_number = pr['number']
+                    prNumber = pr['number']
                     break
 
-        if not pr_number:
+        if not prNumber:
             return {
                 "status": "no_pr_found",
                 "message": "Could not associate session with an open PR."
             }
 
-        pr_details = self.github.fetch_pr_details(pr_number)
+        pr_details = self.github.fetch_pr_details(prNumber)
         sha = pr_details.get("head", {}).get("sha")
         check_runs = self.github.fetch_check_runs(sha)
 
@@ -1653,7 +1669,7 @@ Follow the "Audit comment template" in `docs/agent/issue-audit-rules.md` to post
         self.jules.send_message(session_id, feedback)
         return {"status": "success", "feedback": feedback}
 
-    def aggregate_prs(self, target_branch: str, pr_numbers: List[int]) -> Dict[str, Any]:
+    def aggregate_prs(self, target_branch: str, prNumbers: List[int]) -> Dict[str, Any]:
         """
         Aggregates multiple PRs into a single target branch and creates a consolidated PR.
         """
@@ -1669,7 +1685,7 @@ Follow the "Audit comment template" in `docs/agent/issue-audit-rules.md` to post
         aggregate_body = ""
         successfully_merged = []
 
-        for pr_num in pr_numbers:
+        for pr_num in prNumbers:
             # 2. Sequential Extraction & Deterministic Sequence
             pr_data = self.github.fetch_pr_details(pr_num)
             head_ref = pr_data.get('head', {}).get('ref')
@@ -1720,7 +1736,9 @@ Follow the "Audit comment template" in `docs/agent/issue-audit-rules.md` to post
             "message": f"Successfully aggregated {len(successfully_merged)} PRs into {target_branch}"
         }
 
-    def generate_review_workflow(self, pr_number: int, issue_number: Optional[int] = None) -> Dict[str, Any]:
+    def generate_review_workflow(self, prNumber: int, issueNumber: Optional[int] = None, **kwargs) -> Dict[str, Any]:
+        if "prNumber" in kwargs: prNumber = kwargs["prNumber"]
+        if "issue_number" in kwargs and issueNumber is None: issueNumber = kwargs["issue_number"]
         """Generates a deterministic review workflow plan for an agent."""
         # 1. Environment Validation
         env_res = self.runtime_check()
@@ -1728,16 +1746,16 @@ Follow the "Audit comment template" in `docs/agent/issue-audit-rules.md` to post
 
         # 2. Issue Validation
         issue_output = "No issue number provided."
-        if issue_number:
-            res = self.validate_issue(issue_number=issue_number)
+        if issueNumber:
+            res = self.validate_issue(issueNumber=issueNumber)
             issue_output = json.dumps(res, indent=2)
 
         # 3. Conflict Detection
-        conflicts = self.handle_detect_conflicts(pr_num=pr_number)
+        conflicts = self.handle_detect_conflicts(pr_num=prNumber)
         conflict_output = json.dumps(conflicts, indent=2)
 
         # 4. PR Context Generation
-        audit_res = self.audit_pr(pr_number, fetch=True)
+        audit_res = self.audit_pr(prNumber, fetch=True)
         pr_context_file = audit_res["files"]["context"]
 
         pr_summary = ""
@@ -1781,17 +1799,17 @@ Follow the "Audit comment template" in `docs/agent/issue-audit-rules.md` to post
 
         # Generate workflow plan
         plan_dir = get_or_create_log_dir("workflows")
-        plan_path = os.path.join(plan_dir, f"workflow-plan-pr-{pr_number}.md")
+        plan_path = os.path.join(plan_dir, f"workflow-plan-pr-{prNumber}.md")
 
         with open(plan_path, "w") as f:
-            f.write(f"""# Workflow Plan: PR #{pr_number}
+            f.write(f"""# Workflow Plan: PR #{prNumber}
 
 ## Agent Instructions
 
 - **Environment Check**: Ensure Python dependencies and pnpm {PROJECT_CONFIG.pnpm_version} are available.
 - setup complete
 - validation complete
-- context collected (via `td agent plan-review --pr {pr_number}`)
+- context collected (via `td agent plan-review --pr {prNumber}`)
 - diagnostics collected
 
 Agent must not repeat these steps. Redundant fetching (`--fetch`) or auditing (`--audit`) is already handled.
@@ -1871,14 +1889,14 @@ Relevant excerpts:
 
 Agent may read:
 `.agents/workflows/REVIEW_INSTRUCTIONS.md`
-`boomtick-pkg/cli/logs/reviews/pr-review-{pr_number}.md`
+`boomtick-pkg/cli/logs/reviews/pr-review-{prNumber}.md`
 
 ---
 
 ## Writable Files
 
 Agent may modify:
-`boomtick-pkg/cli/logs/reviews/pr-review-{pr_number}.md`
+`boomtick-pkg/cli/logs/reviews/pr-review-{prNumber}.md`
 
 ---
 
@@ -1913,7 +1931,7 @@ Every finding must reference supplied evidence.
 Output exactly:
 
 ```bash
-td gh audit-pr {pr_number} --submit --execute
+td gh audit-pr {prNumber} --submit --execute
 ```
 
 Only after successful completion.
@@ -2031,30 +2049,30 @@ Overlapping functionality identified and resolved.
 """)
         return {"status": "success", "plan_path": plan_path}
 
-    def resolve_pr_conflicts(self, pr_number: int, allow_unrelated: bool = False, strategy: Optional[str] = None, push: bool = False) -> Dict[str, Any]:
+    def resolve_pr_conflicts(self, prNumber: int, allow_unrelated: bool = False, strategy: Optional[str] = None, push: bool = False) -> Dict[str, Any]:
         """
         Sets up a worktree for a specific PR and attempts to merge the base branch.
         """
         original_cwd = os.getcwd()
         # Use a path that is clearly temporary and matches existing patterns for ignored files
-        worktree_path = os.path.join(original_cwd, f"worktree-pr-{pr_number}.tmp")
+        worktree_path = os.path.join(original_cwd, f"worktree-pr-{prNumber}.tmp")
         changed_dir = False
 
         try:
             # 1. Fetch PR details early to fail fast
-            pr_data = self.github.fetch_pr_details(pr_number)
+            pr_data = self.github.fetch_pr_details(prNumber)
             default_base = PROJECT_CONFIG.base_branch_name
             base_branch = pr_data.get('base', {}).get('ref', default_base)
             head_ref = pr_data.get('head', {}).get('ref')
 
             if not head_ref:
-                raise CLIError(f"Could not determine head ref for PR #{pr_number}")
+                raise CLIError(f"Could not determine head ref for PR #{prNumber}")
 
             # 2. Clean up existing worktree if present
             self._cleanup_worktree(worktree_path)
 
             # 3. Fetch PR branch and create worktree directly on it
-            run_command(["git", "fetch", "origin", f"+pull/{pr_number}/head:{head_ref}"], check=True)
+            run_command(["git", "fetch", "origin", f"+pull/{prNumber}/head:{head_ref}"], check=True)
             run_command(["git", "worktree", "add", worktree_path, head_ref], check=True)
 
             # 4. Switch to worktree and perform git operations
@@ -2065,7 +2083,7 @@ Overlapping functionality identified and resolved.
             run_command(["git", "fetch", "origin", base_branch], check=True)
 
             # Attempt merge from base branch.
-            merge_cmd = ["git", "merge", f"origin/{base_branch}", "-m", f"Merge {base_branch} into PR #{pr_number}"]
+            merge_cmd = ["git", "merge", f"origin/{base_branch}", "-m", f"Merge {base_branch} into PR #{prNumber}"]
             if allow_unrelated:
                 merge_cmd.append("--allow-unrelated-histories")
             if strategy in ["ours", "theirs"]:
@@ -2076,12 +2094,12 @@ Overlapping functionality identified and resolved.
                 raise CLIError("Failed to execute git merge command")
 
             if res.returncode == 0:
-                message = f"✅ PR #{pr_number} merged successfully with {base_branch}.\nPath: {worktree_path}"
+                message = f"✅ PR #{prNumber} merged successfully with {base_branch}.\nPath: {worktree_path}"
                 status = "success"
                 if push:
                     head_branch = pr_data.get('head', {}).get('ref')
                     if not head_branch:
-                        raise CLIError(f"Cannot push: head branch is missing for PR #{pr_number}")
+                        raise CLIError(f"Cannot push: head branch is missing for PR #{prNumber}")
                     try:
                         # Use authenticated URL if token is available to avoid terminal prompts
                         if self.github.token and self.github.repo:
@@ -2094,14 +2112,14 @@ Overlapping functionality identified and resolved.
                         message += f"\n⚠️  Merge successful but push failed: {str(push_err)}"
                         status = "partial_success"
             else:
-                message = f"⚠️  Conflicts detected in PR #{pr_number} when merging {base_branch}.\nAction Required: Resolve them manually in the worktree.\nCommand: cd {worktree_path}"
+                message = f"⚠️  Conflicts detected in PR #{prNumber} when merging {base_branch}.\nAction Required: Resolve them manually in the worktree.\nCommand: cd {worktree_path}"
                 status = "conflict"
 
             return {
                 "status": status,
                 "message": message,
                 "worktree_path": worktree_path,
-                "pr_number": pr_number,
+                "prNumber": prNumber,
                 "base_branch": base_branch,
                 "head_branch": head_ref
             }
@@ -2111,7 +2129,7 @@ Overlapping functionality identified and resolved.
             if changed_dir:
                 os.chdir(original_cwd)
 
-    def generate_aggregation_workflow(self, pr_numbers: List[int], target_branch: str) -> Dict[str, Any]:
+    def generate_aggregation_workflow(self, prNumbers: List[int], target_branch: str) -> Dict[str, Any]:
         """Generates a deterministic aggregation workflow plan for an agent."""
         # 1. Environment Validation
         env_res = self.runtime_check()
@@ -2122,7 +2140,7 @@ Overlapping functionality identified and resolved.
         file_to_prs: Dict[str, set[int]] = defaultdict(set)
         pr_hunks = {}
 
-        for pr_num in pr_numbers:
+        for pr_num in prNumbers:
             details = self.github.fetch_pr_details(pr_num)
             pr_details[pr_num] = details
             files = self.github.fetch_pr_files(pr_num)
@@ -2191,7 +2209,7 @@ Agent must not repeat these steps.
 ```
 
 ### Overlap Summary
-Found {len(overlapping_files)} overlapping files and {len(conflicts)} structural conflicts across {len(pr_numbers)} PRs.
+Found {len(overlapping_files)} overlapping files and {len(conflicts)} structural conflicts across {len(prNumbers)} PRs.
 
 ---
 
@@ -2210,7 +2228,7 @@ Run the validation suite to ensure the aggregated branch is stable.
         with open(context_details_path, "w") as f:
             f.write(f"# Aggregation Context Details: {escape_md(target_branch)}\n\n")
             f.write("## Targeted PRs\n")
-            for pr_num in pr_numbers:
+            for pr_num in prNumbers:
                 details = pr_details.get(pr_num, {})
                 title = escape_md(details.get('title', ''))
                 login = escape_md(details.get('user', {}).get('login', ''))

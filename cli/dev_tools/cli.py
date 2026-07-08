@@ -202,11 +202,11 @@ def search_prs(ctx, state, limit, include_drafts, labels):
 
     # Contract validation
     try:
-        SearchPRsInput(state=state, limit=limit, include_drafts=include_drafts, labels=label_list)
+        SearchPRsInput(state=state, limit=limit, includeDrafts=include_drafts, labels=label_list)
     except Exception as e:
         _handle_unexpected_error(ctx, "pr list", e)
 
-    res = orch.list_prs(state=state, limit=limit, include_drafts=include_drafts, labels=label_list)
+    res = orch.list_prs(state=state, limit=limit, includeDrafts=include_drafts, labels=label_list)
     out(ctx, f"Found {len(res['prs'])} PRs.", data=res)
 
 @gh.command()
@@ -330,12 +330,12 @@ def issue_update(ctx, issue_number, file, body, labels, add_labels, remove_label
     # Contract validation
     try:
         IssueUpdateInput(
-            issue_number=issue_number,
+            issueNumber=issue_number,
             body=body,
             file=file,
             labels=label_list,
-            add_labels=add_label_list,
-            remove_labels=remove_label_list
+            addLabels=add_label_list,
+            removeLabels=remove_label_list
         )
     except Exception as e:
         _handle_unexpected_error(ctx, "issue update", e)
@@ -345,11 +345,11 @@ def issue_update(ctx, issue_number, file, body, labels, add_labels, remove_label
         content = _get_body_content(ctx, orch, file, body)
 
     res = orch.update_issue(
-        issue_number,
+        issueNumber=issue_number,
         body=content,
         labels=label_list,
-        add_labels=add_label_list,
-        remove_labels=remove_label_list
+        addLabels=add_label_list,
+        removeLabels=remove_label_list
     )
     out(ctx, f"✅ Successfully updated issue #{issue_number}", data=res)
 
@@ -538,11 +538,11 @@ def read_pr_comments(ctx, pr_number):
 
     # Input contract validation
     try:
-        ReadPRCommentsInput(pr_number=pr_number)
+        ReadPRCommentsInput(prNumber=pr_number)
     except Exception as e:
         _handle_unexpected_error(ctx, "read-pr-comments", e)
 
-    res = orch.get_pr_comments(pr_number)
+    res = orch.get_pr_comments(prNumber=pr_number)
 
     # Response contract validation
     try:

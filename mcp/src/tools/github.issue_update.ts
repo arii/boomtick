@@ -6,18 +6,14 @@ import { IssueUpdateInputSchema, IssueUpdateResponseSchema } from "./contract.js
 export { IssueUpdateInputSchema };
 
 export async function issueUpdateHandler(args: any) {
-  // Handle camelCase translation fallback for client schema drift
-  if (args.issueNumber !== undefined && args.issue_number === undefined) {
-    args.issue_number = args.issueNumber;
-  }
   const params = IssueUpdateInputSchema.parse(args);
 
-  const cmdArgs = ["gh", "issue-update", params.issue_number.toString()];
+  const cmdArgs = ["gh", "issue-update", params.issueNumber.toString()];
   if (params.body) cmdArgs.push("--body", params.body);
   if (params.file) cmdArgs.push("--file", params.file);
   if (params.labels && params.labels.length > 0) cmdArgs.push("--labels", params.labels.join(","));
-  if (params.add_labels && params.add_labels.length > 0) cmdArgs.push("--add-labels", params.add_labels.join(","));
-  if (params.remove_labels && params.remove_labels.length > 0) cmdArgs.push("--remove-labels", params.remove_labels.join(","));
+  if (params.addLabels && params.addLabels.length > 0) cmdArgs.push("--add-labels", params.addLabels.join(","));
+  if (params.removeLabels && params.removeLabels.length > 0) cmdArgs.push("--remove-labels", params.removeLabels.join(","));
   if (params.state) cmdArgs.push("--state", params.state);
 
   const result = await runCommand("td-cli", cmdArgs);

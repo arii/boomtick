@@ -51,6 +51,9 @@ async function syncContracts() {
 
     tsContent += `export const ${name}Schema = ${zodExpression};\n\n`;
     tsContent += `export type ${name} = z.infer<typeof ${name}Schema>;\n\n`;
+
+    // Also export the raw JSON schema for MCP definitions
+    tsContent += `export const ${name}JsonSchema = ${JSON.stringify(schema, null, 2)} as const;\n\n`;
   }
 
   // Normalize newlines to \n and ensure exactly one trailing newline at EOF

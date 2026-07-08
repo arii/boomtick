@@ -1,21 +1,19 @@
 import json
 import os
-from dev_tools.models import (
-    CreateIssueInput, SearchPRsInput, IssueUpdateInput, ReadPRCommentsInput,
-    CreateIssueResponse, SearchPRsResponse, IssueUpdateResponse, ReadPRCommentsResponse
-)
+import inspect
+from pydantic import BaseModel
+import dev_tools.models as models
 
 def get_models_schema():
-    return {
-        "CreateIssueInput": CreateIssueInput.model_json_schema(),
-        "SearchPRsInput": SearchPRsInput.model_json_schema(),
-        "IssueUpdateInput": IssueUpdateInput.model_json_schema(),
-        "ReadPRCommentsInput": ReadPRCommentsInput.model_json_schema(),
-        "CreateIssueResponse": CreateIssueResponse.model_json_schema(),
-        "SearchPRsResponse": SearchPRsResponse.model_json_schema(),
-        "IssueUpdateResponse": IssueUpdateResponse.model_json_schema(),
-        "ReadPRCommentsResponse": ReadPRCommentsResponse.model_json_schema(),
-    }
+    schemas = {}
+    for name, obj in inspect.getmembers(models):
+        if inspect.isclass(obj) and issubclass(obj, BaseModel) and obj is not BaseModel:
+            # Skip base classes if any
+            if name in ("CLIResponse", "CLIInput"):
+                continue
+            # Force export using field names (camelCase) instead of aliases (snake_case)
+            schemas[name] = obj.model_json_schema(by_alias=False)
+    return schemas
 
 def generate_schema():
     schemas = {
@@ -42,7 +40,7 @@ def generate_schema():
         f.write("\n")
 
     import sys
-    print(f"Updated cli-schema.json with models at {output_path}", file=sys.stderr)
+    print(f"Updated cli-schema.json with {len(schemas['models'])} models at {output_path}", file=sys.stderr)
 
 if __name__ == "__main__":
     generate_schema()
