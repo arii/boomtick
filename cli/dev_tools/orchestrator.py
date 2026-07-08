@@ -654,9 +654,27 @@ class Orchestrator:
                     json_start = output.find("{")
                     json_end = output.rfind("}") + 1
                     audit_data = json.loads(output[json_start:json_end])
-                    for filepath, violations in audit_data.get("violations", {}).items():
-                        for v in violations:
-                            auto_findings.append({"path": filepath, "issue": f"{v['pattern']}: {v['message']} (value: {v.get('value', 'N/A')})", "severity": v.get('severity', 'minor')})
+                    # Ensure audit_data is a dictionary, and recursively parse if it's a stringified JSON
+                    if isinstance(audit_data, str):
+                        try:
+                            audit_data = json.loads(audit_data)
+                        except json.JSONDecodeError:
+                            audit_data = {}
+
+                    if isinstance(audit_data, dict):
+                        violations_map = audit_data.get("violations", {})
+                        if not isinstance(violations_map, dict):
+                            violations_map = {}
+
+                        for filepath, violations in violations_map.items():
+                            if isinstance(violations, list):
+                                for v in violations:
+                                    if isinstance(v, dict):
+                                        auto_findings.append({
+                                            "path": filepath,
+                                            "issue": f"{v.get('pattern', 'N/A')}: {v.get('message', 'No message')} (value: {v.get('value', 'N/A')})",
+                                            "severity": v.get('severity', 'minor')
+                                        })
             res["auto_findings"] = auto_findings
         if submit:
             self.github.submit_pr_review(pr_number, rev_path, cleanup=cleanup, dry_run=dry_run, event_override=event)

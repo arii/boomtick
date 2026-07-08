@@ -364,7 +364,15 @@ class AIClient:
             try:
                 cleaned = clean_llm_output(raw)
                 parsed = json.loads(cleaned)
+                if isinstance(parsed, str):
+                    parsed = json.loads(parsed)
+
+                if not isinstance(parsed, dict):
+                    raise ValueError(f"Expected dict, got {type(parsed).__name__}")
+
                 file_reviews = parsed.get("file_reviews", [])
+                if not isinstance(file_reviews, list):
+                    file_reviews = []
 
                 final = {
                     "reviewComment": parsed.get("reviewComment", f"Automated review of PR #{pr_num}."),
@@ -529,18 +537,22 @@ class AIClient:
         ci_failures: List[Dict],
     ) -> Dict:
         """Call the lighter gpt-4o model to produce the final verdict from structured per-chunk data."""
-        total_issues = sum(len(fr.get('issues', [])) for fr in file_reviews)
-        blocking_files = [fr['file'] for fr in file_reviews if fr.get('verdict') == 'blocking']
-        error_files    = [fr['file'] for fr in file_reviews if fr.get('verdict') in ('error', 'parse_error')]
-        needs_files    = [fr['file'] for fr in file_reviews if fr.get('verdict') == 'needs_changes']
-        ok_files       = [fr['file'] for fr in file_reviews if fr.get('verdict') == 'ok']
+        total_issues = sum(len(fr.get('issues', [])) for fr in file_reviews if isinstance(fr, dict))
+        blocking_files = [fr.get('file', 'unknown') for fr in file_reviews if isinstance(fr, dict) and fr.get('verdict') == 'blocking']
+        error_files    = [fr.get('file', 'unknown') for fr in file_reviews if isinstance(fr, dict) and fr.get('verdict') in ('error', 'parse_error')]
+        needs_files    = [fr.get('file', 'unknown') for fr in file_reviews if isinstance(fr, dict) and fr.get('verdict') == 'needs_changes']
+        ok_files       = [fr.get('file', 'unknown') for fr in file_reviews if isinstance(fr, dict) and fr.get('verdict') == 'ok']
 
         # Build a compact findings summary (keep prompt small)
         findings_lines = []
         for fr in file_reviews:
+            if not isinstance(fr, dict):
+                continue
             for issue in fr.get('issues', []):
+                if not isinstance(issue, dict):
+                    continue
                 findings_lines.append(
-                    f'  - {fr["file"]}:{issue.get("line","?")} [{issue.get("severity","?")}] {issue.get("comment","")}'
+                    f'  - {fr.get("file","?")}:{issue.get("line","?")} [{issue.get("severity","?")}] {issue.get("comment","")}'
                 )
         findings_str = "\n".join(findings_lines[:60])  # cap at 60 lines
         if len(findings_lines) > 60:
@@ -598,7 +610,12 @@ class AIClient:
             }
 
         try:
-            return json.loads(clean_llm_output(raw))
+            res = json.loads(clean_llm_output(raw))
+            if isinstance(res, str):
+                res = json.loads(res)
+            if not isinstance(res, dict):
+                raise ValueError(f"Expected dict, got {type(res).__name__}")
+            return res
         except Exception as e:
             log_warn(f"Synthesis JSON parse error: {e} | raw: {raw[:300]}")
             return {
@@ -637,12 +654,22 @@ class AIClient:
         # Per-file findings table
         file_data: Dict[str, Dict] = defaultdict(lambda: {"added_lines": 0, "issues": [], "verdict": "ok"})
         for fr in file_reviews:
-            f = fr['file']
-            file_data[f]['issues'].extend(fr.get('issues', []))
+            if not isinstance(fr, dict):
+                continue
+            f = fr.get('file')
+            if not f:
+                continue
+            issues = fr.get('issues', [])
+            if isinstance(issues, list):
+                file_data[f]['issues'].extend([i for i in issues if isinstance(i, dict)])
+
             # worst verdict wins: blocking > needs_changes > ok
             _rank = {"blocking": 3, "needs_changes": 2, "ok": 1, "error": 0, "parse_error": 0}
-            if _rank.get(fr.get('verdict', 'ok'), 0) > _rank.get(file_data[f]['verdict'], 0):
-                file_data[f]['verdict'] = fr.get('verdict', 'ok')
+            verdict = fr.get('verdict', 'ok')
+            if not isinstance(verdict, str):
+                verdict = str(verdict)
+            if _rank.get(verdict, 0) > _rank.get(file_data[f]['verdict'], 0):
+                file_data[f]['verdict'] = verdict
         for chunk in chunks:
             if not chunk['skip']:
                 file_data[chunk['file']]['added_lines'] += chunk['added_lines']
@@ -667,10 +694,17 @@ class AIClient:
         # Build inline comments JSON block
         all_issues = []
         for fr in file_reviews:
-            for issue in fr.get('issues', []):
-                conf = issue.get('confidence', 'high').upper()
+            if not isinstance(fr, dict):
+                continue
+            issues = fr.get('issues', [])
+            if not isinstance(issues, list):
+                continue
+            for issue in issues:
+                if not isinstance(issue, dict):
+                    continue
+                conf = str(issue.get('confidence', 'high')).upper()
                 all_issues.append({
-                    "path": fr['file'],
+                    "path": str(fr.get('file', 'unknown')),
                     "line": issue.get('line', 1),
                     "body": f"[{issue.get('severity','?')}] (Confidence: {conf}) {issue.get('comment','')}",
                 })

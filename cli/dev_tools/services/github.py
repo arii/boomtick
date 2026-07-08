@@ -450,7 +450,8 @@ class GitHubClient:
                             fallback_body = review_body
                             fallback_body += "\n\n### Inline Comments (Fallback due to Github line resolution errors)\n"
                             for comment in review_comments:
-                                fallback_body += f"- **{comment.get('path')}:{comment.get('line')}**: {comment.get('body')}\n"
+                                if isinstance(comment, dict):
+                                    fallback_body += f"- **{comment.get('path')}:{comment.get('line')}**: {comment.get('body')}\n"
                             return try_create_review(fallback_body, [], review_event)
                     raise e
 
