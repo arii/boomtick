@@ -44,9 +44,13 @@ export async function runCommand(
     finalCmd = config.ghPath;
   }
 
+  const cliPath = path.join(config.repoPath, "boomtick-pkg/cli");
   const env = {
     ...process.env,
     ...options.env,
+    PYTHONPATH: process.env.PYTHONPATH
+      ? `${cliPath}:${process.env.PYTHONPATH}`
+      : cliPath,
     GH_TOKEN: config.githubToken,
     GITHUB_TOKEN: config.githubToken
   };

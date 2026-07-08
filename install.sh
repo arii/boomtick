@@ -59,12 +59,42 @@ else
 fi
 export CLI_ROOT
 
+# Environment Isolation (venv)
+VENV_PATH=""
+if [ -d "../.venv" ]; then
+    VENV_PATH="../.venv"
+elif [ -d ".venv" ]; then
+    VENV_PATH=".venv"
+elif { [ "${CI:-0}" != "1" ] || [ -n "${GIT_WORKTREE_PATH:-}" ]; }; then
+    # In non-CI or worktrees, prefer a local venv to avoid polluting global environment
+    if [ -f "../package.json" ]; then
+        VENV_PATH="../.venv"
+    else
+        VENV_PATH=".venv"
+    fi
+    if [ ! -d "$VENV_PATH" ]; then
+        echo "Creating virtual environment in $VENV_PATH..."
+        python3 -m venv "$VENV_PATH"
+    fi
+fi
+
+PIP_OPTS=""
+if [ -n "$VENV_PATH" ]; then
+    PYTHON_BIN="$VENV_PATH/bin/python3"
+    PIP_CMD="$VENV_PATH/bin/pip"
+    echo "Using virtual environment: $VENV_PATH"
+else
+    PYTHON_BIN="python3"
+    PIP_CMD="pip"
+    PIP_OPTS="--break-system-packages"
+fi
+
 # Idempotency for CLI
-if [ "$FORCE" -eq 1 ] || ! command -v td-cli >/dev/null 2>&1; then
+if [ "$FORCE" -eq 1 ] || ! command -v td-cli >/dev/null 2>&1 || [ -n "$VENV_PATH" ]; then
     echo "Installing BoomTick CLI..."
-    timeout 600 pip install -e "${CLI_ROOT}" --break-system-packages
+    timeout 600 $PIP_CMD install -e "${CLI_ROOT}" $PIP_OPTS
     if [ -f "${CLI_ROOT}/requirements-dev.txt" ]; then
-        timeout 600 pip install -r "${CLI_ROOT}/requirements-dev.txt" --break-system-packages
+        timeout 600 $PIP_CMD install -r "${CLI_ROOT}/requirements-dev.txt" $PIP_OPTS
     fi
 else
     echo "BoomTick CLI already installed. Skipping (use --force to reinstall)."
