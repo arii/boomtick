@@ -129,8 +129,15 @@ class Orchestrator:
 
     def evaluate_pr_heuristics(self, pr: Dict[str, Any], diff: str, checks: Dict[str, Any]) -> str:
         """Applies heuristic rules to a PR diff and checks, returning specific feedback."""
-        is_ui = any(indicator in diff for indicator in UI_INDICATORS)
-        is_python = ".py" in diff
+        # Pre-process diff to get unique files for faster heuristic matching
+        files_in_diff = set()
+        for line in diff.splitlines():
+            if line.startswith("+++ b/"):
+                files_in_diff.add(line[6:])
+
+        is_ui = any(any(ind in f for ind in UI_INDICATORS) for f in files_in_diff)
+        is_python = any(f.endswith(".py") for f in files_in_diff)
+        is_infra = any(any(ind in f for ind in PROJECT_CONFIG.infra_file_paths) for f in files_in_diff)
 
         fails = [c['name'] for c in checks.get('check_runs', []) if c.get('conclusion') == 'failure']
 
@@ -163,6 +170,9 @@ class Orchestrator:
         if is_python:
             feedback += "- **Python Scripting:** Python changes detected.\n"
             feedback += "  - *Fix:* Ensure `python3 -m pytest tests/` passes. Update `test_td-cli` or equivalent test files if extending `dev-tools`.\n"
+
+        if is_infra:
+            feedback += PROJECT_CONFIG.infra_feedback
 
         if pr.get('mergeable') is False:
             base_branch_name = PROJECT_CONFIG.base_branch_name

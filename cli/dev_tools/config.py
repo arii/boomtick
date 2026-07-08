@@ -43,6 +43,15 @@ class ProjectConfig:
         "github-actions[bot]"
     ])
     worktree_prefix: str = "bt-repair-"
+    infra_file_paths: List[str] = field(default_factory=lambda: [
+        "scripts/", "boomtick-pkg/cli/", ".github/",
+        "setup-agent.sh", "Dockerfile"
+    ])
+    infra_feedback: str = (
+        "- **Infrastructure/Bootstrap Change:** Low-level script changes detected.\n"
+        "  - *Review focus:* Ensure idempotency, portability (avoid bashisms), and robust error handling (`set -e`, `set -u`).\n"
+        "  - *Verification:* If full system setup is risky, verify via dry-runs, `bash -n`, or log inspection. Document verification method in the PR.\n"
+    )
     spec_sections: List[str] = field(default_factory=lambda: [
         "Problem Statement",
         "Goal",
