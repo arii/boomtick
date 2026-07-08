@@ -37,7 +37,11 @@ from dev_tools.utils import (
     find_patterns_in_file,
     get_bundle_size,
     get_any_count,
-    verify_pr_scope
+    verify_pr_scope,
+    sanitize_path,
+    sanitize_metadata,
+    escape_md,
+    run_git_commands
 )
 from dev_tools.config import get_config
 
@@ -338,7 +342,12 @@ class Orchestrator:
         """
         Validates and reads a file from within the repository root.
         """
-        abs_path = os.path.abspath(file_path)
+        # 1. Sanitize the path first
+        clean_path = sanitize_path(file_path)
+        if not clean_path:
+            raise CLIError("Security Error: Invalid or empty file path.")
+
+        abs_path = os.path.abspath(clean_path)
         repo_root = os.path.abspath(os.getcwd())
         try:
             if os.path.commonpath([repo_root, abs_path]) != repo_root:
@@ -759,17 +768,22 @@ class Orchestrator:
             results["steps"].append({"name": "Runtime Check", "status": "failure", "error": str(e)})
             raise e
 
-        def run_step(name: str, cmd: List[str]) -> None:
+        # 2. Automated Validation Steps
+        steps = [
+            ("Anti-Pattern Audit", ["node", "scripts/detect-antipatterns.mjs"]),
+            ("Version Downgrade Check", [PROJECT_CONFIG.cli_alias, "gh", "verify-versions"]),
+            ("TypeScript", ["pnpm", "run", "type-check"]),
+            ("Lint", ["pnpm", "run", "lint"])
+        ]
+
+        for name, cmd in steps:
+            log_info(f"Running check: {name} ({' '.join(cmd)})")
             try:
                 run_command(cmd)
                 results["steps"].append({"name": name, "status": "success"})
             except CLIError as e:
                 results["steps"].append({"name": name, "status": "failure", "error": str(e)})
                 raise e
-        run_step("Anti-Pattern Audit", ["node", "scripts/detect-antipatterns.mjs"])
-        run_step("Version Downgrade Check", [PROJECT_CONFIG.cli_alias, "gh", "verify-versions"])
-        run_step("TypeScript", ["pnpm", "run", "type-check"])
-        run_step("Lint", ["pnpm", "run", "lint"])
         missing_vars = [v for v in ["BUNDLE_BASELINE_KB", "ANY_COUNT_BASELINE"] if not (os.environ.get(v) or get_gha_variable(v))]
         if missing_vars: results["steps"].append({"name": "Baseline Check", "status": "warning", "message": f"Missing GHA variables: {', '.join(missing_vars)}"})
         else: results["steps"].append({"name": "Baseline Check", "status": "success"})
@@ -1282,6 +1296,9 @@ Run the workflow (if possible via `gh workflow run` or by pushing a test branch)
             with open(plan_path, "w") as f:
                 f.write(f"""# Workflow Plan: Issue #{issue['number']}
 
+## Agent Instructions
+- **Environment Check**: Ensure Python dependencies and pnpm {PROJECT_CONFIG.pnpm_version} are available.
+
 ## Issue Context
 - **Title:** {issue['title']}
 - **URL:** {issue['html_url']}
@@ -1544,7 +1561,7 @@ Follow the "Audit comment template" in `docs/agent/issue-audit-rules.md` to post
         """Ports logic from trigger-feedback.ts to provide CI feedback to Jules."""
         session = self.jules.get_session(session_id)
         if not session:
-             raise CLIError(f"Session {session_id} not found.")
+            raise CLIError(f"Session {session_id} not found.")
 
         pr_number = None
         # Try to find PR in session outputs
@@ -1611,15 +1628,14 @@ Follow the "Audit comment template" in `docs/agent/issue-audit-rules.md` to post
         """
         Aggregates multiple PRs into a single target branch and creates a consolidated PR.
         """
-        def run(cmd: List[str], check: bool = True) -> subprocess.CompletedProcess:
-            return run_command(cmd, check=check)
-
         base_branch = PROJECT_CONFIG.base_branch_name
 
         # 1. Isolation & Cleanliness
-        run(["git", "checkout", base_branch])
-        run(["git", "pull", "origin", base_branch])
-        run(["git", "checkout", "-b", target_branch])
+        run_git_commands([
+            ["git", "checkout", base_branch],
+            ["git", "pull", "origin", base_branch],
+            ["git", "checkout", "-b", target_branch]
+        ])
 
         aggregate_body = ""
         successfully_merged = []
@@ -1636,19 +1652,23 @@ Follow the "Audit comment template" in `docs/agent/issue-audit-rules.md` to post
 
             # 2.5 Handle forks by using git fetch
             # This ensures the branch is available locally and handles forks correctly
-            run(["git", "fetch", "origin", f"pull/{pr_num}/head:{head_ref}"])
-
-            # Switch back to the target branch
-            run(["git", "checkout", target_branch])
+            # and switch back to target branch.
+            run_git_commands([
+                ["git", "fetch", "origin", f"pull/{pr_num}/head:{head_ref}"],
+                ["git", "checkout", target_branch]
+            ])
 
             # 3. Safety First: Attempt automated integration merge
             # Use 'ort' strategy implicitly by standard merge if git version supports it,
             # or just standard merge.
             res = run_command(["git", "merge", head_ref, "-m", f"Merging PR #{pr_num}: {title}"], check=False)
 
+            if not isinstance(res, subprocess.CompletedProcess):
+                raise CLIError("Merge execution failed")
+
             if res.returncode != 0:
                 # Conflict encountered
-                run(["git", "merge", "--abort"])
+                run_command(["git", "merge", "--abort"])
                 raise CLIError(f"CRITICAL: Conflict in PR #{pr_num}. Restored stable state of {target_branch}.", code=res.returncode)
 
             # 4. Metadata Preservation
@@ -1656,7 +1676,7 @@ Follow the "Audit comment template" in `docs/agent/issue-audit-rules.md` to post
             aggregate_body += f"Closes #{pr_num}\n\n### Description from PR #{pr_num} ({title}):\n{body}\n\n---\n"
 
         # Push the compiled branch
-        run(["git", "push", "-u", "origin", target_branch])
+        run_command(["git", "push", "-u", "origin", target_branch])
 
         # Create consolidated PR
         pr_title = f"Aggregated Feature: {target_branch}"
@@ -1739,6 +1759,7 @@ Follow the "Audit comment template" in `docs/agent/issue-audit-rules.md` to post
 
 ## Agent Instructions
 
+- **Environment Check**: Ensure Python dependencies and pnpm {PROJECT_CONFIG.pnpm_version} are available.
 - setup complete
 - validation complete
 - context collected (via `td agent plan-review --pr {pr_number}`)
@@ -2104,20 +2125,17 @@ Overlapping functionality identified and resolved.
 
         # 4. Generate Markdown Files
         # Strict sanitization: allow only alphanumeric, underscores, and hyphens
-        sanitized_target = re.sub(r'[^a-zA-Z0-9_\-]', '-', target_branch)
+        sanitized_target = sanitize_metadata(target_branch)
         workflow_plan_path = os.path.join(get_or_create_log_dir("workflows"), f"workflow-plan-aggregation-{sanitized_target}.md")
         context_details_path = os.path.join(get_or_create_log_dir("reviews"), f"aggregation-context-{sanitized_target}.md")
         plan_skeleton_path = os.path.join(get_or_create_log_dir("reviews"), f"aggregation-plan-{sanitized_target}.md")
 
-        # --- Helper for escaping markdown special characters ---
-        def _escape_md(text):
-            return str(text).replace("[", "\\[").replace("]", "\\]").replace("(", "\\(").replace(")", "\\)")
-
         # --- Workflow Plan Template ---
         with open(workflow_plan_path, "w") as f:
-            f.write(f"""# Reviewing Aggregation Planning Guide: {_escape_md(target_branch)}
+            f.write(f"""# Reviewing Aggregation Planning Guide: {escape_md(target_branch)}
 
 ## Agent Instructions
+- **Environment Check**: Ensure Python dependencies and pnpm {PROJECT_CONFIG.pnpm_version} are available.
 - setup complete
 - validation complete
 - context collected
@@ -2161,12 +2179,12 @@ Run the validation suite to ensure the aggregated branch is stable.
 
         # --- Context Details Template ---
         with open(context_details_path, "w") as f:
-            f.write(f"# Aggregation Context Details: {_escape_md(target_branch)}\n\n")
+            f.write(f"# Aggregation Context Details: {escape_md(target_branch)}\n\n")
             f.write("## Targeted PRs\n")
             for pr_num in pr_numbers:
                 details = pr_details.get(pr_num, {})
-                title = _escape_md(details.get('title', ''))
-                login = _escape_md(details.get('user', {}).get('login', ''))
+                title = escape_md(details.get('title', ''))
+                login = escape_md(details.get('user', {}).get('login', ''))
                 f.write(f"- **PR #{pr_num}**: {title} (@{login})\n")
 
             f.write("\n## Overlapping Files\n")
@@ -2189,7 +2207,7 @@ Run the validation suite to ensure the aggregated branch is stable.
 
         # --- Plan Skeleton Template ---
         with open(plan_skeleton_path, "w") as f:
-            f.write(f"""# Aggregation Plan Skeleton: {_escape_md(target_branch)}
+            f.write(f"""# Aggregation Plan Skeleton: {escape_md(target_branch)}
 
 ## Integration Steps
 1. **Prepare Base**: Checkout the latest base branch.

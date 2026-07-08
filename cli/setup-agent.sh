@@ -114,11 +114,11 @@ install_apt_tools() {
     log "All core system tools already installed."
   else
     log "Installing missing system tools: ${missing[*]}"
-    if ! timeout 300 run_sudo apt-get update -y; then
+      if ! run_sudo timeout 300 apt-get update -y; then
       STATUS_APT="FAILED (apt-get update)"
       return 0
     fi
-    if ! timeout 600 run_sudo apt-get install -y ca-certificates "${missing[@]}"; then
+      if ! run_sudo timeout 600 apt-get install -y ca-certificates "${missing[@]}"; then
       STATUS_APT="WARNING (Partial apt install)"
       warn "Some OS packages could not be installed."
     else
@@ -137,8 +137,8 @@ install_apt_tools() {
       run_sudo chmod go+r /usr/share/keyrings/githubcli-archive-keyring.gpg || true
       echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" \
         | run_sudo tee /etc/apt/sources.list.d/github-cli.list >/dev/null || true
-      timeout 300 run_sudo apt-get update -y || true
-      timeout 600 run_sudo apt-get install -y gh || warn "Unable to install gh."
+      run_sudo timeout 300 apt-get update -y || true
+      run_sudo timeout 600 apt-get install -y gh || warn "Unable to install gh."
     fi
   fi
 
@@ -149,7 +149,7 @@ install_apt_tools() {
     log "Installing Node.js ${NODE_MAJOR}.x..."
     if curl --connect-timeout 10 --max-time 60 -fsSL "https://deb.nodesource.com/setup_${NODE_MAJOR}.x" > nodesource_setup.sh && run_sudo bash nodesource_setup.sh; then
       rm nodesource_setup.sh
-      timeout 600 run_sudo apt-get install -y nodejs || warn "Unable to install nodejs via apt."
+      run_sudo timeout 600 apt-get install -y nodejs || warn "Unable to install nodejs via apt."
     else
       rm -f nodesource_setup.sh
       warn "Unable to configure NodeSource repository."
@@ -222,6 +222,11 @@ install_python_deps() {
   else
     pip_install --root-user-action=ignore requests google-genai python-dotenv pydantic click PyGithub
     STATUS_PYTHON="INSTALLED (minimal)"
+  fi
+
+  if [ -f "requirements-dev.txt" ]; then
+    pip_install --root-user-action=ignore -r requirements-dev.txt
+    STATUS_PYTHON="${STATUS_PYTHON} + DEV"
   fi
 
   if [ -f "etl/requirements.txt" ] && [ "$SKIP_ETL_DEPS" != "1" ]; then

@@ -43,6 +43,7 @@ class ProjectConfig:
         "github-actions[bot]"
     ])
     worktree_prefix: str = "bt-repair-"
+    pnpm_version: str = "10.28.2"
     infra_file_paths: List[str] = field(default_factory=lambda: [
         "scripts/", "boomtick-pkg/cli/", ".github/",
         "setup-agent.sh", "Dockerfile"
@@ -175,6 +176,8 @@ def load_project_config(path: str | Path = "project_config.json") -> ProjectConf
         kwargs["ai_vision_model"] = raw["ai_vision_model"]
     if "worktree_prefix" in raw:
         kwargs["worktree_prefix"] = raw["worktree_prefix"]
+    if "pnpm_version" in raw:
+        kwargs["pnpm_version"] = raw["pnpm_version"]
 
     for list_key in [
         "core_dirs", "ui_indicators", "tailwind_indicators",

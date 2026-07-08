@@ -10,6 +10,58 @@ import random
 import hashlib
 from pathlib import Path
 from typing import Optional, Union, List, Dict, Any
+def sanitize_path(path: str, max_length: int = 255) -> str:
+    """
+    Sanitizes a path to prevent traversal bugs and ensure it remains within the intended scope.
+    Uses normpath to resolve .. and ensures the result doesn't escape the current directory.
+    """
+    if not path:
+        return ""
+
+    # 0. Length check
+    if len(path) > max_length:
+        path = path[:max_length]
+
+    # 1. Null byte protection
+    path = path.split('\0', 1)[0]
+
+    # 2. Normalize path to resolve '..'
+    normalized = os.path.normpath(path)
+
+    # 3. Prevent escaping current directory
+    if normalized.startswith("..") or os.path.isabs(normalized):
+        # Fallback to a safe version or just strip leading dots/slashes
+        normalized = normalized.lstrip('./\\')
+
+    # 4. Character Whitelisting: Allow only alphanumeric, dots, slashes, hyphens, and underscores
+    sanitized = re.sub(r'[^a-zA-Z0-9\./\-_]', '', normalized)
+
+    # 5. Collapse multiple slashes and strip
+    return re.sub(r'/+', '/', sanitized).strip('/')
+
+def escape_md(text: Any) -> str:
+    """Escapes markdown special characters using a single regex pass."""
+    # Escape \, *, _, `, #, [, ], (, )
+    return re.sub(r'([\\*_\`#\[\]\(\)])', r'\\\1', str(text))
+
+def run_git_commands(commands: List[List[str]], cwd: Optional[str] = None) -> List[Union[str, subprocess.CompletedProcess]]:
+    """Executes a sequence of git commands."""
+    results = []
+    for cmd in commands:
+        results.append(run_command(cmd, cwd=cwd))
+    return results
+
+def sanitize_metadata(text: str) -> str:
+    """
+    Sanitizes metadata text (like PR titles or branch names) for safe use in filenames or markdown templates.
+    """
+    if not text:
+        return ""
+    # Replace non-alphanumeric characters (except - and _) with hyphens
+    sanitized = re.sub(r'[^a-zA-Z0-9\-_]+', '-', text)
+    # Collapse multiple hyphens and strip
+    return re.sub(r'-+', '-', sanitized).strip('-')
+
 def mask_sensitive_data(msg: str) -> str:
     """Redacts sensitive information like GitHub tokens from strings."""
     if not isinstance(msg, str):

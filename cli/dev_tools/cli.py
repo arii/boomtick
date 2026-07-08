@@ -1096,7 +1096,7 @@ def plan_aggregation(ctx, pr_numbers, target):
         _handle_unexpected_error(ctx, "agent plan-aggregation", e)
 
 @agent_group.command(name='plan-issue-audit')
-@click.option('--issue', 'issue_numbers', multiple=True, type=int, help='Issue number(s) to audit')
+@click.option('--issue', '--issues', 'issue_numbers', multiple=True, type=int, help='Issue number(s) to audit (e.g. --issue 1 --issue 2)')
 @click.option('--all-open', is_flag=True, help='Audit all open issues')
 @limit_option(help_text='Limit the number of open issues to process')
 @click.pass_context

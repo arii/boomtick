@@ -9,9 +9,11 @@ class TestGitHubClientPagination(unittest.TestCase):
     def setUp(self):
         with patch('dev_tools.utils.get_github_token') as mock_token:
             mock_token.return_value = "dummy_token"
-            # Force no_cache=True to avoid hitting local logs/cache during tests
-            self.client = GitHubClient(repo="owner/repo", no_cache=True)
-            self.client.repo = "owner/repo" # Ensure repo is set if init fails
+            # Mock DiskCache to prevent cache hits during tests
+            with patch('dev_tools.services.github.DiskCache') as mock_cache:
+                mock_cache.return_value.get.return_value = None
+                self.client = GitHubClient(repo="owner/repo")
+                self.client.repo = "owner/repo" # Ensure repo is set if init fails
 
     @patch('dev_tools.services.github.requests.Session.request')
     def test_list_pull_requests_pagination_and_filtering(self, mock_request):
@@ -33,6 +35,12 @@ class TestGitHubClientPagination(unittest.TestCase):
         self.assertEqual(len(prs), 1)
         self.assertEqual(prs[0]["number"], 101)
         # Verify Search API was called
+        self.assertTrue(mock_request.called, "mock_request was not called")
+        # Unpack call_args which is a tuple of (args, kwargs)
+        args, kwargs = mock_request.call_args
+        call_url = args[1] if len(args) > 1 else kwargs.get("url", "")
+
+        self.assertIn("/search/issues", call_url)
         # mock_request is actually Session.request, so we check calls on the mock
         found_search_call = False
         for call in mock_request.call_args_list:
