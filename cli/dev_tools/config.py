@@ -53,6 +53,13 @@ class ProjectConfig:
         "  - *Review focus:* Ensure idempotency, portability (avoid bashisms), and robust error handling (`set -e`, `set -u`).\n"
         "  - *Verification:* If full system setup is risky, verify via dry-runs, `bash -n`, or log inspection. Document verification method in the PR.\n"
     )
+    temp_file_patterns: List[str] = field(default_factory=lambda: [
+        r".*\.tmp$", r"^[^/]+\.py$", r".*audit.*\.md$", r".*dump.*\.json$", r".*\.jsonl$"
+    ])
+    temp_file_feedback: str = (
+        "- **Stray/Temporary Files:** Suspicious files (scripts, logs, audits) detected. "
+        "Verify if these are intended to be committed.\n"
+    )
     spec_sections: List[str] = field(default_factory=lambda: [
         "Problem Statement",
         "Goal",
@@ -178,10 +185,13 @@ def load_project_config(path: str | Path = "project_config.json") -> ProjectConf
         kwargs["worktree_prefix"] = raw["worktree_prefix"]
     if "pnpm_version" in raw:
         kwargs["pnpm_version"] = raw["pnpm_version"]
+    if "temp_file_feedback" in raw:
+        kwargs["temp_file_feedback"] = raw["temp_file_feedback"]
 
     for list_key in [
         "core_dirs", "ui_indicators", "tailwind_indicators",
-        "audit_check_dirs", "allowed_bots", "spec_sections"
+        "audit_check_dirs", "allowed_bots", "spec_sections",
+        "temp_file_patterns"
     ]:
         val = get_list(list_key)
         if val is not None:

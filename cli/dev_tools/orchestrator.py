@@ -143,6 +143,12 @@ class Orchestrator:
         is_python = any(f.endswith(".py") for f in files_in_diff)
         is_infra = any(any(ind in f for ind in PROJECT_CONFIG.infra_file_paths) for f in files_in_diff)
 
+        # File Necessity Check (Temporary Files)
+        temp_files = []
+        for f in files_in_diff:
+            if any(re.search(pattern, f) for pattern in PROJECT_CONFIG.temp_file_patterns):
+                temp_files.append(f)
+
         fails = [c['name'] for c in checks.get('check_runs', []) if c.get('conclusion') == 'failure']
 
         feedback = f"### Specific Review for PR #{pr['number']}\n\n"
@@ -177,6 +183,11 @@ class Orchestrator:
 
         if is_infra:
             feedback += PROJECT_CONFIG.infra_feedback
+
+        if temp_files:
+            feedback += PROJECT_CONFIG.temp_file_feedback
+            for tf in sorted(temp_files):
+                feedback += f"  - `{tf}`\n"
 
         if pr.get('mergeable') is False:
             base_branch_name = PROJECT_CONFIG.base_branch_name

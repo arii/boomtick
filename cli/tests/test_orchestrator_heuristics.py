@@ -35,5 +35,18 @@ class TestOrchestratorHeuristics(unittest.TestCase):
         self.assertIn("Infrastructure/Bootstrap Change", feedback)
         self.assertIn("Design System Anti-patterns", feedback)
 
+    def test_evaluate_pr_heuristics_temp_files(self):
+        pr = {"number": 4, "head": {"ref": "temp-files-branch"}, "title": "Added some logs"}
+        # Diff adding suspicious files
+        diff = "+++ b/workflow-audit-status.md\n+Some findings\n+++ b/package.json\n+{}\n+++ b/data-dump.json"
+        checks = {"check_runs": []}
+
+        feedback = self.orchestrator.evaluate_pr_heuristics(pr, diff, checks)
+        self.assertIn("Stray/Temporary Files", feedback)
+        self.assertIn("workflow-audit-status.md", feedback)
+        self.assertIn("data-dump.json", feedback)
+        # Should NOT flag package.json
+        self.assertNotIn("package.json", feedback)
+
 if __name__ == '__main__':
     unittest.main()
