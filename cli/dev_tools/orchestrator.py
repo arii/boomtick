@@ -1634,32 +1634,44 @@ Follow the "Audit comment template" in `docs/agent/issue-audit-rules.md` to post
             ]
         }
 
+    def get_pr_for_session(self, session: Dict[str, Any]) -> Optional[int]:
+        """Optimized PR lookup for a session."""
+        session_id = session.get("name", "").replace("sessions/", "")
+
+        # 1. Try metadata/outputs first if available (fastest)
+        if session.get("outputs") and isinstance(session["outputs"], list):
+            for output in session["outputs"]:
+                if output.get("pullRequest") and output["pullRequest"].get("url"):
+                    match = re.search(r"/pull/(\d+)", output["pullRequest"]["url"])
+                    if match:
+                        return int(match.group(1))
+
+        # 2. Try branch name from sourceContext (fast - targeted search)
+        branch = None
+        if session.get("sourceContext"):
+            branch = session["sourceContext"].get("githubRepoContext", {}).get("startingBranch")
+
+        if branch:
+            # Use search API for targeted branch lookup
+            prs = self.github.search_pull_requests(f'head:{branch} state:open', limit=1)
+            if prs:
+                return prs[0]['number']
+
+        # 3. Fallback to session ID in body
+        safe_id = f'"{session_id}"'
+        prs = self.github.search_pull_requests(f'{safe_id} in:body,title state:open', limit=1)
+        if prs:
+            return prs[0]['number']
+
+        return None
+
     def trigger_jules_feedback(self, session_id: str) -> Dict[str, Any]:
         """Ports logic from trigger-feedback.ts to provide CI feedback to Jules."""
         session = self.jules.get_session(session_id)
         if not session:
             raise CLIError(f"Session {session_id} not found.")
 
-        prNumber = None
-        # Try to find PR in session outputs
-        if session.get("outputs") and isinstance(session["outputs"], list):
-            for output in session["outputs"]:
-                if output.get("pullRequest") and output["pullRequest"].get("url"):
-                    match = re.search(r"/pull/(\d+)", output["pullRequest"]["url"])
-                    if match:
-                        prNumber = int(match.group(1))
-                        break
-
-        # Search via gh for PRs mentioning session ID if not found
-        if not prNumber:
-            prs = self.github.list_pull_requests(state='open')
-            clean_id = session_id.replace("sessions/", "")
-            for pr in prs:
-                # Need full details for body
-                full_pr = self.github.fetch_pr_details(pr['number'])
-                if clean_id in (full_pr.get('title') or "") or clean_id in (full_pr.get('body') or ""):
-                    prNumber = pr['number']
-                    break
+        prNumber = self.get_pr_for_session(session)
 
         if not prNumber:
             return {

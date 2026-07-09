@@ -1,4 +1,5 @@
-from typing import List, Optional, Any, Dict, Literal
+import re
+from typing import List, Optional, Any, Dict, Literal, Union, Annotated
 from pydantic import BaseModel, Field, model_validator, ConfigDict, field_validator
 
 class IssueSummary(BaseModel):
@@ -195,8 +196,33 @@ class JulesSessionIdInput(BaseModel):
     sessionId: str = Field(..., description="The unique ID of the Jules session.")
 
 class JulesSendMessageInput(BaseModel):
-    sessionId: str = Field(..., description="The unique ID of the Jules session.")
-    message: str = Field(..., description="The message content to send.")
+    sessionId: Union[str, List[str]] = Field(..., description="The unique ID or IDs of the Jules session(s).")
+    message: str = Field(..., min_length=1, description="The message content to send.")
+
+    @model_validator(mode='after')
+    def validate_send_message(self) -> 'JulesSendMessageInput':
+        ids = [self.sessionId] if isinstance(self.sessionId, str) else self.sessionId
+
+        # Enforce batch cap of 50
+        BATCH_CAP = 50
+        if not ids:
+            raise ValueError("sessionId list cannot be empty")
+        if len(ids) > BATCH_CAP:
+            raise ValueError(f"Batch size exceeds maximum limit of {BATCH_CAP}")
+
+        # Allow alphanumeric, hyphens, underscores, and forward slashes (for sessions/ prefix)
+        pattern = re.compile(r"^[a-zA-Z0-9/_-]+$")
+
+        for sid in ids:
+            if not sid.strip():
+                raise ValueError("Session ID cannot be empty or whitespace")
+            if not pattern.match(sid):
+                raise ValueError(f"Invalid characters in session ID: {sid}")
+
+        if not self.message.strip():
+            raise ValueError("Message cannot be empty or whitespace")
+
+        return self
 
 class JulesListSessionsInput(BaseModel):
     pageSize: Optional[int] = Field(None, description="Maximum number of sessions to return.")

@@ -1095,14 +1095,35 @@ def messages(ctx, session_id):
     out(ctx, f"Messages retrieved for {session_id}", data={"messages": msgs})
 
 @agent_group.command()
-@click.argument('session_id')
+@click.argument('session_ids')
 @click.argument('message')
 @click.pass_context
-def send(ctx, session_id, message):
-    """Send a message to an active Jules session."""
+def send(ctx, session_ids, message):
+    """Send a message to active Jules session(s) (supports comma-separated IDs)."""
     orch = ctx.obj['ORCHESTRATOR']
-    res = orch.jules.send_message(session_id, message)
-    out(ctx, f"✅ Message sent to session {session_id}", data=res)
+
+    # Support comma-separated IDs for batching
+    target_ids = [s.strip() for s in session_ids.split(',')] if ',' in session_ids else session_ids
+
+    from dev_tools.models import JulesSendMessageInput
+    from pydantic import ValidationError
+    try:
+        JulesSendMessageInput(sessionId=target_ids, message=message)
+    except ValidationError as e:
+        # Extract specific error message for better feedback
+        msg = f"Validation failed: {e.errors()[0]['msg']}"
+        err(ctx, msg, code=1)
+    except Exception as e:
+        _handle_unexpected_error(ctx, "agent send", e)
+
+    res = orch.jules.send_message(target_ids, message)
+
+    # Provide clear summary for batch operations
+    summary = res.get('message', f"Message sent to session(s) {session_ids}")
+    if not summary.startswith("✅"):
+        summary = f"✅ {summary}"
+
+    out(ctx, summary, data=res)
 
 @agent_group.command(name='plan-review')
 @click.option('--pr', 'pr_number', required=True, type=int, help='Pull Request number')

@@ -15,22 +15,8 @@ logger = logging.getLogger(__name__)
 class ExtendedJulesClient(JulesClient):
     """JulesClient subclass with extended timeouts for daemon use."""
     def get_messages(self, session_id: str) -> List[Dict[str, Any]]:
-        clean_id = self._get_clean_id(session_id, "sessions")
-        url = f"{self.base_url}/sessions/{clean_id}/activities"
         # Set timeout to 30s instead of the default 10s
-        response = requests.get(url, headers=self.headers, timeout=30)
-        response.raise_for_status()
-        activities = response.json().get("activities", [])
-        messages = []
-        for act in activities:
-            content = self._extract_activity_content(act)
-            if content:
-                messages.append({
-                    "role": "user" if act.get("originator") == "user" else "jules",
-                    "content": content,
-                    "time": act.get("createTime")
-                })
-        return messages
+        return super().get_messages(session_id, timeout=30)
 
 
 class JulesFeedbackDaemon:
@@ -101,37 +87,12 @@ class JulesFeedbackDaemon:
         if session_id in self._session_to_pr_map:
             return self._session_to_pr_map[session_id]
 
-        # 1. Try metadata/outputs first if available (fastest)
-        if session.get("outputs") and isinstance(session["outputs"], list):
-            for output in session["outputs"]:
-                if output.get("pullRequest") and output["pullRequest"].get("url"):
-                    match = re.search(r"/pull/(\d+)", output["pullRequest"]["url"])
-                    if match:
-                        pr_num = int(match.group(1))
-                        if pr_num not in self._pr_cache:
-                            self._pr_cache[pr_num] = self.github.fetch_pr_details(pr_num)
-                        return self._pr_cache[pr_num]
-
-        # 2. Try branch name from sourceContext (fast - targeted search)
-        branch = None
-        if session.get("sourceContext"):
-            branch = session["sourceContext"].get("githubRepoContext", {}).get("startingBranch")
-
-        if branch:
-            # Use search API for targeted branch lookup (eliminates N+1 and full list scan)
-            prs = self.github.search_pull_requests(f'head:{branch} state:open', limit=1)
-            if prs:
-                pr = prs[0]
-                self._pr_cache[pr['number']] = pr
-                return pr
-
-        # 3. Fallback to session ID in body (Batch search)
-        # Ensure session_id is safely quoted for GitHub search
-        safe_id = f'"{session_id}"'
-        # Also check title to be thorough, Search API is efficient here
-        prs = self.github.search_pull_requests(f'{safe_id} in:body,title state:open', limit=1)
-        if prs:
-            return prs[0]
+        # 1-3. Delegate to orchestrator logic
+        pr_num = self.orchestrator.get_pr_for_session(session)
+        if pr_num:
+            if pr_num not in self._pr_cache:
+                self._pr_cache[pr_num] = self.github.fetch_pr_details(pr_num)
+            return self._pr_cache[pr_num]
 
         return None
 

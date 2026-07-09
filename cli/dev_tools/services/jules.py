@@ -1,8 +1,9 @@
 import os
 import sys
 import requests
-from dev_tools.utils import log_warn, log_debug
-from typing import Optional, List, Dict, Any
+from dev_tools.utils import log_warn, log_debug, log_info
+from typing import Optional, List, Dict, Any, Union
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 class JulesClient:
     def __init__(self, api_key: Optional[str] = None):
@@ -104,10 +105,10 @@ class JulesClient:
             return "Session completed successfully."
         return ""
 
-    def get_messages(self, session_id: str) -> List[Dict[str, Any]]:
+    def get_messages(self, session_id: str, timeout: int = 10) -> List[Dict[str, Any]]:
         clean_id = self._get_clean_id(session_id, "sessions")
         url = f"{self.base_url}/sessions/{clean_id}/activities"
-        response = requests.get(url, headers=self.headers, timeout=10)
+        response = requests.get(url, headers=self.headers, timeout=timeout)
         response.raise_for_status()
         activities = response.json().get("activities", [])
         messages = []
@@ -121,7 +122,41 @@ class JulesClient:
                 })
         return messages
 
-    def send_message(self, session_id: str, message: str) -> Dict[str, Any]:
+    def send_message(self, session_id: Union[str, List[str]], message: str) -> Dict[str, Any]:
+        session_ids = [session_id] if isinstance(session_id, str) else session_id
+
+        if len(session_ids) == 1:
+            return self._send_single_message(session_ids[0], message)
+
+        # The Pydantic model now enforces the BATCH_CAP, but we keep this as a secondary safety
+        BATCH_CAP = 50
+        if len(session_ids) > BATCH_CAP:
+            log_warn(f"Batch size {len(session_ids)} exceeds cap of {BATCH_CAP}. Truncating.")
+            session_ids = session_ids[:BATCH_CAP]
+
+        log_info(f"Batch sending message to {len(session_ids)} sessions...")
+
+        results = []
+        with ThreadPoolExecutor(max_workers=min(len(session_ids), 10)) as executor:
+            # Submit all tasks and keep track of futures in order
+            futures = [executor.submit(self._send_single_message, sid, message) for sid in session_ids]
+
+            # Reconstruct results in the original input order by iterating over the futures list
+            for sid, future in zip(session_ids, futures):
+                try:
+                    res = future.result()
+                    results.append({"sessionId": sid, "status": "success"})
+                except Exception as exc:
+                    log_warn(f"Failed to send message to {sid}: {exc}")
+                    results.append({"sessionId": sid, "status": "error", "message": str(exc)})
+
+        return {
+            "status": "success" if any(r["status"] == "success" for r in results) else "error",
+            "message": f"Batch send completed. {sum(1 for r in results if r['status'] == 'success')}/{len(session_ids)} successful.",
+            "results": results
+        }
+
+    def _send_single_message(self, session_id: str, message: str) -> Dict[str, Any]:
         clean_id = self._get_clean_id(session_id, "sessions")
         url = f"{self.base_url}/sessions/{clean_id}:sendMessage"
         response = requests.post(url, headers=self.headers, json={"prompt": message}, timeout=10)
