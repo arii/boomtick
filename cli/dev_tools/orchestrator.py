@@ -674,13 +674,16 @@ class Orchestrator:
                 if output and "{" in output:
                     json_start = output.find("{")
                     json_end = output.rfind("}") + 1
-                    audit_data = json.loads(output[json_start:json_end])
-                    # Ensure audit_data is a dictionary, and recursively parse if it's a stringified JSON
-                    if isinstance(audit_data, str):
-                        try:
-                            audit_data = json.loads(audit_data)
-                        except json.JSONDecodeError:
-                            audit_data = {}
+                    try:
+                        audit_data = json.loads(output[json_start:json_end])
+                        # Ensure audit_data is a dictionary, and recursively parse if it's a stringified JSON
+                        if isinstance(audit_data, str):
+                            try:
+                                audit_data = json.loads(audit_data)
+                            except json.JSONDecodeError:
+                                audit_data = {}
+                    except json.JSONDecodeError:
+                        audit_data = {}
 
                     if isinstance(audit_data, dict):
                         violations_map = audit_data.get("violations", {})
@@ -692,9 +695,9 @@ class Orchestrator:
                                 for v in violations:
                                     if isinstance(v, dict):
                                         auto_findings.append({
-                                            "path": filepath,
+                                            "path": str(filepath),
                                             "issue": f"{v.get('pattern', 'N/A')}: {v.get('message', 'No message')} (value: {v.get('value', 'N/A')})",
-                                            "severity": v.get('severity', 'minor')
+                                            "severity": str(v.get('severity', 'minor'))
                                         })
             res["auto_findings"] = auto_findings
         if submit:
@@ -1877,6 +1880,7 @@ Follow the "Audit comment template" in `docs/agent/issue-audit-rules.md` to post
 - context collected (via `td agent plan-review --pr {prNumber}`)
 - diagnostics collected
 
+**IMPORTANT: Context collection and audit are COMPLETE. Do NOT run --fetch or --audit again.**
 Agent must not repeat these steps. Redundant fetching (`--fetch`) or auditing (`--audit`) is already handled.
 
 ---

@@ -32,6 +32,7 @@ DO NOT REMOVE THE BACKTICKS.
 
 ```json
 {{
+  "recommendation": "Approved",
   "body": "## ANTI-AI-SLOP\\n<findings>\\n\\n## FINDINGS\\n<summary>\\n\\n## FINAL RECOMMENDATION\\n<Approved | Approved with Minor Changes | Not Approved>\\n\\n<!-- td-review-manager-comment -->",
   "recommendation": "<Approved | Approved with Minor Changes | Not Approved>",
   "labels": [],

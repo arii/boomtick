@@ -311,7 +311,7 @@ class GitHubClient:
                     pass
                 elif line.startswith('\\'):
                     # "\ No newline at end of file" increments position
-                    pass
+                    file_diff_pos += 1
                 else:
                     # Context line
                     mapping[current_file][new_line_num] = file_diff_pos
