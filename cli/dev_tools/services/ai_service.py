@@ -352,6 +352,30 @@ class AIClient:
         else:
             try:
                 cleaned = clean_llm_output(raw)
+
+                # Robust extraction fallback for mixed/malformed model output
+                candidate = cleaned
+                first_brace = candidate.find('{')
+                first_bracket = candidate.find('[')
+                last_brace = candidate.rfind('}')
+                last_bracket = candidate.rfind(']')
+
+                start = -1
+                if first_brace != -1 and (first_bracket == -1 or first_brace < first_bracket):
+                    start, end = first_brace, last_brace
+                elif first_bracket != -1:
+                    start, end = first_bracket, last_bracket
+
+                if start != -1 and end != -1 and end > start:
+                    json_candidate = candidate[start:end+1]
+                    try:
+                        parsed = json.loads(json_candidate)
+                        # Re-stringifying ensures we have a clean, sanitized JSON structure
+                        cleaned = json.dumps(parsed)
+                    except json.JSONDecodeError:
+                        # If extraction fails, fall back to standard parsing of the cleaned text
+                        pass
+
                 parsed_data, err = validate_with_model(cleaned, AIFullReview)
                 if err or parsed_data is None:
                     raise ValueError(err or "Validation failed")

@@ -242,15 +242,24 @@ def get_gemini_model() -> str:
     return _get_model_config("GEMINI_MODEL", "ai_synthesis_model", "gemini-2.5-flash-lite")
 
 def clean_llm_output(text: str) -> str:
-    """Removes markdown code blocks if present, or extracts from <findings> tags if present."""
-    # First try to extract from <findings> tags (used in code review prompts)
+    """
+    Removes markdown code blocks if present, or extracts from <findings> tags if present.
+    This utility focuses on standard LLM formatting (tags/blocks).
+    Pipeline-specific robust extraction should be handled by the caller.
+    """
+    if not text:
+        return ""
+
+    # 1. Extract from <findings> tags if present
     findings_match = re.search(r"<findings>\s*(.*?)\s*</findings>", text, re.DOTALL | re.IGNORECASE)
     if findings_match:
         text = findings_match.group(1).strip()
-        
-    match = re.search(r"```(?:\w+)?\s*\n(.*?)\n\s*```", text, re.DOTALL)
-    if match:
-        return match.group(1).strip()
+
+    # 2. Extract from ```json or ``` code blocks
+    code_block_match = re.search(r"```(?:json|xml|tsx?|jsx?)?\s*\n?(.*?)\n?\s*```", text, re.DOTALL | re.IGNORECASE)
+    if code_block_match:
+        return code_block_match.group(1).strip()
+
     return text.strip()
 
 def is_ai_available() -> bool:
