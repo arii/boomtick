@@ -517,12 +517,13 @@ def conflicts(ctx):
 @click.option('--allow-unrelated', is_flag=True, help="Allow merging unrelated histories.")
 @click.option('--strategy', type=click.Choice(['ours', 'theirs']), help="Merge strategy option (-X ours/theirs).")
 @click.option('--push', is_flag=True, help="Automatically push the resolution to origin.")
+@click.option('--continue', 'continue_resolve', is_flag=True, help="Finalize and push an in-progress conflict resolution.")
 @click.pass_context
-def resolve_conflicts(ctx, pr, allow_unrelated, strategy, push):
+def resolve_conflicts(ctx, pr, allow_unrelated, strategy, push, continue_resolve):
     """Resolve merge conflicts for a PR in a separate worktree."""
     orch = ctx.obj['ORCHESTRATOR']
     try:
-        res = orch.resolve_pr_conflicts(pr, allow_unrelated=allow_unrelated, strategy=strategy, push=push)
+        res = orch.resolve_pr_conflicts(pr, allow_unrelated=allow_unrelated, strategy=strategy, push=push, continue_resolve=continue_resolve)
         out(ctx, res['message'], data=res)
     except CLIError as e:
         err(ctx, str(e), code=e.code)
