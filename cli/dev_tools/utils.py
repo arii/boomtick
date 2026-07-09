@@ -360,26 +360,25 @@ def call_ai(prompt: str, model: str = None, url: Optional[str] = None, max_retri
 
     model = model or get_ai_model()
 
-    try:
-        from langchain_openai import ChatOpenAI
-        from langchain_core.messages import HumanMessage
-    except ImportError:
-        log_info("langchain_openai or langchain_core is not installed.")
-        return None
-
-    llm = ChatOpenAI(
-        base_url="https://models.inference.ai.azure.com",
-        api_key=token,
-        model=model,
-        temperature=0.7,
-        max_tokens=2048,
-        max_retries=max_retries,
-        model_kwargs={"response_format": {"type": "json_object"}} if schema else {}
-    )
+    url_target = "https://models.inference.ai.azure.com/chat/completions"
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "Content-Type": "application/json"
+    }
+    payload = {
+        "model": model,
+        "messages": [{"role": "user", "content": prompt}],
+        "temperature": 0.7,
+        "max_tokens": 2048
+    }
+    if schema:
+        payload["response_format"] = {"type": "json_object"}
 
     try:
-        response = llm.invoke([HumanMessage(content=prompt)])
-        return response.content
+        response = _request("POST", url_target, headers=headers, json=payload, max_retries=max_retries, retry_status_codes=[429, 500, 502, 503, 504])
+        if not response:
+            return None
+        return response.json()["choices"][0]["message"]["content"]
     except Exception as e:
         log_error(f"AI Call failed: {e}")
         return None
@@ -524,28 +523,30 @@ def call_gemini(prompt: str, model: str = None, max_retries: int = 3, schema = N
     if not api_key:
         return None
 
-    try:
-        from langchain_google_genai import ChatGoogleGenerativeAI
-        from langchain_core.messages import HumanMessage
-    except ImportError:
-        log_info("langchain_google_genai or langchain_core is not installed.")
-        return None
-
-    llm = ChatGoogleGenerativeAI(
-        model=model or get_gemini_model(),
-        google_api_key=api_key,
-        temperature=0.7,
-        max_retries=max_retries,
-    )
-
     if schema:
         # Note: structured output handling varies by LangChain version/provider
         # For simplicity in this shim, we'll rely on prompt engineering if bind_tools isn't used
         prompt += f"\n\nOutput MUST be valid JSON matching this schema: {json.dumps(schema)}"
 
+    url_target = f"https://generativelanguage.googleapis.com/v1beta/models/{model or get_gemini_model()}:generateContent?key={api_key}"
+    headers = {
+        "Content-Type": "application/json"
+    }
+    payload = {
+        "contents": [{"parts": [{"text": prompt}]}],
+        "generationConfig": {
+            "temperature": 0.7,
+        }
+    }
+
     try:
-        response = llm.invoke([HumanMessage(content=prompt)])
-        return response.content
+        response = _request("POST", url_target, headers=headers, json=payload, max_retries=max_retries)
+        if not response:
+            return None
+        data = response.json()
+        if 'candidates' in data and len(data['candidates']) > 0:
+            return data['candidates'][0]['content']['parts'][0]['text']
+        return None
     except Exception as e:
         log_error(f"Gemini Call failed: {e}")
         return None

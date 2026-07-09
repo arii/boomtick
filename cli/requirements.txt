@@ -10,13 +10,10 @@ chromadb>=1.5.9
 sentence-transformers>=5.6.0
 duckduckgo-search>=6.0.0
 setuptools<81.0.0
-langchain-google-genai
-langchain-openai
 pytest
 pytest-mock
 pylint
 mypy
 types-requests
 types-click
-langchain-core
 google-generativeai
