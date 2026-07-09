@@ -1034,7 +1034,8 @@ Respond only after the PR is created or updated:
             else: new_lines.append(line)
         if not found: new_lines.append(f"| #{pr_num} | {status} | {auditor} | {now} |")
         if not dry_run:
-            with open(tracking_file, "w") as f: f.write("\n".join(new_lines) + "\n")
+            from dev_tools.utils import safe_write_file
+            safe_write_file(tracking_file, "\n".join(new_lines) + "\n")
         return {"pr": pr_num, "status": status, "updated": not dry_run}
 
     def resolve_conflicts_headless(self) -> List[str]:

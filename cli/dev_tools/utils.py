@@ -134,6 +134,67 @@ def ensure_dir(*parts: str) -> str:
     path.mkdir(parents=True, exist_ok=True)
     return str(path)
 
+def safe_write_file(filepath: str, content: str):
+    """
+    Writes content to a file while being symlink-aware and security-conscious.
+    If the filepath is a symlink, it resolves the real path and writes to the target,
+    preserving the symlink, but ONLY if the target is within the repository root.
+    """
+    target_path = filepath
+    if os.path.islink(filepath):
+        target_path = os.path.realpath(filepath)
+        log_info(f"Symlink detected: {filepath} -> {target_path}")
+
+    # Security: Ensure target path is within repo root
+    repo_root = os.path.abspath(os.getcwd())
+    # Use realpath here to resolve symlinks and prevent escaping via symlink redirection
+    abs_target = os.path.realpath(target_path)
+    try:
+        # commonpath is the standard way to verify a subpath remains within a parent
+        if os.path.commonpath([repo_root, abs_target]) != repo_root:
+             raise CLIError(f"Security Error: Target path {target_path} (resolved: {abs_target}) is outside of repository root.")
+    except (ValueError, Exception) as e:
+         raise CLIError(f"Security Error: Target path {target_path} is invalid or outside of repository root: {e}")
+
+    # Ensure parent directory exists for the target
+    os.makedirs(os.path.dirname(abs_target), exist_ok=True)
+
+    try:
+        with open(abs_target, 'w', encoding='utf-8') as f:
+            f.write(content)
+    except Exception as e:
+        raise CLIError(f"Failed to write to {abs_target}: {e}")
+
+def apply_patch(filepath: str, patch_content: str):
+    """
+    Applies a patch to a file using git apply with whitespace fixing.
+    Restricts application to the specific filepath for security.
+    """
+    import tempfile
+
+    # Security: validate filepath - use realpath to resolve any symlink escapes
+    repo_root = os.path.abspath(os.getcwd())
+    abs_filepath = os.path.realpath(filepath)
+    try:
+        if os.path.commonpath([repo_root, abs_filepath]) != repo_root:
+             raise CLIError(f"Security Error: Path {filepath} is outside of repository root.")
+    except ValueError:
+         raise CLIError(f"Security Error: Path {filepath} is invalid or outside of repository root.")
+
+    with tempfile.NamedTemporaryFile(mode='w', suffix=".patch", delete=False) as tmp:
+        tmp.write(patch_content)
+        tmp_path = tmp.name
+
+    try:
+        # Use --include to restrict what git apply can touch
+        # filepath should be relative to repo root for --include
+        rel_path = os.path.relpath(abs_filepath, repo_root)
+        run_command(["git", "apply", "--whitespace=fix", "--include", rel_path, tmp_path])
+        log_info(f"Successfully applied patch to {filepath}")
+    finally:
+        if os.path.exists(tmp_path):
+            os.remove(tmp_path)
+
 def get_or_create_log_dir(subdir: str) -> str:
     """Returns the path to a specific log subdirectory and ensures it exists."""
     log_dir = Path(get_base_dir()) / "logs" / subdir
@@ -249,6 +310,9 @@ def clean_llm_output(text: str) -> str:
     """
     if not text:
         return ""
+
+    # Handle double-escaped newlines commonly found in AI generated JSON in markdown
+    text = text.replace('\\\\n', '\\n')
 
     # 1. Extract from <findings> tags if present
     findings_match = re.search(r"<findings>\s*(.*?)\s*</findings>", text, re.DOTALL | re.IGNORECASE)

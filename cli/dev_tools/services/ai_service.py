@@ -31,6 +31,9 @@ _REVIEW_MODEL = get_ai_review_model()
 # Model used for final summary synthesis
 _SYNTHESIS_MODEL = get_ai_model()
 
+# Maximum retries for AI generation and parsing
+_MAX_AI_RETRIES = 3
+
 # Combined review schema
 _REVIEW_SCHEMA = AIFullReview.model_json_schema()
 
@@ -232,10 +235,10 @@ class AIClient:
             except Exception as e:
                 log_warn(f"Failed to post-process AI resolution for {file_path}: {e}")
 
-            with open(file_path, 'w') as f:
-                f.write(resolved)
-                if not resolved.endswith('\n'):
-                    f.write('\n')
+            from dev_tools.utils import safe_write_file
+            if not resolved.endswith('\n'):
+                resolved += '\n'
+            safe_write_file(file_path, resolved)
 
             return True
         except Exception as e:
@@ -335,22 +338,15 @@ class AIClient:
 
         raw = None
         file_reviews = []
-        try:
-            raw = call_ai(prompt, model=_REVIEW_MODEL, schema=_REVIEW_SCHEMA, max_retries=2)
-        except Exception as e:
-            log_error(f"Review call failed for PR #{pr_num}: {e}")
+        parsed = None
 
-        elapsed = time.time() - t0
-
-        if not raw:
-            print(f" ❌ empty response ({elapsed:.1f}s)", flush=True, file=sys.stderr)
-            final = {
-                "reviewComment": f"Automated review of PR #{pr_num}.\n\nFailed to get a response from AI.",
-                "labels": ["needs-changes"],
-                "recommendation": "Not Approved"
-            }
-        else:
+        # Retry loop for generation and parsing
+        for attempt in range(_MAX_AI_RETRIES):
             try:
+                raw = call_ai(prompt, model=_REVIEW_MODEL, schema=_REVIEW_SCHEMA, max_retries=1)
+                if not raw:
+                    continue
+
                 cleaned = clean_llm_output(raw)
 
                 # Robust extraction fallback for mixed/malformed model output
@@ -369,31 +365,38 @@ class AIClient:
                 if start != -1 and end != -1 and end > start:
                     json_candidate = candidate[start:end+1]
                     try:
-                        parsed = json.loads(json_candidate)
-                        # Re-stringifying ensures we have a clean, sanitized JSON structure
-                        cleaned = json.dumps(parsed)
+                        temp_parsed = json.loads(json_candidate)
+                        cleaned = json.dumps(temp_parsed)
                     except json.JSONDecodeError:
-                        # If extraction fails, fall back to standard parsing of the cleaned text
                         pass
 
-                parsed_data, err = validate_with_model(cleaned, AIFullReview)
-                if err or parsed_data is None:
+                parsed, err = validate_with_model(cleaned, AIFullReview)
+                if err or parsed is None:
                     raise ValueError(err or "Validation failed")
 
-                file_reviews = parsed_data.get("file_reviews", [])
-                final = {
-                    "reviewComment": str(parsed_data.get("reviewComment", f"Automated review of PR #{pr_num}.")),
-                    "labels": list(parsed_data.get("labels", [])),
-                    "recommendation": str(parsed_data.get("recommendation", "Unknown"))
-                }
-                print(f" ✅ done ({elapsed:.1f}s)", flush=True, file=sys.stderr)
+                if isinstance(parsed, dict):
+                    break # Success
             except Exception as e:
-                print(f" ⚠️  validation error ({elapsed:.1f}s): {e}", flush=True, file=sys.stderr)
-                final = {
-                    "reviewComment": f"Review complete. (Validation error: {e})\n\nRaw: {raw[:800]}",
-                    "labels": [],
-                    "recommendation": "Not Approved"
-                }
+                log_warn(f"AI review attempt {attempt+1} failed: {e}")
+                time.sleep(1)
+
+        elapsed = time.time() - t0
+
+        if not parsed:
+            print(f" ❌ failed to get valid response ({elapsed:.1f}s)", flush=True, file=sys.stderr)
+            final = {
+                "reviewComment": f"Automated review of PR #{pr_num}.\n\nFailed to get a parseable response from AI after retries.",
+                "labels": ["needs-changes"],
+                "recommendation": "Not Approved"
+            }
+        else:
+            file_reviews = parsed.get("file_reviews", [])
+            final = {
+                "reviewComment": str(parsed.get("reviewComment", f"Automated review of PR #{pr_num}.")),
+                "labels": list(parsed.get("labels", [])),
+                "recommendation": str(parsed.get("recommendation", "Unknown"))
+            }
+            print(f" ✅ done ({elapsed:.1f}s)", flush=True, file=sys.stderr)
 
         # CI guard: never approve if checks are failing
         if has_ci_failures and final.get('recommendation') == 'Approved':
@@ -590,13 +593,26 @@ class AIClient:
         )
 
         raw = None
-        try:
-            # We don't use strict schema mode here because we want mixed markdown + json
-            raw = call_ai(prompt, model=_SYNTHESIS_MODEL, max_retries=2)
-        except Exception as e:
-            log_error(f"Synthesis call failed: {e}")
+        res = None
+        for attempt in range(_MAX_AI_RETRIES):
+            try:
+                # We don't use strict schema mode here because we want mixed markdown + json
+                raw = call_ai(prompt, model=_SYNTHESIS_MODEL, max_retries=1)
+                if not raw:
+                    continue
 
-        if not raw:
+                cleaned = clean_llm_output(raw)
+                res, err = validate_with_model(cleaned, AISynthesisReview)
+                if err or res is None:
+                    raise ValueError(err or "Validation failed")
+
+                if isinstance(res, dict):
+                    break # Success
+            except Exception as e:
+                log_warn(f"Synthesis attempt {attempt+1} failed: {e}")
+                time.sleep(1)
+
+        if not res:
             # Fallback: construct a minimal result from the structured data
             if blocking_files:
                 rec = "Not Approved"
@@ -616,19 +632,7 @@ class AIClient:
                 "recommendation": rec,
             }
 
-        try:
-            cleaned = clean_llm_output(raw)
-            res, err = validate_with_model(cleaned, AISynthesisReview)
-            if err or res is None:
-                raise ValueError(err or "Validation failed")
-            return res
-        except Exception as e:
-            log_warn(f"Synthesis validation error: {e} | raw: {raw[:300]}")
-            return {
-                "reviewComment": f"Review complete. {total_issues} issue(s) found. (Synthesis validation error: {e})\n\nRaw: {raw[:800]}",
-                "labels": [],
-                "recommendation": "Not Approved" if blocking_files else "Approved with Minor Changes",
-            }
+        return res
 
     # ── Output file ───────────────────────────────────────────────────────────
 
