@@ -1,5 +1,5 @@
-from pydantic import BaseModel, Field, model_validator, ConfigDict
-from typing import List, Optional, Any, Dict
+from typing import List, Optional, Any, Dict, Literal
+from pydantic import BaseModel, Field, model_validator, ConfigDict, field_validator
 
 class IssueSummary(BaseModel):
     number: int
@@ -25,6 +25,7 @@ class CreateIssueInput(BaseModel):
 
     @model_validator(mode='after')
     def check_body_or_file(self) -> 'CreateIssueInput':
+        # pylint: disable=no-member
         if (self.body is None or not self.body.strip()) and (self.file is None or not self.file.strip()):
             raise ValueError("Provide either --file or --body (cannot be empty)")
         if self.body and self.file:
@@ -50,6 +51,7 @@ class IssueUpdateInput(BaseModel):
 
     @model_validator(mode='after')
     def check_updates(self) -> 'IssueUpdateInput':
+        # pylint: disable=no-member
         if not any([self.body, self.file, self.labels, self.addLabels, self.removeLabels, self.state]):
             raise ValueError("Provide --file, --body, --labels, --addLabels, --removeLabels, or --state")
         if self.body and self.file:
@@ -203,3 +205,60 @@ class JulesListSessionsInput(BaseModel):
 class SearchDdgsInput(BaseModel):
     query: str = Field(..., description="The search query.")
     maxResults: Optional[int] = Field(None, description="Maximum number of results to return.")
+
+# AI Review Models
+
+class AIReviewIssue(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+    id: Optional[str] = Field(None, description="Unique identifier for the finding.")
+    line: Optional[int] = Field(None, description="Line number where the issue occurs.")
+    file: Optional[str] = Field(None, description="File path (if not already scoped by AIFileReview).")
+    severity: Literal["error", "warn", "info"] = Field(..., description="The severity level.")
+    issue: Optional[str] = Field(None, description="Description of the issue (alternative to 'comment').")
+    comment: Optional[str] = Field(None, description="Description of the issue.")
+    status: Optional[str] = Field("open", description="Status of the finding.")
+    confidence: Literal["high", "medium", "low"] = Field(..., description="Confidence level of the AI.")
+    counterexample: Optional[str] = Field(None, description="Example of how to fix or why it fails.")
+    snippet: Optional[str] = Field(None, description="The exact code snippet from the diff.")
+
+    @field_validator('severity', 'confidence', mode='before')
+    @classmethod
+    def normalize_enums(cls, v: Any) -> Any:
+        if isinstance(v, str):
+            return v.lower().strip()
+        return v
+
+    @model_validator(mode='before')
+    @classmethod
+    def reconcile_issue_fields(cls, data: Any) -> Any:
+        if isinstance(data, dict):
+            # Sync issue and comment fields
+            issue = data.get('issue')
+            comment = data.get('comment')
+            if issue and not comment:
+                data['comment'] = issue
+            elif comment and not issue:
+                data['issue'] = comment
+        return data
+
+    @model_validator(mode='after')
+    def validate_content(self) -> 'AIReviewIssue':
+        if not self.issue and not self.comment:
+            raise ValueError("AI review issue must have either an 'issue' or 'comment' field.")
+        return self
+
+class AIFileReview(BaseModel):
+    file: str = Field(..., description="The path of the file being reviewed.")
+    issues: List[AIReviewIssue] = Field(default_factory=list, description="List of findings in this file.")
+    verdict: str = Field(..., description="The verdict for this file (ok, needs_changes, blocking).")
+
+class AIFullReview(BaseModel):
+    file_reviews: List[AIFileReview] = Field(default_factory=list, description="Per-file review results.")
+    reviewComment: str = Field(..., description="Overall summary comment for the PR.")
+    labels: List[str] = Field(default_factory=list, description="Suggested labels for the PR.")
+    recommendation: str = Field(..., description="Final recommendation (Approved, Not Approved, etc).")
+
+class AISynthesisReview(BaseModel):
+    reviewComment: str = Field(..., description="Overall summary comment for the PR.")
+    labels: List[str] = Field(default_factory=list, description="Suggested labels for the PR.")
+    recommendation: str = Field(..., description="Final recommendation.")
