@@ -2,6 +2,7 @@ import os
 import subprocess
 import json
 import sys
+import re
 from dev_tools.utils import log_info, DiskCache
 import base64
 import requests
@@ -261,6 +262,62 @@ class GitHubClient:
         """Fetches the review comments on a pull request."""
         return self._request('GET', f'/repos/{self.repo}/pulls/{number}/comments')
 
+    def _get_diff_mapping(self, pr_number: int) -> Dict[str, Dict[int, int]]:
+        """
+        Parses the PR diff and returns a mapping of {filename: {new_line_number: diff_position}}.
+        Diff position is 0-indexed starting from the first '@@' hunk header in the file.
+        """
+        diff_text = self.fetch_pr_diff(pr_number)
+        mapping = {}
+        current_file = None
+        file_diff_pos = 0
+        new_line_num = 0
+        first_hunk_seen = False
+
+        for line in diff_text.splitlines():
+            if line.startswith('diff --git'):
+                current_file = None
+                first_hunk_seen = False
+                continue
+            if line.startswith('--- '):
+                continue
+            if line.startswith('+++ b/'):
+                current_file = line[6:].strip()
+                mapping[current_file] = {}
+                file_diff_pos = 0
+                continue
+            if line.startswith('@@ '):
+                if current_file is not None:
+                    if not first_hunk_seen:
+                        # First hunk of the file: hunk header is position 0
+                        file_diff_pos = 0
+                        first_hunk_seen = True
+                    else:
+                        # Subsequent hunk headers count as a line in the diff
+                        file_diff_pos += 1
+
+                    match = re.search(r'\+(\d+)', line)
+                    if match:
+                        new_line_num = int(match.group(1))
+                continue
+
+            if current_file is not None:
+                file_diff_pos += 1
+                if line.startswith('+'):
+                    mapping[current_file][new_line_num] = file_diff_pos
+                    new_line_num += 1
+                elif line.startswith('-'):
+                    # Deletions increment position but don't have a line number in the new file
+                    pass
+                elif line.startswith('\\'):
+                    # "\ No newline at end of file" increments position
+                    pass
+                else:
+                    # Context line
+                    mapping[current_file][new_line_num] = file_diff_pos
+                    new_line_num += 1
+        return mapping
+
     def update_issue(self, number: int, body: Optional[str] = None, labels: Optional[List[str]] = None) -> Dict[str, Any]:
         """Updates a GitHub issue's body and/or labels."""
         data = {}
@@ -413,6 +470,33 @@ class GitHubClient:
         # Validate payload before proceeding
         self.validate_review_payload(payload)
 
+        # Map comment lines to diff positions
+        try:
+            diff_mapping = self._get_diff_mapping(pr_number)
+            mapped_comments = []
+            unmapped_comments = []
+
+            for comment in payload.get("comments", []):
+                path = comment.get("path")
+                line = comment.get("line")
+
+                if path in diff_mapping and line in diff_mapping[path]:
+                    comment["position"] = diff_mapping[path][line]
+                    mapped_comments.append(comment)
+                else:
+                    unmapped_comments.append(comment)
+
+            payload["comments"] = mapped_comments
+
+            if unmapped_comments:
+                extra_body = "\n\n### Additional Feedback (Lines not found in diff)\n"
+                for c in unmapped_comments:
+                    extra_body += f"- **{c.get('path')}:{c.get('line')}**: {c.get('body')}\n"
+                payload["body"] = payload.get("body", "") + extra_body
+
+        except Exception as e:
+            log_warn(f"Failed to generate diff mapping for PR #{pr_number}: {e}")
+
         pr_details = self.fetch_pr_details(pr_number)
         check_runs = self.fetch_check_runs(pr_details.get('head', {}).get('sha'))
         failing_checks = [run.get('name') for run in check_runs if run.get('conclusion') == 'failure']
@@ -453,13 +537,15 @@ class GitHubClient:
                         if "Can not approve your own pull request" in error_msg and review_event != "COMMENT":
                             log_warn("Cannot approve own PR. Retrying as COMMENT...")
                             return try_create_review(review_body, review_comments, "COMMENT")
+
+                        # Handle individual comment failures if possible, or fallback to body
                         if review_comments:
-                            log_warn("Failed to post inline comments due to line resolution error. Retrying with body comments...")
+                            log_warn(f"Failed to post {len(review_comments)} inline comments. Retrying as body comments. Error: {error_msg[:200]}")
                             fallback_body = review_body
-                            fallback_body += "\n\n### Inline Comments (Fallback due to Github line resolution errors)\n"
+                            fallback_body += "\n\n### Inline Comments (Fallback due to line resolution errors)\n"
                             for comment in review_comments:
-                                if isinstance(comment, dict):
-                                    fallback_body += f"- **{comment.get('path')}:{comment.get('line')}**: {comment.get('body')}\n"
+                                line_info = f":{comment.get('line')}" if comment.get('line') else ""
+                                fallback_body += f"- **{comment.get('path')}{line_info}**: {comment.get('body')}\n"
                             return try_create_review(fallback_body, [], review_event)
                     raise e
 
