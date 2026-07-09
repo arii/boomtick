@@ -1,12 +1,12 @@
+import json
 import os
-import requests
+import re
 import sys
 import time
-import json
-import hashlib
-import re
 from collections import defaultdict
-from typing import Optional, Dict, Any, List, Set, Type, Tuple
+from typing import Any, Dict, List, Optional, Tuple, Type
+
+import requests
 from pydantic import ValidationError, BaseModel
 from dev_tools.utils import log_info, log_error, log_warn, ensure_dir
 from dev_tools.verify_versions import parse_diff, verify_changes
@@ -357,6 +357,7 @@ class AIClient:
                 last_bracket = candidate.rfind(']')
 
                 start = -1
+                end = -1
                 if first_brace != -1 and (first_bracket == -1 or first_brace < first_bracket):
                     start, end = first_brace, last_brace
                 elif first_bracket != -1:
@@ -720,9 +721,6 @@ class AIClient:
                     "line": issue.get('line', 1),
                     "body": f"[{issue.get('severity','?')}] (Confidence: {conf}) {issue_description}",
                 })
-        if not all_issues:
-            # Always provide at least one comment to satisfy validator
-            all_issues = [{"path": "SUMMARY", "line": 1, "body": "Review summary provided in body."}]
 
         metadata_json = json.dumps({
             "recommendation": recommendation,

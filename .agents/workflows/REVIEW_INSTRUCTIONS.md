@@ -1,73 +1,87 @@
 # Code Review Standards & Instructions
 
-When evaluating a Pull Request, you must read the generated diff context (pr-context-<PR_NUMBER>.md) and evaluate the code against the following rigorous standards.
+Read `pr-context-<PR_NUMBER>.md` and evaluate the code against these standards. Record findings in `pr-review-<PR_NUMBER>.md`.
 
-You will record your findings in the writeable `pr-review-<PR_NUMBER>.md` file.
+## 1. Output Protocol
 
-## 1. Output Protocol (CRITICAL)
+- **Target File**: Modify the existing `pr-review-{PR}.md`.
+- **No New Files**: Do not create temporary or JSON files.
+- **Checklist**: Mark every Audit Checklist item to indicate verification.
+- **JSON Block**: Fill the JSON block at the bottom of the file with findings.
 
-- **Target File**: You MUST modify the existing `pr-review-{PR}.md` file.
-- **NO New Files**: DO NOT create temporary files or new JSON files. The submission scripts ONLY read from the specified `pr-review-{PR}.md` file.
-- **Checklist Completion**: Every item in the Audit Checklist MUST be marked to indicate it was verified.
-- **JSON Block**: You MUST fill the JSON block at the bottom of the file with your findings.
+## 2. Audit Checklist
 
-## 2. Audit Checklist Verification
+Mark items as `[x]` (passed) or `[ ]` (failed). Provide detailed feedback for failed items.
 
-You MUST systematically verify each item against the diff context.
+### Anti-AI-Slop
+- **Dead abstractions**: No new classes/hooks where simpler primitives suffice.
+- **Unnecessary indirection**: No wrapping where a direct function call suffices.
+- **Responsibility creep**: Components should not manage logic belonging in parents/hooks.
+- **Import bloat**: No `import React from 'react'` in React 17+.
+- **Token compliance**: No raw Tailwind values or inline styles; use established design tokens.
 
-### Marking Convention:
-- **`[x]`**: Verified and **passed** (no issues found).
-- **`[ ]`**: Verified and **failed** (issue found). You MUST provide detailed feedback for these items in the `FINDINGS` section and/or as inline comments in the JSON block.
+## 3. Severity Standards
 
-The **Anti-AI-Slop checklist** is mandatory for all reviews.
+- **High/Blocking**: Concerns must feature concrete code contradictions (e.g., type mismatch, nonexistent call, wrong arity, failing test). Cite exact lines.
+- **No Speculation**: If it uses "could" or "might", it is non-blocking. Downgrade to "Approved with Minor Changes".
+- **Verification**: Do not raise concerns you cannot verify. State what is needed to verify rather than assuming the worst case.
 
-- **Dead abstractions**: Did they introduce a new class, context, or hook that a simpler primitive could handle?
-- **Unnecessary indirection**: Does this add a layer of wrapping where a direct function call would suffice?
-- **Responsibility creep**: Is a component taking on state or logic that belongs in a parent container or a custom hook?
-- **Import bloat**: Is `import React from 'react'` included unnecessarily (not needed in React 17+)?
-- **Token compliance**: Are they using raw Tailwind values (e.g., `text-[13px]`, `bg-[#f4f4f4]`) or inline styles instead of the established design tokens?
-- **Audit ratio**: If the PR adds > 100 lines of code, you must find at least 10 lines of code to recommend removing or refactoring.
-
-## 3. CI Failure Handling
+## 4. CI Failure Handling
 
 If the PR context indicates failing CI checks:
 - **Block Approvals**: You MUST NOT recommend "Approved" if there are failing CI checks that are related to the PR changes.
 - **Log Triage**: You must complete the "CI Log Triage" section in the review file. Use the "Detected Errors" and "Failure Logs Snippet" from the context file to perform a Root Cause Analysis and provide Remediation Steps.
 - **Prioritize Fixes**: Mention the CI failures prominently in your review body and prioritize their resolution.
 
-## 4. Review Status Mapping
+## 5. Review Status Mapping
 
+### Review Status Mapping:
 - **Approved**: Zero violations AND all critical CI checks passing.
-- **Approved with Minor Changes**: Minor non-breaking violations (e.g., import bloat, trivial token leakage).
-- **Not Approved**: Architectural regressions, breaking changes, major token violations, OR failing CI checks.
+- **Approved with Minor Changes**: Minor non-breaking violations (e.g., import bloat, trivial token leakage), or speculative concerns that lack concrete evidence of failure.
+- **Not Approved**: Architectural regressions, evidenced breaking changes (see Section 3), major token violations, OR failing CI checks.
 
-## 5. Formatting the JSON Output
+## 6. Formatting the Output (Markdown + JSON)
 
-At the bottom of `pr-review-<PR_NUMBER>.md`, there is a JSON block. You must write your feedback strictly into this JSON structure.
+The review file uses a separated format to prevent JSON escaping issues. You must write standard Markdown at the top and a structured JSON block at the very bottom for metadata.
 
-### The JSON Schema:
+### The Metadata JSON Block:
 
 ```json
 {
-  "body": "## ANTI-AI-SLOP\n- [x] No dead abstractions\n- [x] No unnecessary indirection\n- [x] No responsibility creep\n- [x] No import bloat\n- [x] Token compliance verified\n- [x] Audit ratio satisfied\n\n## FINDINGS\n<summary of key findings and observations>\n\n## FINAL RECOMMENDATION\n<Approved | Approved with Minor Changes | Not Approved>",
-  "comments": [
-    {
-      "path": "src/example.tsx",
-      "line": 42,
-      "body": "This abstraction is unnecessary. Consider passing this as a direct prop."
-    }
-  ]
+  "body": "## ANTI-AI-SLOP\\n<findings>\\n\\n## FINDINGS\\n<summary>\\n\\n## FINAL RECOMMENDATION\\n<Approved | Approved with Minor Changes | Not Approved>\\n\\n<!-- td-review-manager-comment -->",
+  "recommendation": "<Approved | Approved with Minor Changes | Not Approved>",
+  "labels": [],
+  "comments": []
 }
 ```
 
 ### Output Rules:
 
-- **Replace Placeholders**: Replace all `<findings>`, `<summary>`, and `<Approved | ...>` placeholders with actual analysis.
-- **Always provide at least one comment** in the `comments` array.
+- **Standard Markdown Body**: Write your findings, checklist, and triage as standard Markdown at the top of the file.
+- **Flattened Schema**: The JSON block must ONLY contain metadata (`recommendation`, `labels`, `comments`). Do NOT nest the review body inside JSON.
+- **Comments**: Provide inline comments in the `comments` array. If no inline issues are found, use an empty array `[]`.
 - **Line Numbers**: Every inline comment MUST have a `line` number that exists within the **Valid Comment Ranges** for that file in the diff context.
 - **JSON Validity**: Ensure the final submission block remains 100% valid JSON.
 
-## 6. Infrastructure & Component Awareness
+## 7. Tiered Review Standards (Application vs. Infrastructure)
+
+Distinguish between "Application" and "Infrastructure/Tooling" code to provide relevant feedback.
+
+### Infrastructure & Tooling (`scripts/`, `boomtick-pkg/cli/`, `.github/`, `setup-agent.sh`)
+- **Portability**: Avoid shell-specific extensions (bashisms) unless necessary. Prefer standard POSIX shell or robust Bash 4+.
+- **Idempotency**: Scripts should be safe to run multiple times.
+- **Error Handling**: Use `set -e`, `set -u`, `set -o pipefail`. Provide clear error messages.
+- **Security**: Never hardcode secrets. Use environment variables or masked inputs.
+- **Verification**: Allow verification via dry-runs, log analysis, or `bash -n` static checks when live execution is risky.
+
+### Application & UI (`src/`)
+- **Layout primitives**: `src/layouts/` (Box, Stack, Grid, Text, Button)
+- **UI components**: `src/components/ui/`
+- **Custom hooks**: `src/hooks/` (useSearchParam, useGlobalSearch, useHotkeys)
+- **Utilities**: `src/lib/utils.ts` (cn, safeSearch)
+- **Design tokens**: `src/styles/design-tokens.ts` and `tokens.css`
+
+## 8. Component Awareness (Application Only)
 
 Before suggesting an implementation, verify if it already exists:
 
@@ -81,12 +95,21 @@ Before suggesting an implementation, verify if it already exists:
 - Building layout with `div` + flex when `<Stack>` or `<Box>` exists.
 - Adding `import React` in React 17+ files.
 
-## 7. Failure Modes (Avoid These)
+## 9. Failure Modes (Avoid These)
 
 - **hallucinating PR Numbers**: Always use the PR number provided in the prompt.
 - **Out-of-range comments**: Comments on lines not in the diff cause 422 errors.
 - **Empty payloads**: Never submit a review with empty findings or placeholders.
 
-## 8. Tooling Guidelines
+## 10. Git Merge & Conflict Resolution
+
+In scenarios involving branch orchestration or PR consolidation, agents may encounter complex merge states:
+- **Unrelated Histories**: If `git merge` fails with `fatal: refusing to merge unrelated histories`, agents should retry the merge using the `--allow-unrelated-histories` flag.
+- **Heavy Conflicts (Patch Fallback)**: For disjoint histories or heavy merge conflicts where standard git merging is fragile, utilize a patch-based approach:
+  1. Generate a clean patch from the source branch: `git diff base_branch...head_branch > changes.patch`
+  2. Apply the patch to the target branch: `git apply changes.patch`
+  3. Manually resolve any `.rej` (rejected) chunks.
+
+## 11. Tooling Guidelines
 
 Agents must not directly use git or gh commands but reuse existing tooling (`td-cli`).
