@@ -2,6 +2,7 @@ import hashlib
 import os
 import re
 import json
+import textwrap
 import sys
 import shutil
 import subprocess
@@ -1526,12 +1527,17 @@ Follow the "Audit comment template" in `docs/agent/issue-audit-rules.md` to post
         conflict_files = []
         command_log = ""
         try:
-            res = run_command(
-                ["git", "merge", "--no-commit", "--no-ff", f"origin/{base_branch}"],
-                cwd=worktree_path,
-                check=False
-            )
-            command_log = res.stdout + res.stderr
+            merge_cmd = ["git", "merge", "--no-commit", "--no-ff", f"origin/{base_branch}"]
+            res = run_command(merge_cmd, cwd=worktree_path, check=False)
+            command_log = (res.stdout or "") + (res.stderr or "")
+
+            if res.returncode != 0:
+                # Detect and retry unrelated histories
+                if "unrelated histories" in command_log.lower():
+                    log_warn(f"Disjoint history detected for conflict check of PR #{pr_number}. Retrying with --allow-unrelated-histories")
+                    res = run_command(merge_cmd + ["--allow-unrelated-histories"], cwd=worktree_path, check=False)
+                    command_log += "\n--- RETRY WITH --allow-unrelated-histories ---\n"
+                    command_log += (res.stdout or "") + (res.stderr or "")
 
             if res.returncode != 0:
                 res_diff = run_command(
@@ -1732,15 +1738,35 @@ Follow the "Audit comment template" in `docs/agent/issue-audit-rules.md` to post
             # 3. Safety First: Attempt automated integration merge
             # Use 'ort' strategy implicitly by standard merge if git version supports it,
             # or just standard merge.
-            res = run_command(["git", "merge", head_ref, "-m", f"Merging PR #{pr_num}: {title}"], check=False)
+            merge_cmd = ["git", "merge", head_ref, "-m", f"Merging PR #{pr_num}: {title}"]
+            res = run_command(merge_cmd, check=False)
 
             if not isinstance(res, subprocess.CompletedProcess):
                 raise CLIError("Merge execution failed")
 
             if res.returncode != 0:
-                # Conflict encountered
-                run_command(["git", "merge", "--abort"])
-                raise CLIError(f"CRITICAL: Conflict in PR #{pr_num}. Restored stable state of {target_branch}.", code=res.returncode)
+                # Detect "refusing to merge unrelated histories" and retry
+                # Safely handle potential None values if capture failed
+                merge_output = (res.stdout or "") + (res.stderr or "")
+                if "unrelated histories" in merge_output.lower():
+                    log_warn(f"Disjoint history detected for PR #{pr_num}. Retrying with --allow-unrelated-histories")
+                    res = run_command(merge_cmd + ["--allow-unrelated-histories"], check=False)
+                    if not isinstance(res, subprocess.CompletedProcess):
+                        raise CLIError("Retry merge with --allow-unrelated-histories failed execution")
+
+                if res.returncode != 0:
+                    # Conflict encountered
+                    run_command(["git", "merge", "--abort"])
+                    error_msg = textwrap.dedent(f"""
+                        CRITICAL: Conflict in PR #{pr_num}. Restored stable state of {target_branch}.
+
+                        Fallback Strategy:
+                        If native merging fails due to heavy conflicts or history divergence:
+                        1. Generate a patch: `git diff {target_branch}...{head_ref} > pr_{pr_num}.patch`
+                        2. Apply manually: `git apply pr_{pr_num}.patch` and resolve rejects.
+                        3. Or retry merge with: `git merge {head_ref} --allow-unrelated-histories`
+                    """).strip()
+                    raise CLIError(error_msg, code=res.returncode)
 
             # 4. Metadata Preservation
             successfully_merged.append(pr_num)
@@ -1923,6 +1949,14 @@ Agent may read:
 
 Agent may modify:
 `boomtick-pkg/cli/logs/reviews/pr-review-{prNumber}.md`
+
+---
+
+## Merge & Conflict Guidance
+
+If tasks require merging branches (e.g., during PR consolidation or rebase):
+- **Unrelated Histories**: If git fails with `fatal: refusing to merge unrelated histories`, use `git merge <branch> --allow-unrelated-histories`.
+- **Heavy Conflicts**: If standard merging is too complex, generate a patch using `git diff base...head` and apply it manually.
 
 ---
 
@@ -2119,6 +2153,15 @@ Overlapping functionality identified and resolved.
             if not isinstance(res, subprocess.CompletedProcess):
                 raise CLIError("Failed to execute git merge command")
 
+            if res.returncode != 0 and not allow_unrelated:
+                # Detect and retry unrelated histories even if not explicitly requested
+                merge_output = (res.stdout or "") + (res.stderr or "")
+                if "unrelated histories" in merge_output.lower():
+                    log_warn(f"Disjoint history detected for PR #{pr_number}. Retrying with --allow-unrelated-histories")
+                    res = run_command(merge_cmd + ["--allow-unrelated-histories"], check=False)
+                    if not isinstance(res, subprocess.CompletedProcess):
+                        raise CLIError("Retry merge with --allow-unrelated-histories failed execution")
+
             if res.returncode == 0:
                 message = f"✅ PR #{prNumber} merged successfully with {base_branch}.\nPath: {worktree_path}"
                 status = "success"
@@ -2245,6 +2288,9 @@ Examine the files listed in `aggregation-context-{sanitized_target}.md`.
 
 ### Step 2: Resolve Conflicts
 Perform the merge and resolve any structural or semantic conflicts.
+
+- **Edge Case: Unrelated Histories**: If you encounter `fatal: refusing to merge unrelated histories`, retry with `--allow-unrelated-histories`.
+- **Heavy Conflicts Fallback**: If standard merging creates excessive noise, use `git diff target...head > patch` to generate a clean patch and apply it manually.
 
 ### Step 3: Verify
 Run the validation suite to ensure the aggregated branch is stable.
