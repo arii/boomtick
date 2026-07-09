@@ -53,7 +53,7 @@ class GitHubClient:
             return ""
 
 
-    def _request(self, method: str, path: str, json_data: Optional[Dict] = None, params: Optional[Dict] = None, is_text: bool = False, accept: Optional[str] = None, allow_redirects: bool = True, ttl: int = 300) -> Any:
+    def _request(self, method: str, path: str, json_data: Optional[Dict] = None, params: Optional[Dict] = None, is_text: bool = False, accept: Optional[str] = None, allow_redirects: bool = True, ttl: int = 300, timeout: int = 60) -> Any:
         url = f"{self.base_url}{path}"
 
         # Cache key based on request details
@@ -77,7 +77,7 @@ class GitHubClient:
                 headers=headers,
                 json=json_data,
                 params=params,
-                timeout=30,
+                timeout=timeout,
                 allow_redirects=allow_redirects
             )
             response.raise_for_status()
@@ -212,13 +212,14 @@ class GitHubClient:
 
         # GitHub API returns a 302 redirect to a URL that expires after a few minutes
         # Using 'application/vnd.github.v3.raw' ensures we get the plain text logs
+        # Large logs can take time to fetch
         try:
-            return self._request('GET', f'/repos/{self.repo}/actions/jobs/{job_id}/logs', is_text=True, accept="application/vnd.github.v3.raw", allow_redirects=True)
+            return self._request('GET', f'/repos/{self.repo}/actions/jobs/{job_id}/logs', is_text=True, accept="application/vnd.github.v3.raw", allow_redirects=True, timeout=300)
         except requests.exceptions.HTTPError as e:
             if external_id is not None and e.response.status_code == 404:
                 # Fallback to query by raw check_run_id
                 job_id = str(check_run_id)
-                return self._request('GET', f'/repos/{self.repo}/actions/jobs/{job_id}/logs', is_text=True, accept="application/vnd.github.v3.raw")
+                return self._request('GET', f'/repos/{self.repo}/actions/jobs/{job_id}/logs', is_text=True, accept="application/vnd.github.v3.raw", timeout=300)
             raise
 
     def create_issue_comment(self, number: int, body: str) -> Dict[str, Any]:
@@ -488,7 +489,8 @@ class GitHubClient:
         """A stateless download helper for the Orchestrator"""
         url = f"{self.base_url}/repos/{self.repo}/zipball/{ref}"
         headers = {"Authorization": f"Bearer {self.token}"}
-        response = requests.get(url, headers=headers, stream=True)
+        # Increased timeout for large downloads
+        response = requests.get(url, headers=headers, stream=True, timeout=300)
         response.raise_for_status()
         with open(dest, 'wb') as f:
             for chunk in response.iter_content(chunk_size=8192):

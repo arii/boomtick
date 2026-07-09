@@ -94,7 +94,8 @@ def _call_api_with_retry(method: str, url: str, **kwargs) -> requests.Response:
     from requests.adapters import HTTPAdapter
     from urllib3.util import Retry
 
-    timeout = kwargs.pop('timeout', 30)
+    # Default to 60s for standard calls, 300s for large downloads/logs
+    timeout = kwargs.pop('timeout', 60)
     max_retries = kwargs.pop('max_retries', 3)
 
     session = requests.Session()
@@ -129,15 +130,15 @@ def get_base_dir() -> str:
 
 def ensure_dir(*parts: str) -> str:
     """Joins path parts, ensures the directory exists, and returns the absolute path."""
-    path = os.path.join(get_base_dir(), *parts)
-    os.makedirs(path, exist_ok=True)
-    return path
+    path = Path(get_base_dir()).joinpath(*parts)
+    path.mkdir(parents=True, exist_ok=True)
+    return str(path)
 
 def get_or_create_log_dir(subdir: str) -> str:
     """Returns the path to a specific log subdirectory and ensures it exists."""
-    log_dir = os.path.join(get_base_dir(), "logs", subdir)
-    os.makedirs(log_dir, exist_ok=True)
-    return log_dir
+    log_dir = Path(get_base_dir()) / "logs" / subdir
+    log_dir.mkdir(parents=True, exist_ok=True)
+    return str(log_dir)
 
 
 class DiskCache:
