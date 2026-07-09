@@ -414,6 +414,12 @@ EOE
   # Apply to current session
   source "$env_file"
 
+  # Inject feature flags for agent optimization (idempotent)
+  # Signals that the 'td-cli schema' optimization is available.
+  if ! grep -Fq "export TD_CLI_SCHEMA_QUERY_SUPPORTED" "$env_file"; then
+    echo "export TD_CLI_SCHEMA_QUERY_SUPPORTED=\"true\"" >> "$env_file"
+  fi
+  export TD_CLI_SCHEMA_QUERY_SUPPORTED="true"
   # Ensure PATH is updated in the current session
   export PATH="$HOME/.local/bin:$PATH"
   if [ -n "${current_venv}" ]; then

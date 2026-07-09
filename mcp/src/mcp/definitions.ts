@@ -31,6 +31,17 @@ import {
   SearchDdgsInputJsonSchema,
 } from "../tools/contract.js";
 
+export const GetCommandSchemaInputJsonSchema = {
+  type: "object",
+  properties: {
+    commandPath: {
+      type: "string",
+      description: "The CLI command path to retrieve the schema for (e.g. 'gh audit-pr')"
+    }
+  },
+  required: ["commandPath"]
+} as const;
+
 export const MCP_PROMPTS: Prompt[] = [
   {
     name: "conflict-scout",
@@ -127,6 +138,11 @@ export const MCP_TOOLS: Tool[] = [
     name: "repo.get_changed_files",
     description: "Get the list of changed files between two refs.",
     inputSchema: GetChangedFilesInputJsonSchema as any,
+  },
+  {
+    name: "repo.get_command_schema",
+    description: "Retrieve a lightweight, targeted schema for a specific td-cli subcommand. Use this instead of reading the entire cli-schema.json to save tokens.",
+    inputSchema: GetCommandSchemaInputJsonSchema as any,
   },
   {
     name: "repo.get_package_scripts",

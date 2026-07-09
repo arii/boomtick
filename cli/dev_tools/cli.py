@@ -711,6 +711,42 @@ def track_review(ctx, pr, status, auditor, dry_run):
     res = orch.track_review(pr, status, auditor, dry_run=dry_run)
     out(ctx, f"✅ Updated tracking for PR #{pr}", data=res)
 
+@cli.command(name='schema')
+@click.argument('command_path', required=False)
+@click.pass_context
+def schema_cmd(ctx, command_path):
+    """Retrieve the schema for a specific subcommand or all commands."""
+    # Sanitize and validate command_path to prevent injection
+    # Allowed format: words separated by single spaces (no special shell characters)
+    if command_path:
+        import re
+        # Stricter regex: words containing only lowercase alphanumeric, hyphens, and underscores,
+        # separated by single spaces. No leading/trailing spaces.
+        # This prevents any shell character injection and restricts to valid command tokens.
+        word = r'[a-z0-9-_]+'
+        pattern = f'^{word}( {word})*$'
+        if not re.match(pattern, command_path):
+            err(ctx, "Invalid command path. Only lowercase alphanumeric, hyphens, and underscores separated by single spaces are allowed.")
+
+    from dev_tools.schema_utils import collect_commands, get_command_by_path
+    target_cmd = get_command_by_path(cli, command_path)
+
+    # If the path matches a group but not a leaf command, target_cmd will be the group.
+    # get_command_by_path returns None if not found at all.
+
+    if not target_cmd:
+        msg = "Command path not found."
+        if command_path and ' ' not in command_path:
+            # Provide a small hint for common top-level groups
+            if command_path in ['gh', 'repo', 'config', 'ux', 'agent', 'jules']:
+                 msg += f" Did you mean 'td-cli schema {command_path}' to see subcommands?"
+        err(ctx, msg)
+        return
+
+    # Use a safe depth limit (5) for granular lookups to maintain performance
+    res = collect_commands(target_cmd, prefix=command_path or "", max_depth=5)
+    out(ctx, f"Schema for {command_path or 'root'}", data={"schema": res})
+
 def _handle_gate(ctx, res, label):
     msg = f"{label}: Current={res.get('current', res.get('size_kb'))}, Baseline={res.get('baseline', res.get('baseline_kb'))}"
     if res['status'] == 'error':
