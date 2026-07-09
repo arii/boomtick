@@ -67,7 +67,7 @@ runs:
       id: check_visuals
       env:
         VISUAL_DIFF_THRESHOLD: 1.5
-      run: pnpm exec tsx scripts/check-visual-changes.ts >> "$GITHUB_OUTPUT"
+      run: pnpm exec tsx boomtick-pkg/scripts/check-visual-changes.ts >> "$GITHUB_OUTPUT"
       shell: bash
 
     - name: Visual review agent

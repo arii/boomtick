@@ -58,7 +58,7 @@ run_check "dev-tools-cli-guide.md" "PYTHONPATH=\"boomtick-pkg/cli:boomtick-pkg/c
 run_check "review-pr.md" "PYTHONPATH=\"boomtick-pkg/cli:boomtick-pkg/cli/dev_tools\" td-cli agent plan-review --pr 2821"
 
 run_check "review-ux.md" "npx playwright --version"
-run_check "review-ux.md" "node scripts/detect-antipatterns.mjs --help"
+run_check "review-ux.md" "node boomtick-pkg/scripts/detect-antipatterns.mjs --help"
 
 echo "== Done =="
 echo "Report: $REPORT"

@@ -20,7 +20,7 @@ runs:
         echo "::group::Audit"
         trap 'echo "::endgroup::"' EXIT
         export PATH="$HOME/.local/bin:/github/home/.local/bin:$PATH"
-        if ! node scripts/detect-antipatterns.mjs; then echo "Audit failed"; exit 1; fi
+        if ! node boomtick-pkg/scripts/detect-antipatterns.mjs; then echo "Audit failed"; exit 1; fi
         td gh audit-gate
       shell: bash
 

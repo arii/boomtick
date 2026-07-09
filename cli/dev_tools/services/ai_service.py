@@ -84,7 +84,7 @@ def _get_review_prompt_constants() -> tuple[str, str, str]:
     # Determine repo root from the current file's relative path execution
     try:
         root_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))))
-        ts_path = os.path.join(root_dir, 'scripts', 'lib', 'ReviewPromptConstants.ts')
+        ts_path = os.path.join(root_dir, 'boomtick-pkg', 'lib', 'ReviewPromptConstants.ts')
         with open(ts_path, 'r') as f:
             ts_content = f.read()
 

@@ -173,7 +173,7 @@ class Orchestrator:
             tailwind_indicators = PROJECT_CONFIG.tailwind_indicators
             if any(ind in diff for ind in tailwind_indicators):
                 feedback += "- **Design System Anti-patterns:** The diff contains raw Tailwind classes (e.g. padding/margin utility classes, arbitrary values).\n"
-                feedback += "  - *Fix:* Replace raw Tailwind layout classes with `Stack`, `Box`, or `Grid` primitives using design tokens (e.g., `gap={4}`, `paddingY={{ base: 4, md: 1.5 }}`). Verify by running `node scripts/detect-antipatterns.mjs`.\n"
+                feedback += "  - *Fix:* Replace raw Tailwind layout classes with `Stack`, `Box`, or `Grid` primitives using design tokens (e.g., `gap={4}`, `paddingY={{ base: 4, md: 1.5 }}`). Verify by running `node boomtick-pkg/scripts/detect-antipatterns.mjs`.\n"
 
             feedback += "- **Mobile UX Verification:** For any UI additions, ensure horizontal layout does not overflow a 390px viewport.\n"
             feedback += "  - *Fix:* If adding interactive elements, wrap them to enforce a minimum 48x48px touch target for accessibility.\n"
@@ -313,7 +313,7 @@ class Orchestrator:
         return fallback_value
 
     def get_audit_results(self, content: Optional[str] = None, targets: Optional[List[str]] = None) -> Dict[str, Any]:
-        cmd = ["node", "scripts/detect-antipatterns.mjs", "--json"]
+        cmd = ["node", "boomtick-pkg/scripts/detect-antipatterns.mjs", "--json"]
         if targets:
             cmd.extend(targets)
         elif content is not None:
@@ -669,7 +669,7 @@ class Orchestrator:
             if scope_warning: auto_findings.append({"path": "PR SCOPE", "issue": scope_warning, "severity": "major"})
             files_to_audit = [f for f in changed_files if (f.endswith('.tsx') or f.endswith('.ts')) and os.path.exists(f)]
             if files_to_audit:
-                audit_res = run_command(["node", "scripts/detect-antipatterns.mjs", "--json"] + files_to_audit, check=False)
+                audit_res = run_command(["node", "boomtick-pkg/scripts/detect-antipatterns.mjs", "--json"] + files_to_audit, check=False)
                 output = audit_res.stdout
                 if output and "{" in output:
                     json_start = output.find("{")
@@ -730,7 +730,7 @@ class Orchestrator:
         run_command(["corepack", "enable"], check=False)
         run_command(["corepack", "prepare", "pnpm@10.28.2", "--activate"], check=False)
 
-        # Mirror scripts/check-runtime.mjs logic in Python
+        # Mirror boomtick-pkg/scripts/check-runtime.mjs logic in Python
         try:
             with open(".node-version", "r") as f:
                 expected_node = f.read().strip().replace('v', '')
@@ -812,7 +812,7 @@ class Orchestrator:
 
         # 2. Automated Validation Steps
         steps = [
-            ("Anti-Pattern Audit", ["node", "scripts/detect-antipatterns.mjs"]),
+            ("Anti-Pattern Audit", ["node", "boomtick-pkg/scripts/detect-antipatterns.mjs"]),
             ("Version Downgrade Check", [PROJECT_CONFIG.cli_alias, "gh", "verify-versions"]),
             ("TypeScript", ["pnpm", "run", "type-check"]),
             ("Lint", ["pnpm", "run", "lint"])
@@ -871,7 +871,7 @@ class Orchestrator:
         finally: os.chdir(original_cwd)
 
     def handle_audit_gate(self) -> Dict[str, Any]:
-        current_count = int(run_command(["node", "scripts/detect-antipatterns.mjs", "--count-only"]) or 0)
+        current_count = int(run_command(["node", "boomtick-pkg/scripts/detect-antipatterns.mjs", "--count-only"]) or 0)
         baseline_count = self.resolve_baseline(None, 'AUDIT_BASELINE', -1)
 
         is_shallow = run_command(["git", "rev-parse", "--is-shallow-repository"], check=False).stdout.strip() == "true"
@@ -904,7 +904,7 @@ class Orchestrator:
             for mf in relevant:
                 res_show = run_command(["git", "show", f"{base_ref}:{mf}"], check=False, log_on_error=False)
                 if res_show.returncode == 0:
-                    baseline_count += int(run_command(["node", "scripts/detect-antipatterns.mjs", "--count-only", "-"], input_str=res_show.stdout) or 0)
+                    baseline_count += int(run_command(["node", "boomtick-pkg/scripts/detect-antipatterns.mjs", "--count-only", "-"], input_str=res_show.stdout) or 0)
         return {"current": current_count, "baseline": baseline_count, "status": "success" if current_count <= baseline_count else "error"}
 
     def fix_ci(self, prNumber: Optional[int] = None, branch: Optional[str] = None, api_key: Optional[str] = None, dry_run: bool = True, **kwargs) -> Dict[str, Any]:
@@ -1849,9 +1849,9 @@ Follow the "Audit comment template" in `docs/agent/issue-audit-rules.md` to post
 
         # 5. Impact Analysis
         impact_output = "Not available."
-        if os.path.exists("scripts/impact-analysis.ts"):
+        if os.path.exists("boomtick-pkg/scripts/impact-analysis.ts"):
             # Use check=False to swallow errors from impact analysis in the planning phase
-            res = run_command(["npx", "tsx", "scripts/impact-analysis.ts"], check=False, log_on_error=False)
+            res = run_command(["npx", "tsx", "boomtick-pkg/scripts/impact-analysis.ts"], check=False, log_on_error=False)
             impact_output = res.stdout + res.stderr
             if res.returncode != 0:
                 impact_output = f"Impact analysis failed (exit {res.returncode}):\n{impact_output}"
