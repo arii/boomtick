@@ -246,6 +246,15 @@ def merge_conflicts(ctx, pr_number, base):
 @gh.command()
 @click.argument('pr_number', type=int)
 @click.pass_context
+def sync_pr(ctx, pr_number):
+    """Reliably pull the latest remote PR state to local, overwriting messy rebases."""
+    orch = ctx.obj['ORCHESTRATOR']
+    res = orch.sync_pr(pr_number)
+    out(ctx, res['message'], data=res)
+
+@gh.command()
+@click.argument('pr_number', type=int)
+@click.pass_context
 def pr_diff(ctx, pr_number):
     orch = ctx.obj['ORCHESTRATOR']
     res = orch.get_pr_diff_shapen(pr_number)
