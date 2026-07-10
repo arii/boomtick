@@ -1,11 +1,11 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import { buildVisualReviewPayload, parseLLMVerdict, parseVisualReviewFindings } from '../../boomtick-pkg/lib/visualReviewUtils';
-import { extractFeedbackText } from '../../boomtick-pkg/lib/codeReviewUtils';
-import type { LLMClientStrategy } from '../../boomtick-pkg/lib/visualReviewOrchestrator';
-import type { RouteReview, VisualRouteSummary } from '../../boomtick-pkg/lib/visualReviewTypes';
-import { pickOptimalModel } from '../../boomtick-pkg/lib/modelPicker';
-import { DOM_REVIEW_DIR } from '../../boomtick-pkg/lib/visualReviewConstants';
+import { buildVisualReviewPayload, parseLLMVerdict, parseVisualReviewFindings } from '../../lib/visualReviewUtils';
+import { extractFeedbackText } from '../../lib/codeReviewUtils';
+import type { LLMClientStrategy } from '../../lib/visualReviewOrchestrator';
+import type { RouteReview, VisualRouteSummary } from '../../lib/visualReviewTypes';
+import { pickOptimalModel } from '../../lib/modelPicker';
+import { DOM_REVIEW_DIR } from '../../lib/visualReviewConstants';
 
 async function createModelConfig(estimatedInputTokens: number = 0): Promise<{ apiKey: string; modelName: string; maxTokens: number }> {
   const apiKey = process.env.GITHUB_TOKEN;

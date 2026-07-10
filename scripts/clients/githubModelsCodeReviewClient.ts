@@ -6,11 +6,11 @@ import {
   buildReviewPayload,
   extractFeedbackText,
   calculateEstimatedTokens
-} from '../../boomtick-pkg/lib/codeReviewUtils';
-import { buildSystemPrompt } from '../../boomtick-pkg/lib/buildCodeReviewPrompt';
-import type { CodeReviewSummary, CodeReviewResult } from '../../boomtick-pkg/lib/codeReviewTypes';
-import type { CodeReviewClientStrategy } from '../../boomtick-pkg/lib/codeReviewOrchestrator';
-import { pickOptimalModel, getAvailableModels } from '../../boomtick-pkg/lib/modelPicker';
+} from '../../lib/codeReviewUtils';
+import { buildSystemPrompt } from '../../lib/buildCodeReviewPrompt';
+import type { CodeReviewSummary, CodeReviewResult } from '../../lib/codeReviewTypes';
+import type { CodeReviewClientStrategy } from '../../lib/codeReviewOrchestrator';
+import { pickOptimalModel, getAvailableModels } from '../../lib/modelPicker';
 
 async function createModelConfig(
   estimatedInputTokens: number = 0,

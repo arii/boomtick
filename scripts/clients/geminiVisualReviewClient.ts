@@ -1,11 +1,11 @@
 import { HumanMessage } from '@langchain/core/messages';
-import { buildVisualReviewPayload, parseLLMVerdict, parseVisualReviewFindings } from '../../boomtick-pkg/lib/visualReviewUtils';
-import { extractFeedbackText } from '../../boomtick-pkg/lib/codeReviewUtils';
-import { pickGeminiModel, getGeminiPricing } from '../../boomtick-pkg/lib/geminiModelPicker';
-import { extractFinishReason, createGeminiModel, applyRetryStrategy } from '../../boomtick-pkg/lib/geminiUtils';
-import type { LLMClientStrategy, AgentRole } from '../../boomtick-pkg/lib/visualReviewOrchestrator';
+import { buildVisualReviewPayload, parseLLMVerdict, parseVisualReviewFindings } from '../../lib/visualReviewUtils';
+import { extractFeedbackText } from '../../lib/codeReviewUtils';
+import { pickGeminiModel, getGeminiPricing } from '../../lib/geminiModelPicker';
+import { extractFinishReason, createGeminiModel, applyRetryStrategy } from '../../lib/geminiUtils';
+import type { LLMClientStrategy, AgentRole } from '../../lib/visualReviewOrchestrator';
 
-import type { RouteReview, VisualRouteSummary } from '../../boomtick-pkg/lib/visualReviewTypes';
+import type { RouteReview, VisualRouteSummary } from '../../lib/visualReviewTypes';
 
 const ROLE_PROMPTS: Record<AgentRole, string> = {
   CODE_REVIEW: "You are a Senior Software Engineer. Focus on the impact of code changes on the rendered output. Verify that the DOM diff aligns with the visual changes.",
