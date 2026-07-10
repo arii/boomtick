@@ -644,21 +644,32 @@ class Orchestrator:
                         else: annotated.append(f"{line_num:4d} |{line}"); line_num += 1
                 context_lines.append(f"```diff\n" + "\n".join(annotated) + "\n```")
             with open(ctx_path, "w") as f: f.write("\n".join(context_lines))
-            template_path = os.path.join(os.path.dirname(__file__), "..", "review_template.md")
 
             failed_checks_str = "\n".join(f"- {name}" for name in failed_check_names) if failed_check_names else "_None_"
             errors_str = "\n".join(f"- {err}" for err in detected_errors) if detected_errors else "_None detected by parser._"
 
-            if os.path.exists(template_path):
-                with open(template_path) as f:
-                    template = f.read().format(
-                        pr_num=prNumber,
-                        head_sha=pr.head.sha,
-                        failed_checks=failed_checks_str,
-                        detected_errors=errors_str
-                    )
-            else:
-                template = f"# PR Review: #{prNumber}\n- SHA: {pr.head.sha}\n\n## CI Log Triage\n- **Failed Checks:**\n{failed_checks_str}\n- **Detected Errors:**\n{errors_str}\n"
+            try:
+                import importlib_resources as resources
+                ref = resources.files("dev_tools.resources").joinpath("review_template.md")
+                template = ref.read_text(encoding='utf-8').format(
+                    pr_num=prNumber,
+                    head_sha=pr.head.sha,
+                    failed_checks=failed_checks_str,
+                    detected_errors=errors_str
+                )
+            except (ImportError, FileNotFoundError):
+                template_path = os.path.join(os.path.dirname(__file__), "..", "review_template.md")
+                if os.path.exists(template_path):
+                    with open(template_path) as f:
+                        template = f.read().format(
+                            pr_num=prNumber,
+                            head_sha=pr.head.sha,
+                            failed_checks=failed_checks_str,
+                            detected_errors=errors_str
+                        )
+                else:
+                    template = f"# PR Review: #{prNumber}\n- SHA: {pr.head.sha}\n\n## CI Log Triage\n- **Failed Checks:**\n{failed_checks_str}\n- **Detected Errors:**\n{errors_str}\n"
+
             with open(rev_path, "w") as f: f.write(template)
             res["files"]["context"] = ctx_path; res["files"]["review"] = rev_path
         if audit:

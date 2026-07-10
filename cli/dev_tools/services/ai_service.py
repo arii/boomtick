@@ -79,27 +79,21 @@ def _get_review_prompt_constants() -> tuple[str, str, str]:
     if _REVIEW_CONSTANTS_CACHE is not None:
         return _REVIEW_CONSTANTS_CACHE
 
-    import os
-    import re
-    # Determine repo root from the current file's relative path execution
     try:
-        root_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))))
-        ts_path = os.path.join(root_dir, 'boomtick-pkg', 'lib', 'ReviewPromptConstants.ts')
-        with open(ts_path, 'r') as f:
-            ts_content = f.read()
+        import importlib_resources as resources
+        import json
+        resource_path = resources.files("dev_tools.resources").joinpath("prompt_constants.json")
+        with resource_path.open('r') as f:
+            data = json.load(f)
 
-        json_match = re.search(r'export const STRICT_JSON_VERIFICATION\s*=\s*`([\s\S]*?)`;', ts_content)
-        snippet_match = re.search(r'export const SNIPPET_AND_VERIFICATION_RULES\s*=\s*`([\s\S]*?)`;', ts_content)
-        common_match = re.search(r'export const COMMON_REVIEW_GUIDELINES\s*=\s*`([\s\S]*?)`;', ts_content)
-
-        json_rules = json_match.group(1).replace('\\`', '`') if json_match else ""
-        snippet_rules = snippet_match.group(1).replace('\\`', '`') if snippet_match else ""
-        common_rules = common_match.group(1).replace('\\`', '`') if common_match else ""
+        json_rules = data.get("STRICT_JSON_VERIFICATION", "")
+        snippet_rules = data.get("SNIPPET_AND_VERIFICATION_RULES", "")
+        common_rules = data.get("COMMON_REVIEW_GUIDELINES", "")
 
         _REVIEW_CONSTANTS_CACHE = (json_rules, snippet_rules, common_rules)
         return _REVIEW_CONSTANTS_CACHE
     except Exception as e:
-        log_warn(f"Failed to load ReviewPromptConstants.ts: {e}")
+        log_warn(f"Failed to load prompt_constants.json from resources: {e}")
         # Default fallback values to prevent empty constraints from degrading review quality
         default_json = "Strict JSON Verification:\n- Every finding MUST have an `id`, `file`, `issue`, and `status`."
         default_snippet = "Snippet rules:\n- STRICT SNIPPET RULE: Quote exact line from diff."

@@ -37,22 +37,10 @@ export function initializeConfig() {
 
   try {
     // Attempt to load core properties from the Python CLI to avoid duplication
-    const repoPath = findRepoRoot();
-    const cliPath = path.join(repoPath, "boomtick-pkg/cli");
-
-    const env = {
-      ...process.env,
-      PYTHONPATH: process.env.PYTHONPATH
-        ? `${cliPath}:${process.env.PYTHONPATH}`
-        : cliPath
-    };
-
-    const cmd = `python3 -m dev_tools.cli config view`;
+    const cmd = `td-cli config view`;
     const output = execSync(cmd, {
       encoding: "utf-8",
-      stdio: ["ignore", "pipe", "ignore"],
-      cwd: cliPath,
-      env
+      stdio: ["ignore", "pipe", "ignore"]
     });
     cachedDynamicConfig = JSON.parse(output);
     return cachedDynamicConfig;

@@ -128,9 +128,15 @@ def get_base_dir() -> str:
     """Returns the absolute path to the CLI package root."""
     return os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 
+def get_workspace_log_dir() -> Path:
+    """Returns the path to the workspace log directory (.boomtick/logs)."""
+    # Use CWD for workspace-based logging
+    return Path(os.getcwd()) / ".boomtick" / "logs"
+
 def ensure_dir(*parts: str) -> str:
     """Joins path parts, ensures the directory exists, and returns the absolute path."""
-    path = Path(get_base_dir()).joinpath(*parts)
+    # Prioritize workspace-based logging
+    path = get_workspace_log_dir().joinpath(*parts)
     path.mkdir(parents=True, exist_ok=True)
     return str(path)
 
@@ -197,7 +203,7 @@ def apply_patch(filepath: str, patch_content: str):
 
 def get_or_create_log_dir(subdir: str) -> str:
     """Returns the path to a specific log subdirectory and ensures it exists."""
-    log_dir = Path(get_base_dir()) / "logs" / subdir
+    log_dir = get_workspace_log_dir() / subdir
     log_dir.mkdir(parents=True, exist_ok=True)
     return str(log_dir)
 
@@ -386,9 +392,8 @@ def call_ai(prompt: str, model: str = None, url: Optional[str] = None, max_retri
 
 def log_ai_run(entry: dict):
     try:
-        log_dir = os.path.join(os.getcwd(), "boomtick-pkg", "cli", "logs", "ai")
+        log_dir = get_or_create_log_dir("ai")
         log_file = os.path.join(log_dir, "review-run.jsonl")
-        os.makedirs(log_dir, exist_ok=True)
         from datetime import datetime
         entry["timestamp"] = datetime.utcnow().isoformat() + "Z"
         with open(log_file, "a") as f:
@@ -468,7 +473,7 @@ def verify_ci_metrics(input_threshold: Optional[int] = None, output_threshold: O
         raise CLIError("Thresholds must be non-negative integers.")
 
     # Use Path for robust path resolution
-    log_file = Path(os.getcwd()) / "boomtick-pkg" / "cli" / "logs" / "ai" / "review-run.jsonl"
+    log_file = Path(get_or_create_log_dir("ai")) / "review-run.jsonl"
 
     if not log_file.exists():
         # In multi-job CI, this might happen if logs weren't shared.
