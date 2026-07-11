@@ -1,0 +1,18 @@
+{
+  "threshold": 5,
+  "minLines": 6,
+  "minTokens": 40,
+  "ignore": [
+    "**/node_modules/**",
+    "**/dist/**",
+    "**/artifacts/**",
+    "**/report/**",
+    "**/*.spec.ts",
+    "**/*.spec.tsx",
+    "**/*.test.ts",
+    "**/*.test.tsx",
+    "**/pnpm-lock.yaml",
+    ".agents/**"
+  ],
+  "reporters": ["console"]
+}

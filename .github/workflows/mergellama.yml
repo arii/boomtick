@@ -1,0 +1,59 @@
+name: Auto-Resolve Merge Conflicts
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+
+permissions:
+  contents: write
+  pull-requests: write
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+
+
+jobs:
+  resolve-conflicts:
+    runs-on: ubuntu-latest
+    container: ghcr.io/arii/tech-dancer:latest
+    if: github.event.pull_request.mergeable == false || contains(github.event.pull_request.labels.*.name, 'has-conflicts')
+    env:
+      AI_MODEL: gpt-4o-mini
+      GITHUB_MODELS_BASE_URL: https://models.inference.ai.azure.com
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - name: Git Safe Directory
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
+      - name: Checkout Code
+        uses: actions/checkout@v7 # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
+        with:
+          repository: ${{ github.event.pull_request && github.event.pull_request.head.repo.full_name || github.repository }}
+          fetch-depth: 0
+          ref: ${{ github.head_ref }}
+
+      - name: Setup Workspace
+        uses: ./.github/actions/setup-workspace
+
+      - name: Check active runtime
+        run: |
+          pnpm run check:runtime-files
+          pnpm run doctor
+
+      - name: Find and Resolve Conflicts
+        run: |
+          # Use our unified CLI for resolution
+          td-cli gh resolve
+
+      - name: Validate Resolution
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm run type-check
+
+      - name: Commit Changes
+        uses: stefanzweifel/git-auto-commit-action@v7 # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
+        with:
+          commit_message: "chore: auto-resolved merge conflicts using AI"
+          file_pattern: '.'

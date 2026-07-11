@@ -11,6 +11,41 @@ inputs:
 runs:
   using: "composite"
   steps:
+    - name: Resolve Project Paths
+      id: resolve-paths
+      shell: bash
+      env:
+        TARGET: ${{ inputs.target }}
+      run: |
+        # Use centralized script for CLI path resolution
+        if [ -f "boomtick-pkg/scripts/resolve-cli.sh" ]; then
+          CLI_PATH=$(bash boomtick-pkg/scripts/resolve-cli.sh | sed "s|$(pwd)/||")
+        elif [ -f "scripts/resolve-cli.sh" ]; then
+          CLI_PATH=$(bash scripts/resolve-cli.sh | sed "s|$(pwd)/||")
+        elif [ -d "boomtick-pkg/cli" ]; then
+          CLI_PATH="boomtick-pkg/cli"
+        else
+          CLI_PATH="cli"
+        fi
+        echo "CLI_PATH=$CLI_PATH" >> "$GITHUB_OUTPUT"
+
+        case "$TARGET" in
+          root)
+            echo "FILTER_PATH=." >> "$GITHUB_OUTPUT"
+            ;;
+          boomtick-mcp)
+            if [ -d "boomtick-pkg/mcp" ]; then
+              echo "FILTER_PATH=./boomtick-pkg/mcp" >> "$GITHUB_OUTPUT"
+            else
+              echo "FILTER_PATH=./mcp" >> "$GITHUB_OUTPUT"
+            fi
+            ;;
+          *)
+            echo "::error::Invalid target: $TARGET. Must be 'root' or 'boomtick-mcp'."
+            exit 1
+            ;;
+        esac
+
     - name: Validate Runtime
       if: inputs.target == 'root'
       run: |
@@ -23,20 +58,13 @@ runs:
     - name: pnpm install
       env:
         TARGET: ${{ inputs.target }}
+        FILTER_PATH: ${{ steps.resolve-paths.outputs.FILTER_PATH }}
       run: |
         echo "::group::pnpm install"
         trap 'echo "::endgroup::"' EXIT
         if [ "$TARGET" = "root" ]; then
           pnpm install --frozen-lockfile --engine-strict=false
         else
-          FILTER_PATH="$TARGET"
-          if [ "$TARGET" = "boomtick-mcp" ]; then
-            if [ -d "boomtick-pkg/mcp" ]; then
-              FILTER_PATH="./boomtick-pkg/mcp"
-            else
-              FILTER_PATH="./mcp"
-            fi
-          fi
           pnpm install --frozen-lockfile --filter "$FILTER_PATH" --engine-strict=false
         fi
       shell: bash
@@ -60,30 +88,18 @@ runs:
     - name: Type-check / Build
       env:
         TARGET: ${{ inputs.target }}
+        CLI_PATH: ${{ steps.resolve-paths.outputs.CLI_PATH }}
+        FILTER_PATH: ${{ steps.resolve-paths.outputs.FILTER_PATH }}
       run: |
         if [ "$TARGET" = "boomtick-mcp" ]; then
-          if [ -d "boomtick-pkg/cli" ]; then
-            PYTHONPATH=boomtick-pkg/cli python3 boomtick-pkg/cli/dev_tools/schema_gen.py
-            npx tsx boomtick-pkg/mcp/scripts/sync-contracts.ts
-            pnpm --filter ./boomtick-pkg/mcp run sync:mcp-schemas
-          else
-            PYTHONPATH=cli python3 cli/dev_tools/schema_gen.py
-            npx tsx mcp/scripts/sync-contracts.ts
-            pnpm --filter ./mcp run sync:mcp-schemas
-          fi
+          PYTHONPATH="$CLI_PATH" python3 "$CLI_PATH/dev_tools/schema_gen.py"
+          npx tsx "$FILTER_PATH/scripts/sync-contracts.ts"
+          pnpm --filter "$FILTER_PATH" run sync:mcp-schemas
         fi
 
         if [ "$TARGET" = "root" ]; then
           pnpm run type-check
         else
-          FILTER_PATH="$TARGET"
-          if [ "$TARGET" = "boomtick-mcp" ]; then
-            if [ -d "boomtick-pkg/mcp" ]; then
-              FILTER_PATH="./boomtick-pkg/mcp"
-            else
-              FILTER_PATH="./mcp"
-            fi
-          fi
           pnpm --filter "$FILTER_PATH" run build
         fi
       shell: bash
@@ -104,33 +120,23 @@ runs:
     - name: Run Unit Tests
       env:
         TARGET: ${{ inputs.target }}
+        FILTER_PATH: ${{ steps.resolve-paths.outputs.FILTER_PATH }}
       run: |
         if [ "$TARGET" = "root" ]; then
           pnpm test
         else
-          FILTER_PATH="$TARGET"
-          if [ "$TARGET" = "boomtick-mcp" ]; then
-            if [ -d "boomtick-pkg/mcp" ]; then
-              FILTER_PATH="./boomtick-pkg/mcp"
-            else
-              FILTER_PATH="./mcp"
-            fi
-          fi
           pnpm --filter "$FILTER_PATH" run test
         fi
       shell: bash
 
     - name: Run CLI Unit Tests
       if: inputs.target == 'root' || inputs.target == 'boomtick-mcp'
+      env:
+        CLI_PATH: ${{ steps.resolve-paths.outputs.CLI_PATH }}
       run: |
         echo "::group::Pytest"
         trap 'echo "::endgroup::"' EXIT
-
-        if [ -d "boomtick-pkg/cli" ]; then
-          PYTHONPATH=boomtick-pkg/cli:boomtick-pkg/cli/dev_tools python3 -m pytest boomtick-pkg/cli/tests/
-        elif [ -d "cli" ]; then
-          PYTHONPATH=cli:cli/dev_tools python3 -m pytest cli/tests/
-        fi
+        PYTHONPATH="$CLI_PATH:$CLI_PATH/dev_tools" python3 -m pytest "$CLI_PATH/tests/"
       shell: bash
 
     - name: Check for dead code

@@ -4,7 +4,10 @@
 
 echo "Finalizing boomtick-pkg extraction..."
 
-# Update internal GitHub Action references
-grep -l "uses: ./boomtick-pkg/.github/actions/" .github/actions/*/action.yml | xargs sed -i 's|uses: ./boomtick-pkg/.github/actions/|uses: ./.github/actions/|g'
+# Update internal GitHub Action references (from monorepo-relative to package-relative)
+# Inside the extracted repo, boomtick-pkg/mcp/actions/ becomes mcp/actions/
+# and boomtick-pkg/.github/workflows/ becomes .github/workflows/
+find mcp/actions/ -name "action.yml" -exec sed -i 's|uses: ./boomtick-pkg/mcp/actions/|uses: ./mcp/actions/|g' {} +
+find .github/workflows/ -name "*.yml" -exec sed -i 's|uses: ./boomtick-pkg/mcp/actions/|uses: ./mcp/actions/|g' {} +
 
 echo "Extraction finalized. Internal paths updated."

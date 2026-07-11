@@ -43,7 +43,9 @@ runs:
           const matchingPRs = pullRequests.filter(pr => pr.head.ref === branchName);
 
           const statusLine = process.env.INPUT_STATUS_LINE;
-          let impactBodyText = process.env.INPUT_IMPACT_BODY;
+          // Simple sanitization to satisfy XSS concerns in GitHub comments
+          let impactBodyText = (process.env.INPUT_IMPACT_BODY || '')
+            .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '[REMOVED SCRIPT]');
 
           for (const pr of matchingPRs) {
             const commentTag = `<!-- impact-analysis-comment-${branchName} -->`;

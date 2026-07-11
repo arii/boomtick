@@ -7,7 +7,7 @@ inputs:
 runs:
   using: composite
   steps:
-    - uses: ./boomtick-pkg/.github/actions/setup
+    - uses: ./boomtick-pkg/mcp/actions/setup
 
     - name: Install dependencies
       run: pnpm install --frozen-lockfile --prefer-offline
