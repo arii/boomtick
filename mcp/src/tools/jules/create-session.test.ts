@@ -12,11 +12,10 @@ describe("createJulesSessionHandler", () => {
     setupTestEnv();
     vi.mocked(shell.runCommand).mockResolvedValue({
       stdout: JSON.stringify({
-        session: {
-          name: "sessions/1234567890",
-          state: "IN_PROGRESS",
-          createTime: new Date().toISOString(),
-        }
+        status: "success",
+        name: "sessions/1234567890",
+        state: "IN_PROGRESS",
+        createTime: new Date().toISOString(),
       }),
       stderr: "",
       exitCode: 0,
@@ -54,7 +53,7 @@ describe("createJulesSessionHandler", () => {
     vi.mocked(shell.runCommand).mockImplementation(async (cmd, args) => {
       if (args[1] === "view") {
         return {
-          stdout: JSON.stringify({ pr: { headRefName: "pr-branch" } }),
+          stdout: JSON.stringify({ status: "success", pr: { headRefName: "pr-branch" } }),
           stderr: "",
           exitCode: 0,
           durationMs: 10,
@@ -63,11 +62,10 @@ describe("createJulesSessionHandler", () => {
       }
       return {
         stdout: JSON.stringify({
-          session: {
-            name: "sessions/1234567890",
-            state: "IN_PROGRESS",
-            createTime: new Date().toISOString(),
-          }
+          status: "success",
+          name: "sessions/1234567890",
+          state: "IN_PROGRESS",
+          createTime: new Date().toISOString(),
         }),
         stderr: "",
         exitCode: 0,
@@ -91,14 +89,14 @@ describe("createJulesSessionHandler", () => {
   it("should throw error if PR view fails", async () => {
     vi.mocked(shell.runCommand).mockResolvedValue({
       stdout: JSON.stringify({ status: "error", message: "PR not found" }),
-      stderr: "PR not found",
+      stderr: "Original error",
       exitCode: 1,
       durationMs: 10,
       command: "td-cli gh view"
     });
 
     await expect(createJulesSessionHandler({ task: "do work", pr: 999 }))
-      .rejects.toThrow("td-cli command failed (gh view 999): PR not found");
+      .rejects.toThrow("td-cli returned error: PR not found");
   });
 
   it("should throw descriptive error if PR JSON is invalid", async () => {
@@ -111,6 +109,6 @@ describe("createJulesSessionHandler", () => {
     });
 
     await expect(createJulesSessionHandler({ task: "do work", pr: 42 }))
-      .rejects.toThrow(/Unexpected token/);
+      .rejects.toThrow("td-cli returned non-JSON output with exit code 0: invalid json");
   });
 });
