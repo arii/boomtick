@@ -23,15 +23,13 @@ def build_repo_context():
     # If we are running from a location that isn't boomtick-pkg/scripts,
     # fallback to discovery based on workspace.json
     if package_root.name != "boomtick-pkg" or not (package_root / "workspace.json").exists():
-        # Search upwards for workspace.json
-        current = script_path.parent
+        # Search upwards for workspace.json using Path.parents
         found_pkg = False
-        while current != current.parent:
-            if (current / "workspace.json").exists():
-                package_root = current
+        for parent in script_path.parents:
+            if (parent / "workspace.json").exists():
+                package_root = parent
                 found_pkg = True
                 break
-            current = current.parent
 
         if found_pkg:
             if (package_root.parent / "package.json").exists() and (package_root.parent / "boomtick-pkg").exists():

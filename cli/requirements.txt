@@ -1,5 +1,6 @@
 requests>=2.0.0
 packaging>=21.3
+importlib_resources
 google-genai
 python-dotenv
 pydantic

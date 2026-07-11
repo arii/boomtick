@@ -49,9 +49,9 @@ def test_plan_issue_audit_all_open(orchestrator, tmp_path):
 
             assert res["status"] == "success"
             assert res["issues_count"] == 2
-            assert os.path.exists("issue-audit-status.md")
+            assert os.path.exists(".boomtick/issue-audit-status.md")
 
-            with open("issue-audit-status.md", "r") as f:
+            with open(".boomtick/issue-audit-status.md", "r") as f:
                 content = f.read()
                 assert "# Issue Audit Status" in content
                 assert "- [ ] #1: Issue 1" in content
@@ -86,9 +86,9 @@ def test_plan_issue_audit_specific_issues(orchestrator, tmp_path):
 
             assert res["status"] == "success"
             assert res["issues_count"] == 1
-            assert os.path.exists("issue-audit-status.md")
+            assert os.path.exists(".boomtick/issue-audit-status.md")
 
-            with open("issue-audit-status.md", "r") as f:
+            with open(".boomtick/issue-audit-status.md", "r") as f:
                 content = f.read()
                 assert "- [ ] #10: Issue 10" in content
 

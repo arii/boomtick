@@ -8,15 +8,10 @@ from dev_tools.utils import CLIError
 
 def test_template_json_block_validity():
     """Verifies that the review template contains a valid JSON block with expected keys."""
-    import importlib_resources as resources
-    try:
-        ref = resources.files("dev_tools.resources").joinpath("review_template.md")
-        content = ref.read_text(encoding='utf-8')
-    except (ImportError, FileNotFoundError):
-        template_path = "boomtick-pkg/cli/review_template.md"
-        assert os.path.exists(template_path)
-        with open(template_path, 'r', encoding='utf-8') as f:
-            content = f.read()
+    from dev_tools.utils import resolve_resource_path
+    template_path = resolve_resource_path("review_template.md")
+    with open(template_path, 'r', encoding='utf-8') as f:
+        content = f.read()
 
     # Mock formatting
     formatted = content.format(
