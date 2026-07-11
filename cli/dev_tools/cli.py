@@ -10,7 +10,7 @@ from typing import Any, Dict, List
 
 import click
 
-from dev_tools.models import CreateIssueInput, SearchPRsInput, IssueUpdateInput, ReadPRCommentsInput, ReadPRCommentsResponse
+
 from dev_tools.utils import (
     get_or_create_log_dir,
     CLIError,
@@ -268,12 +268,6 @@ def search_prs(ctx, state, limit, include_drafts, labels):
     orch = ctx.obj['ORCHESTRATOR']
     label_list = [l.strip() for l in labels.split(',')] if labels else None
 
-    # Contract validation
-    try:
-        SearchPRsInput(state=state, limit=limit, includeDrafts=include_drafts, labels=label_list)
-    except Exception as e:
-        _handle_unexpected_error(ctx, "pr list", e)
-
     res = orch.list_prs(state=state, limit=limit, includeDrafts=include_drafts, labels=label_list)
     out(ctx, f"Found {len(res['prs'])} PRs.", data=res)
 
@@ -369,12 +363,6 @@ def create_issue(ctx, title, file, body):
     """Create a new GitHub issue."""
     orch = ctx.obj['ORCHESTRATOR']
 
-    # Contract validation
-    try:
-        CreateIssueInput(title=title, body=body, file=file)
-    except Exception as e:
-        _handle_unexpected_error(ctx, "issue create", e)
-
     content = _get_body_content(ctx, orch, file, body)
     res = orch.create_issue(title, content)
     out(ctx, f"✅ Successfully created issue: {res['issue'].get('html_url')}", data=res)
@@ -404,19 +392,6 @@ def issue_update(ctx, issue_number, file, body, labels, add_labels, remove_label
     label_list = [l.strip() for l in labels.split(',')] if labels else None
     add_label_list = [l.strip() for l in add_labels.split(',')] if add_labels else None
     remove_label_list = [l.strip() for l in remove_labels.split(',')] if remove_labels else None
-
-    # Contract validation
-    try:
-        IssueUpdateInput(
-            issueNumber=issue_number,
-            body=body,
-            file=file,
-            labels=label_list,
-            addLabels=add_label_list,
-            removeLabels=remove_label_list
-        )
-    except Exception as e:
-        _handle_unexpected_error(ctx, "issue update", e)
 
     content = None
     if file or body:
@@ -615,19 +590,9 @@ def read_pr_comments(ctx, pr_number):
 
     orch = ctx.obj['ORCHESTRATOR']
 
-    # Input contract validation
-    try:
-        ReadPRCommentsInput(prNumber=pr_number)
-    except Exception as e:
-        _handle_unexpected_error(ctx, "read-pr-comments", e)
-
     res = orch.get_pr_comments(prNumber=pr_number)
 
     # Response contract validation
-    try:
-        ReadPRCommentsResponse(**res)
-    except Exception as e:
-        log_warn(f"Response validation failed for read-pr-comments: {e}")
 
     if ctx.obj['JSON']:
         out(ctx, f"Fetched comments for PR #{pr_number}", data=res)

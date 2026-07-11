@@ -65,8 +65,6 @@ def validate_with_model(data: Any, model_class: Type[BaseModel]) -> Tuple[Option
             msg = err.get('msg')
             errs.append(f"[{loc}]: {msg}")
         return None, "Validation failed:\n  " + "\n  ".join(errs)
-    except Exception as e:
-        return None, str(e)
 
 
 
