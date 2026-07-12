@@ -318,13 +318,15 @@ class GitHubClient:
                     new_line_num += 1
         return mapping
 
-    def update_issue(self, number: int, body: Optional[str] = None, labels: Optional[List[str]] = None) -> Dict[str, Any]:
-        """Updates a GitHub issue's body and/or labels."""
+    def update_issue(self, number: int, body: Optional[str] = None, labels: Optional[List[str]] = None, state: Optional[str] = None) -> Dict[str, Any]:
+        """Updates a GitHub issue's body, labels, and/or state."""
         data = {}
         if body is not None:
             data['body'] = body
         if labels is not None:
             data['labels'] = labels
+        if state is not None:
+            data['state'] = state
         return self._request('PATCH', f'/repos/{self.repo}/issues/{number}', json_data=data)
 
     def create_review(self, number: int, body: str, comments: List[Dict[str, Any]], event: str) -> Dict[str, Any]:

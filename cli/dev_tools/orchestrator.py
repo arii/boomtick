@@ -394,10 +394,10 @@ class Orchestrator:
         """
         return self.github.fetch_issue_details(issueNumber)
 
-    def update_issue(self, issueNumber: int, body: Optional[str] = None, labels: Optional[List[str]] = None, addLabels: Optional[List[str]] = None, removeLabels: Optional[List[str]] = None, **kwargs) -> Dict[str, Any]:
+    def update_issue(self, issueNumber: int, body: Optional[str] = None, labels: Optional[List[str]] = None, addLabels: Optional[List[str]] = None, removeLabels: Optional[List[str]] = None, state: Optional[str] = None, **kwargs) -> Dict[str, Any]:
         if "issue_number" in kwargs and issueNumber is None: issueNumber = kwargs["issue_number"]
         """
-        Updates an issue's body and/or labels.
+        Updates an issue's body, labels, and/or state.
         """
         res = None
         # Shim for backward compatibility with old snake_case names from tests or older callers
@@ -405,7 +405,7 @@ class Orchestrator:
         if "remove_labels" in kwargs and removeLabels is None: removeLabels = kwargs["remove_labels"]
         # Handle full label replacement first as it is mutually exclusive with incremental changes
         if labels is not None:
-            res = self.github.update_issue(issueNumber, body=body, labels=labels)
+            res = self.github.update_issue(issueNumber, body=body, labels=labels, state=state)
         else:
             # Handle incremental label changes (can happen together)
             if addLabels:
@@ -414,16 +414,16 @@ class Orchestrator:
             if removeLabels:
                 for label in removeLabels:
                     self.github.remove_label(issueNumber, label)
-                # If we haven't updated yet (no add_labels or body), fetch current state
-                if res is None and body is None:
+                # If we haven't updated yet (no add_labels, body, or state), fetch current state
+                if res is None and body is None and state is None:
                     res = self.github.fetch_issue_details(issueNumber)
 
-            # Handle body update if not already done via 'labels' PATCH
-            if body is not None:
-                res = self.github.update_issue(issueNumber, body=body)
+            # Handle body/state update if not already done via 'labels' PATCH
+            if body is not None or state is not None:
+                res = self.github.update_issue(issueNumber, body=body, state=state)
 
         if res is None:
-            raise CLIError("Nothing to update. Provide body or labels.")
+            raise CLIError("Nothing to update. Provide body, labels, or state.")
 
         return {
             "status": "success",

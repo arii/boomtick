@@ -384,9 +384,10 @@ def issue_view(ctx, issue_number):
 @click.option('--labels', help='Comma-separated list of labels to set (replaces existing labels)')
 @click.option('--add-labels', help='Comma-separated list of labels to add')
 @click.option('--remove-labels', help='Comma-separated list of labels to remove')
+@click.option('--state', type=click.Choice(['open', 'closed']))
 @click.pass_context
-def issue_update(ctx, issue_number, file, body, labels, add_labels, remove_labels):
-    """Update a GitHub issue's body and/or labels."""
+def issue_update(ctx, issue_number, file, body, labels, add_labels, remove_labels, state):
+    """Update a GitHub issue's body, labels, and/or state."""
     orch = ctx.obj['ORCHESTRATOR']
 
     label_list = [l.strip() for l in labels.split(',')] if labels else None
@@ -402,7 +403,8 @@ def issue_update(ctx, issue_number, file, body, labels, add_labels, remove_label
         body=content,
         labels=label_list,
         addLabels=add_label_list,
-        removeLabels=remove_label_list
+        removeLabels=remove_label_list,
+        state=state
     )
     out(ctx, f"✅ Successfully updated issue #{issue_number}", data=res)
 
