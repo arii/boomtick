@@ -1,4 +1,3 @@
-import { HumanMessage } from '@langchain/core/messages';
 import {
   parseCodeReviewVerdict,
   parseCodeReviewStateDetailed,
@@ -44,6 +43,7 @@ export const geminiCodeReviewClient: CodeReviewClientStrategy = {
 
     let model = createGeminiModel(modelName, maxOutputTokens, thinkingBudget);
     const baseContent = buildReviewPayload(systemPrompt, diffText, externalText).map(msg => msg.content).join('\n\n');
+    const { HumanMessage } = await import('@langchain/core/messages');
     const message = new HumanMessage({ content: baseContent });
 
     let response = await model.invoke([message]);

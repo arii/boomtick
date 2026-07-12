@@ -1,4 +1,3 @@
-import { HumanMessage } from '@langchain/core/messages';
 import { buildVisualReviewPayload, parseLLMVerdict, parseVisualReviewFindings } from '../../lib/visualReviewUtils';
 import { extractFeedbackText } from '../../lib/codeReviewUtils';
 import { pickGeminiModel, getGeminiPricing } from '../../lib/geminiModelPicker';
@@ -82,6 +81,7 @@ Your job:
 </findings>`
     });
 
+    const { HumanMessage } = await import('@langchain/core/messages');
     const message = new HumanMessage({ content: baseContent });
     let response = await model.invoke([message]);
 
