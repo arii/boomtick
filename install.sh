@@ -131,9 +131,11 @@ if [ "$BUILD_MCP" -eq 1 ]; then
         if command -v pnpm &> /dev/null; then
             pnpm install --engine-strict=false
             pnpm run build
+            pnpm run sync:mcp-schemas
         elif command -v npm &> /dev/null; then
             npm install
             npm run build
+            npm run sync:mcp-schemas
         else
             echo "Warning: Neither pnpm nor npm found. Skipping MCP build."
         fi

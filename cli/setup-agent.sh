@@ -426,6 +426,8 @@ run_validation() {
   if have pnpm; then
     pnpm run check:runtime-files || true
     pnpm run doctor || true
+    # Synchronize MCP schemas during validation to ensure the environment is ready
+    pnpm --filter ./boomtick-pkg/mcp run sync:mcp-schemas || true
   fi
 }
 
