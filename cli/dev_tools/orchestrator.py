@@ -1190,7 +1190,6 @@ class Orchestrator:
 
         if target_sha:
             # Analyze failing check runs
-            # pylint: disable=protected-access
             check_runs = self.github.fetch_check_runs(target_sha)
             for run in check_runs:
                 if run.get("conclusion") == "failure":
