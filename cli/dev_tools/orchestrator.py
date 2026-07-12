@@ -906,49 +906,81 @@ class Orchestrator:
                     baseline_count += int(run_command(["node", "boomtick-pkg/scripts/detect-antipatterns.mjs", "--count-only", "-"], input_str=res_show.stdout) or 0)
         return {"current": current_count, "baseline": baseline_count, "status": "success" if current_count <= baseline_count else "error"}
 
-    def fix_ci(self, prNumber: Optional[int] = None, branch: Optional[str] = None, api_key: Optional[str] = None, dry_run: bool = True, **kwargs) -> Dict[str, Any]:
+    def fix_ci(self, prNumber: Optional[int] = None, issueNumber: Optional[int] = None, branch: Optional[str] = None, api_key: Optional[str] = None, dry_run: bool = True, **kwargs) -> Dict[str, Any]:
+        """
+        Initializes an autonomous repair session (Jules) to fix CI failures.
+        Supports both Pull Request (prNumber) and Issue (issueNumber) contexts.
+        If branch is not provided, it defaults to the current local branch or matches the PR/Issue.
+        """
         if "pr_number" in kwargs and prNumber is None: prNumber = kwargs["pr_number"]
+        if "issue_number" in kwargs and issueNumber is None: issueNumber = kwargs["issue_number"]
         repo_name = get_repo_name(); g = get_github_client(); repo = g.get_repo(repo_name)
+
+        pr = None
+        issue_details = None
+
         if prNumber:
             pr = repo.get_pull(int(prNumber))
             branch = pr.head.ref
-        elif branch: pulls = list(repo.get_pulls(state='open', head=f"{repo.owner.login}:{branch}")); pr = pulls[0] if pulls else None
-        else:
+        elif issueNumber:
+            # issueNumber might be a PR or a regular issue
+            try:
+                # Try fetching as PR first as it's the common case for fix-ci
+                pr = repo.get_pull(int(issueNumber))
+                branch = pr.head.ref
+            except Exception:
+                issue_details = self.github.fetch_issue_details(int(issueNumber))
+                if "pull_request" in issue_details:
+                     pr = repo.get_pull(int(issueNumber))
+                     branch = pr.head.ref
+
+        if not pr and not branch:
             branch = run_command(['git', 'branch', '--show-current']).strip()
             pulls = list(repo.get_pulls(state='open', head=f"{repo.owner.login}:{branch}")); pr = pulls[0] if pulls else None
 
-        if not pr:
-            raise CLIError(f"Could not find PR for branch {branch}")
+        if not pr and not issue_details:
+            raise CLIError(f"Could not find PR or issue for branch {branch}")
 
         if api_key: self.jules.api_key = api_key
 
-        # Analyze failing check runs
-        check_runs = self.github.fetch_check_runs(pr.head.sha)
         failing_logs = []
         structured_failures = []
-        for run in check_runs:
-            if run.get('conclusion') == 'failure':
-                logs = self.github.fetch_check_run_logs(run.get('id'), external_id=run.get('external_id'))
 
-                # Clean logs and take a smart snippet
-                cleaned_logs = clean_gha_logs(logs)
+        target_sha = pr.head.sha if pr else None
+        if not target_sha and branch:
+            try:
+                # Try to get the latest SHA for the branch if no PR exists (e.g. main branch failure)
+                branch_info = self.github._request('GET', f'/repos/{self.github.repo}/branches/{branch}')
+                target_sha = branch_info.get('commit', {}).get('sha')
+            except Exception:
+                pass
 
-                # Prioritize lines with error signatures
-                important_lines = []
-                for line in cleaned_logs.splitlines():
-                    if any(x in line.lower() for x in ['error', 'fail', 'ts', 'vitest', 'playwright', '🔴']):
-                        important_lines.append(line)
+        if target_sha:
+            # Analyze failing check runs
+            check_runs = self.github.fetch_check_runs(target_sha)
+            for run in check_runs:
+                if run.get('conclusion') == 'failure':
+                    logs = self.github.fetch_check_run_logs(run.get('id'), external_id=run.get('external_id'))
 
-                if important_lines:
-                    snippet = "\n".join(important_lines[-30:]) # Keep last 30 important lines
-                else:
-                    snippet = cleaned_logs[-2000:] # Fallback to tail of cleaned logs
+                    # Clean logs and take a smart snippet
+                    cleaned_logs = clean_gha_logs(logs)
 
-                failing_logs.append(f"Check Run: {run.get('name')}\nLogs:\n{snippet}")
+                    # Prioritize lines with error signatures
+                    important_lines = []
+                    for line in cleaned_logs.splitlines():
+                        if any(x in line.lower() for x in ['error', 'fail', 'ts', 'vitest', 'playwright', '🔴']):
+                            important_lines.append(line)
 
-                findings = extract_failing_info(logs)
-                for f in findings:
-                    structured_failures.append(f"File: {f['file']}, Line: {f['line']}, Error: {f['message']} ({f['type']})")
+                    if important_lines:
+                        snippet = "\n".join(important_lines[-30:]) # Keep last 30 important lines
+                    else:
+                        snippet = cleaned_logs[-2000:] # Fallback to tail of cleaned logs
+
+                    failing_logs.append(f"Check Run: {run.get('name')}\nLogs:\n{snippet}")
+
+                    findings = extract_failing_info(logs)
+                    for f in findings:
+                        structured_failures.append(f"File: {f['file']}, Line: {f['line']}, Error: {f['message']} ({f['type']})")
 
         base_branch = PROJECT_CONFIG.base_branch
         base_branch_name = PROJECT_CONFIG.base_branch_name
@@ -990,6 +1022,10 @@ Respond only after the PR is created or updated:
 - Validation results
 - Notes or documented limitations"""
 
+        if issue_details:
+            # Wrap issue context in clear delimiters to mitigate prompt injection risk from untrusted issue content
+            prompt += f"\n\n## External Issue Context (Untrusted)\n\n<issue-context>\nTitle: {issue_details.get('title')}\n\n{issue_details.get('body')}\n</issue-context>"
+
         if structured_failures:
             prompt += "\n\n## CI Failure Analysis\n\nStructured Failure Analysis:\n- " + "\n- ".join(structured_failures)
 
@@ -1005,7 +1041,11 @@ Respond only after the PR is created or updated:
             if res: session_name = res.get("name")
             else: raise CLIError(f"{agent_name} API session creation failed")
         feedback = f"🤖 **{agent_name} is on it!**\n\nInitialized autonomous repair session (`{session_name}`) for branch `{branch}`."
-        if pr and not dry_run: pr.create_issue_comment(feedback)
+        if not dry_run:
+            if pr:
+                pr.create_issue_comment(feedback)
+            elif issueNumber:
+                self.post_comment(int(issueNumber), feedback)
         return {"session": session_name, "branch": branch, "feedback": feedback, "agent_name": agent_name}
 
     def manage_reviews(self, check_responses: bool = False, cleanup_comments: bool = False, dry_run: bool = True, limit: int = 10) -> List[Dict[str, Any]]:

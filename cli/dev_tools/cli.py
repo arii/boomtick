@@ -1063,13 +1063,14 @@ def sync(ctx, limit):
 
 @agent_group.command()
 @click.option('--pr-number', type=int)
+@click.option('--issue-number', type=int)
 @click.option('--branch')
 @click.option('--api-key')
 @click.option('--dry-run/--execute', default=True)
 @click.pass_context
-def fix_ci(ctx, pr_number, branch, api_key, dry_run):
+def fix_ci(ctx, pr_number, issue_number, branch, api_key, dry_run):
     orch = ctx.obj['ORCHESTRATOR']
-    res = orch.fix_ci(pr_number=pr_number, branch=branch, api_key=api_key, dry_run=dry_run)
+    res = orch.fix_ci(pr_number=pr_number, issue_number=issue_number, branch=branch, api_key=api_key, dry_run=dry_run)
     agent_name = res.get('agent_name', 'Jules')
     out(ctx, f"🚀 Initialized {agent_name} session for branch `{res['branch']}`", data=res)
 

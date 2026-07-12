@@ -20,10 +20,10 @@ jobs:
         with:
           fetch-depth: 0
 
-      - uses: ./boomtick-pkg/mcp/actions/setup
+      - uses: ./boomtick-pkg/mcp/actions/setup-workspace
 
       - name: Self-Heal
-        run: td agent fix-ci --pr-number ${{ github.event.workflow_run.pull_requests[0].number }} --execute
+        run: td-cli agent fix-ci --pr-number ${{ github.event.workflow_run.pull_requests[0].number }} --execute
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
