@@ -18,8 +18,8 @@ def log_error(msg: str):
 
 
 # Registry Cache
-_NPM_CACHE = {}
-_GITHUB_CACHE = {}
+_NPM_CACHE: Dict[str, str] = {}
+_GITHUB_CACHE: Dict[str, str] = {}
 
 
 def fetch_latest_npm(package_name: str) -> Optional[str]:

@@ -921,13 +921,13 @@ def ux():
     """UX Audit Operations"""
 
 
-@ux.command()
+@ux.command(name="audit")
 @click.option("--route", help="Specific route to audit")
 @click.option("--all-routes", is_flag=True, help="Audit all discovered routes")
 @click.option("--desktop", is_flag=True, help="Audit desktop viewports")
 @click.option("--mobile", is_flag=True, help="Audit mobile viewports")
 @click.pass_context
-def audit(ctx, route, all_routes, desktop, mobile):
+def ux_audit(ctx, route, all_routes, desktop, mobile):
     orch = ctx.obj["ORCHESTRATOR"]
     res = orch.run_ux_audit(route=route, all_routes=all_routes, desktop=desktop, mobile=mobile)
     out(ctx, "UX Audit complete.", data=res)

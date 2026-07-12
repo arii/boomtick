@@ -28,7 +28,7 @@ class GitHubClient:
                 "Accept": "application/vnd.github.v3+json",
             }
         )
-        self._branch_cache = {}
+        self._branch_cache : Dict[str, bool] = {}
         self._cache = DiskCache(subdir="github", no_cache=no_cache)
 
     def branch_exists(self, branch_name: str) -> bool:
