@@ -1534,8 +1534,7 @@ def main():
             log_error(str(e))
             code = getattr(e, "code", 1)
 
-        if "pytest" not in sys.modules:
-            sys.exit(code)
+        sys.exit(code)
 
 
 if __name__ == "__main__":
