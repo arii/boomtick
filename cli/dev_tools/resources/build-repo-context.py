@@ -1,8 +1,9 @@
+# pylint: disable=import-outside-toplevel,invalid-name,line-too-long,missing-docstring,too-many-branches,too-many-locals,too-many-statements
 #!/usr/bin/env python3
 import json
 import pathlib
 import sys
-import os
+
 
 def build_repo_context():
     """Gathers static context about the repository."""
@@ -73,6 +74,7 @@ def build_repo_context():
     mcp_schema = {"tools": [], "prompts": [], "resources": []}
     try:
         import subprocess
+
         mcp_dir = package_root / "mcp"
         if mcp_dir.exists():
             # Use npx tsx to run the export script without needing to compile it
@@ -82,7 +84,7 @@ def build_repo_context():
                 cwd=str(mcp_dir),
                 capture_output=True,
                 text=True,
-                check=True
+                check=True,
             )
             mcp_schema = json.loads(result.stdout)
     except Exception as e:
@@ -93,7 +95,7 @@ def build_repo_context():
         "tool_name": "td-cli",
         "schema_authority": "Use 'repo.get_command_schema' or 'td-cli schema <path>' for granular discovery. This file remains for legacy fallback.",
         "description": "Custom developer CLI for BoomTick repository management.",
-        "base_command": "td-cli"
+        "base_command": "td-cli",
     }
     try:
         from dev_tools.cli import cli
@@ -102,9 +104,9 @@ def build_repo_context():
         # We keep cli-schema.json updated but minimal for the aggregate context
         generated_subcommands = collect_commands(cli, max_depth=1)
         cli_schema["subcommands"] = generated_subcommands
-        
+
         cli_schema_path = package_root / "cli" / "dev_tools" / "cli-schema.json"
-        
+
         # Write full schema for legacy/reference but don't bloat the agent context
         full_subcommands = collect_commands(cli)
         full_payload = cli_schema.copy()
@@ -113,9 +115,11 @@ def build_repo_context():
 
         # Also trigger Pydantic model contract generation
         try:
-            from dev_tools.schema_gen import generate_schema
             import io
             from contextlib import redirect_stdout
+
+            from dev_tools.schema_gen import generate_schema
+
             # Capture stdout to ensure clean JSON output for build-repo-context.py
             with redirect_stdout(io.StringIO()):
                 generate_schema()
@@ -140,10 +144,10 @@ def build_repo_context():
         structure = {}
         try:
             for item in sorted(path.iterdir()):
-                if item.name.startswith('.') or item.name == 'node_modules' or item.name == '__pycache__':
+                if item.name.startswith(".") or item.name == "node_modules" or item.name == "__pycache__":
                     continue
                 if item.is_dir():
-                    structure[item.name + '/'] = get_dir_structure(item, max_depth, current_depth + 1)
+                    structure[item.name + "/"] = get_dir_structure(item, max_depth, current_depth + 1)
                 else:
                     structure[item.name] = None
         except Exception:
@@ -155,7 +159,7 @@ def build_repo_context():
     # Assemble context
     return {
         "repo": {
-             "name": package_summary.get("name", "Unknown Repo"),
+            "name": package_summary.get("name", "Unknown Repo"),
         },
         "package_json": package_summary,
         "project_config": project_config,
@@ -163,6 +167,7 @@ def build_repo_context():
         "cli_schema": cli_schema,
         "file_tree": file_tree,
     }
+
 
 if __name__ == "__main__":
     try:

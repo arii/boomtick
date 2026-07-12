@@ -1,12 +1,15 @@
+# pylint: disable=missing-docstring,protected-access
 import unittest
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
+
 from dev_tools.services.github import GitHubClient
+
 
 class TestGitHubDiffParser(unittest.TestCase):
     def setUp(self):
         self.client = GitHubClient(token="dummy", repo="owner/repo")
 
-    @patch('dev_tools.services.github.GitHubClient.fetch_pr_diff')
+    @patch("dev_tools.services.github.GitHubClient.fetch_pr_diff")
     def test_single_hunk(self, mock_fetch_diff):
         mock_fetch_diff.return_value = """diff --git a/a.txt b/a.txt
 --- a/a.txt
@@ -16,10 +19,10 @@ class TestGitHubDiffParser(unittest.TestCase):
 +added
 """
         mapping = self.client._get_diff_mapping(1)
-        self.assertEqual(mapping['a.txt'][1], 1) # context
-        self.assertEqual(mapping['a.txt'][2], 2) # added
+        self.assertEqual(mapping["a.txt"][1], 1)  # context
+        self.assertEqual(mapping["a.txt"][2], 2)  # added
 
-    @patch('dev_tools.services.github.GitHubClient.fetch_pr_diff')
+    @patch("dev_tools.services.github.GitHubClient.fetch_pr_diff")
     def test_multiple_hunks(self, mock_fetch_diff):
         mock_fetch_diff.return_value = """diff --git a/a.txt b/a.txt
 --- a/a.txt
@@ -33,15 +36,15 @@ class TestGitHubDiffParser(unittest.TestCase):
         mapping = self.client._get_diff_mapping(1)
         # First hunk header is 0
         # Line 1 (context1) is 1
-        self.assertEqual(mapping['a.txt'][1], 1)
+        self.assertEqual(mapping["a.txt"][1], 1)
 
         # Second hunk header is 2
         # Line 10 (context2) is 3
         # Line 11 (added2) is 4
-        self.assertEqual(mapping['a.txt'][10], 3)
-        self.assertEqual(mapping['a.txt'][11], 4)
+        self.assertEqual(mapping["a.txt"][10], 3)
+        self.assertEqual(mapping["a.txt"][11], 4)
 
-    @patch('dev_tools.services.github.GitHubClient.fetch_pr_diff')
+    @patch("dev_tools.services.github.GitHubClient.fetch_pr_diff")
     def test_multiple_files(self, mock_fetch_diff):
         mock_fetch_diff.return_value = """diff --git a/a.txt b/a.txt
 --- a/a.txt
@@ -55,10 +58,10 @@ diff --git b/b.txt b/b.txt
  b
 """
         mapping = self.client._get_diff_mapping(1)
-        self.assertEqual(mapping['a.txt'][1], 1)
-        self.assertEqual(mapping['b.txt'][5], 1)
+        self.assertEqual(mapping["a.txt"][1], 1)
+        self.assertEqual(mapping["b.txt"][5], 1)
 
-    @patch('dev_tools.services.github.GitHubClient.fetch_pr_diff')
+    @patch("dev_tools.services.github.GitHubClient.fetch_pr_diff")
     def test_deletions_and_no_newline(self, mock_fetch_diff):
         mock_fetch_diff.return_value = """diff --git a/a.txt b/a.txt
 --- a/a.txt
@@ -77,11 +80,11 @@ diff --git b/b.txt b/b.txt
         # -removed2: 3
         # +added: 4
         # \ No newline: 5
-        self.assertEqual(mapping['a.txt'][1], 1)
-        self.assertEqual(mapping['a.txt'][2], 4)
-        self.assertNotIn(3, mapping['a.txt'])
+        self.assertEqual(mapping["a.txt"][1], 1)
+        self.assertEqual(mapping["a.txt"][2], 4)
+        self.assertNotIn(3, mapping["a.txt"])
 
-    @patch('dev_tools.services.github.GitHubClient.fetch_pr_diff')
+    @patch("dev_tools.services.github.GitHubClient.fetch_pr_diff")
     def test_complex_diff(self, mock_fetch_diff):
         # A more realistic diff with multiple hunks and mixed changes
         mock_fetch_diff.return_value = """diff --git a/src/app.ts b/src/app.ts
@@ -111,10 +114,10 @@ index 1234567..89abcdef 100644
         #                           : line 13, pos 5
         #  export const App = () => { : line 14, pos 6
 
-        self.assertEqual(mapping['src/app.ts'][10], 1)
-        self.assertEqual(mapping['src/app.ts'][11], 3)
-        self.assertEqual(mapping['src/app.ts'][12], 4)
-        self.assertEqual(mapping['src/app.ts'][14], 6)
+        self.assertEqual(mapping["src/app.ts"][10], 1)
+        self.assertEqual(mapping["src/app.ts"][11], 3)
+        self.assertEqual(mapping["src/app.ts"][12], 4)
+        self.assertEqual(mapping["src/app.ts"][14], 6)
 
         # Hunk 2 (lines 26-28 in new file)
         # @@ -25,3 +26,3 @@ : pos 7
@@ -122,10 +125,10 @@ index 1234567..89abcdef 100644
         # +  const x = 2; : line 26, pos 9
         #    return x; : line 27, pos 10
 
-        self.assertEqual(mapping['src/app.ts'][26], 9)
-        self.assertEqual(mapping['src/app.ts'][27], 10)
+        self.assertEqual(mapping["src/app.ts"][26], 9)
+        self.assertEqual(mapping["src/app.ts"][27], 10)
 
-    @patch('dev_tools.services.github.GitHubClient.fetch_pr_diff')
+    @patch("dev_tools.services.github.GitHubClient.fetch_pr_diff")
     def test_first_hunk_only_deletions(self, mock_fetch_diff):
         # Test case: First hunk contains only deletions.
         # Second hunk should NOT reset position to 0.
@@ -150,8 +153,9 @@ index 1234567..89abcdef 100644
         # context : line 8, pos 4
         # +added : line 9, pos 5
 
-        self.assertEqual(mapping['a.txt'][8], 4)
-        self.assertEqual(mapping['a.txt'][9], 5)
+        self.assertEqual(mapping["a.txt"][8], 4)
+        self.assertEqual(mapping["a.txt"][9], 5)
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     unittest.main()

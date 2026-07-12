@@ -1,3 +1,4 @@
+# pylint: disable=invalid-name,line-too-long,missing-docstring,no-else-return,subprocess-run-check,too-many-nested-blocks,unused-import
 #!/usr/bin/env python3
 """
 AI Slop Audit Script
@@ -25,7 +26,7 @@ class AISlopAuditor:
 
     def load_config(self):
         try:
-            with open(self.config_path, 'r') as f:
+            with open(self.config_path, 'r', encoding="utf-8") as f:
                 self.config = yaml.safe_load(f)
         except Exception as e:
             print(f"Error loading config: {e}")

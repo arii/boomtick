@@ -1,19 +1,19 @@
-import sys
+# pylint: disable=arguments-differ,attribute-defined-outside-init,line-too-long,logging-fstring-interpolation,missing-docstring,too-few-public-methods
 import logging
-from dev_tools.services.jules import JulesClient
-from dev_tools.services.github import GitHubClient
+import sys
+from typing import Any, Dict, List, Optional
+
 from dev_tools.orchestrator import Orchestrator
-from typing import Dict, Any, Optional, List
-import time
-import json
-import re
-import requests
+from dev_tools.services.github import GitHubClient
+from dev_tools.services.jules import JulesClient
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+
 class ExtendedJulesClient(JulesClient):
     """JulesClient subclass with extended timeouts for daemon use."""
+
     def get_messages(self, session_id: str) -> List[Dict[str, Any]]:
         # Set timeout to 30s instead of the default 10s
         return super().get_messages(session_id, timeout=30)
@@ -52,7 +52,7 @@ class JulesFeedbackDaemon:
 
         session_ids = []
         for s in sessions:
-            sid = s.get("name", "").split('/')[-1]
+            sid = s.get("name", "").split("/")[-1]
             if sid:
                 session_ids.append(sid)
 
@@ -69,13 +69,13 @@ class JulesFeedbackDaemon:
             found_prs = self.github.search_pull_requests(full_query, limit=50)
 
             for pr in found_prs:
-                body = (pr.get('body') or "").lower()
-                title = (pr.get('title') or "").lower()
+                body = (pr.get("body") or "").lower()
+                title = (pr.get("title") or "").lower()
                 for sid in session_ids:
                     if sid.lower() in body or sid.lower() in title:
                         self._session_to_pr_map[sid] = pr
                         # Cache the PR details as well
-                        self._pr_cache[pr['number']] = pr
+                        self._pr_cache[pr["number"]] = pr
         except Exception as e:
             logger.warning(f"Batch PR search failed, will fallback to individual lookups: {e}")
 
@@ -118,7 +118,9 @@ class JulesFeedbackDaemon:
             logger.info(f"No messages for session {session_id}")
             return
 
-        logger.info(f"Matched PR #{matched_pr['number']} ({matched_pr.get('headRefName')}, {matched_pr.get('title')}) for session {session_id}")
+        logger.info(
+            f"Matched PR #{matched_pr['number']} ({matched_pr.get('headRefName')}, {matched_pr.get('title')}) for session {session_id}"
+        )
 
         last_message = messages[-1]
         if last_message.get("role") == "user":
@@ -134,7 +136,8 @@ class JulesFeedbackDaemon:
             except Exception as e:
                 logger.error(f"Error triggering feedback for {session_id}: {e}")
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     try:
         daemon = JulesFeedbackDaemon()
         daemon.run()

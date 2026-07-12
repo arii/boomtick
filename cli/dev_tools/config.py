@@ -1,8 +1,10 @@
+# pylint: disable=import-outside-toplevel,line-too-long,missing-docstring,too-many-branches,too-many-instance-attributes,too-many-statements,use-maxsplit-arg
 from __future__ import annotations
+import subprocess
+import re
 
-import json
-import os
 import functools
+import json
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -19,72 +21,96 @@ class ProjectConfig:
     vite_base_path: str = "/tech-dancer/"
     gh_path: str = "gh"
     max_diff_chars: int = 40000
-    content_scopes: Dict[str, str] = field(default_factory=lambda: {
-        "resources": "content/resources/",
-        "posts": "content/posts/",
-        "blog": "content/blog/",
-        "studies": "content/studies/"
-    })
+    content_scopes: Dict[str, str] = field(
+        default_factory=lambda: {
+            "resources": "content/resources/",
+            "posts": "content/posts/",
+            "blog": "content/blog/",
+            "studies": "content/studies/",
+        }
+    )
     ai_synthesis_model: str = "gpt-4o-mini"
     ai_review_model: str = "gpt-4o"
     ai_vision_model: str = "gpt-4o"
-    ui_indicators: List[str] = field(default_factory=lambda: [
-        "src/components", "src/pages", "src/layouts", "src/index.css", "tailwind"
-    ])
-    tailwind_indicators: List[str] = field(default_factory=lambda: [
-        "px-", "py-", "mt-", "flex", "grid", "text-["
-    ])
-    audit_check_dirs: List[str] = field(default_factory=lambda: [
-        "src/features", "src/pages", "src/components", "src/layouts", "src/App.tsx"
-    ])
+    ui_indicators: List[str] = field(
+        default_factory=lambda: [
+            "src/components",
+            "src/pages",
+            "src/layouts",
+            "src/index.css",
+            "tailwind",
+        ]
+    )
+    tailwind_indicators: List[str] = field(default_factory=lambda: ["px-", "py-", "mt-", "flex", "grid", "text-["])
+    audit_check_dirs: List[str] = field(
+        default_factory=lambda: [
+            "src/features",
+            "src/pages",
+            "src/components",
+            "src/layouts",
+            "src/App.tsx",
+        ]
+    )
     cli_alias: str = "td-cli"
     default_limit: int = 10
-    allowed_bots: List[str] = field(default_factory=lambda: [
-        "github-actions[bot]"
-    ])
+    allowed_bots: List[str] = field(default_factory=lambda: ["github-actions[bot]"])
     worktree_prefix: str = "bt-repair-"
     pnpm_version: str = "10.28.2"
-    infra_file_paths: List[str] = field(default_factory=lambda: [
-        "scripts/", "boomtick-pkg/cli/", ".github/",
-        "setup-agent.sh", "Dockerfile"
-    ])
+    infra_file_paths: List[str] = field(
+        default_factory=lambda: [
+            "scripts/",
+            "boomtick-pkg/cli/",
+            ".github/",
+            "setup-agent.sh",
+            "Dockerfile",
+        ]
+    )
     infra_feedback: str = (
         "- **Infrastructure/Bootstrap Change:** Low-level script changes detected.\n"
         "  - *Review focus:* Ensure idempotency, portability (avoid bashisms), and robust error handling (`set -e`, `set -u`).\n"
         "  - *Verification:* If full system setup is risky, verify via dry-runs, `bash -n`, or log inspection. Document verification method in the PR.\n"
     )
-    temp_file_patterns: List[str] = field(default_factory=lambda: [
-        r".*\.tmp$", r"^[^/]+\.py$", r".*audit.*\.md$", r".*dump.*\.json$", r".*\.jsonl$"
-    ])
+    temp_file_patterns: List[str] = field(
+        default_factory=lambda: [
+            r".*\.tmp$",
+            r"^[^/]+\.py$",
+            r".*audit.*\.md$",
+            r".*dump.*\.json$",
+            r".*\.jsonl$",
+        ]
+    )
     temp_file_feedback: str = (
         "- **Stray/Temporary Files:** Suspicious files (scripts, logs, audits) detected. "
         "Verify if these are intended to be committed.\n"
     )
-    spec_sections: List[str] = field(default_factory=lambda: [
-        "Problem Statement",
-        "Goal",
-        "Non-Goals",
-        "Proposed Approach",
-        "Alternatives Considered",
-        "Architectural Impact",
-        "Scope",
-        "UNDERSTAND THE ISSUE",
-        "DETERMINE APPROACH",
-        "SPECIFY SCOPE",
-        "DEFINITION OF DONE"
-    ])
+    spec_sections: List[str] = field(
+        default_factory=lambda: [
+            "Problem Statement",
+            "Goal",
+            "Non-Goals",
+            "Proposed Approach",
+            "Alternatives Considered",
+            "Architectural Impact",
+            "Scope",
+            "UNDERSTAND THE ISSUE",
+            "DETERMINE APPROACH",
+            "SPECIFY SCOPE",
+            "DEFINITION OF DONE",
+        ]
+    )
 
     @property
     def base_branch_name(self) -> str:
         """Returns the base branch name without the remote prefix (e.g., 'main' for 'origin/main')."""
         if not self.base_branch:
             return "main"
-        return self.base_branch.split('/')[-1]
+        return self.base_branch.split("/")[-1]
 
     @property
     def context_builder_script(self) -> str:
         """Returns the absolute path to the context builder script."""
         from dev_tools.utils import resolve_resource_path
+
         return resolve_resource_path("build-repo-context.py")
 
 
@@ -94,22 +120,22 @@ def get_config(path: str | Path = "project_config.json") -> ProjectConfig:
     return load_project_config(path)
 
 
-import subprocess
-import re
-
-
 @functools.lru_cache()
 def _detect_repo_name() -> str | None:
     """Safely detects repository name from git remote."""
     try:
-        res = subprocess.run(['git', 'config', '--get', 'remote.origin.url'],
-                           capture_output=True, text=True, check=False)
+        res = subprocess.run(
+            ["git", "config", "--get", "remote.origin.url"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
         if res.returncode != 0:
             return None
         url = res.stdout.strip()
         if not url:
             return None
-        match = re.search(r'[:/]([^/]+/[^/.]+)(\.git)?$', url)
+        match = re.search(r"[:/]([^/]+/[^/.]+)(\.git)?$", url)
         return match.group(1) if match else url
     except Exception:
         return None
@@ -190,9 +216,13 @@ def load_project_config(path: str | Path = "project_config.json") -> ProjectConf
         kwargs["temp_file_feedback"] = raw["temp_file_feedback"]
 
     for list_key in [
-        "core_dirs", "ui_indicators", "tailwind_indicators",
-        "audit_check_dirs", "allowed_bots", "spec_sections",
-        "temp_file_patterns"
+        "core_dirs",
+        "ui_indicators",
+        "tailwind_indicators",
+        "audit_check_dirs",
+        "allowed_bots",
+        "spec_sections",
+        "temp_file_patterns",
     ]:
         val = get_list(list_key)
         if val is not None:

@@ -1,42 +1,44 @@
+# pylint: disable=missing-docstring,protected-access,redefined-outer-name
+from unittest.mock import MagicMock, mock_open, patch
+
 import pytest
-from unittest.mock import MagicMock, patch, mock_open
 from dev_tools.orchestrator import Orchestrator
+
 
 @pytest.fixture
 def orchestrator():
-    with patch('dev_tools.orchestrator.GitHubClient'), \
-         patch('dev_tools.orchestrator.get_config'):
+    with patch("dev_tools.orchestrator.GitHubClient"), patch("dev_tools.orchestrator.get_config"):
         orch = Orchestrator()
         orch._github = MagicMock()
         return orch
+
 
 def test_generate_aggregation_workflow_logic(orchestrator):
     # Mock PR details
     orchestrator.github.fetch_pr_details.side_effect = lambda pr_num: {
         "number": pr_num,
         "title": f"PR {pr_num} [with brackets]",
-        "user": {"login": f"user_{pr_num}"}
+        "user": {"login": f"user_{pr_num}"},
     }
 
     # Mock PR files
     orchestrator.github.fetch_pr_files.side_effect = lambda pr_num: [
         {"filename": "overlapping_file.py"},
-        {"filename": f"unique_to_{pr_num}.py"}
+        {"filename": f"unique_to_{pr_num}.py"},
     ]
 
     # Mock PR diff with overlapping hunks
     orchestrator.github.fetch_pr_diff.side_effect = lambda pr_num: (
-        "+++ b/overlapping_file.py\n"
-        "@@ -10,5 +10,5 @@\n"
-        "+content\n"
+        "+++ b/overlapping_file.py\n" "@@ -10,5 +10,5 @@\n" "+content\n"
     )
 
     # Mock runtime check
     orchestrator.runtime_check = MagicMock(return_value={"node": "24.x", "pnpm": "10.x"})
 
     # Mock log directories and file operations
-    with patch('dev_tools.orchestrator.get_or_create_log_dir', return_value='/tmp/logs'), \
-         patch('builtins.open', mock_open()) as mocked_file:
+    with patch("dev_tools.orchestrator.get_or_create_log_dir", return_value="/tmp/logs"), patch(
+        "builtins.open", mock_open()
+    ) as mocked_file:
 
         res = orchestrator.generate_aggregation_workflow([3281, 3282], "feat/test-aggregation")
 

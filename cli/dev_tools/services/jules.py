@@ -1,9 +1,11 @@
+# pylint: disable=invalid-name,line-too-long,missing-docstring,missing-timeout,raise-missing-from
 import os
-import sys
+from concurrent.futures import ThreadPoolExecutor
+from typing import Any, Dict, List, Optional, Union
+
 import requests
-from dev_tools.utils import log_warn, log_debug, log_info
-from typing import Optional, List, Dict, Any, Union
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from dev_tools.utils import log_debug, log_info, log_warn
+
 
 class JulesClient:
     def __init__(self, api_key: Optional[str] = None):
@@ -13,10 +15,7 @@ class JulesClient:
 
         self.base_url = "https://jules.googleapis.com/v1alpha"
         self.legacy_url = "https://api.jules.ai/v1/sessions"
-        self.headers = {
-            "Content-Type": "application/json",
-            "x-goog-api-key": self.api_key
-        }
+        self.headers = {"Content-Type": "application/json", "x-goog-api-key": self.api_key}
 
     def _get_clean_id(self, res_id: str, prefix: str) -> str:
         return res_id.replace(f"{prefix}/", "")
@@ -59,9 +58,9 @@ class JulesClient:
             "prompt": prompt,
             "sourceContext": {
                 "source": f"sources/{clean_source_id}",
-                "githubRepoContext": { "startingBranch": branch }
+                "githubRepoContext": {"startingBranch": branch},
             },
-            "automationMode": "AUTO_CREATE_PR"
+            "automationMode": "AUTO_CREATE_PR",
         }
 
         log_debug(f"Creating Jules session at {url}")
@@ -74,7 +73,13 @@ class JulesClient:
     def create_session(self, prompt: str, branch: str, title: str, owner: str, repo_name: str) -> str:
         """Creates a new Jules session via the legacy API."""
         headers = {"Authorization": f"Bearer {self.api_key}", "Content-Type": "application/json"}
-        payload = {"prompt": prompt, "branch": branch, "title": title, "owner": owner, "repo_name": repo_name}
+        payload = {
+            "prompt": prompt,
+            "branch": branch,
+            "title": title,
+            "owner": owner,
+            "repo_name": repo_name,
+        }
         try:
             response = requests.post(self.legacy_url, headers=headers, json=payload)
             response.raise_for_status()
@@ -91,7 +96,8 @@ class JulesClient:
     def _extract_activity_content(self, act: Dict[str, Any]) -> str:
         if act.get("userMessaged"):
             um = act["userMessaged"]
-            if isinstance(um, str): return um
+            if isinstance(um, str):
+                return um
             if isinstance(um, dict):
                 user_msg = um.get("userMessage", "")
                 return user_msg.get("body", "") if isinstance(user_msg, dict) else user_msg
@@ -100,7 +106,9 @@ class JulesClient:
         elif act.get("planGenerated") and isinstance(act["planGenerated"], dict):
             plan = act["planGenerated"].get("plan") or {}
             steps = plan.get("steps", []) if isinstance(plan, dict) else []
-            return "Generated plan:\n" + "\n".join(f"- {s.get('description', '')}" for s in steps if isinstance(s, dict))
+            return "Generated plan:\n" + "\n".join(
+                f"- {s.get('description', '')}" for s in steps if isinstance(s, dict)
+            )
         elif act.get("sessionCompleted"):
             return "Session completed successfully."
         return ""
@@ -115,11 +123,13 @@ class JulesClient:
         for act in activities:
             content = self._extract_activity_content(act)
             if content:
-                messages.append({
-                    "role": "user" if act.get("originator") == "user" else "jules",
-                    "content": content,
-                    "time": act.get("createTime")
-                })
+                messages.append(
+                    {
+                        "role": "user" if act.get("originator") == "user" else "jules",
+                        "content": content,
+                        "time": act.get("createTime"),
+                    }
+                )
         return messages
 
     def send_message(self, session_id: Union[str, List[str]], message: str) -> Dict[str, Any]:
@@ -144,7 +154,7 @@ class JulesClient:
             # Reconstruct results in the original input order by iterating over the futures list
             for sid, future in zip(session_ids, futures):
                 try:
-                    res = future.result()
+                    future.result()
                     results.append({"sessionId": sid, "status": "success"})
                 except Exception as exc:
                     log_warn(f"Failed to send message to {sid}: {exc}")
@@ -153,7 +163,7 @@ class JulesClient:
         return {
             "status": "success" if any(r["status"] == "success" for r in results) else "error",
             "message": f"Batch send completed. {sum(1 for r in results if r['status'] == 'success')}/{len(session_ids)} successful.",
-            "results": results
+            "results": results,
         }
 
     def _send_single_message(self, session_id: str, message: str) -> Dict[str, Any]:

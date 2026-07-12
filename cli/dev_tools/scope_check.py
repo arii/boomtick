@@ -1,10 +1,11 @@
+# pylint: disable=line-too-long,missing-docstring,no-value-for-parameter
 import sys
-from typing import List, Optional, Set
+from typing import Set
 
 import click
-
-from dev_tools.utils import log_info, run_command
 from dev_tools.config import load_project_config
+from dev_tools.utils import log_info, run_command
+
 
 def get_changed_files():
     """Returns the list of files changed in the current branch."""
@@ -20,6 +21,7 @@ def get_changed_files():
         return res.stdout.strip().splitlines()
 
     return []
+
 
 def verify_pr_scope(file_list=None):
     """Checks if a PR touches too many core layout/component files or mixes content scopes."""
@@ -56,8 +58,9 @@ def verify_pr_scope(file_list=None):
 
     return None
 
+
 @click.command()
-@click.argument('files', nargs=-1)
+@click.argument("files", nargs=-1)
 def main(files):
     """Checks if a PR touches too many core files or mixes content scopes."""
     file_list = list(files)
@@ -76,6 +79,7 @@ def main(files):
         log_info(warning)
         sys.exit(1)
     sys.exit(0)
+
 
 if __name__ == "__main__":
     main()

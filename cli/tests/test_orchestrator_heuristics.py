@@ -1,6 +1,9 @@
+# pylint: disable=missing-docstring
 import unittest
-from dev_tools.orchestrator import Orchestrator
+
 from dev_tools.config import get_config
+from dev_tools.orchestrator import Orchestrator
+
 
 class TestOrchestratorHeuristics(unittest.TestCase):
     def setUp(self):
@@ -20,7 +23,7 @@ class TestOrchestratorHeuristics(unittest.TestCase):
     def test_evaluate_pr_heuristics_ui(self):
         pr = {"number": 2, "head": {"ref": "ui-branch"}, "title": "UI change"}
         # Diff touching a UI file
-        diff = "+++ b/src/components/Button.tsx\n+<button className=\"px-4\">"
+        diff = '+++ b/src/components/Button.tsx\n+<button className="px-4">'
         checks = {"check_runs": []}
 
         feedback = self.orchestrator.evaluate_pr_heuristics(pr, diff, checks)
@@ -28,7 +31,7 @@ class TestOrchestratorHeuristics(unittest.TestCase):
 
     def test_evaluate_pr_heuristics_mixed(self):
         pr = {"number": 3, "head": {"ref": "mixed-branch"}, "title": "Mixed change"}
-        diff = "+++ b/setup-agent.sh\n+set -e\n+++ b/src/components/Button.tsx\n+<button className=\"px-4\">"
+        diff = '+++ b/setup-agent.sh\n+set -e\n+++ b/src/components/Button.tsx\n+<button className="px-4">'
         checks = {"check_runs": []}
 
         feedback = self.orchestrator.evaluate_pr_heuristics(pr, diff, checks)
@@ -48,5 +51,6 @@ class TestOrchestratorHeuristics(unittest.TestCase):
         # Should NOT flag package.json
         self.assertNotIn("package.json", feedback)
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     unittest.main()

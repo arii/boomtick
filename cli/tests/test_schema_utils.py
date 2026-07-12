@@ -1,10 +1,12 @@
+# pylint: disable=comparison-with-callable,import-outside-toplevel,missing-docstring,unused-argument,use-implicit-booleaness-not-comparison
 import click
-import pytest
 from dev_tools.schema_utils import collect_commands, get_command_by_path
+
 
 @click.group()
 def mock_root_cli():
     pass
+
 
 @mock_root_cli.command(name="test")
 @click.option("--flag", help="A test flag")
@@ -12,13 +14,16 @@ def mock_root_cli():
 def mock_test_cmd(flag, arg):
     pass
 
+
 @mock_root_cli.group()
 def sub():
     pass
 
+
 @sub.command(name="nested")
 def mock_nested_cmd():
     pass
+
 
 def test_get_command_by_path():
     assert get_command_by_path(mock_root_cli, "test") == mock_test_cmd
@@ -26,6 +31,7 @@ def test_get_command_by_path():
     assert get_command_by_path(mock_root_cli, "sub nested") == mock_nested_cmd
     assert get_command_by_path(mock_root_cli, "invalid") is None
     assert get_command_by_path(mock_root_cli, "") == mock_root_cli
+
 
 def test_collect_commands_flat():
     schema = collect_commands(mock_test_cmd, prefix="test")
@@ -35,11 +41,13 @@ def test_collect_commands_flat():
     assert any(f["flag"] == "--flag" for f in cmd["optional_flags"])
     assert any(a["name"] == "arg" for a in cmd["required_arguments"])
 
+
 def test_collect_commands_group():
     schema = collect_commands(mock_root_cli)
     assert "test" in schema
     assert "sub nested" in schema
-    assert "sub" not in schema # It should collect leaf commands
+    assert "sub" not in schema  # It should collect leaf commands
+
 
 def test_max_depth():
     # Test max_depth by limiting it to 0
@@ -50,6 +58,7 @@ def test_max_depth():
     schema = collect_commands(mock_root_cli, max_depth=1)
     assert "test" in schema
     assert "sub nested" not in schema
+
 
 def test_schema_command_integration():
     from click.testing import CliRunner

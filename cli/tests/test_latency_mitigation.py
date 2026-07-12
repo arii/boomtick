@@ -1,9 +1,10 @@
+# pylint: disable=missing-docstring
 import os
-import json
 import time
-import pytest
 from pathlib import Path
+
 from dev_tools.utils import DiskCache
+
 
 def test_disk_cache_basic(tmp_path):
     # Set up cache dir in tmp_path
@@ -23,10 +24,12 @@ def test_disk_cache_basic(tmp_path):
     time.sleep(0.2)
     assert cache.get(key) is None
 
+
 def test_disk_cache_no_cache():
     cache = DiskCache(subdir="test_cache", no_cache=True)
     cache.set("foo", "bar")
     assert cache.get("foo") is None
+
 
 def test_disk_cache_clear():
     cache = DiskCache(subdir="test_cache_clear")

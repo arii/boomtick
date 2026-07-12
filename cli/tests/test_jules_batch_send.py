@@ -1,11 +1,15 @@
-import pytest
+# pylint: disable=import-outside-toplevel,missing-docstring,redefined-outer-name,reimported,unused-argument
 from unittest.mock import MagicMock, patch
+
+import pytest
 from dev_tools.services.jules import JulesClient
+
 
 @pytest.fixture
 def jules_client():
     with patch.dict("os.environ", {"JULES_API_KEY": "fake_key"}):
         return JulesClient()
+
 
 def test_send_single_message(jules_client):
     with patch("requests.post") as mock_post:
@@ -22,6 +26,7 @@ def test_send_single_message(jules_client):
         assert args[0].endswith("/sessions/session1:sendMessage")
         assert kwargs["json"] == {"prompt": "hello"}
 
+
 def test_send_batch_message_success(jules_client):
     with patch("requests.post") as mock_post:
         # Mock responses arriving out of order to test reconstruction
@@ -35,7 +40,8 @@ def test_send_batch_message_success(jules_client):
 
         # side_effect returns results for session2 then session1
         def side_effect(url, **kwargs):
-            if "session2" in url: return mock_res2
+            if "session2" in url:
+                return mock_res2
             return mock_res1
 
         mock_post.side_effect = side_effect
@@ -50,8 +56,10 @@ def test_send_batch_message_success(jules_client):
         assert res["results"][0]["sessionId"] == "session1"
         assert res["results"][1]["sessionId"] == "session2"
 
+
 def test_send_batch_message_partial_failure(jules_client):
     with patch("requests.post") as mock_post:
+
         def side_effect(url, **kwargs):
             mock_res = MagicMock()
             if "session2" in url:
@@ -67,7 +75,7 @@ def test_send_batch_message_partial_failure(jules_client):
         session_ids = ["session1", "session2"]
         res = jules_client.send_message(session_ids, "hello partial")
 
-        assert res["status"] == "success" # At least one succeeded
+        assert res["status"] == "success"  # At least one succeeded
         assert "1/2 successful" in res["message"]
 
         # Check results order
@@ -75,6 +83,7 @@ def test_send_batch_message_partial_failure(jules_client):
         assert res["results"][0]["status"] == "success"
         assert res["results"][1]["sessionId"] == "session2"
         assert res["results"][1]["status"] == "error"
+
 
 def test_send_batch_hard_cap(jules_client):
     from dev_tools.models import JulesSendMessageInput
@@ -86,9 +95,10 @@ def test_send_batch_hard_cap(jules_client):
         JulesSendMessageInput(sessionId=session_ids, message="msg")
     assert "Batch size exceeds" in str(exc.value)
 
+
 def test_validation_invalid_ids():
-    from dev_tools.models import JulesSendMessageInput
     import pytest
+    from dev_tools.models import JulesSendMessageInput
     from pydantic import ValidationError
 
     # Test invalid characters

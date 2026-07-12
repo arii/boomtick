@@ -1,19 +1,14 @@
+# pylint: disable=missing-docstring
 import json
-import os
-import pytest
+
 from dev_tools.services.dependency_graph import DependencyGraph
+
 
 def test_dependency_graph_parsing(tmp_path):
     graph_data = {
         "modules": [
-            {
-                "source": "src/a.ts",
-                "dependencies": [{"resolved": "src/b.ts"}]
-            },
-            {
-                "source": "src/b.ts",
-                "dependencies": []
-            }
+            {"source": "src/a.ts", "dependencies": [{"resolved": "src/b.ts"}]},
+            {"source": "src/b.ts", "dependencies": []},
         ]
     }
 

@@ -1,5 +1,6 @@
+# pylint: disable=import-outside-toplevel,missing-docstring,too-many-branches,too-many-locals,too-many-statements
 import click
-import json
+
 
 def get_type_name(param):
     t = param.type
@@ -16,12 +17,14 @@ def get_type_name(param):
         return "boolean"
     return "string"
 
+
 def collect_commands(root_cmd, prefix="", max_depth=10):
     """
     Collects leaves of the command tree iteratively using breadth-first traversal.
     Avoids recursion limits and ensures predictable depth enforcement.
     """
     from collections import deque
+
     subcmds = {}
     # queue elements: (cmd_obj, current_prefix, depth)
     queue = deque([(root_cmd, prefix, 0)])
@@ -59,19 +62,17 @@ def collect_commands(root_cmd, prefix="", max_depth=10):
                         args_str.append(f"<{arg_name}...>")
                     else:
                         args_str.append(f"<{arg_name}>")
-                    req_args.append({
-                        "name": param.name,
-                        "type": param_type,
-                        "description": getattr(param, "help", "") or ""
-                    })
+                    req_args.append(
+                        {
+                            "name": param.name,
+                            "type": param_type,
+                            "description": getattr(param, "help", "") or "",
+                        }
+                    )
                 elif isinstance(param, click.Option):
                     flag_name = param.opts[0]
                     flag_desc = param.help or ""
-                    option_dict = {
-                        "flag": flag_name,
-                        "type": param_type,
-                        "description": flag_desc
-                    }
+                    option_dict = {"flag": flag_name, "type": param_type, "description": flag_desc}
                     if param.required:
                         req_flags.append(option_dict)
                     else:
@@ -83,8 +84,8 @@ def collect_commands(root_cmd, prefix="", max_depth=10):
                 usage += " " + " ".join([f"{f['flag']} <{f['flag'].lstrip('-').upper()}>" for f in req_flags])
 
             # Show a compact view of optional flags
-            boolean_flags = [f for f in opt_flags if f['type'] == 'boolean']
-            other_opt_flags = [f for f in opt_flags if f['type'] != 'boolean']
+            boolean_flags = [f for f in opt_flags if f["type"] == "boolean"]
+            other_opt_flags = [f for f in opt_flags if f["type"] != "boolean"]
 
             if boolean_flags:
                 usage += " " + " ".join([f"[{f['flag']}]" for f in boolean_flags])
@@ -94,10 +95,7 @@ def collect_commands(root_cmd, prefix="", max_depth=10):
             if args_str:
                 usage += " " + " ".join(args_str)
 
-            cmd_info = {
-                "description": cmd_help,
-                "exact_usage": usage
-            }
+            cmd_info = {"description": cmd_help, "exact_usage": usage}
             if req_args:
                 cmd_info["required_arguments"] = req_args
             if req_flags:
@@ -108,6 +106,7 @@ def collect_commands(root_cmd, prefix="", max_depth=10):
             subcmds[cmd_name] = cmd_info
 
     return subcmds
+
 
 def get_command_by_path(cli_root, path_str):
     """

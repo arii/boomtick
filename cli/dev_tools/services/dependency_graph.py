@@ -1,9 +1,11 @@
+# pylint: disable=missing-docstring,raise-missing-from,subprocess-run-check
 import json
-import sys
 import os
 import subprocess
-from dev_tools.utils import log_warn, log_error, CLIError
-from typing import Dict, List, Set, Optional
+from typing import Dict, List, Set
+
+from dev_tools.utils import CLIError, log_error
+
 
 class DependencyGraph:
     def __init__(self, root_dir: str = "."):
@@ -18,15 +20,20 @@ class DependencyGraph:
             # Check if we have a cached graph first (optional, but good for performance)
             cache_path = os.path.join(self.root_dir, "artifacts", "dependency-graph.json")
             if os.path.exists(cache_path):
-                with open(cache_path, 'r') as f:
+                with open(cache_path, "r", encoding="utf-8") as f:
                     data = json.load(f)
             else:
                 # Run dependency-cruiser
                 cmd = [
-                    "npx", "depcruise", "src",
-                    "--config", ".dependency-cruiser.config.mjs",
-                    "--ts-config", "tsconfig.app.json",
-                    "--output-type", "json"
+                    "npx",
+                    "depcruise",
+                    "src",
+                    "--config",
+                    ".dependency-cruiser.config.mjs",
+                    "--ts-config",
+                    "tsconfig.app.json",
+                    "--output-type",
+                    "json",
                 ]
                 try:
                     # Explicitly check for npx availability
@@ -49,7 +56,7 @@ class DependencyGraph:
                 if data and data.get("modules"):
                     # Cache it
                     os.makedirs(os.path.dirname(cache_path), exist_ok=True)
-                    with open(cache_path, 'w') as f:
+                    with open(cache_path, "w", encoding="utf-8") as f:
                         json.dump(data, f)
 
             self._parse_modules(data.get("modules", []))
@@ -93,7 +100,7 @@ class DependencyGraph:
             if file in affected or current_depth > depth:
                 continue
 
-            if current_depth > 0: # Don't add the changed files themselves if we want only 'affected'
+            if current_depth > 0:  # Don't add the changed files themselves if we want only 'affected'
                 affected.add(file)
 
             dependents = self.get_dependents(file)

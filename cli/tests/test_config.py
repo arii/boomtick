@@ -1,8 +1,7 @@
+# pylint: disable=missing-docstring
 import json
-import os
-import pytest
-from pathlib import Path
-from dev_tools.config import load_project_config, ProjectConfig
+
+from dev_tools.config import ProjectConfig, load_project_config
 
 
 def test_load_default_config(tmp_path):
@@ -13,6 +12,7 @@ def test_load_default_config(tmp_path):
     assert config.monolithic_pr_threshold == 3
     assert "src/layouts/" in config.core_dirs
 
+
 def test_load_custom_config(tmp_path):
     config_file = tmp_path / "project_config.json"
     data = {
@@ -20,7 +20,7 @@ def test_load_custom_config(tmp_path):
         "monolithic_pr_threshold": 5,
         "core_dirs": ["custom/"],
         "max_diff_chars": 50000,
-        "ai_synthesis_model": "gpt-4o"
+        "ai_synthesis_model": "gpt-4o",
     }
     config_file.write_text(json.dumps(data))
 
@@ -31,17 +31,16 @@ def test_load_custom_config(tmp_path):
     assert config.max_diff_chars == 50000
     assert config.ai_synthesis_model == "gpt-4o"
 
+
 def test_type_coercion(tmp_path):
     config_file = tmp_path / "project_config.json"
-    data = {
-        "monolithic_pr_threshold": "10",
-        "max_diff_chars": "60000"
-    }
+    data = {"monolithic_pr_threshold": "10", "max_diff_chars": "60000"}
     config_file.write_text(json.dumps(data))
 
     config = load_project_config(config_file)
     assert config.monolithic_pr_threshold == 10
     assert config.max_diff_chars == 60000
+
 
 def test_invalid_json(tmp_path):
     config_file = tmp_path / "invalid.json"
@@ -51,11 +50,10 @@ def test_invalid_json(tmp_path):
     # Should fallback to defaults
     assert config.base_branch == "origin/main"
 
+
 def test_legacy_repo_name(tmp_path):
     config_file = tmp_path / "project_config.json"
-    data = {
-        "repo_name": "owner/repo"
-    }
+    data = {"repo_name": "owner/repo"}
     config_file.write_text(json.dumps(data))
 
     config = load_project_config(config_file)

@@ -1,3 +1,4 @@
+# pylint: disable=import-outside-toplevel,missing-docstring,redefined-outer-name,too-many-locals
 #!/usr/bin/env python3
 """
 review_read_pass.py – Diff parser and file-chunk splitter for the piecemeal
@@ -20,23 +21,44 @@ from typing import Optional
 # ── Skip rules ────────────────────────────────────────────────────────────────
 # Files matching any of these patterns will be classified as skip=True.
 _SKIP_EXTENSIONS = {
-    ".png", ".jpg", ".jpeg", ".gif", ".svg", ".ico",
-    ".webp", ".woff", ".woff2", ".ttf", ".eot", ".otf",  # images / fonts
-    ".mp4", ".mov", ".avi", ".webm",                       # video
-    ".pdf", ".zip", ".tar", ".gz", ".br",                  # binary archives
-    ".map",                                                 # source maps
+    ".png",
+    ".jpg",
+    ".jpeg",
+    ".gif",
+    ".svg",
+    ".ico",
+    ".webp",
+    ".woff",
+    ".woff2",
+    ".ttf",
+    ".eot",
+    ".otf",  # images / fonts
+    ".mp4",
+    ".mov",
+    ".avi",
+    ".webm",  # video
+    ".pdf",
+    ".zip",
+    ".tar",
+    ".gz",
+    ".br",  # binary archives
+    ".map",  # source maps
 }
 
 _SKIP_FILENAMES = {
-    "package-lock.json", "yarn.lock", "pnpm-lock.yaml",
-    "composer.lock", "Gemfile.lock", "poetry.lock",        # lock files
+    "package-lock.json",
+    "yarn.lock",
+    "pnpm-lock.yaml",
+    "composer.lock",
+    "Gemfile.lock",
+    "poetry.lock",  # lock files
 }
 
 _SKIP_PATTERNS = [
-    re.compile(r"\.min\.(js|css|mjs)$"),          # minified
-    re.compile(r"\.snap$"),                         # Jest snapshots
+    re.compile(r"\.min\.(js|css|mjs)$"),  # minified
+    re.compile(r"\.snap$"),  # Jest snapshots
     re.compile(r"^(dist|build|\.next|out|\.nuxt)/"),  # build artifacts
-    re.compile(r"^__generated__/"),                 # GraphQL / codegen
+    re.compile(r"^__generated__/"),  # GraphQL / codegen
 ]
 
 # Maximum diff characters sent per AI call for a single hunk-group
@@ -48,6 +70,7 @@ HUNK_GROUP_SIZE = 50
 def _should_skip(filepath: str) -> Optional[str]:
     """Return a human-readable skip reason, or None if the file should be reviewed."""
     import os
+
     basename = os.path.basename(filepath)
     ext = os.path.splitext(basename)[1].lower()
 
@@ -62,6 +85,7 @@ def _should_skip(filepath: str) -> Optional[str]:
 
 
 # ── Core diff parser ──────────────────────────────────────────────────────────
+
 
 def _parse_raw_files(diff_text: str) -> list[dict]:
     """
@@ -132,16 +156,18 @@ def parse_diff_into_file_chunks(diff_text: str) -> list[dict]:
         skip_reason = _should_skip(filepath)
 
         if skip_reason or not hunks:
-            chunks.append({
-                "file": filepath,
-                "chunk_index": 0,
-                "total_chunks": 1,
-                "skip": True,
-                "reason": skip_reason or "no hunks",
-                "diff_text": "",
-                "added_lines": 0,
-                "truncated": False,
-            })
+            chunks.append(
+                {
+                    "file": filepath,
+                    "chunk_index": 0,
+                    "total_chunks": 1,
+                    "skip": True,
+                    "reason": skip_reason or "no hunks",
+                    "diff_text": "",
+                    "added_lines": 0,
+                    "truncated": False,
+                }
+            )
             continue
 
         # Group hunks into batches of ≤ HUNK_GROUP_SIZE added lines each
@@ -172,16 +198,18 @@ def parse_diff_into_file_chunks(diff_text: str) -> list[dict]:
                 text = text[:MAX_CHUNK_CHARS] + f"\n... (diff truncated at {MAX_CHUNK_CHARS} chars)"
                 truncated = True
 
-            chunks.append({
-                "file": filepath,
-                "chunk_index": idx,
-                "total_chunks": total_chunks,
-                "skip": False,
-                "reason": None,
-                "diff_text": text,
-                "added_lines": added,
-                "truncated": truncated,
-            })
+            chunks.append(
+                {
+                    "file": filepath,
+                    "chunk_index": idx,
+                    "total_chunks": total_chunks,
+                    "skip": False,
+                    "reason": None,
+                    "diff_text": text,
+                    "added_lines": added,
+                    "truncated": truncated,
+                }
+            )
 
     return chunks
 
@@ -191,9 +219,14 @@ if __name__ == "__main__":
     chunks = parse_diff_into_file_chunks(raw)
     reviewable = [c for c in chunks if not c["skip"]]
     skipped = [c for c in chunks if c["skip"]]
-    print(json.dumps({
-        "total_chunks": len(chunks),
-        "reviewable": len(reviewable),
-        "skipped": len(skipped),
-        "chunks": chunks,
-    }, indent=2))
+    print(
+        json.dumps(
+            {
+                "total_chunks": len(chunks),
+                "reviewable": len(reviewable),
+                "skipped": len(skipped),
+                "chunks": chunks,
+            },
+            indent=2,
+        )
+    )

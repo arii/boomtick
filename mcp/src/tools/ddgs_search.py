@@ -1,3 +1,5 @@
+# pylint: disable=line-too-long
+"""DuckDuckGo Search tool."""
 import json
 import sys
 

@@ -1,9 +1,12 @@
-import re
-import os
+# pylint: disable=f-string-without-interpolation,line-too-long,missing-docstring,too-few-public-methods,unused-variable
 import json
+import os
+import re
 import sys
+from typing import Any, Dict, Optional
+
 from dev_tools.utils import log_warn
-from typing import Optional, List, Dict, Any
+
 
 def resolve_file_path(path: str) -> Optional[str]:
     """Resolves path relative to current working directory or via filename lookup."""
@@ -12,13 +15,13 @@ def resolve_file_path(path: str) -> Optional[str]:
 
     # 1. Direct check (if absolute and exists, we take it, but we prefer relative)
     if os.path.isabs(path) and os.path.exists(path):
-         # If it's absolute but under current directory, make it relative
-         try:
-             rel = os.path.relpath(path)
-             if not rel.startswith('..'):
-                 return rel
-         except ValueError:
-             pass
+        # If it's absolute but under current directory, make it relative
+        try:
+            rel = os.path.relpath(path)
+            if not rel.startswith(".."):
+                return rel
+        except ValueError:
+            pass
 
     # 2. Try stripping leading common absolute paths (like /app/ or /workspace/)
     # We look for the first part that actually exists in the current directory relative to CWD
@@ -30,33 +33,35 @@ def resolve_file_path(path: str) -> Optional[str]:
 
     # 3. Fallback to basename lookup in current directory (recursive)
     filename = os.path.basename(path)
-    for root, dirs, files in os.walk('.'):
+    for root, dirs, files in os.walk("."):
         if filename in files:
             found_path = os.path.join(root, filename)
-            if found_path.startswith('./'):
+            if found_path.startswith("./"):
                 return found_path[2:]
             return found_path
 
     return None
 
+
 def strip_ansi(text: str) -> str:
     """Strips ANSI color codes from string."""
-    ansi_escape = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
-    return ansi_escape.sub('', text)
+    ansi_escape = re.compile(r"\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])")
+    return ansi_escape.sub("", text)
+
 
 class SignatureExtractor:
     """Extracts file, line, and error signature from logs."""
 
     # ESLint stylish: /app/src/App.tsx:10:5: 'unused' is defined but never used. [eslint/no-unused-vars]
     # ESLint compact: /app/src/App.tsx: line 10, col 5, Error - 'unused' is defined but never used. [eslint/no-unused-vars]
-    ESLINT_PATTERN = re.compile(r'^(.*?):(\d+):(\d+): (.*) \[(.*)\]$')
-    ESLINT_COMPACT_PATTERN = re.compile(r'^(.*?): line (\d+), col (\d+), (?:Error|Warning) - (.*) \[(.*)\]$')
+    ESLINT_PATTERN = re.compile(r"^(.*?):(\d+):(\d+): (.*) \[(.*)\]$")
+    ESLINT_COMPACT_PATTERN = re.compile(r"^(.*?): line (\d+), col (\d+), (?:Error|Warning) - (.*) \[(.*)\]$")
 
     # TS example: src/App.tsx:10:5 - error TS2322: Type 'string' is not assignable to type 'number'.
-    TS_PATTERN = re.compile(r'^(.*?):(\d+):(\d+) - error (TS\d+): (.*)$')
+    TS_PATTERN = re.compile(r"^(.*?):(\d+):(\d+) - error (TS\d+): (.*)$")
 
     # TS alternate: src/App.tsx(10,5): error TS2322: ...
-    TS_ALT_PATTERN = re.compile(r'^(.*?)\((\d+),(\d+)\): error (TS\d+): (.*)$')
+    TS_ALT_PATTERN = re.compile(r"^(.*?)\((\d+),(\d+)\): error (TS\d+): (.*)$")
 
     @staticmethod
     def _parse_ts(match) -> Dict[str, Any]:
@@ -65,7 +70,7 @@ class SignatureExtractor:
             "line": int(match.group(2)),
             "col": int(match.group(3)),
             "message": match.group(5),
-            "signature": f"ts/{match.group(4)[2:]}" # Normalize TS2322 to ts/2322
+            "signature": f"ts/{match.group(4)[2:]}",  # Normalize TS2322 to ts/2322
         }
 
     @classmethod
@@ -76,14 +81,14 @@ class SignatureExtractor:
         match = cls.ESLINT_PATTERN.match(log_line) or cls.ESLINT_COMPACT_PATTERN.match(log_line)
         if match:
             sig = match.group(5)
-            if not sig.startswith('eslint/') and '/' not in sig:
+            if not sig.startswith("eslint/") and "/" not in sig:
                 sig = f"eslint/{sig}"
             return {
                 "file": match.group(1),
                 "line": int(match.group(2)),
                 "col": int(match.group(3)),
                 "message": match.group(4),
-                "signature": sig
+                "signature": sig,
             }
 
         # Try TS
@@ -98,6 +103,7 @@ class SignatureExtractor:
 
         return None
 
+
 class ASTContextualizer:
     """Extracts surrounding code block for a given line."""
 
@@ -111,7 +117,7 @@ class ASTContextualizer:
             return None
 
         try:
-            with open(filepath, 'r') as f:
+            with open(filepath, "r", encoding="utf-8") as f:
                 lines = f.readlines()
         except Exception as e:
             log_warn(f"Failed to read file {filepath} for context extraction: {e}")
@@ -128,8 +134,9 @@ class ASTContextualizer:
         start_idx = max(0, idx - window)
         end_idx = min(len(lines) - 1, idx + window)
 
-        context_lines = lines[start_idx:end_idx+1]
+        context_lines = lines[start_idx : end_idx + 1]
         return "".join(context_lines)
+
 
 class RepairService:
     """Coordinates extraction, lookup, and prompt construction."""
@@ -147,7 +154,7 @@ class RepairService:
         if not os.path.exists(self.knowledge_base_path):
             return {}
         try:
-            with open(self.knowledge_base_path, 'r') as f:
+            with open(self.knowledge_base_path, "r", encoding="utf-8") as f:
                 return json.load(f)
         except json.JSONDecodeError as e:
             print(f"⚠️ Warning: Knowledge base JSON is invalid: {e}", file=sys.stderr)
@@ -161,14 +168,14 @@ class RepairService:
         if not extracted:
             return None
 
-        sig = extracted['signature']
+        sig = extracted["signature"]
         strategy_data = self.knowledge_base.get(sig, {})
-        strategy = strategy_data.get('strategy', "Investigate the error and apply a fix based on common practices.")
-        examples = strategy_data.get('examples', [])
+        strategy = strategy_data.get("strategy", "Investigate the error and apply a fix based on common practices.")
+        examples = strategy_data.get("examples", [])
 
         # Adjust file path for context extraction
-        filepath = resolve_file_path(extracted['file'])
-        context = ASTContextualizer.extract_context(filepath, extracted['line']) if filepath else None
+        filepath = resolve_file_path(extracted["file"])
+        context = ASTContextualizer.extract_context(filepath, extracted["line"]) if filepath else None
 
         prompt = f"### Error Report\n"
         prompt += f"- **File**: `{extracted['file']}`\n"

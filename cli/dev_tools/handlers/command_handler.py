@@ -1,4 +1,6 @@
-from typing import Dict, Any, Optional
+# pylint: disable=line-too-long,missing-docstring,no-else-return,too-few-public-methods,unused-argument
+from typing import Any, Dict, Optional
+
 
 class CommandHandler:
     def __init__(self, orchestrator):
@@ -32,13 +34,20 @@ class CommandHandler:
 
         self.orchestrator.github.create_review(pr_number, comment_body, [], event)
 
-        return {"status": "success", "message": f"Submitted {event} review for PR #{pr_number}", "review": review_data}
+        return {
+            "status": "success",
+            "message": f"Submitted {event} review for PR #{pr_number}",
+            "review": review_data,
+        }
 
     def _handle_ai_fix(self, pr_number: int) -> Dict[str, Any]:
         # First, ensure we have the conflict files
         conflict_files = self.orchestrator.find_conflict_files()
         if not conflict_files:
-            return {"status": "error", "message": "No merge conflicts detected locally. Ensure you have merged the base branch and markers are present."}
+            return {
+                "status": "error",
+                "message": "No merge conflicts detected locally. Ensure you have merged the base branch and markers are present.",
+            }
 
         results = [(f, self.orchestrator.resolve_conflict(f)) for f in conflict_files]
         resolved = [f for f, success in results if success]
@@ -46,6 +55,15 @@ class CommandHandler:
 
         if failed:
             msg = f"Failed to resolve conflicts in: {', '.join(failed)}"
-            return {"status": "partial_success" if resolved else "error", "message": msg, "resolved": resolved, "failed": failed}
+            return {
+                "status": "partial_success" if resolved else "error",
+                "message": msg,
+                "resolved": resolved,
+                "failed": failed,
+            }
 
-        return {"status": "success", "message": f"Successfully resolved conflicts in {len(resolved)} files.", "resolved": resolved}
+        return {
+            "status": "success",
+            "message": f"Successfully resolved conflicts in {len(resolved)} files.",
+            "resolved": resolved,
+        }

@@ -1,6 +1,9 @@
+# pylint: disable=import-outside-toplevel,missing-docstring,protected-access,unused-argument
 import os
+
 import pytest
 from dev_tools.orchestrator import Orchestrator
+
 
 def test_check_workflow_compliance_no_violations(tmp_path):
     workflow_file = tmp_path / "compliant.yml"
@@ -21,6 +24,7 @@ jobs:
     orch = Orchestrator()
     violations = orch._check_workflow_compliance(str(workflow_file))
     assert len(violations) == 0
+
 
 def test_check_workflow_compliance_with_violations(tmp_path):
     workflow_file = tmp_path / "non_compliant.yml"
@@ -47,6 +51,7 @@ jobs:
     assert any("checkout@v2" in v for v in violations)
     assert any("setup-node@v3" in v for v in violations)
 
+
 def test_scan_workflows(tmp_path, monkeypatch):
     workflow_dir = tmp_path / ".github" / "workflows"
     workflow_dir.mkdir(parents=True)
@@ -55,12 +60,14 @@ def test_scan_workflows(tmp_path, monkeypatch):
     (workflow_dir / "README.md").write_text("Not a workflow")
 
     real_exists = os.path.exists
+
     def mock_exists(path):
         if path == ".github/workflows":
             return True
         return real_exists(path)
 
     real_listdir = os.listdir
+
     def mock_listdir(path):
         if path == ".github/workflows":
             return real_listdir(str(workflow_dir))
@@ -75,8 +82,10 @@ def test_scan_workflows(tmp_path, monkeypatch):
     assert any("ci.yml" in f for f in workflows)
     assert any("deploy.yaml" in f for f in workflows)
 
+
 def test_plan_workflow_audit_invalid_path(tmp_path, monkeypatch):
     from dev_tools.utils import CLIError
+
     orch = Orchestrator()
 
     # Extension check
@@ -90,8 +99,9 @@ def test_plan_workflow_audit_invalid_path(tmp_path, monkeypatch):
     # Residing in the correct directory but file doesn't exist
     # (assuming we are not mocking existence here yet, or we mock it to False)
     with pytest.raises(CLIError, match="Workflow file must reside in .github/workflows/"):
-         # normpath will result in "some/other/ci.yml"
-         orch.plan_workflow_audit("some/other/ci.yml")
+        # normpath will result in "some/other/ci.yml"
+        orch.plan_workflow_audit("some/other/ci.yml")
+
 
 def test_plan_workflow_audit_valid_path(tmp_path, monkeypatch):
     # Setup mock environment
@@ -102,10 +112,12 @@ def test_plan_workflow_audit_valid_path(tmp_path, monkeypatch):
 
     # Mock os.path.exists to return True for our specific mock path
     real_exists = os.path.exists
+
     def mock_exists(path):
         if path == ".github/workflows/test.yml":
             return True
         return real_exists(path)
+
     monkeypatch.setattr(os.path, "exists", mock_exists)
 
     orch = Orchestrator()

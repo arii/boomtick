@@ -1,3 +1,4 @@
+# pylint: disable=global-statement,import-outside-toplevel,invalid-name,line-too-long,missing-docstring,redefined-outer-name,reimported,too-many-branches,too-many-locals,too-many-return-statements,too-many-statements,unused-argument
 import json
 import os
 import re
@@ -7,23 +8,25 @@ from collections import defaultdict
 from typing import Any, Dict, List, Optional, Tuple, Type
 
 import requests
-from pydantic import ValidationError, BaseModel
-from dev_tools.utils import log_info, log_error, log_warn, ensure_dir
-from dev_tools.verify_versions import parse_diff, verify_changes
-from dev_tools.review_read_pass import parse_diff_into_file_chunks
 from dev_tools.models import AIFullReview, AISynthesisReview
-
-from dev_tools.utils import (
-    call_ai,
-    is_ai_available,
-    clean_llm_output,
-    get_ai_model,
-    get_ai_review_model,
-    get_stack_versions,
-    get_gemini_model
-)
+from dev_tools.review_read_pass import parse_diff_into_file_chunks
 from dev_tools.services.dependency_graph import DependencyGraph
 from dev_tools.services.vector_store import VectorStore
+from dev_tools.utils import (
+    call_ai,
+    clean_llm_output,
+    ensure_dir,
+    get_ai_model,
+    get_ai_review_model,
+    get_gemini_model,
+    get_stack_versions,
+    is_ai_available,
+    log_error,
+    log_info,
+    log_warn,
+)
+from dev_tools.verify_versions import parse_diff, verify_changes
+from pydantic import BaseModel, ValidationError
 
 # Model used for per-file chunk review (code-aware, focused)
 _REVIEW_MODEL = get_ai_review_model()
@@ -39,6 +42,7 @@ _REVIEW_SCHEMA = AIFullReview.model_json_schema()
 
 # Synthesis review schema
 _SYNTHESIS_SCHEMA = AISynthesisReview.model_json_schema()
+
 
 def validate_with_model(data: Any, model_class: Type[BaseModel]) -> Tuple[Optional[Dict[str, Any]], Optional[str]]:
     """Validates data against a Pydantic model and returns (parsed_dict, error_message)."""
@@ -61,16 +65,14 @@ def validate_with_model(data: Any, model_class: Type[BaseModel]) -> Tuple[Option
         # Extract specific error details from Pydantic
         errs = []
         for err in e.errors():
-            loc = " -> ".join(str(x) for x in err.get('loc', []))
-            msg = err.get('msg')
+            loc = " -> ".join(str(x) for x in err.get("loc", []))
+            msg = err.get("msg")
             errs.append(f"[{loc}]: {msg}")
         return None, "Validation failed:\n  " + "\n  ".join(errs)
 
 
-
-
-
 _REVIEW_CONSTANTS_CACHE = None
+
 
 def _get_review_prompt_constants() -> tuple[str, str, str]:
     global _REVIEW_CONSTANTS_CACHE
@@ -78,10 +80,12 @@ def _get_review_prompt_constants() -> tuple[str, str, str]:
         return _REVIEW_CONSTANTS_CACHE
 
     try:
-        from dev_tools.utils import resolve_resource_path
         import json
+
+        from dev_tools.utils import resolve_resource_path
+
         resource_path = resolve_resource_path("prompt_constants.json")
-        with open(resource_path, 'r', encoding='utf-8') as f:
+        with open(resource_path, "r", encoding="utf-8") as f:
             data = json.load(f)
 
         json_rules = data.get("STRICT_JSON_VERIFICATION", "")
@@ -98,6 +102,7 @@ def _get_review_prompt_constants() -> tuple[str, str, str]:
         default_common = "Review ONLY PR changes. Assume original code worked."
         _REVIEW_CONSTANTS_CACHE = (default_json, default_snippet, default_common)
         return _REVIEW_CONSTANTS_CACHE
+
 
 class AIClient:
     def __init__(self, ai_model: Optional[str] = None):
@@ -122,7 +127,13 @@ class AIClient:
     def is_ai_available(self) -> bool:
         return is_ai_available()
 
-    def call_ai(self, prompt: str, model: Optional[str] = None, max_retries: int = 3, schema: Optional[Dict] = None) -> Optional[str]:
+    def call_ai(
+        self,
+        prompt: str,
+        model: Optional[str] = None,
+        max_retries: int = 3,
+        schema: Optional[Dict] = None,
+    ) -> Optional[str]:
         return call_ai(prompt, model=model or self.ai_model, max_retries=max_retries, schema=schema)
 
     def call_gemini(self, prompt: str, schema: Optional[Dict] = None) -> Optional[str]:
@@ -131,19 +142,14 @@ class AIClient:
 
         model_name = get_gemini_model()
         url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent"
-        headers = {
-            "Content-Type": "application/json",
-            "x-goog-api-key": self.gemini_api_key
-        }
+        headers = {"Content-Type": "application/json", "x-goog-api-key": self.gemini_api_key}
 
-        payload = {
-            "contents": [{"parts": [{"text": prompt}]}]
-        }
+        payload = {"contents": [{"parts": [{"text": prompt}]}]}
 
         if schema:
             payload["generationConfig"] = {
                 "responseMimeType": "application/json",
-                "responseSchema": schema
+                "responseSchema": schema,
             }
 
         try:
@@ -178,7 +184,7 @@ class AIClient:
             return False
 
         try:
-            with open(file_path, 'r') as f:
+            with open(file_path, "r", encoding="utf-8") as f:
                 content = f.read()
 
             if "<<<<<<<" not in content:
@@ -188,7 +194,7 @@ class AIClient:
             if os.environ.get("AI_RESOLVE_MOCK", "false").lower() == "true":
                 mock_pattern = r"<<<<<<<.*?\n(.*?)\n=======.*?\n>>>>>>>.*?\n"
                 resolved = re.sub(mock_pattern, r"\1\n", content, flags=re.DOTALL)
-                with open(file_path, 'w') as f:
+                with open(file_path, "w", encoding="utf-8") as f:
                     f.write(resolved)
                 return True
 
@@ -215,25 +221,28 @@ class AIClient:
                         line = line.strip()
                         # We only care about lines that look like version assignments/usage
                         if any(kw in line for kw in ["node", "pnpm", "uses:", "@v", "packageManager"]):
-                             diff_lines.append(f"+{line}")
+                            diff_lines.append(f"+{line}")
 
                     if len(diff_lines) > 1:
                         # Re-use the validation logic on the synthesized diff
                         findings = verify_changes(parse_diff("\n".join(diff_lines)))
                         if any(f["severity"] == "error" for f in findings):
-                             log_error(f"AI-generated resolution for {file_path} contains version violations: {findings}")
-                             # Re-try or block to prevent regression
-                             return False
+                            log_error(
+                                f"AI-generated resolution for {file_path} contains version violations: {findings}"
+                            )
+                            # Re-try or block to prevent regression
+                            return False
             except Exception as e:
                 log_warn(f"Failed to post-process AI resolution for {file_path}: {e}")
 
             from dev_tools.utils import safe_write_file
-            if not resolved.endswith('\n'):
-                resolved += '\n'
+
+            if not resolved.endswith("\n"):
+                resolved += "\n"
             safe_write_file(file_path, resolved)
 
             return True
-        except Exception as e:
+        except Exception:
             return False
 
     # ── Single-pass review pipeline ───────────────────────────────────────────
@@ -244,26 +253,27 @@ class AIClient:
         Skips images, lock files, generated files, and build artefacts.
         """
 
-        pr_num = pr.get('number', 'unknown')
-        pr_title = pr.get('title', '')
-        checks = pr.get('checkResults', [])
-        checks_summary = "\n".join(
-            f"- {c.get('name')}: {c.get('status')} ({c.get('conclusion','Pending')})"
-            for c in checks
-        ) if checks else "No checks found."
+        pr_num = pr.get("number", "unknown")
+        pr_title = pr.get("title", "")
+        checks = pr.get("checkResults", [])
+        checks_summary = (
+            "\n".join(f"- {c.get('name')}: {c.get('status')} ({c.get('conclusion', 'Pending')})" for c in checks)
+            if checks
+            else "No checks found."
+        )
 
-        ci_failures = [c for c in checks if c.get('conclusion') == 'failure']
+        ci_failures = [c for c in checks if c.get("conclusion") == "failure"]
         has_ci_failures = bool(ci_failures)
-        failing_names = ", ".join(c.get('name', '?') for c in ci_failures) if ci_failures else "none"
+        failing_names = ", ".join(c.get("name", "?") for c in ci_failures) if ci_failures else "none"
 
         # ── Diagnostics header ────────────────────────────────────────────────
         ai_ok = self.is_ai_available()
         chunks = parse_diff_into_file_chunks(diff)
-        skipped = [c for c in chunks if c['skip']]
-        reviewable = [c for c in chunks if not c['skip']]
+        skipped = [c for c in chunks if c["skip"]]
+        reviewable = [c for c in chunks if not c["skip"]]
 
-        _skipped_names = sorted(set(c['file'] for c in skipped))
-        _skipped_preview = ', '.join(_skipped_names[:5]) + ('...' if len(_skipped_names) > 5 else '')
+        _skipped_names = sorted(set(c["file"] for c in skipped))
+        _skipped_preview = ", ".join(_skipped_names[:5]) + ("..." if len(_skipped_names) > 5 else "")
 
         log_info(f"""
 {'='*60}
@@ -285,7 +295,7 @@ class AIClient:
             final = {
                 "reviewComment": f"Automated review of PR #{pr_num}.\n\nNo reviewable files found in the diff.",
                 "labels": [],
-                "recommendation": "Approved" if not has_ci_failures else "Not Approved"
+                "recommendation": "Approved" if not has_ci_failures else "Not Approved",
             }
             self._write_review_file(pr_num, pr, final, chunks, [])
             return final
@@ -295,7 +305,7 @@ class AIClient:
         combined_diff = ""
         is_truncated = False
         for chunk in reviewable:
-            if len(combined_diff) + len(chunk['diff_text']) > MAX_COMBINED_CHARS:
+            if len(combined_diff) + len(chunk["diff_text"]) > MAX_COMBINED_CHARS:
                 combined_diff += "\n\n... (Diff truncated due to size limits)"
                 is_truncated = True
                 break
@@ -315,18 +325,23 @@ class AIClient:
             f"- Flag ONLY real problems: bugs, type unsafety, broken logic, design rule violations.\n"
             f"{snippet_rules}\n\n"
             f"{json_rules}\n\n"
-            f"- Use severity \"error\" for blocking issues, \"warn\" for improvements, \"info\" for nits.\n"
-            f"- For file verdicts, set to \"ok\" (no issues), \"needs_changes\" (warn/info only), or \"blocking\" (any error).\n"
+            f'- Use severity "error" for blocking issues, "warn" for improvements, "info" for nits.\n'
+            f'- For file verdicts, set to "ok" (no issues), "needs_changes" (warn/info only), or "blocking" (any error).\n'
             f"- Provide an overall `reviewComment` summarizing the review.\n"
-            f"- Suggest 1-3 `labels` (e.g. \"needs-changes\", \"lgtm\", \"ci-failing\").\n"
-            f"- Set overall `recommendation` to EXACTLY ONE of: \"Approved\", \"Approved with Minor Changes\", or \"Not Approved\".\n"
+            f'- Suggest 1-3 `labels` (e.g. "needs-changes", "lgtm", "ci-failing").\n'
+            f'- Set overall `recommendation` to EXACTLY ONE of: "Approved", "Approved with Minor Changes", or "Not Approved".\n'
             "OUTPUT: Valid JSON. Counterexamples required for errors.\n"
             "JSON MUST be inside a <findings> tag.\n\n"
             f"{truncation_note}Diff:\n{combined_diff}"
         )
 
         t0 = time.time()
-        print(f"🤖 Requesting AI review for {len(reviewable)} chunks ...", end="", flush=True, file=sys.stderr)
+        print(
+            f"🤖 Requesting AI review for {len(reviewable)} chunks ...",
+            end="",
+            flush=True,
+            file=sys.stderr,
+        )
 
         raw = None
         file_reviews = []
@@ -343,10 +358,10 @@ class AIClient:
 
                 # Robust extraction fallback for mixed/malformed model output
                 candidate = cleaned
-                first_brace = candidate.find('{')
-                first_bracket = candidate.find('[')
-                last_brace = candidate.rfind('}')
-                last_bracket = candidate.rfind(']')
+                first_brace = candidate.find("{")
+                first_bracket = candidate.find("[")
+                last_brace = candidate.rfind("}")
+                last_bracket = candidate.rfind("]")
 
                 start = -1
                 end = -1
@@ -356,7 +371,7 @@ class AIClient:
                     start, end = first_bracket, last_bracket
 
                 if start != -1 and end != -1 and end > start:
-                    json_candidate = candidate[start:end+1]
+                    json_candidate = candidate[start : end + 1]
                     try:
                         temp_parsed = json.loads(json_candidate)
                         cleaned = json.dumps(temp_parsed)
@@ -368,7 +383,7 @@ class AIClient:
                     raise ValueError(err or "Validation failed")
 
                 if isinstance(parsed, dict):
-                    break # Success
+                    break  # Success
             except Exception as e:
                 log_warn(f"AI review attempt {attempt+1} failed: {e}")
                 time.sleep(1)
@@ -380,23 +395,22 @@ class AIClient:
             final = {
                 "reviewComment": f"Automated review of PR #{pr_num}.\n\nFailed to get a parseable response from AI after retries.",
                 "labels": ["needs-changes"],
-                "recommendation": "Not Approved"
+                "recommendation": "Not Approved",
             }
         else:
             file_reviews = parsed.get("file_reviews", [])
             final = {
                 "reviewComment": str(parsed.get("reviewComment", f"Automated review of PR #{pr_num}.")),
                 "labels": list(parsed.get("labels", [])),
-                "recommendation": str(parsed.get("recommendation", "Unknown"))
+                "recommendation": str(parsed.get("recommendation", "Unknown")),
             }
             print(f" ✅ done ({elapsed:.1f}s)", flush=True, file=sys.stderr)
 
         # CI guard: never approve if checks are failing
-        if has_ci_failures and final.get('recommendation') == 'Approved':
-            final['recommendation'] = 'Not Approved'
-            final['reviewComment'] = (
-                f"CI checks are failing ({failing_names}). Recommendation downgraded.\n\n"
-                + str(final.get('reviewComment', ''))
+        if has_ci_failures and final.get("recommendation") == "Approved":
+            final["recommendation"] = "Not Approved"
+            final["reviewComment"] = f"CI checks are failing ({failing_names}). Recommendation downgraded.\n\n" + str(
+                final.get("reviewComment", "")
             )
 
         self._write_review_file(pr_num, pr, final, chunks, file_reviews)
@@ -404,7 +418,7 @@ class AIClient:
 
     def _get_context_for_chunk(self, chunk: Dict) -> str:
         """Retrieves dependency and semantic context for a code chunk."""
-        filepath = str(chunk.get('file', ''))
+        filepath = str(chunk.get("file", ""))
         context_parts = []
 
         # 1. Dependency Context
@@ -422,7 +436,7 @@ class AIClient:
             if not self.vector_store.is_available():
                 return "\n".join(context_parts)
 
-            diff_text = chunk.get('diff_text') or chunk.get('diff') or ""
+            diff_text = chunk.get("diff_text") or chunk.get("diff") or ""
             if not diff_text:
                 return "\n".join(context_parts)
 
@@ -430,17 +444,17 @@ class AIClient:
             if semantic_results:
                 context_parts.append("\n### Semantically Related Code")
                 for res in semantic_results:
-                    path = res['metadata'].get('path', 'unknown')
+                    path = res["metadata"].get("path", "unknown")
                     if path != filepath:
                         context_parts.append(f"#### From {path}:")
                         context_parts.append(f"```\n{res['document'][:500]}\n```")
         except Exception as e:
-            print(f"Error searching vector store: {e}", file=sys.stderr) # Log failure if not indexed
+            print(f"Error searching vector store: {e}", file=sys.stderr)  # Log failure if not indexed
 
         return "\n".join(context_parts)
 
     def _build_chunk_prompt(self, chunk: Dict, pr_title: str, checks_summary: str) -> str:
-        trunc_note = "\n(Note: diff was truncated to fit context window)" if chunk.get('truncated') else ""
+        trunc_note = "\n(Note: diff was truncated to fit context window)" if chunk.get("truncated") else ""
 
         context = self._get_context_for_chunk(chunk)
         context_section = f"\n\n## Repository Context\n{context}" if context else ""
@@ -454,16 +468,17 @@ class AIClient:
             f"VERSIONS: {versions_block}\n{context_section}\n\n"
             f"{_COMMON_REVIEW_GUIDELINES}\n\n"
             f"Rules:\n"
-            f"- DO NOT suggest downgrading any versions listed in the \"Current Stack Versions\" section.\n"
+            f'- DO NOT suggest downgrading any versions listed in the "Current Stack Versions" section.\n'
             f"- Flag ONLY real problems: bugs, type unsafety, broken logic, design rule violations.\n"
             f"{snippet_rules}\n\n"
             f"{json_rules}\n\n"
-            f"- Use severity \"error\" for blocking issues, \"warn\" for improvements, \"info\" for nits.\n"
-            f"- Set verdict to \"ok\" (no issues), \"needs_changes\" (warn/info only), or \"blocking\" (any error).\n"
+            f'- Use severity "error" for blocking issues, "warn" for improvements, "info" for nits.\n'
+            f'- Set verdict to "ok" (no issues), "needs_changes" (warn/info only), or "blocking" (any error).\n'
             "OUTPUT: Valid JSON. Counterexamples required for errors.\n"
             "JSON MUST be inside a <findings> tag.\n\n"
             f"Diff:{trunc_note}\n{chunk['diff_text']}"
         )
+
     def _write_progress_snapshot(
         self,
         pr_num: Any,
@@ -473,12 +488,18 @@ class AIClient:
         cache_dir: str,
     ) -> None:
         """Write a live progress file after each chunk so intermediate results are visible."""
-        output_dir = ensure_dir('logs', 'reviews')
-        progress_path = os.path.join(output_dir, f'pr-review-{pr_num}-progress.md')
+        output_dir = ensure_dir("logs", "reviews")
+        progress_path = os.path.join(output_dir, f"pr-review-{pr_num}-progress.md")
 
         total = len(reviewable)
         pct = int(completed / total * 100) if total else 0
-        verdict_icon = {"ok": "✅", "needs_changes": "⚠️", "blocking": "🚫", "error": "❓", "parse_error": "❓"}
+        verdict_icon = {
+            "ok": "✅",
+            "needs_changes": "⚠️",
+            "blocking": "🚫",
+            "error": "❓",
+            "parse_error": "❓",
+        }
 
         lines = [
             f"# PR #{pr_num} – Review In Progress ({completed}/{total} files, {pct}%)",
@@ -492,16 +513,19 @@ class AIClient:
         ]
 
         for idx, fr in enumerate(file_reviews, 1):
-            chunk = next((c for c in reviewable if c['file'] == fr['file'] and c['chunk_index'] == fr.get('chunk_index', 0)), {})
-            added = chunk.get('added_lines', '?')
-            issues = len(fr.get('issues', []))
-            v = fr.get('verdict', '?')
+            chunk = next(
+                (c for c in reviewable if c["file"] == fr["file"] and c["chunk_index"] == fr.get("chunk_index", 0)),
+                {},
+            )
+            added = chunk.get("added_lines", "?")
+            issues = len(fr.get("issues", []))
+            v = fr.get("verdict", "?")
             icon = verdict_icon.get(v, "❓")
             lines.append(f"| {idx} | `{fr['file']}` | {added} | {issues} | {icon} {v} |")
 
         # Pending files
-        completed_files = {fr['file'] for fr in file_reviews}
-        pending = [c for c in reviewable if c['file'] not in completed_files]
+        completed_files = {fr["file"] for fr in file_reviews}
+        pending = [c for c in reviewable if c["file"] not in completed_files]
         if pending:
             lines += ["", "## Pending Files", ""]
             for c in pending:
@@ -510,24 +534,24 @@ class AIClient:
         # Findings detail for completed files
         lines += ["", "## Findings Detail", ""]
         for fr in file_reviews:
-            issues = fr.get('issues', [])
-            v = fr.get('verdict', '?')
+            issues = fr.get("issues", [])
+            v = fr.get("verdict", "?")
             icon = verdict_icon.get(v, "❓")
             lines.append(f"### {icon} `{fr['file']}` — {v}")
             if issues:
                 for issue in issues:
-                    sev = issue.get('severity', '?')
-                    ln = issue.get('line', '?')
-                    comment = issue.get('comment', '')
+                    sev = issue.get("severity", "?")
+                    ln = issue.get("line", "?")
+                    comment = issue.get("comment", "")
                     lines.append(f"- **[{sev}]** line {ln}: {comment}")
             else:
-                err = fr.get('error') or fr.get('raw')
+                err = fr.get("error") or fr.get("raw")
                 lines.append(f"  _{err or 'No issues found.'}_")
             lines.append("")
 
         try:
-            with open(progress_path, 'w', encoding='utf-8') as f:
-                f.write('\n'.join(lines))
+            with open(progress_path, "w", encoding="utf-8") as f:
+                f.write("\n".join(lines))
         except Exception as e:
             log_warn(f"Could not write progress file: {e}")
 
@@ -540,22 +564,34 @@ class AIClient:
         ci_failures: List[Dict],
     ) -> Dict:
         """Call the lighter gpt-4o model to produce the final verdict from structured per-chunk data."""
-        total_issues = sum(len(fr.get('issues', [])) for fr in file_reviews if isinstance(fr, dict))
-        blocking_files = [fr.get('file', 'unknown') for fr in file_reviews if isinstance(fr, dict) and fr.get('verdict') == 'blocking']
-        error_files    = [fr.get('file', 'unknown') for fr in file_reviews if isinstance(fr, dict) and fr.get('verdict') in ('error', 'parse_error')]
-        needs_files    = [fr.get('file', 'unknown') for fr in file_reviews if isinstance(fr, dict) and fr.get('verdict') == 'needs_changes']
-        ok_files       = [fr.get('file', 'unknown') for fr in file_reviews if isinstance(fr, dict) and fr.get('verdict') == 'ok']
+        total_issues = sum(len(fr.get("issues", [])) for fr in file_reviews if isinstance(fr, dict))
+        blocking_files = [
+            fr.get("file", "unknown") for fr in file_reviews if isinstance(fr, dict) and fr.get("verdict") == "blocking"
+        ]
+        error_files = [
+            fr.get("file", "unknown")
+            for fr in file_reviews
+            if isinstance(fr, dict) and fr.get("verdict") in ("error", "parse_error")
+        ]
+        needs_files = [
+            fr.get("file", "unknown")
+            for fr in file_reviews
+            if isinstance(fr, dict) and fr.get("verdict") == "needs_changes"
+        ]
+        ok_files = [
+            fr.get("file", "unknown") for fr in file_reviews if isinstance(fr, dict) and fr.get("verdict") == "ok"
+        ]
 
         # Build a compact findings summary (keep prompt small)
         findings_lines = []
         for fr in file_reviews:
             if not isinstance(fr, dict):
                 continue
-            for issue in fr.get('issues', []):
+            for issue in fr.get("issues", []):
                 if not isinstance(issue, dict):
                     continue
                 findings_lines.append(
-                    f'  - {fr.get("file","?")}:{issue.get("line","?")} [{issue.get("severity","?")}] {issue.get("comment","")}'
+                    f'  - {fr.get("file", "?")}:{issue.get("line", "?")} [{issue.get("severity", "?")}] {issue.get("comment", "")}'
                 )
         findings_str = "\n".join(findings_lines[:60])  # cap at 60 lines
         if len(findings_lines) > 60:
@@ -563,10 +599,12 @@ class AIClient:
 
         ci_note = ""
         if has_ci_failures:
-            ci_note = f"\nCI FAILURES: {', '.join(c.get('name','?') for c in ci_failures)} – must NOT recommend Approved.\n"
+            ci_note = (
+                f"\nCI FAILURES: {', '.join(c.get('name', '?') for c in ci_failures)} – must NOT recommend Approved.\n"
+            )
 
         prompt = (
-            f"You are summarising a code review for PR #{pr_num} – \"{pr_title}\".\n"
+            f'You are summarising a code review for PR #{pr_num} – "{pr_title}".\n'
             f"{ci_note}\n"
             f"Per-file results:\n"
             f"  Blocking : {blocking_files or 'none'}\n"
@@ -579,9 +617,9 @@ class AIClient:
             f"The Markdown report should summarize the findings concisely.\n\n"
             f"The JSON block at the bottom MUST follow this schema:\n"
             f"{{\n"
-            f"  \"recommendation\": \"Approved | Approved with Minor Changes | Not Approved\",\n"
-            f"  \"labels\": [\"lgtm\", \"needs-changes\", ...],\n"
-            f"  \"reviewComment\": \"Concise summary for the body\"\n"
+            f'  "recommendation": "Approved | Approved with Minor Changes | Not Approved",\n'
+            f'  "labels": ["lgtm", "needs-changes", ...],\n'
+            f'  "reviewComment": "Concise summary for the body"\n'
             f"}}\n"
         )
 
@@ -600,7 +638,7 @@ class AIClient:
                     raise ValueError(err or "Validation failed")
 
                 if isinstance(res, dict):
-                    break # Success
+                    break  # Success
             except Exception as e:
                 log_warn(f"Synthesis attempt {attempt+1} failed: {e}")
                 time.sleep(1)
@@ -638,87 +676,90 @@ class AIClient:
         file_reviews: List[Dict],
     ) -> None:
         """Populate and persist the review template with AI-generated content."""
-        head_sha = pr.get('head', {}).get('sha', 'unknown')
-        check_results = pr.get('checkResults', [])
-        failed_checks = [c.get('name') for c in check_results if c.get('conclusion') == 'failure']
-        detected_errors_raw = pr.get('structuredFailures', [])
+        head_sha = pr.get("head", {}).get("sha", "unknown")
+        check_results = pr.get("checkResults", [])
+        failed_checks = [c.get("name") for c in check_results if c.get("conclusion") == "failure"]
+        detected_errors_raw = pr.get("structuredFailures", [])
 
-        failed_checks_str = '\n'.join(f'  - {c}' for c in failed_checks) if failed_checks else '_None_'
-        detected_errors_str = '\n'.join(
-            f"  - `{e.get('file','?')}:{e.get('line','?')}` {e.get('message','')}"
-            for e in detected_errors_raw
-        ) if detected_errors_raw else '_None detected by parser._'
+        failed_checks_str = "\n".join(f"  - {c}" for c in failed_checks) if failed_checks else "_None_"
+        detected_errors_str = (
+            "\n".join(
+                f"  - `{e.get('file', '?')}:{e.get('line', '?')}` {e.get('message', '')}" for e in detected_errors_raw
+            )
+            if detected_errors_raw
+            else "_None detected by parser._"
+        )
 
-        recommendation = review.get('recommendation', 'Unknown')
-        review_comment = review.get('reviewComment', '')
-        labels = review.get('labels', [])
-        labels_str = ', '.join(labels) if labels else '_None_'
+        recommendation = review.get("recommendation", "Unknown")
+        review_comment = review.get("reviewComment", "")
+        labels = review.get("labels", [])
+        labels_str = ", ".join(labels) if labels else "_None_"
 
         # Per-file findings table
         file_data: Dict[str, Dict] = defaultdict(lambda: {"added_lines": 0, "issues": [], "verdict": "ok"})
         for fr in file_reviews:
             if not isinstance(fr, dict):
                 continue
-            f = fr.get('file')
+            f = fr.get("file")
             if not f:
                 continue
-            issues = fr.get('issues', [])
+            issues = fr.get("issues", [])
             if isinstance(issues, list):
-                file_data[f]['issues'].extend([i for i in issues if isinstance(i, dict)])
+                file_data[f]["issues"].extend([i for i in issues if isinstance(i, dict)])
 
             # worst verdict wins: blocking > needs_changes > ok
             _rank = {"blocking": 3, "needs_changes": 2, "ok": 1, "error": 0, "parse_error": 0}
-            verdict = fr.get('verdict', 'ok')
+            verdict = fr.get("verdict", "ok")
             if not isinstance(verdict, str):
                 verdict = str(verdict)
-            if _rank.get(verdict, 0) > _rank.get(file_data[f]['verdict'], 0):
-                file_data[f]['verdict'] = verdict
+            if _rank.get(verdict, 0) > _rank.get(file_data[f]["verdict"], 0):
+                file_data[f]["verdict"] = verdict
         for chunk in chunks:
-            if not chunk['skip']:
-                file_data[chunk['file']]['added_lines'] += chunk['added_lines']
+            if not chunk["skip"]:
+                file_data[chunk["file"]]["added_lines"] += chunk["added_lines"]
 
         table_rows = []
         for filepath, data in sorted(file_data.items()):
-            issue_count = len(data['issues'])
-            verdict_icon = {"ok": "✅", "needs_changes": "⚠️", "blocking": "🚫"}.get(data['verdict'], "❓")
+            issue_count = len(data["issues"])
+            verdict_icon = {"ok": "✅", "needs_changes": "⚠️", "blocking": "🚫"}.get(data["verdict"], "❓")
             table_rows.append(
                 f"| `{filepath}` | {data['added_lines']} | {issue_count} | {verdict_icon} {data['verdict']} |"
             )
 
-        skipped_files = sorted(set(c['file'] for c in chunks if c['skip']))
-        skipped_str = ', '.join(f'`{f}`' for f in skipped_files) if skipped_files else '_None_'
+        skipped_files = sorted(set(c["file"] for c in chunks if c["skip"]))
+        skipped_str = ", ".join(f"`{f}`" for f in skipped_files) if skipped_files else "_None_"
 
         per_file_table = (
-            "| File | Lines Added | Issues | Verdict |\n"
-            "|---|---|---|---|\n"
-            + "\n".join(table_rows)
-        ) if table_rows else "_No files reviewed._"
+            ("| File | Lines Added | Issues | Verdict |\n" "|---|---|---|---|\n" + "\n".join(table_rows))
+            if table_rows
+            else "_No files reviewed._"
+        )
 
         # Build inline comments JSON block
         all_issues: List[Dict[str, Any]] = []
         for fr in file_reviews:
             if not isinstance(fr, dict):
                 continue
-            issues = fr.get('issues', [])
+            issues = fr.get("issues", [])
             if not isinstance(issues, list):
                 continue
             for issue in issues:
                 if not isinstance(issue, dict):
                     continue
-                conf = str(issue.get('confidence', 'high')).upper()
+                conf = str(issue.get("confidence", "high")).upper()
                 # Support both 'issue' and 'comment' fields from the model
-                issue_description = str(issue.get('issue') or issue.get('comment') or '')
-                all_issues.append({
-                    "path": str(fr.get('file', 'unknown')),
-                    "line": issue.get('line', 1),
-                    "body": f"[{issue.get('severity','?')}] (Confidence: {conf}) {issue_description}",
-                })
+                issue_description = str(issue.get("issue") or issue.get("comment") or "")
+                all_issues.append(
+                    {
+                        "path": str(fr.get("file", "unknown")),
+                        "line": issue.get("line", 1),
+                        "body": f"[{issue.get('severity', '?')}] (Confidence: {conf}) {issue_description}",
+                    }
+                )
 
-        metadata_json = json.dumps({
-            "recommendation": recommendation,
-            "labels": labels,
-            "comments": all_issues
-        }, indent=2)
+        metadata_json = json.dumps(
+            {"recommendation": recommendation, "labels": labels, "comments": all_issues}, indent=2
+        )
 
         content = f"""# PR Review: #{pr_num}
 
@@ -768,8 +809,8 @@ DO NOT REMOVE THE BACKTICKS.
 {metadata_json}
 ```
 """
-        output_dir = ensure_dir('logs', 'reviews')
-        output_path = os.path.join(output_dir, f'pr-review-{pr_num}.md')
-        with open(output_path, 'w', encoding='utf-8') as f:
+        output_dir = ensure_dir("logs", "reviews")
+        output_path = os.path.join(output_dir, f"pr-review-{pr_num}.md")
+        with open(output_path, "w", encoding="utf-8") as f:
             f.write(content)
         log_info(f"📝 Review written to: {output_path}")

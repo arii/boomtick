@@ -1,7 +1,9 @@
-import os
-from typing import List, Dict, Any, Optional
+# pylint: disable=missing-docstring
+from typing import Any, Dict, List
+
 import chromadb
 from chromadb.utils import embedding_functions
+
 
 class VectorStore:
     def __init__(self, persist_directory: str = "artifacts/chroma_db", collection_name: str = "codebase"):
@@ -30,8 +32,7 @@ class VectorStore:
             embedding_fn = self.embedding_fn
             if client and embedding_fn:
                 self._collection = client.get_or_create_collection(
-                    name=self.collection_name,
-                    embedding_function=embedding_fn
+                    name=self.collection_name, embedding_function=embedding_fn
                 )
         return self._collection
 
@@ -43,11 +44,7 @@ class VectorStore:
         """Adds documents to the collection."""
         collection = self.collection
         if collection:
-            collection.add(
-                documents=documents,
-                metadatas=metadatas,
-                ids=ids
-            )
+            collection.add(documents=documents, metadatas=metadatas, ids=ids)
 
     def query(self, query_text: str, n_results: int = 5) -> List[Dict[str, Any]]:
         """Queries the collection for similar documents."""
@@ -55,21 +52,20 @@ class VectorStore:
         if not collection:
             return []
 
-        results = collection.query(
-            query_texts=[query_text],
-            n_results=n_results
-        )
+        results = collection.query(query_texts=[query_text], n_results=n_results)
 
         # Format results for easier consumption
         formatted_results = []
-        if results['documents']:
-            for i in range(len(results['documents'][0])):
-                formatted_results.append({
-                    "document": results['documents'][0][i],
-                    "metadata": results['metadatas'][0][i],
-                    "id": results['ids'][0][i],
-                    "distance": results['distances'][0][i] if 'distances' in results else None
-                })
+        if results["documents"]:
+            for i in range(len(results["documents"][0])):
+                formatted_results.append(
+                    {
+                        "document": results["documents"][0][i],
+                        "metadata": results["metadatas"][0][i],
+                        "id": results["ids"][0][i],
+                        "distance": results["distances"][0][i] if "distances" in results else None,
+                    }
+                )
         return formatted_results
 
     def reset(self):
@@ -83,7 +79,4 @@ class VectorStore:
             client.delete_collection(self.collection_name)
         except Exception:
             pass
-        self._collection = client.create_collection(
-            name=self.collection_name,
-            embedding_function=embedding_fn
-        )
+        self._collection = client.create_collection(name=self.collection_name, embedding_function=embedding_fn)

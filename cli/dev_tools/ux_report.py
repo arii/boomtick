@@ -1,15 +1,17 @@
-import os
-import sys
-from dev_tools.utils import log_info
-import json
+# pylint: disable=expression-not-assigned,line-too-long,missing-docstring,too-many-branches,too-many-locals,too-many-statements
 import glob
+import json
+import os
 from datetime import datetime
 
+from dev_tools.utils import log_info
+
+
 def generate_report():
-    artifacts_dir = os.path.join(os.getcwd(), 'artifacts', 'ux-audit')
-    results_dir = os.path.join(artifacts_dir, 'results')
-    lighthouse_dir = os.path.join(artifacts_dir, 'lighthouse')
-    issues_dir = os.path.join(artifacts_dir, 'issues')
+    artifacts_dir = os.path.join(os.getcwd(), "artifacts", "ux-audit")
+    results_dir = os.path.join(artifacts_dir, "results")
+    lighthouse_dir = os.path.join(artifacts_dir, "lighthouse")
+    issues_dir = os.path.join(artifacts_dir, "issues")
 
     os.makedirs(issues_dir, exist_ok=True)
 
@@ -27,7 +29,7 @@ def generate_report():
     # Aggregate results
     all_results = []
     for rf in result_files:
-        with open(rf, 'r') as f:
+        with open(rf, "r", encoding="utf-8") as f:
             all_results.append(json.load(f))
 
     # Lighthouse summary
@@ -37,35 +39,35 @@ def generate_report():
         report_lines.append("| Route | Performance | Accessibility | Best Practices | SEO |")
         report_lines.append("|-------|-------------|---------------|----------------|-----|")
         for lhf in lh_files:
-            with open(lhf, 'r') as f:
+            with open(lhf, "r", encoding="utf-8") as f:
                 data = json.load(f)
-                cats = data.get('categories', {})
-                name = os.path.basename(lhf).replace('.report.json', '')
-                perf = int(cats.get('performance', {}).get('score', 0) * 100)
-                a11y = int(cats.get('accessibility', {}).get('score', 0) * 100)
-                bp = int(cats.get('best-practices', {}).get('score', 0) * 100)
-                seo = int(cats.get('seo', {}).get('score', 0) * 100)
+                cats = data.get("categories", {})
+                name = os.path.basename(lhf).replace(".report.json", "")
+                perf = int(cats.get("performance", {}).get("score", 0) * 100)
+                a11y = int(cats.get("accessibility", {}).get("score", 0) * 100)
+                bp = int(cats.get("best-practices", {}).get("score", 0) * 100)
+                seo = int(cats.get("seo", {}).get("score", 0) * 100)
                 report_lines.append(f"| {name} | {perf} | {a11y} | {bp} | {seo} |")
 
     # High Severity Findings
     report_lines.append("\n## Key Findings")
 
     for res in all_results:
-        route = res['route']
-        vp = res['viewport']
-        screenshot = res.get('screenshot', 'N/A')
-        is_mobile = 'mobile' in vp.lower()
+        route = res["route"]
+        vp = res["viewport"]
+        screenshot = res.get("screenshot", "N/A")
+        "mobile" in vp.lower()
 
         # 1. Accessibility (Axe)
-        if res.get('accessibility') and res['accessibility'].get('violations'):
-            violations = res['accessibility']['violations']
+        if res.get("accessibility") and res["accessibility"].get("violations"):
+            violations = res["accessibility"]["violations"]
             for v in violations:
                 finding = {
                     "title": f"Accessibility Violation: {v['id']} on `{route}` ({vp})",
                     "route": route,
                     "viewport": vp,
                     "category": "Accessibility",
-                    "severity": "High" if v['impact'] in ['critical', 'serious'] else "Medium",
+                    "severity": "High" if v["impact"] in ["critical", "serious"] else "Medium",
                     "evidence": f"Axe violation: {v['description']}. Found on {len(v['nodes'])} elements.",
                     "recommendation": f"Fix {v['id']} issues. Help: {v['helpUrl']}",
                     "screenshot": screenshot,
@@ -73,13 +75,13 @@ def generate_report():
                     "acceptance_criteria": [
                         "Lighthouse/Axe accessibility audit passes for this category",
                         "Element is keyboard accessible",
-                        "Screen reader announcements are clear"
-                    ]
+                        "Screen reader announcements are clear",
+                    ],
                 }
                 findings.append(finding)
 
         # 2. Layout Overflow
-        if res.get('overflow'):
+        if res.get("overflow"):
             finding = {
                 "title": f"Horizontal Overflow on `{route}` ({vp})",
                 "route": route,
@@ -92,13 +94,13 @@ def generate_report():
                 "user_impact": "Causes janky scrolling and potential content cut-off.",
                 "acceptance_criteria": [
                     "No horizontal scrolling at tested width",
-                    "All elements are contained within the viewport"
-                ]
+                    "All elements are contained within the viewport",
+                ],
             }
             findings.append(finding)
 
         # 3. Small Tap Targets
-        if res.get('tapTargets'):
+        if res.get("tapTargets"):
             finding = {
                 "title": f"Small Tap Targets on `{route}` ({vp})",
                 "route": route,
@@ -111,13 +113,17 @@ def generate_report():
                 "user_impact": "Makes interactive elements difficult to tap on a phone, leading to user frustration.",
                 "acceptance_criteria": [
                     "All interactive elements meet the 44x44px minimum target size",
-                    "Adequate spacing between adjacent links/buttons"
-                ]
+                    "Adequate spacing between adjacent links/buttons",
+                ],
             }
             findings.append(finding)
 
         # 4. Image issues
-        oversized_images = [img for img in res.get('images', []) if img['naturalWidth'] > img['renderedWidth'] * 2 and img['naturalWidth'] > 1000]
+        oversized_images = [
+            img
+            for img in res.get("images", [])
+            if img["naturalWidth"] > img["renderedWidth"] * 2 and img["naturalWidth"] > 1000
+        ]
         if oversized_images:
             finding = {
                 "title": f"Oversized Images on `{route}` ({vp})",
@@ -131,15 +137,15 @@ def generate_report():
                 "user_impact": "Increases page load time and consumes excessive bandwidth.",
                 "acceptance_criteria": [
                     "Images are appropriately sized for the viewport",
-                    "Lighthouse performance score is maintained or improved"
-                ]
+                    "Lighthouse performance score is maintained or improved",
+                ],
             }
             findings.append(finding)
 
         # 5. Above the Fold heuristics
-        atf = res.get('aboveTheFold')
+        atf = res.get("aboveTheFold")
         if atf:
-            if atf.get('heroViewportPercentage', 0) > 80 and not atf.get('hasPrimaryCTA'):
+            if atf.get("heroViewportPercentage", 0) > 80 and not atf.get("hasPrimaryCTA"):
                 finding = {
                     "title": f"Poor Above-the-Fold Visibility on `{route}` ({vp})",
                     "route": route,
@@ -152,8 +158,8 @@ def generate_report():
                     "user_impact": "Primary page purpose and next steps are unclear upon initial load.",
                     "acceptance_criteria": [
                         "Primary page purpose is clear above the fold",
-                        "Primary CTA is visible without scrolling"
-                    ]
+                        "Primary CTA is visible without scrolling",
+                    ],
                 }
                 findings.append(finding)
 
@@ -163,7 +169,7 @@ def generate_report():
     else:
         # Sort findings by severity
         severity_map = {"High": 0, "Medium": 1, "Low": 2}
-        findings.sort(key=lambda x: severity_map.get(x['severity'], 3))
+        findings.sort(key=lambda x: severity_map.get(x["severity"], 3))
 
         for f in findings:
             report_lines.append(f"### {f['title']}")
@@ -174,31 +180,34 @@ def generate_report():
             report_lines.append(f"- **Recommendation:** {f['recommendation']}\n")
 
             # Generate Issue Draft
-            safe_title = f["title"].replace('/', '_').replace('`', '').replace('(', '').replace(')', '').replace(':', '')
-            issue_slug = f"{f['category']}-{safe_title}".lower().replace(' ', '-')
+            safe_title = (
+                f["title"].replace("/", "_").replace("`", "").replace("(", "").replace(")", "").replace(":", "")
+            )
+            issue_slug = f"{f['category']}-{safe_title}".lower().replace(" ", "-")
             issue_path = os.path.join(issues_dir, f"{issue_slug}.md")
-            with open(issue_path, 'w') as issue_file:
+            with open(issue_path, "w", encoding="utf-8") as issue_file:
                 issue_file.write(f"## Problem\n{f['title']}\n\n")
                 issue_file.write(f"## Route / viewport\n- Route: {f['route']}\n- Viewport: {f['viewport']}\n\n")
                 issue_file.write(f"## Evidence\n- {f['evidence']}\n- Screenshot: `{f['screenshot']}`\n\n")
                 issue_file.write(f"## User impact\n{f.get('user_impact', 'N/A')}\n\n")
                 issue_file.write(f"## Recommended fix\n{f['recommendation']}\n\n")
                 issue_file.write("## Acceptance criteria\n")
-                for ac in f.get('acceptance_criteria', []):
+                for ac in f.get("acceptance_criteria", []):
                     issue_file.write(f"- [ ] {ac}\n")
 
                 # Add cross-viewport regression check
-                other = "mobile" if "desktop" in f['viewport'].lower() else "desktop"
+                other = "mobile" if "desktop" in f["viewport"].lower() else "desktop"
                 issue_file.write(f"- [ ] No new {other} regressions\n")
 
                 issue_file.write(f"\n## Severity\n{f['severity']}\n")
 
     report_path = os.path.join(artifacts_dir, "ux-audit-report.md")
-    with open(report_path, 'w') as f:
+    with open(report_path, "w", encoding="utf-8") as f:
         f.write("\n".join(report_lines))
 
     log_info(f"Report generated: {report_path}")
     log_info(f"Issue drafts generated in: {issues_dir}")
+
 
 if __name__ == "__main__":
     generate_report()
