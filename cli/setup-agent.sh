@@ -229,26 +229,11 @@ install_python_deps() {
   log "Installing Python dependencies..."
   have python3 || err "python3 is required."
 
-  # Detect worktree or need for venv
-  IS_WORKTREE=0
-  if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
-      local top_level
-      top_level="$(git rev-parse --show-toplevel)"
-      if [ "$top_level" != "$REPO_ROOT" ]; then
-          IS_WORKTREE=1
-      fi
+  if [ ! -d "$VENV_PATH" ]; then
+      log "Creating virtual environment in $VENV_PATH..."
+      python3 -m venv "$VENV_PATH"
   fi
-
-  export VENV_PATH=""
-  if [ "$IS_WORKTREE" = "1" ] || [ "${CI:-0}" != "1" ]; then
-      VENV_PATH="${REPO_ROOT}/.venv"
-      if [ ! -d "$VENV_PATH" ]; then
-          log "Creating virtual environment in $VENV_PATH..."
-          python3 -m venv "$VENV_PATH"
-      fi
-      export VENV_PATH
-      export PATH="${VENV_PATH}/bin:$PATH"
-  fi
+  export PATH="${VENV_PATH}/bin:$PATH"
 
   log "Installing Python dependencies for dev tools..."
   # satisfy boomtick-cli requirement of setuptools < 81
@@ -447,6 +432,9 @@ run_validation() {
 main() {
   echo "=== BoomTick Agent Environment Setup ==="
   echo "Repository: ${REPO_ROOT}"
+
+  # Ensure VENV_PATH is set and exported for all blocks
+  export VENV_PATH="${REPO_ROOT}/.venv"
 
   install_apt_tools
 

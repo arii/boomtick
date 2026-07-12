@@ -65,8 +65,8 @@ if [ -d "../.venv" ]; then
     VENV_PATH="../.venv"
 elif [ -d ".venv" ]; then
     VENV_PATH=".venv"
-elif { [ "${CI:-0}" != "1" ] || [ -n "${GIT_WORKTREE_PATH:-}" ]; }; then
-    # In non-CI or worktrees, prefer a local venv to avoid polluting global environment
+else
+    # Prefer a local venv to avoid polluting global environment
     if [ -f "../package.json" ]; then
         VENV_PATH="../.venv"
     else
