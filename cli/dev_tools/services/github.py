@@ -6,8 +6,8 @@ import subprocess
 from typing import Any, Dict, List, Optional
 from urllib.parse import quote
 
-import requests
-from dev_tools.utils import DiskCache
+import requests  # type: ignore[import-untyped]
+from dev_tools.utils import DiskCache, log_warn
 
 
 class GitHubClient:
@@ -174,7 +174,7 @@ class GitHubClient:
             return self.search_pull_requests(query, limit=limit)
 
         # Fallback to standard Pulls API if no labels, using internal pagination
-        prs = []
+        prs: List[Dict[str, Any]] = []
         page = 1
         per_page = min(limit, 100)
 
@@ -222,6 +222,12 @@ class GitHubClient:
         data = {"title": title, "body": body, "head": head, "base": base, "draft": draft}
         return self._request("POST", f"/repos/{self.repo}/pulls", json_data=data)
 
+    def _handle_missing_logs(self, identifier: Any, is_fallback: bool = False) -> str:
+        """Helper to log warning and return a warning string for missing logs."""
+        label = "check run" if is_fallback else "job"
+        log_warn(f"Logs for {label} {identifier} {'also ' if is_fallback else ''}not found (404).")
+        return f"WARNING: Logs not available for {identifier} (GitHub returned 404). They may have expired or the job is still pending."
+
     def fetch_check_run_logs(self, check_run_id: int, external_id: Optional[str] = None) -> str:
         """Fetches logs for a specific check run, using external_id (job_id) if available. Gracefully fallback to check_run_id if external_id 404s."""
         # Ensure we have a valid ID and it's a string for the URL path
@@ -240,16 +246,24 @@ class GitHubClient:
                 timeout=300,
             )
         except requests.exceptions.HTTPError as e:
-            if external_id is not None and e.response.status_code == 404:
-                # Fallback to query by raw check_run_id
-                job_id = str(check_run_id)
-                return self._request(
-                    "GET",
-                    f"/repos/{self.repo}/actions/jobs/{job_id}/logs",
-                    is_text=True,
-                    accept="application/vnd.github.v3.raw",
-                    timeout=300,
-                )
+            if e.response is not None and e.response.status_code == 404:
+                if external_id is not None:
+                    # Fallback to query by raw check_run_id
+                    log_warn(f"Logs for job {external_id} not found (404). Falling back to check run {check_run_id}...")
+                    try:
+                        return self._request(
+                            "GET",
+                            f"/repos/{self.repo}/actions/jobs/{check_run_id}/logs",
+                            is_text=True,
+                            accept="application/vnd.github.v3.raw",
+                            timeout=300,
+                        )
+                    except requests.exceptions.HTTPError as fallback_e:
+                        if fallback_e.response is not None and fallback_e.response.status_code == 404:
+                            return self._handle_missing_logs(check_run_id, is_fallback=True)
+                        raise fallback_e
+                else:
+                    return self._handle_missing_logs(job_id)
             raise
 
     def create_issue_comment(self, number: int, body: str) -> Dict[str, Any]:
@@ -302,7 +316,7 @@ class GitHubClient:
         Diff position is 0-indexed starting from the first '@@' hunk header in the file.
         """
         diff_text = self.fetch_pr_diff(pr_number)
-        mapping = {}
+        mapping: Dict[str, Dict[int, int]] = {}
         current_file = None
         file_diff_pos = 0
         new_line_num = 0
@@ -360,7 +374,7 @@ class GitHubClient:
         state: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Updates a GitHub issue's body, labels, and/or state."""
-        data = {}
+        data: Dict[str, Any] = {}
         if body is not None:
             data["body"] = body
         if labels is not None:
@@ -503,6 +517,8 @@ class GitHubClient:
             )
 
         # Extract Markdown body (everything above the metadata JSON block)
+        if not metadata_match:
+            raise CLIError("Could not determine the start of the JSON block")
         body = content[: metadata_match.start()].strip()
         # Clean up the trailing "Output JSON" instructions if present
         body = re.split(r"##\s+Output JSON", body, flags=re.IGNORECASE)[0].strip()
@@ -562,7 +578,7 @@ class GitHubClient:
 
         pr_details = self.fetch_pr_details(pr_number)
         check_runs = self.fetch_check_runs(pr_details.get("head", {}).get("sha"))
-        failing_checks = [run.get("name") for run in check_runs if run.get("conclusion") == "failure"]
+        failing_checks = [str(run.get("name")) for run in check_runs if run.get("conclusion") == "failure"]
 
         # Determine event based on recommendation field, then fallback to body analysis
         recommendation = payload.get("recommendation", "")
