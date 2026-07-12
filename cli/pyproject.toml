@@ -34,5 +34,5 @@ where = ["."]
 include = ["dev_tools*"]
 
 [tool.setuptools.package-data]
-"dev_tools" = ["cli-schema.json", "config.json", "project_config.json", "*.json", "resources/*"]
+"dev_tools" = ["cli-schema.json", "config.json", "project_config.json", "*.json", "resources/*", "verify_versions.py"]
 "*" = ["*.json"]

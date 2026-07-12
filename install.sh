@@ -72,10 +72,10 @@ DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 cd "$DIR"
 
 # Try to find resolve-cli.sh in standard locations
-if [ -f "../scripts/resolve-cli.sh" ]; then
-    CLI_ROOT="$(bash ../scripts/resolve-cli.sh)"
-elif [ -f "scripts/resolve-cli.sh" ]; then
+if [ -f "scripts/resolve-cli.sh" ]; then
     CLI_ROOT="$(bash scripts/resolve-cli.sh)"
+elif [ -f "../scripts/resolve-cli.sh" ]; then
+    CLI_ROOT="$(bash ../scripts/resolve-cli.sh)"
 else
     # Fallback if scripts are missing
     if [ -d "cli" ]; then CLI_ROOT="$(pwd)/cli"; else CLI_ROOT="$(pwd)"; fi

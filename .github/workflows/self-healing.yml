@@ -18,7 +18,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7 # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
         with:
-          fetch-depth: 0
+          fetch-depth: 1
 
       - uses: ./boomtick-pkg/mcp/actions/setup-workspace
 

@@ -160,7 +160,13 @@ def resolve_resource_path(resource_name: str) -> str:
     try:
         import importlib_resources as resources
 
+        # Try resources first
         ref = resources.files("dev_tools.resources").joinpath(resource_name)
+        if ref.exists():
+            return str(ref)
+
+        # Then try dev_tools root (for verify_versions.py etc)
+        ref = resources.files("dev_tools").joinpath(resource_name)
         if ref.exists():
             return str(ref)
     except (ImportError, AttributeError, FileNotFoundError, TypeError) as e:

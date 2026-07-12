@@ -16,17 +16,16 @@ jobs:
       - name: Checkout repository to dispatch workflows
         uses: actions/checkout@v7 # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
         with:
-          fetch-depth: 0
+          fetch-depth: 1
 
       - name: Setup Workspace
-        uses: ./.github/actions/setup-workspace
+        uses: ./boomtick-pkg/mcp/actions/setup-workspace
 
       - name: Check commands
         id: check
         env:
           COMMENT_BODY: ${{ github.event.comment.body }}
           AUTHOR_ASSOC: ${{ github.event.comment.author_association }}
-          PYTHONPATH: "boomtick-pkg/cli:boomtick-pkg/cli/dev_tools"
         run: |
           # Pass COMMENT_BODY via env var to td-cli for secure parsing
           RESULT=$(td-cli gh parse-comment --author-association "$AUTHOR_ASSOC")

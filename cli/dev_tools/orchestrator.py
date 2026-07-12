@@ -1178,6 +1178,7 @@ class Orchestrator:
         if not target_sha and branch:
             try:
                 # Try to get the latest SHA for the branch if no PR exists (e.g. main branch failure)
+                # pylint: disable=protected-access
                 branch_info = self.github._request("GET", f"/repos/{self.github.repo}/branches/{branch}")
                 target_sha = branch_info.get("commit", {}).get("sha")
             except Exception:
@@ -1185,6 +1186,7 @@ class Orchestrator:
 
         if target_sha:
             # Analyze failing check runs
+            # pylint: disable=protected-access
             check_runs = self.github.fetch_check_runs(target_sha)
             for run in check_runs:
                 if run.get("conclusion") == "failure":

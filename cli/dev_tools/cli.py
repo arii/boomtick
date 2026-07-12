@@ -579,7 +579,13 @@ def resolve_conflicts(ctx, pr, allow_unrelated, strategy, push, continue_resolve
 @click.pass_context
 def verify_versions(ctx, diff_input):
     """Verify version changes in a diff for downgrades or hard blocks."""
-    script_path = os.path.join(os.path.dirname(__file__), "verify_versions.py")
+    from dev_tools.utils import resolve_resource_path
+
+    try:
+        script_path = resolve_resource_path("verify_versions.py")
+    except FileNotFoundError:
+        # Absolute fallback if packaging failed
+        script_path = os.path.join(os.path.dirname(__file__), "verify_versions.py")
 
     if not diff_input:
         # If no input provided, try to get diff against main
@@ -886,7 +892,13 @@ def pre_submit(ctx):
 @click.pass_context
 def overlaps(ctx, limit):
     """Identify and propose consolidation of PRs with high functional or structural overlap."""
-    script_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "dev_tools", "pr_overlap.py")
+    from dev_tools.utils import resolve_resource_path
+
+    try:
+        script_path = resolve_resource_path("pr_overlap.py")
+    except FileNotFoundError:
+        # Absolute fallback if packaging failed
+        script_path = os.path.join(os.path.dirname(__file__), "pr_overlap.py")
     cmd = [sys.executable, script_path, "--limit", str(limit)]
 
     # Check global NO_CACHE from context object
