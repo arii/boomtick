@@ -15,26 +15,49 @@ done
 
 # Validation Helper
 validate_env() {
+    # Initialize .env if it doesn't exist
+    if [ ! -f ".env" ] && [ -f ".env.example" ]; then
+        echo "Initializing .env from .env.example..."
+        cp .env.example .env
+    fi
+
     if [ "$FORCE" -eq 1 ]; then return 0; fi
 
-    # Node.js validation (24.x)
+    # workspace.json is treated as a trusted repository configuration file.
+    echo "Validating workspace configuration..."
+    if [ -f "scripts/validate_workspace.py" ]; then
+        ENGINES_JSON=$(python3 scripts/validate_workspace.py --get-engines | sed -n '/ENGINES_START/,/ENGINES_END/p' | sed '1d;$d')
+    elif [ -f "boomtick-pkg/scripts/validate_workspace.py" ]; then
+        ENGINES_JSON=$(python3 boomtick-pkg/scripts/validate_workspace.py --get-engines | sed -n '/ENGINES_START/,/ENGINES_END/p' | sed '1d;$d')
+    fi
+
+    # Extract versions from JSON if possible, otherwise use defaults
+    REQ_NODE=$(echo "$ENGINES_JSON" | grep -o '"node": *"[^"]*"' | cut -d'"' -f4 | sed 's/>=//')
+    REQ_PNPM=$(echo "$ENGINES_JSON" | grep -o '"pnpm": *"[^"]*"' | cut -d'"' -f4)
+    REQ_PYTHON=$(echo "$ENGINES_JSON" | grep -o '"python": *"[^"]*"' | cut -d'"' -f4 | sed 's/>=//')
+
+    REQ_NODE=${REQ_NODE:-24}
+    REQ_PYTHON=${REQ_PYTHON:-3.10}
+
+    # Node.js validation
     if command -v node >/dev/null 2>&1; then
         NODE_VER=$(node -v | cut -d'v' -f2 | cut -d'.' -f1)
-        if [ "$NODE_VER" != "24" ]; then
-            echo "Error: Node.js version 24.x is required (found v$(node -v | tr -d '\n')). Use --force to bypass."
+        if [ "$NODE_VER" -lt "${REQ_NODE%%.*}" ]; then
+            echo "Error: Node.js version >=$REQ_NODE is required (found v$(node -v | tr -d '\n')). Use --force to bypass."
             exit 1
         fi
     else
-        echo "Error: Node.js not found. Node.js 24.x is required."
+        echo "Error: Node.js not found. Node.js >=$REQ_NODE is required."
         exit 1
     fi
 
-    # Python validation (3.x)
+    # Python validation
     if command -v python3 >/dev/null 2>&1; then
-        PYTHON_VER=$(python3 -c 'import sys; print(sys.version_info.major)')
-        if [ "$PYTHON_VER" -lt 3 ]; then
-            echo "Error: Python 3.x is required."
-            exit 1
+        # Check python version
+        python3 -c "import sys; ver=sys.version_info; req='${REQ_PYTHON}'.split('.'); exit(0) if (ver.major > int(req[0]) or (ver.major == int(req[0]) and ver.minor >= int(req[1]))) else exit(1)"
+        if [ $? -ne 0 ]; then
+             echo "Error: Python >=$REQ_PYTHON is required (found $(python3 --version))."
+             exit 1
         fi
     else
         echo "Error: python3 not found."
@@ -121,3 +144,10 @@ if [ "$BUILD_MCP" -eq 1 ]; then
 fi
 
 echo "BoomTick installation complete!"
+
+echo "Running post-installation diagnostics..."
+if [ -n "$VENV_PATH" ]; then
+    $PYTHON_BIN -m dev_tools.cli doctor
+else
+    td-cli doctor || python3 -m dev_tools.cli doctor
+fi

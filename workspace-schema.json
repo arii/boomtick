@@ -9,6 +9,14 @@
     "scripts": {
       "type": "object",
       "additionalProperties": { "type": "string" }
+    },
+    "engines": {
+      "type": "object",
+      "properties": {
+        "node": { "type": "string" },
+        "pnpm": { "type": "string" },
+        "python": { "type": "string" }
+      }
     }
   },
   "required": ["name", "version"]

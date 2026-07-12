@@ -7,5 +7,10 @@
   "scripts": {
     "install": "bash install.sh",
     "install:cli": "bash install.sh --no-mcp"
+  },
+  "engines": {
+    "node": ">=24",
+    "pnpm": "10.28.2",
+    "python": ">=3.10"
   }
 }
