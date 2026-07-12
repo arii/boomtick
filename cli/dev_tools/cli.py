@@ -527,8 +527,9 @@ def _render_conflicts(ctx, conflicts):
         if not conflicts:
             click.echo("✅ No potential merge conflicts detected.")
         for c in conflicts:
-            click.echo(f"⚠️  {' ↔ '.join(f'#{p}' for p in c['prs'])} share {
-                       len(c['files'])} file(s):")
+            prs_str = ' ↔ '.join(f'#{p}' for p in c['prs'])
+            files_count = len(c['files'])
+            click.echo(f"⚠️  {prs_str} share {files_count} file(s):")
             for f in sorted(c["files"])[:10]:
                 click.echo(f"    - {f}")
     out(ctx, f"Found {len(conflicts)} potential conflicts.", data={"conflicts": conflicts})
