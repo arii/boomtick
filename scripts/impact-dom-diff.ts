@@ -20,40 +20,53 @@ import {
 const deploymentReviewPath = path.join(ARTIFACTS_DIR, 'deployment-review.md');
 
 function normalizeHtml(html: string): string {
-  const dom = new JSDOM(html);
+  // Use virtual console to suppress JSDOM errors/warnings during normalization
+  const virtualConsole = new JSDOM.VirtualConsole();
+  const dom = new JSDOM(html, { virtualConsole });
   const document = dom.window.document;
 
   const technicalSelectors = ['script', 'style', 'link', 'meta', 'noscript', 'template'];
   technicalSelectors.forEach(sel => {
-    document.querySelectorAll(sel).forEach(el => el.remove());
+    const nodes = document.querySelectorAll(sel);
+    for (let i = 0; i < nodes.length; i++) nodes[i].remove();
   });
 
   const allElements = document.querySelectorAll('*');
-  allElements.forEach(el => {
-    ['data-reactroot', 'data-testid', 'nonce', 'data-discover'].forEach(attr => {
-      el.removeAttribute(attr);
-    });
+  for (let i = 0; i < allElements.length; i++) {
+    const el = allElements[i] as HTMLElement;
 
+    el.removeAttribute('data-reactroot');
+    el.removeAttribute('data-testid');
+    el.removeAttribute('nonce');
+    el.removeAttribute('data-discover');
+
+    const attributes = el.attributes;
+    const toRemove: string[] = [];
     const cleanedAttrs: { name: string; value: string }[] = [];
-    Array.from(el.attributes).forEach(attr => {
-      if (attr.name.startsWith('data-v-')) {
-        el.removeAttribute(attr.name);
-        return;
-      }
 
-      let val = attr.value;
-      if (attr.name === 'src' || attr.name === 'href') {
-        val = val.replace(/-[a-zA-Z0-9]{8,12}\.(js|css)/g, '.$1');
+    for (let j = 0; j < attributes.length; j++) {
+      const attr = attributes[j];
+      if (attr.name.startsWith('data-v-')) {
+        toRemove.push(attr.name);
+      } else {
+        let val = attr.value;
+        if (attr.name === 'src' || attr.name === 'href') {
+          val = val.replace(/-[a-zA-Z0-9]{8,12}\.(js|css)/g, '.$1');
+        }
+        cleanedAttrs.push({ name: attr.name, value: val });
+        toRemove.push(attr.name);
       }
-      cleanedAttrs.push({ name: attr.name, value: val });
-      el.removeAttribute(attr.name);
-    });
+    }
+
+    for (const name of toRemove) {
+      el.removeAttribute(name);
+    }
 
     cleanedAttrs.sort((a, b) => a.name.localeCompare(b.name));
-    cleanedAttrs.forEach(attr => {
+    for (const attr of cleanedAttrs) {
       el.setAttribute(attr.name, attr.value);
-    });
-  });
+    }
+  }
 
   const rawHtml = document.body ? document.body.innerHTML : dom.serialize();
   

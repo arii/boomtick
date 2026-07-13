@@ -608,12 +608,14 @@ export async function orchestrateCodeReview(
         } catch (err) {
           const errorMsg = err instanceof Error ? err.message : String(err);
           console.error(`❌ Error in ${role} review task:`, err);
+          const isRateLimit = errorMsg.includes('429') || errorMsg.toLowerCase().includes('rate limit');
           allResults.push({
             feedback: `Error: failed to execute ${role} review. Details: ${errorMsg}`,
             role,
             tokens: 0,
             cost: 0,
             llmVerdict: 'warn',
+            skipReason: isRateLimit ? 'RATE_LIMIT' : 'UNHANDLED_ERROR',
           });
         }
       });
@@ -645,6 +647,8 @@ export async function orchestrateCodeReview(
   let totalCacheTokens = 0;
   let totalCost = 0;
   let finalVerdict: 'pass' | 'fail' | 'warn' = 'pass';
+  let isTruncated = false;
+  const skipReasons = new Set<string>();
   const modelNames = new Set<string>();
 
   for (const res of allResults) {
@@ -666,6 +670,9 @@ export async function orchestrateCodeReview(
 
     if (res.llmVerdict === 'fail') finalVerdict = 'fail';
     else if (res.llmVerdict === 'warn' && finalVerdict !== 'fail') finalVerdict = 'warn';
+
+    if (res.truncated) isTruncated = true;
+    if (res.skipReason) skipReasons.add(res.skipReason);
 
     if (res.modelName) modelNames.add(res.modelName);
   }
@@ -738,6 +745,8 @@ export async function orchestrateCodeReview(
     highCount: isFail ? 1 : 0,
     routes: [],
     llmVerdict: finalResult.llmVerdict,
+    isTruncated: isTruncated,
+    skipReason: skipReasons.size > 0 ? Array.from(skipReasons).join(', ') : undefined,
     state: finalResult.state
   }, null, 2));
 

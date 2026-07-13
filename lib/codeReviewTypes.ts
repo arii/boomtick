@@ -51,6 +51,7 @@ export interface CodeReviewResult {
   state?: CodeReviewState;
   modelName?: string;
   truncated?: boolean;
+  skipReason?: string;
   parseError?: CodeReviewParseError;
   errors?: CodeReviewParseError[];
 }

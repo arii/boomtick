@@ -1,9 +1,7 @@
-import * as fs from 'fs';
-import * as path from 'path';
-import { ARTIFACTS_DIR } from '../lib/visualReviewConstants';
 import { orchestrateVisualReview } from '../lib/visualReviewOrchestrator';
 import { geminiVisualReviewClient } from './clients/geminiVisualReviewClient';
 import { githubModelsVisualReviewClient } from './clients/githubModelsVisualReviewClient';
+import { writeMissingApiKeyVerdict } from './utils/verdict';
 
 const ALL_REVIEW_TITLES = [
   geminiVisualReviewClient.reportTitle,
@@ -16,9 +14,10 @@ async function main(): Promise<void> {
     // The orchestrator handles missing visual summary gracefully,
     // but if the API key is strictly missing we should probably just exit or stub a file
     // to match original behavior.
-    fs.writeFileSync(
-      path.join(ARTIFACTS_DIR, geminiVisualReviewClient.reportFileName),
-      `## ${geminiVisualReviewClient.reportTitle}\n\nSkipped: No GEMINI_API_KEY provided.\n`
+    writeMissingApiKeyVerdict(
+      geminiVisualReviewClient.reportFileName,
+      geminiVisualReviewClient.reportTitle,
+      'GEMINI_API_KEY'
     );
     return;
   }

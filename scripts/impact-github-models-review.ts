@@ -1,9 +1,7 @@
-import * as fs from 'fs';
-import * as path from 'path';
-import { ARTIFACTS_DIR } from '../lib/visualReviewConstants';
 import { orchestrateVisualReview } from '../lib/visualReviewOrchestrator';
 import { githubModelsVisualReviewClient } from './clients/githubModelsVisualReviewClient';
 import { geminiVisualReviewClient } from './clients/geminiVisualReviewClient';
+import { writeMissingApiKeyVerdict } from './utils/verdict';
 
 const ALL_REVIEW_TITLES = [
   geminiVisualReviewClient.reportTitle,
@@ -13,9 +11,10 @@ const ALL_REVIEW_TITLES = [
 async function main(): Promise<void> {
   if (!process.env.GITHUB_TOKEN) {
     console.warn('⚠️  Skipping agent review — GITHUB_TOKEN not set.');
-    fs.writeFileSync(
-      path.join(ARTIFACTS_DIR, githubModelsVisualReviewClient.reportFileName),
-      `## ${githubModelsVisualReviewClient.reportTitle}\n\nSkipped: No GITHUB_TOKEN provided.\n`
+    writeMissingApiKeyVerdict(
+      githubModelsVisualReviewClient.reportFileName,
+      githubModelsVisualReviewClient.reportTitle,
+      'GITHUB_TOKEN'
     );
     return;
   }

@@ -128,19 +128,44 @@ runs:
         fi
 
         FAILED=0
-        for f in artifacts/*-verdict.json; do
-          [ -f "$f" ] || continue
-          VERDICT=$(jq -r '.llmVerdict' "$f" 2>/dev/null || echo "unknown")
-          PASSED=$(jq -r '.passed' "$f" 2>/dev/null || echo "error")
+        # Expected verdicts: gemini-code-review, github-models-code-review
+        # Visual reviews are expected only if visual changes exist
+        EXPECTED_REVIEWS="gemini-code-review github-models-code-review"
+        if [ "${{ steps.check_visuals.outputs.changed_routes }}" != "0" ] && [ "${{ steps.check_visuals.outputs.changed_routes }}" != "" ]; then
+          EXPECTED_REVIEWS="$EXPECTED_REVIEWS gemini-review github-models-review"
+        fi
 
-          if [ "$VERDICT" = "fail" ] || [ "$PASSED" = "false" ]; then
-            HIGH=$(jq -r '.highCount' "$f" 2>/dev/null || echo "unknown")
-            echo "Review failed: $HIGH HIGH severity issues found ($f)" >&2
+        for r in $EXPECTED_REVIEWS; do
+          f="artifacts/$r-verdict.json"
+          if [ ! -f "$f" ]; then
+            echo "❌ Expected review verdict file missing: $f. The review script may have crashed." >&2
             FAILED=1
-          elif [ "$VERDICT" = "warn" ]; then
-            echo "Review warning: review was truncated or inconclusive ($f). Manual review recommended." >&2
-          elif [ "$VERDICT" = "error" ] || [ "$PASSED" = "error" ]; then
-            echo "Review failed: Could not parse verdict file ($f)" >&2
+            continue
+          fi
+
+          PASSED=$(jq -r '.passed | if type == "null" or type == "nan" then "error" else . end' "$f" 2>/dev/null || echo "error")
+          VERDICT=$(jq -r '.llmVerdict | if type == "null" or type == "nan" then "unknown" else . end' "$f" 2>/dev/null || echo "unknown")
+          HIGH=$(jq -r '.highCount | if type == "null" or type == "nan" then "0" else . end' "$f" 2>/dev/null || echo "0")
+
+          if [[ "$VERDICT" == "warn" ]]; then
+             # Only allow specific safe-skip reasons for warnings to pass CI
+             IS_TRUNCATED=$(jq -r '.isTruncated // .truncated // "false"' "$f" 2>/dev/null)
+             SKIP_REASON=$(jq -r '.skipReason // "NONE"' "$f" 2>/dev/null)
+
+             if [[ "$IS_TRUNCATED" == "true" || "$SKIP_REASON" == *"MISSING_API_KEY"* || "$SKIP_REASON" == *"RATE_LIMIT"* ]]; then
+                echo "⚠️ Review Warning: Legitimate skip/truncation ($f, reason: $SKIP_REASON, truncated: $IS_TRUNCATED). Manual review recommended."
+             else
+                echo "❌ Review failed: Unexpected warning state or unhandled error ($f, reason: $SKIP_REASON)" >&2
+                FAILED=1
+             fi
+          fi
+
+          if [[ "$PASSED" == "false" || "$VERDICT" == "fail" ]]; then
+            echo "❌ Review failed: $HIGH HIGH severity issues found ($f)" >&2
+            FAILED=1
+          elif [ "$PASSED" = "error" ]; then
+            echo "❌ Review failed: Could not parse verdict file ($f). Review may be malformed." >&2
+            FAILED=1
           fi
         done
         exit $FAILED
@@ -208,6 +233,7 @@ runs:
         GITHUB_TOKEN: ${{ inputs.github_token }}
         PYTHONPATH: boomtick-pkg/cli
       run: |
+        mkdir -p .boomtick/logs/ai
         td-cli gh summary-report >> "$GITHUB_STEP_SUMMARY"
         if ! td-cli gh verify-metrics; then
           echo "CI Metrics verification failed."
