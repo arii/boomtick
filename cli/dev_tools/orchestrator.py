@@ -1675,17 +1675,7 @@ Run the workflow (if possible via `gh workflow run` or by pushing a test branch)
             for num in issueNumbers:
                 issue = self.github.fetch_issue_details(num)
                 # Normalize format to match list_issues
-                issues.append(
-                    {
-                        "number": issue.get("number"),
-                        "title": issue.get("title"),
-                        "body": issue.get("body"),
-                        "state": issue.get("state"),
-                        "html_url": issue.get("html_url"),
-                        "labels": [l.get("name") if isinstance(l, dict) else l for l in issue.get("labels", [])],
-                        "updated_at": issue.get("updated_at"),
-                    }
-                )
+                issues.append(self.github.normalize_issue(issue))
         else:
             raise CLIError("Provide --issue or --all-open")
 

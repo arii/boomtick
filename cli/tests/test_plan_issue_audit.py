@@ -74,16 +74,24 @@ def test_plan_issue_audit_all_open(orchestrator, tmp_path):
 
 def test_plan_issue_audit_specific_issues(orchestrator, tmp_path):
     # Setup mocks
-    orchestrator.github.fetch_issue_details.side_effect = [
-        {
-            "number": 10,
-            "title": "Issue 10",
-            "body": "Body 10",
-            "html_url": "url10",
-            "labels": ["feat"],
-            "state": "open",
-        }
-    ]
+    mock_issue = {
+        "number": 10,
+        "title": "Issue 10",
+        "body": "Body 10",
+        "html_url": "url10",
+        "labels": ["feat"],
+        "state": "open",
+    }
+    orchestrator.github.fetch_issue_details.return_value = mock_issue
+    orchestrator.github.normalize_issue.return_value = {
+        "number": 10,
+        "title": "Issue 10",
+        "body": "Body 10",
+        "html_url": "url10",
+        "labels": ["feat"],
+        "state": "open",
+        "updated_at": "now"
+    }
 
     with patch("dev_tools.orchestrator.get_or_create_log_dir") as mock_log_dir:
         mock_log_dir.return_value = str(tmp_path / "workflows")

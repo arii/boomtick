@@ -2,7 +2,9 @@
 import unittest
 from unittest.mock import MagicMock, patch
 
+import pytest
 from dev_tools.services.github import GitHubClient
+from dev_tools.utils import CLIError
 
 
 class TestGitHubClientPagination(unittest.TestCase):
@@ -56,6 +58,42 @@ class TestGitHubClientPagination(unittest.TestCase):
                 found_search_call = True
                 break
         self.assertTrue(found_search_call, "Search API call not found in mock_request calls")
+
+
+def test_validate_review_payload_boilerplate_rejection():
+    """Ensures that payloads consisting solely of boilerplate are rejected by the validator."""
+    # Payload with only placeholders in body
+    payload_only_placeholders = {
+        "body": "## ANTI-AI-SLOP\n<findings>",
+        "recommendation": "Approved",
+        "labels": [],
+        "comments": [],
+    }
+    with pytest.raises(CLIError) as excinfo:
+        GitHubClient.validate_review_payload(payload_only_placeholders)
+    assert "No meaningful content found in body or comments" in str(excinfo.value)
+
+    # Payload with placeholder in recommendation
+    payload_bad_recommendation = {
+        "body": "Meaningful feedback",
+        "recommendation": "<Approved | Approved with Minor Changes | Not Approved>",
+        "labels": [],
+        "comments": [],
+    }
+    with pytest.raises(CLIError) as excinfo:
+        GitHubClient.validate_review_payload(payload_bad_recommendation)
+    assert "Recommendation contains boilerplate placeholder" in str(excinfo.value)
+
+    # Payload with placeholder in comment
+    payload_bad_comment = {
+        "body": "Meaningful feedback",
+        "recommendation": "Approved",
+        "labels": [],
+        "comments": [{"path": "file.py", "line": 1, "body": "<findings>"}],
+    }
+    with pytest.raises(CLIError) as excinfo:
+        GitHubClient.validate_review_payload(payload_bad_comment)
+    assert "Comment contains boilerplate placeholder" in str(excinfo.value)
 
 
 if __name__ == "__main__":

@@ -7,10 +7,12 @@ from typing import Any, Dict, List, Optional
 from urllib.parse import quote
 
 import requests  # type: ignore[import-untyped]
+from dev_tools.constants import REVIEW_PLACEHOLDERS
 from dev_tools.utils import DiskCache, log_warn
 
 
 class GitHubClient:
+
     def __init__(self, token: Optional[str] = None, repo: Optional[str] = None, no_cache: bool = False):
         from dev_tools.utils import get_github_token
 
@@ -273,6 +275,19 @@ class GitHubClient:
         """Creates a new GitHub issue."""
         return self._request("POST", f"/repos/{self.repo}/issues", json_data={"title": title, "body": body})
 
+    @staticmethod
+    def normalize_issue(issue: Dict[str, Any]) -> Dict[str, Any]:
+        """Normalizes issue dict to standard format."""
+        return {
+            "number": issue.get("number"),
+            "title": issue.get("title"),
+            "body": issue.get("body"),
+            "state": issue.get("state"),
+            "html_url": issue.get("html_url"),
+            "labels": [l.get("name") if isinstance(l, dict) else l for l in issue.get("labels", [])],
+            "updated_at": issue.get("updated_at"),
+        }
+
     def fetch_issue_details(self, number: int) -> Dict[str, Any]:
         """Fetches the details of a GitHub issue."""
         return self._request("GET", f"/repos/{self.repo}/issues/{number}")
@@ -289,18 +304,7 @@ class GitHubClient:
         data = self._request("GET", "/search/issues", params={"q": query, "per_page": limit})
         items = data.get("items", []) if isinstance(data, dict) else []
 
-        return [
-            {
-                "number": issue.get("number"),
-                "title": issue.get("title"),
-                "body": issue.get("body"),
-                "state": issue.get("state"),
-                "html_url": issue.get("html_url"),
-                "labels": [l.get("name") if isinstance(l, dict) else l for l in issue.get("labels", [])],
-                "updated_at": issue.get("updated_at"),
-            }
-            for issue in items[:limit]
-        ]
+        return [self.normalize_issue(issue) for issue in items[:limit]]
 
     def fetch_issue_comments(self, number: int) -> List[Dict[str, Any]]:
         """Fetches the comments on an issue or pull request."""
@@ -412,23 +416,18 @@ class GitHubClient:
         if not isinstance(body, str):
             body = str(body)
 
+        recommendation = payload.get("recommendation", "")
+        if not isinstance(recommendation, str):
+            recommendation = str(recommendation)
+
         comments = payload.get("comments", [])
         if not isinstance(comments, list):
             raise CLIError("Review rejected: 'comments' must be a list.")
 
-        # Robust placeholder detection using regex to handle minor variants
-        placeholders = [
-            r"<findings\s*/?>",
-            r"<summary\s*/?>",
-            r"<filename\s*/?>",
-            r"<feedback\s*/?>",
-            r"<Approved\s*\|\s*Approved\s*with\s*Minor\s*Changes\s*\|\s*Not\s*Approved>",
-        ]
-
-        # Check body for placeholders
-        for p in placeholders:
-            if re.search(p, body, re.IGNORECASE):
-                raise CLIError(f"Review rejected: Contains boilerplate placeholder matching '{p}'")
+        # Check recommendation for placeholders (should be explicit)
+        for p in REVIEW_PLACEHOLDERS:
+            if re.search(p, recommendation, re.IGNORECASE):
+                raise CLIError(f"Review rejected: Recommendation contains boilerplate placeholder matching '{p}'")
 
         # Check for real comments (not placeholders)
         real_comments = []
@@ -441,27 +440,24 @@ class GitHubClient:
 
             # Check if comment fields contain placeholders
             is_placeholder = False
-            for p in placeholders:
+            for p in REVIEW_PLACEHOLDERS:
                 if re.search(p, c_body, re.IGNORECASE) or re.search(p, c_path, re.IGNORECASE):
                     is_placeholder = True
                     break
 
             if is_placeholder:
-                raise CLIError(f"Review rejected: Comment contains boilerplate placeholder.")
+                raise CLIError("Review rejected: Comment contains boilerplate placeholder.")
 
-            if c_body.strip() and c_path != "<filename>":
+            if c_body.strip() and not re.search(r"<filename\s*/?>", c_path, re.IGNORECASE):
                 real_comments.append(c)
 
         # Check for empty/meaningless body
         clean_body = body
         clean_body = re.sub(r"^#+.*$", "", clean_body, flags=re.MULTILINE)
-        clean_body = re.sub(r"<!--.*?-->", "", clean_body, flags=re.DOTALL)
-        clean_body = re.sub(
-            r"Approved\s*\|\s*Approved\s*with\s*Minor\s*Changes\s*\|\s*Not\s*Approved",
-            "",
-            clean_body,
-            flags=re.IGNORECASE,
-        )
+        # Strip all placeholders for meaningful content check
+        for p in REVIEW_PLACEHOLDERS:
+            clean_body = re.sub(p, "", clean_body, flags=re.IGNORECASE | re.DOTALL)
+
         clean_body = clean_body.strip()
 
         if not clean_body and not real_comments:
@@ -523,26 +519,29 @@ class GitHubClient:
         # Clean up the trailing "Output JSON" instructions if present
         body = re.split(r"##\s+Output JSON", body, flags=re.IGNORECASE)[0].strip()
 
+        # Robustly strip placeholders from the markdown body as well
+        for p in REVIEW_PLACEHOLDERS:
+            body = re.sub(p, "", body, flags=re.IGNORECASE | re.DOTALL).strip()
+
         if not body:
             raise CLIError("Review body (Markdown section) is empty. Provide findings before the JSON block.")
 
         # Combine extracted body (Markdown section) and payload body (JSON section)
-        existing_body = payload.get("body", "").strip()
+        json_body = payload.get("body", "").strip()
 
-        if existing_body:
-            # Strip known placeholders out of the JSON body
-            for p in [
-                "<findings>",
-                "<summary>",
-                "<feedback>",
-                "## ANTI-AI-SLOP",
-                "## FINDINGS",
-                "## FINAL RECOMMENDATION",
-            ]:
-                existing_body = re.sub(rf"{p}\s*", "", existing_body, flags=re.IGNORECASE).strip()
+        if json_body:
+            # Check if JSON body contains only placeholders
+            stripped_body = json_body
+            for p in REVIEW_PLACEHOLDERS:
+                stripped_body = re.sub(p, "", stripped_body, flags=re.IGNORECASE | re.DOTALL).strip()
 
-        if existing_body:
-            payload["body"] = f"{body}\n\n{existing_body}"
+            if not stripped_body:
+                raise CLIError(
+                    "Review rejected: JSON body contains only placeholders/boilerplate. "
+                    "Ensure you provide actual feedback in the 'body' field of the JSON block."
+                )
+
+            payload["body"] = f"{body}\n\n{stripped_body}"
         else:
             payload["body"] = body
 
