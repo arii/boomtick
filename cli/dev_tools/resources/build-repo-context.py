@@ -102,7 +102,8 @@ def build_repo_context():
         from dev_tools.schema_utils import collect_commands
 
         # We keep cli-schema.json updated but minimal for the aggregate context
-        generated_subcommands = collect_commands(cli, max_depth=1)
+        # Increasing max_depth to 2 to allow discovery of nested subcommands (e.g., gh search-prs)
+        generated_subcommands = collect_commands(cli, max_depth=2)
         cli_schema["subcommands"] = generated_subcommands
 
         cli_schema_path = package_root / "cli" / "dev_tools" / "cli-schema.json"

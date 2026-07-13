@@ -284,6 +284,10 @@ class SearchDdgsInput(BaseModel):
     maxResults: Optional[int] = Field(None, description="Maximum number of results to return.")
 
 
+class ReadAgentContextInput(BaseModel):
+    pass
+
+
 # AI Review Models
 
 
