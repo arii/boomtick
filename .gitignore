@@ -1,2 +1,17 @@
 node_modules/
 *.egg-info/
+dist/
+build/
+.venv/
+__pycache__/
+.pytest_cache/
+*.log
+.agent-context.json
+grep_results.txt
+files_to_fix.txt
+remaining_hits.txt
+last_remaining.txt
+mcp/dist/
+cli/dist/
+cli/build/
+cli/*.egg-info/
