@@ -16,7 +16,7 @@ import requests  # type: ignore[import-untyped]
 def sanitize_path(path: str, max_length: int = 255) -> str:
     """
     Sanitizes a path to prevent traversal bugs and ensure it remains within the intended scope.
-    Uses normpath to resolve .. and ensures the result doesn't escape the current directory.
+    Validates that the resolved path is within the current working directory.
     """
     if not path:
         return ""
@@ -28,18 +28,25 @@ def sanitize_path(path: str, max_length: int = 255) -> str:
     # 1. Null byte protection
     path = path.split("\0", 1)[0]
 
-    # 2. Normalize path to resolve '..'
-    normalized = os.path.normpath(path)
+    # 2. Prevent escaping repository root
+    try:
+        base_path = os.path.abspath(os.getcwd())
+        # Join and normalize to resolve '..'
+        abs_target = os.path.abspath(os.path.join(base_path, path))
 
-    # 3. Prevent escaping current directory
-    if normalized.startswith("..") or os.path.isabs(normalized):
-        # Fallback to a safe version or just strip leading dots/slashes
-        normalized = normalized.lstrip("./\\")
+        if not abs_target.startswith(base_path):
+            # If it escapes, return just the basename or a safe version
+            # Here we just take the basename as a fallback to be safe but usable
+            normalized = os.path.basename(abs_target)
+        else:
+            normalized = os.path.relpath(abs_target, base_path)
+    except (ValueError, OSError):
+        normalized = os.path.basename(path)
 
-    # 4. Character Whitelisting: Allow only alphanumeric, dots, slashes, hyphens, and underscores
+    # 3. Character Whitelisting: Allow only alphanumeric, dots, slashes, hyphens, and underscores
     sanitized = re.sub(r"[^a-zA-Z0-9\./\-_]", "", normalized)
 
-    # 5. Collapse multiple slashes and strip
+    # 4. Collapse multiple slashes and strip
     return re.sub(r"/+", "/", sanitized).strip("/")
 
 

@@ -26,7 +26,16 @@ export async function createPullRequestHandler(args: z.infer<typeof CreatePullRe
   const result = await runCommand("td-cli", tdArgs);
 
   if (result.exitCode !== 0) {
-    throw new Error(`Failed to create pull request: ${result.stderr}`);
+    // Attempt to parse stdout as JSON to see if there's a structured error message
+    try {
+      const errorOutput = JSON.parse(result.stdout);
+      if (errorOutput.status === "error") {
+        throw new Error(`Failed to create pull request: ${errorOutput.message}`);
+      }
+    } catch (e) {
+      // If parsing fails, fall back to stderr or a generic message
+    }
+    throw new Error(`Failed to create pull request: ${result.stderr || result.stdout || "Unknown error"}`);
   }
 
   const output = JSON.parse(result.stdout);
