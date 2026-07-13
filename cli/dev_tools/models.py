@@ -288,6 +288,10 @@ class ReadAgentContextInput(BaseModel):
     pass
 
 
+class GetCommandSchemaInput(BaseModel):
+    commandPath: str = Field(..., description="The CLI command path to retrieve the schema for (e.g. 'gh audit-pr')")
+
+
 # AI Review Models
 
 

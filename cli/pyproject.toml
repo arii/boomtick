@@ -34,5 +34,18 @@ where = ["."]
 include = ["dev_tools*"]
 
 [tool.setuptools.package-data]
-"dev_tools" = ["cli-schema.json", "config.json", "project_config.json", "*.json", "resources/*", "verify_versions.py", "pr_overlap.py"]
-"*" = ["*.json"]
+"dev_tools" = [
+    "cli-schema.json",
+    "config.json",
+    "project_config.json",
+    "verify_versions.py",
+    "dist/index.js",
+    "dist/config.js",
+    "dist/mcp/*.js",
+    "dist/tools/*.js",
+    "dist/tools/jules/*.js",
+    "dist/tools/ddgs_search.py",
+    "dist/lib/*.js",
+    "resources/*",
+    "pr_overlap.py"
+]
