@@ -249,8 +249,11 @@ function getContentAffectedUrls(changedFiles: string[]): string[] {
   for (const file of changedFiles) {
     for (const [dir, prefix] of Object.entries(IMPACT_CONFIG.CONTENT_MAP)) {
       if (file.startsWith(dir) && file.endsWith('.md')) {
-        const slug = path.basename(file, '.md');
-        urls.push(`${prefix}${slug}`);
+        // Only include files that still exist (avoid 404s in visual diff for deleted files)
+        if (fs.existsSync(path.resolve(process.cwd(), file))) {
+          const slug = path.basename(file, '.md');
+          urls.push(`${prefix}${slug}`);
+        }
       }
     }
   }
