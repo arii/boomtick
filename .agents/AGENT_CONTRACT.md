@@ -19,6 +19,7 @@ Read the matching workflow before starting these task types:
 - **Prioritize MCP Tools**: Consult the tool hierarchy in `.agents/AGENTS.md`
   before executing any repository or GitHub operation. `boomtick-mcp` is the
   required first call — not an optional convenience.
+- **Root Configuration**: Ensure required repository config (e.g. `github_repo`, `vite_base_path`) is defined in `project_config.json` at the root.
 - Update the workflow state machine header before proceeding past each step.
 - Produce output only to the specified output files.
 - Never write to `pr-context-*.md` files (read-only by convention).
@@ -35,6 +36,7 @@ Read the matching workflow before starting these task types:
 - Chain subcommands in a single shell call.
 - Use interactive menus.
 - Change the Node.js or pnpm runtime versions without explicit instruction.
+- Commit credentials, tokens, or secrets to `project_config.json` (always use env variables).
 - Delete `pnpm-lock.yaml`.
 - Add `use-node-version` to `.npmrc`.
 
