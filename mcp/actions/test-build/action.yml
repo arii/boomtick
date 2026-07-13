@@ -1,0 +1,71 @@
+name: BoomTick Build & Test
+description: Encapsulates build, bundle size check, Playwright E2E, and Lighthouse CI
+inputs:
+  github_token:
+    description: 'GitHub token'
+    required: true
+  run_lighthouse:
+    description: 'Whether to run Lighthouse CI'
+    required: false
+    default: 'true'
+runs:
+  using: composite
+  steps:
+    - uses: ./mcp/actions/setup
+
+    - name: pnpm install
+      run: pnpm install --frozen-lockfile --prefer-offline
+      shell: bash
+
+    - name: Build App
+      run: |
+        VITE_BASE_PATH=/; export VITE_BASE_PATH
+        pnpm run build
+      shell: bash
+
+    - name: Bundle Size Check
+      env:
+        GITHUB_TOKEN: ${{ inputs.github_token }}
+      run: |
+        export PATH="$HOME/.local/bin:/github/home/.local/bin:$PATH"
+        td gh bundle-size
+      shell: bash
+
+    - name: Run Playwright Smoke Test
+      run: |
+        VITE_BASE_PATH=/ pnpm run test:e2e
+      shell: bash
+
+    - name: Run Lighthouse CI
+      if: inputs.run_lighthouse == 'true'
+      run: |
+        set -eu
+        VITE_BASE_PATH="/"
+        CHROME_PATH="$(node -e "console.log(require('playwright').chromium.executablePath())")"
+        export VITE_BASE_PATH
+        export CHROME_PATH
+        echo "CHROME_PATH=$CHROME_PATH"
+        pnpm run lighthouse --collect.url="http://localhost:4173${VITE_BASE_PATH}"
+      env:
+        LHCI_GITHUB_TOKEN: ${{ inputs.github_token }}
+      shell: bash
+
+    - name: Check Playwright Report Exists
+      id: check_report
+      if: always()
+      run: |
+        if [ -d "playwright-report/" ]; then
+          echo "exists=true" >> "$GITHUB_OUTPUT"
+        else
+          echo "exists=false" >> "$GITHUB_OUTPUT"
+        fi
+      shell: bash
+
+    - name: Upload Test Results
+      if: always() && steps.check_report.outputs.exists == 'true'
+      uses: actions/upload-artifact@v7 # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
+      with:
+        name: playwright-report-${{ github.run_id }}
+        path: playwright-report/
+        retention-days: 7
+        if-no-files-found: ignore

@@ -1,7 +1,17 @@
 {
+  "name": "boomtick",
+  "version": "0.1.0",
+  "private": true,
   "engines": {
     "node": "24.x",
     "pnpm": "10.28.2"
   },
-  "packageManager": "pnpm@10.28.2"
+  "packageManager": "pnpm@10.28.2",
+  "scripts": {
+    "build": "pnpm --filter @boomtick/mcp run build",
+    "test": "pnpm --filter @boomtick/mcp test",
+    "lint": "pnpm --filter @boomtick/mcp run lint 2>/dev/null || echo 'No lint script in MCP'",
+    "install:cli": "pip install -e cli",
+    "install:all": "pnpm install && pnpm run install:cli"
+  }
 }
