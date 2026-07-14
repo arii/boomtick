@@ -1,0 +1,7 @@
+{
+  "name": "boomtick-root",
+  "private": true,
+  "scripts": {
+    "type-check": "echo 'ok'"
+  }
+}
