@@ -39,8 +39,8 @@ jobs:
 
       - name: Check active runtime
         run: |
-          pnpm run check:runtime-files
-          pnpm run doctor
+          node scripts/check-runtime-files.mjs
+          node scripts/check-runtime.mjs
 
       - name: Find and Resolve Conflicts
         run: |
