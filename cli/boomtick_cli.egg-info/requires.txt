@@ -1,0 +1,15 @@
+requests>=2.0.0
+packaging>=21.3
+google-genai
+python-dotenv
+pydantic
+click
+PyGithub
+semgrep
+chromadb>=1.5.9
+sentence-transformers>=5.6.0
+duckduckgo-search>=6.0.0
+setuptools<81.0.0
+importlib-resources
+langchain-google-genai
+langchain-openai

@@ -1,0 +1,3 @@
+[console_scripts]
+td = dev_tools.cli:main
+td-cli = dev_tools.cli:main

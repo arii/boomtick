@@ -1,0 +1,20 @@
+Metadata-Version: 2.4
+Name: boomtick-cli
+Version: 0.2.1
+Summary: BoomTick CLI — agentic dev-tools for GitHub + AI workflows
+Requires-Python: >=3.8
+Requires-Dist: requests>=2.0.0
+Requires-Dist: packaging>=21.3
+Requires-Dist: google-genai
+Requires-Dist: python-dotenv
+Requires-Dist: pydantic
+Requires-Dist: click
+Requires-Dist: PyGithub
+Requires-Dist: semgrep
+Requires-Dist: chromadb>=1.5.9
+Requires-Dist: sentence-transformers>=5.6.0
+Requires-Dist: duckduckgo-search>=6.0.0
+Requires-Dist: setuptools<81.0.0
+Requires-Dist: importlib-resources
+Requires-Dist: langchain-google-genai
+Requires-Dist: langchain-openai
