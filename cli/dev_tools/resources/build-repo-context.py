@@ -1,4 +1,4 @@
-# pylint: disable=import-outside-toplevel,invalid-name,line-too-long,missing-docstring,too-many-branches,too-many-locals,too-many-statements
+# pylint: disable=import-outside-toplevel,invalid-name,line-too-long,missing-docstring,too-many-branches,too-many-locals,too-many-statements,try-except-raise
 #!/usr/bin/env python3
 import json
 import pathlib
@@ -152,7 +152,7 @@ def build_repo_context():
                 else:
                     structure[item.name] = None
         except Exception:
-            pass
+            raise
         return structure
 
     file_tree = get_dir_structure(repo_root)

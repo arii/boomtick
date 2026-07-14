@@ -1,4 +1,4 @@
-# pylint: disable=import-outside-toplevel,missing-docstring,too-many-branches,too-many-locals,too-many-statements
+# pylint: disable=import-outside-toplevel,missing-docstring,too-many-branches,too-many-locals,too-many-statements,try-except-raise
 import click
 
 
@@ -44,7 +44,7 @@ def collect_commands(root_cmd, prefix="", max_depth=10):
                     new_prefix = f"{pfx} {sub_name}".strip()
                     queue.append((sub_cmd, new_prefix, depth + 1))
             except Exception:
-                pass
+                raise
         elif isinstance(cmd, click.Command):
             cmd_name = pfx
             cmd_help = cmd.help or ""
