@@ -22,27 +22,11 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v7
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v7
+      - name: Setup Environment
+        uses: ./.github/actions/setup-env
         with:
-          node-version: '22'
-
-      - name: Setup Python
-        uses: actions/setup-python@v6
-        with:
-          python-version: '3.11'
-          cache: 'pip'
-
-      - name: Install pnpm
-        uses: pnpm/action-setup@v6
-        with:
-          version: 10.30.3
-
-      - name: Install dependencies
-        run: |
-          pnpm install --frozen-lockfile
-          pip install -r cli/requirements.txt
-          pip install build twine pytest
+          setup-node: 'true'
+          setup-python: 'true'
 
       - name: Run CLI Tests
         run: |
@@ -58,7 +42,7 @@ jobs:
         run: |
           export PYTHONPATH="$PYTHONPATH:$(pwd)/cli"
           python3 cli/dev_tools/schema_gen.py
-          pnpm exec tsx mcp/scripts/sync-contracts.ts
+          pnpm --filter @arii/boomtick-mcp run sync-contracts
 
       - name: Bundle MCP into CLI
         run: |

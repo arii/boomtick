@@ -22,19 +22,11 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v7
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v7
+      - name: Setup Environment
+        uses: ./.github/actions/setup-env
         with:
-          node-version: '22'
-          registry-url: 'https://registry.npmjs.org'
-
-      - name: Install pnpm
-        uses: pnpm/action-setup@v6
-        with:
-          version: 10.30.3
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+          setup-node: 'true'
+          setup-python: 'false'
 
       - name: Run MCP Tests
         run: pnpm --filter @arii/boomtick-mcp test
