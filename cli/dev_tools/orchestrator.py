@@ -1187,7 +1187,7 @@ class Orchestrator:
                 branch_info = self.github._request("GET", f"/repos/{self.github.repo}/branches/{branch}")
                 target_sha = branch_info.get("commit", {}).get("sha")
             except Exception:
-                pass
+                raise
 
         if target_sha:
             # Analyze failing check runs

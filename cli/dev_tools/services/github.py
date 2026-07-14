@@ -711,7 +711,7 @@ class GitHubClient:
                             try:
                                 error_data = e.response.json()
                             except Exception:
-                                pass
+                                raise
 
                         error_msg = json.dumps(error_data) if error_data else (e.response.text if hasattr(e, "response") and e.response else str(e))
 
