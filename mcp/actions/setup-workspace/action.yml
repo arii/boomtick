@@ -24,6 +24,8 @@ runs:
     - name: Setup pnpm
       if: inputs.setup-node == 'true'
       uses: pnpm/action-setup@v6 # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
+      with:
+        version: ${{ inputs.pnpm-version }}
 
     - name: Get pnpm store directory
       if: inputs.setup-node == 'true'
