@@ -56,7 +56,7 @@ jobs:
           echo "✅ Credentials pre-check passed."
 
       - name: Setup Workspace
-        uses: ./boomtick-pkg/mcp/actions/setup-workspace
+        uses: ./mcp/actions/setup-workspace
         with:
           setup-node: 'false'
 

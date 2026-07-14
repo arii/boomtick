@@ -24,7 +24,7 @@ jobs:
   release:
     runs-on: ubuntu-latest
     env:
-      SUBPKG_PATH: boomtick-pkg
+      SUBPKG_PATH: .
     steps:
       - name: Checkout code
         uses: actions/checkout@v7 # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
@@ -36,7 +36,7 @@ jobs:
 
       - name: Tag and Release
         id: check_version
-        uses: ./boomtick-pkg/.github/actions/tag-and-release
+        uses: ./.github/actions/tag-and-release
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
 

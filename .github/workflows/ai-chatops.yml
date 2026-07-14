@@ -24,7 +24,7 @@ jobs:
         with:
           fetch-depth: 1
 
-      - uses: ./boomtick-pkg/mcp/actions/ai-review
+      - uses: ./mcp/actions/ai-review
         with:
           pr_number: ${{ inputs.issue_number }}
         env:

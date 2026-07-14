@@ -20,7 +20,7 @@ jobs:
         with:
           fetch-depth: 1
 
-      - uses: ./boomtick-pkg/mcp/actions/setup-workspace
+      - uses: ./mcp/actions/setup-workspace
 
       - name: Self-Heal
         run: td-cli agent fix-ci --pr-number ${{ github.event.workflow_run.pull_requests[0].number }} --execute

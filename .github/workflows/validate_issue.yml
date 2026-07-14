@@ -21,7 +21,7 @@ jobs:
         with:
           fetch-depth: 1
       - name: Setup Workspace
-        uses: ./boomtick-pkg/mcp/actions/setup-workspace
+        uses: ./mcp/actions/setup-workspace
         with:
           setup-node: 'false'
 
