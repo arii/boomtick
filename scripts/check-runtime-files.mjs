@@ -10,7 +10,7 @@ function readTrimmed(path) {
   return readFileSync(path, "utf8").trim().replace(/^v/, "");
 }
 
-const nvmrc = readTrimmed(".nvmrc");
+const nvmrc = existsSync(".nvmrc") ? readTrimmed(".nvmrc") : expectedNodeExact;
 const nodeVersionFile = readTrimmed(".node-version");
 const pkgPath = existsSync("package.json") ? "package.json" : "mcp/package.json";
 const pkg = JSON.parse(readFileSync(pkgPath, "utf8"));
