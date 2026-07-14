@@ -18,7 +18,7 @@ class ProjectConfig:
     core_dirs: List[str] = field(default_factory=lambda: ["src/layouts/", "src/components/"])
     monolithic_pr_threshold: int = 3
     base_branch: str = "origin/main"
-    vite_base_path: str = "/tech-dancer/"
+    vite_base_path: str | None = None
     gh_path: str = "gh"
     max_diff_chars: int = 40000
     content_scopes: Dict[str, str] = field(
@@ -99,6 +99,12 @@ class ProjectConfig:
         ]
     )
 
+    def __post_init__(self):
+        if not self.github_repo:
+            raise ValueError("Missing required configuration: github_repo. Please provide it in project_config.json.")
+        if not self.vite_base_path:
+            raise ValueError("Missing required configuration: vite_base_path. Please provide it in project_config.json.")
+
     @property
     def base_branch_name(self) -> str:
         """Returns the base branch name without the remote prefix (e.g., 'main' for 'origin/main')."""
@@ -150,10 +156,7 @@ def load_project_config(path: str | Path = "project_config.json") -> ProjectConf
             raw = json.loads(p.read_text(encoding="utf-8"))
         except (json.JSONDecodeError, IOError):
             pass
-    elif path != "project_config.json":
-        # If a specific path was requested but doesn't exist, return default
-        return ProjectConfig()
-    else:
+    elif str(path) == "project_config.json":
         # Check parent directories for project_config.json if not in CWD
         # This helps when running from subdirectories
         current = Path.cwd()
@@ -186,7 +189,7 @@ def load_project_config(path: str | Path = "project_config.json") -> ProjectConf
     if "github_repo" in raw or "repo_name" in raw:
         kwargs["github_repo"] = raw.get("github_repo") or raw.get("repo_name")
     else:
-        kwargs["github_repo"] = _detect_repo_name() or "arii/tech-dancer"
+        kwargs["github_repo"] = _detect_repo_name()
 
     if "vite_base_path" in raw:
         kwargs["vite_base_path"] = raw["vite_base_path"]
