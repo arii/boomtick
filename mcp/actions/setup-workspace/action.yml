@@ -162,6 +162,6 @@ runs:
         echo "::group::Initialize Schemas and Contracts"
         export PYTHONPATH="$CLI_DIR_ABS:$PYTHONPATH"
         python3 "$CLI_DIR_ABS/dev_tools/schema_gen.py"
-        pnpm --filter @arii/boomtick-mcp exec tsx mcp/scripts/sync-contracts.ts
+        pnpm --filter @arii/boomtick-mcp run sync-contracts
         echo "::endgroup::"
       shell: bash

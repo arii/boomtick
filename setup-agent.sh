@@ -377,7 +377,7 @@ run_validation() {
       (
         export PYTHONPATH="$CLI_ROOT:${PYTHONPATH:-}"
         python3 "$CLI_ROOT/dev_tools/schema_gen.py"
-        pnpm --filter @arii/boomtick-mcp exec tsx scripts/sync-contracts.ts
+        pnpm --filter @arii/boomtick-mcp run sync-contracts
       ) || warn "Failed to generate schemas/contracts."
     fi
     pnpm --filter @arii/boomtick-mcp run sync:mcp-schemas || true
