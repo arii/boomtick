@@ -37,7 +37,13 @@ class VectorStore:
 
     def is_available(self) -> bool:
         """Checks if ChromaDB and dependencies are available."""
-        return True
+        try:
+            import chromadb
+            # sentence_transformers is used for our SentenceTransformerEmbeddingFunction
+            import sentence_transformers
+            return True
+        except ImportError:
+            return False
 
     def add_documents(self, documents: List[str], metadatas: List[Dict[str, Any]], ids: List[str]):
         """Adds documents to the collection."""

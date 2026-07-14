@@ -226,7 +226,7 @@ install_python_deps() {
     fi
     STATUS_PYTHON="INSTALLED (td-cli)"
   else
-    pip_install --root-user-action=ignore requests google-genai python-dotenv pydantic click PyGithub
+    pip_install --root-user-action=ignore requests python-dotenv pydantic click PyGithub
     STATUS_PYTHON="INSTALLED (minimal)"
   fi
 
