@@ -155,4 +155,5 @@ yarn-error.log*
 cli/dev_tools/dist/
 cli/dev_tools/cli-schema.json
 mcp/src/tools/contract.ts
+mcp/.mcp/
 cli/.boomtick/
