@@ -18,8 +18,7 @@ runs:
         GITHUB_REF_ENV: ${{ github.ref }}
       run: |
         set -eo pipefail
-        # shellcheck disable=SC2129,SC2193
-        CURRENT_VERSION=$(node -p "require('./package.json').version")
+        CURRENT_VERSION=$(node -p "const fs = require('fs'); const file = fs.existsSync('./package.json') ? './package.json' : './mcp/package.json'; require(file).version")
         export CURRENT_VERSION
         TAG_NAME="v${CURRENT_VERSION}"
         export TAG_NAME
