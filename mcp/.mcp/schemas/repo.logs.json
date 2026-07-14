@@ -1,0 +1,27 @@
+{
+  "properties": {
+    "prNumber": {
+      "description": "The number of the pull request to stream logs for.",
+      "title": "Prnumber",
+      "type": "integer"
+    },
+    "grep": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Optional pattern to filter log lines.",
+      "title": "Grep"
+    }
+  },
+  "required": [
+    "prNumber"
+  ],
+  "title": "RepoLogsInput",
+  "type": "object"
+}

@@ -1,0 +1,14 @@
+{
+  "properties": {
+    "sessionId": {
+      "description": "The unique ID of the Jules session.",
+      "title": "Sessionid",
+      "type": "string"
+    }
+  },
+  "required": [
+    "sessionId"
+  ],
+  "title": "JulesSessionIdInput",
+  "type": "object"
+}

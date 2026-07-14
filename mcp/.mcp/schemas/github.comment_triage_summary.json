@@ -1,0 +1,20 @@
+{
+  "properties": {
+    "prNumber": {
+      "description": "The number of the original PR to comment on.",
+      "title": "Prnumber",
+      "type": "integer"
+    },
+    "body": {
+      "description": "The content of the comment.",
+      "title": "Body",
+      "type": "string"
+    }
+  },
+  "required": [
+    "prNumber",
+    "body"
+  ],
+  "title": "CommentTriageSummaryInput",
+  "type": "object"
+}

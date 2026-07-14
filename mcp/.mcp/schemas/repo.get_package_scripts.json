@@ -1,0 +1,19 @@
+{
+  "properties": {
+    "filter": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Optional glob pattern to filter script names.",
+      "title": "Filter"
+    }
+  },
+  "title": "GetPackageScriptsInput",
+  "type": "object"
+}

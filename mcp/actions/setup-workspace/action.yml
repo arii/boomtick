@@ -134,6 +134,7 @@ runs:
 
     - name: Export Environment Variables
       if: inputs.setup-python == 'true'
+      id: export-env
       env:
         CLI_DIR: ${{ steps.resolve-paths.outputs.CLI_DIR }}
       run: |
@@ -148,6 +149,19 @@ runs:
         else
           echo "PYTHONPATH=$CLI_DIR_ABS:$PYTHONPATH" >> "$GITHUB_ENV"
         fi
+        echo "cli_dir_abs=$CLI_DIR_ABS" >> "$GITHUB_OUTPUT"
 
         echo "✅ Environment configured: PYTHONPATH includes $CLI_DIR_ABS"
+      shell: bash
+
+    - name: Initialize Schemas and Contracts
+      if: inputs.setup-node == 'true' && inputs.setup-python == 'true'
+      env:
+        CLI_DIR_ABS: ${{ steps.export-env.outputs.cli_dir_abs }}
+      run: |
+        echo "::group::Initialize Schemas and Contracts"
+        export PYTHONPATH="$CLI_DIR_ABS:$PYTHONPATH"
+        python3 "$CLI_DIR_ABS/dev_tools/schema_gen.py"
+        pnpm --filter @arii/boomtick-mcp exec tsx mcp/scripts/sync-contracts.ts
+        echo "::endgroup::"
       shell: bash

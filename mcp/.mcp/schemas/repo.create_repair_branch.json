@@ -1,0 +1,33 @@
+{
+  "properties": {
+    "prNumber": {
+      "description": "The original pull request number to repair.",
+      "title": "Prnumber",
+      "type": "integer"
+    },
+    "repairBranchName": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Optional custom name for the new repair branch.",
+      "title": "Repairbranchname"
+    },
+    "writeMode": {
+      "description": "Safety gate: Must be true to perform branch creation and worktree setup.",
+      "title": "Writemode",
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "prNumber",
+    "writeMode"
+  ],
+  "title": "CreateRepairBranchInput",
+  "type": "object"
+}

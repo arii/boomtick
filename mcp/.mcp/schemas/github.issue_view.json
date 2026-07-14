@@ -1,0 +1,14 @@
+{
+  "properties": {
+    "issueNumber": {
+      "description": "The number of the issue to view.",
+      "title": "Issuenumber",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "issueNumber"
+  ],
+  "title": "IssueViewInput",
+  "type": "object"
+}

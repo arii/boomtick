@@ -1,0 +1,41 @@
+{
+  "properties": {
+    "commands": {
+      "anyOf": [
+        {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Optional list of commands to run (default includes install, lint, test, build).",
+      "title": "Commands"
+    },
+    "timeoutSeconds": {
+      "default": 300,
+      "description": "Maximum time in seconds to wait for tests (default: 300).",
+      "title": "Timeoutseconds",
+      "type": "integer"
+    },
+    "worktreePath": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Optional path to the worktree to run tests in.",
+      "title": "Worktreepath"
+    }
+  },
+  "title": "RunTestsInput",
+  "type": "object"
+}

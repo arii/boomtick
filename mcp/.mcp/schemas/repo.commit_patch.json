@@ -1,0 +1,35 @@
+{
+  "properties": {
+    "worktreePath": {
+      "description": "Path to the worktree where changes are made.",
+      "title": "Worktreepath",
+      "type": "string"
+    },
+    "message": {
+      "description": "Commit message.",
+      "title": "Message",
+      "type": "string"
+    },
+    "allowedFiles": {
+      "description": "List of files that are allowed to be committed.",
+      "items": {
+        "type": "string"
+      },
+      "title": "Allowedfiles",
+      "type": "array"
+    },
+    "writeMode": {
+      "description": "Safety gate: Must be true to perform the commit.",
+      "title": "Writemode",
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "worktreePath",
+    "message",
+    "allowedFiles",
+    "writeMode"
+  ],
+  "title": "CommitPatchInput",
+  "type": "object"
+}

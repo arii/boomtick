@@ -1,0 +1,20 @@
+{
+  "properties": {
+    "branchName": {
+      "description": "The name of the new branch",
+      "title": "Branchname",
+      "type": "string"
+    },
+    "baseBranch": {
+      "default": "main",
+      "description": "Branch to branch off from",
+      "title": "Basebranch",
+      "type": "string"
+    }
+  },
+  "required": [
+    "branchName"
+  ],
+  "title": "CreateBranchInput",
+  "type": "object"
+}

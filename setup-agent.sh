@@ -372,6 +372,14 @@ run_validation() {
   have gh && gh --version | head -n 1 || true
   if have pnpm; then
     pnpm run doctor || true
+    if have python3 && [ -f "$CLI_ROOT/dev_tools/schema_gen.py" ]; then
+      log "Generating CLI schemas and contracts..."
+      (
+        export PYTHONPATH="$CLI_ROOT:${PYTHONPATH:-}"
+        python3 "$CLI_ROOT/dev_tools/schema_gen.py"
+        pnpm --filter @arii/boomtick-mcp exec tsx scripts/sync-contracts.ts
+      ) || warn "Failed to generate schemas/contracts."
+    fi
     pnpm --filter @arii/boomtick-mcp run sync:mcp-schemas || true
   fi
 }

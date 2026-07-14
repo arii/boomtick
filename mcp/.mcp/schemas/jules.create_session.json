@@ -1,0 +1,40 @@
+{
+  "properties": {
+    "task": {
+      "description": "The instructions for Jules.",
+      "title": "Task",
+      "type": "string"
+    },
+    "branch": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "The base branch to start from (e.g., 'main').",
+      "title": "Branch"
+    },
+    "pr": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "The PR number to use as the base branch context.",
+      "title": "Pr"
+    }
+  },
+  "required": [
+    "task"
+  ],
+  "title": "CreateJulesSessionInput",
+  "type": "object"
+}

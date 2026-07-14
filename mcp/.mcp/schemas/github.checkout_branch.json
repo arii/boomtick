@@ -1,0 +1,27 @@
+{
+  "properties": {
+    "branch": {
+      "description": "The name of the branch to checkout.",
+      "title": "Branch",
+      "type": "string"
+    },
+    "worktreePath": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Optional path to the worktree to perform the checkout in.",
+      "title": "Worktreepath"
+    }
+  },
+  "required": [
+    "branch"
+  ],
+  "title": "CheckoutBranchInput",
+  "type": "object"
+}

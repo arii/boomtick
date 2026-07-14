@@ -1,0 +1,18 @@
+{
+  "properties": {
+    "base": {
+      "default": "main",
+      "description": "The base ref to compare from (default: 'main').",
+      "title": "Base",
+      "type": "string"
+    },
+    "head": {
+      "default": "HEAD",
+      "description": "The head ref to compare to (default: 'HEAD').",
+      "title": "Head",
+      "type": "string"
+    }
+  },
+  "title": "GetChangedFilesInput",
+  "type": "object"
+}
