@@ -1,12 +1,7 @@
-
-# Dependencies
 node_modules/
 .pnpm-store/
-
-# Python
 __pycache__/
 *.pyc
-
-# Local Config
 .env
-pnpm-workspace.yaml
+.DS_Store
+dist/

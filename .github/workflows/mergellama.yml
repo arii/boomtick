@@ -34,6 +34,11 @@ jobs:
           fetch-depth: 1
           ref: ${{ github.head_ref }}
 
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.28.2
+
       - name: Setup Workspace
         uses: ./mcp/actions/setup-workspace
 
@@ -55,7 +60,6 @@ jobs:
 
       - name: Validate Resolution
         run: |
-          cd mcp
           pnpm install --frozen-lockfile
           pnpm run type-check
 

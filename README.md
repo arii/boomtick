@@ -74,6 +74,17 @@ When developing Boomtick as a submodule in a parent project (e.g. `tech-dancer`)
    git submodule update --init --recursive
    ```
 
+## Development & CI Validation
+
+To ensure consistency with the CI environment, developers can run the following commands from the project root:
+
+- **Environment Check**: `pnpm run doctor`
+- **Type Checking**: `pnpm run type-check`
+- **Linting**: `pnpm run lint`
+- **Testing**: `pnpm run test`
+
+These scripts delegate to the appropriate subpackages using `pnpm --filter`.
+
 ## License
 
 This project is licensed under the Apache License 2.0 - see the [LICENSE](LICENSE) file for details.
