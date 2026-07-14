@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 
 const expectedNodeExact = "24.16.0";
 const expectedNodeMajorForVercel = "24.x";
@@ -12,7 +12,8 @@ function readTrimmed(path) {
 
 const nvmrc = readTrimmed(".nvmrc");
 const nodeVersionFile = readTrimmed(".node-version");
-const pkg = JSON.parse(readFileSync("package.json", "utf8"));
+const pkgPath = existsSync("package.json") ? "package.json" : "mcp/package.json";
+const pkg = JSON.parse(readFileSync(pkgPath, "utf8"));
 
 if (nvmrc !== expectedNodeExact) {
   errors.push(`.nvmrc must be ${expectedNodeExact}, found ${nvmrc}`);

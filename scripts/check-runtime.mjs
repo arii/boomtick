@@ -1,5 +1,5 @@
 import { execSync } from "node:child_process";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 
 const expectedNodeExact = readFileSync(".node-version", "utf8")
   .trim()
@@ -7,7 +7,8 @@ const expectedNodeExact = readFileSync(".node-version", "utf8")
 
 const actualNode = process.version.replace(/^v/, "");
 
-const pkg = JSON.parse(readFileSync("package.json", "utf8"));
+const pkgPath = existsSync("package.json") ? "package.json" : "mcp/package.json";
+const pkg = JSON.parse(readFileSync(pkgPath, "utf8"));
 
 const expectedPnpm = pkg.packageManager?.replace(/^pnpm@/, "");
 
