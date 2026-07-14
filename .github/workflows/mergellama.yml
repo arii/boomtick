@@ -49,8 +49,16 @@ jobs:
 
       - name: Validate Resolution
         run: |
-          pnpm install --frozen-lockfile
-          pnpm run type-check
+          if [ -f "package.json" ]; then
+            pnpm install --frozen-lockfile
+            if pnpm run | grep -q "type-check"; then
+              pnpm run type-check
+            fi
+          elif [ -f "mcp/package.json" ]; then
+            cd mcp
+            pnpm install --frozen-lockfile
+            pnpm run build
+          fi
 
       - name: Commit Changes
         uses: stefanzweifel/git-auto-commit-action@v7 # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag

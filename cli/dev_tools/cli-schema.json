@@ -1,0 +1,2028 @@
+{
+  "_warning": "AUTO-GENERATED: DO NOT EDIT MANUALLY. Update models.py instead.",
+  "models": {
+    "AIFileReview": {
+      "$defs": {
+        "AIReviewIssue": {
+          "properties": {
+            "id": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Unique identifier for the finding.",
+              "title": "Id"
+            },
+            "line": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Line number where the issue occurs.",
+              "title": "Line"
+            },
+            "file": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "File path (if not already scoped by AIFileReview).",
+              "title": "File"
+            },
+            "severity": {
+              "description": "The severity level.",
+              "enum": [
+                "error",
+                "warn",
+                "info"
+              ],
+              "title": "Severity",
+              "type": "string"
+            },
+            "issue": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Description of the issue (alternative to 'comment').",
+              "title": "Issue"
+            },
+            "comment": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Description of the issue.",
+              "title": "Comment"
+            },
+            "status": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": "open",
+              "description": "Status of the finding.",
+              "title": "Status"
+            },
+            "confidence": {
+              "description": "Confidence level of the AI.",
+              "enum": [
+                "high",
+                "medium",
+                "low"
+              ],
+              "title": "Confidence",
+              "type": "string"
+            },
+            "counterexample": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Example of how to fix or why it fails.",
+              "title": "Counterexample"
+            },
+            "snippet": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "The exact code snippet from the diff.",
+              "title": "Snippet"
+            }
+          },
+          "required": [
+            "severity",
+            "confidence"
+          ],
+          "title": "AIReviewIssue",
+          "type": "object"
+        }
+      },
+      "properties": {
+        "file": {
+          "description": "The path of the file being reviewed.",
+          "title": "File",
+          "type": "string"
+        },
+        "issues": {
+          "description": "List of findings in this file.",
+          "items": {
+            "$ref": "#/$defs/AIReviewIssue"
+          },
+          "title": "Issues",
+          "type": "array"
+        },
+        "verdict": {
+          "description": "The verdict for this file (ok, needs_changes, blocking).",
+          "title": "Verdict",
+          "type": "string"
+        }
+      },
+      "required": [
+        "file",
+        "verdict"
+      ],
+      "title": "AIFileReview",
+      "type": "object"
+    },
+    "AIFullReview": {
+      "$defs": {
+        "AIFileReview": {
+          "properties": {
+            "file": {
+              "description": "The path of the file being reviewed.",
+              "title": "File",
+              "type": "string"
+            },
+            "issues": {
+              "description": "List of findings in this file.",
+              "items": {
+                "$ref": "#/$defs/AIReviewIssue"
+              },
+              "title": "Issues",
+              "type": "array"
+            },
+            "verdict": {
+              "description": "The verdict for this file (ok, needs_changes, blocking).",
+              "title": "Verdict",
+              "type": "string"
+            }
+          },
+          "required": [
+            "file",
+            "verdict"
+          ],
+          "title": "AIFileReview",
+          "type": "object"
+        },
+        "AIReviewIssue": {
+          "properties": {
+            "id": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Unique identifier for the finding.",
+              "title": "Id"
+            },
+            "line": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Line number where the issue occurs.",
+              "title": "Line"
+            },
+            "file": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "File path (if not already scoped by AIFileReview).",
+              "title": "File"
+            },
+            "severity": {
+              "description": "The severity level.",
+              "enum": [
+                "error",
+                "warn",
+                "info"
+              ],
+              "title": "Severity",
+              "type": "string"
+            },
+            "issue": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Description of the issue (alternative to 'comment').",
+              "title": "Issue"
+            },
+            "comment": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Description of the issue.",
+              "title": "Comment"
+            },
+            "status": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": "open",
+              "description": "Status of the finding.",
+              "title": "Status"
+            },
+            "confidence": {
+              "description": "Confidence level of the AI.",
+              "enum": [
+                "high",
+                "medium",
+                "low"
+              ],
+              "title": "Confidence",
+              "type": "string"
+            },
+            "counterexample": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Example of how to fix or why it fails.",
+              "title": "Counterexample"
+            },
+            "snippet": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "The exact code snippet from the diff.",
+              "title": "Snippet"
+            }
+          },
+          "required": [
+            "severity",
+            "confidence"
+          ],
+          "title": "AIReviewIssue",
+          "type": "object"
+        }
+      },
+      "properties": {
+        "file_reviews": {
+          "description": "Per-file review results.",
+          "items": {
+            "$ref": "#/$defs/AIFileReview"
+          },
+          "title": "File Reviews",
+          "type": "array"
+        },
+        "reviewComment": {
+          "description": "Overall summary comment for the PR.",
+          "title": "Reviewcomment",
+          "type": "string"
+        },
+        "labels": {
+          "description": "Suggested labels for the PR.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Labels",
+          "type": "array"
+        },
+        "recommendation": {
+          "description": "Final recommendation (Approved, Not Approved, etc).",
+          "title": "Recommendation",
+          "type": "string"
+        }
+      },
+      "required": [
+        "reviewComment",
+        "recommendation"
+      ],
+      "title": "AIFullReview",
+      "type": "object"
+    },
+    "AIReviewIssue": {
+      "properties": {
+        "id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Unique identifier for the finding.",
+          "title": "Id"
+        },
+        "line": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Line number where the issue occurs.",
+          "title": "Line"
+        },
+        "file": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "File path (if not already scoped by AIFileReview).",
+          "title": "File"
+        },
+        "severity": {
+          "description": "The severity level.",
+          "enum": [
+            "error",
+            "warn",
+            "info"
+          ],
+          "title": "Severity",
+          "type": "string"
+        },
+        "issue": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Description of the issue (alternative to 'comment').",
+          "title": "Issue"
+        },
+        "comment": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Description of the issue.",
+          "title": "Comment"
+        },
+        "status": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": "open",
+          "description": "Status of the finding.",
+          "title": "Status"
+        },
+        "confidence": {
+          "description": "Confidence level of the AI.",
+          "enum": [
+            "high",
+            "medium",
+            "low"
+          ],
+          "title": "Confidence",
+          "type": "string"
+        },
+        "counterexample": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Example of how to fix or why it fails.",
+          "title": "Counterexample"
+        },
+        "snippet": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The exact code snippet from the diff.",
+          "title": "Snippet"
+        }
+      },
+      "required": [
+        "severity",
+        "confidence"
+      ],
+      "title": "AIReviewIssue",
+      "type": "object"
+    },
+    "AISynthesisReview": {
+      "properties": {
+        "reviewComment": {
+          "description": "Overall summary comment for the PR.",
+          "title": "Reviewcomment",
+          "type": "string"
+        },
+        "labels": {
+          "description": "Suggested labels for the PR.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Labels",
+          "type": "array"
+        },
+        "recommendation": {
+          "description": "Final recommendation.",
+          "title": "Recommendation",
+          "type": "string"
+        }
+      },
+      "required": [
+        "reviewComment",
+        "recommendation"
+      ],
+      "title": "AISynthesisReview",
+      "type": "object"
+    },
+    "CheckoutBranchInput": {
+      "properties": {
+        "branch": {
+          "description": "The name of the branch to checkout.",
+          "title": "Branch",
+          "type": "string"
+        },
+        "worktreePath": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Optional path to the worktree to perform the checkout in.",
+          "title": "Worktreepath"
+        }
+      },
+      "required": [
+        "branch"
+      ],
+      "title": "CheckoutBranchInput",
+      "type": "object"
+    },
+    "CommentTriageSummaryInput": {
+      "properties": {
+        "prNumber": {
+          "description": "The number of the original PR to comment on.",
+          "title": "Prnumber",
+          "type": "integer"
+        },
+        "body": {
+          "description": "The content of the comment.",
+          "title": "Body",
+          "type": "string"
+        }
+      },
+      "required": [
+        "prNumber",
+        "body"
+      ],
+      "title": "CommentTriageSummaryInput",
+      "type": "object"
+    },
+    "CommitPatchInput": {
+      "properties": {
+        "worktreePath": {
+          "description": "Path to the worktree where changes are made.",
+          "title": "Worktreepath",
+          "type": "string"
+        },
+        "message": {
+          "description": "Commit message.",
+          "title": "Message",
+          "type": "string"
+        },
+        "allowedFiles": {
+          "description": "List of files that are allowed to be committed.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Allowedfiles",
+          "type": "array"
+        },
+        "writeMode": {
+          "description": "Safety gate: Must be true to perform the commit.",
+          "title": "Writemode",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "worktreePath",
+        "message",
+        "allowedFiles",
+        "writeMode"
+      ],
+      "title": "CommitPatchInput",
+      "type": "object"
+    },
+    "CreateBranchInput": {
+      "properties": {
+        "branchName": {
+          "description": "The name of the new branch",
+          "title": "Branchname",
+          "type": "string"
+        },
+        "baseBranch": {
+          "default": "main",
+          "description": "Branch to branch off from",
+          "title": "Basebranch",
+          "type": "string"
+        }
+      },
+      "required": [
+        "branchName"
+      ],
+      "title": "CreateBranchInput",
+      "type": "object"
+    },
+    "CreateIssueInput": {
+      "properties": {
+        "title": {
+          "minLength": 1,
+          "title": "Title",
+          "type": "string"
+        },
+        "body": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Body"
+        },
+        "file": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "File"
+        }
+      },
+      "required": [
+        "title"
+      ],
+      "title": "CreateIssueInput",
+      "type": "object"
+    },
+    "CreateIssueResponse": {
+      "$defs": {
+        "IssueSummary": {
+          "properties": {
+            "number": {
+              "title": "Number",
+              "type": "integer"
+            },
+            "title": {
+              "title": "Title",
+              "type": "string"
+            },
+            "html_url": {
+              "title": "Html Url",
+              "type": "string"
+            },
+            "state": {
+              "title": "State",
+              "type": "string"
+            }
+          },
+          "required": [
+            "number",
+            "title",
+            "html_url",
+            "state"
+          ],
+          "title": "IssueSummary",
+          "type": "object"
+        }
+      },
+      "properties": {
+        "status": {
+          "default": "success",
+          "title": "Status",
+          "type": "string"
+        },
+        "message": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Message"
+        },
+        "data": {
+          "anyOf": [
+            {},
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Data"
+        },
+        "issue": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/IssueSummary"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "title": "CreateIssueResponse",
+      "type": "object"
+    },
+    "CreateJulesSessionInput": {
+      "properties": {
+        "task": {
+          "description": "The instructions for Jules.",
+          "title": "Task",
+          "type": "string"
+        },
+        "branch": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The base branch to start from (e.g., 'main').",
+          "title": "Branch"
+        },
+        "pr": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The PR number to use as the base branch context.",
+          "title": "Pr"
+        }
+      },
+      "required": [
+        "task"
+      ],
+      "title": "CreateJulesSessionInput",
+      "type": "object"
+    },
+    "CreatePullRequestInput": {
+      "properties": {
+        "title": {
+          "description": "PR Title.",
+          "title": "Title",
+          "type": "string"
+        },
+        "body": {
+          "description": "Description of changes.",
+          "title": "Body",
+          "type": "string"
+        },
+        "head": {
+          "description": "The branch containing changes to merge.",
+          "title": "Head",
+          "type": "string"
+        },
+        "base": {
+          "default": "main",
+          "description": "The target branch to merge into.",
+          "title": "Base",
+          "type": "string"
+        },
+        "draft": {
+          "default": false,
+          "description": "Whether to create the PR as a draft.",
+          "title": "Draft",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "title",
+        "body",
+        "head"
+      ],
+      "title": "CreatePullRequestInput",
+      "type": "object"
+    },
+    "CreateRepairBranchInput": {
+      "properties": {
+        "prNumber": {
+          "description": "The original pull request number to repair.",
+          "title": "Prnumber",
+          "type": "integer"
+        },
+        "repairBranchName": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Optional custom name for the new repair branch.",
+          "title": "Repairbranchname"
+        },
+        "writeMode": {
+          "description": "Safety gate: Must be true to perform branch creation and worktree setup.",
+          "title": "Writemode",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "prNumber",
+        "writeMode"
+      ],
+      "title": "CreateRepairBranchInput",
+      "type": "object"
+    },
+    "GetChangedFilesInput": {
+      "properties": {
+        "base": {
+          "default": "main",
+          "description": "The base ref to compare from (default: 'main').",
+          "title": "Base",
+          "type": "string"
+        },
+        "head": {
+          "default": "HEAD",
+          "description": "The head ref to compare to (default: 'HEAD').",
+          "title": "Head",
+          "type": "string"
+        }
+      },
+      "title": "GetChangedFilesInput",
+      "type": "object"
+    },
+    "GetCommandSchemaInput": {
+      "properties": {
+        "commandPath": {
+          "description": "The CLI command path to retrieve the schema for (e.g. 'gh audit-pr')",
+          "title": "Commandpath",
+          "type": "string"
+        }
+      },
+      "required": [
+        "commandPath"
+      ],
+      "title": "GetCommandSchemaInput",
+      "type": "object"
+    },
+    "GetMergeConflictFilesInput": {
+      "properties": {
+        "prNumber": {
+          "description": "The number of the pull request to check for conflicts.",
+          "title": "Prnumber",
+          "type": "integer"
+        },
+        "baseBranch": {
+          "default": "main",
+          "description": "The base branch to check against (default: 'main').",
+          "title": "Basebranch",
+          "type": "string"
+        }
+      },
+      "required": [
+        "prNumber"
+      ],
+      "title": "GetMergeConflictFilesInput",
+      "type": "object"
+    },
+    "GetPackageScriptsInput": {
+      "properties": {
+        "filter": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Optional glob pattern to filter script names.",
+          "title": "Filter"
+        }
+      },
+      "title": "GetPackageScriptsInput",
+      "type": "object"
+    },
+    "GetPrDiffInput": {
+      "properties": {
+        "prNumber": {
+          "description": "The number of the pull request to get the diff for.",
+          "title": "Prnumber",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "prNumber"
+      ],
+      "title": "GetPrDiffInput",
+      "type": "object"
+    },
+    "GetPrInput": {
+      "properties": {
+        "prNumber": {
+          "description": "The number of the PR to view.",
+          "title": "Prnumber",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "prNumber"
+      ],
+      "title": "GetPrInput",
+      "type": "object"
+    },
+    "GetRouteMapInput": {
+      "properties": {
+        "includeStatic": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Whether to include static assets in the route map.",
+          "title": "Includestatic"
+        }
+      },
+      "title": "GetRouteMapInput",
+      "type": "object"
+    },
+    "HealthCheckInput": {
+      "properties": {
+        "checkDeep": {
+          "default": false,
+          "description": "Whether to perform a deep health check including external dependencies.",
+          "title": "Checkdeep",
+          "type": "boolean"
+        }
+      },
+      "title": "HealthCheckInput",
+      "type": "object"
+    },
+    "IssueCommentInput": {
+      "properties": {
+        "issueNumber": {
+          "description": "The number of the issue to comment on.",
+          "title": "Issuenumber",
+          "type": "integer"
+        },
+        "body": {
+          "description": "The content of the comment.",
+          "title": "Body",
+          "type": "string"
+        }
+      },
+      "required": [
+        "issueNumber",
+        "body"
+      ],
+      "title": "IssueCommentInput",
+      "type": "object"
+    },
+    "IssueSummary": {
+      "properties": {
+        "number": {
+          "title": "Number",
+          "type": "integer"
+        },
+        "title": {
+          "title": "Title",
+          "type": "string"
+        },
+        "html_url": {
+          "title": "Html Url",
+          "type": "string"
+        },
+        "state": {
+          "title": "State",
+          "type": "string"
+        }
+      },
+      "required": [
+        "number",
+        "title",
+        "html_url",
+        "state"
+      ],
+      "title": "IssueSummary",
+      "type": "object"
+    },
+    "IssueUpdateInput": {
+      "properties": {
+        "issueNumber": {
+          "description": "The number of the issue to update.",
+          "title": "Issuenumber",
+          "type": "integer"
+        },
+        "body": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The new body content for the issue.",
+          "title": "Body"
+        },
+        "file": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Path to file containing new issue body.",
+          "title": "File"
+        },
+        "labels": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Comma-separated list of labels to set.",
+          "title": "Labels"
+        },
+        "addLabels": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Comma-separated list of labels to add.",
+          "title": "Addlabels"
+        },
+        "removeLabels": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Comma-separated list of labels to remove.",
+          "title": "Removelabels"
+        },
+        "state": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The state to set the issue to (open or closed).",
+          "title": "State"
+        }
+      },
+      "required": [
+        "issueNumber"
+      ],
+      "title": "IssueUpdateInput",
+      "type": "object"
+    },
+    "IssueUpdateResponse": {
+      "$defs": {
+        "IssueSummary": {
+          "properties": {
+            "number": {
+              "title": "Number",
+              "type": "integer"
+            },
+            "title": {
+              "title": "Title",
+              "type": "string"
+            },
+            "html_url": {
+              "title": "Html Url",
+              "type": "string"
+            },
+            "state": {
+              "title": "State",
+              "type": "string"
+            }
+          },
+          "required": [
+            "number",
+            "title",
+            "html_url",
+            "state"
+          ],
+          "title": "IssueSummary",
+          "type": "object"
+        }
+      },
+      "properties": {
+        "status": {
+          "default": "success",
+          "title": "Status",
+          "type": "string"
+        },
+        "message": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Message"
+        },
+        "data": {
+          "anyOf": [
+            {},
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Data"
+        },
+        "issue": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/IssueSummary"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "title": "IssueUpdateResponse",
+      "type": "object"
+    },
+    "IssueViewInput": {
+      "properties": {
+        "issueNumber": {
+          "description": "The number of the issue to view.",
+          "title": "Issuenumber",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "issueNumber"
+      ],
+      "title": "IssueViewInput",
+      "type": "object"
+    },
+    "JulesListSessionsInput": {
+      "properties": {
+        "pageSize": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Maximum number of sessions to return.",
+          "title": "Pagesize"
+        },
+        "pageToken": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Token for pagination.",
+          "title": "Pagetoken"
+        }
+      },
+      "title": "JulesListSessionsInput",
+      "type": "object"
+    },
+    "JulesSendMessageInput": {
+      "properties": {
+        "sessionId": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
+          ],
+          "description": "The unique ID or IDs of the Jules session(s).",
+          "title": "Sessionid"
+        },
+        "message": {
+          "description": "The message content to send.",
+          "minLength": 1,
+          "title": "Message",
+          "type": "string"
+        }
+      },
+      "required": [
+        "sessionId",
+        "message"
+      ],
+      "title": "JulesSendMessageInput",
+      "type": "object"
+    },
+    "JulesSessionIdInput": {
+      "properties": {
+        "sessionId": {
+          "description": "The unique ID of the Jules session.",
+          "title": "Sessionid",
+          "type": "string"
+        }
+      },
+      "required": [
+        "sessionId"
+      ],
+      "title": "JulesSessionIdInput",
+      "type": "object"
+    },
+    "OpenReplacementPrInput": {
+      "properties": {
+        "originalPrNumber": {
+          "description": "The number of the pull request being replaced.",
+          "title": "Originalprnumber",
+          "type": "integer"
+        },
+        "repairBranch": {
+          "description": "The branch containing the fixes.",
+          "title": "Repairbranch",
+          "type": "string"
+        },
+        "baseBranch": {
+          "description": "The branch to merge the fixes into.",
+          "title": "Basebranch",
+          "type": "string"
+        },
+        "title": {
+          "description": "The title of the new PR.",
+          "title": "Title",
+          "type": "string"
+        },
+        "body": {
+          "description": "The body/description of the new PR.",
+          "title": "Body",
+          "type": "string"
+        },
+        "draft": {
+          "default": true,
+          "description": "Whether to create the PR as a draft (default: true).",
+          "title": "Draft",
+          "type": "boolean"
+        },
+        "worktreePath": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Optional path to the worktree where the PR is created from.",
+          "title": "Worktreepath"
+        },
+        "pushMode": {
+          "description": "Safety gate: Must be true to push the branch and open the PR.",
+          "title": "Pushmode",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "originalPrNumber",
+        "repairBranch",
+        "baseBranch",
+        "title",
+        "body",
+        "pushMode"
+      ],
+      "title": "OpenReplacementPrInput",
+      "type": "object"
+    },
+    "PRComment": {
+      "properties": {
+        "user": {
+          "title": "User",
+          "type": "string"
+        },
+        "body": {
+          "title": "Body",
+          "type": "string"
+        },
+        "created_at": {
+          "title": "Created At",
+          "type": "string"
+        }
+      },
+      "required": [
+        "user",
+        "body",
+        "created_at"
+      ],
+      "title": "PRComment",
+      "type": "object"
+    },
+    "PRSummary": {
+      "properties": {
+        "number": {
+          "title": "Number",
+          "type": "integer"
+        },
+        "title": {
+          "title": "Title",
+          "type": "string"
+        },
+        "author": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "title": "Author",
+          "type": "object"
+        },
+        "headRefName": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Headrefname"
+        },
+        "baseRefName": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Baserefname"
+        },
+        "isDraft": {
+          "default": false,
+          "title": "Isdraft",
+          "type": "boolean"
+        },
+        "mergeStateStatus": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Mergestatestatus"
+        },
+        "updatedAt": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Updatedat"
+        },
+        "url": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Url"
+        }
+      },
+      "required": [
+        "number",
+        "title"
+      ],
+      "title": "PRSummary",
+      "type": "object"
+    },
+    "ReadAgentContextInput": {
+      "properties": {},
+      "title": "ReadAgentContextInput",
+      "type": "object"
+    },
+    "ReadCiLogsInput": {
+      "properties": {
+        "prNumber": {
+          "description": "The number of the pull request to read logs for.",
+          "title": "Prnumber",
+          "type": "integer"
+        },
+        "all": {
+          "default": false,
+          "description": "Include logs for successful runs (default: false).",
+          "title": "All",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "prNumber"
+      ],
+      "title": "ReadCiLogsInput",
+      "type": "object"
+    },
+    "ReadPRCommentsInput": {
+      "properties": {
+        "prNumber": {
+          "description": "The PR number to fetch comments for.",
+          "exclusiveMinimum": 0,
+          "title": "Prnumber",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "prNumber"
+      ],
+      "title": "ReadPRCommentsInput",
+      "type": "object"
+    },
+    "ReadPRCommentsResponse": {
+      "$defs": {
+        "IssueSummary": {
+          "properties": {
+            "number": {
+              "title": "Number",
+              "type": "integer"
+            },
+            "title": {
+              "title": "Title",
+              "type": "string"
+            },
+            "html_url": {
+              "title": "Html Url",
+              "type": "string"
+            },
+            "state": {
+              "title": "State",
+              "type": "string"
+            }
+          },
+          "required": [
+            "number",
+            "title",
+            "html_url",
+            "state"
+          ],
+          "title": "IssueSummary",
+          "type": "object"
+        },
+        "PRComment": {
+          "properties": {
+            "user": {
+              "title": "User",
+              "type": "string"
+            },
+            "body": {
+              "title": "Body",
+              "type": "string"
+            },
+            "created_at": {
+              "title": "Created At",
+              "type": "string"
+            }
+          },
+          "required": [
+            "user",
+            "body",
+            "created_at"
+          ],
+          "title": "PRComment",
+          "type": "object"
+        },
+        "ReviewComment": {
+          "properties": {
+            "user": {
+              "title": "User",
+              "type": "string"
+            },
+            "path": {
+              "title": "Path",
+              "type": "string"
+            },
+            "line": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Line"
+            },
+            "body": {
+              "title": "Body",
+              "type": "string"
+            },
+            "created_at": {
+              "title": "Created At",
+              "type": "string"
+            }
+          },
+          "required": [
+            "user",
+            "path",
+            "body",
+            "created_at"
+          ],
+          "title": "ReviewComment",
+          "type": "object"
+        }
+      },
+      "properties": {
+        "status": {
+          "default": "success",
+          "title": "Status",
+          "type": "string"
+        },
+        "message": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Message"
+        },
+        "data": {
+          "anyOf": [
+            {},
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Data"
+        },
+        "pr": {
+          "$ref": "#/$defs/IssueSummary"
+        },
+        "comments": {
+          "items": {
+            "$ref": "#/$defs/PRComment"
+          },
+          "title": "Comments",
+          "type": "array"
+        },
+        "review_comments": {
+          "items": {
+            "$ref": "#/$defs/ReviewComment"
+          },
+          "title": "Review Comments",
+          "type": "array"
+        }
+      },
+      "required": [
+        "pr"
+      ],
+      "title": "ReadPRCommentsResponse",
+      "type": "object"
+    },
+    "RepoLogsInput": {
+      "properties": {
+        "prNumber": {
+          "description": "The number of the pull request to stream logs for.",
+          "title": "Prnumber",
+          "type": "integer"
+        },
+        "grep": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Optional pattern to filter log lines.",
+          "title": "Grep"
+        }
+      },
+      "required": [
+        "prNumber"
+      ],
+      "title": "RepoLogsInput",
+      "type": "object"
+    },
+    "ReviewComment": {
+      "properties": {
+        "user": {
+          "title": "User",
+          "type": "string"
+        },
+        "path": {
+          "title": "Path",
+          "type": "string"
+        },
+        "line": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Line"
+        },
+        "body": {
+          "title": "Body",
+          "type": "string"
+        },
+        "created_at": {
+          "title": "Created At",
+          "type": "string"
+        }
+      },
+      "required": [
+        "user",
+        "path",
+        "body",
+        "created_at"
+      ],
+      "title": "ReviewComment",
+      "type": "object"
+    },
+    "RunLighthouseInput": {
+      "properties": {
+        "route": {
+          "default": "/",
+          "description": "The route to audit (default: '/').",
+          "title": "Route",
+          "type": "string"
+        },
+        "worktreePath": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Optional path to the worktree to run the audit in.",
+          "title": "Worktreepath"
+        }
+      },
+      "title": "RunLighthouseInput",
+      "type": "object"
+    },
+    "RunPlaywrightInput": {
+      "properties": {
+        "grep": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Optional pattern to filter tests by name.",
+          "title": "Grep"
+        },
+        "worktreePath": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Optional path to the worktree to run tests in.",
+          "title": "Worktreepath"
+        }
+      },
+      "title": "RunPlaywrightInput",
+      "type": "object"
+    },
+    "RunTestsInput": {
+      "properties": {
+        "commands": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Optional list of commands to run (default includes install, lint, test, build).",
+          "title": "Commands"
+        },
+        "timeoutSeconds": {
+          "default": 300,
+          "description": "Maximum time in seconds to wait for tests (default: 300).",
+          "title": "Timeoutseconds",
+          "type": "integer"
+        },
+        "worktreePath": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Optional path to the worktree to run tests in.",
+          "title": "Worktreepath"
+        }
+      },
+      "title": "RunTestsInput",
+      "type": "object"
+    },
+    "SearchDdgsInput": {
+      "properties": {
+        "query": {
+          "description": "The search query.",
+          "title": "Query",
+          "type": "string"
+        },
+        "maxResults": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Maximum number of results to return.",
+          "title": "Maxresults"
+        }
+      },
+      "required": [
+        "query"
+      ],
+      "title": "SearchDdgsInput",
+      "type": "object"
+    },
+    "SearchPRsInput": {
+      "properties": {
+        "state": {
+          "default": "open",
+          "description": "The state of the PRs to search for (open, closed, all).",
+          "title": "State",
+          "type": "string"
+        },
+        "limit": {
+          "default": 100,
+          "description": "The maximum number of PRs to return (default: 100, range: 1-100).",
+          "title": "Limit",
+          "type": "integer"
+        },
+        "includeDrafts": {
+          "default": true,
+          "description": "Whether to include draft PRs in the results.",
+          "title": "Includedrafts",
+          "type": "boolean"
+        },
+        "labels": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Filter PRs by labels.",
+          "title": "Labels"
+        }
+      },
+      "title": "SearchPRsInput",
+      "type": "object"
+    },
+    "SearchPRsResponse": {
+      "$defs": {
+        "PRSummary": {
+          "properties": {
+            "number": {
+              "title": "Number",
+              "type": "integer"
+            },
+            "title": {
+              "title": "Title",
+              "type": "string"
+            },
+            "author": {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "title": "Author",
+              "type": "object"
+            },
+            "headRefName": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Headrefname"
+            },
+            "baseRefName": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Baserefname"
+            },
+            "isDraft": {
+              "default": false,
+              "title": "Isdraft",
+              "type": "boolean"
+            },
+            "mergeStateStatus": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Mergestatestatus"
+            },
+            "updatedAt": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Updatedat"
+            },
+            "url": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Url"
+            }
+          },
+          "required": [
+            "number",
+            "title"
+          ],
+          "title": "PRSummary",
+          "type": "object"
+        }
+      },
+      "properties": {
+        "status": {
+          "default": "success",
+          "title": "Status",
+          "type": "string"
+        },
+        "message": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Message"
+        },
+        "data": {
+          "anyOf": [
+            {},
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Data"
+        },
+        "prs": {
+          "items": {
+            "$ref": "#/$defs/PRSummary"
+          },
+          "title": "Prs",
+          "type": "array"
+        }
+      },
+      "title": "SearchPRsResponse",
+      "type": "object"
+    }
+  }
+}
