@@ -1,0 +1,101 @@
+{
+  "properties": {
+    "issueNumber": {
+      "description": "The number of the issue to update.",
+      "title": "Issuenumber",
+      "type": "integer"
+    },
+    "body": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "The new body content for the issue.",
+      "title": "Body"
+    },
+    "file": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Path to file containing new issue body.",
+      "title": "File"
+    },
+    "labels": {
+      "anyOf": [
+        {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Comma-separated list of labels to set.",
+      "title": "Labels"
+    },
+    "addLabels": {
+      "anyOf": [
+        {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Comma-separated list of labels to add.",
+      "title": "Addlabels"
+    },
+    "removeLabels": {
+      "anyOf": [
+        {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Comma-separated list of labels to remove.",
+      "title": "Removelabels"
+    },
+    "state": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "The state to set the issue to (open or closed).",
+      "title": "State"
+    }
+  },
+  "required": [
+    "issueNumber"
+  ],
+  "title": "IssueUpdateInput",
+  "type": "object"
+}

@@ -1,0 +1,14 @@
+{
+  "properties": {
+    "prNumber": {
+      "description": "The number of the PR to view.",
+      "title": "Prnumber",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "prNumber"
+  ],
+  "title": "GetPrInput",
+  "type": "object"
+}

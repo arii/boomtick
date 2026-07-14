@@ -1,0 +1,32 @@
+{
+  "properties": {
+    "pageSize": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Maximum number of sessions to return.",
+      "title": "Pagesize"
+    },
+    "pageToken": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Token for pagination.",
+      "title": "Pagetoken"
+    }
+  },
+  "title": "JulesListSessionsInput",
+  "type": "object"
+}

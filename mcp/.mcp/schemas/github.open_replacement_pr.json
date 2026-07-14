@@ -1,0 +1,63 @@
+{
+  "properties": {
+    "originalPrNumber": {
+      "description": "The number of the pull request being replaced.",
+      "title": "Originalprnumber",
+      "type": "integer"
+    },
+    "repairBranch": {
+      "description": "The branch containing the fixes.",
+      "title": "Repairbranch",
+      "type": "string"
+    },
+    "baseBranch": {
+      "description": "The branch to merge the fixes into.",
+      "title": "Basebranch",
+      "type": "string"
+    },
+    "title": {
+      "description": "The title of the new PR.",
+      "title": "Title",
+      "type": "string"
+    },
+    "body": {
+      "description": "The body/description of the new PR.",
+      "title": "Body",
+      "type": "string"
+    },
+    "draft": {
+      "default": true,
+      "description": "Whether to create the PR as a draft (default: true).",
+      "title": "Draft",
+      "type": "boolean"
+    },
+    "worktreePath": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Optional path to the worktree where the PR is created from.",
+      "title": "Worktreepath"
+    },
+    "pushMode": {
+      "description": "Safety gate: Must be true to push the branch and open the PR.",
+      "title": "Pushmode",
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "originalPrNumber",
+    "repairBranch",
+    "baseBranch",
+    "title",
+    "body",
+    "pushMode"
+  ],
+  "title": "OpenReplacementPrInput",
+  "type": "object"
+}

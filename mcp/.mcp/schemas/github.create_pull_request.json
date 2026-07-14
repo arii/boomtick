@@ -1,0 +1,38 @@
+{
+  "properties": {
+    "title": {
+      "description": "PR Title.",
+      "title": "Title",
+      "type": "string"
+    },
+    "body": {
+      "description": "Description of changes.",
+      "title": "Body",
+      "type": "string"
+    },
+    "head": {
+      "description": "The branch containing changes to merge.",
+      "title": "Head",
+      "type": "string"
+    },
+    "base": {
+      "default": "main",
+      "description": "The target branch to merge into.",
+      "title": "Base",
+      "type": "string"
+    },
+    "draft": {
+      "default": false,
+      "description": "Whether to create the PR as a draft.",
+      "title": "Draft",
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "title",
+    "body",
+    "head"
+  ],
+  "title": "CreatePullRequestInput",
+  "type": "object"
+}

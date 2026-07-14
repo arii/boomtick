@@ -1,0 +1,31 @@
+{
+  "properties": {
+    "sessionId": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      ],
+      "description": "The unique ID or IDs of the Jules session(s).",
+      "title": "Sessionid"
+    },
+    "message": {
+      "description": "The message content to send.",
+      "minLength": 1,
+      "title": "Message",
+      "type": "string"
+    }
+  },
+  "required": [
+    "sessionId",
+    "message"
+  ],
+  "title": "JulesSendMessageInput",
+  "type": "object"
+}

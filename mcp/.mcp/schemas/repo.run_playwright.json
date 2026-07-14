@@ -1,0 +1,32 @@
+{
+  "properties": {
+    "grep": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Optional pattern to filter tests by name.",
+      "title": "Grep"
+    },
+    "worktreePath": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Optional path to the worktree to run tests in.",
+      "title": "Worktreepath"
+    }
+  },
+  "title": "RunPlaywrightInput",
+  "type": "object"
+}

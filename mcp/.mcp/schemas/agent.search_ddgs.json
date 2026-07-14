@@ -1,0 +1,27 @@
+{
+  "properties": {
+    "query": {
+      "description": "The search query.",
+      "title": "Query",
+      "type": "string"
+    },
+    "maxResults": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Maximum number of results to return.",
+      "title": "Maxresults"
+    }
+  },
+  "required": [
+    "query"
+  ],
+  "title": "SearchDdgsInput",
+  "type": "object"
+}
