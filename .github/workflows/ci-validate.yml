@@ -23,13 +23,13 @@ jobs:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
+
+      - name: Bootstrap Agent Workspace
+        run: ./setup-agent.sh
 
       - name: Validate Environment Parity
         run: |
           node --version
           pnpm --version
           python3 --version
-
-      - name: Bootstrap Agent Workspace
-        run: ./setup-agent.sh
