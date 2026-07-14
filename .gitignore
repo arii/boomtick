@@ -153,3 +153,6 @@ yarn-error.log*
 
 # Project specific
 cli/dev_tools/dist/
+cli/dev_tools/cli-schema.json
+mcp/src/tools/contract.ts
+cli/.boomtick/
