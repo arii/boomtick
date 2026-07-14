@@ -20,23 +20,23 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: '22'
 
       - name: Setup Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: '3.11'
           cache: 'pip'
 
       - name: Install pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@v6
         with:
-          version: 10.28.2
+          version: 10.30.3
 
       - name: Install dependencies
         run: |
@@ -75,7 +75,7 @@ jobs:
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           packages-dir: cli/dist/
-          # password: ${{ secrets.PYPI_API_TOKEN }} # Use Trusted Publishing if possible, or secrets
+          password: ${{ secrets.PYPI_API_TOKEN }}
 
       - name: Create GitHub Release
         if: github.event_name == 'push'

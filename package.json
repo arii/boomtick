@@ -1,0 +1,9 @@
+{
+  "name": "boomtick-root",
+  "private": true,
+  "scripts": {
+    "type-check": "pnpm --filter @arii/boomtick-mcp exec tsc",
+    "lint": "pnpm --filter @arii/boomtick-mcp exec eslint .",
+    "test": "pnpm --filter @arii/boomtick-mcp test"
+  }
+}
