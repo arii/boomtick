@@ -1,8 +1,6 @@
 name: Dependabot Alert Handler
 
 on:
-  dependabot_alert:
-    types: [create, reopen]
   workflow_dispatch:
     inputs:
       package_name:
