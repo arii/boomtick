@@ -372,7 +372,7 @@ run_validation() {
   have gh && gh --version | head -n 1 || true
   if have pnpm; then
     pnpm run doctor || true
-    pnpm --filter @boomtick/mcp run sync:mcp-schemas || true
+    pnpm --filter @arii/boomtick-mcp run sync:mcp-schemas || true
   fi
 }
 
