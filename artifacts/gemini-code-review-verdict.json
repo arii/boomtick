@@ -1,0 +1,7 @@
+{
+  "passed": true,
+  "highCount": 0,
+  "routes": [],
+  "llmVerdict": "warn",
+  "skipReason": "MISSING_API_KEY"
+}
