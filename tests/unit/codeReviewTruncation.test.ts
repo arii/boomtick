@@ -29,7 +29,7 @@ describe('getCodeDiffSummary truncation', () => {
   });
 
   it('truncates large diffs and appends stat summary', async () => {
-    const largeDiff = 'a'.repeat(50000);
+    const largeDiff = 'a'.repeat(300000);
     const mockStat = ' file1.ts | 1 +';
 
     mockExecFile.mockImplementation((cmd: string, args: string[]) => {

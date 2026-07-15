@@ -597,6 +597,7 @@ export async function orchestrateCodeReview(
             result = {
               ...result,
               llmVerdict: 'warn',
+              skipReason: result.truncated ? 'TRUNCATED' : 'PARSE_ERROR',
               feedback: `${result.feedback}\n\n---\n⚠️ **Review incomplete:** the model's response ${reason}. This review could not verify all findings and should not be treated as a clean pass. Consider re-running.`,
             };
           }
@@ -609,13 +610,15 @@ export async function orchestrateCodeReview(
           const errorMsg = err instanceof Error ? err.message : String(err);
           console.error(`❌ Error in ${role} review task:`, err);
           const isRateLimit = errorMsg.includes('429') || errorMsg.toLowerCase().includes('rate limit');
+          const isAuthError = errorMsg.includes('401') || errorMsg.toLowerCase().includes('unauthorized') || errorMsg.includes('API_KEY_INVALID');
+
           allResults.push({
             feedback: `Error: failed to execute ${role} review. Details: ${errorMsg}`,
             role,
             tokens: 0,
             cost: 0,
             llmVerdict: 'warn',
-            skipReason: isRateLimit ? 'RATE_LIMIT' : 'UNHANDLED_ERROR',
+            skipReason: isRateLimit ? 'RATE_LIMIT' : (isAuthError ? 'MISSING_API_KEY' : 'UNHANDLED_ERROR'),
           });
         }
       });
@@ -738,11 +741,12 @@ export async function orchestrateCodeReview(
     await sendJulesMessage(julesSessionId, julesMessage);
   }
 
+  const openHighFindings = finalResult.state?.findings?.filter(f => f.status === 'open' && (f.severity === 'HIGH' || f.severity === 'error')) || [];
   const isFail = finalResult.llmVerdict === 'fail';
   const verdictPath = path.join(ARTIFACTS_DIR, `${client.reportFileName.replace('.md', '')}-verdict.json`);
   fs.writeFileSync(verdictPath, JSON.stringify({
     passed: !isFail,
-    highCount: isFail ? 1 : 0,
+    highCount: openHighFindings.length || (isFail ? 1 : 0),
     routes: [],
     llmVerdict: finalResult.llmVerdict,
     isTruncated: isTruncated,

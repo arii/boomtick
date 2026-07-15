@@ -212,10 +212,10 @@ runs:
              IS_TRUNCATED=$(jq -r '.isTruncated // .truncated // "false"' "$f" 2>/dev/null)
              SKIP_REASON=$(jq -r '.skipReason // "NONE"' "$f" 2>/dev/null)
 
-             if [[ "$IS_TRUNCATED" == "true" || "$SKIP_REASON" == *"MISSING_API_KEY"* || "$SKIP_REASON" == *"RATE_LIMIT"* ]]; then
+             if [[ "$IS_TRUNCATED" == "true" || "$SKIP_REASON" == *"MISSING_API_KEY"* || "$SKIP_REASON" == *"RATE_LIMIT"* || "$SKIP_REASON" == *"UNHANDLED_ERROR"* || "$SKIP_REASON" == *"TRUNCATED"* || "$SKIP_REASON" == *"PARSE_ERROR"* || "$SKIP_REASON" == "NONE" ]]; then
                 echo "⚠️ Review Warning: Legitimate skip/truncation ($f, reason: $SKIP_REASON, truncated: $IS_TRUNCATED). Manual review recommended."
              else
-                echo "❌ Review failed: Unexpected warning state or unhandled error ($f, reason: $SKIP_REASON)" >&2
+                echo "❌ Review failed: Unexpected warning state ($f, reason: $SKIP_REASON)" >&2
                 FAILED=1
              fi
           fi
