@@ -42,6 +42,7 @@ SKIP_GH_INSTALL="${SKIP_GH_INSTALL:-0}"
 SKIP_NODE_INSTALL="${SKIP_NODE_INSTALL:-0}"
 SKIP_VALIDATION="${SKIP_VALIDATION:-0}"
 SKIP_REMOTE_CONFIG="${SKIP_REMOTE_CONFIG:-0}"
+INSTALL_AI_DEPS="${INSTALL_AI_DEPS:-0}"
 
 export CI="${CI:-1}"
 export DEBIAN_FRONTEND="${DEBIAN_FRONTEND:-noninteractive}"
@@ -203,6 +204,10 @@ ensure_corepack_pnpm() {
 }
 
 install_python_deps() {
+  if [ "$SKIP_PYTHON_DEPS" = "1" ]; then
+    STATUS_PYTHON="SKIPPED (SKIP_PYTHON_DEPS=1)"
+    return 0
+  fi
   log "Installing Python dependencies..."
   have python3 || err "python3 is required."
 
@@ -219,7 +224,9 @@ install_python_deps() {
 
   if [ -f "cli/pyproject.toml" ]; then
     log "Performing editable install of cli package..."
-    pip_install --root-user-action=ignore -e cli/
+    local pkg_spec="cli/"
+    [ "$INSTALL_AI_DEPS" = "1" ] && pkg_spec="cli/[ai]"
+    pip_install --root-user-action=ignore -e "$pkg_spec"
     export PATH="$HOME/.local/bin:$PATH"
     if ! have td-cli && ! have td; then
       warn "td/td-cli not found on PATH after editable install. Path: $PATH"
@@ -227,7 +234,14 @@ install_python_deps() {
     STATUS_PYTHON="INSTALLED (td-cli)"
   else
     pip_install --root-user-action=ignore requests python-dotenv pydantic click PyGithub
+    if [ "$INSTALL_AI_DEPS" = "1" ] && [ -f "cli/requirements-ai.txt" ]; then
+      pip_install --root-user-action=ignore -r cli/requirements-ai.txt
+    fi
     STATUS_PYTHON="INSTALLED (minimal)"
+  fi
+
+  if [ "$INSTALL_AI_DEPS" = "1" ]; then
+    STATUS_PYTHON="${STATUS_PYTHON} + AI"
   fi
 
   if [ -f "cli/requirements-dev.txt" ]; then
@@ -385,6 +399,19 @@ run_validation() {
 }
 
 main() {
+  # Argument parsing
+  for arg in "$@"; do
+    case $arg in
+      --ai)
+        INSTALL_AI_DEPS=1
+        shift
+        ;;
+      *)
+        # Unknown option
+        ;;
+    esac
+  done
+
   echo "=== BoomTick Agent Environment Setup ==="
   echo "Repository: ${REPO_ROOT}"
 
@@ -399,13 +426,13 @@ main() {
   ensure_corepack_pnpm
   install_node_deps
   install_playwright
-  STATUS_NODE="INSTALLED"
+  [ "$STATUS_NODE" = "PENDING" ] && STATUS_NODE="INSTALLED"
 
   install_python_deps
-  STATUS_PYTHON="INSTALLED"
+  [ "$STATUS_PYTHON" = "PENDING" ] && STATUS_PYTHON="INSTALLED"
 
   configure_remote_origin
-  STATUS_GIT="INSTALLED"
+  [ "$STATUS_GIT" = "PENDING" ] && STATUS_GIT="INSTALLED"
 
   persist_environment
   run_validation
