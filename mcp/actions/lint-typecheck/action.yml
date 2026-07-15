@@ -10,10 +10,10 @@ inputs:
 runs:
   using: composite
   steps:
-    - uses: ../setup
+    - uses: ./../setup
 
     - name: Run Project Gate
-      uses: ../run-project-gate
+      uses: ./../run-project-gate
       with:
         target: ${{ inputs.target }}
         github_token: ${{ inputs.github_token }}
