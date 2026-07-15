@@ -1,0 +1,7 @@
+google-genai
+chromadb>=1.5.9
+sentence-transformers>=5.6.0
+langchain-google-genai
+langchain-openai
+google-generativeai
+langchain-core
