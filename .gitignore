@@ -8,6 +8,13 @@ __pycache__/
 
 # Distribution / packaging
 .Python
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
 build/
 develop-eggs/
 dist/
@@ -146,6 +153,14 @@ dmypy.json
 cython_debug/
 
 # Node.js
+*.egg-info/
+.installed.cfg
+*.egg
+.venv/
+venv/
+ENV/
+
+# Jest/Cypress/Node/Playwright
 node_modules/
 npm-debug.log*
 yarn-debug.log*
@@ -157,3 +172,24 @@ cli/dev_tools/cli-schema.json
 mcp/src/tools/contract.ts
 mcp/.mcp/
 cli/.boomtick/
+.pnpm-debug.log*
+.nyc_output
+.playwright/
+playwright-report/
+test-results/
+
+# Editor/OS
+.DS_Store
+.idea/
+.vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.swp
+
+# Project local
+.env
+.env.local
+.boomtick/
+logs/
