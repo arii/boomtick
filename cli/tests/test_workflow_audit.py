@@ -14,8 +14,8 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version-file: '.node-version'
       - run: pnpm install
@@ -24,10 +24,11 @@ jobs:
     orch = Orchestrator()
     # Mock stack versions for the test to prevent it picking up repo state
     import dev_tools.utils
+    import dev_tools.orchestrator
 
     original_get = dev_tools.utils.get_stack_versions
     def mock_get(*args, **kwargs):
-        return {"actions/checkout": "v4", "actions/setup-node": "v4"}
+        return {"actions/checkout": "v7", "actions/setup-node": "v7"}
 
     dev_tools.utils.get_stack_versions = mock_get
     dev_tools.orchestrator.get_stack_versions = mock_get
@@ -58,9 +59,10 @@ jobs:
 """)
     orch = Orchestrator()
     import dev_tools.utils
+    import dev_tools.orchestrator
     original_get = dev_tools.utils.get_stack_versions
     def mock_get(*args, **kwargs):
-        return {"actions/checkout": "v4", "actions/setup-node": "v4"}
+        return {"actions/checkout": "v7", "actions/setup-node": "v7"}
 
     dev_tools.utils.get_stack_versions = mock_get
     dev_tools.orchestrator.get_stack_versions = mock_get
