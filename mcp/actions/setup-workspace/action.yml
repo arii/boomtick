@@ -66,17 +66,23 @@ runs:
       shell: bash
       run: |
         # Use centralized script for CLI path resolution
-        # We assume the script is at the expected location or fallback to manual check
+        # Search priority: 1. Local scripts, 2. Submodule scripts, 3. Action-bundled scripts
         if [ -f "scripts/resolve-cli.sh" ]; then
           CLI_DIR=$(bash scripts/resolve-cli.sh | sed "s|$(pwd)/||")
         elif [ -f "boomtick-pkg/scripts/resolve-cli.sh" ]; then
           CLI_DIR=$(bash boomtick-pkg/scripts/resolve-cli.sh | sed "s|$(pwd)/||")
         elif [ -f "${{ github.action_path }}/../../../scripts/resolve-cli.sh" ]; then
+          # Resolve using the script bundled with the action
           CLI_DIR=$(bash "${{ github.action_path }}/../../../scripts/resolve-cli.sh" | sed "s|$(pwd)/||")
         elif [ -d "cli" ]; then
           CLI_DIR="cli"
         elif [ -d "boomtick-pkg/cli" ]; then
           CLI_DIR="boomtick-pkg/cli"
+        elif [ -d "${{ github.action_path }}/../../../cli" ]; then
+          # Fallback to the CLI directory bundled with the action
+          CLI_DIR="${{ github.action_path }}/../../../cli"
+          # Convert to relative path if possible, or keep absolute if it's outside workspace
+          CLI_DIR=$(realpath --relative-to="$(pwd)" "$CLI_DIR" 2>/dev/null || echo "$CLI_DIR")
         else
           CLI_DIR="cli"
         fi
@@ -111,6 +117,12 @@ runs:
         if [ -f "requirements-dev.txt" ]; then
           pip install -r requirements-dev.txt --break-system-packages
         fi
+        if [ -f "$CLI_DIR/requirements-dev.txt" ]; then
+          pip install -r "$CLI_DIR/requirements-dev.txt" --break-system-packages
+        fi
+        if [ -f "$CLI_DIR/requirements-ai.txt" ]; then
+          pip install -r "$CLI_DIR/requirements-ai.txt" --break-system-packages
+        fi
         pip install -e "$CLI_DIR" --break-system-packages
 
         echo "::endgroup::"
@@ -124,7 +136,13 @@ runs:
       run: |
         # Use $(pwd) to get the container-internal path, avoiding host-path leakage from $GITHUB_WORKSPACE
         REPO_DIR=$(pwd)
-        CLI_DIR_ABS="$REPO_DIR/$CLI_DIR"
+
+        # Handle both relative and absolute CLI_DIR paths
+        if [[ "$CLI_DIR" = /* ]]; then
+          CLI_DIR_ABS="$CLI_DIR"
+        else
+          CLI_DIR_ABS="$REPO_DIR/$CLI_DIR"
+        fi
 
         # 1. Update PYTHONPATH for subsequent steps
         # Ensure it works even if PYTHONPATH is initially empty
@@ -147,11 +165,14 @@ runs:
         export PYTHONPATH="$CLI_DIR_ABS:$PYTHONPATH"
         python3 "$CLI_DIR_ABS/dev_tools/schema_gen.py"
 
-        # Determine the MCP directory (standalone vs submodule)
+        # Determine the MCP directory (standalone, submodule, or action-bundled)
         if [ -d "mcp" ]; then
           MCP_DIR="mcp"
         elif [ -d "boomtick-pkg/mcp" ]; then
           MCP_DIR="boomtick-pkg/mcp"
+        elif [ -d "${{ github.action_path }}/../../" ]; then
+          MCP_DIR="${{ github.action_path }}/../../"
+          MCP_DIR=$(realpath --relative-to="$(pwd)" "$MCP_DIR" 2>/dev/null || echo "$MCP_DIR")
         else
           MCP_DIR="."
         fi

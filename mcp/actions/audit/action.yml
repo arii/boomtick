@@ -7,7 +7,7 @@ inputs:
 runs:
   using: composite
   steps:
-    - uses: ./mcp/actions/setup
+    - uses: ../setup
 
     - name: Install dependencies
       run: pnpm install --frozen-lockfile --prefer-offline
@@ -20,7 +20,18 @@ runs:
         echo "::group::Audit"
         trap 'echo "::endgroup::"' EXIT
         export PATH="$HOME/.local/bin:/github/home/.local/bin:$PATH"
-        if ! node scripts/detect-antipatterns.mjs; then echo "Audit failed"; exit 1; fi
+
+        # Search for audit script: 1. Local, 2. Action-bundled
+        if [ -f "scripts/detect-antipatterns.mjs" ]; then
+          AUDIT_SCRIPT="scripts/detect-antipatterns.mjs"
+        elif [ -f "${{ github.action_path }}/../../../scripts/detect-antipatterns.mjs" ]; then
+          AUDIT_SCRIPT="${{ github.action_path }}/../../../scripts/detect-antipatterns.mjs"
+        else
+          echo "::error::Audit script not found"
+          exit 1
+        fi
+
+        if ! node "$AUDIT_SCRIPT"; then echo "Audit failed"; exit 1; fi
         python3 -m dev_tools.cli gh audit-gate
       shell: bash
 

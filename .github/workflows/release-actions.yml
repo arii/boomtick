@@ -1,0 +1,49 @@
+name: Release Composite Actions
+
+on:
+  push:
+    tags:
+      - 'actions-v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Extract version info
+        id: version
+        shell: bash
+        run: |
+          TAG_NAME=${GITHUB_REF#refs/tags/}
+          echo "tag_name=$TAG_NAME" >> "$GITHUB_OUTPUT"
+          # Extract major version (e.g., actions-v1 from actions-v1.2.3 or actions-v1.0.0)
+          # If the tag is exactly actions-v1, then MAJOR_VERSION is also actions-v1
+          MAJOR_VERSION=$(echo "$TAG_NAME" | cut -d. -f1)
+          echo "major_version=$MAJOR_VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Update major version tag
+        shell: bash
+        env:
+          MAJOR_VERSION: ${{ steps.version.outputs.major_version }}
+          TAG_NAME: ${{ steps.version.outputs.tag_name }}
+        run: |
+          echo "Moving floating tag $MAJOR_VERSION to $TAG_NAME"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag -f "$MAJOR_VERSION" "$TAG_NAME"
+          git push origin "$MAJOR_VERSION" --force
+
+      - name: Create GitHub Release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG_NAME: ${{ steps.version.outputs.tag_name }}
+        run: |
+          gh release create "$TAG_NAME" --title "Release $TAG_NAME" --generate-notes
