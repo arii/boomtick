@@ -1,5 +1,6 @@
 name: CI
 
+# Nudge CI to run on workflow changes
 on:
   push:
     branches: [ "main" ]
