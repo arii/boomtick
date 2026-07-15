@@ -165,16 +165,17 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RUN_ID: ${{ github.event.workflow_run.id }}
           REPO: ${{ github.repository }}
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+          HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
         run: |
           JOBS=$(gh api "repos/$REPO/actions/runs/$RUN_ID/jobs" --jq '[.jobs[] | select(.conclusion=="failure") | .name] | join(", ")')
           echo "failing_jobs=$JOBS" >> "$GITHUB_OUTPUT"
 
-          SHA="${{ github.event.workflow_run.head_sha }}"
-          echo "sha=$SHA" >> "$GITHUB_OUTPUT"
-          echo "sha_short=$(echo "$SHA" | cut -c1-8)" >> "$GITHUB_OUTPUT"
+          echo "sha=$HEAD_SHA" >> "$GITHUB_OUTPUT"
+          echo "sha_short=$(echo "$HEAD_SHA" | cut -c1-8)" >> "$GITHUB_OUTPUT"
 
           IS_MAIN="false"
-          if [[ "${{ github.event.workflow_run.head_branch }}" == "main" ]]; then
+          if [[ "$HEAD_BRANCH" == "main" ]]; then
             IS_MAIN="true"
           fi
           echo "is_main=$IS_MAIN" >> "$GITHUB_OUTPUT"
@@ -207,6 +208,9 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           IS_MAIN: ${{ steps.context.outputs.is_main }}
           TITLE: "${{ steps.context.outputs.is_main == 'true' && 'fix(ci): main branch failure' || 'fix(ci): CI failure' }} at ${{ steps.context.outputs.sha_short }} — ${{ steps.context.outputs.failing_jobs }}"
+          RUN_ID: ${{ github.event.workflow_run.id }}
+          RUN_URL: ${{ github.event.workflow_run.html_url }}
+          SHA: ${{ steps.context.outputs.sha }}
         run: |
           LABEL="ci-failure"
           EXTRA_LABELS=""
@@ -221,9 +225,9 @@ jobs:
           fi
 
           BODY=$(cat <<EOF
-          CI failure detected in run [${{ github.event.workflow_run.id }}](${{ github.event.workflow_run.html_url }}).
+          CI failure detected in run [$RUN_ID]($RUN_URL).
 
-          **Commit:** ${{ steps.context.outputs.sha }}
+          **Commit:** $SHA
           **Failing Jobs:** ${{ steps.context.outputs.failing_jobs }}$BODY_SUFFIX
           EOF
           )
