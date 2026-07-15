@@ -194,3 +194,12 @@ test-results/
 .boomtick/
 logs/
 !/lib/
+issue-audit*.md
+audit.py
+generate_audit.py
+
+# Audit temporary files
+issue-audit*.md
+audit.py
+generate_audit.py
+artifacts/
