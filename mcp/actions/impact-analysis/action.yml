@@ -223,7 +223,7 @@ runs:
       env:
         PR_BODY: ${{ github.event.pull_request.body }}
       run: |
-        TASK_ID=$(echo "$PR_BODY" | grep -oP 'jules\.google\.com/task/\K[0-9]+' | head -1)
+        TASK_ID=$(echo "$PR_BODY" | grep -oP 'jules\.google\.com/task/\K[0-9]+' | head -1 || true)
         if [ -z "$TASK_ID" ]; then
           echo "No Jules task ID found in PR description. Skipping."
           exit 0
