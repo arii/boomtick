@@ -488,6 +488,8 @@ export async function orchestrateCodeReview(
   const prevState = await getPreviousReviewState<CodeReviewState>(client.reportTitle);
   const rawChangedFiles = Array.isArray(initialSummary.changedFiles) ? initialSummary.changedFiles : [];
 
+  // Filter low-impact files (like pnpm-lock.yaml) BEFORE checking truncation.
+  // This prevents skipping AI review just because of a large lockfile update.
   const changedFiles = filterLowImpactFiles(rawChangedFiles, IMPACT_CONFIG.LOW_IMPACT_PATHS);
 
   if (changedFiles.length === 0) {
@@ -503,8 +505,11 @@ export async function orchestrateCodeReview(
     return;
   }
 
-  if (initialSummary.isTruncated) {
-    const report = generateTruncatedReviewMarkdown(initialSummary, client);
+  // RE-FETCH summary only for reviewable files to avoid large lockfile truncation
+  const filteredSummary = await getCodeDiffSummary(changedFiles);
+
+  if (filteredSummary.isTruncated) {
+    const report = generateTruncatedReviewMarkdown(filteredSummary, client);
     fs.writeFileSync(agentReportPath, report);
     await postPRComment(report, client.reportTitle, prevState);
 
