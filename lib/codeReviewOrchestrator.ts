@@ -603,6 +603,7 @@ export async function orchestrateCodeReview(
             result = {
               ...result,
               llmVerdict: 'warn',
+              skipReason: result.truncated ? 'TRUNCATED' : 'PARSE_ERROR',
               feedback: `${result.feedback}\n\n---\n⚠️ **Review incomplete:** the model's response ${reason}. This review could not verify all findings and should not be treated as a clean pass. Consider re-running.`,
             };
           }
@@ -750,11 +751,12 @@ export async function orchestrateCodeReview(
     await sendJulesMessage(julesSessionId, julesMessage);
   }
 
+  const openHighFindings = finalResult.state?.findings?.filter(f => f.status === 'open' && (f.severity === 'HIGH' || f.severity === 'error')) || [];
   const isFail = finalResult.llmVerdict === 'fail';
   const verdictPath = path.join(ARTIFACTS_DIR, `${client.reportFileName.replace('.md', '')}-verdict.json`);
   fs.writeFileSync(verdictPath, JSON.stringify({
     passed: !isFail,
-    highCount: isFail ? 1 : 0,
+    highCount: openHighFindings.length || (isFail ? 1 : 0),
     routes: [],
     llmVerdict: finalResult.llmVerdict,
     isTruncated: isTruncated,

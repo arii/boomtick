@@ -2,15 +2,16 @@ import fs from 'fs';
 import path from 'path';
 import { execSync } from 'child_process';
 import { IMPACT_CONFIG } from '../scripts/impact-analysis.config';
-/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-require-imports */
+/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-require-imports, @typescript-eslint/ban-ts-comment */
 // @ts-expect-error - May not exist in standalone boomtick
 let getAllRoutes: any;
 try {
+  // @ts-expect-error - May not exist in standalone boomtick
   getAllRoutes = require('../../src/lib/routes-discovery').getAllRoutes;
 } catch {
   getAllRoutes = () => ({ stubs: [] });
 }
-/* eslint-enable @typescript-eslint/no-explicit-any, @typescript-eslint/no-require-imports */
+/* eslint-enable @typescript-eslint/no-explicit-any, @typescript-eslint/no-require-imports, @typescript-eslint/ban-ts-comment */
 import { mapPageToUrls } from '../scripts/impact-review-utils';
 import { loadProjectConfig } from './projectConfig';
 

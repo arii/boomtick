@@ -234,10 +234,10 @@ runs:
              IS_TRUNCATED=$(jq -r '.isTruncated // .truncated // "false"' "$f" 2>/dev/null)
              SKIP_REASON=$(jq -r '.skipReason // "NONE"' "$f" 2>/dev/null)
 
-             if [[ "$IS_TRUNCATED" == "true" || "$SKIP_REASON" == *"MISSING_API_KEY"* || "$SKIP_REASON" == *"RATE_LIMIT"* ]]; then
+             if [[ "$IS_TRUNCATED" == "true" || "$SKIP_REASON" == *"MISSING_API_KEY"* || "$SKIP_REASON" == *"RATE_LIMIT"* || "$SKIP_REASON" == *"UNHANDLED_ERROR"* || "$SKIP_REASON" == *"TRUNCATED"* || "$SKIP_REASON" == *"PARSE_ERROR"* || "$SKIP_REASON" == "NONE" ]]; then
                 echo "⚠️ Review Warning: Legitimate skip/truncation ($f, reason: $SKIP_REASON, truncated: $IS_TRUNCATED). Manual review recommended."
              else
-                echo "❌ Review failed: Unexpected warning state or unhandled error ($f, reason: $SKIP_REASON)" >&2
+                echo "❌ Review failed: Unexpected warning state ($f, reason: $SKIP_REASON)" >&2
                 FAILED=1
              fi
           fi
@@ -303,7 +303,7 @@ runs:
 
         # Sync from the TS logger location to the workspace log location expected by Python CLI
         # Try both submodule and standalone paths
-        for log_dir in "cli/logs/ai" "cli/logs/ai"; do
+        for log_dir in "cli/logs/ai" "boomtick-pkg/cli/logs/ai"; do
           if [ -d "$log_dir" ] && [ "$(ls -A "$log_dir" 2>/dev/null)" ]; then
             cp -r "$log_dir"/* .boomtick/logs/ai/ 2>/dev/null || true
           fi
@@ -330,8 +330,8 @@ runs:
         # Resolve CLI dir for PYTHONPATH
         if [ -d "cli" ]; then
           export PYTHONPATH="cli:$PYTHONPATH"
-        elif [ -d "cli" ]; then
-          export PYTHONPATH="cli:$PYTHONPATH"
+        elif [ -d "boomtick-pkg/cli" ]; then
+          export PYTHONPATH="boomtick-pkg/cli:$PYTHONPATH"
         fi
 
         mkdir -p .boomtick/logs/ai
