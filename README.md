@@ -59,6 +59,12 @@ The codebase is split into two primary operational layers:
 * [Impact Analysis Integration](docs/impact-analysis-integration.md) — Running and integrating blast-radius checks.
 * [MCP Testing](mcp/docs/testing.md) — Step-by-step verification protocols.
 
+---
+
+## Author
+
+Created by **[Ariel Anders](https://arii.github.io)**, creator of **[Boomtick Blog](https://boomtick.blog)**.
+
 <hr>
 
 *Tags: #DevAI #EngineeringOperations #GitHubModels #GeminiAPI #LangChain #RAG #VectorStore #AgenticExecution #MCP #TypeScript #Python #Vite*
