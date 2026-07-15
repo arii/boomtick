@@ -1,6 +1,11 @@
 // impeccable-ignore-file
 import * as path from 'path';
 
+export const VIEWPORTS = [
+  { name: 'Desktop', width: 1440, height: 900, suffix: '', isMobile: false },
+  { name: 'Mobile', width: 375, height: 667, suffix: '-mobile', isMobile: true }
+];
+
 export const ARTIFACTS_DIR = path.join(process.cwd(), 'artifacts');
 export const MAX_ROUTES_TO_REVIEW = 2;
 export const VISUAL_SUMMARY_PATH = path.join(ARTIFACTS_DIR, 'visual-review', 'summary.json');
