@@ -1,9 +1,0 @@
-{
-  "status": "success",
-  "issue": {
-    "number": 85,
-    "title": "Implement PyPI Packaging for CLI",
-    "html_url": "https://github.com/arii/boomtick/issues/85",
-    "state": "open"
-  }
-}

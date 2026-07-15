@@ -1,9 +1,0 @@
-{
-  "status": "success",
-  "issue": {
-    "number": 84,
-    "title": "Publish Docker Container Packages",
-    "html_url": "https://github.com/arii/boomtick/issues/84",
-    "state": "open"
-  }
-}
