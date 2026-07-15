@@ -162,10 +162,11 @@ runs:
         echo "::group::Initialize Schemas and Contracts"
         export PYTHONPATH="$CLI_DIR_ABS:$PYTHONPATH"
         python3 "$CLI_DIR_ABS/dev_tools/schema_gen.py"
+        # Only run sync-contracts if node_modules exist, otherwise skip and let caller build pipeline handle it
         if [ -d "node_modules" ] || [ -d "boomtick-pkg/mcp/node_modules" ] || [ -d "mcp/node_modules" ]; then
           pnpm --filter @arii/boomtick-mcp run sync-contracts
         else
-          echo "⚠️ node_modules not found, skipping sync-contracts. This is expected during bootstrap."
+          echo "⚠️ node_modules missing, skipping sync-contracts. Run pnpm install and sync-contracts in caller workflow."
         fi
         echo "::endgroup::"
       shell: bash
