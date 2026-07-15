@@ -3,8 +3,14 @@ name: CI
 on:
   push:
     branches: [ "main" ]
+    paths-ignore:
+      - 'docs/**'
+      - '*.md'
   pull_request:
     branches: [ "main" ]
+    paths:
+      - '**'
+      - '.github/workflows/**'
   workflow_dispatch:
 
 permissions:
@@ -14,6 +20,19 @@ permissions:
   models: read
 
 jobs:
+  workflow-lint:
+    name: GitHub Actions Lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Check workflow files with actionlint
+        run: |
+          # Download and install actionlint
+          curl -sLS https://raw.githubusercontent.com/rhysd/actionlint/main/scripts/download-actionlint.bash | bash
+          ./actionlint .github/workflows/*.yml
+
   lint-typecheck:
     name: Lint & Typecheck (${{ matrix.target }})
     runs-on: ubuntu-latest
@@ -76,7 +95,8 @@ jobs:
 
       - name: Run Python CLI Tests (pytest)
         run: |
-          export PYTHONPATH=$PYTHONPATH:$(pwd)/cli
+          PYTHONPATH="$PYTHONPATH:$(pwd)/cli"
+          export PYTHONPATH
           python3 -m pytest cli/tests
 
   impact-analysis:
