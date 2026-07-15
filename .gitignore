@@ -7,3 +7,7 @@ dist/
 build/
 *.egg-info/
 node_modules/
+
+# Auto-generated files
+cli/dev_tools/cli-schema.json
+mcp/src/tools/contract.ts
