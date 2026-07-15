@@ -81,8 +81,5 @@ class VectorStore:
         if not client or not embedding_fn:
             return
 
-        try:
-            client.delete_collection(self.collection_name)
-        except Exception:
-            raise
+        client.delete_collection(self.collection_name)
         self._collection = client.create_collection(name=self.collection_name, embedding_function=embedding_fn)
