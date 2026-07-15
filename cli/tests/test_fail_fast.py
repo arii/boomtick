@@ -6,7 +6,7 @@ from dev_tools.services.dependency_graph import DependencyGraph
 from dev_tools.utils import CLIError
 
 
-def test_dependency_graph_fail_fast():
+def test_dependency_graph_fail_fast(tmp_path):
     # Mock subprocess.run to simulate failure
     with patch("subprocess.run") as mock_run, patch("os.path.exists", side_effect=lambda x: True if "artifacts" not in x else False):
         # First call for pnpm --version
@@ -16,11 +16,11 @@ def test_dependency_graph_fail_fast():
         ]
 
         with pytest.raises(CLIError) as excinfo:
-            dg = DependencyGraph(root_dir=".")
+            dg = DependencyGraph(root_dir=str(tmp_path))
         assert "dependency-cruiser failed" in str(excinfo.value)
 
 
-def test_dependency_graph_malformed_json():
+def test_dependency_graph_malformed_json(tmp_path):
     with patch("subprocess.run") as mock_run, patch("os.path.exists", side_effect=lambda x: True if "artifacts" not in x else False):
         # First call for pnpm --version, second for depcruise
         mock_run.side_effect = [
@@ -29,7 +29,7 @@ def test_dependency_graph_malformed_json():
         ]
 
         with pytest.raises(CLIError) as excinfo:
-            dg = DependencyGraph(root_dir=".")
+            dg = DependencyGraph(root_dir=str(tmp_path))
         assert "Failed to parse dependency-cruiser output" in str(excinfo.value)
 
 

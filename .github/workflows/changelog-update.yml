@@ -1,0 +1,67 @@
+name: Update Changelog on Release
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+
+jobs:
+  update-changelog:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0 # Fetch all history for accurate changelog generation
+
+      - name: Generate Changelog
+        uses: orhun/git-cliff-action@v4
+        with:
+          config: keepachangelog.toml
+          args: --latest --strip header
+          output: CHANGELOG_NEW.md
+
+      - name: Update CHANGELOG.md
+        run: |
+          if [ ! -f CHANGELOG.md ]; then
+            {
+              echo "# Changelog"
+              echo ""
+              echo "All notable changes to this project will be documented in this file."
+              echo ""
+            } > CHANGELOG.md
+          fi
+
+          # Find the line number of the first version entry (starts with ##)
+          # SC2155: Declare and assign separately
+          INSERT_LINE=""
+          INSERT_LINE=$(grep -n "^## " CHANGELOG.md | head -n 1 | cut -d: -f1)
+
+          if [ -z "$INSERT_LINE" ]; then
+            # If no version entries yet, just append to the end
+            {
+              echo ""
+              cat CHANGELOG_NEW.md
+            } >> CHANGELOG.md
+          else
+            # Insert new notes before the first existing version entry
+            # Grouping redirects as suggested by SC2129
+            {
+              head -n "$((INSERT_LINE - 1))" CHANGELOG.md
+              cat CHANGELOG_NEW.md
+              echo ""
+              tail -n +"$INSERT_LINE" CHANGELOG.md
+            } > CHANGELOG.tmp
+            mv CHANGELOG.tmp CHANGELOG.md
+          fi
+          rm -f CHANGELOG_NEW.md
+
+      - name: Commit and Push Changes
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add CHANGELOG.md
+          git commit -m "chore: update CHANGELOG.md for ${{ github.event.release.tag_name }} [skip ci]"
+          git push origin main

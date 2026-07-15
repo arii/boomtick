@@ -9,6 +9,7 @@ import { PNG } from 'pngjs';
 import sharp from 'sharp';
 import {
   ARTIFACTS_DIR,
+  DEFAULT_VIEWPORTS,
   DOM_REVIEW_DIR,
   VISUAL_REVIEW_DIR,
   VISUAL_SUMMARY_PATH,
@@ -24,7 +25,6 @@ import {
   type LayoutValidation
 } from './impact-review-utils';
 import { whiteCanvas, copyImage } from './image-processing-utils.ts';
-import { VIEWPORTS } from '../lib/visualReviewConstants';
 
 const basePort = Number(process.env.IMPACT_BASE_PORT ?? 4173);
 const headPort = Number(process.env.IMPACT_HEAD_PORT ?? 4174);
@@ -259,6 +259,22 @@ function createVisualDiff(beforePath: string, afterPath: string, diffPath: strin
 async function main(): Promise<void> {
   await logHeartbeat('Starting Visual Diff');
 
+  let viewports = DEFAULT_VIEWPORTS;
+  try {
+    // Try to load project-specific viewports if they exist
+    // We use a dynamic import/require pattern to avoid compile-time failure in standalone boomtick
+    const viewportPath = path.resolve(process.cwd(), 'src/constants/visual-viewports.ts');
+    if (fs.existsSync(viewportPath)) {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const customViewports = require(viewportPath).VIEWPORTS;
+      if (Array.isArray(customViewports)) {
+        viewports = customViewports;
+      }
+    }
+  } catch (err) {
+    console.warn('⚠️  Could not load custom viewports, using defaults:', (err as Error).message);
+  }
+
   let impact;
   try {
     impact = readImpactAnalysis();
@@ -310,7 +326,7 @@ async function main(): Promise<void> {
         const routeVisualDir = path.join(VISUAL_REVIEW_DIR, slug);
         ensureDirectory(routeVisualDir);
 
-        for (const vp of VIEWPORTS) {
+        for (const vp of viewports) {
           const vpSlug = `${slug}-${vp.name.toLowerCase()}`;
           const vpDomDir = path.join(DOM_REVIEW_DIR, vpSlug);
           ensureDirectory(vpDomDir);

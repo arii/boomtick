@@ -27,7 +27,6 @@ jobs:
       - name: Setup Environment
         uses: ./.github/actions/setup-env
         with:
-          setup-node: 'true'
           setup-python: ${{ inputs.target == 'cli' || inputs.target == 'all' && 'true' || 'false' }}
 
       - name: Run MCP Tests
@@ -79,4 +78,4 @@ jobs:
         run: |
           ASSETS=""
           if [ -d "cli/dist" ]; then ASSETS="cli/dist/*"; fi
-          gh release create ${{ github.ref_name }} --title "Release ${{ github.ref_name }}" --generate-notes $ASSETS
+          gh release create "${{ github.ref_name }}" --title "Release ${{ github.ref_name }}" --generate-notes "$ASSETS"

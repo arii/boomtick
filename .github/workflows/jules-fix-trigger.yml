@@ -68,4 +68,4 @@ jobs:
           ISSUE_NUMBER: ${{ inputs.issue_number }}
         run: |
           # Capture both stdout and stderr for better diagnostic visibility
-          td-cli jules fix-ci --pr-number "$ISSUE_NUMBER" --execute 2>&1
+          td-cli jules fix-ci --pr-number "$ISSUE_NUMBER" --execute
