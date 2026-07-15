@@ -69,12 +69,14 @@ runs:
         # We assume the script is at the expected location or fallback to manual check
         if [ -f "scripts/resolve-cli.sh" ]; then
           CLI_DIR=$(bash scripts/resolve-cli.sh | sed "s|$(pwd)/||")
-        elif [ -f "scripts/resolve-cli.sh" ]; then
-          CLI_DIR=$(bash scripts/resolve-cli.sh | sed "s|$(pwd)/||")
+        elif [ -f "boomtick-pkg/scripts/resolve-cli.sh" ]; then
+          CLI_DIR=$(bash boomtick-pkg/scripts/resolve-cli.sh | sed "s|$(pwd)/||")
         elif [ -f "${{ github.action_path }}/../../../scripts/resolve-cli.sh" ]; then
           CLI_DIR=$(bash "${{ github.action_path }}/../../../scripts/resolve-cli.sh" | sed "s|$(pwd)/||")
         elif [ -d "cli" ]; then
           CLI_DIR="cli"
+        elif [ -d "boomtick-pkg/cli" ]; then
+          CLI_DIR="boomtick-pkg/cli"
         else
           CLI_DIR="cli"
         fi
@@ -168,8 +170,8 @@ runs:
         # Determine the MCP directory (standalone vs submodule)
         if [ -d "mcp" ]; then
           MCP_DIR="mcp"
-        elif [ -d "mcp" ]; then
-          MCP_DIR="mcp"
+        elif [ -d "boomtick-pkg/mcp" ]; then
+          MCP_DIR="boomtick-pkg/mcp"
         else
           MCP_DIR="."
         fi
