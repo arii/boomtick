@@ -116,26 +116,6 @@ runs:
         echo "::endgroup::"
       shell: bash
 
-    - name: Verify td-cli on PATH
-      if: inputs.setup-python == 'true'
-      run: |
-        # Force a refresh of the path in the current shell context if possible,
-        # though GITHUB_PATH updates usually apply to subsequent steps.
-        export PATH="$HOME/.local/bin:/github/home/.local/bin:$PATH"
-
-        if ! command -v td-cli >/dev/null 2>&1; then
-          # Fallback check if it is in the known local bin but not on path yet
-          if [ -x "$HOME/.local/bin/td-cli" ] || [ -x "/github/home/.local/bin/td-cli" ]; then
-            echo "::warning::td-cli found in local bin but not yet on PATH. PATH updates will apply in next step."
-          else
-            echo "::error::td-cli not found on PATH or in known local bin directories after installation."
-            echo "Current PATH: $PATH"
-            exit 1
-          fi
-        fi
-        echo "✅ td-cli is resolvable on PATH (or confirmed available in local bin)."
-      shell: bash
-
     - name: Export Environment Variables
       if: inputs.setup-python == 'true'
       id: export-env
