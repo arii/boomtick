@@ -22,7 +22,7 @@
     "release:major": "pnpm version major",
     "sync-contracts": "tsx scripts/sync-contracts.ts",
     "type-check": "tsx scripts/sync-contracts.ts && tsc",
-    "lint": "tsc --noEmit"
+    "lint": "tsx scripts/sync-contracts.ts && tsc --noEmit"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.6.0",
