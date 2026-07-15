@@ -1,0 +1,13 @@
+{
+  "changedFiles": [
+    "audit.py",
+    "generate_audit.py",
+    "issue-audit-2026-07-15.md",
+    "issue-audit-status.md"
+  ],
+  "affectedPages": [],
+  "affectedDynamicImports": [],
+  "routes": [],
+  "visualReviewRequired": [],
+  "impactLevel": "LOW"
+}
