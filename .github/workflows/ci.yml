@@ -1,11 +1,16 @@
 name: CI
 
-# Nudge CI to run on workflow changes
 on:
   push:
     branches: [ "main" ]
+    paths-ignore:
+      - 'docs/**'
+      - '*.md'
   pull_request:
     branches: [ "main" ]
+    paths:
+      - '**'
+      - '.github/workflows/**'
   workflow_dispatch:
 
 permissions:
@@ -14,6 +19,18 @@ permissions:
   pull-requests: write
 
 jobs:
+  workflow-lint:
+    name: GitHub Actions Lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Check workflow files with actionlint
+        run: |
+          bash <(curl -sLS https://raw.githubusercontent.com/rhysd/actionlint/main/scripts/download-actionlint.bash)
+          ./actionlint .github/workflows/*.yml
+
   lint-typecheck:
     name: Lint & Typecheck (${{ matrix.target }})
     runs-on: ubuntu-latest
