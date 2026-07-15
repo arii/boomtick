@@ -11,7 +11,7 @@
     "boomtick-mcp": "dist/index.js"
   },
   "scripts": {
-    "build": "tsc && shx cp src/tools/ddgs_search.py dist/tools/ && tsx scripts/sync-mcp-schemas.ts",
+    "build": "tsx scripts/sync-contracts.ts && tsc && shx cp src/tools/ddgs_search.py dist/tools/ && tsx scripts/sync-mcp-schemas.ts",
     "watch": "tsc -w",
     "start": "node dist/index.js",
     "test": "tsx scripts/sync-contracts.ts && vitest run",
@@ -21,7 +21,7 @@
     "release:minor": "pnpm version minor",
     "release:major": "pnpm version major",
     "sync-contracts": "tsx scripts/sync-contracts.ts",
-    "type-check": "tsc"
+    "type-check": "tsx scripts/sync-contracts.ts && tsc"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.6.0",
