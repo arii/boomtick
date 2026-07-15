@@ -6,6 +6,7 @@ export interface ReviewFinding {
   issue: string;
   status: 'open' | 'resolved';
   fixSummary?: string;
+  severity?: 'error' | 'warn' | 'info' | 'HIGH' | 'MEDIUM' | 'LOW';
   confidence?: 'high' | 'medium' | 'low';
   counterexample?: string;
 }

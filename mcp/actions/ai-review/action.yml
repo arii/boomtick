@@ -1,5 +1,5 @@
 name: BoomTick AI Review
-description: Runs AI code review via td CLI
+description: Runs AI code review via python3 -m dev_tools.cli CLI
 inputs:
   pr_number:
     description: PR number to review
@@ -11,5 +11,5 @@ runs:
     - name: AI review
       env:
         PR_NUMBER: ${{ inputs.pr_number }}
-      run: td gh audit-pr "$PR_NUMBER" --fetch --audit
+      run: python3 -m dev_tools.cli gh audit-pr "$PR_NUMBER" --fetch --audit
       shell: bash

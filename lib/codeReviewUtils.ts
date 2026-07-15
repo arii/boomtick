@@ -119,6 +119,9 @@ export function normalizeFindings(findings: unknown[]): ReviewFinding[] {
       file: typeof f.file === 'string' ? f.file : 'unknown',
       issue: typeof f.issue === 'string' ? f.issue : 'Unspecified issue',
       status: (typeof f.status === 'string' && f.status.toLowerCase() === 'resolved') ? 'resolved' : 'open',
+      severity: (typeof f.severity === 'string' && ['error', 'warn', 'info', 'high', 'medium', 'low'].includes(f.severity.toLowerCase()))
+        ? f.severity.toUpperCase() as 'HIGH' | 'MEDIUM' | 'LOW'
+        : undefined,
       confidence: (typeof f.confidence === 'string' && ['high', 'medium', 'low'].includes(f.confidence.toLowerCase()))
         ? f.confidence.toLowerCase() as 'high' | 'medium' | 'low'
         : 'medium',

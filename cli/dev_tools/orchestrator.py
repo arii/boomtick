@@ -118,6 +118,28 @@ class Orchestrator:
 
         return VisionService()
 
+    def _resolve_antipatterns_script(self) -> str:
+        """Resolves the path to detect-antipatterns.mjs, supporting standalone and submodule layouts."""
+        # 1. Try standard root location
+        script_path = "scripts/detect-antipatterns.mjs"
+        if os.path.exists(script_path):
+            return script_path
+
+        # 2. Try submodule location
+        submodule_path = "boomtick-pkg/scripts/detect-antipatterns.mjs"
+        if os.path.exists(submodule_path):
+            return submodule_path
+
+        # 3. Fallback to absolute path relative to this file (robust for package-style execution)
+        # Location: cli/dev_tools/orchestrator.py -> ../../scripts/detect-antipatterns.mjs
+        abs_path = os.path.abspath(
+            os.path.join(os.path.dirname(__file__), "..", "..", "scripts", "detect-antipatterns.mjs")
+        )
+        if os.path.exists(abs_path):
+            return abs_path
+
+        return script_path
+
     def _hash_content(self, content: str) -> str:
         return hashlib.md5(content.encode("utf-8")).hexdigest()
 
@@ -337,7 +359,7 @@ class Orchestrator:
         return fallback_value
 
     def get_audit_results(self, content: Optional[str] = None, targets: Optional[List[str]] = None) -> Dict[str, Any]:
-        script_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "scripts", "detect-antipatterns.mjs"))
+        script_path = self._resolve_antipatterns_script()
         cmd = ["node", script_path, "--json"]
         if targets:
             cmd.extend(targets)
@@ -817,7 +839,7 @@ class Orchestrator:
                 f for f in changed_files if (f.endswith(".tsx") or f.endswith(".ts")) and os.path.exists(f)
             ]
             if files_to_audit:
-                script_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "scripts", "detect-antipatterns.mjs"))
+                script_path = self._resolve_antipatterns_script()
                 audit_res = run_command(
                     ["node", script_path, "--json"] + files_to_audit,
                     check=False,
@@ -964,7 +986,7 @@ class Orchestrator:
             raise e
 
         # 2. Automated Validation Steps
-        script_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "scripts", "detect-antipatterns.mjs"))
+        script_path = self._resolve_antipatterns_script()
         steps = [
             ("Anti-Pattern Audit", ["node", script_path]),
             ("Version Downgrade Check", [PROJECT_CONFIG.cli_alias, "gh", "verify-versions"]),
@@ -1056,7 +1078,7 @@ class Orchestrator:
             os.chdir(original_cwd)
 
     def handle_audit_gate(self) -> Dict[str, Any]:
-        script_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "scripts", "detect-antipatterns.mjs"))
+        script_path = self._resolve_antipatterns_script()
         current_count = int(run_command(["node", script_path, "--count-only"]) or 0)
         baseline_count = self.resolve_baseline(None, "AUDIT_BASELINE", -1)
 

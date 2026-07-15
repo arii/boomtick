@@ -10,7 +10,7 @@ const baseRef = process.env.IMPACT_BASE_REF ?? config.base_branch;
 
 function run(command: string, args: string[], cwd = process.cwd()): void {
   console.log(`$ ${command} ${args.join(' ')}`);
-  execFileSync(command, args, { cwd, stdio: 'inherit', env: { ...process.env, VITE_BASE_PATH: '/', DISABLE_MINIFY: 'true' } });
+  execFileSync(command, args, { cwd, stdio: 'inherit', env: { ...process.env, VITE_BASE_PATH: '/', DISABLE_MINIFY: 'true', npm_config_ignore_scripts: 'true' } });
 }
 
 function removeExistingWorktree(): void {
@@ -42,7 +42,12 @@ async function main() {
   run('git', ['worktree', 'add', worktreePath, baseRef]);
 
   await logHeartbeat('PNPM Install (Base Worktree)');
-  run('pnpm', ['install', '--frozen-lockfile', '--prefer-offline'], worktreePath);
+  console.log(`$ pnpm install --frozen-lockfile --prefer-offline --ignore-scripts`);
+  execFileSync('pnpm', ['install', '--frozen-lockfile', '--prefer-offline', '--ignore-scripts'], {
+    cwd: worktreePath,
+    stdio: 'inherit',
+    env: { ...process.env, VITE_BASE_PATH: '/', DISABLE_MINIFY: 'true' }
+  });
 
   await logHeartbeat('Building Base Branch');
   run('pnpm', ['run', 'build'], worktreePath);

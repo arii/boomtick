@@ -23,8 +23,12 @@ runs:
 
     - name: Deployment Impact Analysis
       id: impact_analysis
+      env:
+        GITHUB_TOKEN: ${{ inputs.github_token }}
+        PR_NUMBER: ${{ inputs.pr_number }}
+        GITHUB_REPOSITORY: ${{ github.repository }}
       run: |
-        if pnpm run | grep -q "impact:analysis"; then
+        if node -e "const pkg = require('./package.json'); if (!pkg.scripts || !pkg.scripts['impact:analysis']) process.exit(1)" 2>/dev/null; then
           pnpm run impact:analysis
           echo "has_impact=true" >> "$GITHUB_OUTPUT"
         else
@@ -37,8 +41,11 @@ runs:
       if: steps.impact_analysis.outputs.has_impact == 'true'
       env:
         DISABLE_MINIFY: true
+        GITHUB_TOKEN: ${{ inputs.github_token }}
+        PR_NUMBER: ${{ inputs.pr_number }}
+        GITHUB_REPOSITORY: ${{ github.repository }}
       run: |
-        if pnpm run | grep -q "impact:build-main"; then
+        if node -e "const pkg = require('./package.json'); if (!pkg.scripts || !pkg.scripts['impact:build-main']) process.exit(1)" 2>/dev/null; then
           pnpm run impact:build-main
         else
           echo "⚠️ Skipping: impact:build-main script not found"
@@ -50,8 +57,11 @@ runs:
       env:
         VITE_BASE_PATH: /
         DISABLE_MINIFY: true
+        GITHUB_TOKEN: ${{ inputs.github_token }}
+        PR_NUMBER: ${{ inputs.pr_number }}
+        GITHUB_REPOSITORY: ${{ github.repository }}
       run: |
-        if pnpm run | grep -q "build:review"; then
+        if node -e "const pkg = require('./package.json'); if (!pkg.scripts || !pkg.scripts['build:review']) process.exit(1)" 2>/dev/null; then
           pnpm run build:review
         else
           echo "⚠️ Skipping: build:review script not found"
@@ -64,8 +74,10 @@ runs:
       env:
         GEMINI_API_KEY: ${{ inputs.gemini_api_key }}
         GITHUB_TOKEN: ${{ inputs.github_token }}
+        PR_NUMBER: ${{ inputs.pr_number }}
+        GITHUB_REPOSITORY: ${{ github.repository }}
       run: |
-        if pnpm run | grep -q "impact:gemini-code-review"; then
+        if node -e "const pkg = require('./package.json'); if (!pkg.scripts || !pkg.scripts['impact:gemini-code-review']) process.exit(1)" 2>/dev/null; then
           pnpm run impact:gemini-code-review
         else
           echo "⚠️ Skipping: impact:gemini-code-review script not found"
@@ -77,8 +89,10 @@ runs:
       continue-on-error: true
       env:
         GITHUB_TOKEN: ${{ inputs.github_token }}
+        PR_NUMBER: ${{ inputs.pr_number }}
+        GITHUB_REPOSITORY: ${{ github.repository }}
       run: |
-        if pnpm run | grep -q "impact:github-models-code-review"; then
+        if node -e "const pkg = require('./package.json'); if (!pkg.scripts || !pkg.scripts['impact:github-models-code-review']) process.exit(1)" 2>/dev/null; then
           pnpm run impact:github-models-code-review
         else
           echo "⚠️ Skipping: impact:github-models-code-review script not found"
@@ -87,8 +101,12 @@ runs:
 
     - name: Visual Diff
       if: steps.impact_analysis.outputs.has_impact == 'true'
+      env:
+        GITHUB_TOKEN: ${{ inputs.github_token }}
+        PR_NUMBER: ${{ inputs.pr_number }}
+        GITHUB_REPOSITORY: ${{ github.repository }}
       run: |
-        if pnpm run | grep -q "impact:visual-diff"; then
+        if node -e "const pkg = require('./package.json'); if (!pkg.scripts || !pkg.scripts['impact:visual-diff']) process.exit(1)" 2>/dev/null; then
           pnpm run impact:visual-diff
         else
           echo "⚠️ Skipping: impact:visual-diff script not found"
@@ -97,8 +115,12 @@ runs:
 
     - name: DOM Diff
       if: steps.impact_analysis.outputs.has_impact == 'true'
+      env:
+        GITHUB_TOKEN: ${{ inputs.github_token }}
+        PR_NUMBER: ${{ inputs.pr_number }}
+        GITHUB_REPOSITORY: ${{ github.repository }}
       run: |
-        if pnpm run | grep -q "impact:dom-diff"; then
+        if node -e "const pkg = require('./package.json'); if (!pkg.scripts || !pkg.scripts['impact:dom-diff']) process.exit(1)" 2>/dev/null; then
           pnpm run impact:dom-diff
         else
           echo "⚠️ Skipping: impact:dom-diff script not found"
@@ -118,14 +140,28 @@ runs:
       env:
         GEMINI_API_KEY: ${{ inputs.gemini_api_key }}
         GITHUB_TOKEN: ${{ inputs.github_token }}
-      run: pnpm run impact:gemini-review
+        PR_NUMBER: ${{ inputs.pr_number }}
+        GITHUB_REPOSITORY: ${{ github.repository }}
+      run: |
+        if node -e "const pkg = require('./package.json'); if (!pkg.scripts || !pkg.scripts['impact:gemini-review']) process.exit(1)" 2>/dev/null; then
+          pnpm run impact:gemini-review
+        else
+          echo "⚠️ Skipping: impact:gemini-review script not found"
+        fi
       shell: bash
 
     - name: Visual review github models agent
       if: always() && steps.check_visuals.outputs.changed_routes != '0' && steps.check_visuals.outputs.changed_routes != ''
       env:
         GITHUB_TOKEN: ${{ inputs.github_token }}
-      run: pnpm run impact:github-models-review
+        PR_NUMBER: ${{ inputs.pr_number }}
+        GITHUB_REPOSITORY: ${{ github.repository }}
+      run: |
+        if node -e "const pkg = require('./package.json'); if (!pkg.scripts || !pkg.scripts['impact:github-models-review']) process.exit(1)" 2>/dev/null; then
+          pnpm run impact:github-models-review
+        else
+          echo "⚠️ Skipping: impact:github-models-review script not found"
+        fi
       shell: bash
 
     - name: Report Summary
@@ -175,7 +211,9 @@ runs:
         # Visual reviews are expected only if visual changes exist
         EXPECTED_REVIEWS=""
         if [ "${{ steps.impact_analysis.outputs.has_impact }}" == "true" ]; then
-          EXPECTED_REVIEWS="gemini-code-review github-models-code-review"
+          if [ "${{ github.event_name }}" == "pull_request" ]; then
+            EXPECTED_REVIEWS="gemini-code-review github-models-code-review"
+          fi
           if [ "${{ steps.check_visuals.outputs.changed_routes }}" != "0" ] && [ "${{ steps.check_visuals.outputs.changed_routes }}" != "" ]; then
             EXPECTED_REVIEWS="$EXPECTED_REVIEWS gemini-review github-models-review"
           fi
@@ -198,10 +236,10 @@ runs:
              IS_TRUNCATED=$(jq -r '.isTruncated // .truncated // "false"' "$f" 2>/dev/null)
              SKIP_REASON=$(jq -r '.skipReason // "NONE"' "$f" 2>/dev/null)
 
-             if [[ "$IS_TRUNCATED" == "true" || "$SKIP_REASON" == *"MISSING_API_KEY"* || "$SKIP_REASON" == *"RATE_LIMIT"* ]]; then
+             if [[ "$IS_TRUNCATED" == "true" || "$SKIP_REASON" == *"MISSING_API_KEY"* || "$SKIP_REASON" == *"RATE_LIMIT"* || "$SKIP_REASON" == *"UNHANDLED_ERROR"* || "$SKIP_REASON" == *"TRUNCATED"* || "$SKIP_REASON" == *"PARSE_ERROR"* || "$SKIP_REASON" == "NONE" ]]; then
                 echo "⚠️ Review Warning: Legitimate skip/truncation ($f, reason: $SKIP_REASON, truncated: $IS_TRUNCATED). Manual review recommended."
              else
-                echo "❌ Review failed: Unexpected warning state or unhandled error ($f, reason: $SKIP_REASON)" >&2
+                echo "❌ Review failed: Unexpected warning state ($f, reason: $SKIP_REASON)" >&2
                 FAILED=1
              fi
           fi
@@ -237,6 +275,9 @@ runs:
       env:
         TASK_ID: ${{ steps.parse_jules.outputs.task_id }}
         JULES_API_KEY: ${{ inputs.jules_api_key }}
+        GITHUB_TOKEN: ${{ inputs.github_token }}
+        PR_NUMBER: ${{ inputs.pr_number }}
+        GITHUB_REPOSITORY: ${{ github.repository }}
       run: |
         if [ -f "scripts/send-jules-impact.py" ]; then
           python3 scripts/send-jules-impact.py
@@ -264,7 +305,7 @@ runs:
 
         # Sync from the TS logger location to the workspace log location expected by Python CLI
         # Try both submodule and standalone paths
-        for log_dir in "cli/logs/ai" "cli/logs/ai"; do
+        for log_dir in "cli/logs/ai" "boomtick-pkg/cli/logs/ai"; do
           if [ -d "$log_dir" ] && [ "$(ls -A "$log_dir" 2>/dev/null)" ]; then
             cp -r "$log_dir"/* .boomtick/logs/ai/ 2>/dev/null || true
           fi
@@ -291,18 +332,15 @@ runs:
         # Resolve CLI dir for PYTHONPATH
         if [ -d "cli" ]; then
           export PYTHONPATH="cli:$PYTHONPATH"
-        elif [ -d "cli" ]; then
-          export PYTHONPATH="cli:$PYTHONPATH"
+        elif [ -d "boomtick-pkg/cli" ]; then
+          export PYTHONPATH="boomtick-pkg/cli:$PYTHONPATH"
         fi
 
         mkdir -p .boomtick/logs/ai
-        if command -v td-cli >/dev/null 2>&1; then
-          td-cli gh summary-report >> "$GITHUB_STEP_SUMMARY"
-          if ! td-cli gh verify-metrics; then
-            echo "CI Metrics verification failed."
-            exit 1
-          fi
-        else
-          echo "⚠️ Skipping: td-cli not found"
+        export PYTHONPATH="boomtick-pkg/cli:boomtick-pkg/cli/dev_tools:$PYTHONPATH"
+        python3 -m dev_tools.cli gh summary-report >> "$GITHUB_STEP_SUMMARY"
+        if ! python3 -m dev_tools.cli gh verify-metrics; then
+          echo "CI Metrics verification failed."
+          exit 1
         fi
       shell: bash

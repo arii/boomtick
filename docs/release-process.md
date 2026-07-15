@@ -16,6 +16,21 @@ Releases are triggered by pushing specific Git tags:
 - **CLI Release**: Push a tag matching `cli-v*` (e.g., `cli-v0.2.1`).
 - **MCP Release**: Push a tag matching `mcp-v*` (e.g., `mcp-v0.2.1`).
 
+## Automated Release Drafting and Changelog
+
+We use **Release Drafter** and **git-cliff** to automate our release notes and changelog updates.
+
+### Release Drafting
+Whenever a Pull Request is merged into `main`, **Release Drafter** automatically updates a draft release with the changes.
+- It categorizes changes based on PR labels (e.g., `feature`, `bug`, `documentation`).
+- It automatically suggests the next version number.
+
+### Automated Changelog
+When a new release is **published**, a GitHub Action triggers **git-cliff** to:
+1. Parse the git history using [Conventional Commits](https://www.conventionalcommits.org/).
+2. Generate a new entry for `CHANGELOG.md`.
+3. Prepend the entry to the top of the file and commit it back to the repository.
+
 ### Step-by-Step Instructions
 
 1. **Update Version**:
@@ -57,6 +72,11 @@ Releases are triggered by pushing specific Git tags:
 - Builds the TypeScript project.
 - Publishes to npm (under the `@arii` scope).
 - Creates a GitHub Release with generated notes.
+
+### Changelog Update (`.github/workflows/changelog-update.yml`)
+- Triggers when a release is published.
+- Uses `git-cliff` to generate release notes from conventional commits.
+- Prepends new notes to `CHANGELOG.md` and commits the change.
 
 ## Manual Dispatch
 

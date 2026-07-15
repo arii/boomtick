@@ -15,9 +15,31 @@
     "check:runtime-files": "node scripts/check-runtime-files.mjs",
     "doctor": "node scripts/check-runtime-files.mjs",
     "preinstall": "node scripts/check-runtime-files.mjs",
-    "sync-python-deps": "python3 scripts/sync-python-deps.py"
+    "sync-python-deps": "python3 scripts/sync-python-deps.py",
+    "impact:analysis": "tsx scripts/impact-analysis.ts",
+    "impact:build-main": "tsx scripts/impact-build-main.ts",
+    "build:review": "tsx scripts/impact-build-main.ts",
+    "impact:gemini-code-review": "tsx scripts/impact-gemini-code-review.ts",
+    "impact:github-models-code-review": "tsx scripts/impact-github-models-code-review.ts",
+    "impact:visual-diff": "tsx scripts/impact-visual-diff.ts",
+    "impact:dom-diff": "tsx scripts/impact-dom-diff.ts",
+    "impact:gemini-review": "tsx scripts/impact-gemini-review.ts",
+    "impact:github-models-review": "tsx scripts/impact-github-models-review.ts"
   },
   "devDependencies": {
-    "jscpd": "^5.0.12"
+    "@langchain/core": "^1.2.3",
+    "@langchain/google-genai": "^2.2.0",
+    "@playwright/test": "^1.61.1",
+    "@types/jsdom": "^28.0.3",
+    "@types/pixelmatch": "^5.2.6",
+    "@types/pngjs": "^6.0.5",
+    "dependency-cruiser": "^18.1.0",
+    "diff": "^9.0.0",
+    "jscpd": "^5.0.12",
+    "jsdom": "^29.1.1",
+    "pixelmatch": "^7.2.0",
+    "pngjs": "^7.0.0",
+    "sharp": "^0.35.3",
+    "tsx": "^4.23.1"
   }
 }
