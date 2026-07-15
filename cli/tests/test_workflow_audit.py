@@ -14,15 +14,29 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-node@v7
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
           node-version-file: '.node-version'
       - run: pnpm install
       - run: pnpm test
 """)
     orch = Orchestrator()
-    violations = orch._check_workflow_compliance(str(workflow_file))
+    # Mock stack versions for the test to prevent it picking up repo state
+    import dev_tools.utils
+
+    original_get = dev_tools.utils.get_stack_versions
+    def mock_get(*args, **kwargs):
+        return {"actions/checkout": "v4", "actions/setup-node": "v4"}
+
+    dev_tools.utils.get_stack_versions = mock_get
+    dev_tools.orchestrator.get_stack_versions = mock_get
+
+    try:
+        violations = orch._check_workflow_compliance(str(workflow_file))
+    finally:
+        dev_tools.utils.get_stack_versions = original_get
+        dev_tools.orchestrator.get_stack_versions = original_get
     assert len(violations) == 0
 
 
@@ -43,7 +57,19 @@ jobs:
       - run: npm run build
 """)
     orch = Orchestrator()
-    violations = orch._check_workflow_compliance(str(workflow_file))
+    import dev_tools.utils
+    original_get = dev_tools.utils.get_stack_versions
+    def mock_get(*args, **kwargs):
+        return {"actions/checkout": "v4", "actions/setup-node": "v4"}
+
+    dev_tools.utils.get_stack_versions = mock_get
+    dev_tools.orchestrator.get_stack_versions = mock_get
+
+    try:
+        violations = orch._check_workflow_compliance(str(workflow_file))
+    finally:
+        dev_tools.utils.get_stack_versions = original_get
+        dev_tools.orchestrator.get_stack_versions = original_get
     # 1 node-version, 2 npm (install, run), 1 checkout, 1 setup-node = 5
     assert len(violations) == 5
     assert any("node-version:" in v for v in violations)
