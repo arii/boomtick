@@ -31,7 +31,7 @@ runs:
       with:
         version: ${{ inputs.pnpm-version }}
 
-    - name: Install Node dependencies
+    - name: Install dependencies
       run: pnpm install --frozen-lockfile
       shell: bash
 
