@@ -211,7 +211,9 @@ runs:
         # Visual reviews are expected only if visual changes exist
         EXPECTED_REVIEWS=""
         if [ "${{ steps.impact_analysis.outputs.has_impact }}" == "true" ]; then
-          EXPECTED_REVIEWS="gemini-code-review github-models-code-review"
+          if [ "${{ github.event_name }}" == "pull_request" ]; then
+            EXPECTED_REVIEWS="gemini-code-review github-models-code-review"
+          fi
           if [ "${{ steps.check_visuals.outputs.changed_routes }}" != "0" ] && [ "${{ steps.check_visuals.outputs.changed_routes }}" != "" ]; then
             EXPECTED_REVIEWS="$EXPECTED_REVIEWS gemini-review github-models-review"
           fi
