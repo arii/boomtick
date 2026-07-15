@@ -26,10 +26,12 @@ jobs:
       - name: Update CHANGELOG.md
         run: |
           if [ ! -f CHANGELOG.md ]; then
-            echo "# Changelog" > CHANGELOG.md
-            echo "" >> CHANGELOG.md
-            echo "All notable changes to this project will be documented in this file." >> CHANGELOG.md
-            echo "" >> CHANGELOG.md
+            {
+              echo "# Changelog"
+              echo ""
+              echo "All notable changes to this project will be documented in this file."
+              echo ""
+            } > CHANGELOG.md
           fi
 
           # Find the line number of the first version entry (starts with ##)
@@ -37,14 +39,16 @@ jobs:
 
           if [ -z "$INSERT_LINE" ]; then
             # If no version entries yet, just append to the end
-            echo "" >> CHANGELOG.md
-            cat CHANGELOG_NEW.md >> CHANGELOG.md
+            {
+              echo ""
+              cat CHANGELOG_NEW.md
+            } >> CHANGELOG.md
           else
             # Insert new notes before the first existing version entry
-            head -n $((INSERT_LINE - 1)) CHANGELOG.md > CHANGELOG.tmp
+            head -n "$((INSERT_LINE - 1))" CHANGELOG.md > CHANGELOG.tmp
             cat CHANGELOG_NEW.md >> CHANGELOG.tmp
             echo "" >> CHANGELOG.tmp
-            tail -n +$INSERT_LINE CHANGELOG.md >> CHANGELOG.tmp
+            tail -n +"$INSERT_LINE" CHANGELOG.md >> CHANGELOG.tmp
             mv CHANGELOG.tmp CHANGELOG.md
           fi
           rm -f CHANGELOG_NEW.md
