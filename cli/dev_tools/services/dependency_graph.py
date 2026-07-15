@@ -25,7 +25,8 @@ class DependencyGraph:
             else:
                 # Run dependency-cruiser
                 cmd = [
-                    "npx",
+                    "pnpm",
+                    "exec",
                     "depcruise",
                     "src",
                     "--config",
@@ -36,8 +37,8 @@ class DependencyGraph:
                     "json",
                 ]
                 try:
-                    # Explicitly check for npx availability
-                    subprocess.run(["npx", "--version"], capture_output=True, check=True)
+                    # Explicitly check for pnpm availability
+                    subprocess.run(["pnpm", "--version"], capture_output=True, check=True)
 
                     result = subprocess.run(cmd, capture_output=True, text=True, cwd=self.root_dir)
                     if result.returncode != 0:
@@ -50,8 +51,8 @@ class DependencyGraph:
                         log_error(f"Failed to parse dependency-cruiser output: {e}\nRaw output: {result.stdout}")
                         raise CLIError(f"Failed to parse dependency-cruiser output: {e}")
                 except (FileNotFoundError, subprocess.CalledProcessError) as e:
-                    log_error(f"npx or depcruise not found or failed: {e}")
-                    raise CLIError("npx or depcruise not found. Ensure dependencies are installed.")
+                    log_error(f"pnpm or depcruise not found or failed: {e}")
+                    raise CLIError("pnpm or depcruise not found. Ensure dependencies are installed.")
 
                 if data and data.get("modules"):
                     # Cache it

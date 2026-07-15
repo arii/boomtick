@@ -33,6 +33,7 @@
     "@types/jsdom": "^28.0.3",
     "@types/pixelmatch": "^5.2.6",
     "@types/pngjs": "^6.0.5",
+    "dependency-cruiser": "^18.1.0",
     "diff": "^9.0.0",
     "jscpd": "^5.0.12",
     "jsdom": "^29.1.1",

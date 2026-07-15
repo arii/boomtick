@@ -74,7 +74,7 @@ async function main() {
     }
 
     try {
-      graphJson = exec(`npx depcruise src --config ${depCruiseConfig} --ts-config ${tsConfig} --output-type json`);
+      graphJson = exec(`pnpm exec depcruise src --config ${depCruiseConfig} --ts-config ${tsConfig} --output-type json`);
     } catch (err: unknown) {
       const error = err as Error;
       throw new Error(`Failed to execute dependency-cruiser: ${error.message}`, { cause: err });
