@@ -4,9 +4,10 @@ on:
   push:
     branches:
       - main
-  # Also runs when PRs are opened or updated to manage the draft labels
-  pull_request:
-    types: [opened, reopened, synchronize]
+  # Note: pull_request trigger is disabled until .github/release-drafter.yml is merged into the default branch.
+  # Release Drafter requires the config file to exist in the default branch to process PR events.
+  # pull_request:
+  #   types: [opened, reopened, synchronize]
 
 permissions:
   contents: write

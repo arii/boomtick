@@ -78,4 +78,4 @@ jobs:
         run: |
           ASSETS=""
           if [ -d "cli/dist" ]; then ASSETS="cli/dist/*"; fi
-          gh release create "${{ github.ref_name }}" --title "Release ${{ github.ref_name }}" --generate-notes $ASSETS
+          gh release create "${{ github.ref_name }}" --title "Release ${{ github.ref_name }}" --generate-notes "$ASSETS"

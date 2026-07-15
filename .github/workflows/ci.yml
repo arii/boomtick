@@ -28,8 +28,9 @@ jobs:
 
       - name: Check workflow files with actionlint
         run: |
-          actionlint_path=$(bash <(curl -sLS https://raw.githubusercontent.com/rhysd/actionlint/main/scripts/download-actionlint.bash) | grep -oP 'executable: \K.*')
-          ${actionlint_path:-./actionlint} .github/workflows/*.yml
+          # Download and install actionlint
+          curl -sLS https://raw.githubusercontent.com/rhysd/actionlint/main/scripts/download-actionlint.bash | bash
+          ./actionlint .github/workflows/*.yml
 
   lint-typecheck:
     name: Lint & Typecheck (${{ matrix.target }})

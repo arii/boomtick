@@ -35,6 +35,8 @@ jobs:
           fi
 
           # Find the line number of the first version entry (starts with ##)
+          # SC2155: Declare and assign separately
+          INSERT_LINE=""
           INSERT_LINE=$(grep -n "^## " CHANGELOG.md | head -n 1 | cut -d: -f1)
 
           if [ -z "$INSERT_LINE" ]; then
@@ -45,10 +47,13 @@ jobs:
             } >> CHANGELOG.md
           else
             # Insert new notes before the first existing version entry
-            head -n "$((INSERT_LINE - 1))" CHANGELOG.md > CHANGELOG.tmp
-            cat CHANGELOG_NEW.md >> CHANGELOG.tmp
-            echo "" >> CHANGELOG.tmp
-            tail -n +"$INSERT_LINE" CHANGELOG.md >> CHANGELOG.tmp
+            # Grouping redirects as suggested by SC2129
+            {
+              head -n "$((INSERT_LINE - 1))" CHANGELOG.md
+              cat CHANGELOG_NEW.md
+              echo ""
+              tail -n +"$INSERT_LINE" CHANGELOG.md
+            } > CHANGELOG.tmp
             mv CHANGELOG.tmp CHANGELOG.md
           fi
           rm -f CHANGELOG_NEW.md
