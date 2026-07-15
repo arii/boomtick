@@ -193,3 +193,4 @@ test-results/
 .env.local
 .boomtick/
 logs/
+!/lib/
