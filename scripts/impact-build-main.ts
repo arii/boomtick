@@ -10,7 +10,7 @@ const baseRef = process.env.IMPACT_BASE_REF ?? config.base_branch;
 
 function run(command: string, args: string[], cwd = process.cwd()): void {
   console.log(`$ ${command} ${args.join(' ')}`);
-  execFileSync(command, args, { cwd, stdio: 'inherit', env: { ...process.env, VITE_BASE_PATH: '/', DISABLE_MINIFY: 'true' } });
+  execFileSync(command, args, { cwd, stdio: 'inherit', env: { ...process.env, VITE_BASE_PATH: '/', DISABLE_MINIFY: 'true', npm_config_ignore_scripts: 'true' } });
 }
 
 function removeExistingWorktree(): void {
