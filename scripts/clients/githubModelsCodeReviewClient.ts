@@ -63,24 +63,21 @@ export const githubModelsCodeReviewClient: CodeReviewClientStrategy = {
     const apiKey = process.env.GITHUB_TOKEN;
     const url = 'https://models.inference.ai.azure.com/chat/completions';
 
-    let fetchResponse;
-    try {
-      fetchResponse = await fetch(url, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${apiKey}`
-        },
-        body: JSON.stringify({
-          model: modelName,
-          messages: messages,
-          max_tokens: maxTokens,
-          temperature: 0.1
-        })
-      });
-    } catch (e) {
+    const fetchResponse = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`
+      },
+      body: JSON.stringify({
+        model: modelName,
+        messages: messages,
+        max_tokens: maxTokens,
+        temperature: 0.1
+      })
+    }).catch(e => {
       throw new Error(`Failed to fetch from GitHub Models API: ${e}`, { cause: e });
-    }
+    });
 
     if (!fetchResponse.ok) {
       const errText = await fetchResponse.text();
