@@ -16,5 +16,8 @@
     "doctor": "node scripts/check-runtime-files.mjs",
     "preinstall": "node scripts/check-runtime-files.mjs",
     "sync-python-deps": "python3 scripts/sync-python-deps.py"
+  },
+  "devDependencies": {
+    "jscpd": "^5.0.12"
   }
 }
