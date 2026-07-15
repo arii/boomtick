@@ -1,0 +1,69 @@
+name: Release CLI
+
+on:
+  push:
+    tags:
+      - 'cli-v*'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Dry run (skip PyPI upload)'
+        type: boolean
+        default: true
+
+permissions:
+  contents: write
+  id-token: write
+
+jobs:
+  release-cli:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Setup Environment
+        uses: ./.github/actions/setup-env
+        with:
+          setup-node: 'true'
+          setup-python: 'true'
+
+      - name: Run CLI Tests
+        run: |
+          cd cli
+          pip install -e .
+          pytest tests/
+
+      - name: Build MCP Tool
+        run: |
+          pnpm --filter @arii/boomtick-mcp build
+
+      - name: Sync Schemas and Contracts
+        run: |
+          export PYTHONPATH="$PYTHONPATH:$(pwd)/cli"
+          python3 cli/dev_tools/schema_gen.py
+          pnpm --filter @arii/boomtick-mcp run sync-contracts
+
+      - name: Bundle MCP into CLI
+        run: |
+          mkdir -p cli/dev_tools/dist
+          cp -r mcp/dist/* cli/dev_tools/dist/
+
+      - name: Build Python Package
+        run: |
+          cd cli
+          python3 -m build
+
+      - name: Publish to PyPI
+        if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.dry_run == false)
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: cli/dist/
+          password: ${{ secrets.PYPI_API_TOKEN }}
+
+      - name: Create GitHub Release
+        if: github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create ${{ github.ref_name }} --title "CLI Release ${{ github.ref_name }}" --generate-notes cli/dist/*

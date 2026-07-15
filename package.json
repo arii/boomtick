@@ -1,5 +1,6 @@
 {
   "name": "boomtick-root",
+  "version": "0.2.1",
   "private": true,
   "packageManager": "pnpm@10.28.2",
   "engines": {
@@ -7,6 +8,8 @@
     "pnpm": "10.28.2"
   },
   "scripts": {
-    "type-check": "echo 'ok'"
+    "type-check": "pnpm --filter @arii/boomtick-mcp run type-check",
+    "lint": "pnpm --filter @arii/boomtick-mcp run lint",
+    "test": "pnpm --filter @arii/boomtick-mcp run test"
   }
 }
