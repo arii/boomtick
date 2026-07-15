@@ -14,7 +14,7 @@ export const DEFAULT_CONFIG: ProjectConfig = {
   core_dirs: ["src/layouts/", "src/components/"],
   monolithic_pr_threshold: 3,
   base_branch: "origin/main",
-  max_diff_chars: 40000,
+  max_diff_chars: 250000,
   content_scopes: {
     "resources": "content/resources/",
     "posts": "content/posts/",

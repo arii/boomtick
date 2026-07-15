@@ -64,6 +64,8 @@ runs:
       env:
         GEMINI_API_KEY: ${{ inputs.gemini_api_key }}
         GITHUB_TOKEN: ${{ inputs.github_token }}
+        PR_NUMBER: ${{ inputs.pr_number }}
+        GITHUB_REPOSITORY: ${{ github.repository }}
       run: |
         if node -e "const pkg = require('./package.json'); if (!pkg.scripts || !pkg.scripts['impact:gemini-code-review']) process.exit(1)" 2>/dev/null; then
           pnpm run impact:gemini-code-review
@@ -77,6 +79,8 @@ runs:
       continue-on-error: true
       env:
         GITHUB_TOKEN: ${{ inputs.github_token }}
+        PR_NUMBER: ${{ inputs.pr_number }}
+        GITHUB_REPOSITORY: ${{ github.repository }}
       run: |
         if node -e "const pkg = require('./package.json'); if (!pkg.scripts || !pkg.scripts['impact:github-models-code-review']) process.exit(1)" 2>/dev/null; then
           pnpm run impact:github-models-code-review
