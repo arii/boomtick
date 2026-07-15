@@ -336,9 +336,7 @@ class Orchestrator:
         return fallback_value
 
     def get_audit_results(self, content: Optional[str] = None, targets: Optional[List[str]] = None) -> Dict[str, Any]:
-        script_path = "scripts/detect-antipatterns.mjs"
-        if not os.path.exists(script_path):
-            script_path = "scripts/detect-antipatterns.mjs"
+        script_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "scripts", "detect-antipatterns.mjs"))
         cmd = ["node", script_path, "--json"]
         if targets:
             cmd.extend(targets)
@@ -818,9 +816,7 @@ class Orchestrator:
                 f for f in changed_files if (f.endswith(".tsx") or f.endswith(".ts")) and os.path.exists(f)
             ]
             if files_to_audit:
-                script_path = "scripts/detect-antipatterns.mjs"
-                if not os.path.exists(script_path):
-                    script_path = "scripts/detect-antipatterns.mjs"
+                script_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "scripts", "detect-antipatterns.mjs"))
                 audit_res = run_command(
                     ["node", script_path, "--json"] + files_to_audit,
                     check=False,
@@ -967,9 +963,7 @@ class Orchestrator:
             raise e
 
         # 2. Automated Validation Steps
-        script_path = "scripts/detect-antipatterns.mjs"
-        if not os.path.exists(script_path):
-            script_path = "scripts/detect-antipatterns.mjs"
+        script_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "scripts", "detect-antipatterns.mjs"))
         steps = [
             ("Anti-Pattern Audit", ["node", script_path]),
             ("Version Downgrade Check", [PROJECT_CONFIG.cli_alias, "gh", "verify-versions"]),
@@ -1061,9 +1055,7 @@ class Orchestrator:
             os.chdir(original_cwd)
 
     def handle_audit_gate(self) -> Dict[str, Any]:
-        script_path = "scripts/detect-antipatterns.mjs"
-        if not os.path.exists(script_path):
-            script_path = "scripts/detect-antipatterns.mjs"
+        script_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "scripts", "detect-antipatterns.mjs"))
         current_count = int(run_command(["node", script_path, "--count-only"]) or 0)
         baseline_count = self.resolve_baseline(None, "AUDIT_BASELINE", -1)
 
