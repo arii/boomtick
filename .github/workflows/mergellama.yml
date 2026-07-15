@@ -50,6 +50,7 @@ jobs:
       - name: Validate Resolution
         run: |
           pnpm install --frozen-lockfile
+          pnpm --filter @arii/boomtick-mcp run sync-contracts
           pnpm run type-check
 
       - name: Commit Changes
