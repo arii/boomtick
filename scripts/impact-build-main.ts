@@ -42,11 +42,11 @@ async function main() {
   run('git', ['worktree', 'add', worktreePath, baseRef]);
 
   await logHeartbeat('PNPM Install (Base Worktree)');
-  console.log(`$ pnpm install --frozen-lockfile --prefer-offline`);
-  execFileSync('pnpm', ['install', '--frozen-lockfile', '--prefer-offline'], {
+  console.log(`$ pnpm install --frozen-lockfile --prefer-offline --ignore-scripts`);
+  execFileSync('pnpm', ['install', '--frozen-lockfile', '--prefer-offline', '--ignore-scripts'], {
     cwd: worktreePath,
     stdio: 'inherit',
-    env: { ...process.env, VITE_BASE_PATH: '/', DISABLE_MINIFY: 'true', npm_config_ignore_scripts: 'true' }
+    env: { ...process.env, VITE_BASE_PATH: '/', DISABLE_MINIFY: 'true' }
   });
 
   await logHeartbeat('Building Base Branch');
