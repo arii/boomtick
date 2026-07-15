@@ -36,6 +36,7 @@ from dev_tools.utils import (
     get_github_client,
     get_or_create_log_dir,
     get_repo_name,
+    get_stack_versions,
     log_error,
     log_warn,
     resolve_resource_path,
@@ -1525,6 +1526,10 @@ Respond only after the PR is created or updated:
         """Parses a workflow file for compliance violations using a data-driven rule model."""
         violations = []
 
+        stack_versions = get_stack_versions(fetch_latest=False)
+        checkout_ver = stack_versions.get("actions/checkout", "v4").lstrip("v")
+        setup_node_ver = stack_versions.get("actions/setup-node", "v4").lstrip("v")
+
         # Rule definition model: dictionaries with regex, message, and optional validator.
         # Regexes are designed to be robust against varying whitespace and formatting.
         rules: List[Dict[str, Any]] = [
@@ -1538,13 +1543,13 @@ Respond only after the PR is created or updated:
             },
             {
                 "regex": r"actions/checkout\s*@\s*v(\d+)",
-                "message": "Outdated `actions/checkout@v{ver}`. Use `@v7`.",
-                "validator": lambda m: int(m.group(1)) < 7,
+                "message": f"Outdated `actions/checkout@v{{ver}}`. Use `@v{checkout_ver}`.",
+                "validator": lambda m: int(m.group(1)) < int(checkout_ver),
             },
             {
                 "regex": r"actions/setup-node\s*@\s*v(\d+)",
-                "message": "Outdated `actions/setup-node@v{ver}`. Use `@v7`.",
-                "validator": lambda m: int(m.group(1)) < 7,
+                "message": f"Outdated `actions/setup-node@v{{ver}}`. Use `@v{setup_node_ver}`.",
+                "validator": lambda m: int(m.group(1)) < int(setup_node_ver),
             },
         ]
 
