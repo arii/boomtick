@@ -1,0 +1,47 @@
+name: Release Orchestrator
+
+on:
+  push:
+    tags:
+      - 'cli-v*'
+      - 'mcp-v*'
+  workflow_dispatch:
+    inputs:
+      target:
+        description: 'Target to release'
+        required: true
+        type: choice
+        options:
+          - cli
+          - mcp
+          - all
+        default: cli
+      dry_run:
+        description: 'Dry run'
+        type: boolean
+        default: true
+
+jobs:
+  release-cli:
+    if: startsWith(github.ref, 'refs/tags/cli-v') || (github.event_name == 'workflow_dispatch' && inputs.target == 'cli')
+    uses: ./.github/workflows/release-logic.yml
+    with:
+      target: cli
+      dry_run: ${{ inputs.dry_run || false }}
+    secrets: inherit
+
+  release-mcp:
+    if: startsWith(github.ref, 'refs/tags/mcp-v') || (github.event_name == 'workflow_dispatch' && inputs.target == 'mcp')
+    uses: ./.github/workflows/release-logic.yml
+    with:
+      target: mcp
+      dry_run: ${{ inputs.dry_run || false }}
+    secrets: inherit
+
+  release-all:
+    if: github.event_name == 'workflow_dispatch' && inputs.target == 'all'
+    uses: ./.github/workflows/release-logic.yml
+    with:
+      target: all
+      dry_run: ${{ inputs.dry_run || false }}
+    secrets: inherit
