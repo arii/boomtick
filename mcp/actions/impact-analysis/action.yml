@@ -296,13 +296,10 @@ runs:
         fi
 
         mkdir -p .boomtick/logs/ai
-        if command -v td-cli >/dev/null 2>&1; then
-          td-cli gh summary-report >> "$GITHUB_STEP_SUMMARY"
-          if ! td-cli gh verify-metrics; then
-            echo "CI Metrics verification failed."
-            exit 1
-          fi
-        else
-          echo "⚠️ Skipping: td-cli not found"
+        export PYTHONPATH="boomtick-pkg/cli:boomtick-pkg/cli/dev_tools:$PYTHONPATH"
+        python3 -m dev_tools.cli gh summary-report >> "$GITHUB_STEP_SUMMARY"
+        if ! python3 -m dev_tools.cli gh verify-metrics; then
+          echo "CI Metrics verification failed."
+          exit 1
         fi
       shell: bash
