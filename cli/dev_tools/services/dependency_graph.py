@@ -4,7 +4,7 @@ import os
 import subprocess
 from typing import Dict, List, Set
 
-from dev_tools.utils import CLIError, log_error
+from dev_tools.utils import CLIError, log_error, log_warn
 
 
 class DependencyGraph:
@@ -23,17 +23,17 @@ class DependencyGraph:
                 with open(cache_path, "r", encoding="utf-8") as f:
                     data = json.load(f)
             else:
-                # 0. Check for required configuration files to avoid execution failures
                 depcruise_config = os.path.join(self.root_dir, ".dependency-cruiser.config.mjs")
                 tsconfig = os.path.join(self.root_dir, "tsconfig.app.json")
+                src_dir = os.path.join(self.root_dir, "src")
 
-                if not os.path.exists(depcruise_config) or not os.path.exists(tsconfig):
-                    # Return empty module list if unconfigured
+                if not os.path.exists(depcruise_config) or not os.path.exists(tsconfig) or not os.path.exists(src_dir):
+                    log_warn(f"Missing {depcruise_config}, {tsconfig} or {src_dir} directory. Dependency graph will be empty.")
                     self.graph = {}
                     self.reverse_graph = {}
                     return
 
-                # Run dependency-cruiser using pnpm exec for better robustness in this project
+                # Run dependency-cruiser
                 cmd = [
                     "pnpm",
                     "exec",
@@ -47,6 +47,9 @@ class DependencyGraph:
                     "json",
                 ]
                 try:
+                    # Explicitly check for pnpm availability
+                    subprocess.run(["pnpm", "--version"], capture_output=True, check=True)
+
                     result = subprocess.run(cmd, capture_output=True, text=True, cwd=self.root_dir)
                     if result.returncode != 0:
                         log_error(f"dependency-cruiser failed (exit {result.returncode}): {result.stderr}")
