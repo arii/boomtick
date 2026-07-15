@@ -10,6 +10,10 @@
   "scripts": {
     "type-check": "pnpm --filter @arii/boomtick-mcp run type-check",
     "lint": "pnpm --filter @arii/boomtick-mcp run lint",
-    "test": "pnpm --filter @arii/boomtick-mcp run test"
+    "test": "pnpm --filter @arii/boomtick-mcp run test",
+    "verify:schemas": "node scripts/verify-schemas.mjs",
+    "check:runtime-files": "node scripts/check-runtime-files.mjs",
+    "doctor": "node scripts/check-runtime.mjs",
+    "preinstall": "node scripts/check-runtime.mjs"
   }
 }
