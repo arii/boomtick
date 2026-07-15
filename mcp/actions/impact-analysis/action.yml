@@ -23,8 +23,12 @@ runs:
 
     - name: Deployment Impact Analysis
       id: impact_analysis
+      env:
+        GITHUB_TOKEN: ${{ inputs.github_token }}
+        PR_NUMBER: ${{ inputs.pr_number }}
+        GITHUB_REPOSITORY: ${{ github.repository }}
       run: |
-        if pnpm run | grep -q "impact:analysis"; then
+        if node -e "const pkg = require('./package.json'); if (!pkg.scripts || !pkg.scripts['impact:analysis']) process.exit(1)" 2>/dev/null; then
           pnpm run impact:analysis
           echo "has_impact=true" >> "$GITHUB_OUTPUT"
         else
@@ -37,8 +41,11 @@ runs:
       if: steps.impact_analysis.outputs.has_impact == 'true'
       env:
         DISABLE_MINIFY: true
+        GITHUB_TOKEN: ${{ inputs.github_token }}
+        PR_NUMBER: ${{ inputs.pr_number }}
+        GITHUB_REPOSITORY: ${{ github.repository }}
       run: |
-        if pnpm run | grep -q "impact:build-main"; then
+        if node -e "const pkg = require('./package.json'); if (!pkg.scripts || !pkg.scripts['impact:build-main']) process.exit(1)" 2>/dev/null; then
           pnpm run impact:build-main
         else
           echo "⚠️ Skipping: impact:build-main script not found"
@@ -50,8 +57,11 @@ runs:
       env:
         VITE_BASE_PATH: /
         DISABLE_MINIFY: true
+        GITHUB_TOKEN: ${{ inputs.github_token }}
+        PR_NUMBER: ${{ inputs.pr_number }}
+        GITHUB_REPOSITORY: ${{ github.repository }}
       run: |
-        if pnpm run | grep -q "build:review"; then
+        if node -e "const pkg = require('./package.json'); if (!pkg.scripts || !pkg.scripts['build:review']) process.exit(1)" 2>/dev/null; then
           pnpm run build:review
         else
           echo "⚠️ Skipping: build:review script not found"
@@ -64,8 +74,10 @@ runs:
       env:
         GEMINI_API_KEY: ${{ inputs.gemini_api_key }}
         GITHUB_TOKEN: ${{ inputs.github_token }}
+        PR_NUMBER: ${{ inputs.pr_number }}
+        GITHUB_REPOSITORY: ${{ github.repository }}
       run: |
-        if pnpm run | grep -q "impact:gemini-code-review"; then
+        if node -e "const pkg = require('./package.json'); if (!pkg.scripts || !pkg.scripts['impact:gemini-code-review']) process.exit(1)" 2>/dev/null; then
           pnpm run impact:gemini-code-review
         else
           echo "⚠️ Skipping: impact:gemini-code-review script not found"
@@ -77,8 +89,10 @@ runs:
       continue-on-error: true
       env:
         GITHUB_TOKEN: ${{ inputs.github_token }}
+        PR_NUMBER: ${{ inputs.pr_number }}
+        GITHUB_REPOSITORY: ${{ github.repository }}
       run: |
-        if pnpm run | grep -q "impact:github-models-code-review"; then
+        if node -e "const pkg = require('./package.json'); if (!pkg.scripts || !pkg.scripts['impact:github-models-code-review']) process.exit(1)" 2>/dev/null; then
           pnpm run impact:github-models-code-review
         else
           echo "⚠️ Skipping: impact:github-models-code-review script not found"
@@ -87,8 +101,12 @@ runs:
 
     - name: Visual Diff
       if: steps.impact_analysis.outputs.has_impact == 'true'
+      env:
+        GITHUB_TOKEN: ${{ inputs.github_token }}
+        PR_NUMBER: ${{ inputs.pr_number }}
+        GITHUB_REPOSITORY: ${{ github.repository }}
       run: |
-        if pnpm run | grep -q "impact:visual-diff"; then
+        if node -e "const pkg = require('./package.json'); if (!pkg.scripts || !pkg.scripts['impact:visual-diff']) process.exit(1)" 2>/dev/null; then
           pnpm run impact:visual-diff
         else
           echo "⚠️ Skipping: impact:visual-diff script not found"
@@ -97,8 +115,12 @@ runs:
 
     - name: DOM Diff
       if: steps.impact_analysis.outputs.has_impact == 'true'
+      env:
+        GITHUB_TOKEN: ${{ inputs.github_token }}
+        PR_NUMBER: ${{ inputs.pr_number }}
+        GITHUB_REPOSITORY: ${{ github.repository }}
       run: |
-        if pnpm run | grep -q "impact:dom-diff"; then
+        if node -e "const pkg = require('./package.json'); if (!pkg.scripts || !pkg.scripts['impact:dom-diff']) process.exit(1)" 2>/dev/null; then
           pnpm run impact:dom-diff
         else
           echo "⚠️ Skipping: impact:dom-diff script not found"
@@ -118,14 +140,28 @@ runs:
       env:
         GEMINI_API_KEY: ${{ inputs.gemini_api_key }}
         GITHUB_TOKEN: ${{ inputs.github_token }}
-      run: pnpm run impact:gemini-review
+        PR_NUMBER: ${{ inputs.pr_number }}
+        GITHUB_REPOSITORY: ${{ github.repository }}
+      run: |
+        if node -e "const pkg = require('./package.json'); if (!pkg.scripts || !pkg.scripts['impact:gemini-review']) process.exit(1)" 2>/dev/null; then
+          pnpm run impact:gemini-review
+        else
+          echo "⚠️ Skipping: impact:gemini-review script not found"
+        fi
       shell: bash
 
     - name: Visual review github models agent
       if: always() && steps.check_visuals.outputs.changed_routes != '0' && steps.check_visuals.outputs.changed_routes != ''
       env:
         GITHUB_TOKEN: ${{ inputs.github_token }}
-      run: pnpm run impact:github-models-review
+        PR_NUMBER: ${{ inputs.pr_number }}
+        GITHUB_REPOSITORY: ${{ github.repository }}
+      run: |
+        if node -e "const pkg = require('./package.json'); if (!pkg.scripts || !pkg.scripts['impact:github-models-review']) process.exit(1)" 2>/dev/null; then
+          pnpm run impact:github-models-review
+        else
+          echo "⚠️ Skipping: impact:github-models-review script not found"
+        fi
       shell: bash
 
     - name: Report Summary
@@ -237,6 +273,9 @@ runs:
       env:
         TASK_ID: ${{ steps.parse_jules.outputs.task_id }}
         JULES_API_KEY: ${{ inputs.jules_api_key }}
+        GITHUB_TOKEN: ${{ inputs.github_token }}
+        PR_NUMBER: ${{ inputs.pr_number }}
+        GITHUB_REPOSITORY: ${{ github.repository }}
       run: |
         if [ -f "scripts/send-jules-impact.py" ]; then
           python3 scripts/send-jules-impact.py

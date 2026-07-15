@@ -488,6 +488,8 @@ export async function orchestrateCodeReview(
   const prevState = await getPreviousReviewState<CodeReviewState>(client.reportTitle);
   const rawChangedFiles = Array.isArray(initialSummary.changedFiles) ? initialSummary.changedFiles : [];
 
+  // Filter low-impact files (like pnpm-lock.yaml) BEFORE checking truncation.
+  // This prevents skipping AI review just because of a large lockfile update.
   const changedFiles = filterLowImpactFiles(rawChangedFiles, IMPACT_CONFIG.LOW_IMPACT_PATHS);
 
   if (changedFiles.length === 0) {
@@ -503,8 +505,11 @@ export async function orchestrateCodeReview(
     return;
   }
 
-  if (initialSummary.isTruncated) {
-    const report = generateTruncatedReviewMarkdown(initialSummary, client);
+  // RE-FETCH summary only for reviewable files to avoid large lockfile truncation
+  const filteredSummary = await getCodeDiffSummary(changedFiles);
+
+  if (filteredSummary.isTruncated) {
+    const report = generateTruncatedReviewMarkdown(filteredSummary, client);
     fs.writeFileSync(agentReportPath, report);
     await postPRComment(report, client.reportTitle, prevState);
 
@@ -528,7 +533,8 @@ export async function orchestrateCodeReview(
 
   const orchestratorStartTime = Date.now();
   const allResults: CodeReviewResult[] = [];
-  const CONCURRENCY_LIMIT = 4;
+  // Reduce concurrency to avoid rate limits (especially for GitHub Models)
+  const CONCURRENCY_LIMIT = 2;
   const newCache: Record<string, CodeReviewResult> = {};
 
   const batchSummaryCache = new Map<string, Promise<CodeReviewSummary>>();
@@ -609,13 +615,19 @@ export async function orchestrateCodeReview(
           const errorMsg = err instanceof Error ? err.message : String(err);
           console.error(`❌ Error in ${role} review task:`, err);
           const isRateLimit = errorMsg.includes('429') || errorMsg.toLowerCase().includes('rate limit');
+          const isInvalidApiKey = errorMsg.includes('API_KEY_INVALID') || errorMsg.includes('401') || errorMsg.includes('400') ||
+                                  errorMsg.toLowerCase().includes('unauthorized') || errorMsg.toLowerCase().includes('not valid') ||
+                                  errorMsg.toLowerCase().includes('permission');
+
+          console.warn(`⚠️ [${role}] review failed: ${errorMsg} (isRateLimit: ${isRateLimit}, isInvalidApiKey: ${isInvalidApiKey})`);
+
           allResults.push({
             feedback: `Error: failed to execute ${role} review. Details: ${errorMsg}`,
             role,
             tokens: 0,
             cost: 0,
             llmVerdict: 'warn',
-            skipReason: isRateLimit ? 'RATE_LIMIT' : 'UNHANDLED_ERROR',
+            skipReason: isRateLimit ? 'RATE_LIMIT' : (isInvalidApiKey ? 'MISSING_API_KEY' : 'UNHANDLED_ERROR'),
           });
         }
       });

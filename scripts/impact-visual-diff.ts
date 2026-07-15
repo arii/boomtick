@@ -24,7 +24,7 @@ import {
   type LayoutValidation
 } from './impact-review-utils';
 import { whiteCanvas, copyImage } from './image-processing-utils.ts';
-import { VIEWPORTS } from '../../src/constants/visual-viewports';
+import { VIEWPORTS } from '../lib/visualReviewConstants';
 
 const basePort = Number(process.env.IMPACT_BASE_PORT ?? 4173);
 const headPort = Number(process.env.IMPACT_HEAD_PORT ?? 4174);
