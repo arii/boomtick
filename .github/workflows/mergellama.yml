@@ -55,8 +55,10 @@ jobs:
               pnpm run type-check
             fi
           elif [ -f "mcp/package.json" ]; then
+            PYTHONPATH=cli python3 cli/dev_tools/schema_gen.py
             cd mcp
             pnpm install --frozen-lockfile
+            pnpm exec tsx scripts/sync-contracts.ts
             pnpm run build
           fi
 
