@@ -1,0 +1,12 @@
+{
+  "packages": {
+    "cli": {
+      "release-type": "python",
+      "component": "cli"
+    },
+    "mcp": {
+      "release-type": "node",
+      "component": "mcp"
+    }
+  }
+}
