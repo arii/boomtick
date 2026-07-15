@@ -27,8 +27,8 @@ validate_env() {
     echo "Validating workspace configuration..."
     if [ -f "scripts/validate_workspace.py" ]; then
         ENGINES_JSON=$(python3 scripts/validate_workspace.py --get-engines | sed -n '/ENGINES_START/,/ENGINES_END/p' | sed '1d;$d')
-    elif [ -f "boomtick-pkg/scripts/validate_workspace.py" ]; then
-        ENGINES_JSON=$(python3 boomtick-pkg/scripts/validate_workspace.py --get-engines | sed -n '/ENGINES_START/,/ENGINES_END/p' | sed '1d;$d')
+    elif [ -f "scripts/validate_workspace.py" ]; then
+        ENGINES_JSON=$(python3 scripts/validate_workspace.py --get-engines | sed -n '/ENGINES_START/,/ENGINES_END/p' | sed '1d;$d')
     fi
 
     # Extract versions from JSON if possible, otherwise use defaults

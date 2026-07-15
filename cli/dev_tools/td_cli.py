@@ -20,7 +20,7 @@ def main():
         # Handle missing dependencies gracefully (e.g. click, pydantic)
         print(f"❌ Error: {e}", file=sys.stderr)
         print("   The environment might not be fully bootstrapped.", file=sys.stderr)
-        print("   Run `pip install -e boomtick-pkg/cli/` to install dependencies.", file=sys.stderr)
+        print("   Run `pip install -e cli/` to install dependencies.", file=sys.stderr)
         sys.exit(1)
 
 

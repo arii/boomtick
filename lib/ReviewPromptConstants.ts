@@ -15,7 +15,7 @@ FALSE POSITIVE FILTER: No speculation. Design choices are NOT bugs.
 
 TIERED SCOPE:
 - For App/UI (src/): Flag redundant wrappers. BANNED: Raw Tailwind layout (flex/grid/px-*) in TSX (use Stack/Grid/Box).
-- For Infra/Tooling (scripts/, boomtick-pkg/cli/, .github/): Focus on portability, idempotency, and error handling. Avoid UI-specific feedback for low-level scripts.
+- For Infra/Tooling (scripts/, cli/, .github/): Focus on portability, idempotency, and error handling. Avoid UI-specific feedback for low-level scripts.
 
 REPO RULES: Prefer removal.
 ANTI-SLOP: DO NOT recommend overly complex error handling, defensive guards, extra unit tests for simple internal scripts, or boilerplate documentation/comments.

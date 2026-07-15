@@ -89,7 +89,7 @@ export class BoomtickMCPServer {
     this.server.setRequestHandler(GetPromptRequestSchema, async (request) => {
       const name = request.params.name;
 
-      const agentsDir = path.resolve(config.repoPath, "boomtick-pkg/mcp/src/agents");
+      const agentsDir = path.resolve(config.repoPath, "mcp/src/agents");
       // nosemgrep
       const promptPath = path.resolve(agentsDir, `${name}.prompt.md`);
 

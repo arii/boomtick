@@ -59,7 +59,7 @@ class ProjectConfig:
     infra_file_paths: List[str] = field(
         default_factory=lambda: [
             "scripts/",
-            "boomtick-pkg/cli/",
+            "cli/",
             ".github/",
             "setup-agent.sh",
             "Dockerfile",

@@ -338,7 +338,7 @@ class Orchestrator:
     def get_audit_results(self, content: Optional[str] = None, targets: Optional[List[str]] = None) -> Dict[str, Any]:
         script_path = "scripts/detect-antipatterns.mjs"
         if not os.path.exists(script_path):
-            script_path = "boomtick-pkg/scripts/detect-antipatterns.mjs"
+            script_path = "scripts/detect-antipatterns.mjs"
         cmd = ["node", script_path, "--json"]
         if targets:
             cmd.extend(targets)
@@ -820,7 +820,7 @@ class Orchestrator:
             if files_to_audit:
                 script_path = "scripts/detect-antipatterns.mjs"
                 if not os.path.exists(script_path):
-                    script_path = "boomtick-pkg/scripts/detect-antipatterns.mjs"
+                    script_path = "scripts/detect-antipatterns.mjs"
                 audit_res = run_command(
                     ["node", script_path, "--json"] + files_to_audit,
                     check=False,
@@ -969,7 +969,7 @@ class Orchestrator:
         # 2. Automated Validation Steps
         script_path = "scripts/detect-antipatterns.mjs"
         if not os.path.exists(script_path):
-            script_path = "boomtick-pkg/scripts/detect-antipatterns.mjs"
+            script_path = "scripts/detect-antipatterns.mjs"
         steps = [
             ("Anti-Pattern Audit", ["node", script_path]),
             ("Version Downgrade Check", [PROJECT_CONFIG.cli_alias, "gh", "verify-versions"]),
@@ -1063,7 +1063,7 @@ class Orchestrator:
     def handle_audit_gate(self) -> Dict[str, Any]:
         script_path = "scripts/detect-antipatterns.mjs"
         if not os.path.exists(script_path):
-            script_path = "boomtick-pkg/scripts/detect-antipatterns.mjs"
+            script_path = "scripts/detect-antipatterns.mjs"
         current_count = int(run_command(["node", script_path, "--count-only"]) or 0)
         baseline_count = self.resolve_baseline(None, "AUDIT_BASELINE", -1)
 
@@ -2265,7 +2265,7 @@ Follow the "Audit comment template" in `docs/agent/issue-audit-rules.md` to post
         impact_output = "Not available."
         impact_script = "scripts/impact-analysis.ts"
         if not os.path.exists(impact_script):
-            impact_script = "boomtick-pkg/scripts/impact-analysis.ts"
+            impact_script = "scripts/impact-analysis.ts"
 
         if os.path.exists(impact_script):
             # Use check=False to swallow errors from impact analysis in the planning phase
