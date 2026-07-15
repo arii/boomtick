@@ -6,6 +6,7 @@ import { IMPACT_CONFIG } from '../scripts/impact-analysis.config';
 // @ts-expect-error - May not exist in standalone boomtick
 let getAllRoutes: any;
 try {
+  // @ts-expect-error - May not exist in standalone boomtick
   getAllRoutes = require('../../src/lib/routes-discovery').getAllRoutes;
 } catch {
   getAllRoutes = () => ({ stubs: [] });

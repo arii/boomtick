@@ -21,7 +21,7 @@ runs:
         trap 'echo "::endgroup::"' EXIT
         export PATH="$HOME/.local/bin:/github/home/.local/bin:$PATH"
         if ! node scripts/detect-antipatterns.mjs; then echo "Audit failed"; exit 1; fi
-        td gh audit-gate
+        python3 -m dev_tools.cli gh audit-gate
       shell: bash
 
     - name: Design Token Compliance

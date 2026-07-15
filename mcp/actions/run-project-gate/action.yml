@@ -149,9 +149,9 @@ runs:
       run: |
         echo "::group::Ratchet Any"
         trap 'echo "::endgroup::"' EXIT
-        # Ensure local python bin is on path for td-cli
+        export PYTHONPATH="boomtick-pkg/cli:boomtick-pkg/cli/dev_tools"
         export PATH="$HOME/.local/bin:/github/home/.local/bin:$PATH"
-        td-cli gh ratchet-any
+        python3 -m dev_tools.cli gh ratchet-any
       env:
         GITHUB_TOKEN: ${{ inputs.github_token }}
       shell: bash
