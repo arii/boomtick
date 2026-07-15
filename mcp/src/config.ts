@@ -46,7 +46,7 @@ export function initializeConfig() {
     return cachedDynamicConfig;
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e);
-    const errorPrefix = `CRITICAL: Failed to load dynamic config from Python CLI. Ensure Python 3 is installed and boomtick-pkg/cli is in your PYTHONPATH. Details: ${message}`;
+    const errorPrefix = `CRITICAL: Failed to load dynamic config from Python CLI. Ensure Python 3 is installed and cli is in your PYTHONPATH. Details: ${message}`;
 
     if (process.env.NODE_ENV === "development" || process.env.CI === "true") {
       throw new Error(errorPrefix);

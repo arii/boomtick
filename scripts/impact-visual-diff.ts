@@ -342,7 +342,7 @@ async function main(): Promise<void> {
     if (failedLayouts.length > 0) {
       console.error(`❌ Visual regression detected by automated measurements in ${failedLayouts.length} route(s).`);
       try {
-        execSync('node boomtick-pkg/scripts/detect-antipatterns.mjs', { stdio: 'inherit' });
+        execSync('node scripts/detect-antipatterns.mjs', { stdio: 'inherit' });
       } catch {
         console.error('❌ Anti-pattern validation failed during visual review phase.');
       }

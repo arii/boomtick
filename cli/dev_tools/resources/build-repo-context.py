@@ -10,7 +10,7 @@ def build_repo_context():
 
     # Discovery: find the repo root and package root
     script_path = pathlib.Path(__file__).resolve()
-    # boomtick-pkg/scripts/build-repo-context.py -> boomtick-pkg
+    # scripts/build-repo-context.py -> boomtick-pkg
     package_root = script_path.parent.parent
 
     # Check if we are in a monorepo or a standalone repo
@@ -21,7 +21,7 @@ def build_repo_context():
         # Standalone mode
         repo_root = package_root
 
-    # If we are running from a location that isn't boomtick-pkg/scripts,
+    # If we are running from a location that isn't scripts,
     # fallback to discovery based on workspace.json
     if package_root.name != "boomtick-pkg" or not (package_root / "workspace.json").exists():
         # Search upwards for workspace.json using Path.parents

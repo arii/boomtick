@@ -19,8 +19,8 @@ async function syncContracts() {
     throw err;
   }
 
-  let schemaPath = path.join(process.cwd(), 'boomtick-pkg/cli/dev_tools/cli-schema.json');
-  let outputPath = path.join(process.cwd(), 'boomtick-pkg/mcp/src/tools/contract.ts');
+  let schemaPath = path.join(process.cwd(), 'cli/dev_tools/cli-schema.json');
+  let outputPath = path.join(process.cwd(), 'mcp/src/tools/contract.ts');
 
   if (!fs.existsSync(schemaPath)) {
     // Try relative to package root if in extracted mode (run from root)

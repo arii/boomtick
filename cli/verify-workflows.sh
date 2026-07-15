@@ -5,8 +5,8 @@ cd "$(dirname "$0")/../.."
 source ./.agent-env.sh 2>/dev/null || true
 export ALLOW_HELP=1
 
-REPORT="boomtick-pkg/cli/logs/workflow-verification.md"
-mkdir -p boomtick-pkg/cli/logs
+REPORT="cli/logs/workflow-verification.md"
+mkdir -p cli/logs
 
 echo "# Workflow Verification" > "$REPORT"
 echo >> "$REPORT"
@@ -46,19 +46,19 @@ repair_origin
 
 run_check "shared" "python3 --version"
 run_check "shared" "pnpm --version"
-run_check "shared" "PYTHONPATH=\"boomtick-pkg/cli:boomtick-pkg/cli/dev_tools\" td-cli gh --help"
-run_check "shared" "PYTHONPATH=\"boomtick-pkg/cli:boomtick-pkg/cli/dev_tools\" td-cli jules --help"
+run_check "shared" "PYTHONPATH=\"cli:cli/dev_tools\" td-cli gh --help"
+run_check "shared" "PYTHONPATH=\"cli:cli/dev_tools\" td-cli jules --help"
 
 run_check "ai-slop-audit.md" "python3 .agents/scripts/audit-ai-slop.py"
 
-run_check "dev-tools-cli-guide.md" "PYTHONPATH=\"boomtick-pkg/cli:boomtick-pkg/cli/dev_tools\" td-cli gh pre-submit --help"
-run_check "dev-tools-cli-guide.md" "PYTHONPATH=\"boomtick-pkg/cli:boomtick-pkg/cli/dev_tools\" td-cli gh audit-pr --help"
-run_check "dev-tools-cli-guide.md" "PYTHONPATH=\"boomtick-pkg/cli:boomtick-pkg/cli/dev_tools\" td-cli gh validate-issue --help"
+run_check "dev-tools-cli-guide.md" "PYTHONPATH=\"cli:cli/dev_tools\" td-cli gh pre-submit --help"
+run_check "dev-tools-cli-guide.md" "PYTHONPATH=\"cli:cli/dev_tools\" td-cli gh audit-pr --help"
+run_check "dev-tools-cli-guide.md" "PYTHONPATH=\"cli:cli/dev_tools\" td-cli gh validate-issue --help"
 
-run_check "review-pr.md" "PYTHONPATH=\"boomtick-pkg/cli:boomtick-pkg/cli/dev_tools\" td-cli agent plan-review --pr 2821"
+run_check "review-pr.md" "PYTHONPATH=\"cli:cli/dev_tools\" td-cli agent plan-review --pr 2821"
 
 run_check "review-ux.md" "npx playwright --version"
-run_check "review-ux.md" "node boomtick-pkg/scripts/detect-antipatterns.mjs --help"
+run_check "review-ux.md" "node scripts/detect-antipatterns.mjs --help"
 
 echo "== Done =="
 echo "Report: $REPORT"

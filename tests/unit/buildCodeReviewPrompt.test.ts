@@ -25,7 +25,7 @@ describe('buildCodeReviewPrompt', () => {
   it('injects LLM integration guidance when CodeReviewClient is changed', () => {
     const prompt = buildSystemPrompt({
       diffContext: 'some diff',
-      changedFiles: ['boomtick-pkg/scripts/clients/githubModelsCodeReviewClient.ts']
+      changedFiles: ['scripts/clients/githubModelsCodeReviewClient.ts']
     });
     expect(prompt).toContain('CATEGORY-SPECIFIC GUIDANCE:');
     expect(prompt).toContain('LLM Clients:');

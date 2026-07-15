@@ -24,7 +24,7 @@ echo "📝 Created test file: $TEST_FILE"
 # 2. Run resolution in mock mode
 echo "🏃 Running AI resolve in MOCK mode..."
 # Export PYTHONPATH to ensure dev-tools modules can find each other without sys.path hacks
-export PYTHONPATH="$PYTHONPATH:$(pwd)/boomtick-pkg/cli:$(pwd)/boomtick-pkg/cli/dev_tools"
+export PYTHONPATH="$PYTHONPATH:$(pwd)/cli:$(pwd)/cli/dev_tools"
 AI_RESOLVE_MOCK=true td-cli gh resolve
 
 # 3. Verify the result

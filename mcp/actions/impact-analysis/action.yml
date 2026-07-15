@@ -264,7 +264,7 @@ runs:
 
         # Sync from the TS logger location to the workspace log location expected by Python CLI
         # Try both submodule and standalone paths
-        for log_dir in "boomtick-pkg/cli/logs/ai" "cli/logs/ai"; do
+        for log_dir in "cli/logs/ai" "cli/logs/ai"; do
           if [ -d "$log_dir" ] && [ "$(ls -A "$log_dir" 2>/dev/null)" ]; then
             cp -r "$log_dir"/* .boomtick/logs/ai/ 2>/dev/null || true
           fi
@@ -289,8 +289,8 @@ runs:
         GITHUB_TOKEN: ${{ inputs.github_token }}
       run: |
         # Resolve CLI dir for PYTHONPATH
-        if [ -d "boomtick-pkg/cli" ]; then
-          export PYTHONPATH="boomtick-pkg/cli:$PYTHONPATH"
+        if [ -d "cli" ]; then
+          export PYTHONPATH="cli:$PYTHONPATH"
         elif [ -d "cli" ]; then
           export PYTHONPATH="cli:$PYTHONPATH"
         fi

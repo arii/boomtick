@@ -5,8 +5,8 @@
 # Find repo root if not provided
 REPO_ROOT="${REPO_ROOT:-$(git rev-parse --show-toplevel 2>/dev/null || pwd -P)}"
 
-if [ -d "${REPO_ROOT}/boomtick-pkg/cli" ]; then
-    printf "%s\n" "${REPO_ROOT}/boomtick-pkg/cli"
+if [ -d "${REPO_ROOT}/cli" ]; then
+    printf "%s\n" "${REPO_ROOT}/cli"
 elif [ -d "${REPO_ROOT}/cli" ]; then
     printf "%s\n" "${REPO_ROOT}/cli"
 else

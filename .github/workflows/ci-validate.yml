@@ -33,3 +33,9 @@ jobs:
 
       - name: Bootstrap Agent Workspace
         run: ./setup-agent.sh
+
+      - name: Verify Schema and Runtime Integrity
+        run: |
+          python3 scripts/sync-python-deps.py
+          pnpm run verify:schemas
+          pnpm run check:runtime-files

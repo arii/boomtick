@@ -182,8 +182,8 @@ def resolve_resource_path(resource_name: str) -> str:
 
     # 2. Fallback to manual discovery for development/monorepo
     # Assumes structural layout:
-    # Standalone: boomtick-pkg/cli/dev_tools/utils.py -> resources/
-    # Monorepo: boomtick-pkg/cli/dev_tools/utils.py -> scripts/ (3 levels up)
+    # Standalone: cli/dev_tools/utils.py -> resources/
+    # Monorepo: cli/dev_tools/utils.py -> scripts/ (3 levels up)
     base_dir = Path(__file__).parent
 
     candidates = [
