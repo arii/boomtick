@@ -33,6 +33,7 @@
     "@types/node": "^26.1.1",
     "@types/pngjs": "^6.0.5",
     "@types/sharp": "^0.32.0",
+    "dependency-cruiser": "^18.1.0",
     "diff": "^7.0.0",
     "jscpd": "^5.0.12",
     "jsdom": "^26.0.0",
