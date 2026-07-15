@@ -27,7 +27,18 @@
     "impact:github-models-review": "tsx scripts/impact-github-models-review.ts"
   },
   "devDependencies": {
+    "@langchain/core": "^1.2.3",
+    "@langchain/google-genai": "^2.2.0",
+    "@playwright/test": "^1.61.1",
+    "@types/jsdom": "^28.0.3",
+    "@types/pixelmatch": "^5.2.6",
+    "@types/pngjs": "^6.0.5",
+    "diff": "^9.0.0",
     "jscpd": "^5.0.12",
+    "jsdom": "^29.1.1",
+    "pixelmatch": "^7.2.0",
+    "pngjs": "^7.0.0",
+    "sharp": "^0.35.3",
     "tsx": "^4.23.1"
   }
 }
