@@ -203,6 +203,10 @@ ensure_corepack_pnpm() {
 }
 
 install_python_deps() {
+  if [ "$SKIP_PYTHON_DEPS" = "1" ]; then
+    STATUS_PYTHON="SKIPPED (SKIP_PYTHON_DEPS=1)"
+    return 0
+  fi
   log "Installing Python dependencies..."
   have python3 || err "python3 is required."
 
@@ -399,13 +403,13 @@ main() {
   ensure_corepack_pnpm
   install_node_deps
   install_playwright
-  STATUS_NODE="INSTALLED"
+  [ "$STATUS_NODE" = "PENDING" ] && STATUS_NODE="INSTALLED"
 
   install_python_deps
-  STATUS_PYTHON="INSTALLED"
+  [ "$STATUS_PYTHON" = "PENDING" ] && STATUS_PYTHON="INSTALLED"
 
   configure_remote_origin
-  STATUS_GIT="INSTALLED"
+  [ "$STATUS_GIT" = "PENDING" ] && STATUS_GIT="INSTALLED"
 
   persist_environment
   run_validation
