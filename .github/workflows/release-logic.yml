@@ -80,7 +80,7 @@ jobs:
         run: |
           TAG_NAME="$GITHUB_REF_NAME"
           MAJOR_TAG=${TAG_NAME%%.*}
-          echo "tag=$MAJOR_TAG" >> $GITHUB_OUTPUT
+          echo "tag=$MAJOR_TAG" >> "$GITHUB_OUTPUT"
         shell: bash
 
       - name: Update Floating Action Tag
