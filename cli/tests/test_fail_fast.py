@@ -20,7 +20,7 @@ def test_dependency_graph_fail_fast(tmp_path):
         assert "dependency-cruiser failed" in str(excinfo.value)
 
 
-def test_dependency_graph_malformed_json():
+def test_dependency_graph_malformed_json(tmp_path):
     with patch("subprocess.run") as mock_run, patch("os.path.exists", side_effect=lambda x: True if "artifacts" not in x else False):
         # First call for pnpm --version, second for depcruise
         mock_run.side_effect = [
