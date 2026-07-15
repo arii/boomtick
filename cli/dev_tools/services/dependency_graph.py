@@ -4,7 +4,7 @@ import os
 import subprocess
 from typing import Dict, List, Set
 
-from dev_tools.utils import CLIError, log_error
+from dev_tools.utils import CLIError, log_error, log_warn
 
 
 class DependencyGraph:
@@ -23,6 +23,15 @@ class DependencyGraph:
                 with open(cache_path, "r", encoding="utf-8") as f:
                     data = json.load(f)
             else:
+                depcruise_config = os.path.join(self.root_dir, ".dependency-cruiser.config.mjs")
+                tsconfig = os.path.join(self.root_dir, "tsconfig.app.json")
+
+                if not os.path.exists(depcruise_config) or not os.path.exists(tsconfig):
+                    log_warn(f"Missing {depcruise_config} or {tsconfig}. Dependency graph will be empty.")
+                    self.graph = {}
+                    self.reverse_graph = {}
+                    return
+
                 # Run dependency-cruiser
                 cmd = [
                     "pnpm",

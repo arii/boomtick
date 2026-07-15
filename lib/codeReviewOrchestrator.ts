@@ -533,7 +533,8 @@ export async function orchestrateCodeReview(
 
   const orchestratorStartTime = Date.now();
   const allResults: CodeReviewResult[] = [];
-  const CONCURRENCY_LIMIT = 4;
+  // Reduce concurrency to avoid rate limits (especially for GitHub Models)
+  const CONCURRENCY_LIMIT = 2;
   const newCache: Record<string, CodeReviewResult> = {};
 
   const batchSummaryCache = new Map<string, Promise<CodeReviewSummary>>();
@@ -614,13 +615,15 @@ export async function orchestrateCodeReview(
           const errorMsg = err instanceof Error ? err.message : String(err);
           console.error(`❌ Error in ${role} review task:`, err);
           const isRateLimit = errorMsg.includes('429') || errorMsg.toLowerCase().includes('rate limit');
+          const isInvalidApiKey = errorMsg.includes('API_KEY_INVALID') || errorMsg.includes('401') || errorMsg.toLowerCase().includes('unauthorized');
+
           allResults.push({
             feedback: `Error: failed to execute ${role} review. Details: ${errorMsg}`,
             role,
             tokens: 0,
             cost: 0,
             llmVerdict: 'warn',
-            skipReason: isRateLimit ? 'RATE_LIMIT' : 'UNHANDLED_ERROR',
+            skipReason: isRateLimit ? 'RATE_LIMIT' : (isInvalidApiKey ? 'MISSING_API_KEY' : 'UNHANDLED_ERROR'),
           });
         }
       });
