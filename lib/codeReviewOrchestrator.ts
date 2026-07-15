@@ -615,7 +615,9 @@ export async function orchestrateCodeReview(
           const errorMsg = err instanceof Error ? err.message : String(err);
           console.error(`❌ Error in ${role} review task:`, err);
           const isRateLimit = errorMsg.includes('429') || errorMsg.toLowerCase().includes('rate limit');
-          const isInvalidApiKey = errorMsg.includes('API_KEY_INVALID') || errorMsg.includes('401') || errorMsg.toLowerCase().includes('unauthorized');
+          const isInvalidApiKey = errorMsg.includes('API_KEY_INVALID') || errorMsg.includes('401') || errorMsg.includes('400') || errorMsg.toLowerCase().includes('unauthorized') || errorMsg.toLowerCase().includes('not valid');
+
+          console.warn(`⚠️ [${role}] review failed: ${errorMsg} (isRateLimit: ${isRateLimit}, isInvalidApiKey: ${isInvalidApiKey})`);
 
           allResults.push({
             feedback: `Error: failed to execute ${role} review. Details: ${errorMsg}`,
