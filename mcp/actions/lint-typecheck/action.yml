@@ -10,10 +10,10 @@ inputs:
 runs:
   using: composite
   steps:
-    - uses: ./../setup
+    - uses: arii/boomtick/mcp/actions/setup@actions-v1
 
     - name: Run Project Gate
-      uses: ./../run-project-gate
+      uses: arii/boomtick/mcp/actions/run-project-gate@actions-v1
       with:
         target: ${{ inputs.target }}
         github_token: ${{ inputs.github_token }}

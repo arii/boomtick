@@ -8,7 +8,7 @@ runs:
       shell: bash
 
     - name: Setup Workspace
-      uses: ./../setup-workspace
+      uses: arii/boomtick/mcp/actions/setup-workspace@actions-v1
 
     - name: Verify setup
       run: python3 -m dev_tools.cli doctor
