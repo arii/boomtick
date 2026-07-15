@@ -10,10 +10,10 @@ inputs:
 runs:
   using: composite
   steps:
-    - uses: ./boomtick-pkg/mcp/actions/setup
+    - uses: ./mcp/actions/setup
 
     - name: Run Project Gate
-      uses: ./boomtick-pkg/mcp/actions/run-project-gate
+      uses: ./mcp/actions/run-project-gate
       with:
         target: ${{ inputs.target }}
         github_token: ${{ inputs.github_token }}

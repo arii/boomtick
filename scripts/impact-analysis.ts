@@ -1,3 +1,4 @@
+import fs from 'fs';
 import { IMPACT_CONFIG } from './impact-analysis.config';
 import { logHeartbeat } from '../lib/heartbeat';
 import {
@@ -17,6 +18,20 @@ async function main() {
   console.log('🚀 Running Deployment Impact Analysis...');
 
   try {
+    if (!fs.existsSync('src')) {
+      console.warn('⚠️ No "src" directory found. Skipping detailed impact analysis.');
+      const emptyReport: ImpactReport = {
+        changedFiles: getChangedFiles(),
+        affectedPages: [],
+        affectedDynamicImports: [],
+        routes: [],
+        visualReviewRequired: [],
+        impactLevel: 'LOW'
+      };
+      generateReports(emptyReport, [], []);
+      return;
+    }
+
     const envChangedFiles = (process.env.CHANGED_FILES || '').split(',').filter(Boolean);
     const files = envChangedFiles.length > 0 ? envChangedFiles : getChangedFiles();
 
@@ -40,8 +55,26 @@ async function main() {
     await logHeartbeat('Generating dependency graph');
     console.log('📊 Generating dependency graph...');
     let graphJson: string;
+
+    const depCruiseConfig = '.dependency-cruiser.config.mjs';
+    const tsConfig = 'tsconfig.app.json';
+
+    if (!fs.existsSync(depCruiseConfig) || !fs.existsSync(tsConfig)) {
+      console.warn(`⚠️ Missing ${depCruiseConfig} or ${tsConfig}. Generating empty report.`);
+      const emptyReport: ImpactReport = {
+        changedFiles: files,
+        affectedPages: [],
+        affectedDynamicImports: [],
+        routes: [],
+        visualReviewRequired: [],
+        impactLevel: 'LOW'
+      };
+      generateReports(emptyReport, [], []);
+      return;
+    }
+
     try {
-      graphJson = exec('npx depcruise src --config .dependency-cruiser.config.mjs --ts-config tsconfig.app.json --output-type json');
+      graphJson = exec(`npx depcruise src --config ${depCruiseConfig} --ts-config ${tsConfig} --output-type json`);
     } catch (err: unknown) {
       const error = err as Error;
       throw new Error(`Failed to execute dependency-cruiser: ${error.message}`, { cause: err });

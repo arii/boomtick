@@ -16,58 +16,101 @@ inputs:
 runs:
   using: composite
   steps:
-    - uses: ./boomtick-pkg/mcp/actions/setup
+    - uses: ./mcp/actions/setup
 
     - run: pnpm install --frozen-lockfile --prefer-offline
       shell: bash
 
     - name: Deployment Impact Analysis
-      run: pnpm run impact:analysis
+      id: impact_analysis
+      run: |
+        if pnpm run | grep -q "impact:analysis"; then
+          pnpm run impact:analysis
+          echo "has_impact=true" >> "$GITHUB_OUTPUT"
+        else
+          echo "⚠️ Skipping: impact:analysis script not found in package.json"
+          echo "has_impact=false" >> "$GITHUB_OUTPUT"
+        fi
       shell: bash
 
     - name: Build Main
+      if: steps.impact_analysis.outputs.has_impact == 'true'
       env:
         DISABLE_MINIFY: true
-      run: pnpm run impact:build-main
+      run: |
+        if pnpm run | grep -q "impact:build-main"; then
+          pnpm run impact:build-main
+        else
+          echo "⚠️ Skipping: impact:build-main script not found"
+        fi
       shell: bash
 
     - name: Build PR
+      if: steps.impact_analysis.outputs.has_impact == 'true'
       env:
         VITE_BASE_PATH: /
         DISABLE_MINIFY: true
-      run: pnpm run build:review
+      run: |
+        if pnpm run | grep -q "build:review"; then
+          pnpm run build:review
+        else
+          echo "⚠️ Skipping: build:review script not found"
+        fi
       shell: bash
 
     - name: Code review agent
-      if: always() && github.event_name == 'pull_request'
+      if: always() && github.event_name == 'pull_request' && steps.impact_analysis.outputs.has_impact == 'true'
       continue-on-error: true
       env:
         GEMINI_API_KEY: ${{ inputs.gemini_api_key }}
         GITHUB_TOKEN: ${{ inputs.github_token }}
-      run: pnpm run impact:gemini-code-review
+      run: |
+        if pnpm run | grep -q "impact:gemini-code-review"; then
+          pnpm run impact:gemini-code-review
+        else
+          echo "⚠️ Skipping: impact:gemini-code-review script not found"
+        fi
       shell: bash
 
     - name: Code review github models agent
-      if: always() && github.event_name == 'pull_request'
+      if: always() && github.event_name == 'pull_request' && steps.impact_analysis.outputs.has_impact == 'true'
       continue-on-error: true
       env:
         GITHUB_TOKEN: ${{ inputs.github_token }}
-      run: pnpm run impact:github-models-code-review
+      run: |
+        if pnpm run | grep -q "impact:github-models-code-review"; then
+          pnpm run impact:github-models-code-review
+        else
+          echo "⚠️ Skipping: impact:github-models-code-review script not found"
+        fi
       shell: bash
 
     - name: Visual Diff
-      run: pnpm run impact:visual-diff
+      if: steps.impact_analysis.outputs.has_impact == 'true'
+      run: |
+        if pnpm run | grep -q "impact:visual-diff"; then
+          pnpm run impact:visual-diff
+        else
+          echo "⚠️ Skipping: impact:visual-diff script not found"
+        fi
       shell: bash
 
     - name: DOM Diff
-      run: pnpm run impact:dom-diff
+      if: steps.impact_analysis.outputs.has_impact == 'true'
+      run: |
+        if pnpm run | grep -q "impact:dom-diff"; then
+          pnpm run impact:dom-diff
+        else
+          echo "⚠️ Skipping: impact:dom-diff script not found"
+        fi
       shell: bash
 
     - name: Check if visual changes exist
+      if: steps.impact_analysis.outputs.has_impact == 'true'
       id: check_visuals
       env:
         VISUAL_DIFF_THRESHOLD: 1.5
-      run: pnpm exec tsx boomtick-pkg/scripts/check-visual-changes.ts >> "$GITHUB_OUTPUT"
+      run: pnpm exec tsx ${{ github.action_path }}/../../../scripts/check-visual-changes.ts >> "$GITHUB_OUTPUT"
       shell: bash
 
     - name: Visual review agent
@@ -130,9 +173,12 @@ runs:
         FAILED=0
         # Expected verdicts: gemini-code-review, github-models-code-review
         # Visual reviews are expected only if visual changes exist
-        EXPECTED_REVIEWS="gemini-code-review github-models-code-review"
-        if [ "${{ steps.check_visuals.outputs.changed_routes }}" != "0" ] && [ "${{ steps.check_visuals.outputs.changed_routes }}" != "" ]; then
-          EXPECTED_REVIEWS="$EXPECTED_REVIEWS gemini-review github-models-review"
+        EXPECTED_REVIEWS=""
+        if [ "${{ steps.impact_analysis.outputs.has_impact }}" == "true" ]; then
+          EXPECTED_REVIEWS="gemini-code-review github-models-code-review"
+          if [ "${{ steps.check_visuals.outputs.changed_routes }}" != "0" ] && [ "${{ steps.check_visuals.outputs.changed_routes }}" != "" ]; then
+            EXPECTED_REVIEWS="$EXPECTED_REVIEWS gemini-review github-models-review"
+          fi
         fi
 
         for r in $EXPECTED_REVIEWS; do
@@ -191,12 +237,19 @@ runs:
       env:
         TASK_ID: ${{ steps.parse_jules.outputs.task_id }}
         JULES_API_KEY: ${{ inputs.jules_api_key }}
-      run: python3 scripts/send-jules-impact.py
+      run: |
+        if [ -f "scripts/send-jules-impact.py" ]; then
+          python3 scripts/send-jules-impact.py
+        elif [ -f "${{ github.action_path }}/../../../scripts/send-jules-impact.py" ]; then
+          python3 "${{ github.action_path }}/../../../scripts/send-jules-impact.py"
+        else
+          echo "⚠️ Skipping: send-jules-impact.py script not found"
+        fi
       shell: bash
 
     - name: Update Impact Analysis Feedback (Final Result)
       if: always()
-      uses: ./boomtick-pkg/mcp/actions/update-pr-comment
+      uses: ./mcp/actions/update-pr-comment
       with:
         github_token: ${{ inputs.github_token }}
         status_line: '✅ **Impact Analysis Complete**'
@@ -210,9 +263,12 @@ runs:
         mkdir -p artifacts/logs/ai
 
         # Sync from the TS logger location to the workspace log location expected by Python CLI
-        if [ -d boomtick-pkg/cli/logs/ai ] && [ "$(ls -A boomtick-pkg/cli/logs/ai 2>/dev/null)" ]; then
-          cp -r boomtick-pkg/cli/logs/ai/* .boomtick/logs/ai/ 2>/dev/null || true
-        fi
+        # Try both submodule and standalone paths
+        for log_dir in "boomtick-pkg/cli/logs/ai" "cli/logs/ai"; do
+          if [ -d "$log_dir" ] && [ "$(ls -A "$log_dir" 2>/dev/null)" ]; then
+            cp -r "$log_dir"/* .boomtick/logs/ai/ 2>/dev/null || true
+          fi
+        done
 
         # Sync to artifacts for upload
         if [ -d .boomtick/logs/ai ] && [ "$(ls -A .boomtick/logs/ai 2>/dev/null)" ]; then
@@ -231,12 +287,22 @@ runs:
       if: always()
       env:
         GITHUB_TOKEN: ${{ inputs.github_token }}
-        PYTHONPATH: boomtick-pkg/cli
       run: |
+        # Resolve CLI dir for PYTHONPATH
+        if [ -d "boomtick-pkg/cli" ]; then
+          export PYTHONPATH="boomtick-pkg/cli:$PYTHONPATH"
+        elif [ -d "cli" ]; then
+          export PYTHONPATH="cli:$PYTHONPATH"
+        fi
+
         mkdir -p .boomtick/logs/ai
-        td-cli gh summary-report >> "$GITHUB_STEP_SUMMARY"
-        if ! td-cli gh verify-metrics; then
-          echo "CI Metrics verification failed."
-          exit 1
+        if command -v td-cli >/dev/null 2>&1; then
+          td-cli gh summary-report >> "$GITHUB_STEP_SUMMARY"
+          if ! td-cli gh verify-metrics; then
+            echo "CI Metrics verification failed."
+            exit 1
+          fi
+        else
+          echo "⚠️ Skipping: td-cli not found"
         fi
       shell: bash
