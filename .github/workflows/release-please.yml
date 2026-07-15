@@ -1,0 +1,20 @@
+name: Release Please
+
+on:
+  push:
+    branches:
+      - leader
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+jobs:
+  release-please:
+    runs-on: self-hosted
+    steps:
+      - uses: googleapis/release-please-action@v4
+        with:
+          token: ${{ secrets.PAT_TOKEN }}
+          config-file: release-please-config.json
