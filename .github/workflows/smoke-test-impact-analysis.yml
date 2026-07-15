@@ -1,0 +1,23 @@
+name: Smoke Test Impact Analysis
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  smoke-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Smoke Test Impact Analysis Action
+        uses: ./mcp/actions/impact-analysis
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          gemini_api_key: "MOCK_KEY"
+          pr_number: "1"
+          jules_api_key: "MOCK_KEY"

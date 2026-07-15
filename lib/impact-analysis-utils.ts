@@ -2,7 +2,14 @@ import fs from 'fs';
 import path from 'path';
 import { execSync } from 'child_process';
 import { IMPACT_CONFIG } from '../scripts/impact-analysis.config';
-import { getAllRoutes } from '../../src/lib/routes-discovery';
+// @ts-ignore - May not exist in standalone boomtick
+let getAllRoutes: any;
+try {
+  // @ts-ignore
+  getAllRoutes = require('../../src/lib/routes-discovery').getAllRoutes;
+} catch {
+  getAllRoutes = () => ({ stubs: [] });
+}
 import { mapPageToUrls } from '../scripts/impact-review-utils';
 import { loadProjectConfig } from './projectConfig';
 
