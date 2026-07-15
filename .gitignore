@@ -48,5 +48,5 @@ test-results/
 # Project local
 .env
 .env.local
-.boomtick/logs/
+.boomtick/
 logs/
