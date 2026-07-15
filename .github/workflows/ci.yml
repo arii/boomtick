@@ -30,14 +30,16 @@ jobs:
       - name: Run Lint & Typecheck (TypeScript)
         if: matrix.target == 'typescript'
         run: |
-          pnpm run type-check
+          pnpm install --frozen-lockfile
+          pnpm --filter @arii/boomtick-mcp run lint
+          pnpm --filter @arii/boomtick-mcp run type-check
 
       - name: Run Lint & Typecheck (Python)
         if: matrix.target == 'python'
         run: |
           # Use established .pylintrc if available
-          pylint cli/dev_tools --rcfile=.pylintrc
-          mypy cli/dev_tools
+          python3 -m pylint cli --rcfile=.pylintrc
+          python3 -m mypy cli
 
   audit:
     name: Anti-Pattern & Code Smell Checks
@@ -48,6 +50,9 @@ jobs:
 
       - name: Setup Workspace
         uses: ./.github/actions/setup-workspace
+
+      - name: Install Dependencies
+        run: pnpm install --frozen-lockfile
 
       - name: Run Duplication Detection (jscpd)
         run: pnpm exec jscpd .
@@ -62,13 +67,16 @@ jobs:
       - name: Setup Workspace
         uses: ./.github/actions/setup-workspace
 
+      - name: Install Dependencies
+        run: pnpm install --frozen-lockfile
+
       - name: Run MCP Tests (Vitest)
         run: pnpm --filter @arii/boomtick-mcp run test
 
       - name: Run Python CLI Tests (pytest)
         run: |
           export PYTHONPATH=$PYTHONPATH:$(pwd)/cli
-          pytest cli/tests
+          python3 -m pytest cli/tests
 
   impact-analysis:
     name: Deployment Impact Analysis
