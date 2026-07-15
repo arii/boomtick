@@ -107,6 +107,12 @@ runs:
         if [ -f "requirements-dev.txt" ]; then
           pip install -r requirements-dev.txt --break-system-packages
         fi
+        if [ -f "$CLI_DIR/requirements-dev.txt" ]; then
+          pip install -r "$CLI_DIR/requirements-dev.txt" --break-system-packages
+        fi
+        if [ -f "$CLI_DIR/requirements-ai.txt" ]; then
+          pip install -r "$CLI_DIR/requirements-ai.txt" --break-system-packages
+        fi
         pip install -e "$CLI_DIR" --break-system-packages
 
         echo "::endgroup::"

@@ -38,6 +38,7 @@ class VectorStore:
     def is_available(self) -> bool:
         """Checks if ChromaDB and dependencies are available."""
         try:
+            # pylint: disable=unused-import
             import chromadb
             # sentence_transformers is used for our SentenceTransformerEmbeddingFunction
             import sentence_transformers

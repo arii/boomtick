@@ -2,7 +2,7 @@
 import base64
 import json
 import os
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 from dev_tools.config import load_project_config
 from dev_tools.utils import get_github_token, log_error
@@ -31,9 +31,9 @@ class VisionService:
         if not self.token:
             return "No GITHUB_TOKEN found."
 
-        from dev_tools.utils import _request
+        from dev_tools.utils import _call_api_with_retry
 
-        message_content = [{"type": "text", "text": prompt}]
+        message_content: List[Dict[str, Any]] = [{"type": "text", "text": prompt}]
         for img in images:
             message_content.append({"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{img}"}})
 
@@ -47,12 +47,11 @@ class VisionService:
         }
 
         try:
-            response = _request(
+            response = _call_api_with_retry(
                 "POST",
                 url_target,
                 headers=headers,
                 json=payload,
-                retry_status_codes=[429, 500, 502, 503, 504],
             )
             if not response:
                 return None
