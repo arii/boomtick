@@ -94,7 +94,8 @@ jobs:
 
       - name: Run Python CLI Tests (pytest)
         run: |
-          export PYTHONPATH=$PYTHONPATH:$(pwd)/cli
+          PYTHONPATH="$PYTHONPATH:$(pwd)/cli"
+          export PYTHONPATH
           python3 -m pytest cli/tests
 
   impact-analysis:
