@@ -7,7 +7,7 @@ inputs:
 runs:
   using: composite
   steps:
-    - uses: ./boomtick-pkg/mcp/actions/setup
+    - uses: ./mcp/actions/setup
     - name: AI review
       env:
         PR_NUMBER: ${{ inputs.pr_number }}
