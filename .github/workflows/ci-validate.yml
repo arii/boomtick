@@ -33,3 +33,12 @@ jobs:
 
       - name: Bootstrap Agent Workspace
         run: ./setup-agent.sh
+
+      - name: Sync Python Dependencies
+        run: python3 scripts/sync-python-deps.py
+
+      - name: Verify Schemas and Contracts
+        run: pnpm run verify:schemas
+
+      - name: Check Runtime Files
+        run: pnpm run check:runtime-files
