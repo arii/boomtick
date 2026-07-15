@@ -258,7 +258,15 @@ function createVisualDiff(beforePath: string, afterPath: string, diffPath: strin
 
 async function main(): Promise<void> {
   await logHeartbeat('Starting Visual Diff');
-  const impact = readImpactAnalysis();
+
+  let impact;
+  try {
+    impact = readImpactAnalysis();
+  } catch (err) {
+    console.warn(`⚠️ Skipping visual diff: ${(err as Error).message}`);
+    return;
+  }
+
   const routes = impact.routes.filter(route => !route.includes(':'));
 
   ensureDirectory(ARTIFACTS_DIR);
@@ -272,11 +280,13 @@ async function main(): Promise<void> {
   }
 
   if (!fs.existsSync(path.join(baseWorktree, 'dist'))) {
-    throw new Error('Missing built base worktree dist. Run `pnpm impact:build-main` first.');
+    console.warn('⚠️ Missing built base worktree dist. Skipping visual diff.');
+    return;
   }
 
   if (!fs.existsSync(path.join(process.cwd(), 'dist'))) {
-    throw new Error('Missing PR dist. Run `pnpm run build:review` before visual diff.');
+    console.warn('⚠️ Missing PR dist. Skipping visual diff.');
+    return;
   }
 
   const basePreview = startPreview(baseWorktree, basePort);

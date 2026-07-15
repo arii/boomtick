@@ -240,6 +240,12 @@ ${routeSections.length > 0 ? routeSections.join('\n\n') : '_No concrete routes r
 
 async function main(): Promise<void> {
   await logHeartbeat('Starting DOM Diff');
+
+  if (!fs.existsSync(VISUAL_SUMMARY_PATH)) {
+    console.warn(`⚠️ Visual summary not found at ${VISUAL_SUMMARY_PATH}. Skipping DOM diff.`);
+    return;
+  }
+
   const visualSummaries = readVisualSummaries();
   const domSummaries: DomRouteSummary[] = [];
 

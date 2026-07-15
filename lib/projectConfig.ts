@@ -83,3 +83,27 @@ export function loadProjectConfig(explicitPath?: string): ProjectConfig {
     return DEFAULT_CONFIG;
   }
 }
+
+/**
+ * Detects if the current directory appears to be a web project (e.g. Vite).
+ */
+export function isWebProject(): boolean {
+  if (fs.existsSync(path.join(process.cwd(), 'vite.config.ts'))) return true;
+  if (fs.existsSync(path.join(process.cwd(), 'vite.config.js'))) return true;
+  if (fs.existsSync(path.join(process.cwd(), 'src', 'App.tsx'))) return true;
+
+  try {
+    const pkgPath = path.join(process.cwd(), 'package.json');
+    if (fs.existsSync(pkgPath)) {
+      const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf-8'));
+      if (pkg.scripts && (pkg.scripts.build || pkg.scripts.dev)) {
+        // Broadly check for vite dependency if scripts are generic
+        if (pkg.dependencies?.vite || pkg.devDependencies?.vite) return true;
+      }
+    }
+  } catch {
+    // Ignore parsing errors
+  }
+
+  return false;
+}

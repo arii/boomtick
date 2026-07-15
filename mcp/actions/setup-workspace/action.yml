@@ -71,6 +71,8 @@ runs:
           CLI_DIR=$(bash boomtick-pkg/scripts/resolve-cli.sh | sed "s|$(pwd)/||")
         elif [ -f "scripts/resolve-cli.sh" ]; then
           CLI_DIR=$(bash scripts/resolve-cli.sh | sed "s|$(pwd)/||")
+        elif [ -f "${{ github.action_path }}/../../../scripts/resolve-cli.sh" ]; then
+          CLI_DIR=$(bash "${{ github.action_path }}/../../../scripts/resolve-cli.sh" | sed "s|$(pwd)/||")
         elif [ -d "boomtick-pkg/cli" ]; then
           CLI_DIR="boomtick-pkg/cli"
         else
@@ -162,6 +164,12 @@ runs:
         echo "::group::Initialize Schemas and Contracts"
         export PYTHONPATH="$CLI_DIR_ABS:$PYTHONPATH"
         python3 "$CLI_DIR_ABS/dev_tools/schema_gen.py"
-        pnpm --filter @arii/boomtick-mcp run sync-contracts
+        if pnpm run | grep -q "sync-contracts"; then
+          pnpm run sync-contracts
+        elif pnpm --filter @arii/boomtick-mcp run | grep -q "sync-contracts"; then
+          pnpm --filter @arii/boomtick-mcp run sync-contracts
+        else
+          echo "⚠️ Skipping: sync-contracts script not found"
+        fi
         echo "::endgroup::"
       shell: bash

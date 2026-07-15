@@ -1,7 +1,7 @@
 import { execFileSync } from 'child_process';
 import fs from 'fs';
 import path from 'path';
-import { loadProjectConfig } from '../lib/projectConfig';
+import { loadProjectConfig, isWebProject } from '../lib/projectConfig';
 import { logHeartbeat } from '../lib/heartbeat';
 
 const worktreePath = path.join(process.cwd(), '.tmp-main');
@@ -25,6 +25,11 @@ function removeExistingWorktree(): void {
 }
 
 async function main() {
+  if (!isWebProject()) {
+    console.warn('⚠️ Not a web project. Skipping build-main.');
+    return;
+  }
+
   removeExistingWorktree();
 
   try {
