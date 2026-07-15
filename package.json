@@ -15,9 +15,19 @@
     "check:runtime-files": "node scripts/check-runtime-files.mjs",
     "doctor": "node scripts/check-runtime-files.mjs",
     "preinstall": "node scripts/check-runtime-files.mjs",
-    "sync-python-deps": "python3 scripts/sync-python-deps.py"
+    "sync-python-deps": "python3 scripts/sync-python-deps.py",
+    "impact:analysis": "tsx scripts/impact-analysis.ts",
+    "impact:build-main": "tsx scripts/impact-build-main.ts",
+    "build:review": "tsx scripts/impact-build-main.ts",
+    "impact:gemini-code-review": "tsx scripts/impact-gemini-code-review.ts",
+    "impact:github-models-code-review": "tsx scripts/impact-github-models-code-review.ts",
+    "impact:visual-diff": "tsx scripts/impact-visual-diff.ts",
+    "impact:dom-diff": "tsx scripts/impact-dom-diff.ts",
+    "impact:gemini-review": "tsx scripts/impact-gemini-review.ts",
+    "impact:github-models-review": "tsx scripts/impact-github-models-review.ts"
   },
   "devDependencies": {
-    "jscpd": "^5.0.12"
+    "jscpd": "^5.0.12",
+    "tsx": "^4.23.1"
   }
 }
