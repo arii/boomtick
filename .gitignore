@@ -203,3 +203,5 @@ issue-audit*.md
 audit.py
 generate_audit.py
 artifacts/
+collected-logs/
+runs/
