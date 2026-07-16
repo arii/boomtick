@@ -318,7 +318,7 @@ runs:
 
         # Sync from the TS logger location to the workspace log location expected by Python CLI
         # Try both submodule and standalone paths
-        for log_dir in "cli/logs/ai" "boomtick-pkg/cli/logs/ai"; do
+        for log_dir in "cli/logs/ai"; do
           if [ -d "$log_dir" ] && [ "$(ls -A "$log_dir" 2>/dev/null)" ]; then
             cp -r "$log_dir"/* .boomtick/logs/ai/ 2>/dev/null || true
           fi
@@ -345,12 +345,9 @@ runs:
         # Resolve CLI dir for PYTHONPATH
         if [ -d "cli" ]; then
           export PYTHONPATH="cli:$PYTHONPATH"
-        elif [ -d "boomtick-pkg/cli" ]; then
-          export PYTHONPATH="boomtick-pkg/cli:$PYTHONPATH"
         fi
 
         mkdir -p .boomtick/logs/ai
-        export PYTHONPATH="boomtick-pkg/cli:boomtick-pkg/cli/dev_tools:$PYTHONPATH"
         python3 -m dev_tools.cli gh summary-report >> "$GITHUB_STEP_SUMMARY"
         if ! python3 -m dev_tools.cli gh verify-metrics; then
           echo "CI Metrics verification failed."

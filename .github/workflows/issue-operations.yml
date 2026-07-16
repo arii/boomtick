@@ -13,7 +13,11 @@ on:
         type: string
       comment_body:
         description: 'Comment body'
-        required: true
+        required: false
+        type: string
+      action:
+        description: 'Action to perform'
+        required: false
         type: string
 
 permissions:
@@ -176,7 +180,7 @@ jobs:
           COMMENT_BODY: ${{ github.event.comment.body }}
           ISSUE_NUMBER: ${{ github.event.issue.number }}
         run: |
-          gh workflow run auto-conflict-resolver.yml -f issue_number="$ISSUE_NUMBER" -f comment_body="$COMMENT_BODY" -f source_branch="$HEAD_REF" -f target_branch="$BASE_REF" || true
+          gh workflow run issue-operations.yml --ref "$BASE_REF" -f issue_number="$ISSUE_NUMBER" -f comment_body="$COMMENT_BODY" -f action="resolve-conflicts" || true
 
       - name: Trigger Update Snapshots
         if: steps.check.outputs.update_snapshots == 'true'
@@ -185,7 +189,7 @@ jobs:
           COMMENT_BODY: ${{ github.event.comment.body }}
           ISSUE_NUMBER: ${{ github.event.issue.number }}
         run: |
-          gh workflow run update-snapshots.yml --ref "$BASE_REF" -f issue_number="$ISSUE_NUMBER" -f comment_body="$COMMENT_BODY" || true
+          gh workflow run issue-operations.yml --ref "$BASE_REF" -f issue_number="$ISSUE_NUMBER" -f comment_body="$COMMENT_BODY" -f action="update-snapshots" || true
 
       - name: Trigger AI ChatOps
         if: steps.check.outputs.ai_chatops == 'true'
@@ -194,7 +198,7 @@ jobs:
           COMMENT_BODY: ${{ github.event.comment.body }}
           ISSUE_NUMBER: ${{ github.event.issue.number }}
         run: |
-          gh workflow run issue-operations.yml --ref "$BASE_REF" -f issue_number="$ISSUE_NUMBER" -f comment_body="$COMMENT_BODY" || true
+          gh workflow run issue-operations.yml --ref "$BASE_REF" -f issue_number="$ISSUE_NUMBER" -f comment_body="$COMMENT_BODY" -f action="ai-review" || true
 
       - name: Trigger Jules Fix CI
         if: steps.check.outputs.jules_fix_ci == 'true'
@@ -207,12 +211,12 @@ jobs:
 
   ai-review:
     name: AI Review
-    if: github.event_name == 'workflow_dispatch'
+    if: github.event_name == 'workflow_dispatch' && inputs.action == 'ai-review'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7 # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
         with:
-          fetch-depth: 1
+          fetch-depth: 0
 
       - uses: ./mcp/actions/ai-review
         with:
@@ -222,3 +226,42 @@ jobs:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           GOOGLE_JULES_API_KEY: ${{ secrets.GOOGLE_JULES_API_KEY }}
+
+  resolve-conflicts:
+    name: Resolve Merge Conflicts
+    if: github.event_name == 'workflow_dispatch' && inputs.action == 'resolve-conflicts'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Setup Workspace
+        uses: ./mcp/actions/setup-workspace
+
+      - name: Resolve Conflicts
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Use td-cli to resolve conflicts programmatically
+          td-cli gh resolve-conflicts --pr ${{ inputs.issue_number }} --execute --push
+
+  update-snapshots:
+    name: Update Visual Snapshots
+    if: github.event_name == 'workflow_dispatch' && inputs.action == 'update-snapshots'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Setup Workspace
+        uses: ./mcp/actions/setup-workspace
+
+      - name: Update Snapshots
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          pnpm run impact:visual-diff --update
