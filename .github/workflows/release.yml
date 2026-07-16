@@ -5,6 +5,7 @@ on:
     tags:
       - 'cli-v*'
       - 'mcp-v*'
+      - 'action-v*' # Triggers when Release Please cuts an action tag
   workflow_dispatch:
     inputs:
       target:
@@ -14,12 +15,17 @@ on:
         options:
           - cli
           - mcp
+          - action # Trigger action release logic manually
           - all
         default: cli
       dry_run:
         description: 'Dry run'
         type: boolean
         default: true
+
+permissions:
+  contents: write
+  id-token: write
 
 jobs:
   release-cli:
@@ -35,6 +41,15 @@ jobs:
     uses: ./.github/workflows/release-logic.yml
     with:
       target: mcp
+      dry_run: ${{ inputs.dry_run || false }}
+    secrets: inherit
+
+  # Handles updating internal action tags
+  release-action:
+    if: startsWith(github.ref, 'refs/tags/action-v') || (github.event_name == 'workflow_dispatch' && inputs.target == 'action')
+    uses: ./.github/workflows/release-logic.yml
+    with:
+      target: action
       dry_run: ${{ inputs.dry_run || false }}
     secrets: inherit
 

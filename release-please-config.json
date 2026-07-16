@@ -1,12 +1,19 @@
 {
   "packages": {
     "cli": {
-      "release-type": "python",
-      "component": "cli"
+      "package-name": "boomtick-cli",
+      "component": "cli",
+      "release-type": "python"
     },
     "mcp": {
-      "release-type": "node",
-      "component": "mcp"
+      "package-name": "boomtick-mcp",
+      "component": "mcp",
+      "release-type": "node"
+    },
+    ".github/actions/setup-all": {
+      "package-name": "boomtick-setup-action",
+      "component": "action",
+      "release-type": "github-action"
     }
   }
 }
