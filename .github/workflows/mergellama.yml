@@ -3,7 +3,12 @@ name: Auto-Resolve Merge Conflicts
 on:
   pull_request:
     types: [opened, synchronize, reopened]
-
+  workflow_dispatch:
+    inputs:
+      issue_number:
+        description: 'PR number to resolve'
+        required: true
+        type: string
 
 permissions:
   contents: write
@@ -18,7 +23,10 @@ jobs:
   resolve-conflicts:
     runs-on: ubuntu-latest
     container: ghcr.io/arii/tech-dancer:latest
-    if: github.event.pull_request.mergeable == false || contains(github.event.pull_request.labels.*.name, 'has-conflicts')
+    if: |
+      github.event_name == 'workflow_dispatch' ||
+      github.event.pull_request.mergeable == false ||
+      contains(github.event.pull_request.labels.*.name, 'has-conflicts')
     env:
       AI_MODEL: gpt-4o-mini
       GITHUB_MODELS_BASE_URL: https://models.inference.ai.azure.com
@@ -27,12 +35,30 @@ jobs:
       - name: Git Safe Directory
         run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
 
+      - name: Resolve PR Details
+        id: resolve
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE_NUMBER: ${{ github.event.inputs.issue_number || github.event.issue.number || github.event.pull_request.number }}
+        run: |
+          PR_JSON=$(gh pr view "$ISSUE_NUMBER" --json headRefName,headRepository || echo '{}')
+          HEAD_REF=$(echo "$PR_JSON" | jq -r '.headRefName // empty')
+          HEAD_REPO=$(echo "$PR_JSON" | jq -r '.headRepository.fullName // empty')
+
+          if [ -z "$HEAD_REF" ]; then
+            echo "❌ Could not resolve PR details for #$ISSUE_NUMBER"
+            exit 1
+          fi
+
+          echo "head_ref=$HEAD_REF" >> "$GITHUB_OUTPUT"
+          echo "head_repo=$HEAD_REPO" >> "$GITHUB_OUTPUT"
+
       - name: Checkout Code
         uses: actions/checkout@v7 # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
         with:
-          repository: ${{ github.event.pull_request && github.event.pull_request.head.repo.full_name || github.repository }}
+          repository: ${{ steps.resolve.outputs.head_repo }}
           fetch-depth: 1
-          ref: ${{ github.head_ref }}
+          ref: ${{ steps.resolve.outputs.head_ref }}
 
       - name: Setup Workspace
         uses: ./.github/actions/setup-workspace

@@ -7,13 +7,23 @@ on:
     types: [created]
   workflow_dispatch:
     inputs:
+      action:
+        description: 'Action to perform'
+        required: true
+        default: 'ai-review'
+        type: choice
+        options:
+          - ai-review
+          - update-snapshots
+          - validate-quality
+          - create-pr
       issue_number:
-        description: 'Issue number'
+        description: 'Issue/PR number'
         required: true
         type: string
       comment_body:
-        description: 'Comment body'
-        required: true
+        description: 'Comment body (optional)'
+        required: false
         type: string
 
 permissions:
@@ -25,7 +35,9 @@ permissions:
 jobs:
   validate-quality:
     name: Validate Issue Quality
-    if: github.event_name == 'issues'
+    if: |
+      github.event_name == 'issues' ||
+      (github.event_name == 'workflow_dispatch' && inputs.action == 'validate-quality')
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/arii/tech-dancer:latest
@@ -46,13 +58,13 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          td-cli gh validate-issue --issue-number ${{ github.event.issue.number }} --post-comments --execute
+          td-cli gh validate-issue --issue-number ${{ github.event.issue.number || inputs.issue_number }} --post-comments --execute
 
   create-pr:
     name: Issue to Content PR
     if: |
-      github.event_name == 'issues' &&
-      startsWith(github.event.issue.title, 'Draft') &&
+      (github.event_name == 'issues' || (github.event_name == 'workflow_dispatch' && inputs.action == 'create-pr')) &&
+      startsWith(github.event.issue.title || 'Draft', 'Draft') &&
       contains(github.event.issue.title, ':') &&
       (github.event.issue.author_association == 'OWNER' ||
        github.event.issue.author_association == 'MEMBER' ||
@@ -176,7 +188,7 @@ jobs:
           COMMENT_BODY: ${{ github.event.comment.body }}
           ISSUE_NUMBER: ${{ github.event.issue.number }}
         run: |
-          gh workflow run auto-conflict-resolver.yml -f issue_number="$ISSUE_NUMBER" -f comment_body="$COMMENT_BODY" -f source_branch="$HEAD_REF" -f target_branch="$BASE_REF" || true
+          gh workflow run mergellama.yml -f issue_number="$ISSUE_NUMBER" || true
 
       - name: Trigger Update Snapshots
         if: steps.check.outputs.update_snapshots == 'true'
@@ -185,7 +197,7 @@ jobs:
           COMMENT_BODY: ${{ github.event.comment.body }}
           ISSUE_NUMBER: ${{ github.event.issue.number }}
         run: |
-          gh workflow run update-snapshots.yml --ref "$BASE_REF" -f issue_number="$ISSUE_NUMBER" -f comment_body="$COMMENT_BODY" || true
+          gh workflow run issue-operations.yml --ref "$BASE_REF" -f action="update-snapshots" -f issue_number="$ISSUE_NUMBER" -f comment_body="$COMMENT_BODY" || true
 
       - name: Trigger AI ChatOps
         if: steps.check.outputs.ai_chatops == 'true'
@@ -194,7 +206,7 @@ jobs:
           COMMENT_BODY: ${{ github.event.comment.body }}
           ISSUE_NUMBER: ${{ github.event.issue.number }}
         run: |
-          gh workflow run issue-operations.yml --ref "$BASE_REF" -f issue_number="$ISSUE_NUMBER" -f comment_body="$COMMENT_BODY" || true
+          gh workflow run issue-operations.yml --ref "$BASE_REF" -f action="ai-review" -f issue_number="$ISSUE_NUMBER" -f comment_body="$COMMENT_BODY" || true
 
       - name: Trigger Jules Fix CI
         if: steps.check.outputs.jules_fix_ci == 'true'
@@ -203,11 +215,55 @@ jobs:
           COMMENT_BODY: ${{ github.event.comment.body }}
           ISSUE_NUMBER: ${{ github.event.issue.number }}
         run: |
-          gh workflow run jules-fix-trigger.yml --ref "$BASE_REF" -f issue_number="$ISSUE_NUMBER" -f comment_body="$COMMENT_BODY" || true
+          gh workflow run ci.yml --ref "$BASE_REF" -f issue_number="$ISSUE_NUMBER" -f comment_body="$COMMENT_BODY" || true
+
+  update-snapshots:
+    name: Update Snapshots
+    if: github.event_name == 'workflow_dispatch' && inputs.action == 'update-snapshots'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Setup PR Branch
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE_NUMBER: ${{ inputs.issue_number }}
+        run: |
+          PR_JSON=$(gh pr view "$ISSUE_NUMBER" --json headRefName || echo '{}')
+          HEAD_REF=$(echo "$PR_JSON" | jq -r '.headRefName // empty')
+          if [ -n "$HEAD_REF" ]; then
+            git fetch origin "$HEAD_REF"
+            git checkout "$HEAD_REF"
+          fi
+
+      - name: Setup Workspace
+        uses: ./mcp/actions/setup-workspace
+
+      - name: Install Dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run Impact Analysis & Generate Snapshots
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          pnpm run impact:analysis
+          pnpm run impact:build-main || true
+          pnpm run build:review || true
+          pnpm run impact:visual-diff || true
+          pnpm run impact:dom-diff || true
+
+      - name: Commit and Push Snapshots
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "chore: update visual and DOM snapshots"
+          file_pattern: 'artifacts/impact-analysis/ tests/visual.spec.ts-snapshots/ artifacts/visual-review/ artifacts/dom-review/'
 
   ai-review:
     name: AI Review
-    if: github.event_name == 'workflow_dispatch'
+    if: github.event_name == 'workflow_dispatch' && inputs.action == 'ai-review'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7 # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
