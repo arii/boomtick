@@ -4,6 +4,16 @@ on:
   workflow_run:
     workflows: ["CI"]
     types: [completed]
+  workflow_dispatch:
+    inputs:
+      issue_number:
+        description: 'Issue number for manual fix'
+        required: false
+        type: string
+      comment_body:
+        description: 'Comment body'
+        required: false
+        type: string
 
 permissions:
   contents: read
@@ -15,7 +25,7 @@ jobs:
   repair:
     name: Automated CI Repair
     runs-on: ubuntu-latest
-    if: github.event.workflow_run.conclusion == 'failure'
+    if: github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'failure'
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -130,3 +140,53 @@ jobs:
 
           # Use td-cli to dispatch Jules
           td-cli jules fix-ci --issue-number "$ISSUE_NUMBER" --execute
+
+  manual-jules-fix:
+    name: Manual Jules Fix CI
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.issue_number
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 1
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.x'
+
+      - name: Install Dependencies
+        run: |
+          pip install PyGithub requests click
+
+      - name: Pre-check Jules Credentials
+        run: |
+          MISSING=()
+          if [ -z "${{ secrets.GITHUB_TOKEN }}" ]; then MISSING+=("GITHUB_TOKEN"); fi
+          if [ -z "${{ secrets.JULES_API_KEY }}" ]; then MISSING+=("JULES_API_KEY"); fi
+
+          if [ ${#MISSING[@]} -ne 0 ]; then
+            echo "❌ Missing required secrets: ${MISSING[*]}"
+            echo "Please ensure GITHUB_TOKEN and JULES_API_KEY are configured in repository secrets."
+            exit 1
+          fi
+
+          if [ -z "${{ vars.JULES_SOURCE_ID }}" ]; then
+            echo "⚠️ JULES_SOURCE_ID variable not found. Script will attempt auto-discovery."
+          fi
+          echo "✅ Credentials pre-check passed."
+
+      - name: Setup Workspace
+        uses: ./mcp/actions/setup-workspace
+        with:
+          setup-node: 'false'
+
+      - name: Initialize Jules Repair Session
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          JULES_API_KEY: ${{ secrets.JULES_API_KEY }}
+          JULES_SOURCE_ID: ${{ vars.JULES_SOURCE_ID }}
+          ISSUE_NUMBER: ${{ github.event.inputs.issue_number }}
+        run: |
+          td-cli jules fix-ci --pr-number "$ISSUE_NUMBER" --execute

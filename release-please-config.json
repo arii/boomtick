@@ -7,6 +7,10 @@
     "mcp": {
       "release-type": "node",
       "component": "mcp"
+    },
+    ".github/actions/setup-all": {
+      "release-type": "node",
+      "component": "action"
     }
   }
 }
