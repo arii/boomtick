@@ -3,20 +3,22 @@ name: Issue Operations
 on:
   issues:
     types: [opened, edited]
-  issue_comment:
-    types: [created]
   workflow_dispatch:
     inputs:
+      action:
+        description: 'Action to perform'
+        required: true
+        type: choice
+        options:
+          - ai-review
+          - resolve-conflicts
+          - update-snapshots
       issue_number:
-        description: 'Issue number'
+        description: 'Issue or PR number'
         required: true
         type: string
       comment_body:
-        description: 'Comment body'
-        required: false
-        type: string
-      action:
-        description: 'Action to perform'
+        description: 'Comment body (optional)'
         required: false
         type: string
 
@@ -32,12 +34,12 @@ jobs:
     if: github.event_name == 'issues'
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/arii/tech-dancer:latest
+      image: ghcr.io/arii/tech-dancer:v2.0.1
     steps:
       - name: Configure Git Safe Directory
         run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
 
-      - uses: actions/checkout@v7 # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 1
 
@@ -64,12 +66,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v7 # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
+        uses: actions/checkout@v7
         with:
           fetch-depth: 1
 
       - name: Set up Python
-        uses: actions/setup-python@v6 # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
+        uses: actions/setup-python@v6
         with:
           python-version: '3.x'
 
@@ -132,95 +134,18 @@ jobs:
           base: main
           delete-branch: true
 
-  chatops-dispatcher:
-    name: ChatOps Dispatcher
-    if: github.event_name == 'issue_comment' && github.event.issue.pull_request
+  ai-review:
+    name: AI Review
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'ai-review'
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository to dispatch workflows
-        uses: actions/checkout@v7 # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 1
 
-      - name: Setup Workspace
-        uses: ./mcp/actions/setup-workspace
-
-      - name: Check commands
-        id: check
-        env:
-          COMMENT_BODY: ${{ github.event.comment.body }}
-          AUTHOR_ASSOC: ${{ github.event.comment.author_association }}
-        run: |
-          RESULT=$(td-cli gh parse-comment --author-association "$AUTHOR_ASSOC")
-          {
-            echo "conflict_resolve=$(echo "$RESULT" | jq -r '.actions.conflict_resolve')"
-            echo "update_snapshots=$(echo "$RESULT" | jq -r '.actions.update_snapshots')"
-            echo "ai_chatops=$(echo "$RESULT" | jq -r '.actions.ai_chatops')"
-            echo "jules_fix_ci=$(echo "$RESULT" | jq -r '.actions.jules_fix_ci')"
-          } >> "$GITHUB_OUTPUT"
-
-      - name: Resolve Branch Details
-        if: steps.check.outputs.conflict_resolve == 'true' || steps.check.outputs.update_snapshots == 'true' || steps.check.outputs.ai_chatops == 'true' || steps.check.outputs.jules_fix_ci == 'true'
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          ISSUE_NUMBER: ${{ github.event.issue.number }}
-        run: |
-          PR_JSON=$(gh pr view "$ISSUE_NUMBER" --json headRefName,baseRefName || echo '{}')
-          HEAD_REF=$(echo "$PR_JSON" | jq -r '.headRefName // empty')
-          BASE_REF=$(echo "$PR_JSON" | jq -r '.baseRefName // "main"')
-          {
-            echo "HEAD_REF=$HEAD_REF"
-            echo "BASE_REF=$BASE_REF"
-          } >> "$GITHUB_ENV"
-
-      - name: Trigger Conflict Resolver
-        if: steps.check.outputs.conflict_resolve == 'true'
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          COMMENT_BODY: ${{ github.event.comment.body }}
-          ISSUE_NUMBER: ${{ github.event.issue.number }}
-        run: |
-          gh workflow run issue-operations.yml --ref "$BASE_REF" -f issue_number="$ISSUE_NUMBER" -f comment_body="$COMMENT_BODY" -f action="resolve-conflicts" || true
-
-      - name: Trigger Update Snapshots
-        if: steps.check.outputs.update_snapshots == 'true'
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          COMMENT_BODY: ${{ github.event.comment.body }}
-          ISSUE_NUMBER: ${{ github.event.issue.number }}
-        run: |
-          gh workflow run issue-operations.yml --ref "$BASE_REF" -f issue_number="$ISSUE_NUMBER" -f comment_body="$COMMENT_BODY" -f action="update-snapshots" || true
-
-      - name: Trigger AI ChatOps
-        if: steps.check.outputs.ai_chatops == 'true'
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          COMMENT_BODY: ${{ github.event.comment.body }}
-          ISSUE_NUMBER: ${{ github.event.issue.number }}
-        run: |
-          gh workflow run issue-operations.yml --ref "$BASE_REF" -f issue_number="$ISSUE_NUMBER" -f comment_body="$COMMENT_BODY" -f action="ai-review" || true
-
-      - name: Trigger Jules Fix CI
-        if: steps.check.outputs.jules_fix_ci == 'true'
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          COMMENT_BODY: ${{ github.event.comment.body }}
-          ISSUE_NUMBER: ${{ github.event.issue.number }}
-        run: |
-          gh workflow run jules-fix-trigger.yml --ref "$BASE_REF" -f issue_number="$ISSUE_NUMBER" -f comment_body="$COMMENT_BODY" || true
-
-  ai-review:
-    name: AI Review
-    if: github.event_name == 'workflow_dispatch' && inputs.action == 'ai-review'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7 # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
-        with:
-          fetch-depth: 0
-
       - uses: ./mcp/actions/ai-review
         with:
-          pr_number: ${{ inputs.issue_number }}
+          pr_number: ${{ github.event.inputs.issue_number }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
@@ -228,11 +153,16 @@ jobs:
           GOOGLE_JULES_API_KEY: ${{ secrets.GOOGLE_JULES_API_KEY }}
 
   resolve-conflicts:
-    name: Resolve Merge Conflicts
-    if: github.event_name == 'workflow_dispatch' && inputs.action == 'resolve-conflicts'
+    name: Resolve PR Conflicts
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'resolve-conflicts'
     runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/arii/tech-dancer:v2.0.1
     steps:
-      - name: Checkout
+      - name: Configure Git Safe Directory
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
+      - name: Checkout Code
         uses: actions/checkout@v7
         with:
           fetch-depth: 0
@@ -240,28 +170,58 @@ jobs:
       - name: Setup Workspace
         uses: ./mcp/actions/setup-workspace
 
-      - name: Resolve Conflicts
+      - name: Find and Resolve Conflicts
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # Use td-cli to resolve conflicts programmatically
-          td-cli gh resolve-conflicts --pr ${{ inputs.issue_number }} --execute --push
+          # Use our unified CLI for resolution
+          td-cli gh resolve
+
+      - name: Validate Resolution
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm --filter @arii/boomtick-mcp run sync-contracts
+          pnpm run type-check || exit 1
+
+      - name: Commit Changes
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "chore: auto-resolved merge conflicts using AI"
+          file_pattern: '.'
 
   update-snapshots:
-    name: Update Visual Snapshots
-    if: github.event_name == 'workflow_dispatch' && inputs.action == 'update-snapshots'
+    name: Update Playwright Snapshots
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'update-snapshots'
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
+      - name: Checkout Code
         uses: actions/checkout@v7
         with:
-          fetch-depth: 0
+          fetch-depth: 1
 
       - name: Setup Workspace
         uses: ./mcp/actions/setup-workspace
 
+      - name: Install Dependencies
+        run: pnpm install --frozen-lockfile
+
       - name: Update Snapshots
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          pnpm run impact:visual-diff --update
+          # pnpm run test:e2e is the established entry point for playwright
+          VITE_BASE_PATH=/ pnpm run test:e2e --update-snapshots
+
+      - name: Check for Changes
+        id: status
+        run: |
+          if [ -z "$(git status --porcelain)" ]; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Commit Changes
+        if: steps.status.outputs.changed == 'true'
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "chore: update playwright snapshots"
+          file_pattern: '**/snapshots/*'
