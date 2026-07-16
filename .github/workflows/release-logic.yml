@@ -114,6 +114,8 @@ jobs:
           cache-to: type=gha,mode=max
 
       - name: Update Floating Major Tag
+        # Specifically for 'action' target, we maintain floating major version tags (e.g. action-v1)
+        # to allow consumers to track stable major versions of the composite action.
         if: inputs.target == 'action' && github.event_name == 'push' && startsWith(github.ref, 'refs/tags/action-v')
         shell: bash
         run: |
