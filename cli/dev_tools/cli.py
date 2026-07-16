@@ -467,15 +467,37 @@ def issue_comment(ctx, issue_number, file, body):
 @click.option("--all-open", is_flag=True)
 @click.option("--post-comments", is_flag=True)
 @click.option("--dry-run/--execute", default=True)
+@click.option("--file", default=None, help="Path to local issue draft to validate")
 @click.pass_context
-def validate_issue(ctx, issue_number, all_open, post_comments, dry_run):
+def validate_issue(ctx, issue_number, all_open, post_comments, dry_run, file=None):
     orch = ctx.obj["ORCHESTRATOR"]
-    res = orch.validate_issue(
-        issue_number=issue_number, all_open=all_open, post_comments=post_comments, dry_run=dry_run
-    )
+
+    if file:
+        content = orch._read_safe_file(file)
+        # For local files, we use title 'Draft: Local' to satisfy frontmatter check
+        res_content = orch.validate_content("Draft: Local", content)
+        res = {
+            "status": "success" if not res_content["findings"] else "error",
+            "issues": [
+                {
+                    "number": 0,
+                    "title": file,
+                    "findings": res_content["findings"],
+                    "warnings": res_content["warnings"],
+                }
+            ],
+            "total_findings": len(res_content["findings"]),
+        }
+    else:
+        res = orch.validate_issue(
+            issue_number=issue_number, all_open=all_open, post_comments=post_comments, dry_run=dry_run
+        )
+
     if not ctx.obj["JSON"]:
         for issue in res["issues"]:
-            click.echo(f"{'✅' if not issue['findings'] else '❌'} #{issue['number']}: {issue['title'][:60]}")
+            issue_ref = f"#{issue['number']}" if issue["number"] else f"File: {issue['title']}"
+            title_display = f": {issue['title'][:60]}" if issue["number"] else ""
+            click.echo(f"{'✅' if not issue['findings'] else '❌'} {issue_ref}{title_display}")
             for f in issue["findings"]:
                 click.echo(f"   ❌ {f}")
             for w in issue["warnings"]:
@@ -484,6 +506,22 @@ def validate_issue(ctx, issue_number, all_open, post_comments, dry_run):
         err(ctx, f"Found {res['total_findings']} blocking findings.", data=res)
     else:
         out(ctx, "✅ Issue validation complete.", data=res)
+
+
+@gh.command()
+@click.pass_context
+def scaffold_issue(ctx):
+    """Output a markdown skeleton containing the required headers."""
+    sections = PROJECT_CONFIG.spec_sections
+
+    output = "# Issue Title\n\n"
+    for section in sections:
+        output += f"# {section}\n\n[Provide content for {section}]\n\n"
+
+    if ctx.obj.get("JSON"):
+        out(ctx, "Issue scaffold generated.", data={"template": output})
+    else:
+        click.echo(output)
 
 
 @gh.command()
