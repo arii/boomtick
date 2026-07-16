@@ -1,0 +1,132 @@
+name: CI Repair
+
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+  actions: read
+
+jobs:
+  repair:
+    name: Automated CI Repair
+    runs-on: ubuntu-latest
+    if: github.event.workflow_run.conclusion == 'failure'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 1
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.x'
+
+      - name: Install Dependencies
+        run: |
+          pip install PyGithub requests click
+
+      - name: Setup Workspace
+        uses: ./mcp/actions/setup-workspace
+        with:
+          setup-node: 'false'
+
+      - name: Collect Failure Context
+        id: context
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RUN_ID: ${{ github.event.workflow_run.id }}
+          REPO: ${{ github.repository }}
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+          HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
+        run: |
+          JOBS=$(gh api "repos/$REPO/actions/runs/$RUN_ID/jobs" --jq '[.jobs[] | select(.conclusion=="failure") | .name] | join(", ")')
+          {
+            echo "failing_jobs=$JOBS"
+            echo "sha=$HEAD_SHA"
+            echo "sha_short=$(echo "$HEAD_SHA" | cut -c1-8)"
+          } >> "$GITHUB_OUTPUT"
+
+          IS_MAIN="false"
+          if [[ "$HEAD_BRANCH" == "main" ]]; then
+            IS_MAIN="true"
+          fi
+          echo "is_main=$IS_MAIN" >> "$GITHUB_OUTPUT"
+
+      - name: Idempotency Check
+        id: check
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SHA: ${{ steps.context.outputs.sha }}
+          IS_MAIN: ${{ steps.context.outputs.is_main }}
+        run: |
+          LABEL="ci-failure"
+          if [[ "$IS_MAIN" == "true" ]]; then
+            LABEL="main-ci-failure"
+          fi
+
+          EXISTING_ISSUE=$(gh issue list --label "$LABEL" --search "$SHA" --state open --json number --jq -r '.[0].number // empty')
+          if [ -n "$EXISTING_ISSUE" ]; then
+            {
+              echo "issue_exists=true"
+              echo "issue_number=$EXISTING_ISSUE"
+            } >> "$GITHUB_OUTPUT"
+            echo "Found existing issue #$EXISTING_ISSUE for this SHA. Skipping creation."
+          else
+            echo "issue_exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create Issue
+        if: steps.check.outputs.issue_exists == 'false'
+        id: create_issue
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          IS_MAIN: ${{ steps.context.outputs.is_main }}
+          TITLE: "${{ steps.context.outputs.is_main == 'true' && 'fix(ci): main branch failure' || 'fix(ci): CI failure' }} at ${{ steps.context.outputs.sha_short }} — ${{ steps.context.outputs.failing_jobs }}"
+          RUN_ID: ${{ github.event.workflow_run.id }}
+          RUN_URL: ${{ github.event.workflow_run.html_url }}
+          SHA: ${{ steps.context.outputs.sha }}
+        run: |
+          LABEL="ci-failure"
+          EXTRA_LABELS=""
+          BODY_SUFFIX=""
+          if [[ "$IS_MAIN" == "true" ]]; then
+            LABEL="main-ci-failure"
+            EXTRA_LABELS=",spec-driven"
+            BODY_SUFFIX="\n\n🤖 Jules repair session will be dispatched automatically."
+            gh label create main-ci-failure --color FF0000 --description "CI failures on main branch" || true
+          else
+            gh label create ci-failure --color FF0000 --description "CI failures" || true
+          fi
+
+          BODY=$(cat <<EOF
+          CI failure detected in run [$RUN_ID]($RUN_URL).
+
+          **Commit:** $SHA
+          **Failing Jobs:** ${{ steps.context.outputs.failing_jobs }}$BODY_SUFFIX
+          EOF
+          )
+
+          ISSUE_NUMBER=$(gh issue create --title "$TITLE" --body "$BODY" --label "$LABEL$EXTRA_LABELS")
+          echo "issue_number=$(echo "$ISSUE_NUMBER" | grep -oE '[0-9]+$')" >> "$GITHUB_OUTPUT"
+
+      - name: Dispatch Jules (Main Branch Only)
+        if: steps.context.outputs.is_main == 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          JULES_API_KEY: ${{ secrets.JULES_API_KEY }}
+          ISSUE_NUMBER: ${{ steps.check.outputs.issue_number || steps.create_issue.outputs.issue_number }}
+        run: |
+          if [ -z "$JULES_API_KEY" ]; then
+            echo "::warning::JULES_API_KEY is missing. Jules repair session cannot be dispatched."
+            gh issue comment "$ISSUE_NUMBER" --body "⚠️ JULES_API_KEY is missing. Jules repair session cannot be dispatched."
+            exit 0
+          fi
+
+          # Use td-cli to dispatch Jules
+          td-cli jules fix-ci --issue-number "$ISSUE_NUMBER" --execute

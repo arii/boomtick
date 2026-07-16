@@ -20,15 +20,16 @@ async function main() {
   try {
     if (!fs.existsSync('src')) {
       console.warn('⚠️ No "src" directory found. Skipping detailed impact analysis.');
+      const changedFiles = getChangedFiles();
       const emptyReport: ImpactReport = {
-        changedFiles: getChangedFiles(),
+        changedFiles,
         affectedPages: [],
         affectedDynamicImports: [],
         routes: [],
         visualReviewRequired: [],
         impactLevel: 'LOW'
       };
-      generateReports(emptyReport, [], []);
+      generateReports(emptyReport, changedFiles, []);
       return;
     }
 

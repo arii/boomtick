@@ -40,8 +40,6 @@ include = ["dev_tools*"]
 [tool.setuptools.package-data]
 "dev_tools" = [
     "cli-schema.json",
-    "config.json",
-    "project_config.json",
     "verify_versions.py",
     "dist/index.js",
     "dist/config.js",
