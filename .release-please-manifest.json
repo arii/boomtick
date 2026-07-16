@@ -1,5 +1,5 @@
 {
   "cli": "0.3.0",
   "mcp": "0.3.0",
-  "action": "0.1.0"
+  ".github/actions/setup-all": "0.1.0"
 }
