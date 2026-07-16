@@ -30,7 +30,10 @@ jobs:
       - name: Setup Environment
         uses: ./.github/actions/setup-all
         with:
-          setup-python: ${{ inputs.target == 'cli' || inputs.target == 'all' && 'true' || 'false' }}
+          setup-python: 'true'
+
+      - name: Install Node Dependencies
+        run: pnpm install --frozen-lockfile
 
       - name: Run MCP Tests
         if: inputs.target == 'mcp' || inputs.target == 'all'
