@@ -1,0 +1,30 @@
+name: 'Setup All'
+description: 'Consolidated setup for BoomTick: Node.js, pnpm, Python, and MCP'
+inputs:
+  setup-node:
+    description: "Install Node.js and pnpm"
+    required: false
+    default: 'true'
+  setup-python:
+    description: "Install dev-tools (Python)"
+    required: false
+    default: 'true'
+  node-version-file:
+    description: "Path to .node-version file"
+    required: false
+    default: ".node-version"
+  pnpm-version:
+    description: "Version of pnpm to activate"
+    required: false
+    default: "10.28.2"
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Setup Workspace
+      uses: ./.github/actions/setup-workspace
+      with:
+        setup-node: ${{ inputs.setup-node }}
+        setup-python: ${{ inputs.setup-python }}
+        node-version-file: ${{ inputs.node-version-file }}
+        pnpm-version: ${{ inputs.pnpm-version }}

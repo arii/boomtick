@@ -5,6 +5,7 @@ on:
     tags:
       - 'cli-v*'
       - 'mcp-v*'
+      - 'action-v*'
   workflow_dispatch:
     inputs:
       target:
@@ -14,6 +15,7 @@ on:
         options:
           - cli
           - mcp
+          - action
           - all
         default: cli
       dry_run:
@@ -39,6 +41,14 @@ jobs:
     uses: ./.github/workflows/release-logic.yml
     with:
       target: mcp
+      dry_run: ${{ inputs.dry_run || false }}
+    secrets: inherit
+
+  release-action:
+    if: startsWith(github.ref, 'refs/tags/action-v') || (github.event_name == 'workflow_dispatch' && inputs.target == 'action')
+    uses: ./.github/workflows/release-logic.yml
+    with:
+      target: action
       dry_run: ${{ inputs.dry_run || false }}
     secrets: inherit
 
