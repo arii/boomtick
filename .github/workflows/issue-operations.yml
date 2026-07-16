@@ -1,0 +1,224 @@
+name: Issue Operations
+
+on:
+  issues:
+    types: [opened, edited]
+  issue_comment:
+    types: [created]
+  workflow_dispatch:
+    inputs:
+      issue_number:
+        description: 'Issue number'
+        required: true
+        type: string
+      comment_body:
+        description: 'Comment body'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+  actions: write
+
+jobs:
+  validate-quality:
+    name: Validate Issue Quality
+    if: github.event_name == 'issues'
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/arii/tech-dancer:latest
+    steps:
+      - name: Configure Git Safe Directory
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
+      - uses: actions/checkout@v7 # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
+        with:
+          fetch-depth: 1
+
+      - name: Setup Workspace
+        uses: ./mcp/actions/setup-workspace
+        with:
+          setup-node: 'false'
+
+      - name: Validate Issue
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          td-cli gh validate-issue --issue-number ${{ github.event.issue.number }} --post-comments --execute
+
+  create-pr:
+    name: Issue to Content PR
+    if: |
+      github.event_name == 'issues' &&
+      startsWith(github.event.issue.title, 'Draft') &&
+      contains(github.event.issue.title, ':') &&
+      (github.event.issue.author_association == 'OWNER' ||
+       github.event.issue.author_association == 'MEMBER' ||
+       github.event.issue.author_association == 'COLLABORATOR')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7 # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
+        with:
+          fetch-depth: 1
+
+      - name: Set up Python
+        uses: actions/setup-python@v6 # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
+        with:
+          python-version: '3.x'
+
+      - name: Parse Issue and Generate Markdown File
+        env:
+          ISSUE_BODY: ${{ github.event.issue.body }}
+          ISSUE_TITLE: ${{ github.event.issue.title }}
+        shell: python
+        run: |
+          import re
+          from datetime import datetime
+          import os
+
+          body = os.environ['ISSUE_BODY']
+          title = os.environ['ISSUE_TITLE']
+          title = re.sub(r'^Draft[^:]*:\s*', '', title).strip()
+
+          match = re.search(r'```markdown\n(.*?)\n```', body, re.DOTALL)
+          if not match:
+              print("No markdown block found in issue. Exiting.")
+              exit(1)
+
+          content = match.group(1).strip()
+
+          # Detect content type from frontmatter
+          type_match = re.search(r'^type:\s*"?(\w+)"?', content, re.MULTILINE)
+          content_type = type_match.group(1) if type_match else 'post'
+
+          # Route to the right folder
+          folder_map = {
+              'post': 'content/posts',
+              'resource': 'content/resources',
+              'study': 'content/studies',
+          }
+          folder = folder_map.get(content_type, 'content/posts')
+
+          date_str = datetime.now().strftime('%Y-%m-%d')
+          safe_title = re.sub(r'[^a-z0-9]+', '-', title.lower()).strip('-')
+          filename = f"{folder}/{date_str}-{safe_title}.md"
+
+          os.makedirs(folder, exist_ok=True)
+
+          with open(filename, 'w', encoding='utf-8') as f:
+              f.write(content)
+
+          print(f"File created: {filename}")
+
+          with open(os.environ['GITHUB_ENV'], 'a') as f:
+              f.write(f"NEW_FILE={filename}\n")
+              f.write(f"SAFE_TITLE={safe_title}\n")
+
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v8
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: "docs: add content from issue #${{ github.event.issue.number }}"
+          title: "Content: ${{ github.event.issue.title }}"
+          body: "This PR was automatically generated from issue #${{ github.event.issue.number }}."
+          branch: "content/${{ env.SAFE_TITLE }}"
+          base: main
+          delete-branch: true
+
+  chatops-dispatcher:
+    name: ChatOps Dispatcher
+    if: github.event_name == 'issue_comment' && github.event.issue.pull_request
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository to dispatch workflows
+        uses: actions/checkout@v7 # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
+        with:
+          fetch-depth: 1
+
+      - name: Setup Workspace
+        uses: ./mcp/actions/setup-workspace
+
+      - name: Check commands
+        id: check
+        env:
+          COMMENT_BODY: ${{ github.event.comment.body }}
+          AUTHOR_ASSOC: ${{ github.event.comment.author_association }}
+        run: |
+          RESULT=$(td-cli gh parse-comment --author-association "$AUTHOR_ASSOC")
+          {
+            echo "conflict_resolve=$(echo "$RESULT" | jq -r '.actions.conflict_resolve')"
+            echo "update_snapshots=$(echo "$RESULT" | jq -r '.actions.update_snapshots')"
+            echo "ai_chatops=$(echo "$RESULT" | jq -r '.actions.ai_chatops')"
+            echo "jules_fix_ci=$(echo "$RESULT" | jq -r '.actions.jules_fix_ci')"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Resolve Branch Details
+        if: steps.check.outputs.conflict_resolve == 'true' || steps.check.outputs.update_snapshots == 'true' || steps.check.outputs.ai_chatops == 'true' || steps.check.outputs.jules_fix_ci == 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+        run: |
+          PR_JSON=$(gh pr view "$ISSUE_NUMBER" --json headRefName,baseRefName || echo '{}')
+          HEAD_REF=$(echo "$PR_JSON" | jq -r '.headRefName // empty')
+          BASE_REF=$(echo "$PR_JSON" | jq -r '.baseRefName // "main"')
+          {
+            echo "HEAD_REF=$HEAD_REF"
+            echo "BASE_REF=$BASE_REF"
+          } >> "$GITHUB_ENV"
+
+      - name: Trigger Conflict Resolver
+        if: steps.check.outputs.conflict_resolve == 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          COMMENT_BODY: ${{ github.event.comment.body }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+        run: |
+          gh workflow run auto-conflict-resolver.yml -f issue_number="$ISSUE_NUMBER" -f comment_body="$COMMENT_BODY" -f source_branch="$HEAD_REF" -f target_branch="$BASE_REF" || true
+
+      - name: Trigger Update Snapshots
+        if: steps.check.outputs.update_snapshots == 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          COMMENT_BODY: ${{ github.event.comment.body }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+        run: |
+          gh workflow run update-snapshots.yml --ref "$BASE_REF" -f issue_number="$ISSUE_NUMBER" -f comment_body="$COMMENT_BODY" || true
+
+      - name: Trigger AI ChatOps
+        if: steps.check.outputs.ai_chatops == 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          COMMENT_BODY: ${{ github.event.comment.body }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+        run: |
+          gh workflow run issue-operations.yml --ref "$BASE_REF" -f issue_number="$ISSUE_NUMBER" -f comment_body="$COMMENT_BODY" || true
+
+      - name: Trigger Jules Fix CI
+        if: steps.check.outputs.jules_fix_ci == 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          COMMENT_BODY: ${{ github.event.comment.body }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+        run: |
+          gh workflow run jules-fix-trigger.yml --ref "$BASE_REF" -f issue_number="$ISSUE_NUMBER" -f comment_body="$COMMENT_BODY" || true
+
+  ai-review:
+    name: AI Review
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7 # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
+        with:
+          fetch-depth: 1
+
+      - uses: ./mcp/actions/ai-review
+        with:
+          pr_number: ${{ inputs.issue_number }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          GOOGLE_JULES_API_KEY: ${{ secrets.GOOGLE_JULES_API_KEY }}
