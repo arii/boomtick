@@ -14,6 +14,7 @@ runs:
     - name: Resolve Project Paths
       id: resolve-paths
       shell: bash
+      env:
         TARGET: ${{ inputs.target }}
       run: |
         # Use centralized script for CLI path resolution
@@ -61,10 +62,10 @@ runs:
         trap 'echo "::endgroup::"' EXIT
         pnpm run check:runtime-files
         pnpm run doctor
-      env:
       shell: bash
 
     - name: pnpm install
+      env:
         TARGET: ${{ inputs.target }}
         FILTER_PATH: ${{ steps.resolve-paths.outputs.FILTER_PATH }}
       run: |
@@ -75,7 +76,6 @@ runs:
         else
           pnpm install --frozen-lockfile --filter "$FILTER_PATH" --engine-strict=false
         fi
-      env:
       shell: bash
 
     - name: Verify lockfile integrity (root only)
@@ -95,6 +95,7 @@ runs:
       shell: bash
 
     - name: Type-check / Build
+      env:
         TARGET: ${{ inputs.target }}
         CLI_PATH: ${{ steps.resolve-paths.outputs.CLI_PATH }}
         FILTER_PATH: ${{ steps.resolve-paths.outputs.FILTER_PATH }}
@@ -110,7 +111,6 @@ runs:
         else
           pnpm --filter "$FILTER_PATH" run build
         fi
-      env:
       shell: bash
 
     - name: Python Linting
@@ -127,6 +127,7 @@ runs:
       shell: bash
 
     - name: Run Unit Tests
+      env:
         TARGET: ${{ inputs.target }}
         FILTER_PATH: ${{ steps.resolve-paths.outputs.FILTER_PATH }}
       run: |
@@ -135,17 +136,16 @@ runs:
         else
           pnpm --filter "$FILTER_PATH" run test
         fi
-      env:
       shell: bash
 
     - name: Run CLI Unit Tests
       if: inputs.target == 'root' || inputs.target == 'boomtick-mcp'
+      env:
         CLI_PATH: ${{ steps.resolve-paths.outputs.CLI_PATH }}
       run: |
         echo "::group::Pytest"
         trap 'echo "::endgroup::"' EXIT
         PYTHONPATH="$CLI_PATH:$CLI_PATH/dev_tools" python3 -m pytest "$CLI_PATH/tests/"
-      env:
       shell: bash
 
     - name: Check for dead code
@@ -155,6 +155,7 @@ runs:
 
     - name: TypeScript 'any' Ratchet
       if: inputs.target == 'root'
+      env:
         CLI_PATH: ${{ steps.resolve-paths.outputs.CLI_PATH }}
         GITHUB_TOKEN: ${{ inputs.github_token }}
       run: |
@@ -163,5 +164,4 @@ runs:
         export PYTHONPATH="$CLI_PATH:$CLI_PATH/dev_tools"
         export PATH="$HOME/.local/bin:/github/home/.local/bin:$PATH"
         python3 -m dev_tools.cli gh ratchet-any
-      env:
       shell: bash

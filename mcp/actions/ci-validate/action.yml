@@ -3,7 +3,7 @@ description: Runs pre-submit checks via python3 -m dev_tools.cli CLI
 runs:
   using: composite
   steps:
-    - uses: arii/boomtick/mcp/actions/setup@actions-v1
+    - uses: ./mcp/actions/setup
     - name: Pre-submit gate
       run: python3 -m dev_tools.cli gh pre-submit
       shell: bash

@@ -71,6 +71,18 @@ jobs:
           packages-dir: cli/dist/
           password: ${{ secrets.PYPI_API_TOKEN }}
 
+      - name: Update major version tag
+        if: github.event_name == "push" && startsWith(github.ref, "refs/tags/actions-v")
+        shell: bash
+        run: |
+          TAG_NAME=${GITHUB_REF#refs/tags/}
+          MAJOR_VERSION=$(echo "$TAG_NAME" | cut -d. -f1)
+          echo "Moving floating tag $MAJOR_VERSION to $TAG_NAME"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag -f "$MAJOR_VERSION" "$TAG_NAME"
+          git push origin "$MAJOR_VERSION" --force
+
       - name: Create GitHub Release
         if: github.event_name == 'push'
         env:
