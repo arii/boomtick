@@ -69,7 +69,6 @@ jobs:
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           packages-dir: cli/dist/
-          password: ${{ secrets.PYPI_API_TOKEN }}
 
       - name: Create GitHub Release
         if: github.event_name == 'push'
