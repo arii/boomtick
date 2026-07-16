@@ -120,6 +120,7 @@ jobs:
   impact-analysis:
     name: Deployment Impact Analysis
     runs-on: ubuntu-latest
+    needs: [workflow-lint, lint-typecheck, audit, test-build]
     if: github.event_name == 'pull_request' && !github.event.inputs.issue_number
     steps:
       - name: Checkout repository

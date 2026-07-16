@@ -28,12 +28,25 @@ runs:
         PR_NUMBER: ${{ inputs.pr_number }}
         GITHUB_REPOSITORY: ${{ github.repository }}
       run: |
-        if node -e "const pkg = require('./package.json'); if (!pkg.scripts || !pkg.scripts['impact:analysis']) process.exit(1)" 2>/dev/null; then
-          pnpm run impact:analysis
-          echo "has_impact=true" >> "$GITHUB_OUTPUT"
-        else
+        if ! node -e "const pkg = require('./package.json'); if (!pkg.scripts || !pkg.scripts['impact:analysis']) process.exit(1)" 2>/dev/null; then
           echo "⚠️ Skipping: impact:analysis script not found in package.json"
           echo "has_impact=false" >> "$GITHUB_OUTPUT"
+          exit 0
+        fi
+
+        pnpm run impact:analysis
+
+        # Determine has_impact based on generated report
+        if [ -f artifacts/impact-analysis/impact.json ]; then
+          ROUTES_COUNT=$(jq '.routes | length' artifacts/impact-analysis/impact.json 2>/dev/null || echo "0")
+          FILES_COUNT=$(jq '.changedFiles | length' artifacts/impact-analysis/impact.json 2>/dev/null || echo "0")
+          if [ "$ROUTES_COUNT" -gt 0 ] || [ "$FILES_COUNT" -gt 0 ]; then
+             echo "has_impact=true" >> "$GITHUB_OUTPUT"
+          else
+             echo "has_impact=false" >> "$GITHUB_OUTPUT"
+          fi
+        else
+          echo "has_impact=true" >> "$GITHUB_OUTPUT"
         fi
       shell: bash
 
