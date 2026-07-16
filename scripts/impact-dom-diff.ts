@@ -2,7 +2,7 @@
 import { diffLines } from 'diff';
 import fs from 'fs';
 import path from 'path';
-import { JSDOM } from 'jsdom';
+import { JSDOM, VirtualConsole } from 'jsdom';
 import { logHeartbeat } from '../lib/heartbeat';
 import {
   ARTIFACTS_DIR,
@@ -19,9 +19,9 @@ import {
 
 const deploymentReviewPath = path.join(ARTIFACTS_DIR, 'deployment-review.md');
 
-function normalizeHtml(html: string): string {
+export function normalizeHtml(html: string): string {
   // Use virtual console to suppress JSDOM errors/warnings during normalization
-  const virtualConsole = new JSDOM.VirtualConsole();
+  const virtualConsole = new VirtualConsole();
   const dom = new JSDOM(html, { virtualConsole });
   const document = dom.window.document;
 
