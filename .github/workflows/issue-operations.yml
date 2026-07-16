@@ -36,7 +36,7 @@ jobs:
     if: github.event_name == 'issues'
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/arii/tech-dancer:latest
+      image: ghcr.io/arii/tech-dancer:v2.0.1
     steps:
       - name: Configure Git Safe Directory
         run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
@@ -143,7 +143,7 @@ jobs:
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
-      - name: Checkout repository to dispatch workflows
+      - name: Checkout repository
         uses: actions/checkout@v7
         with:
           fetch-depth: 1
@@ -220,7 +220,7 @@ jobs:
 
       - uses: ./mcp/actions/ai-review
         with:
-          pr_number: ${{ inputs.issue_number }}
+          pr_number: ${{ github.event.inputs.issue_number }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
@@ -232,7 +232,7 @@ jobs:
     if: github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'resolve-conflicts'
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/arii/tech-dancer:latest
+      image: ghcr.io/arii/tech-dancer:v2.0.1
     steps:
       - name: Configure Git Safe Directory
         run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
