@@ -493,6 +493,56 @@ class Orchestrator:
             raise CLIError("Comment body cannot be empty.")
         return self.github.create_issue_comment(entity_number, body)
 
+    def validate_content(self, title: str, body: str, config: Optional[Dict[str, Any]] = None) -> Dict[str, List[str]]:
+        """
+        Validates issue content against spec-driven headers and anti-patterns.
+        """
+        findings = []
+        warnings = []
+
+        if config is None:
+            audit_base = self.get_audit_results(content="")
+            config = audit_base.get("config", {})
+
+        if not body.strip():
+            findings.append("Issue body is empty.")
+
+        for i, block in enumerate(self.extract_code_blocks(body)):
+            res = self.get_audit_results(content=block)
+            violations = res.get("violations", {}).get("stdin", [])
+            for v in violations:
+                val = v.get("value", "N/A")
+                findings.append(f"Code block {i+1}: {v['message']} (value: {val})")
+            for comp, path in config.get("existingComponents", {}).items():
+                if re.search(rf"(create|build|make|add|new)\s+.*{comp}", block, re.IGNORECASE):
+                    warnings.append(f"Code block {i+1}: Suggests `{comp}` (exists at `{path}`)")
+
+        for comp, path in config.get("existingComponents", {}).items():
+            if re.search(rf"(create|build|make|add\s+a\s+new)\s+.*{comp}\b", body, re.IGNORECASE):
+                warnings.append(f"Issue suggests `{comp}` (exists at `{path}`)")
+
+        if re.match(r"^Draft.*:", title) and "```markdown" in body:
+            md_match = re.search(r"```markdown\n(.*?)\n```", body, re.DOTALL)
+            if md_match:
+                for field in config.get("requiredContentFields", []):
+                    if not re.search(rf"^{field}:", md_match.group(1), re.MULTILINE):
+                        findings.append(f"Missing frontmatter: `{field}`")
+
+        if not re.search(r"(acceptance criteria|definition of done|## done|verify|test)", body, re.IGNORECASE):
+            warnings.append("No acceptance criteria.")
+
+        if re.search(r"tailwind|className.*flex|className.*grid", body, re.IGNORECASE) and not re.search(
+            r"<Box|<Stack|<Grid|primitives|design.tokens", body, re.IGNORECASE
+        ):
+            warnings.append("Mentions Tailwind but not layout primitives.")
+
+        # Spec-Driven Issue Validation
+        missing_spec_sections = [s for s in SPEC_SECTIONS if not self._has_spec_section(s, body)]
+        if missing_spec_sections:
+            findings.append(f"Missing spec-driven sections: {', '.join(f'`{s}`' for s in missing_spec_sections)}")
+
+        return {"findings": findings, "warnings": warnings}
+
     def validate_issue(
         self,
         issueNumber: Optional[int] = None,
@@ -514,47 +564,17 @@ class Orchestrator:
 
         results = []
         total_findings = 0
+
         audit_base = self.get_audit_results(content="")
         config = audit_base.get("config", {})
 
         for issue in issues:
-            findings = []
-            warnings = []
             body = issue.body or ""
             title = issue.title or ""
 
-            if not body.strip():
-                findings.append("Issue body is empty.")
-
-            for i, block in enumerate(self.extract_code_blocks(body)):
-                res = self.get_audit_results(content=block)
-                violations = res.get("violations", {}).get("stdin", [])
-                for v in violations:
-                    val = v.get("value", "N/A")
-                    findings.append(f"Code block {i+1}: {v['message']} (value: {val})")
-                for comp, path in config.get("existingComponents", {}).items():
-                    if re.search(rf"(create|build|make|add|new)\s+.*{comp}", block, re.IGNORECASE):
-                        warnings.append(f"Code block {i+1}: Suggests `{comp}` (exists at `{path}`)")
-            for comp, path in config.get("existingComponents", {}).items():
-                if re.search(rf"(create|build|make|add\s+a\s+new)\s+.*{comp}\b", body, re.IGNORECASE):
-                    warnings.append(f"Issue suggests `{comp}` (exists at `{path}`)")
-            if re.match(r"^Draft.*:", title) and "```markdown" in body:
-                md_match = re.search(r"```markdown\n(.*?)\n```", body, re.DOTALL)
-                if md_match:
-                    for field in config.get("requiredContentFields", []):
-                        if not re.search(rf"^{field}:", md_match.group(1), re.MULTILINE):
-                            findings.append(f"Missing frontmatter: `{field}`")
-            if not re.search(r"(acceptance criteria|definition of done|## done|verify|test)", body, re.IGNORECASE):
-                warnings.append("No acceptance criteria.")
-            if re.search(r"tailwind|className.*flex|className.*grid", body, re.IGNORECASE) and not re.search(
-                r"<Box|<Stack|<Grid|primitives|design.tokens", body, re.IGNORECASE
-            ):
-                warnings.append("Mentions Tailwind but not layout primitives.")
-
-            # Spec-Driven Issue Validation
-            missing_spec_sections = [s for s in SPEC_SECTIONS if not self._has_spec_section(s, body)]
-            if missing_spec_sections:
-                findings.append(f"Missing spec-driven sections: {', '.join(f'`{s}`' for s in missing_spec_sections)}")
+            validation = self.validate_content(title, body, config=config)
+            findings = validation["findings"]
+            warnings = validation["warnings"]
 
             issue_result = {
                 "number": issue.number,
