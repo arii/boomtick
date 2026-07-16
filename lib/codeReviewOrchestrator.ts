@@ -256,6 +256,10 @@ export async function getCodeDiffSummary(targetFiles?: string[]): Promise<CodeRe
       if (!fs.existsSync(file)) continue;
 
       try {
+        if (fs.lstatSync(file).isDirectory()) {
+          continue;
+        }
+
         const diffResult = await execFile('git', ['diff', contextBaseRef, '--', file], { encoding: 'utf-8' });
         const fileDiff = diffResult.stdout || '';
         const fileContent = await fs.promises.readFile(file, 'utf-8');
