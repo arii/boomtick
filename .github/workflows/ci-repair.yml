@@ -46,10 +46,11 @@ jobs:
           HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
         run: |
           JOBS=$(gh api "repos/$REPO/actions/runs/$RUN_ID/jobs" --jq '[.jobs[] | select(.conclusion=="failure") | .name] | join(", ")')
-          echo "failing_jobs=$JOBS" >> "$GITHUB_OUTPUT"
-
-          echo "sha=$HEAD_SHA" >> "$GITHUB_OUTPUT"
-          echo "sha_short=$(echo "$HEAD_SHA" | cut -c1-8)" >> "$GITHUB_OUTPUT"
+          {
+            echo "failing_jobs=$JOBS"
+            echo "sha=$HEAD_SHA"
+            echo "sha_short=$(echo "$HEAD_SHA" | cut -c1-8)"
+          } >> "$GITHUB_OUTPUT"
 
           IS_MAIN="false"
           if [[ "$HEAD_BRANCH" == "main" ]]; then
@@ -71,8 +72,10 @@ jobs:
 
           EXISTING_ISSUE=$(gh issue list --label "$LABEL" --search "$SHA" --state open --json number --jq -r '.[0].number // empty')
           if [ -n "$EXISTING_ISSUE" ]; then
-            echo "issue_exists=true" >> "$GITHUB_OUTPUT"
-            echo "issue_number=$EXISTING_ISSUE" >> "$GITHUB_OUTPUT"
+            {
+              echo "issue_exists=true"
+              echo "issue_number=$EXISTING_ISSUE"
+            } >> "$GITHUB_OUTPUT"
             echo "Found existing issue #$EXISTING_ISSUE for this SHA. Skipping creation."
           else
             echo "issue_exists=false" >> "$GITHUB_OUTPUT"
