@@ -469,7 +469,7 @@ def issue_comment(ctx, issue_number, file, body):
 @click.option("--dry-run/--execute", default=True)
 @click.option("--file", help="Path to local issue draft to validate")
 @click.pass_context
-def validate_issue(ctx, issue_number, all_open, post_comments, dry_run, file):
+def validate_issue(ctx, issue_number, all_open, post_comments, dry_run, file=None):
     orch = ctx.obj["ORCHESTRATOR"]
 
     if file:
