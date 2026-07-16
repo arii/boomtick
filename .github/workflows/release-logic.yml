@@ -27,7 +27,7 @@ jobs:
           fetch-depth: 0
 
       - name: Setup Environment
-        uses: ./.github/actions/setup-env
+        uses: ./.github/actions/setup-all
         with:
           setup-python: ${{ inputs.target == 'cli' || inputs.target == 'all' && 'true' || 'false' }}
 

@@ -10,7 +10,7 @@
       "component": "mcp",
       "release-type": "node"
     },
-    ".github/actions/setup-env": {
+    ".github/actions/setup-all": {
       "package-name": "boomtick-setup-action",
       "component": "action",
       "release-type": "github-action"
