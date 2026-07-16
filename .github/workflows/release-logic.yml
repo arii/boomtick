@@ -16,6 +16,7 @@ on:
 permissions:
   contents: write
   id-token: write
+  packages: write
 
 jobs:
   release:
@@ -79,3 +80,34 @@ jobs:
           ASSETS=""
           if [ -d "cli/dist" ]; then ASSETS="cli/dist/*"; fi
           gh release create "${{ github.ref_name }}" --title "Release ${{ github.ref_name }}" --generate-notes "$ASSETS"
+
+      - name: Log in to GitHub Container Registry
+        if: (inputs.target == 'all' || inputs.target == 'cli') && (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.dry_run == false))
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract Docker metadata
+        if: (inputs.target == 'all' || inputs.target == 'cli') && (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.dry_run == false))
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository }}
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=ref,event=branch
+            type=sha
+
+      - name: Build and push Docker image
+        if: (inputs.target == 'all' || inputs.target == 'cli') && (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.dry_run == false))
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
