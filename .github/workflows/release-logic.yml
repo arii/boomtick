@@ -4,7 +4,7 @@ on:
   workflow_call:
     inputs:
       target:
-        description: 'Target to release (cli, mcp, action, or all)'
+        description: 'Target to release (cli, mcp, or all)'
         required: true
         type: string
       dry_run:
@@ -23,11 +23,9 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v7
-        with:
-          fetch-depth: 0
 
       - name: Setup Environment
-        uses: ./.github/actions/setup-all
+        uses: ./.github/actions/setup-env
         with:
           setup-python: ${{ inputs.target == 'cli' || inputs.target == 'all' && 'true' || 'false' }}
 
@@ -72,23 +70,6 @@ jobs:
         with:
           packages-dir: cli/dist/
           password: ${{ secrets.PYPI_API_TOKEN }}
-
-      # NEW: Move the floating action tag (e.g., action-v1) to point to action-v1.x.x
-      - name: Extract major version tag
-        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/action-v')
-        id: major_tag
-        run: |
-          TAG_NAME="$GITHUB_REF_NAME"
-          MAJOR_TAG=${TAG_NAME%%.*}
-          echo "tag=$MAJOR_TAG" >> "$GITHUB_OUTPUT"
-        shell: bash
-
-      - name: Update Floating Action Tag
-        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/action-v')
-        uses: actions-ecosystem/action-re-tag@v1
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          tag: ${{ steps.major_tag.outputs.tag }}
 
       - name: Create GitHub Release
         if: github.event_name == 'push'
