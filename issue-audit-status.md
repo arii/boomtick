@@ -7,7 +7,7 @@
 - Issues recommended for clarification: 0
 - Issues recommended to merge: 0
 - Issues recommended to close: 1
-- Issues blocked by PRs or other work: 0
+- Issues blocked by PRs or other work: 4
 
 ## Issue Checklist
 
