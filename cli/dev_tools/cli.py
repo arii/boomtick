@@ -465,11 +465,11 @@ def issue_comment(ctx, issue_number, file, body):
 @gh.command()
 @click.option("--issue-number", type=int)
 @click.option("--all-open", is_flag=True)
-@click.option("--file", help="Path to local issue draft to validate")
 @click.option("--post-comments", is_flag=True)
 @click.option("--dry-run/--execute", default=True)
+@click.option("--file", help="Path to local issue draft to validate")
 @click.pass_context
-def validate_issue(ctx, issue_number, all_open, file, post_comments, dry_run):
+def validate_issue(ctx, issue_number, all_open, post_comments, dry_run, file):
     orch = ctx.obj["ORCHESTRATOR"]
 
     if file:
