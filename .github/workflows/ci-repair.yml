@@ -189,4 +189,8 @@ jobs:
           JULES_SOURCE_ID: ${{ vars.JULES_SOURCE_ID }}
           ISSUE_NUMBER: ${{ github.event.inputs.issue_number }}
         run: |
+          if [[ ! "$ISSUE_NUMBER" =~ ^[0-9]+$ ]]; then
+            echo "::error::Invalid issue_number: must be numeric."
+            exit 1
+          fi
           td-cli jules fix-ci --pr-number "$ISSUE_NUMBER" --execute
