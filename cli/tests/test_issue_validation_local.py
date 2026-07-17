@@ -1,11 +1,10 @@
 # pylint: disable=missing-docstring,protected-access,redefined-outer-name
-import os
 from unittest.mock import patch, MagicMock
 
 import pytest
-from dev_tools.orchestrator import Orchestrator
 from click.testing import CliRunner
 from dev_tools.cli import cli
+from dev_tools.orchestrator import Orchestrator
 
 @pytest.fixture
 def orchestrator():
@@ -58,7 +57,7 @@ test
     assert res["findings"] == []
     # warnings might contain "No acceptance criteria" if regex doesn't match
     # acceptance criteria|definition of done|## done|verify|test
-    assert any("Acceptance Criteria" in w or "acceptance criteria" in w.lower() for w in res["warnings"]) == False
+    assert not any("Acceptance Criteria" in w or "acceptance criteria" in w.lower() for w in res["warnings"])
 
 def test_validate_content_missing_sections(orchestrator):
     orchestrator.get_audit_results = MagicMock(return_value={"violations": {}, "config": {}})

@@ -20,7 +20,7 @@ async function verifySchemas() {
       stdio: 'inherit',
       env: { ...process.env }
     });
-  } catch (error) {
+  } catch (_error) {
     console.error('❌ Failed to generate CLI schema.');
     process.exit(254);
   }
@@ -31,7 +31,7 @@ async function verifySchemas() {
     execSync('pnpm --filter @arii/boomtick-mcp sync-contracts', {
       stdio: 'inherit'
     });
-  } catch (error) {
+  } catch (_error) {
     console.error('❌ Failed to synchronize TS contracts.');
     process.exit(254);
   }
@@ -42,7 +42,7 @@ async function verifySchemas() {
     execSync('pnpm --filter @arii/boomtick-mcp sync:mcp-schemas', {
       stdio: 'inherit'
     });
-  } catch (error) {
+  } catch (_error) {
     console.error('❌ Failed to synchronize MCP schemas.');
     process.exit(254);
   }
@@ -50,7 +50,7 @@ async function verifySchemas() {
   console.log('✅ Schema validation pipeline completed successfully.');
 }
 
-verifySchemas().catch((error) => {
+verifySchemas().catch((_error) => {
   console.error('❌ Unexpected error in schema validation pipeline:', error);
   process.exit(254);
 });

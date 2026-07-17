@@ -9,7 +9,11 @@
   },
   "scripts": {
     "type-check": "pnpm --filter @arii/boomtick-mcp run type-check",
-    "lint": "pnpm --filter @arii/boomtick-mcp run lint",
+    "lint": "run-p lint:*",
+    "lint:eslint": "eslint . --max-warnings 0",
+    "lint:ox": "oxlint --deny-warnings -c oxlint.json mcp/src/ mcp/tests/ lib/ tests/ scripts/",
+    "lint:python": "python3 -m pylint cli --rcfile=.pylintrc",
+    "lint:types": "pnpm --filter @arii/boomtick-mcp run lint",
     "test": "pnpm --filter @arii/boomtick-mcp run test",
     "verify:schemas": "node scripts/verify-schemas.mjs",
     "check:runtime-files": "node scripts/check-runtime-files.mjs",
@@ -27,19 +31,26 @@
     "impact:github-models-review": "tsx scripts/impact-github-models-review.ts"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@langchain/core": "^1.2.3",
     "@langchain/google-genai": "^2.2.0",
     "@playwright/test": "^1.60.0",
     "@types/jsdom": "^28.0.3",
     "@types/pixelmatch": "^5.2.6",
     "@types/pngjs": "^6.0.5",
+    "@typescript-eslint/eslint-plugin": "^8.64.0",
+    "@typescript-eslint/parser": "^8.64.0",
     "dependency-cruiser": "^18.1.0",
     "diff": "^9.0.0",
+    "eslint": "^10.7.0",
     "jscpd": "^5.0.12",
     "jsdom": "^29.1.1",
+    "npm-run-all": "^4.1.5",
+    "oxlint": "^1.74.0",
     "pixelmatch": "^7.2.0",
     "pngjs": "^7.0.0",
     "sharp": "^0.35.3",
-    "tsx": "^4.23.1"
+    "tsx": "^4.23.1",
+    "typescript-eslint": "^8.64.0"
   }
 }
