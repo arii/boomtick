@@ -20,8 +20,14 @@ runs:
         # Use centralized script for CLI path resolution
         if [ -f "scripts/resolve-cli.sh" ]; then
           CLI_PATH=$(bash scripts/resolve-cli.sh | sed "s|$(pwd)/||")
-        elif [ -f "scripts/resolve-cli.sh" ]; then
-          CLI_PATH=$(bash scripts/resolve-cli.sh | sed "s|$(pwd)/||")
+        elif [ -f "boomtick-pkg/scripts/resolve-cli.sh" ]; then
+          CLI_PATH=$(bash boomtick-pkg/scripts/resolve-cli.sh | sed "s|$(pwd)/||")
+        elif [ -f "boomtick/scripts/resolve-cli.sh" ]; then
+          CLI_PATH=$(bash boomtick/scripts/resolve-cli.sh | sed "s|$(pwd)/||")
+        elif [ -d "boomtick-pkg/cli" ]; then
+          CLI_PATH="boomtick-pkg/cli"
+        elif [ -d "boomtick/cli" ]; then
+          CLI_PATH="boomtick/cli"
         elif [ -d "cli" ]; then
           CLI_PATH="cli"
         else
@@ -149,7 +155,7 @@ runs:
       run: |
         echo "::group::Ratchet Any"
         trap 'echo "::endgroup::"' EXIT
-        export PYTHONPATH="boomtick-pkg/cli:boomtick-pkg/cli/dev_tools"
+        export PYTHONPATH="${{ steps.resolve-paths.outputs.CLI_PATH }}:${{ steps.resolve-paths.outputs.CLI_PATH }}/dev_tools"
         export PATH="$HOME/.local/bin:/github/home/.local/bin:$PATH"
         python3 -m dev_tools.cli gh ratchet-any
       env:

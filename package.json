@@ -29,7 +29,7 @@
   "devDependencies": {
     "@langchain/core": "^1.2.3",
     "@langchain/google-genai": "^2.2.0",
-    "@playwright/test": "^1.61.1",
+    "@playwright/test": "^1.60.0",
     "@types/jsdom": "^28.0.3",
     "@types/pixelmatch": "^5.2.6",
     "@types/pngjs": "^6.0.5",

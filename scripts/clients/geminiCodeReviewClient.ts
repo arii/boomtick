@@ -5,7 +5,8 @@ import {
   budgetInputContext,
   buildReviewPayload,
   calculateEstimatedTokens,
-  extractFeedbackText
+  extractFeedbackText,
+  withRetry
 } from '../../lib/codeReviewUtils';
 
 import { buildSystemPrompt } from '../../lib/buildCodeReviewPrompt';
@@ -46,7 +47,7 @@ export const geminiCodeReviewClient: CodeReviewClientStrategy = {
     const { HumanMessage } = await import('@langchain/core/messages');
     const message = new HumanMessage({ content: baseContent });
 
-    let response = await model.invoke([message]);
+    let response = await withRetry(() => model.invoke([message]), { maxRetries: 3, initialDelayMs: 1000 });
 
     let finishReason = extractFinishReason(response);
 
@@ -59,7 +60,7 @@ export const geminiCodeReviewClient: CodeReviewClientStrategy = {
       thinkingBudget = newThinking;
 
       model = createGeminiModel(modelName, newMax, thinkingBudget);
-      response = await model.invoke([message]);
+      response = await withRetry(() => model.invoke([message]), { maxRetries: 3, initialDelayMs: 1000 });
 
       finishReason = extractFinishReason(response);
     }

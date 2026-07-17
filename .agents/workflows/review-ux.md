@@ -26,7 +26,7 @@ playwright-cli install --skills
 1. **Pre-flight validation**:
 
 ```bash
-node boomtick-pkg/scripts/detect-antipatterns.mjs
+node scripts/detect-antipatterns.mjs
 ```
 
 2. **Start the Application**:

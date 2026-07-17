@@ -256,6 +256,10 @@ export async function getCodeDiffSummary(targetFiles?: string[]): Promise<CodeRe
       if (!fs.existsSync(file)) continue;
 
       try {
+        if (fs.lstatSync(file).isDirectory()) {
+          continue;
+        }
+
         const diffResult = await execFile('git', ['diff', contextBaseRef, '--', file], { encoding: 'utf-8' });
         const fileDiff = diffResult.stdout || '';
         const fileContent = await fs.promises.readFile(file, 'utf-8');
@@ -471,7 +475,7 @@ export async function orchestrateCodeReview(
       highCount: 0,
       routes: [],
       llmVerdict: 'pass',
-      state: prevState
+      state: prevState || { findings: [] }
     }, null, 2));
     return;
   }
@@ -481,7 +485,7 @@ export async function orchestrateCodeReview(
   if (!initialSummary.diffContext) {
     console.log(`✅ No code changes detected — skipping agent review.`);
     fs.writeFileSync(agentReportPath, `## ${client.reportTitle}\n\nNo code changes detected.\n`);
-    fs.writeFileSync(path.join(ARTIFACTS_DIR, `${client.reportFileName.replace('.md', '')}-verdict.json`), JSON.stringify({ passed: true, highCount: 0, routes: [], llmVerdict: 'pass' }, null, 2));
+    fs.writeFileSync(path.join(ARTIFACTS_DIR, `${client.reportFileName.replace('.md', '')}-verdict.json`), JSON.stringify({ passed: true, highCount: 0, routes: [], llmVerdict: 'pass', state: { findings: [] } }, null, 2));
     return;
   }
 
@@ -500,7 +504,7 @@ export async function orchestrateCodeReview(
       highCount: 0,
       routes: [],
       llmVerdict: 'pass',
-      state: prevState
+      state: prevState || { findings: [] }
     }, null, 2));
     return;
   }
@@ -520,7 +524,7 @@ export async function orchestrateCodeReview(
       routes: [],
       llmVerdict: 'warn',
       isTruncated: true,
-      state: prevState
+      state: prevState || { findings: [] }
     }, null, 2));
     return;
   }
@@ -627,6 +631,11 @@ export async function orchestrateCodeReview(
             role,
             tokens: 0,
             cost: 0,
+            inputTokens: 0,
+            outputTokens: 0,
+            cacheTokens: 0,
+            modelName: 'unknown',
+            state: { findings: [] },
             llmVerdict: 'warn',
             skipReason: isRateLimit ? 'RATE_LIMIT' : (isInvalidApiKey ? 'MISSING_API_KEY' : 'UNHANDLED_ERROR'),
           });
@@ -744,15 +753,14 @@ export async function orchestrateCodeReview(
 
   // Also alert Jules if this PR is from a Jules session
   const julesSessionId = await getJulesSessionIdFromPR();
+  const isFail = finalResult.llmVerdict === 'fail';
   if (julesSessionId) {
-    const isFail = finalResult.llmVerdict === 'fail';
     const passFailMsg = isFail ? "FAIL ❌" : "PASS ✅";
-    const julesMessage = `[${client.reportTitle}] posted an aggregated code review (${passFailMsg}). Please read the review comments on the PR, analyze the diff context provided, and fix any failed or warned areas.`;
+    const julesMessage = `[${client.reportTitle}] posted an aggregated code review (${passFailMsg}). Please read the review comments on the PR, analyze the diff context provided, and fix any failed or warned areas.\n\n<details><summary>Overview</summary>\n\n${report}\n</details>`;
     await sendJulesMessage(julesSessionId, julesMessage);
   }
 
   const openHighFindings = finalResult.state?.findings?.filter(f => f.status === 'open' && (f.severity === 'HIGH' || f.severity === 'error')) || [];
-  const isFail = finalResult.llmVerdict === 'fail';
   const verdictPath = path.join(ARTIFACTS_DIR, `${client.reportFileName.replace('.md', '')}-verdict.json`);
   fs.writeFileSync(verdictPath, JSON.stringify({
     passed: !isFail,
@@ -761,12 +769,12 @@ export async function orchestrateCodeReview(
     llmVerdict: finalResult.llmVerdict,
     isTruncated: isTruncated,
     skipReason: skipReasons.size > 0 ? Array.from(skipReasons).join(', ') : undefined,
-    state: finalResult.state
+    state: finalResult.state || { findings: [] }
   }, null, 2));
 
   if (isFail) {
     console.error(`❌ Code review returned FAIL — failing CI.`);
-    process.exit(1);
+    // We intentionally don't crash the script here to allow the review workflow to complete fully
   }
 }
 

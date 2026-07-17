@@ -233,7 +233,5 @@ jobs:
           ISSUE_NUMBER: ${{ steps.create_issue.outputs.issue_number }}
         run: |
           set -eo pipefail
-          # shellcheck disable=SC2155
-          export PYTHONPATH="$PYTHONPATH:$GITHUB_WORKSPACE/cli"
-          # Dispatch Jules for the new issue
-          python3 -m dev_tools.cli jules dispatch main "Upgrade dependency to fix security vulnerability in issue #$ISSUE_NUMBER"
+          # Dispatch Jules for the new issue using the installed CLI entry point
+          td-cli jules dispatch main "Upgrade dependency to fix security vulnerability in issue #$ISSUE_NUMBER"

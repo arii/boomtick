@@ -67,7 +67,7 @@ The review file uses a separated format to prevent JSON escaping issues. You mus
 
 Distinguish between "Application" and "Infrastructure/Tooling" code to provide relevant feedback.
 
-### Infrastructure & Tooling (`scripts/`, `boomtick-pkg/cli/`, `.github/`, `setup-agent.sh`)
+### Infrastructure & Tooling (`scripts/`, `cli/`, `.github/`, `setup-agent.sh`)
 - **Portability**: Avoid shell-specific extensions (bashisms) unless necessary. Prefer standard POSIX shell or robust Bash 4+.
 - **Idempotency**: Scripts should be safe to run multiple times.
 - **Error Handling**: Use `set -e`, `set -u`, `set -o pipefail`. Provide clear error messages.

@@ -119,18 +119,13 @@ class Orchestrator:
         return VisionService()
 
     def _resolve_antipatterns_script(self) -> str:
-        """Resolves the path to detect-antipatterns.mjs, supporting standalone and submodule layouts."""
+        """Resolves the path to detect-antipatterns.mjs."""
         # 1. Try standard root location
         script_path = "scripts/detect-antipatterns.mjs"
         if os.path.exists(script_path):
             return script_path
 
-        # 2. Try submodule location
-        submodule_path = "boomtick-pkg/scripts/detect-antipatterns.mjs"
-        if os.path.exists(submodule_path):
-            return submodule_path
-
-        # 3. Fallback to absolute path relative to this file (robust for package-style execution)
+        # 2. Fallback to absolute path relative to this file (robust for package-style execution)
         # Location: cli/dev_tools/orchestrator.py -> ../../scripts/detect-antipatterns.mjs
         abs_path = os.path.abspath(
             os.path.join(os.path.dirname(__file__), "..", "..", "scripts", "detect-antipatterns.mjs")
@@ -306,7 +301,6 @@ class Orchestrator:
                 "-lrE",
                 "^<<<<<<<|^=======|^>>>>>>>",
                 ".",
-                "--exclude-dir=boomtick-pkg",
                 "--exclude-dir=node_modules",
                 "--exclude-dir=dist",
                 "--exclude-dir=.git",
@@ -493,6 +487,56 @@ class Orchestrator:
             raise CLIError("Comment body cannot be empty.")
         return self.github.create_issue_comment(entity_number, body)
 
+    def validate_content(self, title: str, body: str, config: Optional[Dict[str, Any]] = None) -> Dict[str, List[str]]:
+        """
+        Validates issue content against spec-driven headers and anti-patterns.
+        """
+        findings = []
+        warnings = []
+
+        if config is None:
+            audit_base = self.get_audit_results(content="")
+            config = audit_base.get("config", {})
+
+        if not body.strip():
+            findings.append("Issue body is empty.")
+
+        for i, block in enumerate(self.extract_code_blocks(body)):
+            res = self.get_audit_results(content=block)
+            violations = res.get("violations", {}).get("stdin", [])
+            for v in violations:
+                val = v.get("value", "N/A")
+                findings.append(f"Code block {i+1}: {v['message']} (value: {val})")
+            for comp, path in config.get("existingComponents", {}).items():
+                if re.search(rf"(create|build|make|add|new)\s+.*{comp}", block, re.IGNORECASE):
+                    warnings.append(f"Code block {i+1}: Suggests `{comp}` (exists at `{path}`)")
+
+        for comp, path in config.get("existingComponents", {}).items():
+            if re.search(rf"(create|build|make|add\s+a\s+new)\s+.*{comp}\b", body, re.IGNORECASE):
+                warnings.append(f"Issue suggests `{comp}` (exists at `{path}`)")
+
+        if re.match(r"^Draft.*:", title) and "```markdown" in body:
+            md_match = re.search(r"```markdown\n(.*?)\n```", body, re.DOTALL)
+            if md_match:
+                for field in config.get("requiredContentFields", []):
+                    if not re.search(rf"^{field}:", md_match.group(1), re.MULTILINE):
+                        findings.append(f"Missing frontmatter: `{field}`")
+
+        if not re.search(r"(acceptance criteria|definition of done|## done|verify|test)", body, re.IGNORECASE):
+            warnings.append("No acceptance criteria.")
+
+        if re.search(r"tailwind|className.*flex|className.*grid", body, re.IGNORECASE) and not re.search(
+            r"<Box|<Stack|<Grid|primitives|design.tokens", body, re.IGNORECASE
+        ):
+            warnings.append("Mentions Tailwind but not layout primitives.")
+
+        # Spec-Driven Issue Validation
+        missing_spec_sections = [s for s in SPEC_SECTIONS if not self._has_spec_section(s, body)]
+        if missing_spec_sections:
+            findings.append(f"Missing spec-driven sections: {', '.join(f'`{s}`' for s in missing_spec_sections)}")
+
+        return {"findings": findings, "warnings": warnings}
+
     def validate_issue(
         self,
         issueNumber: Optional[int] = None,
@@ -514,47 +558,17 @@ class Orchestrator:
 
         results = []
         total_findings = 0
+
         audit_base = self.get_audit_results(content="")
         config = audit_base.get("config", {})
 
         for issue in issues:
-            findings = []
-            warnings = []
             body = issue.body or ""
             title = issue.title or ""
 
-            if not body.strip():
-                findings.append("Issue body is empty.")
-
-            for i, block in enumerate(self.extract_code_blocks(body)):
-                res = self.get_audit_results(content=block)
-                violations = res.get("violations", {}).get("stdin", [])
-                for v in violations:
-                    val = v.get("value", "N/A")
-                    findings.append(f"Code block {i+1}: {v['message']} (value: {val})")
-                for comp, path in config.get("existingComponents", {}).items():
-                    if re.search(rf"(create|build|make|add|new)\s+.*{comp}", block, re.IGNORECASE):
-                        warnings.append(f"Code block {i+1}: Suggests `{comp}` (exists at `{path}`)")
-            for comp, path in config.get("existingComponents", {}).items():
-                if re.search(rf"(create|build|make|add\s+a\s+new)\s+.*{comp}\b", body, re.IGNORECASE):
-                    warnings.append(f"Issue suggests `{comp}` (exists at `{path}`)")
-            if re.match(r"^Draft.*:", title) and "```markdown" in body:
-                md_match = re.search(r"```markdown\n(.*?)\n```", body, re.DOTALL)
-                if md_match:
-                    for field in config.get("requiredContentFields", []):
-                        if not re.search(rf"^{field}:", md_match.group(1), re.MULTILINE):
-                            findings.append(f"Missing frontmatter: `{field}`")
-            if not re.search(r"(acceptance criteria|definition of done|## done|verify|test)", body, re.IGNORECASE):
-                warnings.append("No acceptance criteria.")
-            if re.search(r"tailwind|className.*flex|className.*grid", body, re.IGNORECASE) and not re.search(
-                r"<Box|<Stack|<Grid|primitives|design.tokens", body, re.IGNORECASE
-            ):
-                warnings.append("Mentions Tailwind but not layout primitives.")
-
-            # Spec-Driven Issue Validation
-            missing_spec_sections = [s for s in SPEC_SECTIONS if not self._has_spec_section(s, body)]
-            if missing_spec_sections:
-                findings.append(f"Missing spec-driven sections: {', '.join(f'`{s}`' for s in missing_spec_sections)}")
+            validation = self.validate_content(title, body, config=config)
+            findings = validation["findings"]
+            warnings = validation["warnings"]
 
             issue_result = {
                 "number": issue.number,
@@ -2873,4 +2887,89 @@ Run the validation suite to ensure the aggregated branch is stable.
             "plan_path": workflow_plan_path,
             "context_path": context_details_path,
             "skeleton_path": plan_skeleton_path,
+        }
+
+    def install_workflows(self, dry_run: bool = True) -> Dict[str, Any]:
+        """
+        Detects if running in a submodule context, and copies/installs Jules automation workflows
+        from the submodule directory to the parent repository's .github/workflows/ folder,
+        updating composite action path references dynamically.
+        """
+        import os
+        import subprocess
+
+        # 1. Detect parent root and submodule directory name
+        parent_root = ""
+        submodule_name = ""
+        submodule_path = os.path.abspath(os.getcwd())
+
+        # Check if current directory is a submodule (running inside the submodule)
+        res = subprocess.run(
+            ["git", "rev-parse", "--show-superproject-working-tree"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if res.returncode == 0 and res.stdout.strip():
+            parent_root = os.path.abspath(res.stdout.strip())
+            submodule_name = os.path.basename(os.getcwd())
+        else:
+            # We might be running inside the parent repository
+            # Search for a subdirectory that represents the submodule
+            for candidate in ["boomtick-pkg", "boomtick"]:
+                if os.path.isdir(candidate) and os.path.isdir(os.path.join(candidate, "cli")):
+                    parent_root = os.path.abspath(os.getcwd())
+                    submodule_name = candidate
+                    submodule_path = os.path.abspath(candidate)
+                    break
+
+        if not parent_root:
+            # Standalone layout fallback
+            parent_root = os.path.abspath(os.getcwd())
+            submodule_name = ""
+
+        # Workflows to copy
+        target_workflows = ["chatops-trigger.yml", "ci-repair.yml", "issue-operations.yml"]
+        source_dir = os.path.join(submodule_path, ".github", "workflows")
+        target_dir = os.path.join(parent_root, ".github", "workflows")
+
+        copied_files = []
+        errors = []
+
+        if not os.path.exists(source_dir):
+            raise CLIError(f"Source workflows directory not found: {source_dir}")
+
+        if not dry_run:
+            os.makedirs(target_dir, exist_ok=True)
+
+        for filename in target_workflows:
+            src_file = os.path.join(source_dir, filename)
+            dest_file = os.path.join(target_dir, filename)
+
+            if not os.path.exists(src_file):
+                errors.append(f"Source workflow file {filename} not found.")
+                continue
+
+            with open(src_file, "r", encoding="utf-8") as f:
+                content = f.read()
+
+            # Rewrite paths if we are in submodule layout
+            if submodule_name:
+                content = content.replace("uses: ./mcp/actions/", f"uses: ./{submodule_name}/mcp/actions/")
+                content = content.replace("uses: ./.github/actions/", f"uses: ./{submodule_name}/.github/actions/")
+                content = content.replace("$GITHUB_WORKSPACE/cli", f"$GITHUB_WORKSPACE/{submodule_name}/cli")
+
+            if not dry_run:
+                with open(dest_file, "w", encoding="utf-8") as f:
+                    f.write(content)
+
+            copied_files.append(dest_file)
+
+        return {
+            "status": "success" if not errors else "partial_success",
+            "parent_root": parent_root,
+            "submodule_name": submodule_name,
+            "copied_files": copied_files,
+            "errors": errors,
+            "dry_run": dry_run,
         }
