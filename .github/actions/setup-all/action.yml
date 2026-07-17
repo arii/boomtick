@@ -53,17 +53,6 @@ runs:
       with:
         node-version-file: ${{ inputs.node-version-file }}
 
-    - name: Enable Corepack
-      if: inputs.setup-node == 'true'
-      run: corepack enable
-      shell: bash
-
-    - name: Activate pinned pnpm
-      if: inputs.setup-node == 'true'
-      env:
-        PNPM_VERSION: ${{ inputs.pnpm-version }}
-      run: corepack prepare pnpm@"$PNPM_VERSION" --activate
-      shell: bash
 
     - name: Install Node Dependencies
       if: inputs.setup-node == 'true'
@@ -91,7 +80,8 @@ runs:
         elif [ -d "boomtick-pkg/cli" ]; then
           CLI_DIR="boomtick-pkg/cli"
         else
-          CLI_DIR="cli"
+          echo "::error::Could not resolve CLI directory"
+          exit 1
         fi
         echo "CLI_DIR=$CLI_DIR" >> "$GITHUB_OUTPUT"
 
@@ -178,7 +168,11 @@ runs:
       run: |
         echo "::group::Initialize Schemas and Contracts"
         export PYTHONPATH="$CLI_DIR_ABS:$PYTHONPATH"
-        python3 "$CLI_DIR_ABS/dev_tools/schema_gen.py"
+        if ! pnpm run verify:schemas >/dev/null 2>&1; then
+          python3 "$CLI_DIR_ABS/dev_tools/schema_gen.py"
+        else
+          echo "Schemas/contracts are already verified and up to date."
+        fi
 
         if [ -d "mcp" ]; then
           MCP_DIR="mcp"

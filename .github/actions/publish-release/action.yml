@@ -33,6 +33,7 @@ runs:
       shell: bash
 
     - name: Build MCP Tool
+      if: inputs.target == 'mcp' || inputs.target == 'all'
       run: pnpm --filter @arii/boomtick-mcp build
       shell: bash
 
@@ -89,7 +90,7 @@ runs:
     - name: Extract Docker metadata
       if: (inputs.target == 'all' || inputs.target == 'cli') && (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.dry_run == 'false'))
       id: meta
-      uses: docker/metadata-action@v5
+      uses: docker/metadata-action@v5.6.1
       with:
         images: ghcr.io/${{ github.repository }}
         tags: |
@@ -100,7 +101,7 @@ runs:
 
     - name: Build and push Docker image
       if: (inputs.target == 'all' || inputs.target == 'cli') && (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.dry_run == 'false'))
-      uses: docker/build-push-action@v6
+      uses: docker/build-push-action@v6.13.0
       with:
         context: .
         push: true
