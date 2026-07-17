@@ -16,7 +16,7 @@ inputs:
 runs:
   using: composite
   steps:
-    - uses: ${{ github.action_path }}/../setup
+    - uses: ./mcp/actions/setup
 
     - run: pnpm install --frozen-lockfile --prefer-offline
       shell: bash
@@ -303,7 +303,7 @@ runs:
 
     - name: Update Impact Analysis Feedback (Final Result)
       if: always()
-      uses: ${{ github.action_path }}/../update-pr-comment
+      uses: ./mcp/actions/update-pr-comment
       with:
         github_token: ${{ inputs.github_token }}
         status_line: '✅ **Impact Analysis Complete**'

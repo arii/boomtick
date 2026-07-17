@@ -7,7 +7,7 @@ inputs:
 runs:
   using: composite
   steps:
-    - uses: ${{ github.action_path }}/../setup
+    - uses: ./mcp/actions/setup
 
     - name: Install dependencies
       run: pnpm install --frozen-lockfile --prefer-offline
