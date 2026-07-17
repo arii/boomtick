@@ -32,13 +32,12 @@ export interface CodeReviewSummary {
   previousState?: CodeReviewState;
 }
 
-export interface CodeReviewResult {
+export interface CodeReviewResult extends CodeReviewState {
   feedback: string;
   role: string;
   tokens: number;
   cost: number;
   modelName: string;
-  findings: ReviewFinding[];
   llmVerdict: 'pass' | 'warn' | 'fail';
   isTruncated?: boolean;
 }

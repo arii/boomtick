@@ -27,7 +27,7 @@ class DependencyGraph:
                 tsconfig = os.path.join(self.root_dir, "tsconfig.app.json")
                 src_dir = os.path.join(self.root_dir, "src")
 
-                if not (os.path.exists(depcruise_config) and os.path.exists(tsconfig) and os.path.exists(src_dir)):
+                if not os.path.exists(depcruise_config) or not os.path.exists(tsconfig) or not os.path.exists(src_dir):
                     log_warn("Missing config or src directory. Dependency graph will be empty.")
                     self.graph = {}
                     self.reverse_graph = {}
