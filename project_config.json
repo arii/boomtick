@@ -1,4 +1,9 @@
 {
   "github_repo": "arii/boomtick",
-  "vite_base_path": "/boomtick/"
+  "vite_base_path": "/boomtick/",
+  "code-review-chain": {
+    "primary": "gpt-4o",
+    "fallbacks": ["deepseek-r1", "llama-3.3-70b-instruct"],
+    "max_retries": 3
+  }
 }
