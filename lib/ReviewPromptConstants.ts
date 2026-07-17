@@ -13,7 +13,9 @@ export const REVIEW_PHILOSOPHY = `## 1. Philosophy
 - EVIDENCE RULE: Points to exact line + explain runtime consequence + explain why previous code was better. No speculation.
 - SCOPE: Review ONLY PR changes. Ignore pre-existing issues. Assume original code worked.
 - STRICT SCOPE: Only review the lines present in the diff or the provided external context.
-- FALSE POSITIVE FILTER: Verify if it occurs at runtime. Design choices are NOT bugs. Treat standard placeholder patterns and unexpanded string templates (such as repos/{owner}/{repo}, {owner}, {repo}) in shell scripts, developer utilities, and CLI files as non-blocking configurations or documentation helpers, not as syntax errors or literal path breakages. Do not treat string configurations or standard bracket placeholders (such as {owner}/{repo}) in developer utility scripts as syntax errors or path breakages.
+- FALSE POSITIVE FILTER: Verify if bugs actually occur at runtime. Design choices are NOT bugs.
+  * PLACEHOLDER EXEMPTION: Treat standard unexpanded placeholders (e.g., \`repos/{owner}/{repo}\`, \`{owner}\`, \`{repo}\`) in shell scripts, developer utilities, and CLI files as non-blocking configurations or documentation.
+  * NEVER flag bracket-style template paths in helper scripts as syntax errors, broken paths, or missing variables.
 - DO NOT flag "missing" imports, types, or files unless you can prove they were deleted or broken by this diff. If a symbol is used but its definition is not in the context, ASSUME it is correctly defined elsewhere.
 - DO NOT hallucinate bugs in code you cannot see.
 - Flag security issues ONLY if this diff introduces a NEW untrusted input path (e.g. new user-controlled data flowing somewhere it wasn't before). Do not flag pre-existing patterns.

@@ -61,10 +61,8 @@ describe('buildCodeReviewPrompt', () => {
       diffContext: 'some diff',
       changedFiles: ['scripts/utility.sh']
     });
+    expect(prompt).toContain('PLACEHOLDER EXEMPTION:');
     expect(prompt).toContain('repos/{owner}/{repo}');
-    expect(prompt).toContain('{owner}');
-    expect(prompt).toContain('{repo}');
-    expect(prompt).toContain('non-blocking');
-    expect(prompt).toContain('not treat string configurations or standard bracket placeholders');
+    expect(prompt).toContain('NEVER flag');
   });
 });
