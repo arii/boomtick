@@ -27,6 +27,17 @@ class ContextBuilder:
         self.file_tree: Dict[str, Any] = {}
         self.linked_issues: List[Dict[str, Any]] = []
         self.extra_context: Dict[str, Any] = {}
+        self.scratch_pad: List[Dict[str, Any]] = []
+
+    def add_scratch_note(self, role: str, note: str) -> "ContextBuilder":
+        """Adds a persistent observation note to the single-agent's shared scratch pad."""
+        self.scratch_pad.append({"role": role, "note": note})
+        return self
+
+    def clear_scratch_pad(self) -> "ContextBuilder":
+        """Clears the scratch pad notes."""
+        self.scratch_pad = []
+        return self
 
     @property
     def github(self) -> GitHubClient:
@@ -56,6 +67,18 @@ class ContextBuilder:
 
     def ingest_file_tree(self, root_dir: str = ".", max_depth: int = 2) -> "ContextBuilder":
         """Generates and ingests a clean, structured directory layout of the repository."""
+        # Performance optimization: Attempt to load from pre-warmed context index if available
+        context_file = os.path.join(root_dir, ".agent-context.json")
+        if os.path.exists(context_file):
+            try:
+                with open(context_file, "r", encoding="utf-8") as f:
+                    context_data = json.load(f)
+                    if isinstance(context_data, dict) and "file_tree" in context_data:
+                        self.file_tree = context_data["file_tree"]
+                        return self
+            except Exception:
+                pass
+
         self.file_tree = self._get_dir_structure(root_dir, max_depth)
         return self
 
@@ -68,7 +91,7 @@ class ContextBuilder:
         # pylint: disable=too-many-branches
         """Recursively gathers a directory structure representation, ignoring common build and cache directories."""
         if current_depth >= max_depth:
-            return {"_status": "truncated"}
+            return {}
 
         structure: Dict[str, Any] = {}
         try:
@@ -99,7 +122,7 @@ class ContextBuilder:
         """Helper to format a directory tree dict into a clean Markdown list."""
         lines: List[str] = []
         for name, contents in tree.items():
-            if name in ("_status", "_error"):
+            if name == "_error":
                 continue
             spacing = "  " * indent
             if name.endswith("/"):
@@ -117,12 +140,24 @@ class ContextBuilder:
         Builds a comprehensive structured dictionary of the context.
         Perfect for programmatic consumption or passing directly to JSON-based prompts.
         """
-        # Determine changed files from pr_diff
+        # Determine changed files from pr_diff defensively
         changed_files: Set[str] = set()
         if self.pr_diff:
             for line in self.pr_diff.splitlines():
+                path = ""
                 if line.startswith("+++ b/"):
-                    changed_files.add(line[6:].strip())
+                    path = line[6:].strip()
+                elif line.startswith("+++ "):
+                    path = line[4:].strip()
+                    if path.startswith("b/"):
+                        path = path[2:]
+
+                if path:
+                    if path.startswith("./"):
+                        path = path[2:]
+                    path = path.split("\t")[0].strip()
+                    if path and path != "/dev/null":
+                        changed_files.add(path)
 
         context = {
             "step": step_name,
@@ -138,6 +173,7 @@ class ContextBuilder:
             "linked_issues": self.linked_issues,
             "file_tree": self.file_tree,
             "extra": self.extra_context,
+            "scratch_pad": self.scratch_pad,
         }
         return context
 
@@ -237,7 +273,21 @@ class ContextBuilder:
                 ]
             )
 
-        # 5. Extra context / logs
+        # 5. Agent Scratch Pad / Shared Thinking State
+        if data["scratch_pad"]:
+            markdown_lines.append("## Agent Scratch Pad (Shared Multi-Role Thinking State)")
+            markdown_lines.append("These are intermediate thoughts and findings recorded sequentially by this agent:")
+            for entry in data["scratch_pad"]:
+                markdown_lines.extend(
+                    [
+                        f"### Note by Role: {entry.get('role', 'unknown').upper()}",
+                        str(entry.get("note") or ""),
+                        "",
+                    ]
+                )
+            markdown_lines.append("")
+
+        # 6. Extra context / logs
         if data["extra"]:
             markdown_lines.append("## Supplemental Execution Evidence")
             for key, val in data["extra"].items():

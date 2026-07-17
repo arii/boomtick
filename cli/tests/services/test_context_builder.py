@@ -24,6 +24,21 @@ class TestContextBuilder(unittest.TestCase):
         self.assertEqual(self.builder.file_tree, {})
         self.assertEqual(self.builder.linked_issues, [])
         self.assertEqual(self.builder.extra_context, {})
+        self.assertEqual(self.builder.scratch_pad, [])
+
+    def test_scratch_pad_operations(self) -> None:
+        """Test adding, reading, and clearing scratch pad entries."""
+        self.builder.add_scratch_note("reviewer", "Code looks good.")
+        self.builder.add_scratch_note("auditor", "File tree is compliant.")
+
+        self.assertEqual(len(self.builder.scratch_pad), 2)
+        self.assertEqual(self.builder.scratch_pad[0]["role"], "reviewer")
+        self.assertEqual(self.builder.scratch_pad[0]["note"], "Code looks good.")
+        self.assertEqual(self.builder.scratch_pad[1]["role"], "auditor")
+        self.assertEqual(self.builder.scratch_pad[1]["note"], "File tree is compliant.")
+
+        self.builder.clear_scratch_pad()
+        self.assertEqual(self.builder.scratch_pad, [])
 
     def test_ingest_pr(self) -> None:
         """Test PR detail and diff ingestion."""
@@ -128,6 +143,7 @@ class TestContextBuilder(unittest.TestCase):
         self.builder.ingest_pr(100)
         self.builder.file_tree = {"package.json": None}
         self.builder.add_extra_context("test_run", "success")
+        self.builder.add_scratch_note("reviewer", "My note")
 
         context = self.builder.build_structured_context(step_name="testing")
 
@@ -136,6 +152,7 @@ class TestContextBuilder(unittest.TestCase):
         self.assertEqual(context["pr"]["changed_files"], ["src/index.ts"])
         self.assertEqual(context["file_tree"], {"package.json": None})
         self.assertEqual(context["extra"], {"test_run": "success"})
+        self.assertEqual(context["scratch_pad"], [{"role": "reviewer", "note": "My note"}])
 
     def test_build_markdown_context(self) -> None:
         """Test generating Markdown prompt context formatted for LLM consumption."""
@@ -147,6 +164,7 @@ class TestContextBuilder(unittest.TestCase):
         self.builder.ingest_pr(1)
         self.builder.file_tree = {"src/": {"app.ts": None}}
         self.builder.ingest_linked_issue(123)
+        self.builder.add_scratch_note("reviewer", "Reviewed successfully.")
 
         # 1. Review step context
         review_md = self.builder.build_markdown_context("review")
@@ -154,6 +172,9 @@ class TestContextBuilder(unittest.TestCase):
         self.assertIn("Perform a strict code review", review_md)
         self.assertIn("Pull Request #1: Example", review_md)
         self.assertIn("Repository File Layout Structure", review_md)
+        self.assertIn("Agent Scratch Pad (Shared Multi-Role Thinking State)", review_md)
+        self.assertIn("Note by Role: REVIEWER", review_md)
+        self.assertIn("Reviewed successfully.", review_md)
 
         # 2. Audit step context
         audit_md = self.builder.build_markdown_context("audit")
