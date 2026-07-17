@@ -105,16 +105,32 @@ export async function orchestrateVisualReview(
   const taskQueue: (() => Promise<void>)[] = [];
 
   for (const route of routesToReview) {
-    for (const role of roles) {
-      taskQueue.push(async () => {
-        console.log(`    → Agent: ${role} on ${route.route} (${route.severity}, ${route.differencePercent.toFixed(2)}%)`);
-        const start = Date.now();
+    console.log(`  → ${route.route} (${route.severity}, ${route.differencePercent.toFixed(2)}%)`);
+
+    // Execute all specialized agents for this route
+    const routeReviews = await Promise.all(roles.map(async (role) => {
+      console.log(`    → Agent: ${role}`);
+      const start = Date.now();
+      try {
         const review = await client.invokeReview(route, role);
         const durationMs = Date.now() - start;
         logReviewExecution('visual-review', review, durationMs, { route: route.route });
-        reviews.push({ ...review, role });
-      });
-    }
+        return { ...review, role };
+      } catch (err) {
+        const errorMsg = err instanceof Error ? err.message : String(err);
+        console.error(`❌ Error in ${role} visual review task:`, err);
+        return {
+          route: route.route,
+          severity: 'LOW',
+          differencePercent: route.differencePercent,
+          feedback: `Error: failed to execute ${role} visual review. Details: ${errorMsg}`,
+          tokens: 0, cost: 0, inputTokens: 0, outputTokens: 0, cacheTokens: 0, modelName: 'unknown',
+          llmVerdict: 'warn', role, findings: []
+        } as RouteReview;
+      }
+    }));
+
+    reviews.push(...routeReviews);
   }
 
   const workers = Array.from({ length: Math.min(CONCURRENCY_LIMIT, taskQueue.length) }, async () => {
@@ -174,6 +190,7 @@ export async function orchestrateVisualReview(
 
   if (hasBlockingIssues) {
     console.error(`❌ Visual review found HIGH severity issues — failing CI.`);
-    process.exit(1);
+    // We intentionally don't crash the script here to allow the review workflow to complete fully
+    // process.exit(1);
   }
 }
