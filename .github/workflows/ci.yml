@@ -49,12 +49,11 @@ jobs:
         uses: actions/checkout@v7
 
       - name: Setup Workspace
-        uses: ./.github/actions/setup-workspace
+        uses: ./.github/actions/setup-all
 
       - name: Run Lint & Typecheck (TypeScript)
         if: matrix.target == 'typescript'
         run: |
-          pnpm install --frozen-lockfile
           pnpm --filter @arii/boomtick-mcp run lint
           pnpm --filter @arii/boomtick-mcp run type-check
 
@@ -74,10 +73,7 @@ jobs:
         uses: actions/checkout@v7
 
       - name: Setup Workspace
-        uses: ./.github/actions/setup-workspace
-
-      - name: Install Dependencies
-        run: pnpm install --frozen-lockfile
+        uses: ./.github/actions/setup-all
 
       - name: Run Duplication Detection (jscpd)
         run: pnpm exec jscpd .
@@ -91,10 +87,7 @@ jobs:
         uses: actions/checkout@v7
 
       - name: Setup Workspace
-        uses: ./.github/actions/setup-workspace
-
-      - name: Install Dependencies
-        run: pnpm install --frozen-lockfile
+        uses: ./.github/actions/setup-all
 
       - name: Run MCP Tests (Vitest)
         run: pnpm --filter @arii/boomtick-mcp run test

@@ -32,19 +32,11 @@ jobs:
         with:
           fetch-depth: 1
 
-      - name: Set up Python
-        uses: actions/setup-python@v6
-        with:
-          python-version: '3.x'
-
-      - name: Install Dependencies
-        run: |
-          pip install PyGithub requests click
-
       - name: Setup Workspace
-        uses: ./mcp/actions/setup-workspace
+        uses: ./.github/actions/setup-all
         with:
           setup-node: 'false'
+          setup-python: 'true'
 
       - name: Collect Failure Context
         id: context
@@ -151,14 +143,11 @@ jobs:
         with:
           fetch-depth: 1
 
-      - name: Set up Python
-        uses: actions/setup-python@v6
+      - name: Setup Workspace
+        uses: ./.github/actions/setup-all
         with:
-          python-version: '3.x'
-
-      - name: Install Dependencies
-        run: |
-          pip install PyGithub requests click
+          setup-node: 'false'
+          setup-python: 'true'
 
       - name: Pre-check Jules Credentials
         run: |
@@ -176,11 +165,6 @@ jobs:
             echo "⚠️ JULES_SOURCE_ID variable not found. Script will attempt auto-discovery."
           fi
           echo "✅ Credentials pre-check passed."
-
-      - name: Setup Workspace
-        uses: ./mcp/actions/setup-workspace
-        with:
-          setup-node: 'false'
 
       - name: Initialize Jules Repair Session
         env:

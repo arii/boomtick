@@ -23,7 +23,7 @@ jobs:
           fetch-depth: 1
 
       - name: Setup Workspace
-        uses: ./mcp/actions/setup-workspace
+        uses: ./.github/actions/setup-all
 
       - name: Check commands
         id: check

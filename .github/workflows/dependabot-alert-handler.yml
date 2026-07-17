@@ -36,7 +36,7 @@ jobs:
         uses: actions/checkout@v7 # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
 
       - name: Setup Workspace
-        uses: ./mcp/actions/setup-workspace
+        uses: ./.github/actions/setup-all
         with:
           setup-python: 'true'
 
