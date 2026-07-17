@@ -18,6 +18,14 @@ jobs:
     name: Trigger Tech-Dancer CI
     runs-on: ubuntu-latest
     steps:
+      - name: Generate Token
+        id: generate_token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+
       - name: Determine branch name
         id: get-branch
         env:
@@ -41,10 +49,10 @@ jobs:
 
       - name: Trigger update-submodule workflow in tech-dancer
         env:
-          GH_TOKEN: ${{ secrets.GH_PAT_SUBMODULE_UPDATE }}
+          GH_TOKEN: ${{ steps.generate_token.outputs.token }}
         run: |
           if [ -z "$GH_TOKEN" ]; then
-            echo "::warning::GH_PAT_SUBMODULE_UPDATE is not set. Cannot trigger downstream CI."
+            echo "::warning::GitHub App Token could not be generated. Cannot trigger downstream CI."
             exit 0
           fi
 
