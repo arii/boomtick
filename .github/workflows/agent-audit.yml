@@ -52,6 +52,5 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           JULES_API_KEY: ${{ secrets.JULES_API_KEY }}
         run: |
-          source .venv/bin/activate
           # Use td-cli to dispatch the task to jules targeting the main branch
           td-cli agent dispatch main "$AUDIT_PROMPT"
