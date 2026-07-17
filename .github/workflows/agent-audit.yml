@@ -1,0 +1,55 @@
+name: Agent Audit Dispatch
+
+on:
+  workflow_dispatch:
+    inputs:
+      audit_type:
+        description: 'Type of Audit to run'
+        required: true
+        default: 'ai-slop-audit'
+        type: choice
+        options:
+          - ai-slop-audit
+          - issue-audit
+          - review-ux
+
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+
+jobs:
+  dispatch-agent:
+    name: Dispatch Audit Agent
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Setup Workspace
+        uses: ./.github/actions/setup-workspace
+
+      - name: Resolve Audit Content
+        id: resolve-content
+        run: |
+          # Read the selected agent workflow content
+          if [ -f ".agents/workflows/${{ inputs.audit_type }}.md" ]; then
+            # We export the prompt to an environment variable to pass it to the CLI safely
+            EOF_DELIMITER=$(openssl rand -hex 16)
+            echo "AUDIT_PROMPT<<$EOF_DELIMITER" >> "$GITHUB_ENV"
+            cat ".agents/workflows/${{ inputs.audit_type }}.md" >> "$GITHUB_ENV"
+            echo "$EOF_DELIMITER" >> "$GITHUB_ENV"
+          else
+            echo "Error: Audit template not found."
+            # fail task without exiting
+            false
+          fi
+
+      - name: Dispatch Jules Agent
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          JULES_API_KEY: ${{ secrets.JULES_API_KEY }}
+        run: |
+          source .venv/bin/activate
+          # Use td-cli to dispatch the task to jules targeting the main branch
+          td-cli agent dispatch main "$AUDIT_PROMPT"
