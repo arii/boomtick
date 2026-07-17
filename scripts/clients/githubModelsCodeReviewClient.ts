@@ -5,7 +5,8 @@ import {
   budgetInputContext,
   buildReviewPayload,
   extractFeedbackText,
-  calculateEstimatedTokens
+  calculateEstimatedTokens,
+  withRetry
 } from '../../lib/codeReviewUtils';
 import { buildSystemPrompt } from '../../lib/buildCodeReviewPrompt';
 import type { CodeReviewSummary, CodeReviewResult } from '../../lib/codeReviewTypes';
@@ -63,26 +64,29 @@ export const githubModelsCodeReviewClient: CodeReviewClientStrategy = {
     const apiKey = process.env.GITHUB_TOKEN;
     const url = 'https://models.inference.ai.azure.com/chat/completions';
 
-    const fetchResponse = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`
-      },
-      body: JSON.stringify({
-        model: modelName,
-        messages: messages,
-        max_tokens: maxTokens,
-        temperature: 0.1
-      })
-    }).catch(e => {
-      throw new Error(`Failed to fetch from GitHub Models API: ${e}`, { cause: e });
-    });
+    const fetchResponse = await withRetry(async () => {
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`
+        },
+        body: JSON.stringify({
+          model: modelName,
+          messages: messages,
+          max_tokens: maxTokens,
+          temperature: 0.1
+        })
+      }).catch(e => {
+        throw new Error(`Failed to fetch from GitHub Models API: ${e}`, { cause: e });
+      });
 
-    if (!fetchResponse.ok) {
-      const errText = await fetchResponse.text();
-      throw new Error(`GitHub Models API error: ${fetchResponse.status} ${fetchResponse.statusText} - ${errText}`);
-    }
+      if (!response.ok) {
+        const errText = await response.text();
+        throw new Error(`GitHub Models API error: ${response.status} ${response.statusText} - ${errText}`);
+      }
+      return response;
+    }, { maxRetries: 3, initialDelayMs: 1000 });
 
     const response = await fetchResponse.json() as {
       usage?: {
