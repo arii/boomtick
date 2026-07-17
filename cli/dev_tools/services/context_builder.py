@@ -7,6 +7,7 @@ prompt contexts based on graph node execution steps.
 
 import json
 import os
+import re
 from typing import Any, Dict, List, Optional, Set
 from dev_tools.services.github import GitHubClient
 from dev_tools.config import get_config
@@ -19,6 +20,19 @@ class ContextBuilder:
     Builds structured, step-specific agent contexts by ingesting various repository
     artifacts and formatting them into highly readable prompt structures.
     """
+
+    # Configurable list of directories to ignore during tree traversal
+    IGNORED_DIRS: Set[str] = {
+        "node_modules",
+        "__pycache__",
+        "dist",
+        "build",
+        "target",
+        "collected-logs",
+        "runs",
+        ".git",
+        ".venv",
+    }
 
     def __init__(self, github_client: Optional[GitHubClient] = None) -> None:
         self._github = github_client
@@ -79,7 +93,7 @@ class ContextBuilder:
             except Exception:
                 pass
 
-        self.file_tree = self._get_dir_structure(root_dir, max_depth)
+        self.file_tree = self._get_dir_structure(root_dir, max_depth, root_dir_abs=os.path.abspath(root_dir))
         return self
 
     def add_extra_context(self, key: str, value: Any) -> "ContextBuilder":
@@ -87,7 +101,13 @@ class ContextBuilder:
         self.extra_context[key] = value
         return self
 
-    def _get_dir_structure(self, path_str: str, max_depth: int, current_depth: int = 0) -> Dict[str, Any]:
+    def _get_dir_structure(
+        self,
+        path_str: str,
+        max_depth: int,
+        current_depth: int = 0,
+        root_dir_abs: Optional[str] = None,
+    ) -> Dict[str, Any]:
         # pylint: disable=too-many-branches
         """Recursively gathers a directory structure representation, ignoring common build and cache directories."""
         if current_depth >= max_depth:
@@ -96,21 +116,33 @@ class ContextBuilder:
         structure: Dict[str, Any] = {}
         try:
             path = os.path.abspath(path_str)
+            if root_dir_abs is None:
+                root_dir_abs = path
+
+            # Security: Path Traversal Validation
+            if os.path.commonpath([root_dir_abs, path]) != root_dir_abs:
+                return structure
+
             if not os.path.exists(path):
                 return structure
 
             for item_name in sorted(os.listdir(path)):
-                # Ignore hidden files, build artifacts, node_modules, and cache directories
+                # Ignore hidden files, temporary files, and ignored directories
                 if (
                     item_name.startswith(".")
-                    or item_name in ("node_modules", "__pycache__", "dist", "build", "target", "collected-logs", "runs")
+                    or item_name in self.IGNORED_DIRS
                     or item_name.endswith(".tmp")
                 ):
                     continue
 
                 full_path = os.path.join(path, item_name)
                 if os.path.isdir(full_path):
-                    structure[item_name + "/"] = self._get_dir_structure(full_path, max_depth, current_depth + 1)
+                    structure[item_name + "/"] = self._get_dir_structure(
+                        full_path,
+                        max_depth,
+                        current_depth + 1,
+                        root_dir_abs=root_dir_abs,
+                    )
                 else:
                     structure[item_name] = None
         except Exception as e:
@@ -140,24 +172,19 @@ class ContextBuilder:
         Builds a comprehensive structured dictionary of the context.
         Perfect for programmatic consumption or passing directly to JSON-based prompts.
         """
-        # Determine changed files from pr_diff defensively
+        # Determine changed files from pr_diff defensively using secure regex
         changed_files: Set[str] = set()
         if self.pr_diff:
             for line in self.pr_diff.splitlines():
-                path = ""
-                if line.startswith("+++ b/"):
-                    path = line[6:].strip()
-                elif line.startswith("+++ "):
-                    path = line[4:].strip()
-                    if path.startswith("b/"):
-                        path = path[2:]
-
-                if path:
-                    if path.startswith("./"):
-                        path = path[2:]
-                    path = path.split("\t")[0].strip()
-                    if path and path != "/dev/null":
-                        changed_files.add(path)
+                if line.startswith("+++ "):
+                    # Safe regex-based parsing to support standard and custom prefixes
+                    match = re.match(r"^\+\+\+\s+(?:b/)?(.*)", line)
+                    if match:
+                        path = match.group(1).split("\t")[0].strip()
+                        if path.startswith("./"):
+                            path = path[2:]
+                        if path and path != "/dev/null":
+                            changed_files.add(path)
 
         context = {
             "step": step_name,
