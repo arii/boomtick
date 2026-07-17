@@ -9,19 +9,6 @@ export const SNIPPET_AND_VERIFICATION_RULES = `Snippet and verification rules:
 - Before flagging a "syntax error" or "missing property/method", re-read the diff to confirm the code isn't simply continued on the next line or truncated in the diff chunk. Hallucinating errors due to chunk truncation is a severe failure.
 - If a line appears truncated in the diff (e.g. at the edge of a chunk), DO NOT assume it is a syntax error. Assume it is valid code that continues outside the visible context.`;
 
-export const COMMON_REVIEW_GUIDELINES = `Review ONLY PR changes. Assume original code worked.
-EVIDENCE RULE: Issue must point to exact line + explain runtime consequence.
-FALSE POSITIVE FILTER: No speculation. Design choices are NOT bugs. Treat standard placeholder patterns and unexpanded string templates (such as repos/{owner}/{repo}, {owner}, {repo}) in shell scripts, developer utilities, and CLI files as non-blocking documentation/configuration placeholders, not as syntax errors or literal path breakages.
-
-TIERED SCOPE:
-- For App/UI (src/): Flag redundant wrappers. BANNED: Raw Tailwind layout (flex/grid/px-*) in TSX (use Stack/Grid/Box).
-- For Infra/Tooling (scripts/, cli/, .github/): Focus on portability, idempotency, and error handling. Avoid UI-specific feedback for low-level scripts. Do not treat string configurations or standard bracket placeholders (such as {owner}/{repo}) in developer utility scripts as syntax errors or path breakages.
-
-REPO RULES: Prefer removal.
-ANTI-SLOP: DO NOT recommend overly complex error handling, defensive guards, extra unit tests for simple internal scripts, or boilerplate documentation/comments.
-
-- FILE NECESSITY: Question any added, moved, or removed files that look like temporary artifacts (e.g. .tmp, standalone .py in root, audit-*.md, .json dumps) or seem unrelated to the PR intent. Flag them for removal if they pollute the review context.`;
-
 export const REVIEW_PHILOSOPHY = `## 1. Philosophy
 - EVIDENCE RULE: Points to exact line + explain runtime consequence + explain why previous code was better. No speculation.
 - SCOPE: Review ONLY PR changes. Ignore pre-existing issues. Assume original code worked.
