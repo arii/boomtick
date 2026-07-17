@@ -133,6 +133,8 @@ export function normalizeFindings(findings: unknown[]): ReviewFinding[] {
   });
 }
 
+const JSON_PATTERN = /\{[\s\S]*\}|\[[\s\S]*\]/;
+
 export function parseCodeReviewStateDetailed(feedback: string): ParsedFindingsResult {
   const openTag = '<findings>';
   const closeTag = '</findings>';
@@ -156,7 +158,7 @@ export function parseCodeReviewStateDetailed(feedback: string): ParsedFindingsRe
       jsonText = feedback.trim();
       // Filter out non-JSON strings that just happen to include brackets
       if (!jsonText.startsWith('{') && !jsonText.startsWith('[')) {
-        const extracted = jsonText.match(/\{[\s\S]*\}|\[[\s\S]*\]/);
+        const extracted = jsonText.match(JSON_PATTERN);
         if (extracted) jsonText = extracted[0];
         else return { state: undefined };
       }
@@ -194,22 +196,23 @@ export function parseCodeReviewStateDetailed(feedback: string): ParsedFindingsRe
     jsonText = jsonText.slice(startIdx);
   } else {
     // Strip markdown code blocks if boundaries weren't found
-    jsonText = jsonText.replace(/^```[a-z]*\s*/gi, '').replace(/\s*```$/g, '').trim();
+    jsonText = jsonText.replace(/^```[a-z]*\s*|\s*```$/gi, '').trim();
   }
 
   try {
     // Pre-process jsonText to fix any unescaped backslashes (e.g. \s, \d, \w, paths)
     // by escaping them (replacing \ with \\ if not followed by valid JSON escape character)
     // Additionally fix \` that might be incorrectly escaped by the model
-    let sanitizedJsonText = jsonText.replace(/\\`/g, '`');
-    sanitizedJsonText = sanitizedJsonText.replace(/\\(?!["\\/bfnrt]|u[0-9a-fA-F]{4})/g, '\\\\');
+    let sanitizedJsonText = jsonText
+      .replace(/\\`/g, '`')
+      .replace(/\\(?!["\\/bfnrt]|u[0-9a-fA-F]{4})/g, '\\\\');
     let state;
     try {
       state = JSON.parse(sanitizedJsonText) as CodeReviewState;
     } catch (e) {
 
       // Attempt to salvage finding parsing from markdown wrap bugs or prefix bugs
-      const salvaged = sanitizedJsonText.match(/\{[\s\S]*\}|\[[\s\S]*\]/);
+      const salvaged = sanitizedJsonText.match(JSON_PATTERN);
       if (salvaged) {
          try { state = JSON.parse(salvaged[0]); }
          catch (e2) { return { state: undefined }; }

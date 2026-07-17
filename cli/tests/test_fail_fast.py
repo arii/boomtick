@@ -8,7 +8,9 @@ from dev_tools.utils import CLIError
 
 def test_dependency_graph_fail_fast(tmp_path):
     # Mock subprocess.run to simulate failure
-    with patch("subprocess.run") as mock_run, patch("os.path.exists", side_effect=lambda x: "artifacts" not in x):
+    with patch("subprocess.run") as mock_run, patch(
+        "os.path.exists", side_effect=lambda x: False if "artifacts" in x else True
+    ):
         # First call for pnpm --version
         mock_run.side_effect = [
             MagicMock(returncode=0),
@@ -21,7 +23,9 @@ def test_dependency_graph_fail_fast(tmp_path):
 
 
 def test_dependency_graph_malformed_json(tmp_path):
-    with patch("subprocess.run") as mock_run, patch("os.path.exists", side_effect=lambda x: "artifacts" not in x):
+    with patch("subprocess.run") as mock_run, patch(
+        "os.path.exists", side_effect=lambda x: False if "artifacts" in x else True
+    ):
         # First call for pnpm --version, second for depcruise
         mock_run.side_effect = [
             MagicMock(returncode=0),

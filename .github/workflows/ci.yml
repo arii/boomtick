@@ -55,15 +55,14 @@ jobs:
         if: matrix.target == 'typescript'
         run: |
           pnpm install --frozen-lockfile
-          pnpm run lint
-          pnpm run type-check
+          pnpm --filter @arii/boomtick-mcp run lint
+          pnpm --filter @arii/boomtick-mcp run type-check
 
       - name: Run Lint & Typecheck (Python)
         if: matrix.target == 'python'
         run: |
-          # Use established .pylintrc if available
-          python3 -m pylint cli --rcfile=.pylintrc
-          python3 -m mypy cli --ignore-missing-imports || true
+          pnpm run lint:python
+          pnpm run type-check:python
 
   audit:
     name: Anti-Pattern & Code Smell Checks

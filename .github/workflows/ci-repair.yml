@@ -80,7 +80,7 @@ jobs:
             LABEL="main-ci-failure"
           fi
 
-          EXISTING_ISSUE=$(gh issue list --label "$LABEL" --search "$SHA" --state open --json number --jq -r '.[0].number // empty')
+          EXISTING_ISSUE=$(gh issue list --label "$LABEL" --search "$SHA" --state open --json number --jq '.[0].number // empty')
           if [ -n "$EXISTING_ISSUE" ]; then
             {
               echo "issue_exists=true"
