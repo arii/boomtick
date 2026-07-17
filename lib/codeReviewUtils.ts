@@ -194,7 +194,9 @@ export function parseCodeReviewStateDetailed(feedback: string): ParsedFindingsRe
   try {
     // Pre-process jsonText to fix any unescaped backslashes (e.g. \s, \d, \w, paths)
     // by escaping them (replacing \ with \\ if not followed by valid JSON escape character)
-    const sanitizedJsonText = jsonText.replace(/\\(?!["\\/bfnrt]|u[0-9a-fA-F]{4})/g, '\\\\');
+    // Additionally fix \` that might be incorrectly escaped by the model
+    let sanitizedJsonText = jsonText.replace(/\\`/g, '`');
+    sanitizedJsonText = sanitizedJsonText.replace(/\\(?!["\\/bfnrt]|u[0-9a-fA-F]{4})/g, '\\\\');
     const state = JSON.parse(sanitizedJsonText) as CodeReviewState;
 
     if (state && state.findings) {
