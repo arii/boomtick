@@ -72,6 +72,7 @@ class WorkflowRunner:
                         start_time=start_time,
                         end_time=end_time,
                         retries=retries_attempted,
+                        role=node.role,
                     )
                     success = True
                     break
@@ -85,6 +86,7 @@ class WorkflowRunner:
                         end_time=end_time,
                         error=str(e),
                         retries=retries_attempted,
+                        role=node.role,
                     )
 
                     retries_attempted += 1

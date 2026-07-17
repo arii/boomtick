@@ -7,13 +7,15 @@ from typing import Any, Dict, List, Optional
 class WorkflowContext:
     """
     Manages the state and metrics of a workflow run.
-    Provides thread-safe access to inputs, states, and execution logs.
+    Provides thread-safe access to inputs, states, execution logs, and a shared scratchpad
+    for a single agent to transition through different roles.
     """
 
     def __init__(self, initial_inputs: Optional[Dict[str, Any]] = None) -> None:
         self._lock = threading.Lock()
         self._inputs: Dict[str, Any] = dict(initial_inputs) if initial_inputs else {}
         self._state: Dict[str, Any] = {}
+        self._scratchpad: Dict[str, Any] = {}
         self._history: List[Dict[str, Any]] = []
 
     @property
@@ -27,6 +29,12 @@ class WorkflowContext:
         """Current internal state/outputs of the workflow."""
         with self._lock:
             return dict(self._state)
+
+    @property
+    def scratchpad(self) -> Dict[str, Any]:
+        """Shared agent scratchpad/blackboard for intermediate thoughts and findings."""
+        with self._lock:
+            return dict(self._scratchpad)
 
     @property
     def history(self) -> List[Dict[str, Any]]:
@@ -51,6 +59,16 @@ class WorkflowContext:
         with self._lock:
             self._state.update(data)
 
+    def write_scratchpad(self, key: str, value: Any) -> None:
+        """Write intermediate thoughts or notes to the scratchpad."""
+        with self._lock:
+            self._scratchpad[key] = value
+
+    def read_scratchpad(self, key: str, default: Any = None) -> Any:
+        """Read intermediate thoughts or notes from the scratchpad."""
+        with self._lock:
+            return self._scratchpad.get(key, default)
+
     def record_node_execution(
         self,
         node_name: str,
@@ -59,6 +77,7 @@ class WorkflowContext:
         end_time: datetime,
         error: Optional[str] = None,
         retries: int = 0,
+        role: Optional[str] = None,
     ) -> None:
         """Records metrics for a node execution."""
         duration = (end_time - start_time).total_seconds()
@@ -70,6 +89,7 @@ class WorkflowContext:
             "duration_sec": duration,
             "error": error,
             "retries": retries,
+            "role": role,
         }
         with self._lock:
             self._history.append(record)

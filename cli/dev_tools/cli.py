@@ -1485,16 +1485,23 @@ def run_local(ctx, issue_number, all_open, post_comments, dry_run):
             "status": "success"
         }
 
+        data["scratchpad"] = context.scratchpad
+
         if ctx.obj["JSON"]:
             click.echo(json.dumps(data, indent=2))
         else:
             click.echo("🚀 Local Workflow Graph Execution Complete!\n")
-            click.echo("--- Execution History ---")
+            click.echo("--- Execution History (Single-Agent Multi-Role Personas) ---")
             for record in history:
                 status_icon = "✅" if record["status"] == "COMPLETED" else "❌"
-                click.echo(f"{status_icon} {record['node_name']}: {record['status']} ({record['duration_sec']:.3f}s)")
+                role_str = f" as 👤 [{record['role']}]" if record.get("role") else ""
+                click.echo(f"{status_icon} {record['node_name']}{role_str}: {record['status']} ({record['duration_sec']:.3f}s)")
                 if record.get("error"):
                     click.echo(f"   Error: {record['error']}")
+
+            click.echo("\n--- Shared Scratchpad Blackboard ---")
+            for key, val in context.scratchpad.items():
+                click.echo(f"✍️  {key}: {val}")
 
             click.echo("\n--- Final State ---")
             if "runtime_info" in state:

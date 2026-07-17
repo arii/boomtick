@@ -39,31 +39,40 @@ def test_context_state_and_history():
     assert ctx.get("key1") == "new_val"
     assert ctx.inputs["key1"] == "val1"  # inputs should remain untouched
 
+    # Test scratchpad
+    ctx.write_scratchpad("thought_1", "performing check")
+    assert ctx.read_scratchpad("thought_1") == "performing check"
+    assert ctx.scratchpad == {"thought_1": "performing check"}
+
     ctx.update({"key3": "val3", "key4": "val4"})
     assert ctx.get("key3") == "val3"
     assert ctx.get("key4") == "val4"
 
     start = datetime.now(timezone.utc)
     end = datetime.now(timezone.utc)
-    ctx.record_node_execution("NodeA", "COMPLETED", start, end, retries=1)
+    ctx.record_node_execution("NodeA", "COMPLETED", start, end, retries=1, role="verifier")
 
     assert len(ctx.history) == 1
     assert ctx.history[0]["node_name"] == "NodeA"
     assert ctx.history[0]["status"] == "COMPLETED"
     assert ctx.history[0]["retries"] == 1
+    assert ctx.history[0]["role"] == "verifier"
 
 
 def test_node_initialization():
     node = DummyNode("Test")
     assert node.name == "Test"
+    assert node.role == "agent"
     assert node.retry_policy == {"max_retries": 0, "backoff_factor": 1.0}
     assert node.timeout is None
 
     node_custom = DummyNode(
         "Custom",
+        role="custom_role",
         retry_policy={"max_retries": 3, "backoff_factor": 2.0},
         timeout=5.0,
     )
+    assert node_custom.role == "custom_role"
     assert node_custom.retry_policy == {"max_retries": 3, "backoff_factor": 2.0}
     assert node_custom.timeout == 5.0
 
@@ -130,15 +139,17 @@ def test_runner_successful_execution():
 
     def run_a(ctx):
         ctx.set("a_out", "hello")
+        ctx.write_scratchpad("note_from_a", "drafting outputs")
         return "A done"
 
     def run_b(ctx):
         a_val = ctx.get("a_out")
-        ctx.set("b_out", f"{a_val} world")
+        note = ctx.read_scratchpad("note_from_a")
+        ctx.set("b_out", f"{a_val} world ({note})")
         return "B done"
 
-    node_a = DummyNode("A", execution_fn=run_a)
-    node_b = DummyNode("B", execution_fn=run_b)
+    node_a = DummyNode("A", execution_fn=run_a, role="verifier")
+    node_b = DummyNode("B", execution_fn=run_b, role="validator")
 
     graph.add_node(node_a)
     graph.add_node(node_b)
@@ -148,14 +159,17 @@ def test_runner_successful_execution():
     context = runner.run(graph, initial_inputs={"init_key": "init_val"})
 
     assert context.get("a_out") == "hello"
-    assert context.get("b_out") == "hello world"
+    assert context.get("b_out") == "hello world (drafting outputs)"
     assert context.get("init_key") == "init_val"
+    assert context.read_scratchpad("note_from_a") == "drafting outputs"
 
     assert len(context.history) == 2
     assert context.history[0]["node_name"] == "A"
     assert context.history[0]["status"] == "COMPLETED"
+    assert context.history[0]["role"] == "verifier"
     assert context.history[1]["node_name"] == "B"
     assert context.history[1]["status"] == "COMPLETED"
+    assert context.history[1]["role"] == "validator"
 
 
 def test_runner_node_failure_halts():
@@ -174,8 +188,6 @@ def test_runner_node_failure_halts():
     runner = WorkflowRunner()
     with pytest.raises(ValueError, match="Something went wrong"):
         runner.run(graph)
-
-    # Subsequent node B should not be executed
 
 
 @patch("time.sleep", return_value=None)
@@ -254,6 +266,9 @@ def test_concrete_nodes_execution(mock_orchestrator_class):
         issueNumber=42, all_open=False, post_comments=False, dry_run=True
     )
 
-    # Verify context outputs are set correctly
+    # Verify context outputs and scratchpad are set correctly
     assert context.get("runtime_info") == {"node": "24.16.0", "pnpm": "10.28.2"}
     assert context.get("issue_validation_results") == {"status": "success", "total_findings": 0}
+    assert context.read_scratchpad("verified_node_version") == "24.16.0"
+    assert context.read_scratchpad("verified_pnpm_version") == "10.28.2"
+    assert context.read_scratchpad("validation_focus") == "Validating under Node 24.16.0"
