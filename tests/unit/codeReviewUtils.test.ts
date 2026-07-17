@@ -9,7 +9,8 @@ import {
   budgetInputContext,
   buildReviewPayload,
   EXTERNAL_CONTEXT_TRUNCATED_MESSAGE,
-  EXTERNAL_CONTEXT_MINIMUM_BUDGET
+  EXTERNAL_CONTEXT_MINIMUM_BUDGET,
+  withRetry
 } from '../../lib/codeReviewUtils';
 import { buildSystemPrompt } from '../../lib/buildCodeReviewPrompt';
 
@@ -175,6 +176,15 @@ describe('codeReviewUtils', () => {
       consoleSpy.mockRestore();
     });
 
+    it('safely parses JSON containing unescaped backslashes in regex/snippets', () => {
+      const badEscapedJson = '{"findings": [{"id": "1", "file": "utils.ts", "issue": "test", "status": "open", "snippet": "replace(/\\s*/)"}]}';
+      const feedback = `<findings>${badEscapedJson}</findings>`;
+      const result = parseCodeReviewStateDetailed(feedback);
+      expect(result.state).toBeDefined();
+      expect(result.state?.findings[0].snippet).toBe('replace(/\\s*/)');
+      expect(result.parseError).toBeUndefined();
+    });
+
     it('handles no findings tags', () => {
       const result = parseCodeReviewStateDetailed('No findings tag here');
       expect(result.state).toBeUndefined();
@@ -286,6 +296,42 @@ describe('codeReviewUtils', () => {
     it('does not apply prefix if external text is fully truncated', () => {
       const payload = buildReviewPayload('Prompt', 'Diff content', EXTERNAL_CONTEXT_TRUNCATED_MESSAGE);
       expect(payload[2]).toEqual({ role: 'system', content: EXTERNAL_CONTEXT_TRUNCATED_MESSAGE });
+    });
+  });
+
+  describe('withRetry', () => {
+    it('should return result immediately if first call succeeds', async () => {
+      const fn = vi.fn().mockResolvedValue('success');
+      const result = await withRetry(fn, { maxRetries: 3, initialDelayMs: 1 });
+      expect(result).toBe('success');
+      expect(fn).toHaveBeenCalledTimes(1);
+    });
+
+    it('should retry on transient error (429) and succeed eventually', async () => {
+      let count = 0;
+      const fn = vi.fn().mockImplementation(async () => {
+        count++;
+        if (count < 3) {
+          throw new Error('API error: 429 Rate Limit Exceeded');
+        }
+        return 'success';
+      });
+
+      const result = await withRetry(fn, { maxRetries: 3, initialDelayMs: 1, jitter: false });
+      expect(result).toBe('success');
+      expect(fn).toHaveBeenCalledTimes(3);
+    });
+
+    it('should fail immediately on non-transient errors (like 401)', async () => {
+      const fn = vi.fn().mockRejectedValue(new Error('API error: 401 Unauthorized'));
+      await expect(withRetry(fn, { maxRetries: 3, initialDelayMs: 1 })).rejects.toThrow('API error: 401');
+      expect(fn).toHaveBeenCalledTimes(1);
+    });
+
+    it('should propagate last error if all retries are exhausted', async () => {
+      const fn = vi.fn().mockRejectedValue(new Error('API error: 502 Bad Gateway'));
+      await expect(withRetry(fn, { maxRetries: 2, initialDelayMs: 1, jitter: false })).rejects.toThrow('API error: 502');
+      expect(fn).toHaveBeenCalledTimes(3); // 1 initial + 2 retries
     });
   });
 });

@@ -35,7 +35,7 @@ export async function orchestrateVisualReview(
       highCount: 0,
       routes: [],
       llmVerdict: 'pass',
-      state: prevState
+      state: prevState || { findings: [] }
     }, null, 2));
     return;
   }
@@ -49,7 +49,7 @@ export async function orchestrateVisualReview(
       highCount: 0,
       routes: [],
       llmVerdict: 'pass',
-      state: prevState
+      state: prevState || { findings: [] }
     }, null, 2));
     return;
   }
@@ -92,7 +92,7 @@ export async function orchestrateVisualReview(
   if (routesToReview.length === 0) {
     console.log(`✅ No visual changes detected — skipping agent review.`);
     fs.writeFileSync(agentReportPath, `## ${client.reportTitle}\n\nNo visual changes detected.\n`);
-    fs.writeFileSync(path.join(ARTIFACTS_DIR, `${client.reportFileName.replace('.md', '')}-verdict.json`), JSON.stringify({ passed: true, highCount: 0, routes: [], llmVerdict: 'pass' }, null, 2));
+    fs.writeFileSync(path.join(ARTIFACTS_DIR, `${client.reportFileName.replace('.md', '')}-verdict.json`), JSON.stringify({ passed: true, highCount: 0, routes: [], llmVerdict: 'pass', state: { findings: [] } }, null, 2));
     return;
   }
 
@@ -172,7 +172,7 @@ export async function orchestrateVisualReview(
     passed: !hasBlockingIssues,
     highCount: reviews.filter(r => r.severity === 'HIGH').length,
     routes: reviews.map(r => ({ route: r.route, severity: r.severity, llmVerdict: r.llmVerdict })),
-    state
+    state: state || { findings: [] }
   }, null, 2));
 
   if (hasBlockingIssues) {
