@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.0](https://github.com/arii/boomtick/compare/cli-v0.3.1...cli-v0.4.0) (2026-07-17)
+
+
+### Features
+
+* AI Code Review - Develop PR Context Aggregator ([#174](https://github.com/arii/boomtick/issues/174)) ([981137d](https://github.com/arii/boomtick/commit/981137d3d13ce449ab2db79880a0d7780365dc7a))
+
 ## [0.3.1](https://github.com/arii/boomtick/compare/cli-v0.3.0...cli-v0.3.1) (2026-07-17)
 
 
