@@ -1,7 +1,9 @@
-name: Release Orchestrator
+name: Release
 
 on:
   push:
+    branches:
+      - main
     tags:
       - 'cli-v*'
       - 'mcp-v*'
@@ -23,40 +25,128 @@ on:
         type: boolean
         default: true
 
-permissions:
-  contents: write
-  id-token: write
-  packages: write
-
 jobs:
+  release-please:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+    steps:
+      - name: Generate Token
+        id: generate_token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+
+      - uses: googleapis/release-please-action@v5
+        with:
+          token: ${{ steps.generate_token.outputs.token }}
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+
   release-cli:
+    runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/cli-v') || (github.event_name == 'workflow_dispatch' && inputs.target == 'cli')
-    uses: ./.github/workflows/release-logic.yml
-    with:
-      target: cli
-      dry_run: ${{ inputs.dry_run || false }}
-    secrets: inherit
+    permissions:
+      contents: write
+      id-token: write
+      packages: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Setup Environment
+        uses: ./.github/actions/setup-all
+        with:
+          setup-python: 'true'
+
+      - name: Publish CLI Release
+        uses: ./.github/actions/publish-release
+        with:
+          target: cli
+          dry_run: ${{ inputs.dry_run || false }}
+          npm_token: ${{ secrets.NPM_TOKEN }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
 
   release-mcp:
+    runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/mcp-v') || (github.event_name == 'workflow_dispatch' && inputs.target == 'mcp')
-    uses: ./.github/workflows/release-logic.yml
-    with:
-      target: mcp
-      dry_run: ${{ inputs.dry_run || false }}
-    secrets: inherit
+    permissions:
+      contents: write
+      id-token: write
+      packages: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Setup Environment
+        uses: ./.github/actions/setup-all
+        with:
+          setup-python: 'true'
+
+      - name: Publish MCP Release
+        uses: ./.github/actions/publish-release
+        with:
+          target: mcp
+          dry_run: ${{ inputs.dry_run || false }}
+          npm_token: ${{ secrets.NPM_TOKEN }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
 
   release-action:
+    runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/action-v') || (github.event_name == 'workflow_dispatch' && inputs.target == 'action')
-    uses: ./.github/workflows/release-logic.yml
-    with:
-      target: action
-      dry_run: ${{ inputs.dry_run || false }}
-    secrets: inherit
+    permissions:
+      contents: write
+      id-token: write
+      packages: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Setup Environment
+        uses: ./.github/actions/setup-all
+        with:
+          setup-python: 'true'
+
+      - name: Publish Action Release
+        uses: ./.github/actions/publish-release
+        with:
+          target: action
+          dry_run: ${{ inputs.dry_run || false }}
+          npm_token: ${{ secrets.NPM_TOKEN }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
 
   release-all:
+    runs-on: ubuntu-latest
     if: github.event_name == 'workflow_dispatch' && inputs.target == 'all'
-    uses: ./.github/workflows/release-logic.yml
-    with:
-      target: all
-      dry_run: ${{ inputs.dry_run || false }}
-    secrets: inherit
+    permissions:
+      contents: write
+      id-token: write
+      packages: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Setup Environment
+        uses: ./.github/actions/setup-all
+        with:
+          setup-python: 'true'
+
+      - name: Publish All Release
+        uses: ./.github/actions/publish-release
+        with:
+          target: all
+          dry_run: ${{ inputs.dry_run || false }}
+          npm_token: ${{ secrets.NPM_TOKEN }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}

@@ -44,7 +44,7 @@ jobs:
           fetch-depth: 1
 
       - name: Setup Workspace
-        uses: ./mcp/actions/setup-workspace
+        uses: ./.github/actions/setup-all
         with:
           setup-node: 'false'
 
@@ -168,7 +168,7 @@ jobs:
           fetch-depth: 0
 
       - name: Setup Workspace
-        uses: ./mcp/actions/setup-workspace
+        uses: ./.github/actions/setup-all
 
       - name: Find and Resolve Conflicts
         env:
@@ -200,10 +200,7 @@ jobs:
           fetch-depth: 1
 
       - name: Setup Workspace
-        uses: ./mcp/actions/setup-workspace
-
-      - name: Install Dependencies
-        run: pnpm install --frozen-lockfile
+        uses: ./.github/actions/setup-all
 
       - name: Update Snapshots
         run: |

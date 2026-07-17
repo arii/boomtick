@@ -1,0 +1,122 @@
+name: 'Publish Release'
+description: 'Purely reusable deployment logic for BoomTick releases'
+inputs:
+  target:
+    description: 'Target to release (cli, mcp, action, or all)'
+    required: true
+  dry_run:
+    description: 'Dry run (skip publish)'
+    required: false
+    default: 'true'
+  npm_token:
+    description: 'NPM registry authentication token'
+    required: false
+  github_token:
+    description: 'GitHub token'
+    required: false
+    default: ${{ github.token }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Run MCP Tests
+      if: inputs.target == 'mcp' || inputs.target == 'all'
+      run: pnpm --filter @arii/boomtick-mcp test
+      shell: bash
+
+    - name: Run CLI Tests
+      if: inputs.target == 'cli' || inputs.target == 'all'
+      run: |
+        cd cli
+        pip install -e .
+        pytest tests/
+      shell: bash
+
+    - name: Build MCP Tool
+      run: pnpm --filter @arii/boomtick-mcp build
+      shell: bash
+
+    - name: Sync schemas/contracts
+      run: pnpm run verify:schemas
+      shell: bash
+
+    - name: Bundle MCP into CLI
+      if: inputs.target == 'cli' || inputs.target == 'all'
+      run: |
+        mkdir -p cli/dev_tools/dist
+        cp -r mcp/dist/* cli/dev_tools/dist/
+      shell: bash
+
+    - name: Build Python Package
+      if: inputs.target == 'cli' || inputs.target == 'all'
+      run: |
+        cd cli
+        python3 -m build
+      shell: bash
+
+    - name: Publish MCP to npm
+      if: (inputs.target == 'mcp' || inputs.target == 'all') && (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.dry_run == 'false'))
+      run: pnpm --filter @arii/boomtick-mcp publish --no-git-checks --access public
+      env:
+        NODE_AUTH_TOKEN: ${{ inputs.npm_token }}
+      shell: bash
+
+    - name: Publish CLI to PyPI
+      if: (inputs.target == 'cli' || inputs.target == 'all') && (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.dry_run == 'false'))
+      uses: pypa/gh-action-pypi-publish@release/v1
+      with:
+        packages-dir: cli/dist/
+
+    - name: Create GitHub Release
+      if: github.event_name == 'push'
+      env:
+        GH_TOKEN: ${{ inputs.github_token }}
+        REF_NAME: ${{ github.ref_name }}
+      run: |
+        ASSETS=""
+        if [ -d "cli/dist" ]; then ASSETS="cli/dist/*"; fi
+        gh release create "$REF_NAME" --title "Release $REF_NAME" --generate-notes "$ASSETS"
+      shell: bash
+
+    - name: Log in to GitHub Container Registry
+      if: (inputs.target == 'all' || inputs.target == 'cli') && (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.dry_run == 'false'))
+      uses: docker/login-action@v3
+      with:
+        registry: ghcr.io
+        username: ${{ github.actor }}
+        password: ${{ inputs.github_token }}
+
+    - name: Extract Docker metadata
+      if: (inputs.target == 'all' || inputs.target == 'cli') && (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.dry_run == 'false'))
+      id: meta
+      uses: docker/metadata-action@v5
+      with:
+        images: ghcr.io/${{ github.repository }}
+        tags: |
+          type=semver,pattern={{version}}
+          type=semver,pattern={{major}}.{{minor}}
+          type=ref,event=branch
+          type=sha
+
+    - name: Build and push Docker image
+      if: (inputs.target == 'all' || inputs.target == 'cli') && (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.dry_run == 'false'))
+      uses: docker/build-push-action@v6
+      with:
+        context: .
+        push: true
+        tags: ${{ steps.meta.outputs.tags }}
+        labels: ${{ steps.meta.outputs.labels }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+
+    - name: Update Floating Major Tag
+      if: inputs.target == 'action' && github.event_name == 'push' && startsWith(github.ref, 'refs/tags/action-v')
+      shell: bash
+      run: |
+        git config user.name "github-actions[bot]"
+        git config user.email "github-actions[bot]@users.noreply.github.com"
+        TAG_NAME=${GITHUB_REF_NAME}
+        MAJOR_VERSION=$(echo "$TAG_NAME" | cut -d. -f1)
+        echo "Updating floating tag $MAJOR_VERSION to $TAG_NAME"
+        git tag -fa "$MAJOR_VERSION" -m "Update floating tag $MAJOR_VERSION to $TAG_NAME"
+        git push origin "$MAJOR_VERSION" --force
