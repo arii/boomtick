@@ -103,26 +103,33 @@ Create a file named `download_run.sh` and add the following:
 # usage: ./download_run.sh <RUN_ID>
 
 RUN_ID=$1
+REPO=${REPO:-$(gh repo view --json nameWithOwner -q .nameWithOwner 2>/dev/null || echo "arii/boomtick")}
+DEST_DIR=${DEST_DIR:-"./runs/run-$RUN_ID"}
+
 if [ -z "$RUN_ID" ]; then
   echo "❌ Please provide a workflow Run ID."
   echo "Usage: ./download_run.sh 29507773139"
   exit 1
 fi
 
-DEST_DIR="./runs/run-$RUN_ID"
+if ! [[ "$RUN_ID" =~ ^[0-9]+$ ]]; then
+  echo "❌ Run ID must be numeric."
+  exit 1
+fi
+
 mkdir -p "$DEST_DIR"
 
-echo "Checking if 'deployment-review' exists on Run ID: $RUN_ID..."
+echo "Checking if 'deployment-review' exists on Run ID: $RUN_ID in repo $REPO..."
 
 # 1. Verify if the artifact is available for this run
-ARTIFACT_EXISTS=$(gh api "repos/{owner}/{repo}/actions/runs/$RUN_ID/artifacts" \
+ARTIFACT_EXISTS=$(gh api "repos/$REPO/actions/runs/$RUN_ID/artifacts" \
   --jq '.artifacts[] | select(.name == "deployment-review") | .name' 2>/dev/null)
 
 if [ "$ARTIFACT_EXISTS" = "deployment-review" ]; then
   echo "✅ Artifact found. Downloading to $DEST_DIR..."
 
   # 2. Download and unzip the target artifact
-  gh run download "$RUN_ID" -n "deployment-review" -D "$DEST_DIR"
+  gh run download "$RUN_ID" -n "deployment-review" -D "$DEST_DIR" --repo "$REPO"
 
   echo "🎉 Download complete. Files saved in $DEST_DIR:"
   ls -la "$DEST_DIR"
@@ -142,21 +149,23 @@ Create a file named `bulk_collect_runs.sh` and add the following:
 ```bash
 #!/usr/bin/env bash
 
-WORKFLOW_NAME="Deployment Impact Analysis"
-LIMIT_RUNS=50
-BASE_DIR="./collected-logs"
+WORKFLOW_NAME=${WORKFLOW_NAME:-"Deployment Impact Analysis"}
+REPO=${REPO:-$(gh repo view --json nameWithOwner -q .nameWithOwner 2>/dev/null || echo "arii/boomtick")}
+LIMIT_RUNS=${LIMIT_RUNS:-50}
+BASE_DIR=${BASE_DIR:-"./collected-logs"}
 
-echo "🔍 Fetching the last $LIMIT_RUNS runs of '$WORKFLOW_NAME'..."
+echo "🔍 Fetching the last $LIMIT_RUNS runs of '$WORKFLOW_NAME' from '$REPO'..."
 
 # Get a list of the recent run IDs
 RUN_IDS=$(gh run list \
   --workflow="$WORKFLOW_NAME" \
   --limit "$LIMIT_RUNS" \
   --json databaseId \
-  --jq '.[].databaseId' 2>/dev/null)
+  --jq '.[].databaseId' \
+  --repo "$REPO" 2>/dev/null)
 
 if [ -z "$RUN_IDS" ]; then
-  echo "❌ No runs found for workflow '$WORKFLOW_NAME'."
+  echo "❌ No runs found for workflow '$WORKFLOW_NAME' in '$REPO'."
   exit 1
 fi
 
@@ -165,7 +174,7 @@ for RUN_ID in $RUN_IDS; do
   echo "Processing Run ID: $RUN_ID"
 
   # Check if a 'deployment-review' artifact exists for this Run ID
-  HAS_ARTIFACT=$(gh api "repos/{owner}/{repo}/actions/runs/$RUN_ID/artifacts" \
+  HAS_ARTIFACT=$(gh api "repos/$REPO/actions/runs/$RUN_ID/artifacts" \
     --jq '.artifacts[] | select(.name == "deployment-review") | .id' 2>/dev/null)
 
   if [ -n "$HAS_ARTIFACT" ]; then
@@ -181,7 +190,7 @@ for RUN_ID in $RUN_IDS; do
     echo "📥 Downloading 'deployment-review' artifact for Run $RUN_ID..."
 
     # Download the zipped files directly into the run directory
-    gh run download "$RUN_ID" -n "deployment-review" -D "$RUN_DIR" 2>/dev/null
+    gh run download "$RUN_ID" -n "deployment-review" -D "$RUN_DIR" --repo "$REPO" 2>/dev/null
 
     if [ $? -eq 0 ]; then
       echo "✅ Successfully saved to $RUN_DIR"

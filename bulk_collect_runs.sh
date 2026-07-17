@@ -1,20 +1,22 @@
 #!/usr/bin/env bash
 
-WORKFLOW_NAME="Deployment Impact Analysis"
-LIMIT_RUNS=50
-BASE_DIR="./collected-logs"
+WORKFLOW_NAME=${WORKFLOW_NAME:-"Deployment Impact Analysis"}
+REPO=${REPO:-$(gh repo view --json nameWithOwner -q .nameWithOwner 2>/dev/null || echo "arii/boomtick")}
+LIMIT_RUNS=${LIMIT_RUNS:-50}
+BASE_DIR=${BASE_DIR:-"./collected-logs"}
 
-echo "🔍 Fetching the last $LIMIT_RUNS runs of '$WORKFLOW_NAME'..."
+echo "🔍 Fetching the last $LIMIT_RUNS runs of '$WORKFLOW_NAME' from '$REPO'..."
 
 # Get a list of the recent run IDs
 RUN_IDS=$(gh run list \
   --workflow="$WORKFLOW_NAME" \
   --limit "$LIMIT_RUNS" \
   --json databaseId \
-  --jq '.[].databaseId' 2>/dev/null)
+  --jq '.[].databaseId' \
+  --repo "$REPO" 2>/dev/null)
 
 if [ -z "$RUN_IDS" ]; then
-  echo "❌ No runs found for workflow '$WORKFLOW_NAME'."
+  echo "❌ No runs found for workflow '$WORKFLOW_NAME' in '$REPO'."
   exit 1
 fi
 
@@ -23,7 +25,7 @@ for RUN_ID in $RUN_IDS; do
   echo "Processing Run ID: $RUN_ID"
 
   # Check if a 'deployment-review' artifact exists for this Run ID
-  HAS_ARTIFACT=$(gh api "repos/{owner}/{repo}/actions/runs/$RUN_ID/artifacts" \
+  HAS_ARTIFACT=$(gh api "repos/$REPO/actions/runs/$RUN_ID/artifacts" \
     --jq '.artifacts[] | select(.name == "deployment-review") | .id' 2>/dev/null)
 
   if [ -n "$HAS_ARTIFACT" ]; then
@@ -39,7 +41,7 @@ for RUN_ID in $RUN_IDS; do
     echo "📥 Downloading 'deployment-review' artifact for Run $RUN_ID..."
 
     # Download the zipped files directly into the run directory
-    gh run download "$RUN_ID" -n "deployment-review" -D "$RUN_DIR" 2>/dev/null
+    gh run download "$RUN_ID" -n "deployment-review" -D "$RUN_DIR" --repo "$REPO" 2>/dev/null
 
     if [ $? -eq 0 ]; then
       echo "✅ Successfully saved to $RUN_DIR"
