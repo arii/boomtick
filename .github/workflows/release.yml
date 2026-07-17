@@ -47,16 +47,21 @@ jobs:
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
 
-  release-cli:
+  release:
     runs-on: ubuntu-latest
-    if: startsWith(github.ref, 'refs/tags/cli-v') || (github.event_name == 'workflow_dispatch' && inputs.target == 'cli')
+    strategy:
+      matrix:
+        target: [cli, mcp, action, all]
+    if: >
+      (github.event_name == 'workflow_dispatch' && (inputs.target == matrix.target || (inputs.target == 'all' && matrix.target != 'all'))) ||
+      (github.event_name == 'push' && startsWith(github.ref, format('refs/tags/{0}-v', matrix.target)))
     permissions:
       contents: write
       id-token: write
       packages: write
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
@@ -65,88 +70,10 @@ jobs:
         with:
           setup-python: 'true'
 
-      - name: Publish CLI Release
+      - name: Publish Release
         uses: ./.github/actions/publish-release
         with:
-          target: cli
-          dry_run: ${{ inputs.dry_run || false }}
-          npm_token: ${{ secrets.NPM_TOKEN }}
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-
-  release-mcp:
-    runs-on: ubuntu-latest
-    if: startsWith(github.ref, 'refs/tags/mcp-v') || (github.event_name == 'workflow_dispatch' && inputs.target == 'mcp')
-    permissions:
-      contents: write
-      id-token: write
-      packages: write
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Setup Environment
-        uses: ./.github/actions/setup-all
-        with:
-          setup-python: 'true'
-
-      - name: Publish MCP Release
-        uses: ./.github/actions/publish-release
-        with:
-          target: mcp
-          dry_run: ${{ inputs.dry_run || false }}
-          npm_token: ${{ secrets.NPM_TOKEN }}
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-
-  release-action:
-    runs-on: ubuntu-latest
-    if: startsWith(github.ref, 'refs/tags/action-v') || (github.event_name == 'workflow_dispatch' && inputs.target == 'action')
-    permissions:
-      contents: write
-      id-token: write
-      packages: write
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Setup Environment
-        uses: ./.github/actions/setup-all
-        with:
-          setup-python: 'true'
-
-      - name: Publish Action Release
-        uses: ./.github/actions/publish-release
-        with:
-          target: action
-          dry_run: ${{ inputs.dry_run || false }}
-          npm_token: ${{ secrets.NPM_TOKEN }}
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-
-  release-all:
-    runs-on: ubuntu-latest
-    if: github.event_name == 'workflow_dispatch' && inputs.target == 'all'
-    permissions:
-      contents: write
-      id-token: write
-      packages: write
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Setup Environment
-        uses: ./.github/actions/setup-all
-        with:
-          setup-python: 'true'
-
-      - name: Publish All Release
-        uses: ./.github/actions/publish-release
-        with:
-          target: all
+          target: ${{ matrix.target }}
           dry_run: ${{ inputs.dry_run || false }}
           npm_token: ${{ secrets.NPM_TOKEN }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
