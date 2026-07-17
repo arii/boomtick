@@ -399,7 +399,7 @@ export async function withRetry<T>(
   for (let attempt = 1; attempt <= maxRetries + 1; attempt++) {
     try {
       return await fn();
-    } catch (error: any) {
+    } catch (error: unknown) {
       const isLastAttempt = attempt === maxRetries + 1;
       const errorMsg = error instanceof Error ? error.message : String(error);
       const isRateLimit = errorMsg.includes('429') ||

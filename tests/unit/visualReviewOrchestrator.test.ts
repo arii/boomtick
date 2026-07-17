@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import * as fs from 'fs';
 import { orchestrateVisualReview } from '../../lib/visualReviewOrchestrator';
 
@@ -34,14 +34,14 @@ describe('visualReviewOrchestrator - Concurrency limit', () => {
       ]
     };
 
-    vi.mocked(fs.existsSync).mockImplementation((p: any) => {
+    vi.mocked(fs.existsSync).mockImplementation((p: unknown) => {
       if (typeof p === 'string' && p.includes('summary.json')) {
         return true;
       }
       return false;
     });
 
-    vi.mocked(fs.readFileSync).mockImplementation((p: any) => {
+    vi.mocked(fs.readFileSync).mockImplementation((p: unknown) => {
       if (typeof p === 'string' && p.includes('summary.json')) {
         return JSON.stringify(mockSummary);
       }
