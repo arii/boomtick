@@ -15,29 +15,21 @@ export const PROMPT_CATEGORIES: PromptCategory[] = [
       f.startsWith('.github/workflows/') || f.startsWith('.github/actions/')
     ),
     guidance: `CI/CD:
-- \`if: always()\` + \`continue-on-error: true\` is INTENTIONAL for advisory steps.
-- \`\${{ secrets.X }}\` is GHA syntax; do not suggest JS template literals.
-- Pinned versions (e.g. @v4) are intentional. Only flag regressions to @main.
-- Blocking: missing secret production, invalid \`needs:\`, YAML syntax errors.
-- ANTI-SLOP instruction for workflows and composite actions: YAML paths MUST remain direct, simple, and explicit. Never recommend complex nested directory scanning, redundant folder loops, or non-standard directory checks (such as duplicate nested shell scanning patterns or abstract directory parsing overhead). Keep paths clean and declarative.`,
+- \`if: always()\` + \`continue-on-error: true\` is INTENTIONAL.
+- \`\${{ secrets.X }}\` is GHA syntax.
+- YAML paths MUST remain direct and explicit (no complex nested scanning or folder loops).
+- Blocking: missing secret production, invalid \`needs:\`, YAML syntax errors.`,
   },
   {
     id: 'llm-integration',
     name: 'LLM Client Integrations',
-    // Scoped to actual client files, not any path containing the substring "ai"
-    // (which previously matched unrelated files like domain.ts, container.ts, etc.)
     matcher: (files) => files.some(f =>
-      f.includes('clients/') ||
-      f.endsWith('CodeReviewClient.ts') ||
-      f.endsWith('VisualReviewClient.ts') ||
-      f.includes('modelPicker.ts')
+      f.includes('clients/') || f.endsWith('CodeReviewClient.ts') || f.endsWith('VisualReviewClient.ts') || f.includes('modelPicker.ts')
     ),
     guidance: `LLM Clients:
-- \`ChatOpenAI\` + \`baseURL\` override == GitHub Models. GITHUB_TOKEN is correct.
-- Model names (gpt-4o-mini) refer to GitHub's catalog, not OpenAI's.
-- Gemini uses \`ChatGoogleGenerativeAI\` + GEMINI_API_KEY.
-- Hardcoded keys: only flag literal strings, not \`process.env\` access.
-- Blocking: broken \`baseURL\`, auth headers, or fetch URLs.`,
+- \`ChatOpenAI\` + \`baseURL\` override == GitHub Models.
+- Gemini uses \`ChatGoogleGenerativeAI\`.
+- Blocking: broken \`baseURL\`, auth, or fetch URLs.`,
   },
   {
     id: 'build-config',
@@ -47,10 +39,9 @@ export const PROMPT_CATEGORIES: PromptCategory[] = [
       f === 'package.json' || f.includes('rollup.config') || f === '.npmrc'
     ),
     guidance: `Build Config:
-- package.json: flag bumps ONLY if they cause evidence-backed breakage.
-- tsconfig/vite: blocking ONLY if they demonstrably break imports/aliases in context.
-- Vite: client-side env vars MUST have \`VITE_\` prefix.
-- BANNED: \`use-node-version\` in \`.npmrc\` (breaks Vercel). Use \`engines\` in package.json.`,
+- package.json: flag bumps ONLY if they break builds.
+- tsconfig/vite: blocking ONLY if they break imports.
+- BANNED: \`use-node-version\` in \`.npmrc\`. Use \`engines\` in package.json.`,
   },
   {
     id: 'react-components',

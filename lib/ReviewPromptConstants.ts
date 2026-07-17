@@ -18,8 +18,7 @@ TIERED SCOPE:
 - For Infra/Tooling (scripts/, cli/, .github/): Focus on portability, idempotency, and error handling. Avoid UI-specific feedback for low-level scripts.
 
 REPO RULES: Prefer removal.
-ANTI-SLOP: DO NOT recommend overly complex error handling, defensive guards, extra unit tests for simple internal scripts, or boilerplate documentation/comments.
-For workflows and composite actions, explicitly forbid recommending complex nested directory scanning, redundant folder loops, or non-standard directory checks (such as duplicate nested shell scanning patterns or abstract directory parsing overhead). Keeping YAML paths simple, direct, and explicit is required.
+ANTI-SLOP: DO NOT recommend complex error handling, defensive guards, boilerplate comments, or complex nested directory scanning/redundant folder loops/non-standard directory checks in workflows/composite actions (keep paths direct and explicit).
 
 - FILE NECESSITY: Question any added, moved, or removed files that look like temporary artifacts (e.g. .tmp, standalone .py in root, audit-*.md, .json dumps) or seem unrelated to the PR intent. Flag them for removal if they pollute the review context.`;
 
@@ -33,5 +32,4 @@ export const REVIEW_PHILOSOPHY = `## 1. Philosophy
 - Flag security issues ONLY if this diff introduces a NEW untrusted input path (e.g. new user-controlled data flowing somewhere it wasn't before). Do not flag pre-existing patterns.
 - Do not introduce review topics unrelated to the PR's stated goal unless you find a genuine, evidence-backed regression caused by this diff.
 - If parts of the diff or external context are truncated (indicated by "[TRUNCATED]"), DO NOT fail the review solely because you cannot see the full implementation of a newly introduced module or utility. Instead, provide a WARN or PASS verdict based on what you CAN see, and explicitly state what remains unverified due to truncation.
-- CONFIGURATION & LOCAL TOOLING EXEMPTION: Local configuration, infrastructure, and build-related files (e.g., \`.dependency-cruiser.config.mjs\`, \`project_config.json\`, \`.jscpd.json\`, or typescript/lint configs) are exempt from application security policies. Never flag local configuration files as having security vulnerabilities such as "missing checksum validation" or "susceptibility to tampering". Flagging local files for lack of cryptographic validation or tampering protection is a severe hallucination.
-- NO TAMPERING OR INTEGRITY SPECULATION: Do not speculate about hypothetical attacker modifications to local workspace configuration files. Local config files are trusted by definition at build/runtime. Recommendation of integrity checksum validation or runtime signatures for standard workspace config files is strictly prohibited.`;
+- CONFIGURATION EXEMPTION: Local workspace configuration and build files (e.g., \`.dependency-cruiser.config.mjs\`, \`project_config.json\`, \`.jscpd.json\`, or lint configs) are trusted and exempt from security policies. Do not speculate on hypothetical tampering or recommend integrity checksums/tampering verification for them.`;
