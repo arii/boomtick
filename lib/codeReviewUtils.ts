@@ -154,6 +154,12 @@ export function parseCodeReviewStateDetailed(feedback: string): ParsedFindingsRe
   } else {
     if (feedback.includes('{') || feedback.includes('[')) {
       jsonText = feedback.trim();
+      // Filter out non-JSON strings that just happen to include brackets
+      if (!jsonText.startsWith('{') && !jsonText.startsWith('[')) {
+        const extracted = jsonText.match(/\{[\s\S]*\}|\[[\s\S]*\]/);
+        if (extracted) jsonText = extracted[0];
+        else return { state: undefined };
+      }
     } else {
       return { state: undefined };
     }
@@ -194,8 +200,22 @@ export function parseCodeReviewStateDetailed(feedback: string): ParsedFindingsRe
   try {
     // Pre-process jsonText to fix any unescaped backslashes (e.g. \s, \d, \w, paths)
     // by escaping them (replacing \ with \\ if not followed by valid JSON escape character)
-    const sanitizedJsonText = jsonText.replace(/\\(?!["\\/bfnrt]|u[0-9a-fA-F]{4})/g, '\\\\');
-    const state = JSON.parse(sanitizedJsonText) as CodeReviewState;
+    // Additionally fix \` that might be incorrectly escaped by the model
+    let sanitizedJsonText = jsonText.replace(/\\`/g, '`');
+    sanitizedJsonText = sanitizedJsonText.replace(/\\(?!["\\/bfnrt]|u[0-9a-fA-F]{4})/g, '\\\\');
+    let state;
+    try {
+      state = JSON.parse(sanitizedJsonText) as CodeReviewState;
+    } catch (e) {
+
+      // Attempt to salvage finding parsing from markdown wrap bugs or prefix bugs
+      const salvaged = sanitizedJsonText.match(/\{[\s\S]*\}|\[[\s\S]*\]/);
+      if (salvaged) {
+         try { state = JSON.parse(salvaged[0]); }
+         catch (e2) { return { state: undefined }; }
+      }
+      else return { state: undefined, parseError: "invalid_json" };
+    }
 
     if (state && state.findings) {
       state.findings = normalizeFindings(state.findings);
@@ -399,7 +419,7 @@ export async function withRetry<T>(
   for (let attempt = 1; attempt <= maxRetries + 1; attempt++) {
     try {
       return await fn();
-    } catch (error: any) {
+    } catch (error: unknown) {
       const isLastAttempt = attempt === maxRetries + 1;
       const errorMsg = error instanceof Error ? error.message : String(error);
       const isRateLimit = errorMsg.includes('429') ||
