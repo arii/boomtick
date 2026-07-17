@@ -6,10 +6,10 @@ on:
       audit_type:
         description: 'Type of Audit to run'
         required: true
-        default: 'ai-slop-audit'
+        default: 'codebase-integrity-audit'
         type: choice
         options:
-          - ai-slop-audit
+          - codebase-integrity-audit
           - issue-audit
           - review-ux
 

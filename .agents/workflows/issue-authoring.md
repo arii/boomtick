@@ -124,5 +124,5 @@ Your objective is to create issues that minimize implementation ambiguity and re
 
 ## Related Workflows
 
-- [AI Slop Audit](ai-slop-audit.md)
+- [Codebase Integrity Audit](codebase-integrity-audit.md)
 - [Issue Audit](issue-audit.md)

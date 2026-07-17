@@ -183,5 +183,5 @@ Do not ask questions. Do not wait for verification. Complete the full issue audi
 
 ## Related Workflows
 
-- [AI Slop Audit](ai-slop-audit.md)
+- [Codebase Integrity Audit](codebase-integrity-audit.md)
 - [Design Issue Authoring](issue-authoring.md)

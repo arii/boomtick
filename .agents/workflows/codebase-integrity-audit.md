@@ -1,12 +1,16 @@
-# Agent: AI Slop Audit
+# Agent: Codebase Integrity & Drift Audit
 
-Your objective is to audit the repository codebase/diffs to identify and systematically eliminate "AI slop"—specifically targeting over-engineered patterns, bizarre architectural complexities, unnecessary abstractions, duplicate logic, and artificial backward-compatibility layers introduced by AI code generation drift or hallucinated requirements.
+Your objective is to audit the repository codebase/diffs to identify and systematically eliminate **automated architectural drift**—specifically targeting:
+* Over-engineered architectural complexity and boilerplate wrappers.
+* Unnecessary abstractions or redundant generic error handlers.
+* Duplicate utility logic or copy-paste patterns.
+* Artificial or hallucinated backward-compatibility layers introduced during AI generation.
 
 This audit is split into two distinct parts to balance deep, systematic codebase hygiene with rapid checks of recent changes.
 
 ---
 
-## 🔍 AI Slop Categories to Target
+## 🔍 Integrity Categories to Target
 
 Scan the code and flag/fix instances matching these four core categories:
 
@@ -49,7 +53,7 @@ pnpm exec jscpd .
 
 Refactor files to remove over-engineered wrappers (e.g., wrappers that only pass through arguments without adding business logic), unused imports, or redundant generic error handlers. Defer importing heavy AI dependencies inside `cli/` until needed.
 
-Create and maintain `drift-audit-status.md` in the root of the repository to track files to review. Every single file must have an explicit line in the checklist.
+Create and maintain `integrity-audit-status.md` in the root of the repository to track files to review. Every single file must have an explicit line in the checklist.
 Update the state as files are cleaned: `- [x] path/to/file — Verified Clean`.
 
 ---
@@ -75,14 +79,14 @@ for file in $(cat recent_files.txt); do
   git diff HEAD@{24.hours.ago} -- "$file" || git diff -- "$file"
 done > recent_diffs.txt
 ```
-Analyze `recent_diffs.txt` and focus specifically on checking if the recent additions or edits introduced any new AI slop patterns.
+Analyze `recent_diffs.txt` and focus specifically on checking if the recent additions or edits introduced any new drift patterns.
 
 ### Step 3 — Targeted Verification Checklist
-Create a separate section in `drift-audit-status.md` named `## 24-Hour Review Checklist`.
+Create a separate section in `integrity-audit-status.md` named `## 24-Hour Review Checklist`.
 List each recently modified file. Every file must be verified and checked off:
 ```markdown
 ## 24-Hour Review Checklist (Count: [Recent Count])
-- [x] cli/dev_tools/cli.py — Verified Clean (No new slop introduced)
+- [x] cli/dev_tools/cli.py — Verified Clean (No new drift introduced)
 - [ ] lib/codeReviewOrchestrator.ts
 ```
 
