@@ -13,7 +13,7 @@ tool hierarchy.
 ./setup-agent.sh
 ```
 
-This script handles system tools,
+This setup script is now located at the repository root (not symlinked) and handles system tools,
 Node.js, pnpm, Python dependencies, Playwright, remote origin configuration,
 and git hook registration.
 

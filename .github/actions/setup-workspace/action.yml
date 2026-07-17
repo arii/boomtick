@@ -69,7 +69,8 @@ runs:
         if [ -f "scripts/resolve-cli.sh" ]; then
           CLI_DIR=$(bash scripts/resolve-cli.sh | sed "s|$(pwd)/||")
         else
-          CLI_DIR="cli"
+          echo "::error::scripts/resolve-cli.sh not found!"
+          exit 1
         fi
         echo "CLI_DIR=$CLI_DIR" >> "$GITHUB_OUTPUT"
 
