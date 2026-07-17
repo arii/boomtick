@@ -2,7 +2,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { randomUUID } from 'node:crypto';
 
-const LOG_DIR = path.join(process.cwd(), 'boomtick-pkg', 'cli', 'logs', 'ai');
+const LOG_DIR = path.join(process.cwd(), '.boomtick', 'logs', 'ai');
 
 /**
  * Writes a heartbeat log entry to a unique file.
