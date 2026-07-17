@@ -5,10 +5,10 @@ Total reviewed: 21
 
 ## 2. Recommended action for each issue
 - #145: Keep open, Blocked by PR
-- #143: Keep open
-- #142: Keep open
-- #139: Keep open
-- #138: Keep open
+- #143: Keep open, update scope
+- #142: Keep open, update scope
+- #139: Keep open, update scope
+- #138: Keep open, update scope
 - #136: Keep open
 - #135: Keep open
 - #126: Keep open
@@ -27,10 +27,6 @@ Total reviewed: 21
 - #17: Keep open
 
 ## 3. Issues that should remain open
-- #143 — epic: Transition boomtick-pkg from source-level submodule to published dependency
-- #142 — infra: Migrate boomtick-pkg to external submodule referencing the standalone boomtick repository
-- #139 — spec: Phase 3 — Replace source-level script invocations with installed CLI/package calls
-- #138 — spec: Phase 4 — Remove boomtick-pkg submodule after full decoupling
 - #136 — Improve visual impact analysis robustness and sync submodule CI linting
 - #135 — Implement multi-agent coordination and branch locking protocol
 - #126 — Set Up Manual Collection and Bulk Auditing of AI Code Review Logs
@@ -50,6 +46,10 @@ Total reviewed: 21
 - #7 — Agentic Workflow Orchestration : Break this into smaller issues per workflow.
 - #6 — AI Code Review & Model Evaluation : Break this into smaller specific tasks.
 
+- #143 — epic: Transition boomtick-pkg from source-level submodule to published dependency : Rewrite the generic AI generated body to reflect actual requirements.
+- #142 — infra: Migrate boomtick-pkg to external submodule referencing the standalone boomtick repository : Rewrite the generic AI generated body to reflect actual requirements.
+- #139 — spec: Phase 3 — Replace source-level script invocations with installed CLI/package calls : Rewrite the generic AI generated body to reflect actual requirements.
+- #138 — spec: Phase 4 — Remove boomtick-pkg submodule after full decoupling : Rewrite the generic AI generated body to reflect actual requirements.
 ## 5. Issues that should be merged into other issues
 None identified currently.
 

@@ -4,8 +4,8 @@
 
 - Total open issues reviewed: 21
 - Issues recommended to Keep open, Blocked by PR: 1
-- Issues recommended to Keep open: 17
-- Issues recommended to Keep open, update scope: 3
+- Issues recommended to Keep open: 13
+- Issues recommended to Keep open, update scope: 7
 
 ## Issue Checklist
 
@@ -45,11 +45,11 @@
 - **Relevance:** Highly Relevant
 - **Actionable:** Yes
 - **Related PRs/Files:** None found / Check mcp/ and cli/
-- **Clarifications/Specific Edits:** None
+- **Clarifications/Specific Edits:** Rewrite the generic AI generated body to reflect actual requirements.
 - **Closing Reason:** N/A
 
-**Recommendation:** Keep open
-**Reason:** High level epic tracking, no immediate action needed.
+**Recommendation:** Keep open, update scope
+**Reason:** Issue body contains generic AI boilerplate and requires manual rewrite of the problem statement and scope.
 
 ### Issue #142 — infra: Migrate boomtick-pkg to external submodule referencing the standalone boomtick repository
 
@@ -66,11 +66,11 @@
 - **Relevance:** Highly Relevant
 - **Actionable:** Yes
 - **Related PRs/Files:** None found / Check mcp/ and cli/
-- **Clarifications/Specific Edits:** None
+- **Clarifications/Specific Edits:** Rewrite the generic AI generated body to reflect actual requirements.
 - **Closing Reason:** N/A
 
-**Recommendation:** Keep open
-**Reason:** Part of ongoing epic.
+**Recommendation:** Keep open, update scope
+**Reason:** Issue body contains generic AI boilerplate and requires manual rewrite of the problem statement and scope.
 
 ### Issue #139 — spec: Phase 3 — Replace source-level script invocations with installed CLI/package calls
 
@@ -87,11 +87,11 @@
 - **Relevance:** Highly Relevant
 - **Actionable:** Yes
 - **Related PRs/Files:** [{"number":155,"title":"Explore and Plan Phase 3 CLI/Package Transition"}] / Check mcp/ and cli/
-- **Clarifications/Specific Edits:** None
+- **Clarifications/Specific Edits:** Rewrite the generic AI generated body to reflect actual requirements.
 - **Closing Reason:** N/A
 
-**Recommendation:** Keep open
-**Reason:** Spec tracking, valid task.
+**Recommendation:** Keep open, update scope
+**Reason:** Issue body contains generic AI boilerplate and requires manual rewrite of the problem statement and scope.
 
 ### Issue #138 — spec: Phase 4 — Remove boomtick-pkg submodule after full decoupling
 
@@ -108,11 +108,11 @@
 - **Relevance:** Highly Relevant
 - **Actionable:** Yes
 - **Related PRs/Files:** None found / Check mcp/ and cli/
-- **Clarifications/Specific Edits:** None
+- **Clarifications/Specific Edits:** Rewrite the generic AI generated body to reflect actual requirements.
 - **Closing Reason:** N/A
 
-**Recommendation:** Keep open
-**Reason:** Spec tracking, valid task.
+**Recommendation:** Keep open, update scope
+**Reason:** Issue body contains generic AI boilerplate and requires manual rewrite of the problem statement and scope.
 
 ### Issue #136 — Improve visual impact analysis robustness and sync submodule CI linting
 
