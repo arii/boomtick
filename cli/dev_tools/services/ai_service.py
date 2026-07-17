@@ -8,7 +8,7 @@ from collections import defaultdict
 from typing import Any, Dict, List, Optional, Tuple, Type
 
 import requests
-from dev_tools.models import AIFullReview, AISynthesisReview
+from dev_tools.models import AIFullReview, AISynthesisReview, AIFileReview
 from dev_tools.review_read_pass import parse_diff_into_file_chunks
 from dev_tools.services.dependency_graph import DependencyGraph
 from dev_tools.services.vector_store import VectorStore
@@ -179,6 +179,15 @@ class AIClient:
     def clean_llm_output(self, text: str) -> str:
         return clean_llm_output(text)
 
+    def _estimate_tokens(self, text: str) -> int:
+        """
+        Estimate the number of tokens in the given text using a character-count heuristic.
+        Standard heuristic is 4 characters per token.
+        """
+        if not text:
+            return 0
+        return (len(text) + 3) // 4
+
     def resolve_file_conflicts(self, file_path: str) -> bool:
         if not os.path.exists(file_path):
             return False
@@ -311,6 +320,65 @@ class AIClient:
                 break
             combined_diff += f"\n\n{chunk['diff_text']}"
 
+        # Determine whether to use piecemeal review aggregator or single-pass review using token estimation
+        estimated_tokens = self._estimate_tokens(combined_diff)
+        use_piecemeal = (estimated_tokens > 25000) or (os.environ.get("FORCE_PIECEMEAL_REVIEW", "false").lower() == "true")
+
+        if use_piecemeal:
+            log_info(f"🧱 PR Context Aggregator: Large PR (estimated {estimated_tokens} tokens) or forced mode detected. Running piecemeal review across {len(reviewable)} chunks.")
+            file_reviews = []
+            completed = 0
+            t0 = time.time()
+
+            for chunk_data in reviewable:
+                chunk_prompt = self._build_chunk_prompt(chunk_data, pr_title, checks_summary)
+                parsed_chunk = None
+
+                for attempt in range(_MAX_AI_RETRIES):
+                    try:
+                        raw_chunk = self.call_ai(chunk_prompt, model=_REVIEW_MODEL, schema=AIFileReview.model_json_schema(), max_retries=1)
+                        if not raw_chunk:
+                            continue
+                        cleaned_chunk = self.clean_llm_output(raw_chunk)
+
+                        parsed_chunk, err = validate_with_model(cleaned_chunk, AIFileReview)
+                        if err or parsed_chunk is None:
+                            raise ValueError(err or "Validation failed")
+
+                        break  # Successfully parsed and validated
+                    except Exception as e:
+                        log_warn(f"Chunk review attempt {attempt+1} failed for {chunk_data['file']} chunk {chunk_data.get('chunk_index', 0)}: {e}")
+                        time.sleep(1)
+
+                if not parsed_chunk:
+                    parsed_chunk = {
+                        "file": chunk_data["file"],
+                        "issues": [],
+                        "verdict": "error",
+                        "error": f"Failed to get a parseable review for chunk {chunk_data.get('chunk_index', 0)} after retries.",
+                        "chunk_index": chunk_data.get("chunk_index", 0)
+                    }
+                else:
+                    parsed_chunk["chunk_index"] = chunk_data.get("chunk_index", 0)
+
+                file_reviews.append(parsed_chunk)
+                completed += 1
+                self._write_progress_snapshot(pr_num, reviewable, file_reviews, completed, "")
+
+            # Synthesize all chunk reviews into a consolidated final review
+            final = self._synthesize_review(file_reviews, pr_num, pr_title, has_ci_failures, ci_failures)
+
+            # CI guard: never approve if checks are failing
+            if has_ci_failures and final.get("recommendation") == "Approved":
+                final["recommendation"] = "Not Approved"
+                final["reviewComment"] = f"CI checks are failing ({failing_names}). Recommendation downgraded.\n\n" + str(
+                    final.get("reviewComment", "")
+                )
+
+            self._write_review_file(pr_num, pr, final, chunks, file_reviews)
+            return final
+
+        # Single-pass fallback
         truncation_note = ""
         json_rules, snippet_rules, _COMMON_REVIEW_GUIDELINES = _get_review_prompt_constants()
         if is_truncated:
