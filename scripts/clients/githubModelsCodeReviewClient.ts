@@ -11,9 +11,19 @@ import {
 import { buildSystemPrompt } from '../../lib/buildCodeReviewPrompt';
 import type { CodeReviewSummary, CodeReviewResult, ModelChain } from '../../lib/codeReviewTypes';
 import type { CodeReviewClientStrategy } from '../../lib/codeReviewOrchestrator';
-import { pickOptimalModel, getAvailableModels } from '../../lib/modelPicker';
+import { getAvailableModels } from '../../lib/modelPicker';
 import * as fs from 'fs';
 import * as path from 'path';
+
+export interface GitHubModelsResponse {
+  usage?: {
+    prompt_tokens?: number,
+    completion_tokens?: number,
+    total_tokens?: number,
+    prompt_tokens_details?: { cached_tokens?: number }
+  },
+  choices?: Array<{ finish_reason?: string, message?: { content?: string } }>
+}
 
 async function complete(
   chain: ModelChain,
@@ -22,6 +32,11 @@ async function complete(
 ): Promise<{ response: any, modelName: string }> {
   const apiKey = process.env.GITHUB_TOKEN;
   if (!apiKey) throw new Error('Missing GITHUB_TOKEN environment variable');
+
+  // Validate apiKey format to prevent header injection or malicious token values
+  if (!/^[A-Za-z0-9_-]+$/.test(apiKey)) {
+    throw new Error('Invalid GITHUB_TOKEN format');
+  }
 
   const url = 'https://models.inference.ai.azure.com/chat/completions';
   const modelsToTry = [chain.primary, ...(chain.fallbacks || [])];
@@ -42,17 +57,19 @@ async function complete(
             temperature: 0.1
           })
         }).catch(e => {
-          throw new Error(`Failed to fetch from GitHub Models API: ${e}`, { cause: e });
+          throw new Error(`Failed to fetch from GitHub Models API: ${e.message || e}`);
         });
 
         if (!response.ok) {
-          const errText = await response.text();
-          throw new Error(`GitHub Models API error: ${response.status} ${response.statusText} - ${errText}`);
+          // Avoid leaking raw response text or full status text into thrown error messages for security
+          console.error(`[GitHub Models API Error] Status: ${response.status}`);
+          throw new Error(`GitHub Models API error: ${response.status}`);
         }
         return response;
-      }, { maxRetries: chain.max_retries ?? 3, initialDelayMs: 1000 });
+      }, { maxRetries: Math.min(chain.max_retries ?? 3, 5), initialDelayMs: 1000 });
 
-      const responseJson = await fetchResponse.json();
+      const responseJson = await fetchResponse.json() as GitHubModelsResponse;
+      console.log(`📌 github-models-code-review successfully served request using model: ${modelName}`);
       return { response: responseJson, modelName };
     } catch (error: any) {
       const errorMsg = error.message || String(error);
@@ -95,22 +112,31 @@ export const githubModelsCodeReviewClient: CodeReviewClientStrategy = {
       throw new Error('Failed to build a valid messages payload for the AI client.');
     }
 
-    let chain: ModelChain;
+    let chain: ModelChain = {
+      primary: "gpt-4o-mini",
+      fallbacks: [],
+      max_retries: 3
+    };
+
     try {
       const configPath = path.resolve(process.cwd(), 'project_config.json');
       const configData = JSON.parse(fs.readFileSync(configPath, 'utf8'));
-      chain = configData['code-review-chain'] || {
-        primary: "gpt-4o-mini",
-        fallbacks: [],
-        max_retries: 3
-      };
+      const parsedChain = configData['code-review-chain'];
+
+      if (
+        parsedChain &&
+        typeof parsedChain === 'object' &&
+        typeof parsedChain.primary === 'string' &&
+        Array.isArray(parsedChain.fallbacks) &&
+        parsedChain.fallbacks.every((f: any) => typeof f === 'string') &&
+        typeof parsedChain.max_retries === 'number'
+      ) {
+        chain = parsedChain as ModelChain;
+      } else if (parsedChain) {
+        console.warn("⚠️ Invalid model chain config schema in project_config.json, using defaults.");
+      }
     } catch (e) {
       console.warn("⚠️ Could not load model chain config, using defaults.");
-      chain = {
-        primary: "gpt-4o-mini",
-        fallbacks: [],
-        max_retries: 3
-      };
     }
 
     // Attempt to pick optimal if the primary isn't hardcoded in project_config? Or let the chain logic override it.
@@ -130,7 +156,7 @@ export const githubModelsCodeReviewClient: CodeReviewClientStrategy = {
 
     const { response, modelName } = await complete(chain, messages, maxTokens);
 
-    const usageMetadata = response.usage;
+    const usageMetadata = (response as GitHubModelsResponse).usage;
     const inputTokens = usageMetadata?.prompt_tokens ?? 0;
     const outputTokens = usageMetadata?.completion_tokens ?? 0;
     const totalTokens = usageMetadata?.total_tokens ?? 0;
