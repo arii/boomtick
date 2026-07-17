@@ -36,9 +36,11 @@ jobs:
           if [ -f ".agents/workflows/${{ inputs.audit_type }}.md" ]; then
             # We export the prompt to an environment variable to pass it to the CLI safely
             EOF_DELIMITER=$(openssl rand -hex 16)
-            echo "AUDIT_PROMPT<<$EOF_DELIMITER" >> "$GITHUB_ENV"
-            cat ".agents/workflows/${{ inputs.audit_type }}.md" >> "$GITHUB_ENV"
-            echo "$EOF_DELIMITER" >> "$GITHUB_ENV"
+            {
+              echo "AUDIT_PROMPT<<$EOF_DELIMITER"
+              cat ".agents/workflows/${{ inputs.audit_type }}.md"
+              echo "$EOF_DELIMITER"
+            } >> "$GITHUB_ENV"
           else
             echo "Error: Audit template not found."
             # fail task without exiting
