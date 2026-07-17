@@ -3,6 +3,7 @@ import * as path from 'path';
 import { IMPACT_CONFIG } from '../scripts/impact-analysis.config';
 import { ARTIFACTS_DIR } from './visualReviewConstants';
 import { postPRComment, countExistingReviews, getJulesSessionIdFromPR, sendJulesMessage, getPreviousReviewState } from './visualReviewUtils';
+import { runWithConcurrencyLimit } from './sharedUtils';
 import { calculateEstimatedTokens, cleanupFeedback, batchFiles, calculateReviewHash, pruneCache, filterLowImpactFiles } from './codeReviewUtils';
 import type { CodeReviewSummary, CodeReviewResult, CodeReviewState, CodeReviewRole } from './codeReviewTypes';
 import { execFile as execFileCb, spawn } from 'child_process';
@@ -645,14 +646,7 @@ export async function orchestrateCodeReview(
   }
 
   // Execute with concurrency limit
-  const workers = Array.from({ length: Math.min(CONCURRENCY_LIMIT, taskQueue.length) }, async () => {
-    while (taskQueue.length > 0) {
-      const task = taskQueue.shift();
-      if (task) await task();
-    }
-  });
-
-  await Promise.all(workers);
+  await runWithConcurrencyLimit(taskQueue, CONCURRENCY_LIMIT);
   const orchestratorDurationMs = Date.now() - orchestratorStartTime;
 
   // Clear batch summary cache to free memory

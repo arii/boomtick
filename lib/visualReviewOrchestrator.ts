@@ -2,6 +2,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { ARTIFACTS_DIR, VISUAL_SUMMARY_PATH, MAX_ROUTES_TO_REVIEW } from './visualReviewConstants';
 import { generateMarkdownReport, postPRComment, countExistingReviews, getJulesSessionIdFromPR, sendJulesMessage, getPreviousReviewState } from './visualReviewUtils';
+import { runWithConcurrencyLimit } from './sharedUtils';
 import type { RouteReview, VisualRouteSummary, VisualSummary, VisualReviewState } from './visualReviewTypes';
 import { logReviewExecution } from './aiLogger';
 export type AgentRole = 'CODE_REVIEW' | 'ACCESSIBILITY' | 'UX' | 'VISUAL_REGRESSION' | 'RESPONSIVE_LAYOUT';
@@ -133,14 +134,7 @@ export async function orchestrateVisualReview(
     reviews.push(...routeReviews);
   }
 
-  const workers = Array.from({ length: Math.min(CONCURRENCY_LIMIT, taskQueue.length) }, async () => {
-    while (taskQueue.length > 0) {
-      const task = taskQueue.shift();
-      if (task) await task();
-    }
-  });
-
-  await Promise.all(workers);
+  await runWithConcurrencyLimit(taskQueue, CONCURRENCY_LIMIT);
 
   const report = generateMarkdownReport(reviews, client.botName, client.reportTitle, client.botTagline);
 
