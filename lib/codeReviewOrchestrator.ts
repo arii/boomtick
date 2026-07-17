@@ -631,6 +631,11 @@ export async function orchestrateCodeReview(
             role,
             tokens: 0,
             cost: 0,
+            inputTokens: 0,
+            outputTokens: 0,
+            cacheTokens: 0,
+            modelName: 'unknown',
+            state: { findings: [] },
             llmVerdict: 'warn',
             skipReason: isRateLimit ? 'RATE_LIMIT' : (isInvalidApiKey ? 'MISSING_API_KEY' : 'UNHANDLED_ERROR'),
           });
