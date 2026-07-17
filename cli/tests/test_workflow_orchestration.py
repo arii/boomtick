@@ -263,7 +263,7 @@ def test_concrete_nodes_execution(mock_orchestrator_class):
     # Verify calls on mocked orchestrator
     mock_orchestrator.runtime_check.assert_called_once()
     mock_orchestrator.validate_issue.assert_called_once_with(
-        issueNumber=42, all_open=False, post_comments=False, dry_run=True
+        issue_number=42, all_open=False, post_comments=False, dry_run=True
     )
 
     # Verify context outputs and scratchpad are set correctly

@@ -1473,44 +1473,47 @@ def run_local(ctx, issue_number, all_open, post_comments, dry_run):
     }
 
     try:
-        context = runner.run(graph, initial_inputs=initial_inputs)
+        try:
+            context = runner.run(graph, initial_inputs=initial_inputs)
 
-        # Format results beautifully
-        history = context.history
-        state = context.state
+            # Format results beautifully
+            history = context.history
+            state = context.state
 
-        data = {
-            "history": history,
-            "state": state,
-            "status": "success"
-        }
+            data = {
+                "history": history,
+                "state": state,
+                "status": "success"
+            }
 
-        data["scratchpad"] = context.scratchpad
+            data["scratchpad"] = context.scratchpad
 
-        if ctx.obj["JSON"]:
-            click.echo(json.dumps(data, indent=2))
-        else:
-            click.echo("🚀 Local Workflow Graph Execution Complete!\n")
-            click.echo("--- Execution History (Single-Agent Multi-Role Personas) ---")
-            for record in history:
-                status_icon = "✅" if record["status"] == "COMPLETED" else "❌"
-                role_str = f" as 👤 [{record['role']}]" if record.get("role") else ""
-                click.echo(f"{status_icon} {record['node_name']}{role_str}: {record['status']} ({record['duration_sec']:.3f}s)")
-                if record.get("error"):
-                    click.echo(f"   Error: {record['error']}")
+            if ctx.obj["JSON"]:
+                click.echo(json.dumps(data, indent=2))
+            else:
+                click.echo("🚀 Local Workflow Graph Execution Complete!\n")
+                click.echo("--- Execution History (Single-Agent Multi-Role Personas) ---")
+                for record in history:
+                    status_icon = "✅" if record["status"] == "COMPLETED" else "❌"
+                    role_str = f" as 👤 [{record['role']}]" if record.get("role") else ""
+                    click.echo(f"{status_icon} {record['node_name']}{role_str}: {record['status']} ({record['duration_sec']:.3f}s)")
+                    if record.get("error"):
+                        click.echo(f"   Error: {record['error']}")
 
-            click.echo("\n--- Shared Scratchpad Blackboard ---")
-            for key, val in context.scratchpad.items():
-                click.echo(f"✍️  {key}: {val}")
+                click.echo("\n--- Shared Scratchpad Blackboard ---")
+                for key, val in context.scratchpad.items():
+                    click.echo(f"✍️  {key}: {val}")
 
-            click.echo("\n--- Final State ---")
-            if "runtime_info" in state:
-                click.echo(f"Runtime Check: Node {state['runtime_info'].get('node')}, pnpm {state['runtime_info'].get('pnpm')}")
-            if "issue_validation_results" in state:
-                res = state["issue_validation_results"]
-                click.echo(f"Issue Validation Status: {res.get('status')} ({res.get('total_findings', 0)} findings)")
-    except Exception as e:
-        err(ctx, f"Local workflow execution failed: {str(e)}")
+                click.echo("\n--- Final State ---")
+                if "runtime_info" in state:
+                    click.echo(f"Runtime Check: Node {state['runtime_info'].get('node')}, pnpm {state['runtime_info'].get('pnpm')}")
+                if "issue_validation_results" in state:
+                    res = state["issue_validation_results"]
+                    click.echo(f"Issue Validation Status: {res.get('status')} ({res.get('total_findings', 0)} findings)")
+        except Exception as e:
+            err(ctx, f"Local workflow execution failed: {str(e)}")
+    finally:
+        runner.shutdown(wait=False)
 
 
 @agent_group.command(name="install-workflows")

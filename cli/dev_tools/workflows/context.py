@@ -1,6 +1,7 @@
 # pylint: disable=missing-docstring,too-many-arguments,too-many-positional-arguments
 import threading
 from datetime import datetime
+from types import MappingProxyType
 from typing import Any, Dict, List, Optional
 
 
@@ -19,22 +20,22 @@ class WorkflowContext:
         self._history: List[Dict[str, Any]] = []
 
     @property
-    def inputs(self) -> Dict[str, Any]:
-        """Read-only view of the initial inputs."""
+    def inputs(self) -> MappingProxyType:
+        """Read-only proxy view of the initial inputs to avoid redundant memory allocations."""
         with self._lock:
-            return dict(self._inputs)
+            return MappingProxyType(self._inputs)
 
     @property
-    def state(self) -> Dict[str, Any]:
-        """Current internal state/outputs of the workflow."""
+    def state(self) -> MappingProxyType:
+        """Read-only proxy view of internal state/outputs of the workflow to avoid redundant memory allocations."""
         with self._lock:
-            return dict(self._state)
+            return MappingProxyType(self._state)
 
     @property
-    def scratchpad(self) -> Dict[str, Any]:
+    def scratchpad(self) -> MappingProxyType:
         """Shared agent scratchpad/blackboard for intermediate thoughts and findings."""
         with self._lock:
-            return dict(self._scratchpad)
+            return MappingProxyType(self._scratchpad)
 
     @property
     def history(self) -> List[Dict[str, Any]]:

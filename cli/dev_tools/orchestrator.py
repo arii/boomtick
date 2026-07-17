@@ -539,20 +539,20 @@ class Orchestrator:
 
     def validate_issue(
         self,
-        issueNumber: Optional[int] = None,
+        issue_number: Optional[int] = None,
         all_open: bool = False,
         post_comments: bool = False,
         dry_run: bool = True,
         **kwargs: Any,
     ) -> Dict[str, Any]:
-        if "issue_number" in kwargs and kwargs["issue_number"] is not None and issueNumber is None:
-            issueNumber = int(kwargs["issue_number"])
+        if "issueNumber" in kwargs and kwargs["issueNumber"] is not None and issue_number is None:
+            issue_number = int(kwargs["issueNumber"])
         repo = get_github_client().get_repo(get_repo_name() or "")
         issues: List[Any] = []
         if all_open:
             issues = list(repo.get_issues(state="open"))
-        elif issueNumber:
-            issues = [repo.get_issue(issueNumber)]
+        elif issue_number:
+            issues = [repo.get_issue(issue_number)]
         else:
             raise CLIError("Provide --issue-number or --all-open")
 

@@ -64,7 +64,7 @@ class IssueValidationNode(WorkflowNode):
 
         orchestrator = Orchestrator()
         res = orchestrator.validate_issue(
-            issueNumber=issue_number,
+            issue_number=issue_number,
             all_open=all_open,
             post_comments=post_comments,
             dry_run=dry_run,

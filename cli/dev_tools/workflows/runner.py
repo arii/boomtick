@@ -1,6 +1,5 @@
 # pylint: disable=missing-docstring,too-few-public-methods,too-many-locals
-import queue
-import threading
+import concurrent.futures
 import time
 from datetime import datetime, timezone
 from typing import Any, Dict, Optional
@@ -12,37 +11,33 @@ from dev_tools.workflows.graph import WorkflowGraph
 class WorkflowRunner:
     """
     Executes a WorkflowGraph in topological order.
-    Manages retries with exponential backoff, timeouts, and execution logs.
+    Manages retries with exponential backoff, timeouts via ThreadPoolExecutor, and execution logs.
     """
 
     def __init__(self, halt_on_failure: bool = True) -> None:
         self.halt_on_failure = halt_on_failure
+        self._executor = concurrent.futures.ThreadPoolExecutor(max_workers=4)
 
     def _execute_with_timeout(self, node: Any, context: WorkflowContext) -> Any:
         timeout = node.timeout
         if timeout is None or timeout <= 0:
             return node.execute(context)
 
-        res_queue: queue.Queue = queue.Queue()
-
-        def worker() -> None:
-            try:
-                result = node.execute(context)
-                res_queue.put((True, result))
-            except Exception as e:
-                res_queue.put((False, e))
-
-        thread = threading.Thread(target=worker)
-        thread.daemon = True
-        thread.start()
-
+        future = self._executor.submit(node.execute, context)
         try:
-            success, val = res_queue.get(timeout=timeout)
-            if not success:
-                raise val
-            return val
-        except queue.Empty as exc:
+            return future.result(timeout=timeout)
+        except concurrent.futures.TimeoutError as exc:
             raise TimeoutError(f"Node '{node.name}' timed out after {timeout} seconds.") from exc
+
+    def shutdown(self, wait: bool = False) -> None:
+        """Shutdown the underlying thread pool executor."""
+        self._executor.shutdown(wait=wait)
+
+    def __del__(self) -> None:
+        try:
+            self.shutdown(wait=False)
+        except Exception:
+            pass
 
     def run(self, graph: WorkflowGraph, initial_inputs: Optional[Dict[str, Any]] = None) -> WorkflowContext:
         """
