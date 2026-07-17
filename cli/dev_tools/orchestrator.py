@@ -618,6 +618,177 @@ class Orchestrator:
             prs_data.append({"branch": branch, "issue": issue, "status": status, "number": pr.get("number")})
         return prs_data
 
+    def _get_or_create_lock_board(self) -> int:
+        try:
+            issues = self.github.list_issues(state="open", labels=["agent-coordination"])
+            for issue in issues:
+                if issue.get("title") == "Agent Lock Board":
+                    return int(issue["number"])
+        except Exception:
+            pass
+
+        try:
+            all_issues = self.github.list_issues(state="open")
+            for issue in all_issues:
+                if issue.get("title") == "Agent Lock Board":
+                    try:
+                        self.github.add_labels(int(issue["number"]), ["agent-coordination"])
+                    except Exception:
+                        pass
+                    return int(issue["number"])
+        except Exception:
+            pass
+
+        desc = "This issue is used to track active multi-agent locks. Please do not close or delete."
+        new_issue = self.github.create_issue("Agent Lock Board", desc)
+        num = int(new_issue["number"])
+        try:
+            self.github.add_labels(num, ["agent-coordination"])
+        except Exception:
+            pass
+        return num
+
+    def acquire_agent_lock(self, scope: str, branch: Optional[str] = None, issue_num: Optional[int] = None) -> Dict[str, Any]:
+        if not branch:
+            branch = run_command(["git", "branch", "--show-current"]).strip()
+        if not branch:
+            raise CLIError("Could not determine current branch name.")
+
+        locked_paths = [s.strip() for s in scope.split(",") if s.strip()]
+        if not locked_paths:
+            raise CLIError("Lock scope cannot be empty.")
+
+        board_num = self._get_or_create_lock_board()
+        comments = self.github.fetch_issue_comments(board_num)
+
+        lock_data = {
+            "branch": branch,
+            "scope": locked_paths,
+            "issue": issue_num,
+            "locked_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+        }
+
+        comment_body = (
+            f"### Agent Lock: `{branch}`\n"
+            f"- **Branch**: {branch}\n"
+            f"- **Scope**: {', '.join(f'`{p}`' for p in locked_paths)}\n"
+            f"- **Issue**: {issue_num or '—'}\n"
+            f"- **Locked At**: {lock_data['locked_at']}\n\n"
+            "<!-- AGENT_LOCK_START -->\n"
+            f"```json\n{json.dumps(lock_data, indent=2)}\n```\n"
+            "<!-- AGENT_LOCK_END -->"
+        )
+
+        existing_comment_id = None
+        for comment in comments:
+            body = comment.get("body", "")
+            if f"\"branch\": \"{branch}\"" in body or f"\"branch\":\"{branch}\"" in body:
+                existing_comment_id = comment.get("id")
+                break
+
+        if existing_comment_id:
+            self.github._request("PATCH", f"/repos/{self.github.repo}/issues/comments/{existing_comment_id}", json_data={"body": comment_body})
+            message = f"Updated existing lock for branch {branch}."
+        else:
+            self.github.create_issue_comment(board_num, comment_body)
+            message = f"Registered new lock for branch {branch}."
+
+        return {"status": "success", "message": message, "lock": lock_data}
+
+    def release_agent_lock(self, branch: Optional[str] = None) -> Dict[str, Any]:
+        if not branch:
+            branch = run_command(["git", "branch", "--show-current"]).strip()
+        if not branch:
+            raise CLIError("Could not determine current branch name.")
+
+        board_num = self._get_or_create_lock_board()
+        comments = self.github.fetch_issue_comments(board_num)
+
+        existing_comment_id = None
+        for comment in comments:
+            body = comment.get("body", "")
+            if f"\"branch\": \"{branch}\"" in body or f"\"branch\":\"{branch}\"" in body:
+                existing_comment_id = comment.get("id")
+                break
+
+        if existing_comment_id:
+            self.github._request("DELETE", f"/repos/{self.github.repo}/issues/comments/{existing_comment_id}")
+            return {"status": "success", "message": f"Released lock for branch {branch}."}
+        else:
+            return {"status": "success", "message": f"No active lock found for branch {branch}."}
+
+    def check_agent_locks(self, scope: Optional[str] = None, branch: Optional[str] = None) -> Dict[str, Any]:
+        if not branch:
+            branch = run_command(["git", "branch", "--show-current"]).strip()
+
+        check_paths = []
+        if scope:
+            check_paths = [s.strip() for s in scope.split(",") if s.strip()]
+        else:
+            try:
+                base = PROJECT_CONFIG.base_branch_name or "main"
+                res = subprocess.run(["git", "diff", "--name-only", f"origin/{base}..."], capture_output=True, text=True, check=False)
+                diff_files = [line.strip() for line in res.stdout.splitlines() if line.strip()]
+
+                res_status = subprocess.run(["git", "status", "--porcelain"], capture_output=True, text=True, check=False)
+                status_files = []
+                for line in res_status.stdout.splitlines():
+                    if len(line) > 3:
+                        path = line[3:].strip()
+                        if " -> " in path:
+                            path = path.split(" -> ")[1].strip()
+                        status_files.append(path)
+                check_paths = list(set(diff_files + status_files))
+            except Exception:
+                pass
+
+        board_num = self._get_or_create_lock_board()
+        comments = self.github.fetch_issue_comments(board_num)
+
+        active_locks = []
+        for comment in comments:
+            body = comment.get("body", "")
+            match = re.search(r"<!-- AGENT_LOCK_START -->\s*```json\n(.*?)\n```\s*<!-- AGENT_LOCK_END -->", body, re.DOTALL)
+            if match:
+                try:
+                    lock_info = json.loads(match.group(1))
+                    if lock_info.get("branch") != branch:
+                        active_locks.append(lock_info)
+                except Exception:
+                    pass
+
+        conflicts = []
+        for l in active_locks:
+            l_scope = l.get("scope", [])
+            for c_path in check_paths:
+                for l_path in l_scope:
+                    l_path_norm = l_path.rstrip("/")
+                    c_path_norm = c_path.rstrip("/")
+
+                    is_match = False
+                    if l_path_norm == c_path_norm:
+                        is_match = True
+                    elif c_path_norm.startswith(l_path_norm + "/"):
+                        is_match = True
+                    elif l_path_norm.startswith(c_path_norm + "/"):
+                        is_match = True
+
+                    if is_match:
+                        conflicts.append({
+                            "path": c_path,
+                            "locked_by_branch": l["branch"],
+                            "locked_path": l_path,
+                            "issue": l.get("issue")
+                        })
+
+        status = "conflict" if conflicts else "success"
+        return {
+            "status": status,
+            "checked_paths": check_paths,
+            "active_locks": active_locks,
+            "conflicts": conflicts
+        }
+
     def ratchet_any(
         self, update: bool = False, baseline_file: Optional[str] = None, dry_run: bool = True
     ) -> Dict[str, Any]:

@@ -352,3 +352,18 @@ class AISynthesisReview(BaseModel):
     reviewComment: str = Field(..., description="Overall summary comment for the PR.")
     labels: List[str] = Field(default_factory=list, description="Suggested labels for the PR.")
     recommendation: str = Field(..., description="Final recommendation.")
+
+
+class AgentLockInput(BaseModel):
+    scope: str = Field(..., description="Comma-separated list of files or directories to lock.")
+    branch: Optional[str] = Field(None, description="The branch name acquiring the lock.")
+    issue: Optional[int] = Field(None, description="The associated issue number.")
+
+
+class AgentUnlockInput(BaseModel):
+    branch: Optional[str] = Field(None, description="The branch name releasing the lock.")
+
+
+class AgentCheckLocksInput(BaseModel):
+    scope: Optional[str] = Field(None, description="Comma-separated list of files or directories to check.")
+    branch: Optional[str] = Field(None, description="The branch name to check against.")

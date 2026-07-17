@@ -1369,6 +1369,64 @@ def send(ctx, session_ids, message):
     out(ctx, summary, data=res)
 
 
+@agent_group.command(name="lock")
+@click.option("--scope", required=True, help="Comma-separated list of files or directories to lock.")
+@click.option("--branch", help="The branch name acquiring the lock.")
+@click.option("--issue", type=int, help="The associated issue number.")
+@click.pass_context
+def agent_lock(ctx, scope, branch, issue):
+    """Acquire a work scope/file lock on the Agent Lock Board."""
+    orch = ctx.obj["ORCHESTRATOR"]
+    try:
+        res = orch.acquire_agent_lock(scope=scope, branch=branch, issue_num=issue)
+        out(ctx, f"✅ Lock acquired successfully.", data=res)
+    except Exception as e:
+        _handle_unexpected_error(ctx, "agent lock", e)
+
+
+@agent_group.command(name="unlock")
+@click.option("--branch", help="The branch name releasing the lock.")
+@click.pass_context
+def agent_unlock(ctx, branch):
+    """Release a work scope/file lock on the Agent Lock Board."""
+    orch = ctx.obj["ORCHESTRATOR"]
+    try:
+        res = orch.release_agent_lock(branch=branch)
+        out(ctx, f"✅ Lock released successfully.", data=res)
+    except Exception as e:
+        _handle_unexpected_error(ctx, "agent unlock", e)
+
+
+@agent_group.command(name="check-locks")
+@click.option("--scope", help="Comma-separated list of files or directories to check.")
+@click.option("--branch", help="The branch name to check against.")
+@click.pass_context
+def agent_check_locks(ctx, scope, branch):
+    """Query active locks and check for overlaps."""
+    orch = ctx.obj["ORCHESTRATOR"]
+    try:
+        res = orch.check_agent_locks(scope=scope, branch=branch)
+        if not ctx.obj["JSON"]:
+            active_locks = res.get("active_locks", [])
+            conflicts = res.get("conflicts", [])
+            if not active_locks:
+                click.echo("No active locks on the board.")
+            else:
+                click.echo("--- Active Locks ---")
+                for l in active_locks:
+                    click.echo(f"Branch: {l['branch']} | Issue: {l.get('issue') or '—'} | Scope: {', '.join(l['scope'])}")
+
+                if conflicts:
+                    click.echo("\n⚠️  OVERLAP DETECTED:")
+                    for c in conflicts:
+                        click.echo(f" - Locked by branch {c['locked_by_branch']}: {c['path']}")
+                else:
+                    click.echo("\n✅ No lock conflicts found for the target scope.")
+        out(ctx, "Check locks complete.", data=res)
+    except Exception as e:
+        _handle_unexpected_error(ctx, "agent check-locks", e)
+
+
 @agent_group.command(name="plan-review")
 @click.option("--pr", "pr_number", required=True, type=int, help="Pull Request number")
 @click.option("--issue", "issue_number", type=int, help="Issue number")
@@ -1544,6 +1602,9 @@ for group in [jules_group]:
     group.add_command(send)
     group.add_command(plan_review)
     group.add_command(plan_aggregation)
+    group.add_command(agent_lock, name="lock")
+    group.add_command(agent_unlock, name="unlock")
+    group.add_command(agent_check_locks, name="check-locks")
 
 for group in [agent_group, jules_group]:
     group.add_command(get_session, name="session")
