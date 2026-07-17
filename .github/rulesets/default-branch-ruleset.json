@@ -1,0 +1,69 @@
+{
+  "name": "DevSecOps: Main Branch Protection & Quality Gates",
+  "target": "branch",
+  "enforcement": "evaluate",
+  "bypass_actors": [
+    {
+      "actor_id": 5,
+      "actor_type": "RepositoryRole",
+      "bypass_mode": "pull_request"
+    },
+    {
+      "actor_id": 123456,
+      "actor_type": "Integration",
+      "bypass_mode": "always"
+    }
+  ],
+  "conditions": {
+    "ref_name": {
+      "include": [
+        "~DEFAULT_BRANCH"
+      ],
+      "exclude": []
+    }
+  },
+  "rules": [
+    {
+      "type": "deletion"
+    },
+    {
+      "type": "non_fast_forward"
+    },
+    {
+      "type": "pull_request",
+      "parameters": {
+        "dismiss_stale_reviews_on_push": true,
+        "require_code_owner_review": false,
+        "require_last_push_approval": false,
+        "required_approving_review_count": 1,
+        "required_review_thread_resolution": true
+      }
+    },
+    {
+      "type": "commit_message_pattern",
+      "parameters": {
+        "name": "Conventional Commits Enforcement",
+        "operator": "regex",
+        "pattern": "^(build|chore|ci|docs|feat|fix|perf|refactor|revert|style|test)(\\([a-zA-Z0-9_.-]+\\))?!?: .+$",
+        "error_message": "Commit messages must follow the Conventional Commits specification (e.g., 'feat(api): add new endpoint')."
+      }
+    },
+    {
+      "type": "required_status_checks",
+      "parameters": {
+        "strict_required_status_checks_policy": true,
+        "required_status_checks": [
+          {
+            "context": "lint-typecheck"
+          },
+          {
+            "context": "audit"
+          },
+          {
+            "context": "Deployment Impact Analysis"
+          }
+        ]
+      }
+    }
+  ]
+}
