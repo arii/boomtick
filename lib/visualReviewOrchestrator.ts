@@ -98,24 +98,33 @@ export async function orchestrateVisualReview(
 
   console.log(`🤖 Reviewing ${routesToReview.length} route(s) with ${client.botName}...`);
 
+  const CONCURRENCY_LIMIT = 2;
   const reviews: RouteReview[] = [];
   const roles: AgentRole[] = ['CODE_REVIEW', 'ACCESSIBILITY', 'UX', 'VISUAL_REGRESSION', 'RESPONSIVE_LAYOUT'];
 
+  const taskQueue: (() => Promise<void>)[] = [];
+
   for (const route of routesToReview) {
-    console.log(`  → ${route.route} (${route.severity}, ${route.differencePercent.toFixed(2)}%)`);
-
-    // Execute all specialized agents for this route
-    const routeReviews = await Promise.all(roles.map(async (role) => {
-      console.log(`    → Agent: ${role}`);
-      const start = Date.now();
-      const review = await client.invokeReview(route, role);
-      const durationMs = Date.now() - start;
-      logReviewExecution('visual-review', review, durationMs, { route: route.route });
-      return { ...review, role };
-    }));
-
-    reviews.push(...routeReviews);
+    for (const role of roles) {
+      taskQueue.push(async () => {
+        console.log(`    → Agent: ${role} on ${route.route} (${route.severity}, ${route.differencePercent.toFixed(2)}%)`);
+        const start = Date.now();
+        const review = await client.invokeReview(route, role);
+        const durationMs = Date.now() - start;
+        logReviewExecution('visual-review', review, durationMs, { route: route.route });
+        reviews.push({ ...review, role });
+      });
+    }
   }
+
+  const workers = Array.from({ length: Math.min(CONCURRENCY_LIMIT, taskQueue.length) }, async () => {
+    while (taskQueue.length > 0) {
+      const task = taskQueue.shift();
+      if (task) await task();
+    }
+  });
+
+  await Promise.all(workers);
 
   const report = generateMarkdownReport(reviews, client.botName, client.reportTitle, client.botTagline);
 
