@@ -148,12 +148,14 @@ export async function orchestrateVisualReview(
   // Post to GitHub PR
   await postPRComment(report, client.reportTitle, state);
 
+  // Write a structured result file alongside the markdown
+  const hasBlockingIssues = reviews.some(r =>
+    r.llmVerdict === 'fail' || (r.severity === 'HIGH' && r.llmVerdict !== 'pass')
+  );
+
   // Also alert Jules if this PR is from a Jules session
   const julesSessionId = await getJulesSessionIdFromPR();
   if (julesSessionId) {
-    const hasBlockingIssues = reviews.some(r =>
-      r.llmVerdict === 'fail' || (r.severity === 'HIGH' && r.llmVerdict !== 'pass')
-    );
     const passFailMsg = hasBlockingIssues ? "FAIL ❌" : "PASS ✅";
     const highCount = reviews.filter(r => r.severity === 'HIGH').length;
     const medCount = reviews.filter(r => r.severity === 'MEDIUM').length;
@@ -161,11 +163,6 @@ export async function orchestrateVisualReview(
     const julesMessage = `[${client.reportTitle}] posted a visual UI review (${passFailMsg}). Summary: 🔴 ${highCount} high · 🟡 ${medCount} medium · 🟢 ${lowCount} low. Please read the review comments on the PR, analyze the diff context provided, and fix any failed or warned areas.\n\n<details><summary>Overview</summary>\n\n${report}\n</details>`;
     await sendJulesMessage(julesSessionId, julesMessage);
   }
-
-  // Write a structured result file alongside the markdown
-  const hasBlockingIssues = reviews.some(r =>
-    r.llmVerdict === 'fail' || (r.severity === 'HIGH' && r.llmVerdict !== 'pass')
-  );
 
   const verdictPath = path.join(ARTIFACTS_DIR, `${client.reportFileName.replace('.md', '')}-verdict.json`);
   fs.writeFileSync(verdictPath, JSON.stringify({
