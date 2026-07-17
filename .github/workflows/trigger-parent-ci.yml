@@ -20,6 +20,7 @@ jobs:
     steps:
       - name: Generate Token
         id: generate_token
+        if: ${{ secrets.APP_ID != '' && secrets.APP_PRIVATE_KEY != '' }}
         uses: actions/create-github-app-token@v1
         with:
           app-id: ${{ secrets.APP_ID }}
@@ -50,13 +51,13 @@ jobs:
       - name: Trigger update-submodule workflow in tech-dancer
         env:
           GH_TOKEN: ${{ steps.generate_token.outputs.token }}
+          BRANCH_NAME: ${{ steps.get-branch.outputs.branch }}
         run: |
           if [ -z "$GH_TOKEN" ]; then
             echo "::warning::GitHub App Token could not be generated. Cannot trigger downstream CI."
             exit 0
           fi
 
-          BRANCH_NAME="${{ steps.get-branch.outputs.branch }}"
           echo "Triggering tech-dancer update-submodule workflow with boomtick branch: $BRANCH_NAME"
 
           gh workflow run update-submodule.yml \
