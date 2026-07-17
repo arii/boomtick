@@ -1441,6 +1441,71 @@ def plan_workflow_audit(ctx, workflow):
         _handle_unexpected_error(ctx, "agent plan-workflow-audit", e)
 
 
+@agent_group.command(name="run-local")
+@json_option
+@click.option("--issue-number", type=int, help="Issue number to validate")
+@click.option("--all-open", is_flag=True, help="Validate all open issues")
+@click.option("--post-comments", is_flag=True, help="Post comments to GitHub")
+@click.option("--dry-run/--execute", default=True, help="Dry run issue validation")
+@click.pass_context
+def run_local(ctx, issue_number, all_open, post_comments, dry_run):
+    """
+    Run a local workflow graph sequentially to check runtime and validate issues.
+    Executes entirely in the current local session without dispatching any remote tasks.
+    """
+    from dev_tools.workflows import WorkflowGraph, WorkflowRunner, EnvironmentCheckNode, IssueValidationNode
+
+    graph = WorkflowGraph()
+    env_node = EnvironmentCheckNode()
+    graph.add_node(env_node)
+
+    if issue_number or all_open:
+        issue_node = IssueValidationNode()
+        graph.add_node(issue_node)
+        graph.add_edge("EnvironmentCheck", "IssueValidation")
+
+    runner = WorkflowRunner()
+    initial_inputs = {
+        "issue_number": issue_number,
+        "all_open": all_open,
+        "post_comments": post_comments,
+        "dry_run": dry_run
+    }
+
+    try:
+        context = runner.run(graph, initial_inputs=initial_inputs)
+
+        # Format results beautifully
+        history = context.history
+        state = context.state
+
+        data = {
+            "history": history,
+            "state": state,
+            "status": "success"
+        }
+
+        if ctx.obj["JSON"]:
+            click.echo(json.dumps(data, indent=2))
+        else:
+            click.echo("🚀 Local Workflow Graph Execution Complete!\n")
+            click.echo("--- Execution History ---")
+            for record in history:
+                status_icon = "✅" if record["status"] == "COMPLETED" else "❌"
+                click.echo(f"{status_icon} {record['node_name']}: {record['status']} ({record['duration_sec']:.3f}s)")
+                if record.get("error"):
+                    click.echo(f"   Error: {record['error']}")
+
+            click.echo("\n--- Final State ---")
+            if "runtime_info" in state:
+                click.echo(f"Runtime Check: Node {state['runtime_info'].get('node')}, pnpm {state['runtime_info'].get('pnpm')}")
+            if "issue_validation_results" in state:
+                res = state["issue_validation_results"]
+                click.echo(f"Issue Validation Status: {res.get('status')} ({res.get('total_findings', 0)} findings)")
+    except Exception as e:
+        err(ctx, f"Local workflow execution failed: {str(e)}")
+
+
 @agent_group.command(name="install-workflows")
 @click.option("--dry-run/--execute", default=True)
 @click.pass_context
@@ -1561,6 +1626,7 @@ for group in [jules_group]:
     group.add_command(plan_review)
     group.add_command(plan_aggregation)
     group.add_command(install_workflows)
+    group.add_command(run_local)
 
 for group in [agent_group, jules_group]:
     group.add_command(get_session, name="session")
