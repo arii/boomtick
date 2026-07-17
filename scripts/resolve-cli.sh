@@ -7,8 +7,6 @@ REPO_ROOT="${REPO_ROOT:-$(git rev-parse --show-toplevel 2>/dev/null || pwd -P)}"
 
 if [ -d "${REPO_ROOT}/cli" ]; then
     printf "%s\n" "${REPO_ROOT}/cli"
-elif [ -d "${REPO_ROOT}/boomtick-pkg/cli" ]; then
-    printf "%s\n" "${REPO_ROOT}/boomtick-pkg/cli"
 else
     # Fallback to REPO_ROOT if neither is found (e.g. inside the cli dir already)
     # But only if we can find a pyproject.toml here.

@@ -26,7 +26,7 @@ export interface AIRunLogEntry {
   inputChars?: number;
 }
 
-const LOG_DIR = path.join(process.cwd(), 'boomtick-pkg', 'cli', 'logs', 'ai');
+const LOG_DIR = path.join(process.cwd(), '.boomtick', 'logs', 'ai');
 const LOG_FILE = path.join(LOG_DIR, 'review-run.jsonl');
 
 
