@@ -749,7 +749,7 @@ export async function orchestrateCodeReview(
   const julesSessionId = await getJulesSessionIdFromPR();
   const isFail = finalResult.llmVerdict === 'fail';
   if (julesSessionId) {
-    const passFailMsg = isFail ? "FAIL ❌" : "PASS ✅";
+    const passFailMsg = isFail ? "FAIL ❌" : ((finalResult.llmVerdict === 'warn' || allResults.length === 0) ? "NEUTRAL ⚪" : "PASS ✅");
     const julesMessage = `[${client.reportTitle}] posted an aggregated code review (${passFailMsg}). Please read the review comments on the PR, analyze the diff context provided, and fix any failed or warned areas.\n\n<details><summary>Overview</summary>\n\n${report}\n</details>`;
     await sendJulesMessage(julesSessionId, julesMessage);
   }

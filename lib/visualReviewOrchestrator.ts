@@ -166,7 +166,8 @@ export async function orchestrateVisualReview(
   // Also alert Jules if this PR is from a Jules session
   const julesSessionId = await getJulesSessionIdFromPR();
   if (julesSessionId) {
-    const passFailMsg = hasBlockingIssues ? "FAIL ❌" : "PASS ✅";
+    const hasWarnings = reviews.some(r => r.llmVerdict === 'warn');
+    const passFailMsg = hasBlockingIssues ? "FAIL ❌" : ((hasWarnings || reviews.length === 0) ? "NEUTRAL ⚪" : "PASS ✅");
     const highCount = reviews.filter(r => r.severity === 'HIGH').length;
     const medCount = reviews.filter(r => r.severity === 'MEDIUM').length;
     const lowCount = reviews.filter(r => r.severity === 'LOW').length;
