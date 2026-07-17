@@ -32,6 +32,12 @@ export interface CodeReviewSummary {
   previousState?: CodeReviewState;
 }
 
+export interface ModelChain {
+  primary: string;
+  fallbacks: string[];
+  max_retries: number;
+}
+
 export interface CodeReviewResult {
   feedback: string;
   role: string;

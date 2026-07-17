@@ -9,34 +9,69 @@ import {
   withRetry
 } from '../../lib/codeReviewUtils';
 import { buildSystemPrompt } from '../../lib/buildCodeReviewPrompt';
-import type { CodeReviewSummary, CodeReviewResult } from '../../lib/codeReviewTypes';
+import type { CodeReviewSummary, CodeReviewResult, ModelChain } from '../../lib/codeReviewTypes';
 import type { CodeReviewClientStrategy } from '../../lib/codeReviewOrchestrator';
 import { pickOptimalModel, getAvailableModels } from '../../lib/modelPicker';
+import * as fs from 'fs';
+import * as path from 'path';
 
-async function createModelConfig(
-  estimatedInputTokens: number = 0,
-  maxOutputTokens: number = 1500
-): Promise<{ modelName: string, maxTokens: number }> {
+async function complete(
+  chain: ModelChain,
+  messages: any[],
+  maxTokens: number
+): Promise<{ response: any, modelName: string }> {
   const apiKey = process.env.GITHUB_TOKEN;
   if (!apiKey) throw new Error('Missing GITHUB_TOKEN environment variable');
 
-  const fallback = process.env.GITHUB_MODELS_MODEL || 'gpt-4o-mini';
-  const modelName = await pickOptimalModel(apiKey, fallback, false, estimatedInputTokens);
+  const url = 'https://models.inference.ai.azure.com/chat/completions';
+  const modelsToTry = [chain.primary, ...(chain.fallbacks || [])];
 
-  let finalMaxTokens = maxOutputTokens;
-  try {
-    const models = await getAvailableModels(apiKey);
-    const matchedModel = models.find(m => m.id === modelName || m.id.includes(modelName));
-    if (matchedModel?.limits?.max_output_tokens) {
-      finalMaxTokens = Math.min(finalMaxTokens, matchedModel.limits.max_output_tokens);
+  for (const [index, modelName] of modelsToTry.entries()) {
+    try {
+      const fetchResponse = await withRetry(async () => {
+        const response = await fetch(url, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${apiKey}`
+          },
+          body: JSON.stringify({
+            model: modelName,
+            messages: messages,
+            max_tokens: maxTokens,
+            temperature: 0.1
+          })
+        }).catch(e => {
+          throw new Error(`Failed to fetch from GitHub Models API: ${e}`, { cause: e });
+        });
+
+        if (!response.ok) {
+          const errText = await response.text();
+          throw new Error(`GitHub Models API error: ${response.status} ${response.statusText} - ${errText}`);
+        }
+        return response;
+      }, { maxRetries: chain.max_retries ?? 3, initialDelayMs: 1000 });
+
+      const responseJson = await fetchResponse.json();
+      return { response: responseJson, modelName };
+    } catch (error: any) {
+      const errorMsg = error.message || String(error);
+      const isRecoverable = errorMsg.includes('429') ||
+                            errorMsg.includes('503') ||
+                            errorMsg.toLowerCase().includes('rate limit') ||
+                            errorMsg.toLowerCase().includes('overloaded') ||
+                            errorMsg.toLowerCase().includes('timeout') ||
+                            errorMsg.toLowerCase().includes('resource exhausted');
+
+      if (isRecoverable && index < modelsToTry.length - 1) {
+        console.warn(`⚠️ Model ${modelName} failed with recoverable error (${errorMsg}). Falling back to next model...`);
+        continue;
+      }
+
+      throw error; // If hard failure or out of fallbacks, rethrow
     }
-  } catch (err) {
-    console.warn('⚠️ Could not check model limits from catalog, falling back to budgeted tokens:', err);
   }
-
-  console.log(`📌 github-models-code-review using model: ${modelName}, maxOutputTokens: ${finalMaxTokens}`);
-
-  return { modelName, maxTokens: finalMaxTokens };
+  throw new Error('All models in the chain failed.');
 }
 
 export const githubModelsCodeReviewClient: CodeReviewClientStrategy = {
@@ -52,8 +87,7 @@ export const githubModelsCodeReviewClient: CodeReviewClientStrategy = {
     const calculatedTokens = calculateEstimatedTokens([systemPrompt, diffText, externalText || '']);
     const estimatedInputTokens = Math.max(summary.estimatedInputTokens || 0, calculatedTokens);
 
-    const maxOutputTokens = forceMaxOutputTokens ?? estimateMaxOutputTokens(summary, systemPrompt.length, 0);
-    const { modelName, maxTokens } = await createModelConfig(estimatedInputTokens, maxOutputTokens);
+    let maxTokens = forceMaxOutputTokens ?? estimateMaxOutputTokens(summary, systemPrompt.length, 0);
 
     const messages = buildReviewPayload(systemPrompt, diffText, externalText);
 
@@ -61,42 +95,40 @@ export const githubModelsCodeReviewClient: CodeReviewClientStrategy = {
       throw new Error('Failed to build a valid messages payload for the AI client.');
     }
 
+    let chain: ModelChain;
+    try {
+      const configPath = path.resolve(process.cwd(), 'project_config.json');
+      const configData = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+      chain = configData['code-review-chain'] || {
+        primary: "gpt-4o-mini",
+        fallbacks: [],
+        max_retries: 3
+      };
+    } catch (e) {
+      console.warn("⚠️ Could not load model chain config, using defaults.");
+      chain = {
+        primary: "gpt-4o-mini",
+        fallbacks: [],
+        max_retries: 3
+      };
+    }
+
+    // Attempt to pick optimal if the primary isn't hardcoded in project_config? Or let the chain logic override it.
+    // The prompt says "Treat your model list as dynamic configuration", so we'll just use the chain.
     const apiKey = process.env.GITHUB_TOKEN;
-    const url = 'https://models.inference.ai.azure.com/chat/completions';
-
-    const fetchResponse = await withRetry(async () => {
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${apiKey}`
-        },
-        body: JSON.stringify({
-          model: modelName,
-          messages: messages,
-          max_tokens: maxTokens,
-          temperature: 0.1
-        })
-      }).catch(e => {
-        throw new Error(`Failed to fetch from GitHub Models API: ${e}`, { cause: e });
-      });
-
-      if (!response.ok) {
-        const errText = await response.text();
-        throw new Error(`GitHub Models API error: ${response.status} ${response.statusText} - ${errText}`);
+    if (apiKey) {
+      try {
+        const models = await getAvailableModels(apiKey);
+        const matchedModel = models.find(m => m.id === chain.primary || m.id.includes(chain.primary));
+        if (matchedModel?.limits?.max_output_tokens) {
+          maxTokens = Math.min(maxTokens, matchedModel.limits.max_output_tokens);
+        }
+      } catch (err) {
+        // ignore
       }
-      return response;
-    }, { maxRetries: 3, initialDelayMs: 1000 });
+    }
 
-    const response = await fetchResponse.json() as {
-      usage?: {
-        prompt_tokens?: number,
-        completion_tokens?: number,
-        total_tokens?: number,
-        prompt_tokens_details?: { cached_tokens?: number }
-      },
-      choices?: Array<{ finish_reason?: string, message?: { content?: string } }>
-    };
+    const { response, modelName } = await complete(chain, messages, maxTokens);
 
     const usageMetadata = response.usage;
     const inputTokens = usageMetadata?.prompt_tokens ?? 0;
