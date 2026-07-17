@@ -149,7 +149,7 @@ runs:
       run: |
         echo "::group::Ratchet Any"
         trap 'echo "::endgroup::"' EXIT
-        export PYTHONPATH="boomtick-pkg/cli:boomtick-pkg/cli/dev_tools"
+        export PYTHONPATH="cli:cli/dev_tools"
         export PATH="$HOME/.local/bin:/github/home/.local/bin:$PATH"
         python3 -m dev_tools.cli gh ratchet-any
       env:

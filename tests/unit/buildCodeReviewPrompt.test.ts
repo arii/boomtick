@@ -29,7 +29,7 @@ describe('buildCodeReviewPrompt', () => {
     });
     expect(prompt).toContain('CATEGORY-SPECIFIC GUIDANCE:');
     expect(prompt).toContain('LLM Clients:');
-    expect(prompt).toContain('Model names (gpt-4o-mini) refer to GitHub\'s catalog, not OpenAI\'s');
+    expect(prompt).toContain('ChatOpenAI');
   });
 
   it('concatenates multiple guidance blocks if multiple categories match', () => {
@@ -54,5 +54,15 @@ describe('buildCodeReviewPrompt', () => {
       diffContext: 'some diff'
     });
     expect(prompt).not.toContain('CATEGORY-SPECIFIC GUIDANCE:');
+  });
+
+  it('contains false-positive placeholder guidelines for utility scripts', () => {
+    const prompt = buildSystemPrompt({
+      diffContext: 'some diff',
+      changedFiles: ['scripts/utility.sh']
+    });
+    expect(prompt).toContain('PLACEHOLDER EXEMPTION:');
+    expect(prompt).toContain('repos/{owner}/{repo}');
+    expect(prompt).toContain('NEVER flag');
   });
 });
