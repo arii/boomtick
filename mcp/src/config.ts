@@ -20,7 +20,7 @@ function getGithubToken(): string | undefined {
     if (token) {
       return token;
     }
-  } catch (e) { throw e; }
+  } catch (e) { /* ignore to allow fallback */ }
   return undefined;
 }
 

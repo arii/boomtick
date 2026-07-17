@@ -1,8 +1,7 @@
+"""Test the install_workflows orchestrator function."""
 import os
-import shutil
 import tempfile
 from unittest.mock import MagicMock, patch
-import pytest
 
 from dev_tools.orchestrator import Orchestrator
 

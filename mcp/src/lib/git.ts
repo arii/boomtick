@@ -24,7 +24,7 @@ export async function createWorktree(branch: string, prNumber: number): Promise<
   try {
     await fs.rm(worktreePath, { recursive: true, force: true });
     await runCommand("git", ["worktree", "prune"]);
-  } catch (e) { throw e; }
+  } catch (e) { /* ignore if no previous worktree */ }
 
   const result = await runCommand("git", ["worktree", "add", "-b", `repair-pr-${prNumber}-${Date.now()}`, worktreePath, branch]);
 
