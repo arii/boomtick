@@ -37,6 +37,9 @@ _SYNTHESIS_MODEL = get_ai_model()
 # Maximum retries for AI generation and parsing
 _MAX_AI_RETRIES = 3
 
+# Sleep time between retries
+_RETRY_SLEEP_SECONDS = 1
+
 # Combined review schema
 _REVIEW_SCHEMA = AIFullReview.model_json_schema()
 
@@ -325,58 +328,18 @@ class AIClient:
         use_piecemeal = (estimated_tokens > 25000) or (os.environ.get("FORCE_PIECEMEAL_REVIEW", "false").lower() == "true")
 
         if use_piecemeal:
-            log_info(f"🧱 PR Context Aggregator: Large PR (estimated {estimated_tokens} tokens) or forced mode detected. Running piecemeal review across {len(reviewable)} chunks.")
-            file_reviews = []
-            completed = 0
-            t0 = time.time()
-
-            for chunk_data in reviewable:
-                chunk_prompt = self._build_chunk_prompt(chunk_data, pr_title, checks_summary)
-                parsed_chunk = None
-
-                for attempt in range(_MAX_AI_RETRIES):
-                    try:
-                        raw_chunk = self.call_ai(chunk_prompt, model=_REVIEW_MODEL, schema=AIFileReview.model_json_schema(), max_retries=1)
-                        if not raw_chunk:
-                            continue
-                        cleaned_chunk = self.clean_llm_output(raw_chunk)
-
-                        parsed_chunk, err = validate_with_model(cleaned_chunk, AIFileReview)
-                        if err or parsed_chunk is None:
-                            raise ValueError(err or "Validation failed")
-
-                        break  # Successfully parsed and validated
-                    except Exception as e:
-                        log_warn(f"Chunk review attempt {attempt+1} failed for {chunk_data['file']} chunk {chunk_data.get('chunk_index', 0)}: {e}")
-                        time.sleep(1)
-
-                if not parsed_chunk:
-                    parsed_chunk = {
-                        "file": chunk_data["file"],
-                        "issues": [],
-                        "verdict": "error",
-                        "error": f"Failed to get a parseable review for chunk {chunk_data.get('chunk_index', 0)} after retries.",
-                        "chunk_index": chunk_data.get("chunk_index", 0)
-                    }
-                else:
-                    parsed_chunk["chunk_index"] = chunk_data.get("chunk_index", 0)
-
-                file_reviews.append(parsed_chunk)
-                completed += 1
-                self._write_progress_snapshot(pr_num, reviewable, file_reviews, completed, "")
-
-            # Synthesize all chunk reviews into a consolidated final review
-            final = self._synthesize_review(file_reviews, pr_num, pr_title, has_ci_failures, ci_failures)
-
-            # CI guard: never approve if checks are failing
-            if has_ci_failures and final.get("recommendation") == "Approved":
-                final["recommendation"] = "Not Approved"
-                final["reviewComment"] = f"CI checks are failing ({failing_names}). Recommendation downgraded.\n\n" + str(
-                    final.get("reviewComment", "")
-                )
-
-            self._write_review_file(pr_num, pr, final, chunks, file_reviews)
-            return final
+            return self._process_piecemeal_review(
+                reviewable,
+                pr_num,
+                pr_title,
+                checks_summary,
+                chunks,
+                pr,
+                has_ci_failures,
+                ci_failures,
+                failing_names,
+                estimated_tokens,
+            )
 
         # Single-pass fallback
         truncation_note = ""
@@ -477,9 +440,72 @@ class AIClient:
         # CI guard: never approve if checks are failing
         if has_ci_failures and final.get("recommendation") == "Approved":
             final["recommendation"] = "Not Approved"
-            final["reviewComment"] = f"CI checks are failing ({failing_names}). Recommendation downgraded.\n\n" + str(
-                final.get("reviewComment", "")
-            )
+            final["reviewComment"] = f"CI checks are failing ({failing_names}). Recommendation downgraded.\n\n" + (final.get("reviewComment") or "")
+
+        self._write_review_file(pr_num, pr, final, chunks, file_reviews)
+        return final
+
+    def _process_piecemeal_review(
+        self,
+        reviewable: List[Dict],
+        pr_num: Any,
+        pr_title: str,
+        checks_summary: str,
+        chunks: List[Dict],
+        pr: Dict,
+        has_ci_failures: bool,
+        ci_failures: List[Dict],
+        failing_names: str,
+        estimated_tokens: int,
+    ) -> Dict:
+        """Process code review by chunks and aggregate individual results into a synthesized verdict."""
+        log_info(f"🧱 PR Context Aggregator: Large PR (estimated {estimated_tokens} tokens) or forced mode detected. Running piecemeal review across {len(reviewable)} chunks.")
+        file_reviews = []
+        completed = 0
+
+        for chunk_data in reviewable:
+            chunk_prompt = self._build_chunk_prompt(chunk_data, pr_title, checks_summary)
+            parsed_chunk = None
+
+            for attempt in range(_MAX_AI_RETRIES):
+                try:
+                    raw_chunk = self.call_ai(chunk_prompt, model=_REVIEW_MODEL, schema=AIFileReview.model_json_schema(), max_retries=1)
+                    if not raw_chunk:
+                        continue
+                    cleaned_chunk = self.clean_llm_output(raw_chunk)
+
+                    parsed_chunk, err = validate_with_model(cleaned_chunk, AIFileReview)
+                    if err or parsed_chunk is None:
+                        raise ValueError(err or "Validation failed")
+
+                    break  # Successfully parsed and validated
+                except Exception as e:
+                    log_warn(f"Chunk review attempt {attempt+1} failed for {chunk_data['file']} chunk {chunk_data.get('chunk_index', 0)}: {e}")
+                    time.sleep(_RETRY_SLEEP_SECONDS)
+
+            if not parsed_chunk:
+                parsed_chunk = {
+                    "file": chunk_data["file"],
+                    "issues": [],
+                    "verdict": "error",
+                    "error": f"Failed to get a parseable review for chunk {chunk_data.get('chunk_index', 0)} after retries.",
+                    "chunk_index": chunk_data.get("chunk_index", 0)
+                }
+            else:
+                parsed_chunk["chunk_index"] = chunk_data.get("chunk_index", 0)
+
+            file_reviews.append(parsed_chunk)
+            completed += 1
+            self._write_progress_snapshot(pr_num, reviewable, file_reviews, completed, "")
+
+        # Synthesize all chunk reviews into a consolidated final review
+        final = self._synthesize_review(file_reviews, pr_num, pr_title, has_ci_failures, ci_failures)
+
+        # CI guard: never approve if checks are failing
+        if has_ci_failures and final.get("recommendation") == "Approved":
+            final["recommendation"] = "Not Approved"
+            final_comment = final.get("reviewComment") or ""
+            final["reviewComment"] = f"CI checks are failing ({failing_names}). Recommendation downgraded.\n\n{final_comment}"
 
         self._write_review_file(pr_num, pr, final, chunks, file_reviews)
         return final
