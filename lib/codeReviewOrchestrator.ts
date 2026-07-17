@@ -748,15 +748,14 @@ export async function orchestrateCodeReview(
 
   // Also alert Jules if this PR is from a Jules session
   const julesSessionId = await getJulesSessionIdFromPR();
+  const isFail = finalResult.llmVerdict === 'fail';
   if (julesSessionId) {
-    const isFail = finalResult.llmVerdict === 'fail';
     const passFailMsg = isFail ? "FAIL ❌" : "PASS ✅";
-    const julesMessage = `[${client.reportTitle}] posted an aggregated code review (${passFailMsg}). Please read the review comments on the PR, analyze the diff context provided, and fix any failed or warned areas.`;
+    const julesMessage = `[${client.reportTitle}] posted an aggregated code review (${passFailMsg}). Please read the review comments on the PR, analyze the diff context provided, and fix any failed or warned areas.\n\n<details><summary>Overview</summary>\n\n${report}\n</details>`;
     await sendJulesMessage(julesSessionId, julesMessage);
   }
 
   const openHighFindings = finalResult.state?.findings?.filter(f => f.status === 'open' && (f.severity === 'HIGH' || f.severity === 'error')) || [];
-  const isFail = finalResult.llmVerdict === 'fail';
   const verdictPath = path.join(ARTIFACTS_DIR, `${client.reportFileName.replace('.md', '')}-verdict.json`);
   fs.writeFileSync(verdictPath, JSON.stringify({
     passed: !isFail,
