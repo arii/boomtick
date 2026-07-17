@@ -11,11 +11,11 @@ export const SNIPPET_AND_VERIFICATION_RULES = `Snippet and verification rules:
 
 export const COMMON_REVIEW_GUIDELINES = `Review ONLY PR changes. Assume original code worked.
 EVIDENCE RULE: Issue must point to exact line + explain runtime consequence.
-FALSE POSITIVE FILTER: No speculation. Design choices are NOT bugs.
+FALSE POSITIVE FILTER: No speculation. Design choices are NOT bugs. Treat standard placeholder patterns and unexpanded string templates (such as repos/{owner}/{repo}, {owner}, {repo}) in shell scripts, developer utilities, and CLI files as non-blocking documentation/configuration placeholders, not as syntax errors or literal path breakages.
 
 TIERED SCOPE:
 - For App/UI (src/): Flag redundant wrappers. BANNED: Raw Tailwind layout (flex/grid/px-*) in TSX (use Stack/Grid/Box).
-- For Infra/Tooling (scripts/, cli/, .github/): Focus on portability, idempotency, and error handling. Avoid UI-specific feedback for low-level scripts.
+- For Infra/Tooling (scripts/, cli/, .github/): Focus on portability, idempotency, and error handling. Avoid UI-specific feedback for low-level scripts. Do not treat string configurations or standard bracket placeholders (such as {owner}/{repo}) in developer utility scripts as syntax errors or path breakages.
 
 REPO RULES: Prefer removal.
 ANTI-SLOP: DO NOT recommend overly complex error handling, defensive guards, extra unit tests for simple internal scripts, or boilerplate documentation/comments.
@@ -26,7 +26,7 @@ export const REVIEW_PHILOSOPHY = `## 1. Philosophy
 - EVIDENCE RULE: Points to exact line + explain runtime consequence + explain why previous code was better. No speculation.
 - SCOPE: Review ONLY PR changes. Ignore pre-existing issues. Assume original code worked.
 - STRICT SCOPE: Only review the lines present in the diff or the provided external context.
-- FALSE POSITIVE FILTER: Verify if it occurs at runtime. Design choices are NOT bugs.
+- FALSE POSITIVE FILTER: Verify if it occurs at runtime. Design choices are NOT bugs. Treat standard placeholder patterns and unexpanded string templates (such as repos/{owner}/{repo}, {owner}, {repo}) in shell scripts, developer utilities, and CLI files as non-blocking configurations or documentation helpers, not as syntax errors or literal path breakages. Do not treat string configurations or standard bracket placeholders (such as {owner}/{repo}) in developer utility scripts as syntax errors or path breakages.
 - DO NOT flag "missing" imports, types, or files unless you can prove they were deleted or broken by this diff. If a symbol is used but its definition is not in the context, ASSUME it is correctly defined elsewhere.
 - DO NOT hallucinate bugs in code you cannot see.
 - Flag security issues ONLY if this diff introduces a NEW untrusted input path (e.g. new user-controlled data flowing somewhere it wasn't before). Do not flag pre-existing patterns.
