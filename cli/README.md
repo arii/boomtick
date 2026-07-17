@@ -13,7 +13,7 @@ tool hierarchy.
 ./setup-agent.sh
 ```
 
-This script (symlinked to `dev-tools/setup-agent.sh`) handles system tools,
+This setup script is now located at the repository root (not symlinked) and handles system tools,
 Node.js, pnpm, Python dependencies, Playwright, remote origin configuration,
 and git hook registration.
 
@@ -53,7 +53,7 @@ export GEMINI_API_KEY="<key>"
 
 ## 🧩 Workflow-Specific Setup
 
-After `./dev-tools/setup-agent.sh`, use the following workflow-specific setup:
+After `./setup-agent.sh`, use the following workflow-specific setup:
 
 #### 1) Standard PR / Review Workflows
 

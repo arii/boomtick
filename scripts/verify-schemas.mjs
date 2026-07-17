@@ -1,6 +1,6 @@
-import { execSync } from 'node:child_process';
+import { execSync, execFileSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, delimiter } from 'node:path';
 
 /**
  * Orchestrates the validation pipeline:
@@ -16,9 +16,18 @@ async function verifySchemas() {
   // 2. Generate CLI schema from Python models
   try {
     console.log('🔄 Step 1/3: Generating CLI schema from Python models...');
-    execSync(`export PYTHONPATH="$PYTHONPATH:${join(process.cwd(), 'cli')}" && ${pythonPath} cli/dev_tools/schema_gen.py`, {
+    const cliDir = join(process.cwd(), 'cli');
+    const existingPythonPath = process.env.PYTHONPATH || '';
+    const newPythonPath = existingPythonPath
+      ? `${existingPythonPath}${delimiter}${cliDir}`
+      : cliDir;
+
+    execFileSync(pythonPath, ['cli/dev_tools/schema_gen.py'], {
       stdio: 'inherit',
-      env: { ...process.env }
+      env: {
+        ...process.env,
+        PYTHONPATH: newPythonPath,
+      },
     });
   } catch (error) {
     console.error('❌ Failed to generate CLI schema.');

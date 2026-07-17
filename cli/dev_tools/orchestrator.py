@@ -119,18 +119,13 @@ class Orchestrator:
         return VisionService()
 
     def _resolve_antipatterns_script(self) -> str:
-        """Resolves the path to detect-antipatterns.mjs, supporting standalone and submodule layouts."""
+        """Resolves the path to detect-antipatterns.mjs."""
         # 1. Try standard root location
         script_path = "scripts/detect-antipatterns.mjs"
         if os.path.exists(script_path):
             return script_path
 
-        # 2. Try submodule location
-        submodule_path = "boomtick-pkg/scripts/detect-antipatterns.mjs"
-        if os.path.exists(submodule_path):
-            return submodule_path
-
-        # 3. Fallback to absolute path relative to this file (robust for package-style execution)
+        # 2. Fallback to absolute path relative to this file (robust for package-style execution)
         # Location: cli/dev_tools/orchestrator.py -> ../../scripts/detect-antipatterns.mjs
         abs_path = os.path.abspath(
             os.path.join(os.path.dirname(__file__), "..", "..", "scripts", "detect-antipatterns.mjs")
@@ -306,7 +301,6 @@ class Orchestrator:
                 "-lrE",
                 "^<<<<<<<|^=======|^>>>>>>>",
                 ".",
-                "--exclude-dir=boomtick-pkg",
                 "--exclude-dir=node_modules",
                 "--exclude-dir=dist",
                 "--exclude-dir=.git",

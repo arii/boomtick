@@ -78,7 +78,8 @@ runs:
         elif [ -d "boomtick/cli" ]; then
           CLI_DIR="boomtick/cli"
         else
-          CLI_DIR="cli"
+          echo "::error::scripts/resolve-cli.sh not found!"
+          exit 1
         fi
         echo "CLI_DIR=$CLI_DIR" >> "$GITHUB_OUTPUT"
 
@@ -173,7 +174,7 @@ runs:
         export PYTHONPATH="$CLI_DIR_ABS:$PYTHONPATH"
         python3 "$CLI_DIR_ABS/dev_tools/schema_gen.py"
         # Only run sync-contracts if node_modules exist, otherwise skip and let caller build pipeline handle it
-        if [ -d "node_modules" ] || [ -d "boomtick-pkg/mcp/node_modules" ] || [ -d "mcp/node_modules" ]; then
+        if [ -d "node_modules" ] || [ -d "mcp/node_modules" ]; then
           pnpm --filter @arii/boomtick-mcp run sync-contracts
         else
           echo "⚠️ node_modules missing, skipping sync-contracts. Run pnpm install and sync-contracts in caller workflow."
