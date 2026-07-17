@@ -158,7 +158,7 @@ export async function orchestrateVisualReview(
     const highCount = reviews.filter(r => r.severity === 'HIGH').length;
     const medCount = reviews.filter(r => r.severity === 'MEDIUM').length;
     const lowCount = reviews.filter(r => r.severity === 'LOW').length;
-    const julesMessage = `[${client.reportTitle}] posted a visual UI review (${passFailMsg}). Summary: 🔴 ${highCount} high · 🟡 ${medCount} medium · 🟢 ${lowCount} low. Please read the review comments on the PR, analyze the diff context provided, and fix any failed or warned areas.`;
+    const julesMessage = `[${client.reportTitle}] posted a visual UI review (${passFailMsg}). Summary: 🔴 ${highCount} high · 🟡 ${medCount} medium · 🟢 ${lowCount} low. Please read the review comments on the PR, analyze the diff context provided, and fix any failed or warned areas.\n\n<details><summary>Overview</summary>\n\n${report}\n</details>`;
     await sendJulesMessage(julesSessionId, julesMessage);
   }
 
