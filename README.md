@@ -51,6 +51,7 @@ The codebase is split into two primary operational layers:
 
 ## Documentation Index
 
+* [Developer Onboarding & Workflows](docs/onboarding.md) — Onboarding guide, codebase context, and collaboration workflows.
 * [Agent Contracts and Standards](.agents/AGENT_CONTRACT.md) — Invariant rules for autonomous agent behavior.
 * [Agent Workflows & MCP Protocol](.agents/README.md) — Tooling hierarchies (MCP → `td-cli` → Bash) and enforcement rules.
 * [CLI Developer Tooling](cli/README.md) — Guide to `td-cli`, the Tier 2 local developer fallback.
