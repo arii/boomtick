@@ -195,9 +195,6 @@ export function parseCodeReviewStateDetailed(feedback: string): ParsedFindingsRe
   } else {
     // Strip markdown code blocks if boundaries weren't found
     jsonText = jsonText.replace(/^```[a-z]*\s*/gi, '').replace(/\s*```$/g, '').trim();
-    if (!jsonText.startsWith('{') && !jsonText.startsWith('[')) {
-      return { state: undefined };
-    }
   }
 
   try {
@@ -207,18 +204,17 @@ export function parseCodeReviewStateDetailed(feedback: string): ParsedFindingsRe
     let sanitizedJsonText = jsonText.replace(/\\`/g, '`');
     sanitizedJsonText = sanitizedJsonText.replace(/\\(?!["\\/bfnrt]|u[0-9a-fA-F]{4})/g, '\\\\');
     let state;
-    let lastErr;
     try {
       state = JSON.parse(sanitizedJsonText) as CodeReviewState;
     } catch (e) {
-      lastErr = e;
+
       // Attempt to salvage finding parsing from markdown wrap bugs or prefix bugs
       const salvaged = sanitizedJsonText.match(/\{[\s\S]*\}|\[[\s\S]*\]/);
       if (salvaged) {
          try { state = JSON.parse(salvaged[0]); }
          catch (e2) { return { state: undefined }; }
       }
-      else return { state: undefined };
+      else return { state: undefined, parseError: "invalid_json" };
     }
 
     if (state && state.findings) {

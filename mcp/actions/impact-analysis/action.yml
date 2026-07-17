@@ -88,6 +88,7 @@ runs:
         GEMINI_API_KEY: ${{ inputs.gemini_api_key }}
         GITHUB_TOKEN: ${{ inputs.github_token }}
         PR_NUMBER: ${{ inputs.pr_number }}
+        JULES_API_KEY: ${{ inputs.jules_api_key }}
         GITHUB_REPOSITORY: ${{ github.repository }}
       run: |
         if node -e "const pkg = require('./package.json'); if (!pkg.scripts || !pkg.scripts['impact:gemini-code-review']) process.exit(1)" 2>/dev/null; then
@@ -103,6 +104,7 @@ runs:
       env:
         GITHUB_TOKEN: ${{ inputs.github_token }}
         PR_NUMBER: ${{ inputs.pr_number }}
+        JULES_API_KEY: ${{ inputs.jules_api_key }}
         GITHUB_REPOSITORY: ${{ github.repository }}
       run: |
         if node -e "const pkg = require('./package.json'); if (!pkg.scripts || !pkg.scripts['impact:github-models-code-review']) process.exit(1)" 2>/dev/null; then
@@ -154,6 +156,7 @@ runs:
         GEMINI_API_KEY: ${{ inputs.gemini_api_key }}
         GITHUB_TOKEN: ${{ inputs.github_token }}
         PR_NUMBER: ${{ inputs.pr_number }}
+        JULES_API_KEY: ${{ inputs.jules_api_key }}
         GITHUB_REPOSITORY: ${{ github.repository }}
       run: |
         if node -e "const pkg = require('./package.json'); if (!pkg.scripts || !pkg.scripts['impact:gemini-review']) process.exit(1)" 2>/dev/null; then
@@ -168,6 +171,7 @@ runs:
       env:
         GITHUB_TOKEN: ${{ inputs.github_token }}
         PR_NUMBER: ${{ inputs.pr_number }}
+        JULES_API_KEY: ${{ inputs.jules_api_key }}
         GITHUB_REPOSITORY: ${{ github.repository }}
       run: |
         if node -e "const pkg = require('./package.json'); if (!pkg.scripts || !pkg.scripts['impact:github-models-review']) process.exit(1)" 2>/dev/null; then
