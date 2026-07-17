@@ -1,0 +1,58 @@
+name: Trigger Parent CI
+
+on:
+  pull_request:
+    branches: [ "main" ]
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: 'Boomtick branch to test'
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  trigger-parent-ci:
+    name: Trigger Tech-Dancer CI
+    runs-on: ubuntu-latest
+    steps:
+      - name: Determine branch name
+        id: get-branch
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          PR_HEAD_REF: ${{ github.event.pull_request.head.ref }}
+          INPUT_BRANCH: ${{ github.event.inputs.branch }}
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          if [ "$EVENT_NAME" = "pull_request" ]; then
+            BRANCH="$PR_HEAD_REF"
+          elif [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+            BRANCH="$INPUT_BRANCH"
+            if [ -z "$BRANCH" ]; then
+              BRANCH="$REF_NAME"
+            fi
+          else
+            BRANCH="$REF_NAME"
+          fi
+          echo "branch=$BRANCH" >> "$GITHUB_OUTPUT"
+        shell: bash
+
+      - name: Trigger update-submodule workflow in tech-dancer
+        env:
+          GH_TOKEN: ${{ secrets.GH_PAT_SUBMODULE_UPDATE }}
+        run: |
+          if [ -z "$GH_TOKEN" ]; then
+            echo "::warning::GH_PAT_SUBMODULE_UPDATE is not set. Cannot trigger downstream CI."
+            exit 0
+          fi
+
+          BRANCH_NAME="${{ steps.get-branch.outputs.branch }}"
+          echo "Triggering tech-dancer update-submodule workflow with boomtick branch: $BRANCH_NAME"
+
+          gh workflow run update-submodule.yml \
+            --repo arii/tech-dancer \
+            --ref main \
+            -f ref="$BRANCH_NAME"
+        shell: bash
