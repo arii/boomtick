@@ -55,4 +55,14 @@ describe('buildCodeReviewPrompt', () => {
     });
     expect(prompt).not.toContain('CATEGORY-SPECIFIC GUIDANCE:');
   });
+
+  it('contains false-positive placeholder guidelines for utility scripts', () => {
+    const prompt = buildSystemPrompt({
+      diffContext: 'some diff',
+      changedFiles: ['scripts/utility.sh']
+    });
+    expect(prompt).toContain('PLACEHOLDER EXEMPTION:');
+    expect(prompt).toContain('repos/{owner}/{repo}');
+    expect(prompt).toContain('NEVER flag');
+  });
 });
