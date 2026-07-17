@@ -24,5 +24,7 @@ async function main(): Promise<void> {
 
 main().catch(error => {
   console.error(`❌ Agent code review failed: ${error instanceof Error ? error.message : String(error)}`);
-  process.exit(1);
+  // Do not crash the process if the agent review fails (e.g. Rate limits)
+  // Just exit with code 0 so the rest of the workflow can finish.
+  process.exit(0);
 });

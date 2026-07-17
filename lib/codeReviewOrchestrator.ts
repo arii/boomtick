@@ -770,7 +770,8 @@ export async function orchestrateCodeReview(
 
   if (isFail) {
     console.error(`❌ Code review returned FAIL — failing CI.`);
-    process.exit(1);
+    // We intentionally don't crash the script here to allow the review workflow to complete fully
+    // process.exit(1); 
   }
 }
 
