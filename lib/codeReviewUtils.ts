@@ -192,7 +192,10 @@ export function parseCodeReviewStateDetailed(feedback: string): ParsedFindingsRe
   }
 
   try {
-    const state = JSON.parse(jsonText) as CodeReviewState;
+    // Pre-process jsonText to fix any unescaped backslashes (e.g. \s, \d, \w, paths)
+    // by escaping them (replacing \ with \\ if not followed by valid JSON escape character)
+    const sanitizedJsonText = jsonText.replace(/\\(?!["\\/bfnrt]|u[0-9a-fA-F]{4})/g, '\\\\');
+    const state = JSON.parse(sanitizedJsonText) as CodeReviewState;
 
     if (state && state.findings) {
       state.findings = normalizeFindings(state.findings);
@@ -373,4 +376,57 @@ export function buildReviewPayload(
   }
 
   return payload;
+}
+
+/**
+ * Reusable exponential backoff with jitter retry wrapper.
+ * Targets rate limits (429 / resource exhausted) and transient server errors (500, 502, 503, 504).
+ */
+export async function withRetry<T>(
+  fn: () => Promise<T>,
+  options: {
+    maxRetries?: number;
+    initialDelayMs?: number;
+    factor?: number;
+    jitter?: boolean;
+  } = {}
+): Promise<T> {
+  const maxRetries = options.maxRetries ?? 4;
+  const initialDelayMs = options.initialDelayMs ?? 1000;
+  const factor = options.factor ?? 2;
+  const jitter = options.jitter ?? true;
+
+  for (let attempt = 1; attempt <= maxRetries + 1; attempt++) {
+    try {
+      return await fn();
+    } catch (error: any) {
+      const isLastAttempt = attempt === maxRetries + 1;
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      const isRateLimit = errorMsg.includes('429') ||
+                          errorMsg.toLowerCase().includes('rate limit') ||
+                          errorMsg.toLowerCase().includes('resource_exhausted') ||
+                          errorMsg.includes('RESOURCE_EXHAUSTED');
+      const isTransient = isRateLimit ||
+                          errorMsg.includes('500') ||
+                          errorMsg.includes('502') ||
+                          errorMsg.includes('503') ||
+                          errorMsg.includes('504') ||
+                          errorMsg.toLowerCase().includes('econnreset') ||
+                          errorMsg.toLowerCase().includes('socket timeout') ||
+                          errorMsg.toLowerCase().includes('fetch failed') ||
+                          errorMsg.toLowerCase().includes('timeout');
+
+      if (isLastAttempt || !isTransient) {
+        throw error;
+      }
+
+      const backoffDelay = initialDelayMs * Math.pow(factor, attempt - 1);
+      const actualDelay = jitter ? backoffDelay * (0.5 + Math.random() * 0.5) : backoffDelay;
+
+      console.warn(`⚠️ Attempt ${attempt} failed: ${errorMsg}. Retrying in ${Math.round(actualDelay)}ms (Rate Limit: ${isRateLimit})...`);
+
+      await new Promise(resolve => setTimeout(resolve, actualDelay));
+    }
+  }
+  throw new Error('Unreachable code in withRetry');
 }

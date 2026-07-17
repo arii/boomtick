@@ -475,7 +475,7 @@ export async function orchestrateCodeReview(
       highCount: 0,
       routes: [],
       llmVerdict: 'pass',
-      state: prevState
+      state: prevState || { findings: [] }
     }, null, 2));
     return;
   }
@@ -485,7 +485,7 @@ export async function orchestrateCodeReview(
   if (!initialSummary.diffContext) {
     console.log(`✅ No code changes detected — skipping agent review.`);
     fs.writeFileSync(agentReportPath, `## ${client.reportTitle}\n\nNo code changes detected.\n`);
-    fs.writeFileSync(path.join(ARTIFACTS_DIR, `${client.reportFileName.replace('.md', '')}-verdict.json`), JSON.stringify({ passed: true, highCount: 0, routes: [], llmVerdict: 'pass' }, null, 2));
+    fs.writeFileSync(path.join(ARTIFACTS_DIR, `${client.reportFileName.replace('.md', '')}-verdict.json`), JSON.stringify({ passed: true, highCount: 0, routes: [], llmVerdict: 'pass', state: { findings: [] } }, null, 2));
     return;
   }
 
@@ -504,7 +504,7 @@ export async function orchestrateCodeReview(
       highCount: 0,
       routes: [],
       llmVerdict: 'pass',
-      state: prevState
+      state: prevState || { findings: [] }
     }, null, 2));
     return;
   }
@@ -524,7 +524,7 @@ export async function orchestrateCodeReview(
       routes: [],
       llmVerdict: 'warn',
       isTruncated: true,
-      state: prevState
+      state: prevState || { findings: [] }
     }, null, 2));
     return;
   }
@@ -770,7 +770,7 @@ export async function orchestrateCodeReview(
     llmVerdict: finalResult.llmVerdict,
     isTruncated: isTruncated,
     skipReason: skipReasons.size > 0 ? Array.from(skipReasons).join(', ') : undefined,
-    state: finalResult.state
+    state: finalResult.state || { findings: [] }
   }, null, 2));
 
   if (isFail) {

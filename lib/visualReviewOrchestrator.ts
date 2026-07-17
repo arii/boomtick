@@ -35,7 +35,7 @@ export async function orchestrateVisualReview(
       highCount: 0,
       routes: [],
       llmVerdict: 'pass',
-      state: prevState
+      state: prevState || { findings: [] }
     }, null, 2));
     return;
   }
@@ -49,7 +49,7 @@ export async function orchestrateVisualReview(
       highCount: 0,
       routes: [],
       llmVerdict: 'pass',
-      state: prevState
+      state: prevState || { findings: [] }
     }, null, 2));
     return;
   }
@@ -92,14 +92,17 @@ export async function orchestrateVisualReview(
   if (routesToReview.length === 0) {
     console.log(`✅ No visual changes detected — skipping agent review.`);
     fs.writeFileSync(agentReportPath, `## ${client.reportTitle}\n\nNo visual changes detected.\n`);
-    fs.writeFileSync(path.join(ARTIFACTS_DIR, `${client.reportFileName.replace('.md', '')}-verdict.json`), JSON.stringify({ passed: true, highCount: 0, routes: [], llmVerdict: 'pass' }, null, 2));
+    fs.writeFileSync(path.join(ARTIFACTS_DIR, `${client.reportFileName.replace('.md', '')}-verdict.json`), JSON.stringify({ passed: true, highCount: 0, routes: [], llmVerdict: 'pass', state: { findings: [] } }, null, 2));
     return;
   }
 
   console.log(`🤖 Reviewing ${routesToReview.length} route(s) with ${client.botName}...`);
 
+  const CONCURRENCY_LIMIT = 2;
   const reviews: RouteReview[] = [];
   const roles: AgentRole[] = ['CODE_REVIEW', 'ACCESSIBILITY', 'UX', 'VISUAL_REGRESSION', 'RESPONSIVE_LAYOUT'];
+
+  const taskQueue: (() => Promise<void>)[] = [];
 
   for (const route of routesToReview) {
     console.log(`  → ${route.route} (${route.severity}, ${route.differencePercent.toFixed(2)}%)`);
@@ -129,6 +132,15 @@ export async function orchestrateVisualReview(
 
     reviews.push(...routeReviews);
   }
+
+  const workers = Array.from({ length: Math.min(CONCURRENCY_LIMIT, taskQueue.length) }, async () => {
+    while (taskQueue.length > 0) {
+      const task = taskQueue.shift();
+      if (task) await task();
+    }
+  });
+
+  await Promise.all(workers);
 
   const report = generateMarkdownReport(reviews, client.botName, client.reportTitle, client.botTagline);
 
@@ -176,7 +188,7 @@ export async function orchestrateVisualReview(
     passed: !hasBlockingIssues,
     highCount: reviews.filter(r => r.severity === 'HIGH').length,
     routes: reviews.map(r => ({ route: r.route, severity: r.severity, llmVerdict: r.llmVerdict })),
-    state
+    state: state || { findings: [] }
   }, null, 2));
 
   if (hasBlockingIssues) {

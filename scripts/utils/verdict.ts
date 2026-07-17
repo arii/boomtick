@@ -10,6 +10,6 @@ export function writeMissingApiKeyVerdict(reportFileName: string, reportTitle: s
   );
   fs.writeFileSync(
     path.join(ARTIFACTS_DIR, `${reportFileName.replace('.md', '')}-verdict.json`),
-    JSON.stringify({ passed: true, highCount: 0, routes: [], llmVerdict: 'warn', skipReason: 'MISSING_API_KEY' }, null, 2)
+    JSON.stringify({ passed: true, highCount: 0, routes: [], llmVerdict: 'warn', skipReason: 'MISSING_API_KEY', state: { findings: [] } }, null, 2)
   );
 }
