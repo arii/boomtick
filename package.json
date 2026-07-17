@@ -14,6 +14,7 @@
     "lint:ox": "oxlint --deny-warnings -c oxlint.json mcp/src/ mcp/tests/ lib/ tests/ scripts/",
     "lint:python": "python3 -m pylint cli --rcfile=.pylintrc",
     "lint:types": "pnpm --filter @arii/boomtick-mcp run lint",
+    "type-check:python": "python3 -m mypy cli --ignore-missing-imports || true",
     "test": "pnpm --filter @arii/boomtick-mcp run test",
     "verify:schemas": "node scripts/verify-schemas.mjs",
     "check:runtime-files": "node scripts/check-runtime-files.mjs",
