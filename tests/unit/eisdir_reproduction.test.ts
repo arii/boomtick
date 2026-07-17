@@ -28,7 +28,7 @@ describe('getCodeDiffSummary directory handling', () => {
   it('skips directories when gathering context', async () => {
     const mockExecFile = vi.mocked(child_process.execFile);
     
-    mockExecFile.mockImplementation((cmd, args, options, cb): any => {
+    mockExecFile.mockImplementation((cmd, args, options, cb): child_process.ChildProcess => {
       const callback = typeof options === 'function' ? options : cb;
       const cmdArgs = Array.isArray(args) ? args : [];
       
@@ -37,7 +37,7 @@ describe('getCodeDiffSummary directory handling', () => {
       } else {
         callback(null, { stdout: 'some diff content' }, '');
       }
-      return {} as any;
+      return {} as child_process.ChildProcess;
     });
 
     const dirPath = 'boomtick-pkg'; 
