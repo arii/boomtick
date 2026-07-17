@@ -9,6 +9,8 @@ if [ -d "${REPO_ROOT}/cli" ]; then
     printf "%s\n" "${REPO_ROOT}/cli"
 elif [ -d "${REPO_ROOT}/boomtick-pkg/cli" ]; then
     printf "%s\n" "${REPO_ROOT}/boomtick-pkg/cli"
+elif [ -d "${REPO_ROOT}/boomtick/cli" ]; then
+    printf "%s\n" "${REPO_ROOT}/boomtick/cli"
 else
     # Fallback to REPO_ROOT if neither is found (e.g. inside the cli dir already)
     # But only if we can find a pyproject.toml here.
