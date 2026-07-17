@@ -95,5 +95,5 @@ jobs:
           You can monitor the status of the submodule update and the integration tests directly on the [tech-dancer actions page](https://github.com/arii/tech-dancer/actions/workflows/update-submodule.yml).
           EOF
           )
-          gh pr comment "$PR_NUMBER" --body "$COMMENT_BODY"
+          gh pr comment "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --body "$COMMENT_BODY"
         shell: bash
