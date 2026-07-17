@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.1](https://github.com/arii/boomtick/compare/mcp-v0.3.0...mcp-v0.3.1) (2026-07-17)
+
+
+### Bug Fixes
+
+* resolve workflow audit failures and consolidate automation ([#110](https://github.com/arii/boomtick/issues/110)) ([aa3682b](https://github.com/arii/boomtick/commit/aa3682b966cc3de6639f0a895bfafffb89106fcb))
+
 ## [0.3.0](https://github.com/arii/boomtick/compare/mcp-v0.2.1...mcp-v0.3.0) (2026-07-15)
 
 
