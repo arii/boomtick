@@ -9,7 +9,7 @@ export const SNIPPET_AND_VERIFICATION_RULES = `Snippet and verification rules:
 - Never assume a line truncated at the edge of a chunk is a syntax error; assume it is valid and continues outside.`;
 
 export const COMMON_REVIEW_GUIDELINES = `Review ONLY PR changes. Assume original code worked.
-EVIDENCE RULE: Issue must point to exact line + explain runtime consequence.
+EVIDENCE RULE: Issue must point to exact line + explain runtime consequence + explain why previous code was better.
 FALSE POSITIVE FILTER: No speculation. Design choices are NOT bugs.
 
 TIERED SCOPE:
@@ -22,7 +22,7 @@ ANTI-SLOP: DO NOT recommend complex error handling, defensive guards, boilerplat
 - FILE NECESSITY: Question any added, moved, or removed files that look like temporary artifacts (e.g. .tmp, standalone .py in root, audit-*.md, .json dumps) or seem unrelated to the PR intent. Flag them for removal if they pollute the review context.`;
 
 export const REVIEW_PHILOSOPHY = `## 1. Philosophy
-- EVIDENCE RULE: Points to exact line + explain runtime consequence. No speculation.
+- EVIDENCE RULE: Points to exact line + explain runtime consequence + explain why previous code was better. No speculation.
 - SCOPE: Review ONLY PR changes. Ignore pre-existing issues. Assume original code worked.
 - STRICT SCOPE: Only review the lines present in the diff or the provided external context.
 - FALSE POSITIVE FILTER: Verify if it occurs at runtime. Design choices are NOT bugs.
