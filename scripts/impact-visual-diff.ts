@@ -110,32 +110,57 @@ async function captureRoute(
     hasTouch: viewport.width < 768
   });
 
+  const maxAttempts = 3;
+  let lastError: any = null;
+
   try {
-    const page = await context.newPage();
-    try {
-      await page.goto(new URL(route, base).toString(), { waitUntil: 'domcontentloaded' });
-      await page.waitForLoadState('networkidle', { timeout: 15_000 }).catch(() => {
-        console.warn(`[Impact Analysis] Warning: Network did not become idle for ${route} within 15s; continuing with current DOM state.`);
-      });
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      const page = await context.newPage();
+      try {
+        const targetUrl = new URL(route, base).toString();
+        // Wait for domcontentloaded, but set a reasonable timeout (e.g., 15s)
+        await page.goto(targetUrl, { waitUntil: 'domcontentloaded', timeout: 15_000 });
 
-      const metrics = await page.evaluate((vpWidth: number) => {
-        const main = document.querySelector('main');
-        return {
-          scrollWidth: document.body.scrollWidth,
-          clientWidth: document.body.clientWidth,
-          mainWidth: main ? main.clientWidth : 0,
-          scrollHeight: document.body.scrollHeight,
-          viewportWidth: vpWidth
-        };
-      }, viewport.width);
+        // Custom wait: ensure body tag is available/loaded
+        await page.waitForSelector('body', { state: 'attached', timeout: 5_000 });
 
-      await page.screenshot({ path: imagePath, fullPage: true });
-      fs.writeFileSync(htmlPath, await page.content());
-      return metrics;
-    } catch (err) {
-      console.error(`❌ Failed to capture route ${route}:`, err);
-      throw err;
+        // Network idle wait is prone to timing out on external assets/analytics.
+        // We set a short, graceful timeout (5s) and catch any timeout errors.
+        await page.waitForLoadState('networkidle', { timeout: 5_000 }).catch(() => {
+          console.warn(`[Impact Analysis] [Attempt ${attempt}] Warning: Network did not become idle for ${route} within 5s; continuing with current DOM state.`);
+        });
+
+        // Small pause to let any client-side layout stable/animations settle
+        await page.waitForTimeout(500);
+
+        const metrics = await page.evaluate((vpWidth: number) => {
+          const main = document.querySelector('main');
+          return {
+            scrollWidth: document.body.scrollWidth,
+            clientWidth: document.body.clientWidth,
+            mainWidth: main ? main.clientWidth : 0,
+            scrollHeight: document.body.scrollHeight,
+            viewportWidth: vpWidth
+          };
+        }, viewport.width);
+
+        await page.screenshot({ path: imagePath, fullPage: true });
+        fs.writeFileSync(htmlPath, await page.content());
+        return metrics;
+      } catch (err) {
+        lastError = err;
+        console.warn(`⚠️ [Attempt ${attempt}/${maxAttempts}] Failed to capture route ${route}:`, err instanceof Error ? err.message : String(err));
+        if (attempt < maxAttempts) {
+          // Wait before retrying
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        }
+      } finally {
+        await page.close();
+      }
     }
+    // If we exhausted all attempts, throw the last error
+    console.error(`❌ All ${maxAttempts} attempts to capture route ${route} failed.`);
+    throw lastError;
   } finally {
     await context.close();
   }
