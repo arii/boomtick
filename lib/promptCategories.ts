@@ -28,6 +28,7 @@ export const PROMPT_CATEGORIES: PromptCategory[] = [
     ),
     guidance: `LLM Clients:
 - \`ChatOpenAI\` + \`baseURL\` override == GitHub Models.
+- Model names (gpt-4o-mini) refer to GitHub's catalog, not OpenAI's.
 - Gemini uses \`ChatGoogleGenerativeAI\`.
 - Blocking: broken \`baseURL\`, auth, or fetch URLs.`,
   },
