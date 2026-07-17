@@ -2894,3 +2894,88 @@ Run the validation suite to ensure the aggregated branch is stable.
             "context_path": context_details_path,
             "skeleton_path": plan_skeleton_path,
         }
+
+    def install_workflows(self, dry_run: bool = True) -> Dict[str, Any]:
+        """
+        Detects if running in a submodule context, and copies/installs Jules automation workflows
+        from the submodule directory to the parent repository's .github/workflows/ folder,
+        updating composite action path references dynamically.
+        """
+        import os
+        import subprocess
+
+        # 1. Detect parent root and submodule directory name
+        parent_root = ""
+        submodule_name = ""
+        submodule_path = os.path.abspath(os.getcwd())
+
+        # Check if current directory is a submodule (running inside the submodule)
+        res = subprocess.run(
+            ["git", "rev-parse", "--show-superproject-working-tree"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if res.returncode == 0 and res.stdout.strip():
+            parent_root = os.path.abspath(res.stdout.strip())
+            submodule_name = os.path.basename(os.getcwd())
+        else:
+            # We might be running inside the parent repository
+            # Search for a subdirectory that represents the submodule
+            for candidate in ["boomtick-pkg", "boomtick"]:
+                if os.path.isdir(candidate) and os.path.isdir(os.path.join(candidate, "cli")):
+                    parent_root = os.path.abspath(os.getcwd())
+                    submodule_name = candidate
+                    submodule_path = os.path.abspath(candidate)
+                    break
+
+        if not parent_root:
+            # Standalone layout fallback
+            parent_root = os.path.abspath(os.getcwd())
+            submodule_name = ""
+
+        # Workflows to copy
+        target_workflows = ["chatops-trigger.yml", "ci-repair.yml", "issue-operations.yml"]
+        source_dir = os.path.join(submodule_path, ".github", "workflows")
+        target_dir = os.path.join(parent_root, ".github", "workflows")
+
+        copied_files = []
+        errors = []
+
+        if not os.path.exists(source_dir):
+            raise CLIError(f"Source workflows directory not found: {source_dir}")
+
+        if not dry_run:
+            os.makedirs(target_dir, exist_ok=True)
+
+        for filename in target_workflows:
+            src_file = os.path.join(source_dir, filename)
+            dest_file = os.path.join(target_dir, filename)
+
+            if not os.path.exists(src_file):
+                errors.append(f"Source workflow file {filename} not found.")
+                continue
+
+            with open(src_file, "r", encoding="utf-8") as f:
+                content = f.read()
+
+            # Rewrite paths if we are in submodule layout
+            if submodule_name:
+                content = content.replace("uses: ./mcp/actions/", f"uses: ./{submodule_name}/mcp/actions/")
+                content = content.replace("uses: ./.github/actions/", f"uses: ./{submodule_name}/.github/actions/")
+                content = content.replace("$GITHUB_WORKSPACE/cli", f"$GITHUB_WORKSPACE/{submodule_name}/cli")
+
+            if not dry_run:
+                with open(dest_file, "w", encoding="utf-8") as f:
+                    f.write(content)
+
+            copied_files.append(dest_file)
+
+        return {
+            "status": "success" if not errors else "partial_success",
+            "parent_root": parent_root,
+            "submodule_name": submodule_name,
+            "copied_files": copied_files,
+            "errors": errors,
+            "dry_run": dry_run,
+        }

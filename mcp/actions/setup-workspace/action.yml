@@ -71,12 +71,16 @@ runs:
           CLI_DIR=$(bash scripts/resolve-cli.sh | sed "s|$(pwd)/||")
         elif [ -f "boomtick-pkg/scripts/resolve-cli.sh" ]; then
           CLI_DIR=$(bash boomtick-pkg/scripts/resolve-cli.sh | sed "s|$(pwd)/||")
+        elif [ -f "boomtick/scripts/resolve-cli.sh" ]; then
+          CLI_DIR=$(bash boomtick/scripts/resolve-cli.sh | sed "s|$(pwd)/||")
         elif [ -f "${{ github.action_path }}/../../../scripts/resolve-cli.sh" ]; then
           CLI_DIR=$(bash "${{ github.action_path }}/../../../scripts/resolve-cli.sh" | sed "s|$(pwd)/||")
         elif [ -d "cli" ]; then
           CLI_DIR="cli"
         elif [ -d "boomtick-pkg/cli" ]; then
           CLI_DIR="boomtick-pkg/cli"
+        elif [ -d "boomtick/cli" ]; then
+          CLI_DIR="boomtick/cli"
         else
           CLI_DIR="cli"
         fi

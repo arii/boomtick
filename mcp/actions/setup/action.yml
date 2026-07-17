@@ -8,7 +8,7 @@ runs:
       shell: bash
 
     - name: Setup Workspace
-      uses: ./mcp/actions/setup-workspace
+      uses: ${{ github.action_path }}/../setup-workspace
 
     - name: Verify setup
       run: python3 -m dev_tools.cli doctor

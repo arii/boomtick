@@ -67,12 +67,16 @@ runs:
       run: |
         # Use centralized script for CLI path resolution
         # We assume the script is at the expected location or fallback to manual check
-        if [ -f "boomtick-pkg/scripts/resolve-cli.sh" ]; then
-          CLI_DIR=$(bash boomtick-pkg/scripts/resolve-cli.sh | sed "s|$(pwd)/||")
-        elif [ -f "scripts/resolve-cli.sh" ]; then
+        if [ -f "scripts/resolve-cli.sh" ]; then
           CLI_DIR=$(bash scripts/resolve-cli.sh | sed "s|$(pwd)/||")
+        elif [ -f "boomtick-pkg/scripts/resolve-cli.sh" ]; then
+          CLI_DIR=$(bash boomtick-pkg/scripts/resolve-cli.sh | sed "s|$(pwd)/||")
+        elif [ -f "boomtick/scripts/resolve-cli.sh" ]; then
+          CLI_DIR=$(bash boomtick/scripts/resolve-cli.sh | sed "s|$(pwd)/||")
         elif [ -d "boomtick-pkg/cli" ]; then
           CLI_DIR="boomtick-pkg/cli"
+        elif [ -d "boomtick/cli" ]; then
+          CLI_DIR="boomtick/cli"
         else
           CLI_DIR="cli"
         fi
