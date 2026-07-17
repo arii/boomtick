@@ -1,4 +1,4 @@
-# Agent: GitHub Issue Audit Agent
+# Agent: Issue Audit
 
 Audit every currently open GitHub issue in this repository and create a persistent `issue-audit-status.md` document that tracks the full process with checkboxes.
 
@@ -38,7 +38,7 @@ td-cli gh status-board
 td-cli gh overlaps
 
 # Post a comment to an issue (dry-run by default, requires --execute to actually post)
-td-cli gh validate-issue --issue-number <N> --post-comments --execute
+td-cli gh validate-issue --all-open --post-comments --execute
 ```
 
 ---
@@ -58,33 +58,14 @@ For each open issue, evaluate:
 
 ---
 
-## Review Criteria
+## Review & Feedback Criteria
 
-For every issue, consider:
-- Current codebase state (Check for presence of files/features in `mcp/src/` or `cli/`).
-- Existing documentation and agent instructions (`.agents/`).
-- Recently merged work.
-- Open PRs that may already address the issue.
-- Related issues or duplicate requests.
-- User-facing value.
-- Implementation risk.
-- Scope size.
-- Whether the issue is actionable as written.
-
----
-
-## Feedback Requirements
-
-For every issue, provide a clear audit note.
-
-Your audit note must include:
+For every issue, evaluate against the current codebase (`mcp/src/` or `cli/`), documentation (`.agents/`), recent merges, open PRs, and duplicates. Assess user value, implementation risk, scope, and actionability. Provide a clear audit note that includes:
 - A short summary of what the issue is asking for
-- Whether the issue is still relevant
-- Whether it is actionable
+- Whether the issue is still relevant and actionable
 - Any related PRs, files, or issues
-- Recommended next action
 - Specific edits if the issue should be clarified or narrowed
-- A closing reason if the issue should be closed
+- A recommended next action, including a closing reason if applicable
 
 Use one of these recommended outcomes for each issue:
 - `Keep open`
@@ -181,7 +162,7 @@ If repository permissions and tooling allow it, update issues directly after wri
 
 ```bash
 # Post audit comments and apply label updates
-td-cli gh validate-issue --issue-number <N> --post-comments --execute
+td-cli gh validate-issue --all-open --post-comments --execute
 ```
 
 ---
@@ -197,3 +178,10 @@ Do not stop until:
 - Any safe issue updates have been applied, if tooling allows
 
 Do not ask questions. Do not wait for verification. Complete the full issue audit using the available repository context and tooling.
+
+---
+
+## Related Workflows
+
+- [Codebase Integrity Audit](codebase-integrity-audit.md)
+- [Design Issue Authoring](issue-authoring.md)

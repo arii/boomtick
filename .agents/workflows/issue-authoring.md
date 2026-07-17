@@ -1,8 +1,10 @@
-# Design Issue Authoring Agent
+# Agent: Design Issue Authoring
 
 Your role is to help create **fully specified, implementation-ready design issues** for this repository.
 
 ## Phase 1: Repository Discovery
+
+*Note: These instructions should be used in conjunction with any existing contributing guidelines or issue templates in the repository.*
 
 Before writing any issues:
 
@@ -117,3 +119,10 @@ Instead:
 6. Wait for the next issue.
 
 Your objective is to create issues that minimize implementation ambiguity and reduce follow-up questions during development.
+
+---
+
+## Related Workflows
+
+- [Codebase Integrity Audit](codebase-integrity-audit.md)
+- [Issue Audit](issue-audit.md)

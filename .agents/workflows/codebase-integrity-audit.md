@@ -1,12 +1,16 @@
-# Agent: GitHub AI Slop & Code Drift Audit Agent
+# Agent: Codebase Integrity & Drift Audit
 
-Your objective is to audit the repository codebase/diffs to identify and systematically eliminate "AI slop"—specifically targeting over-engineered patterns, bizarre architectural complexities, unnecessary abstractions, duplicate logic, and artificial backward-compatibility layers introduced by AI code generation drift or hallucinated requirements.
+Your objective is to audit the repository codebase/diffs to identify and systematically eliminate **automated architectural drift**—specifically targeting:
+* Over-engineered architectural complexity and boilerplate wrappers.
+* Unnecessary abstractions or redundant generic error handlers.
+* Duplicate utility logic or copy-paste patterns.
+* Artificial or hallucinated backward-compatibility layers introduced during AI generation.
 
 This audit is split into two distinct parts to balance deep, systematic codebase hygiene with rapid checks of recent changes.
 
 ---
 
-## 🔍 AI Slop Categories to Target
+## 🔍 Integrity Categories to Target
 
 Scan the code and flag/fix instances matching these four core categories:
 
@@ -21,8 +25,7 @@ Scan the code and flag/fix instances matching these four core categories:
 
 Use this part for a full, ground-up codebase sanity check.
 
-### Step 1 — Scope Discovery & 100% Coverage Count
-To ensure **100% coverage** of the codebase, generate the complete list of target source code files. (Ensure you exclude machine-generated files like `cli/dev_tools/cli-schema.json`, `mcp/src/tools/contract.ts`, and python bytecode `__pycache__`):
+### Step 1 — Full Codebase Drift Review
 ```bash
 find . -type f \
   -not -path '*/.*' \
@@ -43,25 +46,15 @@ find . -type f \
   -not -name '*.svg' \
   | sort
 ```
-Calculate the total number of files returned. This is your **Total Codebase Audit Count**.
 
-### Step 2 — Drift and Duplication Detection
-Before manually reviewing, run the built-in duplicate code detection to automatically flag copy-paste AI drift:
 ```bash
 pnpm exec jscpd .
 ```
 
-### Step 3 — Refactor and Clean
-For each file in the checklist, strip out the over-engineered wrappers, unused imports, or redundant generic error handlers.
-*Note on AI Dependencies:* If a Python file in `cli/` is importing large AI packages (like `chromadb`, `google-genai`, `langchain-openai`) eagerly, consider moving the imports into the function bodies if they are only used conditionally, to maintain a lightweight base execution.
+Refactor files to remove over-engineered wrappers (e.g., wrappers that only pass through arguments without adding business logic), unused imports, or redundant generic error handlers. Defer importing heavy AI dependencies inside `cli/` until needed.
 
-### Step 4 — Master Checklist & Zero-Skip Completeness Rule
-Create and maintain `drift-audit-status.md` in the root of the repository.
-* **Zero-Skip Rule**: Every single file returned in Step 1 must have an explicit line in the checklist: `- [ ] path/to/file`.
-* **Completeness Verification**: The number of checkboxes in `drift-audit-status.md` must **exactly match** the **Total Codebase Audit Count** calculated in Step 1.
-
-*When a file is completely clean of AI slop, update its state to:*
-`- [x] path/to/file — Verified Clean`
+Create and maintain `integrity-audit-status.md` in the root of the repository to track files to review. Every single file must have an explicit line in the checklist.
+Update the state as files are cleaned: `- [x] path/to/file — Verified Clean`.
 
 ---
 
@@ -86,14 +79,14 @@ for file in $(cat recent_files.txt); do
   git diff HEAD@{24.hours.ago} -- "$file" || git diff -- "$file"
 done > recent_diffs.txt
 ```
-Analyze `recent_diffs.txt` and focus specifically on checking if the recent additions or edits introduced any new AI slop patterns.
+Analyze `recent_diffs.txt` and focus specifically on checking if the recent additions or edits introduced any new drift patterns.
 
 ### Step 3 — Targeted Verification Checklist
-Create a separate section in `drift-audit-status.md` named `## 24-Hour Review Checklist`.
+Create a separate section in `integrity-audit-status.md` named `## 24-Hour Review Checklist`.
 List each recently modified file. Every file must be verified and checked off:
 ```markdown
 ## 24-Hour Review Checklist (Count: [Recent Count])
-- [x] cli/dev_tools/cli.py — Verified Clean (No new slop introduced)
+- [x] cli/dev_tools/cli.py — Verified Clean (No new drift introduced)
 - [ ] lib/codeReviewOrchestrator.ts
 ```
 
@@ -120,3 +113,10 @@ pnpm run verify:schemas
 pnpm run lint-typecheck
 pnpm recursive exec vitest run  # or ./mcp/node_modules/.bin/vitest run tests/ if recursive fails
 ```
+
+---
+
+## Related Workflows
+
+- [Issue Audit](issue-audit.md)
+- [Design Issue Authoring](issue-authoring.md)
