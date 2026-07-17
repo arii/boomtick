@@ -2889,6 +2889,45 @@ Run the validation suite to ensure the aggregated branch is stable.
             "skeleton_path": plan_skeleton_path,
         }
 
+    def build_context(
+        self,
+        pr_number: Optional[int] = None,
+        issue_number: Optional[int] = None,
+        step: str = "generic",
+        depth: int = 2,
+    ) -> Dict[str, Any]:
+        """
+        Ingests PR diffs, file trees, and linked issues to dynamically build agent context.
+        """
+        from dev_tools.services.context_builder import ContextBuilder
+
+        builder = ContextBuilder(github_client=self.github)
+        if pr_number is not None:
+            builder.ingest_pr(pr_number)
+        if issue_number is not None:
+            builder.ingest_linked_issue(issue_number)
+
+        builder.ingest_file_tree(max_depth=depth)
+
+        # Optional: Enrich with dependency graph and semantic context if changed files are present
+        if pr_number is not None and builder.pr_diff:
+            try:
+                changed_files = [f.get("filename") for f in self.github.fetch_pr_files(pr_number) if f.get("filename")]
+                if changed_files:
+                    from dev_tools.services.dependency_graph import DependencyGraph
+
+                    graph = DependencyGraph()
+                    affected = graph.find_affected_files(changed_files)
+                    if affected:
+                        builder.add_extra_context("Affected Files (Impact Analysis)", sorted(list(affected)))
+            except Exception as e:
+                log_warn(f"Could not calculate affected files for PR context: {e}")
+
+        return {
+            "structured": builder.build_structured_context(step),
+            "markdown": builder.build_markdown_context(step),
+        }
+
     def install_workflows(self, dry_run: bool = True) -> Dict[str, Any]:
         """
         Detects if running in a submodule context, and copies/installs Jules automation workflows

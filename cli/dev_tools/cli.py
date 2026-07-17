@@ -1472,6 +1472,27 @@ def run_feedback_check(ctx, limit):
         _handle_unexpected_error(ctx, "agent run-feedback-check", e)
 
 
+@agent_group.command(name="build-context")
+@click.option("--pr", type=int, help="PR number to ingest diff.")
+@click.option("--issue", type=int, help="Linked issue number to ingest.")
+@click.option("--step", default="generic", help="Graph execution step (review, audit, repair, generic).")
+@click.option("--depth", type=int, default=2, help="Depth of directory file tree to walk.")
+@click.pass_context
+def build_context_cmd(ctx, pr, issue, step, depth):
+    """Dynamically build agent prompt context based on execution steps."""
+    orch = ctx.obj["ORCHESTRATOR"]
+    try:
+        res = orch.build_context(pr_number=pr, issue_number=issue, step=step, depth=depth)
+        # In non-JSON mode, print the clean Markdown prompt context.
+        # In JSON mode, print the structured dict representation.
+        if not ctx.obj.get("JSON", True):
+            click.echo(res["markdown"])
+        else:
+            out(ctx, f"Context build complete for step '{step}'.", data=res)
+    except Exception as e:
+        _handle_unexpected_error(ctx, "agent build-context", e)
+
+
 @cli.command(name="context-warm")
 @click.option("--force", is_flag=True, help="Force re-generation of context even if not stale")
 @click.pass_context
@@ -1561,6 +1582,7 @@ for group in [jules_group]:
     group.add_command(plan_review)
     group.add_command(plan_aggregation)
     group.add_command(install_workflows)
+    group.add_command(build_context_cmd)
 
 for group in [agent_group, jules_group]:
     group.add_command(get_session, name="session")
