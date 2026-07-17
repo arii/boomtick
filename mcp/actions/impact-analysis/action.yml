@@ -300,7 +300,6 @@ runs:
         GITHUB_TOKEN: ${{ inputs.github_token }}
         PR_NUMBER: ${{ inputs.pr_number }}
         GITHUB_REPOSITORY: ${{ github.repository }}
-        JULES_API_KEY: ${{ inputs.jules_api_key }}
       run: |
         if [ -f "scripts/send-jules-impact.py" ]; then
           python3 scripts/send-jules-impact.py
