@@ -152,15 +152,20 @@ export function findAffectedFiles(
   const affected = new Set<string>();
   const queue = [...changedFiles];
 
+  for (const file of queue) {
+    affected.add(file);
+  }
+
   while (queue.length > 0) {
     const file = queue.shift()!;
-    if (affected.has(file)) continue;
-    affected.add(file);
 
     const parents = reverseMap[file] || [];
     for (const parent of parents) {
       if (options.includeDynamic || !parent.dynamic) {
-        queue.push(parent.source);
+        if (!affected.has(parent.source)) {
+          affected.add(parent.source);
+          queue.push(parent.source);
+        }
       }
     }
   }
