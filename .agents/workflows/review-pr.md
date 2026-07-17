@@ -8,7 +8,7 @@ dev-tools/logs/workflows/workflow-plan-pr-{PR_NUMBER}.md
 
 using:
 
-python3 dev-tools/generate_review_workflow.py \
+td-cli agent plan-review \
   --pr PR_NUMBER \
   --issue ISSUE_NUMBER
 

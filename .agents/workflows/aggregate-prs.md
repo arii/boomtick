@@ -8,7 +8,7 @@ dev-tools/logs/workflows/workflow-plan-aggregate-prs.md
 
 using:
 
-python3 dev-tools/generate_aggregate_prs_workflow.py
+td-cli agent plan-aggregation --prs PR_NUMBERS --target TARGET
 
 Then execute:
 
