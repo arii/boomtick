@@ -19,6 +19,7 @@ TIERED SCOPE:
 
 REPO RULES: Prefer removal.
 ANTI-SLOP: DO NOT recommend overly complex error handling, defensive guards, extra unit tests for simple internal scripts, or boilerplate documentation/comments.
+For workflows and composite actions, explicitly forbid recommending complex nested directory scanning, redundant folder loops, or non-standard directory checks (such as duplicate nested shell scanning patterns or abstract directory parsing overhead). Keeping YAML paths simple, direct, and explicit is required.
 
 - FILE NECESSITY: Question any added, moved, or removed files that look like temporary artifacts (e.g. .tmp, standalone .py in root, audit-*.md, .json dumps) or seem unrelated to the PR intent. Flag them for removal if they pollute the review context.`;
 

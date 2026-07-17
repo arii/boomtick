@@ -18,7 +18,8 @@ export const PROMPT_CATEGORIES: PromptCategory[] = [
 - \`if: always()\` + \`continue-on-error: true\` is INTENTIONAL for advisory steps.
 - \`\${{ secrets.X }}\` is GHA syntax; do not suggest JS template literals.
 - Pinned versions (e.g. @v4) are intentional. Only flag regressions to @main.
-- Blocking: missing secret production, invalid \`needs:\`, YAML syntax errors.`,
+- Blocking: missing secret production, invalid \`needs:\`, YAML syntax errors.
+- ANTI-SLOP instruction for workflows and composite actions: YAML paths MUST remain direct, simple, and explicit. Never recommend complex nested directory scanning, redundant folder loops, or non-standard directory checks (such as duplicate nested shell scanning patterns or abstract directory parsing overhead). Keep paths clean and declarative.`,
   },
   {
     id: 'llm-integration',
