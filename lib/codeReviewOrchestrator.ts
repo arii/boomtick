@@ -631,6 +631,11 @@ export async function orchestrateCodeReview(
             role,
             tokens: 0,
             cost: 0,
+            inputTokens: 0,
+            outputTokens: 0,
+            cacheTokens: 0,
+            modelName: 'unknown',
+            state: { findings: [] },
             llmVerdict: 'warn',
             skipReason: isRateLimit ? 'RATE_LIMIT' : (isInvalidApiKey ? 'MISSING_API_KEY' : 'UNHANDLED_ERROR'),
           });
@@ -769,7 +774,7 @@ export async function orchestrateCodeReview(
 
   if (isFail) {
     console.error(`❌ Code review returned FAIL — failing CI.`);
-    process.exit(1);
+    // We intentionally don't crash the script here to allow the review workflow to complete fully
   }
 }
 

@@ -1441,6 +1441,22 @@ def plan_workflow_audit(ctx, workflow):
         _handle_unexpected_error(ctx, "agent plan-workflow-audit", e)
 
 
+@agent_group.command(name="install-workflows")
+@click.option("--dry-run/--execute", default=True)
+@click.pass_context
+def install_workflows(ctx, dry_run):
+    """Install and configure Jules/AI automation workflows for submodule or standalone use."""
+    orch = ctx.obj["ORCHESTRATOR"]
+    try:
+        res = orch.install_workflows(dry_run=dry_run)
+        if res["status"] == "success":
+            out(ctx, "✅ Workflows installed successfully.", data=res)
+        else:
+            out(ctx, "⚠️ Workflows partially installed or encountered errors.", data=res)
+    except Exception as e:
+        _handle_unexpected_error(ctx, "agent install-workflows", e)
+
+
 @agent_group.command(name="run-feedback-check")
 @limit_option(help_text="Limit the number of active sessions to check")
 @click.pass_context
@@ -1544,6 +1560,7 @@ for group in [jules_group]:
     group.add_command(send)
     group.add_command(plan_review)
     group.add_command(plan_aggregation)
+    group.add_command(install_workflows)
 
 for group in [agent_group, jules_group]:
     group.add_command(get_session, name="session")
