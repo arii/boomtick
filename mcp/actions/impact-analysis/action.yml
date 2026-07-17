@@ -11,7 +11,7 @@ inputs:
     description: 'PR number'
     required: true
   jules_api_key:
-    description: 'Jules API key'
+    description: 'Jules API key required for authenticating with the Jules API to send impact analysis results. Ensure this key is stored securely and not exposed in logs.'
     required: true
 runs:
   using: composite
