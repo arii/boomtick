@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.2](https://github.com/arii/boomtick/compare/mcp-v0.3.1...mcp-v0.3.2) (2026-07-17)
+
+
+### Bug Fixes
+
+* pass jules_api_key env to impact analysis steps ([#151](https://github.com/arii/boomtick/issues/151)) ([a4744ee](https://github.com/arii/boomtick/commit/a4744eeed2d665eb87053f828551a1136259b0fc))
+
 ## [0.3.1](https://github.com/arii/boomtick/compare/mcp-v0.3.0...mcp-v0.3.1) (2026-07-17)
 
 

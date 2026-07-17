@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.1](https://github.com/arii/boomtick/compare/cli-v0.3.0...cli-v0.3.1) (2026-07-17)
+
+
+### Bug Fixes
+
+* Address code review findings ([#159](https://github.com/arii/boomtick/issues/159)) ([34bcc36](https://github.com/arii/boomtick/commit/34bcc3634b49fe83d693fdbb5bec8b2993fe6ba7))
+
 ## [0.3.0](https://github.com/arii/boomtick/compare/cli-v0.2.1...cli-v0.3.0) (2026-07-15)
 
 
