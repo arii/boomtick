@@ -108,10 +108,23 @@ export async function orchestrateVisualReview(
     const routeReviews = await Promise.all(roles.map(async (role) => {
       console.log(`    → Agent: ${role}`);
       const start = Date.now();
-      const review = await client.invokeReview(route, role);
-      const durationMs = Date.now() - start;
-      logReviewExecution('visual-review', review, durationMs, { route: route.route });
-      return { ...review, role };
+      try {
+        const review = await client.invokeReview(route, role);
+        const durationMs = Date.now() - start;
+        logReviewExecution('visual-review', review, durationMs, { route: route.route });
+        return { ...review, role };
+      } catch (err) {
+        const errorMsg = err instanceof Error ? err.message : String(err);
+        console.error(`❌ Error in ${role} visual review task:`, err);
+        return {
+          route: route.route,
+          severity: 'LOW',
+          differencePercent: route.differencePercent,
+          feedback: `Error: failed to execute ${role} visual review. Details: ${errorMsg}`,
+          tokens: 0, cost: 0, inputTokens: 0, outputTokens: 0, cacheTokens: 0, modelName: 'unknown',
+          llmVerdict: 'warn', role, findings: []
+        } as RouteReview;
+      }
     }));
 
     reviews.push(...routeReviews);
