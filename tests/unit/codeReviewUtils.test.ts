@@ -176,6 +176,15 @@ describe('codeReviewUtils', () => {
       consoleSpy.mockRestore();
     });
 
+    it('safely parses JSON containing unescaped backslashes in regex/snippets', () => {
+      const badEscapedJson = '{"findings": [{"id": "1", "file": "utils.ts", "issue": "test", "status": "open", "snippet": "replace(/\\s*/)"}]}';
+      const feedback = `<findings>${badEscapedJson}</findings>`;
+      const result = parseCodeReviewStateDetailed(feedback);
+      expect(result.state).toBeDefined();
+      expect(result.state?.findings[0].snippet).toBe('replace(/\\s*/)');
+      expect(result.parseError).toBeUndefined();
+    });
+
     it('handles no findings tags', () => {
       const result = parseCodeReviewStateDetailed('No findings tag here');
       expect(result.state).toBeUndefined();
