@@ -79,21 +79,35 @@ jobs:
 
       - name: Post PR Comment
         if: ${{ github.event_name == 'pull_request' && steps.trigger_workflow.outputs.triggered == 'true' }}
+        uses: actions/github-script@v8 # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
           BRANCH_NAME: ${{ steps.get-branch.outputs.branch }}
-        run: |
-          COMMENT_BODY=$(cat <<EOF
-          ### Downstream CI Triggered 🚀
+        with:
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const prNumber = parseInt(process.env.PR_NUMBER, 10);
+            const branchName = process.env.BRANCH_NAME;
 
-          A downstream submodule update Pull Request / CI pipeline has been automatically triggered in the parent repository (**tech-dancer**) to verify these changes against the parent codebase.
+            const commentTag = '<!-- downstream-ci-trigger-comment -->';
+            const body = `### Downstream CI Triggered 🚀\n\n` +
+              `A downstream submodule update Pull Request / CI pipeline has been automatically triggered in the parent repository (**tech-dancer**) to verify these changes against the parent codebase.\n\n` +
+              `- **Target Submodule Branch**: \`${branchName}\`\n` +
+              `- **Downstream Workflow**: [update-submodule.yml](https://github.com/arii/tech-dancer/actions/workflows/update-submodule.yml)\n\n` +
+              `You can monitor the status of the submodule update and the integration tests directly on the [tech-dancer actions page](https://github.com/arii/tech-dancer/actions/workflows/update-submodule.yml).\n\n` +
+              `${commentTag}`;
 
-          - **Target Submodule Branch**: \`$BRANCH_NAME\`
-          - **Downstream Workflow**: [update-submodule.yml](https://github.com/arii/tech-dancer/actions/workflows/update-submodule.yml)
+            const comments = await github.paginate(github.rest.issues.listComments, {
+              owner,
+              repo,
+              issue_number: prNumber,
+            });
 
-          You can monitor the status of the submodule update and the integration tests directly on the [tech-dancer actions page](https://github.com/arii/tech-dancer/actions/workflows/update-submodule.yml).
-          EOF
-          )
-          gh pr comment "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --body "$COMMENT_BODY"
-        shell: bash
+            const existingComment = comments.find(c => c.body.includes(commentTag));
+
+            if (existingComment) {
+              await github.rest.issues.updateComment({ owner, repo, comment_id: existingComment.id, body });
+            } else {
+              await github.rest.issues.createComment({ issue_number: prNumber, owner, repo, body });
+            }
