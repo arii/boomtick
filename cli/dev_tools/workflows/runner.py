@@ -39,7 +39,12 @@ class WorkflowRunner:
         except Exception:
             pass
 
-    def run(self, graph: WorkflowGraph, initial_inputs: Optional[Dict[str, Any]] = None, context: Optional[WorkflowContext] = None) -> WorkflowContext:
+    def run(
+        self,
+        graph: WorkflowGraph,
+        initial_inputs: Optional[Dict[str, Any]] = None,
+        context: Optional[WorkflowContext] = None
+    ) -> WorkflowContext:
         """
         Runs the workflow graph.
         """

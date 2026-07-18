@@ -110,9 +110,6 @@ class DeploymentImpactCheckNode(WorkflowNode):
             from dev_tools.services.dependency_graph import DependencyGraph
             from dev_tools.utils import log_warn
             try:
-                # Get changed files from PR
-                from dev_tools.orchestrator import Orchestrator
-                orch = Orchestrator()
                 # Performance optimization: extract from cached diff rather than a new network call
                 ctx_data = context.builder.build_structured_context("generic")
                 changed_files = ctx_data.get("pr", {}).get("changed_files", [])

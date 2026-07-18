@@ -2956,8 +2956,6 @@ Run the validation suite to ensure the aggregated branch is stable.
         from the submodule directory to the parent repository's .github/workflows/ folder,
         updating composite action path references dynamically.
         """
-        import os
-        import subprocess
 
         # 1. Detect parent root and submodule directory name
         parent_root = ""

@@ -14,7 +14,9 @@ class WorkflowContext:
     for a single agent to transition through different roles.
     """
 
-    def __init__(self, initial_inputs: Optional[Dict[str, Any]] = None, builder: Optional[ContextBuilder] = None) -> None:
+    def __init__(
+        self, initial_inputs: Optional[Dict[str, Any]] = None, builder: Optional[ContextBuilder] = None
+    ) -> None:
         self._lock = threading.Lock()
         self._inputs: Dict[str, Any] = dict(initial_inputs) if initial_inputs else {}
         self._state: Dict[str, Any] = {}
