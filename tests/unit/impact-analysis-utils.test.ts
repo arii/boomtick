@@ -2,11 +2,28 @@ import { describe, it, expect } from 'vitest';
 import {
   buildReverseMap,
   isLayoutFile,
+  sanitizeFilePath,
   traceLayoutHierarchyUpward,
   type DependencyGraph,
 } from '../../lib/impact-analysis-utils';
 
 describe('impact-analysis-utils tests', () => {
+    describe('sanitizeFilePath', () => {
+        it('should correctly sanitize and validate file paths', () => {
+            expect(sanitizeFilePath('src/layouts/MainLayout.tsx')).toBe('src/layouts/MainLayout.tsx');
+            expect(sanitizeFilePath('  src/pages/Home.tsx  ')).toBe('src/pages/Home.tsx');
+
+            // Path traversal and absolute paths should be rejected (returning null)
+            expect(sanitizeFilePath('/src/layouts/MainLayout.tsx')).toBeNull();
+            expect(sanitizeFilePath('../etc/passwd')).toBeNull();
+            expect(sanitizeFilePath('src/layouts/../../etc/passwd')).toBeNull();
+            expect(sanitizeFilePath('http://example.com/layout.tsx')).toBeNull();
+            expect(sanitizeFilePath('')).toBeNull();
+            expect(sanitizeFilePath(null)).toBeNull();
+            expect(sanitizeFilePath(undefined)).toBeNull();
+        });
+    });
+
     describe('isLayoutFile', () => {
         it('should correctly identify layout files', () => {
             expect(isLayoutFile('src/layouts/MainLayout.tsx')).toBe(true);
