@@ -116,6 +116,8 @@ def run_single_agent_multi_role_scratchpad(pr_number: int, issue_number: int = N
         print(f"❌ Workflow execution failed: {e}", file=sys.stderr)
         import traceback
         traceback.print_exc()
+        sys.exit(1)
+        sys.exit(1)
 
 if __name__ == "__main__":
     target_pr = 175
