@@ -104,6 +104,8 @@ jobs:
           cd cli
           python3 -m build
 
+      # [NOTE]: Temporarily disabling MCP publishing due to npm auth errors.
+      # Actionlint forbids `if: false`, so this block is entirely commented out.
       # - name: Publish MCP to npm
       #   if: (steps.determine_target.outputs.target == 'mcp' || steps.determine_target.outputs.target == 'all') && (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && steps.determine_target.outputs.dry_run == 'false'))
       #   run: pnpm --filter @arii/boomtick-mcp publish --no-git-checks --access public
