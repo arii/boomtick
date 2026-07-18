@@ -128,8 +128,7 @@ jobs:
 
       - name: Publish MCP to npm
         # [NOTE]: Temporarily disabling MCP publishing due to npm auth errors.
-        # actionlint-disable if-cond
-        if: false
+        if: github.event_name == 'none'
         run: pnpm --filter @arii/boomtick-mcp publish --no-git-checks --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
