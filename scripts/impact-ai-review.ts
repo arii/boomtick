@@ -1,3 +1,4 @@
+import { getProvider } from './utils/provider';
 import { orchestrateVisualReview } from '../lib/visualReviewOrchestrator';
 import { geminiVisualReviewClient } from './clients/geminiVisualReviewClient';
 import { githubModelsVisualReviewClient } from './clients/githubModelsVisualReviewClient';
@@ -9,7 +10,7 @@ const ALL_REVIEW_TITLES = [
 ];
 
 async function main(): Promise<void> {
-  const provider = process.env.AI_PROVIDER_OVERRIDE || process.argv[2];
+  const provider = getProvider();
 
   if (provider === 'gemini') {
     if (!process.env.GEMINI_API_KEY) {
