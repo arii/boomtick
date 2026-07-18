@@ -38,16 +38,21 @@ jobs:
     steps:
       - name: Determine Release Target
         id: determine_target
+        env:
+          GITHUB_REF_VAL: ${{ github.ref }}
+          GITHUB_EVENT_NAME: ${{ github.event_name }}
+          INPUT_TARGET: ${{ inputs.target }}
+          INPUT_DRY_RUN: ${{ inputs.dry_run }}
         run: |
-          TARGET="${{ inputs.target }}"
-          DRY_RUN="${{ inputs.dry_run }}"
-          if [ "${{ github.event_name }}" = "push" ]; then
+          TARGET="$INPUT_TARGET"
+          DRY_RUN="$INPUT_DRY_RUN"
+          if [ "$GITHUB_EVENT_NAME" = "push" ]; then
             DRY_RUN="false"
-            if [[ "${{ github.ref }}" == refs/tags/cli-v* ]]; then
+            if [[ "$GITHUB_REF_VAL" == refs/tags/cli-v* ]]; then
               TARGET="cli"
-            elif [[ "${{ github.ref }}" == refs/tags/mcp-v* ]]; then
+            elif [[ "$GITHUB_REF_VAL" == refs/tags/mcp-v* ]]; then
               TARGET="mcp"
-            elif [[ "${{ github.ref }}" == refs/tags/action-v* ]]; then
+            elif [[ "$GITHUB_REF_VAL" == refs/tags/action-v* ]]; then
               TARGET="action"
             fi
           fi
