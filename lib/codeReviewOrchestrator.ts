@@ -30,13 +30,132 @@ function getInputComplexity(summary: CodeReviewSummary): number {
   return (summary.diffContext?.length ?? 0) + (summary.externalContext?.length ?? 0);
 }
 
+interface GraphQLIssueNode {
+  number: number;
+  title: string;
+  body: string | null;
+  labels?: {
+    nodes?: Array<{
+      name: string;
+    }>;
+  };
+}
+
+interface GraphQLResponse {
+  data?: {
+    repository?: {
+      pullRequest?: {
+        title: string;
+        body: string | null;
+        closingIssuesReferences?: {
+          nodes?: GraphQLIssueNode[];
+        };
+      };
+    };
+  };
+  errors?: Array<{ message: string }>;
+}
+
 let cachedPRGoal: string | undefined | null = null;
-async function fetchPRGoal(): Promise<string | undefined> {
+
+export function clearCachedPRGoal(): void {
+  cachedPRGoal = null;
+}
+
+export function formatLinkedIssues(closingIssues: GraphQLIssueNode[], repo: string): string {
+  const issueParts: string[] = [];
+  for (const issue of closingIssues) {
+    const labelsList = issue.labels?.nodes?.map(l => l.name) || [];
+    const labelsStr = `[${labelsList.join(', ')}]`;
+    const issueBody = issue.body?.trim() || '[No description provided]';
+
+    issueParts.push(
+      `LINKED ISSUE ${repo}#${issue.number} SPECIFICATION:\n` +
+      `Title: ${issue.title}\n` +
+      `Labels: ${labelsStr}\n` +
+      `Description:\n` +
+      `${issueBody}`
+    );
+  }
+  return issueParts.join('\n\n');
+}
+
+export async function fetchPRGoal(): Promise<string | undefined> {
   if (cachedPRGoal !== null) return cachedPRGoal;
   const token = process.env.GITHUB_TOKEN;
   const repo = process.env.GITHUB_REPOSITORY;
   const prNumber = process.env.PR_NUMBER;
   if (!token || !repo || !prNumber) return undefined;
+
+  const [owner, repoName] = repo.split('/');
+  if (!owner || !repoName) return undefined;
+
+  try {
+    const graphqlRes = await fetch('https://api.github.com/graphql', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+        'User-Agent': 'boomtick-mcp-agent',
+      },
+      body: JSON.stringify({
+        query: `
+          query ($owner: String!, $repo: String!, $prNumber: Int!) {
+            repository(owner: $owner, name: $repo) {
+              pullRequest(number: $prNumber) {
+                title
+                body
+                closingIssuesReferences(first: 5) {
+                  nodes {
+                    number
+                    title
+                    body
+                    labels(first: 10) {
+                      nodes {
+                        name
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        `,
+        variables: {
+          owner,
+          repo: repoName,
+          prNumber: parseInt(prNumber, 10),
+        },
+      }),
+    });
+
+    if (graphqlRes.ok) {
+      const payload = await graphqlRes.json() as GraphQLResponse;
+      if (payload.errors && payload.errors.length > 0) {
+        console.warn('⚠️ GraphQL API returned errors:', payload.errors.map(e => e.message).join(', '));
+      } else {
+        const pr = payload.data?.repository?.pullRequest;
+        if (pr) {
+          const body = pr.body?.trim() ? `\n\n${pr.body.trim()}` : '';
+          let resultStr = `${pr.title}${body}`;
+
+          const closingIssues = pr.closingIssuesReferences?.nodes || [];
+          const formattedIssues = formatLinkedIssues(closingIssues, repo);
+
+          if (formattedIssues) {
+            resultStr += `\n\n${formattedIssues}`;
+          }
+
+          cachedPRGoal = resultStr;
+          return cachedPRGoal;
+        }
+      }
+    } else {
+      console.warn(`⚠️ GraphQL response not ok: ${graphqlRes.status} ${graphqlRes.statusText}`);
+    }
+  } catch (err) {
+    console.warn('⚠️ GraphQL fetch for PR context failed, falling back to REST:', err);
+  }
 
   try {
     const res = await fetch(`https://api.github.com/repos/${repo}/pulls/${prNumber}`, {
