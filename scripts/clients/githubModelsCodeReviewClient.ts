@@ -16,14 +16,15 @@ export const githubModelsCodeReviewClient: CodeReviewClientStrategy = {
   botTagline: 'Powered by GitHub Models',
   reportFileName: 'github-models-code-review.md',
 
-  invokeReview: async (summary: CodeReviewSummary, _forceMaxOutputTokens?: number): Promise<CodeReviewResult> => {
+  invokeReview: async (summary: CodeReviewSummary, forceMaxOutputTokens?: number): Promise<CodeReviewResult> => {
     const systemPrompt = buildSystemPrompt(summary);
     const { diffText, externalText } = budgetInputContext(systemPrompt, summary);
 
-    const rules = [
-      "You are an expert automated code review agent.",
-      systemPrompt
-    ];
+    if (forceMaxOutputTokens) {
+      console.log(`[AI Review] Invoking with forced max output tokens budget: ${forceMaxOutputTokens}`);
+    }
+
+    const rules = [systemPrompt];
 
     const prContent = `DIFF:\n\n${diffText}` + (externalText ? `\n\nEXTERNAL CONTEXT:\n\n${externalText}` : '');
 

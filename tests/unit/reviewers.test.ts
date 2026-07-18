@@ -23,6 +23,7 @@ describe('GitHubModelFactory', () => {
 
   beforeEach(() => {
     process.env = { ...originalEnv };
+    GitHubModelFactory.resetClient();
     vi.clearAllMocks();
   });
 
@@ -72,14 +73,22 @@ describe('GitHubModelFactory', () => {
       expect(() => GitHubModelFactory.getClient()).toThrow('Missing GITHUB_TOKEN environment variable.');
     });
 
-    it('returns OpenAI instance if GITHUB_TOKEN is present', () => {
+    it('throws error if GITHUB_TOKEN format is invalid', () => {
+      process.env.GITHUB_TOKEN = 'invalid token with spaces';
+      expect(() => GitHubModelFactory.getClient()).toThrow('Invalid GITHUB_TOKEN format.');
+    });
+
+    it('returns cached OpenAI instance if GITHUB_TOKEN is present', () => {
       process.env.GITHUB_TOKEN = 'test-token';
-      const client = GitHubModelFactory.getClient();
+      const client1 = GitHubModelFactory.getClient();
       expect(OpenAI).toHaveBeenCalledWith({
         baseURL: 'https://models.inference.ai.azure.com',
         apiKey: 'test-token'
       });
-      expect(client).toBeDefined();
+      expect(client1).toBeDefined();
+
+      const client2 = GitHubModelFactory.getClient();
+      expect(client1).toBe(client2); // Singleton pattern
     });
   });
 });
@@ -90,6 +99,7 @@ describe('runReview', () => {
   beforeEach(() => {
     process.env = { ...originalEnv };
     process.env.GITHUB_TOKEN = 'test-token';
+    GitHubModelFactory.resetClient();
     vi.clearAllMocks();
   });
 
@@ -117,7 +127,7 @@ describe('runReview', () => {
       model: 'Phi-4',
       messages: [
         { role: 'system', content: 'You are an expert automated code review agent. Rules to enforce:\nno bugs' },
-        { role: 'user', content: 'Review the following Pull Request changes:\n\nsome changes' }
+        { role: 'user', content: 'Review the following Pull Request changes:\n\n<pr_content>\nsome changes\n</pr_content>' }
       ],
       temperature: 0.2
     });

@@ -1,5 +1,18 @@
 import { GitHubModelFactory, ReviewOptions } from "./factory";
 
+interface ApiError {
+  status?: number;
+  message?: string;
+}
+
+function isApiError(err: unknown): err is ApiError {
+  return (
+    typeof err === "object" &&
+    err !== null &&
+    ("status" in err || "message" in err)
+  );
+}
+
 export async function runReview(options: ReviewOptions): Promise<string> {
   const client = GitHubModelFactory.getClient();
   const fallbackChain = GitHubModelFactory.getFallbackChain();
@@ -17,7 +30,8 @@ export async function runReview(options: ReviewOptions): Promise<string> {
           },
           {
             role: "user",
-            content: `Review the following Pull Request changes:\n\n${options.prContent}`
+            // Wrap the prContent in XML tags to establish structural boundaries and prevent prompt injection
+            content: `Review the following Pull Request changes:\n\n<pr_content>\n${options.prContent}\n</pr_content>`
           }
         ],
         temperature: 0.2,
@@ -26,12 +40,16 @@ export async function runReview(options: ReviewOptions): Promise<string> {
       return response.choices[0].message.content || "No review feedback provided.";
 
     } catch (error) {
-      const err = error as { status?: number; message?: string };
-      // Check if it's a rate limit (429) or temporary server issue
-      if (err?.status === 429) {
-        console.warn(`[AI Review Warning] Usage/Rate limit hit for ${model}. Rotating to next backup...`);
+      // Use the custom type guard for safe error property access
+      if (isApiError(error)) {
+        if (error.status === 429) {
+          console.warn(`[AI Review Warning] Usage/Rate limit hit for ${model}. Rotating to next backup...`);
+        } else {
+          console.warn(`[AI Review Warning] Model ${model} encountered an error: ${error.message || error}. Trying backup...`);
+        }
       } else {
-        console.warn(`[AI Review Warning] Model ${model} encountered an error: ${err?.message || error}. Trying backup...`);
+        const errorMsg = error instanceof Error ? error.message : String(error);
+        console.warn(`[AI Review Warning] Model ${model} encountered an unexpected error: ${errorMsg}. Trying backup...`);
       }
     }
   }
