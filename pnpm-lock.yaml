@@ -7,16 +7,20 @@ settings:
 importers:
 
   .:
+    dependencies:
+      openai:
+        specifier: ^6.48.0
+        version: 6.48.0(zod@4.4.3)
     devDependencies:
       '@eslint/js':
         specifier: ^10.0.1
         version: 10.0.1(eslint@10.7.0)
       '@langchain/core':
         specifier: ^1.2.3
-        version: 1.2.3
+        version: 1.2.3(openai@6.48.0(zod@4.4.3))
       '@langchain/google-genai':
         specifier: ^2.2.0
-        version: 2.2.0(@langchain/core@1.2.3)
+        version: 2.2.0(@langchain/core@1.2.3(openai@6.48.0(zod@4.4.3)))
       '@playwright/test':
         specifier: ^1.60.0
         version: 1.61.1
@@ -2008,6 +2012,26 @@ packages:
   once@1.4.0:
     resolution: {integrity: sha512-lNaJgI+2Q5URQBkccEKHTQOPaXdUxnZZElQTZY0MFUAuaEqe1E+Nyvgdz/aIyNi6Z9MzO5dv1H8n58/GELp3+w==}
 
+  openai@6.48.0:
+    resolution: {integrity: sha512-KhVp+FyV50QrXNextvL9hIU5l6ox5HYuKQjGVk7lIqprgJol90+dQXWONV6S1lRWsKA1bXjrow8RsUT14M1hNA==}
+    peerDependencies:
+      '@aws-sdk/credential-provider-node': '>=3.972.0 <4'
+      '@smithy/hash-node': '>=4.3.0 <5'
+      '@smithy/signature-v4': '>=5.4.0 <6'
+      ws: ^8.18.0
+      zod: ^3.25 || ^4.0
+    peerDependenciesMeta:
+      '@aws-sdk/credential-provider-node':
+        optional: true
+      '@smithy/hash-node':
+        optional: true
+      '@smithy/signature-v4':
+        optional: true
+      ws:
+        optional: true
+      zod:
+        optional: true
+
   optionator@0.9.4:
     resolution: {integrity: sha512-6IpQ7mKUxRcZNLIObR0hz7lxsapSSIYNZJwXPGeF0mTVqGKFIXj1DQcMoT22S3ROcLyY/rz0PWaWZ9ayWmad9g==}
     engines: {node: '>= 0.8.0'}
@@ -3011,12 +3035,12 @@ snapshots:
 
   '@jridgewell/sourcemap-codec@1.5.5': {}
 
-  '@langchain/core@1.2.3':
+  '@langchain/core@1.2.3(openai@6.48.0(zod@4.4.3))':
     dependencies:
       '@cfworker/json-schema': 4.1.1
       '@standard-schema/spec': 1.1.0
       js-tiktoken: 1.0.21
-      langsmith: 0.8.3
+      langsmith: 0.8.3(openai@6.48.0(zod@4.4.3))
       mustache: 4.2.0
       p-queue: 6.6.2
       zod: 4.4.3
@@ -3027,10 +3051,10 @@ snapshots:
       - openai
       - ws
 
-  '@langchain/google-genai@2.2.0(@langchain/core@1.2.3)':
+  '@langchain/google-genai@2.2.0(@langchain/core@1.2.3(openai@6.48.0(zod@4.4.3)))':
     dependencies:
       '@google/generative-ai': 0.24.1
-      '@langchain/core': 1.2.3
+      '@langchain/core': 1.2.3(openai@6.48.0(zod@4.4.3))
 
   '@modelcontextprotocol/sdk@1.29.0(@cfworker/json-schema@4.1.1)(zod@4.4.3)':
     dependencies:
@@ -4323,9 +4347,11 @@ snapshots:
 
   kleur@3.0.3: {}
 
-  langsmith@0.8.3:
+  langsmith@0.8.3(openai@6.48.0(zod@4.4.3)):
     dependencies:
       p-queue: 6.6.2
+    optionalDependencies:
+      openai: 6.48.0(zod@4.4.3)
 
   levn@0.4.1:
     dependencies:
@@ -4490,6 +4516,10 @@ snapshots:
   once@1.4.0:
     dependencies:
       wrappy: 1.0.2
+
+  openai@6.48.0(zod@4.4.3):
+    optionalDependencies:
+      zod: 4.4.3
 
   optionator@0.9.4:
     dependencies:
