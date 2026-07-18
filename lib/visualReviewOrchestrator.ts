@@ -104,11 +104,13 @@ export async function orchestrateVisualReview(
   const roles: AgentRole[] = ['CODE_REVIEW', 'ACCESSIBILITY', 'UX', 'VISUAL_REGRESSION', 'RESPONSIVE_LAYOUT'];
 
   const taskQueue: (() => Promise<void>)[] = [];
+  let taskIndex = 0;
 
   for (const route of routesToReview) {
     console.log(`  → ${route.route} (${route.severity}, ${route.differencePercent.toFixed(2)}%)`);
 
     for (const role of roles) {
+      const idx = taskIndex++;
       taskQueue.push(async () => {
         console.log(`    → Agent: ${role}`);
         const start = Date.now();
@@ -116,18 +118,18 @@ export async function orchestrateVisualReview(
           const review = await client.invokeReview(route, role);
           const durationMs = Date.now() - start;
           logReviewExecution('visual-review', review, durationMs, { route: route.route });
-          reviews.push({ ...review, role });
+          reviews[idx] = { ...review, role };
         } catch (err) {
           const errorMsg = err instanceof Error ? err.message : String(err);
           console.error(`❌ Error in ${role} visual review task:`, err);
-          reviews.push({
+          reviews[idx] = {
             route: route.route,
             severity: 'LOW',
             differencePercent: route.differencePercent,
             feedback: `Error: failed to execute ${role} visual review. Details: ${errorMsg}`,
             tokens: 0, cost: 0, inputTokens: 0, outputTokens: 0, cacheTokens: 0, modelName: 'unknown',
             llmVerdict: 'warn', role, findings: []
-          } as RouteReview);
+          } as RouteReview;
         }
       });
     }
