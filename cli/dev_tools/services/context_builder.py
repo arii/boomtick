@@ -175,9 +175,18 @@ class ContextBuilder:
         # Determine changed files from pr_diff defensively using secure regex
         changed_files: Set[str] = set()
         if self.pr_diff:
-            for line in self.pr_diff.splitlines():
-                if line.startswith("+++ "):
-                    # Safe regex-based parsing to support standard and custom prefixes
+            lines = self.pr_diff.splitlines()
+            last_src_file = None
+            for line in lines:
+                if line.startswith("--- "):
+                    match = re.match(r"^---\s+(?:a/)?(.*)", line)
+                    if match:
+                        path = match.group(1).split("\t")[0].strip()
+                        if path.startswith("./"):
+                            path = path[2:]
+                        if path and path != "/dev/null":
+                            last_src_file = path
+                elif line.startswith("+++ "):
                     match = re.match(r"^\+\+\+\s+(?:b/)?(.*)", line)
                     if match:
                         path = match.group(1).split("\t")[0].strip()
@@ -185,6 +194,8 @@ class ContextBuilder:
                             path = path[2:]
                         if path and path != "/dev/null":
                             changed_files.add(path)
+                        elif path == "/dev/null" and last_src_file:
+                            changed_files.add(last_src_file)
 
         context = {
             "step": step_name,
