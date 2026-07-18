@@ -45,6 +45,118 @@ export interface ImpactReport {
   routes: string[];
   visualReviewRequired: string[];
   impactLevel: 'HIGH' | 'MEDIUM' | 'LOW';
+  sharedLayouts?: string[];
+  layoutTrace?: Record<string, string[]>;
+}
+
+/**
+ * Checks if a given file path represents a layout file.
+ */
+export function isLayoutFile(filePath: string): boolean {
+  return filePath.startsWith('src/layouts/') || /Layout\.[jt]sx?$/i.test(filePath);
+}
+
+/**
+ * Traverses the layout hierarchy upward starting from each point of change detection.
+ * If a changed file is a layout, or if it eventually affects a layout, it traces
+ * any parent/ancestor layout files recursively through standard/static imports in the
+ * reverse dependency map.
+ *
+ * @param changedFiles List of changed files detected.
+ * @param reverseMap The reverse dependency map (child -> parents).
+ */
+export function traceLayoutHierarchyUpward(
+  changedFiles: string[],
+  reverseMap: Record<string, ReverseDependency[]>
+): {
+  layoutTrace: Record<string, string[]>;
+  sharedLayouts: string[];
+} {
+  const layoutTrace: Record<string, string[]> = {};
+  const sharedLayoutsSet = new Set<string>();
+
+  for (const file of changedFiles) {
+    if (isLayoutFile(file)) {
+      const trace: string[] = [];
+      const queue: string[] = [file];
+      const visited = new Set<string>([file]);
+
+      while (queue.length > 0) {
+        const current = queue.shift()!;
+        const parents = reverseMap[current] || [];
+
+        for (const parent of parents) {
+          if (!visited.has(parent.source)) {
+            visited.add(parent.source);
+            if (isLayoutFile(parent.source)) {
+              trace.push(parent.source);
+              sharedLayoutsSet.add(parent.source);
+              console.log(`🔄 [Layout Hierarchy] Shared layout change detected: "${parent.source}" is affected by layout "${current}"`);
+            }
+            queue.push(parent.source);
+          }
+        }
+      }
+
+      if (trace.length > 0) {
+        layoutTrace[file] = trace;
+      }
+    } else {
+      // For non-layout changes, locate any directly/transitively affected layout files first
+      const queue: string[] = [file];
+      const visited = new Set<string>([file]);
+      const affectedLayouts: string[] = [];
+
+      while (queue.length > 0) {
+        const current = queue.shift()!;
+        const parents = reverseMap[current] || [];
+
+        for (const parent of parents) {
+          if (!visited.has(parent.source)) {
+            visited.add(parent.source);
+            if (isLayoutFile(parent.source)) {
+              affectedLayouts.push(parent.source);
+            } else {
+              queue.push(parent.source);
+            }
+          }
+        }
+      }
+
+      // Trace upward from each of those affected layouts
+      for (const layout of affectedLayouts) {
+        const trace: string[] = [];
+        const lQueue: string[] = [layout];
+        const lVisited = new Set<string>([layout]);
+
+        while (lQueue.length > 0) {
+          const current = lQueue.shift()!;
+          const parents = reverseMap[current] || [];
+
+          for (const parent of parents) {
+            if (!lVisited.has(parent.source)) {
+              lVisited.add(parent.source);
+              if (isLayoutFile(parent.source)) {
+                trace.push(parent.source);
+                sharedLayoutsSet.add(parent.source);
+                console.log(`🔄 [Layout Hierarchy] Shared layout change detected: "${parent.source}" is affected by component/layout "${current}"`);
+              }
+              lQueue.push(parent.source);
+            }
+          }
+        }
+
+        if (trace.length > 0) {
+          layoutTrace[layout] = trace;
+        }
+      }
+    }
+  }
+
+  return {
+    layoutTrace,
+    sharedLayouts: Array.from(sharedLayoutsSet).sort()
+  };
 }
 
 /**
@@ -321,13 +433,35 @@ export function generateReports(report: ImpactReport, changedFiles: string[], af
   const severityEmoji = report.impactLevel === 'HIGH' ? '🔴' : report.impactLevel === 'MEDIUM' ? '🟡' : '🟢';
   const changedFilesList = changedFiles.map(f => `- ${f}`).join('\n');
 
+  let sharedLayoutsMarkdown = '';
+  if (report.sharedLayouts && report.sharedLayouts.length > 0) {
+    sharedLayoutsMarkdown = `
+<details>
+<summary><b>🔄 Shared Layouts Affected (${report.sharedLayouts.length})</b></summary>
+
+${report.sharedLayouts.map(l => `- ${l}`).join('\n')}
+</details>
+`;
+  }
+
+  let layoutTraceMarkdown = '';
+  if (report.layoutTrace && Object.keys(report.layoutTrace).length > 0) {
+    layoutTraceMarkdown = `
+<details>
+<summary><b>🗺️ Layout Dependency Trace</b></summary>
+
+${Object.entries(report.layoutTrace).map(([file, trace]) => `**${file}** -> ${trace.join(' -> ')}`).join('\n\n')}
+</details>
+`;
+  }
+
   const markdown = `## ${severityEmoji} Deployment Impact Analysis
 
 > **Impact Level:** ${report.impactLevel}
 
 ### 👁️ Visual Review Required
 ${report.routes.length > 0 ? report.routes.map((url: string) => `- [${url}](${baseUrl}${url})`).join('\n') : '_None detected (code-only change)_'}
-
+${sharedLayoutsMarkdown}${layoutTraceMarkdown}
 <details>
 <summary><b>📦 Dynamic Imports Affected (${affectedDynamicImportsSet.length})</b></summary>
 
