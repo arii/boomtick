@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.0](https://github.com/arii/boomtick/compare/cli-v0.4.0...cli-v0.5.0) (2026-07-18)
+
+
+### Features
+
+* Consolidated Workflow Orchestrator ([#189](https://github.com/arii/boomtick/issues/189)) ([fefe3d8](https://github.com/arii/boomtick/commit/fefe3d84dda6ce863601e5d09943a5d45f085bbb))
+
 ## [0.4.0](https://github.com/arii/boomtick/compare/cli-v0.3.1...cli-v0.4.0) (2026-07-17)
 
 
