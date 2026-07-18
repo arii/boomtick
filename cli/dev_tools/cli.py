@@ -5,6 +5,8 @@ import os
 import subprocess
 import sys
 import tempfile
+import importlib.util
+from pathlib import Path
 from dataclasses import asdict
 from typing import Any, Dict, List
 
@@ -1375,10 +1377,6 @@ def send(ctx, session_ids, message):
 @click.pass_context
 def run_local(ctx, pr_number, issue_number):
     """Run a single-agent multi-role sequential workflow locally."""
-    import sys
-    import importlib.util
-    from pathlib import Path
-
     try:
         script_path = Path("scripts/run-context-agent.py").resolve()
         if not script_path.exists():

@@ -104,6 +104,8 @@ def run_single_agent_multi_role_scratchpad(pr_number: int = None, issue_number: 
             print(f"❌ Failed to fetch open PRs: {e}", file=sys.stderr)
             sys.exit(1)
 
+    failed_prs = []
+
     for pr in pr_numbers:
         print(f"\n{'='*50}\n🚀 RUNNING EVALUATION FOR PR #{pr}\n{'='*50}")
         graph = WorkflowGraph()
@@ -140,8 +142,14 @@ def run_single_agent_multi_role_scratchpad(pr_number: int = None, issue_number: 
             print(f"❌ Workflow execution failed for PR #{pr}: {e}", file=sys.stderr)
             import traceback
             traceback.print_exc()
-            # Continue to next PR on failure, don't exit entirely.
+            failed_prs.append((pr, str(e)))
             continue
+
+    if failed_prs:
+        print(f"\n❌ Evaluation completed with failures in {len(failed_prs)} PRs:")
+        for failed_pr, err_msg in failed_prs:
+            print(f"  - PR #{failed_pr}: {err_msg}")
+        sys.exit(1)
 
 if __name__ == "__main__":
     target_pr = None
