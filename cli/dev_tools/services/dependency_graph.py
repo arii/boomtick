@@ -104,11 +104,12 @@ class DependencyGraph:
     def find_affected_files(self, changed_files: List[str], depth: int = 2) -> Set[str]:
         """Recursively finds files affected by the changes."""
         affected = set()
+        visited = set(changed_files)
         queue = [(f, 0) for f in changed_files]
 
         while queue:
             file, current_depth = queue.pop(0)
-            if file in affected or current_depth > depth:
+            if current_depth > depth:
                 continue
 
             if current_depth > 0:  # Don't add the changed files themselves if we want only 'affected'
@@ -116,7 +117,9 @@ class DependencyGraph:
 
             dependents = self.get_dependents(file)
             for dep in dependents:
-                queue.append((dep, current_depth + 1))
+                if dep not in visited:
+                    visited.add(dep)
+                    queue.append((dep, current_depth + 1))
 
         return affected
 
