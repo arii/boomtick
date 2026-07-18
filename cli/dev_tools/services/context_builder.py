@@ -197,6 +197,10 @@ class ContextBuilder:
                         elif path == "/dev/null" and last_src_file:
                             changed_files.add(last_src_file)
 
+        pr_diff_text = self.pr_diff
+        if pr_diff_text and len(pr_diff_text) > 15000:
+            pr_diff_text = pr_diff_text[:15000] + "\n\n... [Diff truncated due to size] ..."
+
         context = {
             "step": step_name,
             "project_repo": PROJECT_CONFIG.github_repo,
@@ -206,7 +210,7 @@ class ContextBuilder:
                 "description": self.pr_details.get("body", ""),
                 "state": self.pr_details.get("state", ""),
                 "changed_files": sorted(list(changed_files)),
-                "diff": self.pr_diff,
+                "diff": pr_diff_text,
             },
             "linked_issues": self.linked_issues,
             "file_tree": self.file_tree,
