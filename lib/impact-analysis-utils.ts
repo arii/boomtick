@@ -120,6 +120,8 @@ export function traverseDependencyGraph(
 
   const tracePaths: Record<string, string[]> = {};
   const collectedSet = new Set<string>();
+  const MAX_ITERATIONS = 50000;
+  let iterations = 0;
 
   for (const file of startFiles) {
     if (typeof file !== 'string') continue;
@@ -130,6 +132,11 @@ export function traverseDependencyGraph(
 
     let head = 0;
     while (head < queue.length) {
+      iterations++;
+      if (iterations > MAX_ITERATIONS) {
+        throw new Error(`❌ Infinite loop safety limit exceeded (${MAX_ITERATIONS} iterations) during dependency graph traversal.`);
+      }
+
       const current = queue[head++];
       const parents = reverseMap[current];
 
@@ -208,25 +215,18 @@ export function traceLayoutHierarchyUpward(
     console.log(`🔄 [Layout Hierarchy] Shared layout change detected: "${matched}" is affected by component/layout "${current}"`);
   };
 
-  // 2. Trace direct layouts upward
-  const directResult = traverseDependencyGraph(directLayouts, reverseMap, isLayoutFile, { onMatch: logMatch });
-
-  // 3. For non-layouts, find transitively affected layout entry points first
+  // 2. Locate layout entry points for non-layout files first
   const entryResult = traverseDependencyGraph(nonLayouts, reverseMap, isLayoutFile, { stopAtMatch: true });
 
-  // 4. Trace upward from each of those affected entry point layouts
-  const transitiveResult = traverseDependencyGraph(entryResult.collected, reverseMap, isLayoutFile, { onMatch: logMatch });
+  // 3. Union direct layout changes and transitive layout entry points to avoid redundant traversals
+  const uniqueLayoutEntryPoints = Array.from(new Set([...directLayouts, ...entryResult.collected])).sort();
 
-  // 5. Merge findings safely
-  const mergedLayoutTrace = { ...directResult.tracePaths, ...transitiveResult.tracePaths };
-  const mergedSharedLayouts = Array.from(new Set([
-    ...directResult.collected,
-    ...transitiveResult.collected
-  ])).sort();
+  // 4. Run a single unified BFS traversal upward from unique layout entry points
+  const traceResult = traverseDependencyGraph(uniqueLayoutEntryPoints, reverseMap, isLayoutFile, { onMatch: logMatch });
 
   return {
-    layoutTrace: mergedLayoutTrace,
-    sharedLayouts: mergedSharedLayouts
+    layoutTrace: traceResult.tracePaths,
+    sharedLayouts: traceResult.collected
   };
 }
 
@@ -504,9 +504,9 @@ export function generateReports(report: ImpactReport, changedFiles: string[], af
   const severityEmoji = report.impactLevel === 'HIGH' ? '🔴' : report.impactLevel === 'MEDIUM' ? '🟡' : '🟢';
   const changedFilesList = changedFiles.map(f => `- ${f}`).join('\n');
 
-  let sharedLayoutsMarkdown = '';
+  let sharedLayoutsContent = '';
   if (report.sharedLayouts && report.sharedLayouts.length > 0) {
-    sharedLayoutsMarkdown = `
+    sharedLayoutsContent = `
 <details>
 <summary><b>🔄 Shared Layouts Affected (${report.sharedLayouts.length})</b></summary>
 
@@ -521,7 +521,7 @@ ${report.sharedLayouts.map(l => `- ${l}`).join('\n')}
 <details>
 <summary><b>🗺️ Layout Dependency Trace</b></summary>
 
-${Object.entries(report.layoutTrace).map(([file, trace]) => `**${file}** -> ${trace.join(' -> ')}`).join('\n\n')}
+${Object.entries(report.layoutTrace).map(([file, trace]) => `**${file}** affects layout(s): ${trace.join(', ')}`).join('\n\n')}
 </details>
 `;
   }
@@ -532,7 +532,7 @@ ${Object.entries(report.layoutTrace).map(([file, trace]) => `**${file}** -> ${tr
 
 ### 👁️ Visual Review Required
 ${report.routes.length > 0 ? report.routes.map((url: string) => `- [${url}](${baseUrl}${url})`).join('\n') : '_None detected (code-only change)_'}
-${sharedLayoutsMarkdown}${layoutTraceMarkdown}
+${sharedLayoutsContent}${layoutTraceMarkdown}
 <details>
 <summary><b>📦 Dynamic Imports Affected (${affectedDynamicImportsSet.length})</b></summary>
 
