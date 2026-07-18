@@ -9,7 +9,7 @@ const ALL_REVIEW_TITLES = [
 ];
 
 async function main(): Promise<void> {
-  const provider = process.argv[2];
+  const provider = process.env.AI_PROVIDER_OVERRIDE || process.argv[2];
 
   if (provider === 'gemini') {
     if (!process.env.GEMINI_API_KEY) {
