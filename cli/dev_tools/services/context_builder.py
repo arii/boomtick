@@ -115,7 +115,7 @@ class ContextBuilder:
 
         structure: Dict[str, Any] = {}
         try:
-            path = os.path.abspath(path_str)
+            path = os.path.realpath(path_str)
             if root_dir_abs is None:
                 root_dir_abs = path
 

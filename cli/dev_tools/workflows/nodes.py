@@ -113,7 +113,9 @@ class DeploymentImpactCheckNode(WorkflowNode):
                 # Get changed files from PR
                 from dev_tools.orchestrator import Orchestrator
                 orch = Orchestrator()
-                changed_files = [f.get("filename") for f in orch.github.fetch_pr_files(pr_number) if f.get("filename")]
+                # Performance optimization: extract from cached diff rather than a new network call
+                ctx_data = context.builder.build_structured_context("generic")
+                changed_files = ctx_data.get("pr", {}).get("changed_files", [])
                 if changed_files:
                     graph = DependencyGraph()
                     affected = list(graph.find_affected_files(changed_files))
