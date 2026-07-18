@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { reconcileVerdict } from '../../lib/codeReviewOrchestrator';
+import { reconcileVerdict, fetchPRGoal, clearCachedPRGoal } from '../../lib/codeReviewOrchestrator';
 
 import { IMPACT_CONFIG } from '../../scripts/impact-analysis.config';
 import { filterLowImpactFiles } from '../../lib/codeReviewUtils';
@@ -114,5 +114,114 @@ describe('reconcileVerdict', () => {
     );
     expect(result.llmVerdict).toBe('warn');
     expect(consoleWarnSpy).toHaveBeenCalledWith(expect.stringContaining('Downgrading FAIL→WARN: no open findings found to justify the FAIL verdict.'));
+  });
+});
+
+describe('fetchPRGoal', () => {
+  const originalEnv = { ...process.env };
+
+  beforeEach(() => {
+    process.env = {
+      ...originalEnv,
+      GITHUB_TOKEN: 'fake-token',
+      GITHUB_REPOSITORY: 'arii/tech-dancer',
+      PR_NUMBER: '42',
+    };
+    clearCachedPRGoal();
+    vi.restoreAllMocks();
+  });
+
+  afterEach(() => {
+    process.env = originalEnv;
+  });
+
+  it('returns undefined if environment variables are missing', async () => {
+    delete process.env.GITHUB_TOKEN;
+    const res = await fetchPRGoal();
+    expect(res).toBeUndefined();
+  });
+
+  it('queries GraphQL successfully with no linked issues and returns title and body', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        data: {
+          repository: {
+            pullRequest: {
+              title: 'My PR Title',
+              body: 'My PR Body',
+              closingIssuesReferences: {
+                nodes: []
+              }
+            }
+          }
+        }
+      })
+    } as Response);
+
+    const res = await fetchPRGoal();
+    expect(res).toBe('My PR Title\n\nMy PR Body');
+    expect(fetchSpy).toHaveBeenCalledWith('https://api.github.com/graphql', expect.any(Object));
+  });
+
+  it('queries GraphQL successfully with linked issues and returns enriched context', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        data: {
+          repository: {
+            pullRequest: {
+              title: 'Implement feature X',
+              body: 'Closes #123',
+              closingIssuesReferences: {
+                nodes: [
+                  {
+                    number: 123,
+                    title: 'Issue 123 Title',
+                    body: 'Issue 123 Body',
+                    labels: {
+                      nodes: [
+                        { name: 'spec-driven' },
+                        { name: 'bug' }
+                      ]
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        }
+      })
+    } as Response);
+
+    const res = await fetchPRGoal();
+    expect(res).toContain('Implement feature X\n\nCloses #123');
+    expect(res).toContain('LINKED ISSUE arii/tech-dancer#123 SPECIFICATION:');
+    expect(res).toContain('Title: Issue 123 Title');
+    expect(res).toContain('Labels: [spec-driven, bug]');
+    expect(res).toContain('Description:\nIssue 123 Body');
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('falls back to REST API if GraphQL fetch throws or is not ok', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 500,
+        statusText: 'Internal Server Error'
+      } as Response)
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          title: 'REST PR Title',
+          body: 'REST PR Body'
+        })
+      } as Response);
+
+    const res = await fetchPRGoal();
+    expect(res).toBe('REST PR Title\n\nREST PR Body');
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
+    expect(fetchSpy).toHaveBeenNthCalledWith(1, 'https://api.github.com/graphql', expect.any(Object));
+    expect(fetchSpy).toHaveBeenNthCalledWith(2, 'https://api.github.com/repos/arii/tech-dancer/pulls/42', expect.any(Object));
   });
 });
