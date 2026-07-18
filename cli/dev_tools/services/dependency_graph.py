@@ -1,4 +1,5 @@
 # pylint: disable=missing-docstring,raise-missing-from,subprocess-run-check
+from collections import deque
 import json
 import os
 import subprocess
@@ -105,10 +106,10 @@ class DependencyGraph:
         """Recursively finds files affected by the changes."""
         affected = set()
         visited = set(changed_files)
-        queue = [(f, 0) for f in changed_files]
+        queue = deque([(f, 0) for f in changed_files])
 
         while queue:
-            file, current_depth = queue.pop(0)
+            file, current_depth = queue.popleft()
             if current_depth > depth:
                 continue
 

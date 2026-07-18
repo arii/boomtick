@@ -4,6 +4,40 @@ import json
 from dev_tools.services.dependency_graph import DependencyGraph
 
 
+def validate_and_sanitize_graph_data(data: dict) -> dict:
+    if not isinstance(data, dict):
+        raise ValueError("Graph data must be a dictionary")
+
+    sanitized = {}
+    if "modules" in data:
+        if not isinstance(data["modules"], list):
+            raise ValueError("modules must be a list")
+        sanitized["modules"] = []
+        for mod in data["modules"]:
+            if not isinstance(mod, dict):
+                raise ValueError("Module must be a dictionary")
+            sanitized_mod = {}
+            if "source" in mod:
+                if not isinstance(mod["source"], str):
+                    raise ValueError("source must be a string")
+                sanitized_mod["source"] = mod["source"]
+            if "dependencies" in mod:
+                if not isinstance(mod["dependencies"], list):
+                    raise ValueError("dependencies must be a list")
+                sanitized_mod["dependencies"] = []
+                for dep in mod["dependencies"]:
+                    if not isinstance(dep, dict):
+                        raise ValueError("Dependency must be a dictionary")
+                    sanitized_dep = {}
+                    if "resolved" in dep:
+                        if not isinstance(dep["resolved"], str):
+                            raise ValueError("resolved must be a string")
+                        sanitized_dep["resolved"] = dep["resolved"]
+                    sanitized_mod["dependencies"].append(sanitized_dep)
+            sanitized["modules"].append(sanitized_mod)
+    return sanitized
+
+
 def test_dependency_graph_parsing(tmp_path):
     graph_data = {
         "modules": [
@@ -11,12 +45,13 @@ def test_dependency_graph_parsing(tmp_path):
             {"source": "src/b.ts", "dependencies": []},
         ]
     }
+    validated_data = validate_and_sanitize_graph_data(graph_data)
 
     # Create a dummy artifact
     artifact_dir = tmp_path / "artifacts"
     artifact_dir.mkdir()
     graph_file = artifact_dir / "dependency-graph.json"
-    graph_file.write_text(json.dumps(graph_data))
+    graph_file.write_text(json.dumps(validated_data))
 
     # Instantiate with tmp_path
     dg = DependencyGraph(root_dir=str(tmp_path))
@@ -46,11 +81,12 @@ def test_find_affected_files_complex(tmp_path):
             {"source": "src/a.ts", "dependencies": []},
         ]
     }
+    validated_data = validate_and_sanitize_graph_data(graph_data)
 
     artifact_dir = tmp_path / "artifacts"
     artifact_dir.mkdir(exist_ok=True)
     graph_file = artifact_dir / "dependency-graph.json"
-    graph_file.write_text(json.dumps(graph_data))
+    graph_file.write_text(json.dumps(validated_data))
 
     dg = DependencyGraph(root_dir=str(tmp_path))
 
@@ -73,11 +109,12 @@ def test_find_affected_files_cycle(tmp_path):
             {"source": "src/b.ts", "dependencies": [{"resolved": "src/a.ts"}]},
         ]
     }
+    validated_data = validate_and_sanitize_graph_data(graph_data)
 
     artifact_dir = tmp_path / "artifacts"
     artifact_dir.mkdir(exist_ok=True)
     graph_file = artifact_dir / "dependency-graph.json"
-    graph_file.write_text(json.dumps(graph_data))
+    graph_file.write_text(json.dumps(validated_data))
 
     dg = DependencyGraph(root_dir=str(tmp_path))
 
