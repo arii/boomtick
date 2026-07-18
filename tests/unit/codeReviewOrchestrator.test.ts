@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { reconcileVerdict, fetchPRGoal, clearCachedPRGoal } from '../../lib/codeReviewOrchestrator';
+import { reconcileVerdict, fetchPRGoal, clearCachedPRGoal, formatLinkedIssues } from '../../lib/codeReviewOrchestrator';
 
 import { IMPACT_CONFIG } from '../../scripts/impact-analysis.config';
 import { filterLowImpactFiles } from '../../lib/codeReviewUtils';
@@ -223,5 +223,47 @@ describe('fetchPRGoal', () => {
     expect(fetchSpy).toHaveBeenCalledTimes(2);
     expect(fetchSpy).toHaveBeenNthCalledWith(1, 'https://api.github.com/graphql', expect.any(Object));
     expect(fetchSpy).toHaveBeenNthCalledWith(2, 'https://api.github.com/repos/arii/tech-dancer/pulls/42', expect.any(Object));
+  });
+
+  it('falls back to REST API if GraphQL response has payload.errors', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          errors: [{ message: 'Some GraphQL error' }]
+        })
+      } as Response)
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          title: 'REST PR Title 2',
+          body: 'REST PR Body 2'
+        })
+      } as Response);
+
+    const res = await fetchPRGoal();
+    expect(res).toBe('REST PR Title 2\n\nREST PR Body 2');
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
+  });
+
+  it('correctly formats linked issues using the formatLinkedIssues helper', () => {
+    const issues = [
+      {
+        number: 101,
+        title: 'Crash on startup',
+        body: 'Details about crash',
+        labels: {
+          nodes: [{ name: 'critical' }, { name: 'bug' }]
+        }
+      }
+    ];
+    const formatted = formatLinkedIssues(issues, 'owner/repo');
+    expect(formatted).toBe(
+      'LINKED ISSUE owner/repo#101 SPECIFICATION:\n' +
+      'Title: Crash on startup\n' +
+      'Labels: [critical, bug]\n' +
+      'Description:\n' +
+      'Details about crash'
+    );
   });
 });
