@@ -1381,6 +1381,10 @@ def run_local(ctx, pr_number, issue_number):
 
     try:
         script_path = Path("scripts/run-context-agent.py").resolve()
+        if not script_path.exists():
+            err(ctx, f"Local orchestration script not found at {script_path}")
+            return
+
         spec = importlib.util.spec_from_file_location("run_context_agent", script_path)
         module = importlib.util.module_from_spec(spec)
         sys.modules["run_context_agent"] = module
