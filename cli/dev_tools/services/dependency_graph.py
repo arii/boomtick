@@ -1,4 +1,4 @@
-# pylint: disable=missing-docstring,raise-missing-from,subprocess-run-check
+# pylint: disable=missing-docstring,raise-missing-from,subprocess-run-check,too-many-branches,too-many-nested-blocks
 from collections import deque
 import json
 import os
@@ -6,6 +6,41 @@ import subprocess
 from typing import Dict, List, Set
 
 from dev_tools.utils import CLIError, log_error, log_warn
+
+
+def validate_and_sanitize_graph_data(data: dict) -> dict:
+    """Validates and sanitizes the dependency graph data structure."""
+    if not isinstance(data, dict):
+        raise ValueError("Graph data must be a dictionary")
+
+    sanitized = {}
+    if "modules" in data:
+        if not isinstance(data["modules"], list):
+            raise ValueError("modules must be a list")
+        sanitized["modules"] = []
+        for mod in data["modules"]:
+            if not isinstance(mod, dict):
+                raise ValueError("Module must be a dictionary")
+            sanitized_mod = {}
+            if "source" in mod:
+                if not isinstance(mod["source"], str):
+                    raise ValueError("source must be a string")
+                sanitized_mod["source"] = mod["source"]
+            if "dependencies" in mod:
+                if not isinstance(mod["dependencies"], list):
+                    raise ValueError("dependencies must be a list")
+                sanitized_mod["dependencies"] = []
+                for dep in mod["dependencies"]:
+                    if not isinstance(dep, dict):
+                        raise ValueError("Dependency must be a dictionary")
+                    sanitized_dep = {}
+                    if "resolved" in dep:
+                        if not isinstance(dep["resolved"], str):
+                            raise ValueError("resolved must be a string")
+                        sanitized_dep["resolved"] = dep["resolved"]
+                    sanitized_mod["dependencies"].append(sanitized_dep)
+            sanitized["modules"].append(sanitized_mod)
+    return sanitized
 
 
 class DependencyGraph:
@@ -65,15 +100,22 @@ class DependencyGraph:
                     log_error(f"pnpm or depcruise not found or failed: {e}")
                     raise CLIError("pnpm or depcruise not found. Ensure dependencies are installed.")
 
-                if data and data.get("modules"):
-                    # Cache it
+                # Validate the parsed data before caching
+                validated_data = validate_and_sanitize_graph_data(data)
+
+                if validated_data and validated_data.get("modules"):
+                    # Cache the validated data
                     os.makedirs(os.path.dirname(cache_path), exist_ok=True)
                     with open(cache_path, "w", encoding="utf-8") as f:
-                        json.dump(data, f)
+                        json.dump(validated_data, f)
+                    data = validated_data
 
-            self._parse_modules(data.get("modules", []))
-        except CLIError:
-            raise
+            # Ensure cached data is also validated and sanitized
+            validated_data = validate_and_sanitize_graph_data(data)
+            self._parse_modules(validated_data.get("modules", []))
+        except (CLIError, ValueError) as e:
+            log_error(f"Failed loading/validating dependency graph: {e}")
+            raise CLIError(f"Dependency graph loading or validation failed: {e}")
         except Exception as e:
             log_error(f"loading dependency graph: {e}")
             self.graph = {}

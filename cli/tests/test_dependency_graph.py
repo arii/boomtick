@@ -1,41 +1,7 @@
 # pylint: disable=missing-docstring,too-many-branches,too-many-nested-blocks,line-too-long
 import json
 
-from dev_tools.services.dependency_graph import DependencyGraph
-
-
-def validate_and_sanitize_graph_data(data: dict) -> dict:
-    if not isinstance(data, dict):
-        raise ValueError("Graph data must be a dictionary")
-
-    sanitized = {}
-    if "modules" in data:
-        if not isinstance(data["modules"], list):
-            raise ValueError("modules must be a list")
-        sanitized["modules"] = []
-        for mod in data["modules"]:
-            if not isinstance(mod, dict):
-                raise ValueError("Module must be a dictionary")
-            sanitized_mod = {}
-            if "source" in mod:
-                if not isinstance(mod["source"], str):
-                    raise ValueError("source must be a string")
-                sanitized_mod["source"] = mod["source"]
-            if "dependencies" in mod:
-                if not isinstance(mod["dependencies"], list):
-                    raise ValueError("dependencies must be a list")
-                sanitized_mod["dependencies"] = []
-                for dep in mod["dependencies"]:
-                    if not isinstance(dep, dict):
-                        raise ValueError("Dependency must be a dictionary")
-                    sanitized_dep = {}
-                    if "resolved" in dep:
-                        if not isinstance(dep["resolved"], str):
-                            raise ValueError("resolved must be a string")
-                        sanitized_dep["resolved"] = dep["resolved"]
-                    sanitized_mod["dependencies"].append(sanitized_dep)
-            sanitized["modules"].append(sanitized_mod)
-    return sanitized
+from dev_tools.services.dependency_graph import DependencyGraph, validate_and_sanitize_graph_data
 
 
 def test_dependency_graph_parsing(tmp_path):
