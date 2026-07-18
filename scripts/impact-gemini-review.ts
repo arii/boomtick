@@ -2,10 +2,5 @@
  * Forwarding stub to maintain backward compatibility for consumer package.json scripts.
  * Safely injects the expected CLI argument before executing the unified review module.
  */
-(async () => {
-  process.argv.splice(2, 0, 'gemini');
-  await import('./impact-ai-review');
-})().catch(error => {
-  console.error(error);
-  process.exit(1);
-});
+process.argv.splice(2, 0, 'gemini');
+require('./impact-ai-review');
