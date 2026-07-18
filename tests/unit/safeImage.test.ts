@@ -81,13 +81,13 @@ describe('MarkdownRenderer', () => {
   it('renders normal text safely', () => {
     const element = renderMarkdownRenderer({ content: 'Just some regular text.' });
     expect(element).toBeDefined();
-    expect(element.props.className).toBe('markdown-renderer');
+    expect(element.props.className).toBe('prose text-gray-800');
   });
 
   it('correctly parses and uses SafeImage for markdown images', () => {
     const element = renderMarkdownRenderer({ content: '![Awesome Image](https://example.com/img.png)' });
     expect(element).toBeDefined();
-    expect(element.props.className).toBe('markdown-renderer');
+    expect(element.props.className).toBe('flex flex-col items-center justify-center p-4');
 
     const children = element.props.children;
     expect(children).toBeDefined();
