@@ -106,8 +106,8 @@ jobs:
 
       - name: Publish MCP to npm
         # [NOTE]: Temporarily disabling MCP publishing due to npm auth errors.
-        # Uses a dynamic false condition since actionlint forbids `if: false`.
-        if: ${{ github.repository == 'disabled' }}
+        # actionlint-disable if-cond
+        if: false
         run: pnpm --filter @arii/boomtick-mcp publish --no-git-checks --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
