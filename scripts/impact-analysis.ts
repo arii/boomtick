@@ -9,6 +9,7 @@ import {
   getDynamicRouteMapping,
   resolveAffectedUrls,
   generateReports,
+  traceLayoutHierarchyUpward,
   type DependencyGraph,
   type ImpactReport
 } from '../lib/impact-analysis-utils';
@@ -93,8 +94,13 @@ async function main() {
 
     // Find affected files in src/
     const srcChanges = files.filter(f => f.startsWith('src/'));
-    const allAffected = findAffectedFiles(srcChanges, reverseMap, { includeDynamic: true });
-    const staticAffected = findAffectedFiles(srcChanges, reverseMap, { includeDynamic: false });
+
+    // Trace layout hierarchy upward from the point of change
+    const { layoutTrace, sharedLayouts } = traceLayoutHierarchyUpward(srcChanges, reverseMap);
+    const finalSrcChanges = Array.from(new Set([...srcChanges, ...sharedLayouts]));
+
+    const allAffected = findAffectedFiles(finalSrcChanges, reverseMap, { includeDynamic: true });
+    const staticAffected = findAffectedFiles(finalSrcChanges, reverseMap, { includeDynamic: false });
 
     // Resolve Dynamic Mapping and URLs
     const dynamicRouteMapping = getDynamicRouteMapping(graph);
@@ -123,7 +129,9 @@ async function main() {
       affectedDynamicImports: affectedDynamicImportsSet,
       routes: allUrls,
       visualReviewRequired: allUrls,
-      impactLevel: severity
+      impactLevel: severity,
+      sharedLayouts,
+      layoutTrace
     };
 
     // Human readable output
