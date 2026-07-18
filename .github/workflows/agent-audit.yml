@@ -79,7 +79,9 @@ jobs:
           PR_NUMBER: ${{ inputs.pr_number }}
         run: |
           if [ -z "$PR_NUMBER" ]; then
-            echo "Error: PR number is required for local orchestration mode"
-            exit 1
+            echo "No PR number provided. Running local orchestrator for all open PRs..."
+            td-cli agent run-local
+          else
+            echo "Running local orchestrator for PR #$PR_NUMBER..."
+            td-cli agent run-local --pr "$PR_NUMBER"
           fi
-          td-cli agent run-local --pr "$PR_NUMBER"

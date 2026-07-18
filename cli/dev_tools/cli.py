@@ -1370,7 +1370,7 @@ def send(ctx, session_ids, message):
 
 
 @agent_group.command(name="run-local")
-@click.option("--pr", "pr_number", required=True, type=int, help="Pull Request number to evaluate")
+@click.option("--pr", "pr_number", required=False, type=int, help="Pull Request number to evaluate. If omitted, evaluates all open PRs.")
 @click.option("--issue", "issue_number", type=int, help="Optional linked Issue number")
 @click.pass_context
 def run_local(ctx, pr_number, issue_number):
@@ -1390,7 +1390,8 @@ def run_local(ctx, pr_number, issue_number):
         sys.modules["run_context_agent"] = module
         spec.loader.exec_module(module)
 
-        out(ctx, f"Starting local multi-role agent for PR #{pr_number}...")
+        target_str = f"PR #{pr_number}" if pr_number else "all open PRs"
+        out(ctx, f"Starting local multi-role agent for {target_str}...")
         module.run_single_agent_multi_role_scratchpad(pr_number, issue_number)
         out(ctx, "✅ Local agent workflow completed successfully.")
     except Exception as e:
