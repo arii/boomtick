@@ -93,7 +93,7 @@ class ContextBuilder:
             except Exception:
                 pass
 
-        self.file_tree = self._get_dir_structure(root_dir, max_depth, root_dir_abs=os.path.abspath(root_dir))
+        self.file_tree = self._get_dir_structure(root_dir, max_depth, root_dir_abs=os.path.realpath(root_dir))
         return self
 
     def add_extra_context(self, key: str, value: Any) -> "ContextBuilder":
