@@ -2912,7 +2912,8 @@ Run the validation suite to ensure the aggregated branch is stable.
         # Optional: Enrich with dependency graph and semantic context if changed files are present
         if pr_number is not None and builder.pr_diff:
             try:
-                changed_files = [f.get("filename") for f in self.github.fetch_pr_files(pr_number) if f.get("filename")]
+                structured_context = builder.build_structured_context(step)
+                changed_files = structured_context.get("pr", {}).get("changed_files", [])
                 if changed_files:
                     from dev_tools.services.dependency_graph import DependencyGraph
 
