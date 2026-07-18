@@ -122,12 +122,13 @@ def _call_api_with_retry(method: str, url: str, **kwargs) -> requests.Response:
     # Default to 60s for standard calls, 300s for large downloads/logs
     timeout = kwargs.pop("timeout", 60)
     max_retries = kwargs.pop("max_retries", 3)
+    retry_status_codes = kwargs.pop("retry_status_codes", [500, 502, 503, 504])
 
     session = requests.Session()
     retries = Retry(
         total=max_retries,
         backoff_factor=1,
-        status_forcelist=[500, 502, 503, 504],
+        status_forcelist=retry_status_codes,
         raise_on_status=True,
     )
     session.mount("https://", HTTPAdapter(max_retries=retries))
