@@ -12,6 +12,18 @@ on:
           - codebase-integrity-audit
           - issue-audit
           - review-ux
+      execution_mode:
+        description: 'Agent execution mode'
+        required: true
+        default: 'remote-dispatch'
+        type: choice
+        options:
+          - remote-dispatch
+          - local-orchestrator
+      pr_number:
+        description: 'Optional PR Number for local orchestration'
+        required: false
+        type: string
 
 permissions:
   contents: write
@@ -30,15 +42,18 @@ jobs:
         uses: ./.github/actions/setup-workspace
 
       - name: Resolve Audit Content
+        if: ${{ inputs.execution_mode == 'remote-dispatch' }}
         id: resolve-content
+        env:
+          AUDIT_TYPE: ${{ inputs.audit_type }}
         run: |
           # Read the selected agent workflow content
-          if [ -f ".agents/workflows/${{ inputs.audit_type }}.md" ]; then
+          if [ -f ".agents/workflows/${AUDIT_TYPE}.md" ]; then
             # We export the prompt to an environment variable to pass it to the CLI safely
             EOF_DELIMITER=$(openssl rand -hex 16)
             {
               echo "AUDIT_PROMPT<<$EOF_DELIMITER"
-              cat ".agents/workflows/${{ inputs.audit_type }}.md"
+              cat ".agents/workflows/${AUDIT_TYPE}.md"
               echo "$EOF_DELIMITER"
             } >> "$GITHUB_ENV"
           else
@@ -48,9 +63,23 @@ jobs:
           fi
 
       - name: Dispatch Jules Agent
+        if: ${{ inputs.execution_mode == 'remote-dispatch' }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           JULES_API_KEY: ${{ secrets.JULES_API_KEY }}
         run: |
           # Use td-cli to dispatch the task to jules targeting the main branch
           td-cli agent dispatch main "$AUDIT_PROMPT"
+
+      - name: Run Local Orchestrator
+        if: ${{ inputs.execution_mode == 'local-orchestrator' }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          JULES_API_KEY: ${{ secrets.JULES_API_KEY }}
+          PR_NUMBER: ${{ inputs.pr_number }}
+        run: |
+          if [ -z "$PR_NUMBER" ]; then
+            echo "Error: PR number is required for local orchestration mode"
+            exit 1
+          fi
+          td-cli agent run-local --pr "$PR_NUMBER"

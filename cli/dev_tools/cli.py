@@ -1369,6 +1369,30 @@ def send(ctx, session_ids, message):
     out(ctx, summary, data=res)
 
 
+@agent_group.command(name="run-local")
+@click.option("--pr", "pr_number", required=True, type=int, help="Pull Request number to evaluate")
+@click.option("--issue", "issue_number", type=int, help="Optional linked Issue number")
+@click.pass_context
+def run_local(ctx, pr_number, issue_number):
+    """Run a single-agent multi-role sequential workflow locally."""
+    import sys
+    import importlib.util
+    from pathlib import Path
+
+    try:
+        script_path = Path("scripts/run-context-agent.py").resolve()
+        spec = importlib.util.spec_from_file_location("run_context_agent", script_path)
+        module = importlib.util.module_from_spec(spec)
+        sys.modules["run_context_agent"] = module
+        spec.loader.exec_module(module)
+
+        out(ctx, f"Starting local multi-role agent for PR #{pr_number}...")
+        module.run_single_agent_multi_role_scratchpad(pr_number, issue_number)
+        out(ctx, "✅ Local agent workflow completed successfully.")
+    except Exception as e:
+        _handle_unexpected_error(ctx, "agent run-local", e)
+
+
 @agent_group.command(name="plan-review")
 @click.option("--pr", "pr_number", required=True, type=int, help="Pull Request number")
 @click.option("--issue", "issue_number", type=int, help="Issue number")
