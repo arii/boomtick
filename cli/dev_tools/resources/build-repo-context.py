@@ -157,6 +157,41 @@ def build_repo_context():
 
     file_tree = get_dir_structure(repo_root)
 
+    # 6. Design Tokens (Package Internal/Repo Root)
+    design_tokens = {}
+    try:
+        layout_maps_path = repo_root / "src" / "layouts" / "layout-maps.ts"
+        if not layout_maps_path.exists():
+            layout_maps_path = package_root / "src" / "layouts" / "layout-maps.ts"
+
+        if layout_maps_path.exists():
+            # Simple minification
+            lines = layout_maps_path.read_text().splitlines()
+            minified_lines = []
+            for line in lines:
+                line_stripped = line.strip()
+                if not line_stripped or line_stripped.startswith("//") or line_stripped.startswith("/*") or line_stripped.startswith("*"):
+                    continue
+                minified_lines.append(line_stripped)
+            design_tokens["layout_maps"] = " ".join(minified_lines)
+
+        index_css_path = repo_root / "src" / "index.css"
+        if not index_css_path.exists():
+            index_css_path = package_root / "src" / "index.css"
+
+        if index_css_path.exists():
+            # Simple minification
+            lines = index_css_path.read_text().splitlines()
+            minified_lines = []
+            for line in lines:
+                line_stripped = line.strip()
+                if not line_stripped or line_stripped.startswith("/*") or line_stripped.startswith("*") or line_stripped.endswith("*/"):
+                    continue
+                minified_lines.append(line_stripped)
+            design_tokens["index_css"] = " ".join(minified_lines)
+    except Exception as e:
+        print(f"Error gathering design tokens: {e}", file=sys.stderr)
+
     # Assemble context
     return {
         "repo": {
@@ -167,6 +202,7 @@ def build_repo_context():
         "mcp_schema": mcp_schema,
         "cli_schema": cli_schema,
         "file_tree": file_tree,
+        "design_tokens": design_tokens,
     }
 
 

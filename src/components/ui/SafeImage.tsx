@@ -1,4 +1,5 @@
-import { ImgHTMLAttributes } from 'react';
+import { ImgHTMLAttributes, memo } from 'react';
+import { SPACING_MAP, SpacingToken } from '../../layouts/layout-maps';
 
 // Protocol Whitelist: Allow only http:, https:, or / (relative) paths
 export function isSafeUrl(url?: string): boolean {
@@ -12,8 +13,8 @@ export function isSafeUrl(url?: string): boolean {
   }
 }
 
-export interface SafeImageProps extends ImgHTMLAttributes<HTMLImageElement> {
-  maxHeight?: string | number;
+export interface SafeImageProps extends Omit<ImgHTMLAttributes<HTMLImageElement>, 'maxHeight'> {
+  maxHeight?: SpacingToken | string | number;
   objectFit?: 'contain' | 'cover' | 'fill' | 'none' | 'scale-down';
 }
 
@@ -21,7 +22,7 @@ export interface SafeImageProps extends ImgHTMLAttributes<HTMLImageElement> {
  * Reusable security-hardened Image component.
  * Ensures image rendering conforms to strict protocol/prop whitelists and asset safety.
  */
-export function SafeImage({
+export const SafeImage = memo(function SafeImage({
   src,
   alt = '',
   loading = 'lazy',
@@ -42,10 +43,15 @@ export function SafeImage({
   const crossOrigin = isExternal ? 'anonymous' : undefined;
   const referrerPolicy = isExternal ? 'no-referrer' : undefined;
 
+  // Resolve maxHeight design token if passed
+  const resolvedMaxHeight = maxHeight && maxHeight in SPACING_MAP
+    ? SPACING_MAP[maxHeight as SpacingToken]
+    : maxHeight;
+
   // Enforce editorial constraints: object-contain by default, specific maxHeight handling if passed
   const combinedStyle = {
     objectFit,
-    maxHeight: maxHeight || undefined,
+    maxHeight: resolvedMaxHeight || undefined,
     ...style,
   };
 
@@ -68,4 +74,5 @@ export function SafeImage({
       referrerPolicy={referrerPolicy}
     />
   );
-}
+});
+SafeImage.displayName = 'SafeImage';
