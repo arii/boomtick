@@ -79,22 +79,51 @@ export function sanitizeFilePath(filePath: unknown): string | null {
 }
 
 /**
- * Internal helper to run an optimized BFS from a set of start files, finding any transitively
- * affected files that match the `isLayoutFile` predicate using the reverse dependency map.
- *
- * Algorithmic complexity is strictly O(V + E) with O(1) dequeues using an array pointer.
+ * Options to customize the behavior of the dependency graph traversal.
  */
-function findAffectedLayoutsByBFS(
+export interface TraversalOptions {
+  /**
+   * If true, the traversal along a path stops immediately when a match is found
+   * (meaning we record the matching file but do not enqueue its ancestors).
+   */
+  stopAtMatch?: boolean;
+  /**
+   * Optional callback function invoked when a match is discovered during traversal.
+   * Useful for separating traversal logic from custom side-effects (e.g., logging).
+   */
+  onMatch?: (current: string, matched: string) => void;
+}
+
+/**
+ * Traverses the reverse dependency graph starting from a set of files using an optimized BFS.
+ * Implements strict O(V + E) time complexity with O(1) constant array queue operations using a pointer.
+ * Defensive against malformed inputs and prevents infinite loops caused by circular dependencies.
+ *
+ * @param startFiles List of files to begin traversal from.
+ * @param reverseMap The reverse dependency map (child -> parents).
+ * @param predicate A callback function to determine if a visited parent should be collected.
+ * @param options Traversal options to customize BFS behavior.
+ */
+export function traverseDependencyGraph(
   startFiles: string[],
-  reverseMap: Record<string, ReverseDependency[]>
+  reverseMap: Record<string, ReverseDependency[]>,
+  predicate: (filePath: string) => boolean,
+  options: TraversalOptions = {}
 ): {
-  layoutTrace: Record<string, string[]>;
-  sharedLayouts: string[];
+  tracePaths: Record<string, string[]>;
+  collected: string[];
 } {
-  const layoutTrace: Record<string, string[]> = {};
-  const sharedLayoutsSet = new Set<string>();
+  // Defensive type validation on reverseMap
+  if (!reverseMap || typeof reverseMap !== 'object') {
+    return { tracePaths: {}, collected: [] };
+  }
+
+  const tracePaths: Record<string, string[]> = {};
+  const collectedSet = new Set<string>();
 
   for (const file of startFiles) {
+    if (typeof file !== 'string') continue;
+
     const trace: string[] = [];
     const queue: string[] = [file];
     const visited = new Set<string>([file]);
@@ -102,29 +131,45 @@ function findAffectedLayoutsByBFS(
     let head = 0;
     while (head < queue.length) {
       const current = queue[head++];
-      const parents = reverseMap[current] || [];
+      const parents = reverseMap[current];
+
+      // Validate parent collection structure safely
+      if (!Array.isArray(parents)) continue;
 
       for (const parent of parents) {
+        if (!parent || typeof parent !== 'object' || typeof parent.source !== 'string') {
+          continue;
+        }
+
         if (!visited.has(parent.source)) {
           visited.add(parent.source);
-          if (isLayoutFile(parent.source)) {
+
+          const isMatch = predicate(parent.source);
+          if (isMatch) {
             trace.push(parent.source);
-            sharedLayoutsSet.add(parent.source);
-            console.log(`🔄 [Layout Hierarchy] Shared layout change detected: "${parent.source}" is affected by component/layout "${current}"`);
+            collectedSet.add(parent.source);
+            if (options.onMatch) {
+              options.onMatch(current, parent.source);
+            }
           }
-          queue.push(parent.source);
+
+          // Decide if we should continue queueing parents along this path
+          const shouldEnqueue = !isMatch || !options.stopAtMatch;
+          if (shouldEnqueue) {
+            queue.push(parent.source);
+          }
         }
       }
     }
 
     if (trace.length > 0) {
-      layoutTrace[file] = trace;
+      tracePaths[file] = trace;
     }
   }
 
   return {
-    layoutTrace,
-    sharedLayouts: Array.from(sharedLayoutsSet).sort()
+    tracePaths,
+    collected: Array.from(collectedSet).sort()
   };
 }
 
@@ -158,42 +203,25 @@ export function traceLayoutHierarchyUpward(
   const directLayouts = sanitizedFiles.filter(isLayoutFile);
   const nonLayouts = sanitizedFiles.filter(file => !isLayoutFile(file));
 
+  // Defined callback for decoupled, structured logging
+  const logMatch = (current: string, matched: string) => {
+    console.log(`🔄 [Layout Hierarchy] Shared layout change detected: "${matched}" is affected by component/layout "${current}"`);
+  };
+
   // 2. Trace direct layouts upward
-  const directResult = findAffectedLayoutsByBFS(directLayouts, reverseMap);
+  const directResult = traverseDependencyGraph(directLayouts, reverseMap, isLayoutFile, { onMatch: logMatch });
 
   // 3. For non-layouts, find transitively affected layout entry points first
-  const affectedLayoutsSet = new Set<string>();
-  for (const file of nonLayouts) {
-    const queue: string[] = [file];
-    const visited = new Set<string>([file]);
-
-    let head = 0;
-    while (head < queue.length) {
-      const current = queue[head++];
-      const parents = reverseMap[current] || [];
-
-      for (const parent of parents) {
-        if (!visited.has(parent.source)) {
-          visited.add(parent.source);
-          if (isLayoutFile(parent.source)) {
-            affectedLayoutsSet.add(parent.source);
-          } else {
-            queue.push(parent.source);
-          }
-        }
-      }
-    }
-  }
+  const entryResult = traverseDependencyGraph(nonLayouts, reverseMap, isLayoutFile, { stopAtMatch: true });
 
   // 4. Trace upward from each of those affected entry point layouts
-  const transitivelyAffectedLayouts = Array.from(affectedLayoutsSet);
-  const transitiveResult = findAffectedLayoutsByBFS(transitivelyAffectedLayouts, reverseMap);
+  const transitiveResult = traverseDependencyGraph(entryResult.collected, reverseMap, isLayoutFile, { onMatch: logMatch });
 
-  // 5. Merge findings
-  const mergedLayoutTrace = { ...directResult.layoutTrace, ...transitiveResult.layoutTrace };
+  // 5. Merge findings safely
+  const mergedLayoutTrace = { ...directResult.tracePaths, ...transitiveResult.tracePaths };
   const mergedSharedLayouts = Array.from(new Set([
-    ...directResult.sharedLayouts,
-    ...transitiveResult.sharedLayouts
+    ...directResult.collected,
+    ...transitiveResult.collected
   ])).sort();
 
   return {

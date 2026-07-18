@@ -4,6 +4,7 @@ import {
   isLayoutFile,
   sanitizeFilePath,
   traceLayoutHierarchyUpward,
+  traverseDependencyGraph,
   type DependencyGraph,
 } from '../../lib/impact-analysis-utils';
 
@@ -21,6 +22,55 @@ describe('impact-analysis-utils tests', () => {
             expect(sanitizeFilePath('')).toBeNull();
             expect(sanitizeFilePath(null)).toBeNull();
             expect(sanitizeFilePath(undefined)).toBeNull();
+        });
+    });
+
+    describe('traverseDependencyGraph', () => {
+        it('should traverse and stop at match when stopAtMatch is set', () => {
+            const graph: DependencyGraph = {
+                modules: [
+                    {
+                        source: 'src/layouts/BlogLayout.tsx',
+                        dependencies: [
+                            { resolved: 'src/components/Sidebar.tsx', module: '', dynamic: false }
+                        ]
+                    },
+                    {
+                        source: 'src/layouts/MainLayout.tsx',
+                        dependencies: [
+                            { resolved: 'src/layouts/BlogLayout.tsx', module: '', dynamic: false }
+                        ]
+                    },
+                    {
+                        source: 'src/components/Sidebar.tsx',
+                        dependencies: []
+                    }
+                ]
+            };
+
+            const reverseMap = buildReverseMap(graph);
+
+            // Running traversal with stopAtMatch: true should stop once BlogLayout.tsx is visited (as it is a layout)
+            const result = traverseDependencyGraph(
+                ['src/components/Sidebar.tsx'],
+                reverseMap,
+                isLayoutFile,
+                { stopAtMatch: true }
+            );
+
+            expect(result.collected).toEqual(['src/layouts/BlogLayout.tsx']);
+        });
+
+        it('should handle defensive invalid and malformed reverseMap scenarios gracefully', () => {
+            // @ts-expect-error - testing invalid raw structure
+            const result1 = traverseDependencyGraph(['src/components/Sidebar.tsx'], null, isLayoutFile);
+            expect(result1.collected).toEqual([]);
+            expect(result1.tracePaths).toEqual({});
+
+            // @ts-expect-error - testing invalid string array entry
+            const result2 = traverseDependencyGraph([123], {}, isLayoutFile);
+            expect(result2.collected).toEqual([]);
+            expect(result2.tracePaths).toEqual({});
         });
     });
 
