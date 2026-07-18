@@ -121,11 +121,11 @@ export function traverseDependencyGraph(
   const tracePaths: Record<string, string[]> = {};
   const collectedSet = new Set<string>();
   const MAX_ITERATIONS = 50000;
-  let iterations = 0;
 
   for (const file of startFiles) {
     if (typeof file !== 'string') continue;
 
+    let iterations = 0;
     const trace: string[] = [];
     const queue: string[] = [file];
     const visited = new Set<string>([file]);
