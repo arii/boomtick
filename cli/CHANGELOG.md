@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.1](https://github.com/arii/boomtick/compare/cli-v0.5.0...cli-v0.5.1) (2026-07-18)
+
+
+### Bug Fixes
+
+* **ci:** optimize dependency graph traversal to prevent CI failure ([#203](https://github.com/arii/boomtick/issues/203)) ([991b70c](https://github.com/arii/boomtick/commit/991b70c77047a40e7dcc9948f60a3ea083d415a2))
+
 ## [0.5.0](https://github.com/arii/boomtick/compare/cli-v0.4.0...cli-v0.5.0) (2026-07-18)
 
 
