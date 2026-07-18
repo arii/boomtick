@@ -1,4 +1,4 @@
-# pylint: disable=missing-docstring
+# pylint: disable=missing-docstring,too-many-branches,too-many-nested-blocks,line-too-long
 import json
 
 from dev_tools.services.dependency_graph import DependencyGraph
