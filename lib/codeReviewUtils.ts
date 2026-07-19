@@ -101,12 +101,17 @@ function validateFindingsSchema(state: CodeReviewState): boolean {
   if (!state.findings || !Array.isArray(state.findings)) return false;
   return state.findings.every(f => {
     if (!isRecord(f)) return false;
+    const id = f['id'];
+    const file = f['file'];
+    const issue = f['issue'];
+    const status = f['status'];
+    const confidence = f['confidence'];
     return (
-      typeof f['id'] === 'string' && (f['id'] as string).trim() !== '' &&
-      typeof f['file'] === 'string' && (f['file'] as string).trim() !== '' &&
-      typeof f['issue'] === 'string' && (f['issue'] as string).trim() !== '' &&
-      (f['status'] === 'open' || f['status'] === 'resolved') &&
-      (f['confidence'] === undefined || ['high', 'medium', 'low'].includes(f['confidence'] as string))
+      typeof id === 'string' && id.trim() !== '' &&
+      typeof file === 'string' && file.trim() !== '' &&
+      typeof issue === 'string' && issue.trim() !== '' &&
+      (status === 'open' || status === 'resolved') &&
+      (confidence === undefined || (typeof confidence === 'string' && ['high', 'medium', 'low'].includes(confidence)))
     );
   });
 }
