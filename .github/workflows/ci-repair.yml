@@ -16,8 +16,8 @@ on:
         type: string
 
 concurrency:
-  # Serialize executions on the same branch to prevent concurrent write race conditions.
-  group: ci-repair-${{ github.event.workflow_run.head_branch || github.run_id }}
+  # Group executions by head branch to serialize runs and prevent concurrent write race conditions.
+  group: ci-repair-${{ github.event.workflow_run.head_branch }}
   cancel-in-progress: false
 
 permissions:
