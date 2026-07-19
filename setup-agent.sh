@@ -24,7 +24,7 @@ find_repo_root() {
   return 1
 }
 
-REPO_ROOT="$(find_repo_root "$START_DIR" || find_repo_root "$SCRIPT_DIR" || pwd -P)"
+REPO_ROOT="$(find_repo_root "$SCRIPT_DIR" || find_repo_root "$START_DIR" || pwd -P)"
 cd "$REPO_ROOT"
 
 # CLI_ROOT is now at the root cli/ directory
