@@ -1392,7 +1392,7 @@ def send(ctx, session_ids, message):
 
 
 @agent_group.command(name="run-local")
-@click.option("--pr", "pr_number", required=False, type=int, help="Pull Request number to evaluate (if omitted, evaluates all open PRs)")
+@click.option("--pr", "pr_number", required=False, type=int, help="Pull Request number to evaluate")
 @click.option("--issue", "issue_number", type=int, help="Optional linked Issue number")
 @click.pass_context
 def run_local(ctx, pr_number, issue_number):
