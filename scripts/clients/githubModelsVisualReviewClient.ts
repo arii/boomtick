@@ -7,6 +7,17 @@ import type { RouteReview, VisualRouteSummary } from '../../lib/visualReviewType
 import { pickOptimalModel } from '../../lib/modelPicker';
 import { DOM_REVIEW_DIR } from '../../lib/visualReviewConstants';
 
+class VisualReviewError extends Error {
+  cause?: unknown;
+  constructor(message: string, options?: { cause?: unknown }) {
+    super(message);
+    this.name = 'VisualReviewError';
+    if (options && 'cause' in options) {
+      this.cause = options.cause;
+    }
+  }
+}
+
 async function createModelConfig(estimatedInputTokens: number = 0): Promise<{ apiKey: string; modelName: string; maxTokens: number }> {
   const apiKey = process.env.GITHUB_TOKEN;
   if (!apiKey) throw new Error('Missing GITHUB_TOKEN environment variable');
@@ -73,7 +84,7 @@ export const githubModelsVisualReviewClient: LLMClientStrategy = {
         })
       });
     } catch (err) {
-      throw new (Error as any)(`Network or fetch error during GitHub Models Visual Review: ${err instanceof Error ? err.message : String(err)}`, { cause: err });
+      throw new VisualReviewError(`Network or fetch error during GitHub Models Visual Review: ${err instanceof Error ? err.message : String(err)}`, { cause: err });
     }
 
     if (!response.ok) {

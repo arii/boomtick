@@ -102,11 +102,11 @@ function validateFindingsSchema(state: CodeReviewState): boolean {
   return state.findings.every(f => {
     if (!isRecord(f)) return false;
     return (
-      typeof f.id === 'string' && f.id.trim() !== '' &&
-      typeof f.file === 'string' && f.file.trim() !== '' &&
-      typeof f.issue === 'string' && f.issue.trim() !== '' &&
-      (f.status === 'open' || f.status === 'resolved') &&
-      (f.confidence === undefined || ['high', 'medium', 'low'].includes(f.confidence as string))
+      typeof f['id'] === 'string' && (f['id'] as string).trim() !== '' &&
+      typeof f['file'] === 'string' && (f['file'] as string).trim() !== '' &&
+      typeof f['issue'] === 'string' && (f['issue'] as string).trim() !== '' &&
+      (f['status'] === 'open' || f['status'] === 'resolved') &&
+      (f['confidence'] === undefined || ['high', 'medium', 'low'].includes(f['confidence'] as string))
     );
   });
 }
@@ -127,21 +127,48 @@ export function normalizeFindings(findings: unknown[]): ReviewFinding[] {
         confidence: 'medium'
       };
     }
+
+    const id = typeof f['id'] === 'string' ? f['id'] : `finding-${idx}`;
+    const file = typeof f['file'] === 'string' ? f['file'] : 'unknown';
+    const issue = typeof f['issue'] === 'string' ? f['issue'] : 'Unspecified issue';
+
+    const rawStatus = f['status'];
+    const status = (typeof rawStatus === 'string' && rawStatus.toLowerCase() === 'resolved') ? 'resolved' : 'open';
+
+    const rawSeverity = f['severity'];
+    let severity: 'HIGH' | 'MEDIUM' | 'LOW' | undefined;
+    if (typeof rawSeverity === 'string') {
+      const lower = rawSeverity.toLowerCase();
+      if (['high', 'medium', 'low', 'error', 'warn', 'info'].includes(lower)) {
+        severity = lower.toUpperCase() as 'HIGH' | 'MEDIUM' | 'LOW';
+      }
+    }
+
+    const rawConfidence = f['confidence'];
+    let confidence: 'high' | 'medium' | 'low' = 'medium';
+    if (typeof rawConfidence === 'string') {
+      const lower = rawConfidence.toLowerCase();
+      if (['high', 'medium', 'low'].includes(lower)) {
+        confidence = lower as 'high' | 'medium' | 'low';
+      }
+    }
+
+    const line = typeof f['line'] === 'number' ? f['line'] : undefined;
+    const snippet = typeof f['snippet'] === 'string' ? f['snippet'] : undefined;
+    const fixSummary = typeof f['fixSummary'] === 'string' ? f['fixSummary'] : undefined;
+    const counterexample = typeof f['counterexample'] === 'string' ? f['counterexample'] : undefined;
+
     return {
-      id: typeof f.id === 'string' ? f.id : `finding-${idx}`,
-      file: typeof f.file === 'string' ? f.file : 'unknown',
-      issue: typeof f.issue === 'string' ? f.issue : 'Unspecified issue',
-      status: (typeof f.status === 'string' && f.status.toLowerCase() === 'resolved') ? 'resolved' : 'open',
-      severity: (typeof f.severity === 'string' && ['error', 'warn', 'info', 'high', 'medium', 'low'].includes(f.severity.toLowerCase()))
-        ? f.severity.toUpperCase() as 'HIGH' | 'MEDIUM' | 'LOW'
-        : undefined,
-      confidence: (typeof f.confidence === 'string' && ['high', 'medium', 'low'].includes(f.confidence.toLowerCase()))
-        ? f.confidence.toLowerCase() as 'high' | 'medium' | 'low'
-        : 'medium',
-      line: typeof f.line === 'number' ? f.line : undefined,
-      snippet: typeof f.snippet === 'string' ? f.snippet : undefined,
-      fixSummary: typeof f.fixSummary === 'string' ? f.fixSummary : undefined,
-      counterexample: typeof f.counterexample === 'string' ? f.counterexample : undefined,
+      id,
+      file,
+      issue,
+      status,
+      severity,
+      confidence,
+      line,
+      snippet,
+      fixSummary,
+      counterexample,
     };
   });
 }
