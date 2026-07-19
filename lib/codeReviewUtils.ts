@@ -74,6 +74,7 @@ export function pruneCache(
 }
 
 export function parseCodeReviewVerdict(feedback: string): 'pass' | 'fail' | 'warn' {
+  if (typeof feedback !== 'string') return 'pass';
   const matches = Array.from(feedback.matchAll(/\[VERDICT:\s*(PASS|WARN|FAIL)\]/gi));
   if (matches.length > 0) {
     const lastMatch = matches[matches.length - 1][1].toUpperCase();
@@ -97,21 +98,31 @@ export function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
+function getSafeString(obj: Record<string, unknown>, key: string): string | undefined {
+  const val = obj[key];
+  return typeof val === 'string' ? val : undefined;
+}
+
+function getSafeNumber(obj: Record<string, unknown>, key: string): number | undefined {
+  const val = obj[key];
+  return typeof val === 'number' ? val : undefined;
+}
+
 function validateFindingsSchema(state: CodeReviewState): boolean {
   if (!state.findings || !Array.isArray(state.findings)) return false;
   return state.findings.every(f => {
     if (!isRecord(f)) return false;
-    const id = f['id'];
-    const file = f['file'];
-    const issue = f['issue'];
-    const status = f['status'];
-    const confidence = f['confidence'];
+    const id = getSafeString(f, 'id');
+    const file = getSafeString(f, 'file');
+    const issue = getSafeString(f, 'issue');
+    const status = getSafeString(f, 'status');
+    const confidence = getSafeString(f, 'confidence');
     return (
-      typeof id === 'string' && id.trim() !== '' &&
-      typeof file === 'string' && file.trim() !== '' &&
-      typeof issue === 'string' && issue.trim() !== '' &&
+      id !== undefined && id.trim() !== '' &&
+      file !== undefined && file.trim() !== '' &&
+      issue !== undefined && issue.trim() !== '' &&
       (status === 'open' || status === 'resolved') &&
-      (confidence === undefined || (typeof confidence === 'string' && ['high', 'medium', 'low'].includes(confidence)))
+      (confidence === undefined || ['high', 'medium', 'low'].includes(confidence))
     );
   });
 }
@@ -133,35 +144,43 @@ export function normalizeFindings(findings: unknown[]): ReviewFinding[] {
       };
     }
 
-    const id = typeof f['id'] === 'string' ? f['id'] : `finding-${idx}`;
-    const file = typeof f['file'] === 'string' ? f['file'] : 'unknown';
-    const issue = typeof f['issue'] === 'string' ? f['issue'] : 'Unspecified issue';
+    const id = getSafeString(f, 'id') ?? `finding-${idx}`;
+    const file = getSafeString(f, 'file') ?? 'unknown';
+    const issue = getSafeString(f, 'issue') ?? 'Unspecified issue';
 
-    const rawStatus = f['status'];
-    const status = (typeof rawStatus === 'string' && rawStatus.toLowerCase() === 'resolved') ? 'resolved' : 'open';
+    const rawStatus = getSafeString(f, 'status');
+    const status = (rawStatus !== undefined && rawStatus.toLowerCase() === 'resolved') ? 'resolved' : 'open';
 
-    const rawSeverity = f['severity'];
+    const rawSeverity = getSafeString(f, 'severity');
     let severity: 'HIGH' | 'MEDIUM' | 'LOW' | undefined;
-    if (typeof rawSeverity === 'string') {
+    if (rawSeverity !== undefined) {
       const lower = rawSeverity.toLowerCase();
-      if (['high', 'medium', 'low', 'error', 'warn', 'info'].includes(lower)) {
-        severity = lower.toUpperCase() as 'HIGH' | 'MEDIUM' | 'LOW';
+      const severityMap: Record<string, 'HIGH' | 'MEDIUM' | 'LOW'> = {
+        high: 'HIGH',
+        medium: 'MEDIUM',
+        low: 'LOW',
+        error: 'HIGH',
+        warn: 'MEDIUM',
+        info: 'LOW'
+      };
+      if (lower in severityMap) {
+        severity = severityMap[lower];
       }
     }
 
-    const rawConfidence = f['confidence'];
+    const rawConfidence = getSafeString(f, 'confidence');
     let confidence: 'high' | 'medium' | 'low' = 'medium';
-    if (typeof rawConfidence === 'string') {
+    if (rawConfidence !== undefined) {
       const lower = rawConfidence.toLowerCase();
       if (['high', 'medium', 'low'].includes(lower)) {
         confidence = lower as 'high' | 'medium' | 'low';
       }
     }
 
-    const line = typeof f['line'] === 'number' ? f['line'] : undefined;
-    const snippet = typeof f['snippet'] === 'string' ? f['snippet'] : undefined;
-    const fixSummary = typeof f['fixSummary'] === 'string' ? f['fixSummary'] : undefined;
-    const counterexample = typeof f['counterexample'] === 'string' ? f['counterexample'] : undefined;
+    const line = getSafeNumber(f, 'line');
+    const snippet = getSafeString(f, 'snippet');
+    const fixSummary = getSafeString(f, 'fixSummary');
+    const counterexample = getSafeString(f, 'counterexample');
 
     return {
       id,
