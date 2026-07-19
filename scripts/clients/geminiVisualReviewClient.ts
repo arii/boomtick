@@ -2,6 +2,7 @@ import { buildVisualReviewPayload, parseLLMVerdict, parseVisualReviewFindings } 
 import { extractFeedbackText } from '../../lib/codeReviewUtils';
 import { pickGeminiModel, getGeminiPricing } from '../../lib/geminiModelPicker';
 import { extractFinishReason, createGeminiModel, applyRetryStrategy } from '../../lib/geminiUtils';
+import { checkAndHandleTruncation } from '../../lib/aiClientsShared';
 import type { LLMClientStrategy, AgentRole } from '../../lib/visualReviewOrchestrator';
 
 import type { RouteReview, VisualRouteSummary } from '../../lib/visualReviewTypes';
@@ -125,19 +126,15 @@ Your job:
       });
     }
 
-    const isTruncated = finishReason === 'MAX_TOKENS' || finishReason === 'length' || finishReason === 'max_tokens';
+    const { isTruncated, totalTokens: tokens } = checkAndHandleTruncation(finishReason, usageMetadata, modelName);
 
     if (isTruncated) {
-      console.error('Gemini truncation', {
-        finishReason,
-        usage: usageMetadata,
-      });
       return {
         route: summary.route,
         severity: summary.severity,
         differencePercent: summary.differencePercent,
         feedback: `Error: Gemini model was truncated during execution (finishReason=${finishReason}).`,
-        tokens: totalTokens,
+        tokens,
         cost: 0,
         modelName,
         llmVerdict: 'warn',
@@ -158,7 +155,7 @@ Your job:
       severity: summary.severity,
       differencePercent: summary.differencePercent,
       feedback: feedback,
-      tokens: totalTokens,
+      tokens,
       inputTokens,
       outputTokens,
       cacheTokens,

@@ -7,11 +7,8 @@ import time
 from collections import defaultdict
 from typing import Any, Dict, List, Optional, Tuple, Type
 
-import requests
 from dev_tools.models import AIFullReview, AISynthesisReview, AIFileReview
 from dev_tools.review_read_pass import parse_diff_into_file_chunks
-from dev_tools.services.dependency_graph import DependencyGraph
-from dev_tools.services.vector_store import VectorStore
 from dev_tools.utils import (
     call_ai,
     clean_llm_output,
@@ -116,13 +113,15 @@ class AIClient:
         self._vector_store: Optional[VectorStore] = None
 
     @property
-    def dependency_graph(self) -> DependencyGraph:
+    def dependency_graph(self) -> 'DependencyGraph':
+        from dev_tools.services.dependency_graph import DependencyGraph
         if self._dependency_graph is None:
             self._dependency_graph = DependencyGraph()
         return self._dependency_graph
 
     @property
-    def vector_store(self) -> VectorStore:
+    def vector_store(self) -> 'VectorStore':
+        from dev_tools.services.vector_store import VectorStore
         if self._vector_store is None:
             self._vector_store = VectorStore()
         return self._vector_store
@@ -156,6 +155,7 @@ class AIClient:
             }
 
         try:
+            import requests
             response = requests.post(url, headers=headers, json=payload, timeout=30)
             response.raise_for_status()
             res_data = response.json()

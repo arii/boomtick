@@ -10,7 +10,7 @@ from dev_tools.models import AIFileReview, AISynthesisReview
 
 @pytest.fixture
 def ai_client():
-    with patch("dev_tools.services.ai_service.DependencyGraph"), patch("dev_tools.services.ai_service.VectorStore"):
+    with patch("dev_tools.services.dependency_graph.DependencyGraph"), patch("dev_tools.services.vector_store.VectorStore"):
         client = AIClient()
         return client
 

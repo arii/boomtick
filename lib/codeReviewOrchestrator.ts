@@ -1,9 +1,9 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { IMPACT_CONFIG } from '../scripts/impact-analysis.config';
-import { ARTIFACTS_DIR } from './visualReviewConstants';
 import { postPRComment, countExistingReviews, getJulesSessionIdFromPR, sendJulesMessage, getPreviousReviewState } from './visualReviewUtils';
 import { runWithConcurrencyLimit } from './sharedUtils';
+import { skipReviewAndWriteVerdict } from './reviewUtilsShared';
 import { calculateEstimatedTokens, cleanupFeedback, batchFiles, calculateReviewHash, pruneCache, filterLowImpactFiles } from './codeReviewUtils';
 import type { CodeReviewSummary, CodeReviewResult, CodeReviewState, CodeReviewRole } from './codeReviewTypes';
 import { execFile as execFileCb, spawn } from 'child_process';
@@ -585,18 +585,8 @@ export async function orchestrateCodeReview(
   const existing = await countExistingReviews(allReportTitles);
   if (existing >= MAX_REVIEWS_PER_PR) {
     console.log(`⏭️  Skipping ${client.botName} — ${existing}/${MAX_REVIEWS_PER_PR} reviews already posted.`);
-    fs.writeFileSync(
-      agentReportPath,
-      `## ${client.reportTitle}\n\nSkipped: review quota (${MAX_REVIEWS_PER_PR}) already met.\n`
-    );
     const prevState = await getPreviousReviewState<CodeReviewState>(client.reportTitle);
-    fs.writeFileSync(path.join(ARTIFACTS_DIR, `${client.reportFileName.replace('.md', '')}-verdict.json`), JSON.stringify({
-      passed: true,
-      highCount: 0,
-      routes: [],
-      llmVerdict: 'pass',
-      state: prevState || { findings: [] }
-    }, null, 2));
+    skipReviewAndWriteVerdict(agentReportPath, client.reportTitle, client.reportFileName, `Skipped: review quota (${MAX_REVIEWS_PER_PR}) already met.`, prevState);
     return;
   }
 
@@ -618,14 +608,7 @@ export async function orchestrateCodeReview(
 
   if (changedFiles.length === 0) {
     console.log(`✅ No reviewable code changes detected after filtering (${rawChangedFiles.length} files filtered) — skipping agent review.`);
-    fs.writeFileSync(agentReportPath, `## ${client.reportTitle}\n\nNo reviewable code changes detected.\n`);
-    fs.writeFileSync(path.join(ARTIFACTS_DIR, `${client.reportFileName.replace('.md', '')}-verdict.json`), JSON.stringify({
-      passed: true,
-      highCount: 0,
-      routes: [],
-      llmVerdict: 'pass',
-      state: prevState || { findings: [] }
-    }, null, 2));
+    skipReviewAndWriteVerdict(agentReportPath, client.reportTitle, client.reportFileName, 'No reviewable code changes detected.', prevState);
     return;
   }
 

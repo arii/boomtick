@@ -91,18 +91,14 @@ export const geminiCodeReviewClient: CodeReviewClientStrategy = {
       });
     }
 
-    const isTruncated = finishReason === 'MAX_TOKENS' || finishReason === 'length' || finishReason === 'max_tokens';
+    const { isTruncated, totalTokens: tokens } = checkAndHandleTruncation(finishReason, usageMetadata, modelName);
 
     if (isTruncated) {
-      console.error('Gemini truncation', {
-        finishReason,
-        usage: usageMetadata,
-      });
       // Do not throw here, instead pass the error state gracefully
       // so it can be handled by orchestrator without breaking the CI suite
       return {
         feedback: `Error: Gemini model was truncated during execution (finishReason=${finishReason}).`,
-        tokens: totalTokens,
+        tokens,
         cost: 0,
         modelName,
         llmVerdict: 'warn',
@@ -124,7 +120,7 @@ export const geminiCodeReviewClient: CodeReviewClientStrategy = {
     return {
       feedback: feedback,
       role: summary.role,
-      tokens: totalTokens,
+      tokens,
       inputTokens,
       outputTokens,
       cacheTokens,
