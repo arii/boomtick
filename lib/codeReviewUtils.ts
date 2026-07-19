@@ -1,6 +1,6 @@
 import * as path from 'path';
 import * as crypto from 'crypto';
-import type { CodeReviewSummary, CodeReviewState, ParsedFindingsResult, CodeReviewResult } from './codeReviewTypes';
+import type { CodeReviewSummary, CodeReviewState, ParsedFindingsResult, CodeReviewResult, ReviewFinding, CodeReviewParseError } from './codeReviewTypes';
 
 /**
  * Generates a stable SHA-256 hash for a code review batch.
@@ -74,7 +74,7 @@ export function pruneCache(
 }
 
 export function parseCodeReviewVerdict(feedback: string): 'pass' | 'fail' | 'warn' {
-  const matches = [...feedback.matchAll(/\[VERDICT:\s*(PASS|WARN|FAIL)\]/gi)];
+  const matches = Array.from(feedback.matchAll(/\[VERDICT:\s*(PASS|WARN|FAIL)\]/gi));
   if (matches.length > 0) {
     const lastMatch = matches[matches.length - 1][1].toUpperCase();
     if (lastMatch === 'FAIL') return 'fail';
@@ -95,15 +95,17 @@ export function parseCodeReviewState(feedback: string): CodeReviewState | undefi
  */
 function validateFindingsSchema(state: CodeReviewState): boolean {
   if (!state.findings || !Array.isArray(state.findings)) return false;
-  return state.findings.every(f =>
-    f &&
-    typeof f === 'object' &&
-    typeof f.id === 'string' && f.id.trim() !== '' &&
-    typeof f.file === 'string' && f.file.trim() !== '' &&
-    typeof f.issue === 'string' && f.issue.trim() !== '' &&
-    (f.status === 'open' || f.status === 'resolved') &&
-    (f.confidence === undefined || ['high', 'medium', 'low'].includes(f.confidence))
-  );
+  return state.findings.every(f => {
+    if (!f || typeof f !== 'object') return false;
+    const obj = f as unknown as Record<string, unknown>;
+    return (
+      typeof obj.id === 'string' && obj.id.trim() !== '' &&
+      typeof obj.file === 'string' && obj.file.trim() !== '' &&
+      typeof obj.issue === 'string' && obj.issue.trim() !== '' &&
+      (obj.status === 'open' || obj.status === 'resolved') &&
+      (obj.confidence === undefined || ['high', 'medium', 'low'].includes(obj.confidence as string))
+    );
+  });
 }
 
 /**
@@ -113,22 +115,31 @@ function validateFindingsSchema(state: CodeReviewState): boolean {
 export function normalizeFindings(findings: unknown[]): ReviewFinding[] {
   if (!Array.isArray(findings)) return [];
   return findings.map((f, idx) => {
-    if (!f || typeof f !== 'object') return f;
+    if (!f || typeof f !== 'object') {
+      return {
+        id: `finding-${idx}`,
+        file: 'unknown',
+        issue: 'Unspecified issue',
+        status: 'open',
+        confidence: 'medium'
+      };
+    }
+    const obj = f as unknown as Record<string, unknown>;
     return {
-      id: typeof f.id === 'string' ? f.id : `finding-${idx}`,
-      file: typeof f.file === 'string' ? f.file : 'unknown',
-      issue: typeof f.issue === 'string' ? f.issue : 'Unspecified issue',
-      status: (typeof f.status === 'string' && f.status.toLowerCase() === 'resolved') ? 'resolved' : 'open',
-      severity: (typeof f.severity === 'string' && ['error', 'warn', 'info', 'high', 'medium', 'low'].includes(f.severity.toLowerCase()))
-        ? f.severity.toUpperCase() as 'HIGH' | 'MEDIUM' | 'LOW'
+      id: typeof obj.id === 'string' ? obj.id : `finding-${idx}`,
+      file: typeof obj.file === 'string' ? obj.file : 'unknown',
+      issue: typeof obj.issue === 'string' ? obj.issue : 'Unspecified issue',
+      status: (typeof obj.status === 'string' && obj.status.toLowerCase() === 'resolved') ? 'resolved' : 'open',
+      severity: (typeof obj.severity === 'string' && ['error', 'warn', 'info', 'high', 'medium', 'low'].includes(obj.severity.toLowerCase()))
+        ? obj.severity.toUpperCase() as 'HIGH' | 'MEDIUM' | 'LOW'
         : undefined,
-      confidence: (typeof f.confidence === 'string' && ['high', 'medium', 'low'].includes(f.confidence.toLowerCase()))
-        ? f.confidence.toLowerCase() as 'high' | 'medium' | 'low'
+      confidence: (typeof obj.confidence === 'string' && ['high', 'medium', 'low'].includes(obj.confidence.toLowerCase()))
+        ? obj.confidence.toLowerCase() as 'high' | 'medium' | 'low'
         : 'medium',
-      line: typeof f.line === 'number' ? f.line : undefined,
-      snippet: typeof f.snippet === 'string' ? f.snippet : undefined,
-      fixSummary: typeof f.fixSummary === 'string' ? f.fixSummary : undefined,
-      counterexample: typeof f.counterexample === 'string' ? f.counterexample : undefined,
+      line: typeof obj.line === 'number' ? obj.line : undefined,
+      snippet: typeof obj.snippet === 'string' ? obj.snippet : undefined,
+      fixSummary: typeof obj.fixSummary === 'string' ? obj.fixSummary : undefined,
+      counterexample: typeof obj.counterexample === 'string' ? obj.counterexample : undefined,
     };
   });
 }
