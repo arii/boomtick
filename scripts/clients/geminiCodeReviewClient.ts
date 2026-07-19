@@ -13,6 +13,7 @@ import { buildSystemPrompt } from '../../lib/buildCodeReviewPrompt';
 
 import { pickGeminiModel, getGeminiPricing } from '../../lib/geminiModelPicker';
 import { extractFinishReason, createGeminiModel, applyRetryStrategy } from '../../lib/geminiUtils';
+import { checkAndHandleTruncation } from '../../lib/aiClientsShared';
 
 import type { CodeReviewSummary, CodeReviewResult } from '../../lib/codeReviewTypes';
 import type { CodeReviewClientStrategy } from '../../lib/codeReviewOrchestrator';
@@ -102,7 +103,7 @@ export const geminiCodeReviewClient: CodeReviewClientStrategy = {
         cost: 0,
         modelName,
         llmVerdict: 'warn',
-        truncated: true,
+        isTruncated: true,
       };
     }
 
@@ -128,7 +129,7 @@ export const geminiCodeReviewClient: CodeReviewClientStrategy = {
       modelName: modelName,
       llmVerdict: parseCodeReviewVerdict(feedback),
       state: parsedState.state,
-      truncated: isTruncated,
+      isTruncated: isTruncated,
       parseError: parsedState.parseError,
     };
   }
