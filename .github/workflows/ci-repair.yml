@@ -109,15 +109,15 @@ jobs:
             BRANCH_NAME="${{ steps.context.outputs.branch_name }}"
 
             if [ -n "$PR_NUMBER" ]; then
-              # First try finding by PR tag
+              # First try finding by PR tag.
               EXISTING_ISSUE=$(gh issue list --label "$LABEL" --state open --limit 30 --json number,body --jq "[.[] | select(.body != null and (.body | contains(\"<!-- ci-failure-pr:$PR_NUMBER -->\")))] | .[0].number // empty")
 
-              # If not found, try finding by branch tag
+              # If not found, try finding by branch tag.
               if [ -z "$EXISTING_ISSUE" ] && [ -n "$BRANCH_NAME" ]; then
                 EXISTING_ISSUE=$(gh issue list --label "$LABEL" --state open --limit 30 --json number,body --jq "[.[] | select(.body != null and (.body | contains(\"<!-- ci-failure-branch:$BRANCH_NAME -->\")))] | .[0].number // empty")
               fi
             elif [ -n "$BRANCH_NAME" ]; then
-              # No PR yet, search by branch tag
+              # If no PR yet, search by branch tag.
               EXISTING_ISSUE=$(gh issue list --label "$LABEL" --state open --limit 30 --json number,body --jq "[.[] | select(.body != null and (.body | contains(\"<!-- ci-failure-branch:$BRANCH_NAME -->\")))] | .[0].number // empty")
             fi
           fi
