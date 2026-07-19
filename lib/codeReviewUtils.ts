@@ -97,7 +97,7 @@ function validateFindingsSchema(state: CodeReviewState): boolean {
   if (!state.findings || !Array.isArray(state.findings)) return false;
   return state.findings.every(f => {
     if (!f || typeof f !== 'object') return false;
-    const obj = f as unknown as Record<string, unknown>;
+    const obj = f as any;
     return (
       typeof obj.id === 'string' && obj.id.trim() !== '' &&
       typeof obj.file === 'string' && obj.file.trim() !== '' &&
@@ -124,7 +124,7 @@ export function normalizeFindings(findings: unknown[]): ReviewFinding[] {
         confidence: 'medium'
       };
     }
-    const obj = f as unknown as Record<string, unknown>;
+    const obj = f as any;
     return {
       id: typeof obj.id === 'string' ? obj.id : `finding-${idx}`,
       file: typeof obj.file === 'string' ? obj.file : 'unknown',
