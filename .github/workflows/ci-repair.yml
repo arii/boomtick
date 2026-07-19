@@ -56,10 +56,13 @@ jobs:
           HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
         run: |
           JOBS=$(gh api "repos/$REPO/actions/runs/$RUN_ID/jobs" --jq '[.jobs[] | select(.conclusion=="failure") | .name] | join(", ")')
+          PR_NUMBER=$(jq -r '.workflow_run.pull_requests[0].number // empty' "$GITHUB_EVENT_PATH")
           {
             echo "failing_jobs=$JOBS"
             echo "sha=$HEAD_SHA"
             echo "sha_short=$(echo "$HEAD_SHA" | cut -c1-8)"
+            echo "pr_number=$PR_NUMBER"
+            echo "branch_name=$HEAD_BRANCH"
           } >> "$GITHUB_OUTPUT"
 
           IS_MAIN="false"
@@ -76,17 +79,35 @@ jobs:
           IS_MAIN: ${{ steps.context.outputs.is_main }}
         run: |
           LABEL="ci-failure"
+          EXISTING_ISSUE=""
+
           if [[ "$IS_MAIN" == "true" ]]; then
             LABEL="main-ci-failure"
+            EXISTING_ISSUE=$(gh issue list --label "$LABEL" --search "$SHA" --state open --json number --jq '.[0].number // empty')
+          else
+            PR_NUMBER="${{ steps.context.outputs.pr_number }}"
+            BRANCH_NAME="${{ steps.context.outputs.branch_name }}"
+
+            if [ -n "$PR_NUMBER" ]; then
+              # First try finding by PR tag
+              EXISTING_ISSUE=$(gh issue list --label "$LABEL" --state open --limit 100 --json number,body --jq "[.[] | select(.body != null and (.body | contains(\"<!-- ci-failure-pr:$PR_NUMBER -->\")))] | .[0].number // empty")
+
+              # If not found, try finding by branch tag
+              if [ -z "$EXISTING_ISSUE" ] && [ -n "$BRANCH_NAME" ]; then
+                EXISTING_ISSUE=$(gh issue list --label "$LABEL" --state open --limit 100 --json number,body --jq "[.[] | select(.body != null and (.body | contains(\"<!-- ci-failure-branch:$BRANCH_NAME -->\")))] | .[0].number // empty")
+              fi
+            elif [ -n "$BRANCH_NAME" ]; then
+              # No PR yet, search by branch tag
+              EXISTING_ISSUE=$(gh issue list --label "$LABEL" --state open --limit 100 --json number,body --jq "[.[] | select(.body != null and (.body | contains(\"<!-- ci-failure-branch:$BRANCH_NAME -->\")))] | .[0].number // empty")
+            fi
           fi
 
-          EXISTING_ISSUE=$(gh issue list --label "$LABEL" --search "$SHA" --state open --json number --jq '.[0].number // empty')
           if [ -n "$EXISTING_ISSUE" ]; then
             {
               echo "issue_exists=true"
               echo "issue_number=$EXISTING_ISSUE"
             } >> "$GITHUB_OUTPUT"
-            echo "Found existing issue #$EXISTING_ISSUE for this SHA. Skipping creation."
+            echo "Found existing issue #$EXISTING_ISSUE. Skipping creation."
           else
             echo "issue_exists=false" >> "$GITHUB_OUTPUT"
           fi
@@ -97,33 +118,74 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           IS_MAIN: ${{ steps.context.outputs.is_main }}
-          TITLE: "${{ steps.context.outputs.is_main == 'true' && 'fix(ci): main branch failure' || 'fix(ci): CI failure' }} at ${{ steps.context.outputs.sha_short }} — ${{ steps.context.outputs.failing_jobs }}"
           RUN_ID: ${{ github.event.workflow_run.id }}
           RUN_URL: ${{ github.event.workflow_run.html_url }}
           SHA: ${{ steps.context.outputs.sha }}
         run: |
           LABEL="ci-failure"
           EXTRA_LABELS=""
-          BODY_SUFFIX=""
+          NL=$'\n'
+
           if [[ "$IS_MAIN" == "true" ]]; then
             LABEL="main-ci-failure"
             EXTRA_LABELS=",spec-driven"
-            BODY_SUFFIX="\n\n🤖 Jules repair session will be dispatched automatically."
             gh label create main-ci-failure --color FF0000 --description "CI failures on main branch" || true
+
+            TITLE="fix(ci): main branch failure at ${{ steps.context.outputs.sha_short }} — ${{ steps.context.outputs.failing_jobs }}"
+            BODY="CI failure detected in run [$RUN_ID]($RUN_URL).${NL}${NL}**Commit:** $SHA${NL}**Failing Jobs:** ${{ steps.context.outputs.failing_jobs }}${NL}${NL}🤖 Jules repair session will be dispatched automatically."
           else
             gh label create ci-failure --color FF0000 --description "CI failures" || true
+
+            PR_NUMBER="${{ steps.context.outputs.pr_number }}"
+            BRANCH_NAME="${{ steps.context.outputs.branch_name }}"
+
+            if [ -n "$PR_NUMBER" ]; then
+              TITLE="fix(ci): CI failure for PR #$PR_NUMBER"
+              TAGS="<!-- ci-failure-pr:$PR_NUMBER -->${NL}<!-- ci-failure-branch:$BRANCH_NAME -->"
+            else
+              TITLE="fix(ci): CI failure for branch $BRANCH_NAME"
+              TAGS="<!-- ci-failure-branch:$BRANCH_NAME -->"
+            fi
+
+            BODY="CI failure detected in run [$RUN_ID]($RUN_URL).${NL}${NL}**Commit:** $SHA${NL}**Failing Jobs:** ${{ steps.context.outputs.failing_jobs }}${NL}${NL}$TAGS"
           fi
-
-          BODY=$(cat <<EOF
-          CI failure detected in run [$RUN_ID]($RUN_URL).
-
-          **Commit:** $SHA
-          **Failing Jobs:** ${{ steps.context.outputs.failing_jobs }}$BODY_SUFFIX
-          EOF
-          )
 
           ISSUE_NUMBER=$(gh issue create --title "$TITLE" --body "$BODY" --label "$LABEL$EXTRA_LABELS")
           echo "issue_number=$(echo "$ISSUE_NUMBER" | grep -oE '[0-9]+$')" >> "$GITHUB_OUTPUT"
+
+      - name: Comment on Existing Issue
+        if: steps.check.outputs.issue_exists == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          EXISTING_ISSUE: ${{ steps.check.outputs.issue_number }}
+          RUN_ID: ${{ github.event.workflow_run.id }}
+          RUN_URL: ${{ github.event.workflow_run.html_url }}
+          SHA: ${{ steps.context.outputs.sha }}
+          FAILING_JOBS: ${{ steps.context.outputs.failing_jobs }}
+          IS_MAIN: ${{ steps.context.outputs.is_main }}
+        run: |
+          NL=$'\n'
+          COMMENT_BODY="Another CI failure detected in run [$RUN_ID]($RUN_URL).${NL}${NL}**Commit:** $SHA${NL}**Failing Jobs:** $FAILING_JOBS"
+
+          gh issue comment "$EXISTING_ISSUE" --body "$COMMENT_BODY"
+
+          # Promote branch issue to PR issue if PR was recently opened
+          if [[ "$IS_MAIN" == "false" ]]; then
+            PR_NUMBER="${{ steps.context.outputs.pr_number }}"
+            if [ -n "$PR_NUMBER" ]; then
+              CURRENT_TITLE=$(gh issue view "$EXISTING_ISSUE" --json title --jq '.title')
+              if [[ "$CURRENT_TITLE" != *"PR #$PR_NUMBER"* ]]; then
+                NEW_TITLE="fix(ci): CI failure for PR #$PR_NUMBER"
+                CURRENT_BODY=$(gh issue view "$EXISTING_ISSUE" --json body --jq '.body')
+                if [[ "$CURRENT_BODY" != *"<!-- ci-failure-pr:$PR_NUMBER -->"* ]]; then
+                  NEW_BODY="${CURRENT_BODY}${NL}${NL}<!-- ci-failure-pr:$PR_NUMBER -->"
+                else
+                  NEW_BODY="$CURRENT_BODY"
+                fi
+                gh issue edit "$EXISTING_ISSUE" --title "$NEW_TITLE" --body "$NEW_BODY"
+              fi
+            fi
+          fi
 
       - name: Dispatch Jules (Main Branch Only)
         if: steps.context.outputs.is_main == 'true'
