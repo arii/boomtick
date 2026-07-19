@@ -93,17 +93,20 @@ export function parseCodeReviewState(feedback: string): CodeReviewState | undefi
  * Validates the findings schema to ensure all required fields are present.
  * Performs deep type checking to avoid runtime crashes on malformed LLM output.
  */
+export function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
 function validateFindingsSchema(state: CodeReviewState): boolean {
   if (!state.findings || !Array.isArray(state.findings)) return false;
   return state.findings.every(f => {
-    if (!f || typeof f !== 'object') return false;
-    const obj = f as any;
+    if (!isRecord(f)) return false;
     return (
-      typeof obj.id === 'string' && obj.id.trim() !== '' &&
-      typeof obj.file === 'string' && obj.file.trim() !== '' &&
-      typeof obj.issue === 'string' && obj.issue.trim() !== '' &&
-      (obj.status === 'open' || obj.status === 'resolved') &&
-      (obj.confidence === undefined || ['high', 'medium', 'low'].includes(obj.confidence as string))
+      typeof f.id === 'string' && f.id.trim() !== '' &&
+      typeof f.file === 'string' && f.file.trim() !== '' &&
+      typeof f.issue === 'string' && f.issue.trim() !== '' &&
+      (f.status === 'open' || f.status === 'resolved') &&
+      (f.confidence === undefined || ['high', 'medium', 'low'].includes(f.confidence as string))
     );
   });
 }
@@ -115,7 +118,7 @@ function validateFindingsSchema(state: CodeReviewState): boolean {
 export function normalizeFindings(findings: unknown[]): ReviewFinding[] {
   if (!Array.isArray(findings)) return [];
   return findings.map((f, idx) => {
-    if (!f || typeof f !== 'object') {
+    if (!isRecord(f)) {
       return {
         id: `finding-${idx}`,
         file: 'unknown',
@@ -124,22 +127,21 @@ export function normalizeFindings(findings: unknown[]): ReviewFinding[] {
         confidence: 'medium'
       };
     }
-    const obj = f as any;
     return {
-      id: typeof obj.id === 'string' ? obj.id : `finding-${idx}`,
-      file: typeof obj.file === 'string' ? obj.file : 'unknown',
-      issue: typeof obj.issue === 'string' ? obj.issue : 'Unspecified issue',
-      status: (typeof obj.status === 'string' && obj.status.toLowerCase() === 'resolved') ? 'resolved' : 'open',
-      severity: (typeof obj.severity === 'string' && ['error', 'warn', 'info', 'high', 'medium', 'low'].includes(obj.severity.toLowerCase()))
-        ? obj.severity.toUpperCase() as 'HIGH' | 'MEDIUM' | 'LOW'
+      id: typeof f.id === 'string' ? f.id : `finding-${idx}`,
+      file: typeof f.file === 'string' ? f.file : 'unknown',
+      issue: typeof f.issue === 'string' ? f.issue : 'Unspecified issue',
+      status: (typeof f.status === 'string' && f.status.toLowerCase() === 'resolved') ? 'resolved' : 'open',
+      severity: (typeof f.severity === 'string' && ['error', 'warn', 'info', 'high', 'medium', 'low'].includes(f.severity.toLowerCase()))
+        ? f.severity.toUpperCase() as 'HIGH' | 'MEDIUM' | 'LOW'
         : undefined,
-      confidence: (typeof obj.confidence === 'string' && ['high', 'medium', 'low'].includes(obj.confidence.toLowerCase()))
-        ? obj.confidence.toLowerCase() as 'high' | 'medium' | 'low'
+      confidence: (typeof f.confidence === 'string' && ['high', 'medium', 'low'].includes(f.confidence.toLowerCase()))
+        ? f.confidence.toLowerCase() as 'high' | 'medium' | 'low'
         : 'medium',
-      line: typeof obj.line === 'number' ? obj.line : undefined,
-      snippet: typeof obj.snippet === 'string' ? obj.snippet : undefined,
-      fixSummary: typeof obj.fixSummary === 'string' ? obj.fixSummary : undefined,
-      counterexample: typeof obj.counterexample === 'string' ? obj.counterexample : undefined,
+      line: typeof f.line === 'number' ? f.line : undefined,
+      snippet: typeof f.snippet === 'string' ? f.snippet : undefined,
+      fixSummary: typeof f.fixSummary === 'string' ? f.fixSummary : undefined,
+      counterexample: typeof f.counterexample === 'string' ? f.counterexample : undefined,
     };
   });
 }

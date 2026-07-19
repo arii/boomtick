@@ -73,9 +73,7 @@ export const githubModelsVisualReviewClient: LLMClientStrategy = {
         })
       });
     } catch (err) {
-      const error = new Error(`Network or fetch error during GitHub Models Visual Review: ${err instanceof Error ? err.message : String(err)}`);
-      (error as any).cause = err;
-      throw error;
+      throw new (Error as any)(`Network or fetch error during GitHub Models Visual Review: ${err instanceof Error ? err.message : String(err)}`, { cause: err });
     }
 
     if (!response.ok) {
