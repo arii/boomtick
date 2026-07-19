@@ -15,6 +15,10 @@ on:
         required: false
         type: string
 
+concurrency:
+  group: ci-repair-${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_branch || github.run_id }}
+  cancel-in-progress: false
+
 permissions:
   contents: read
   issues: write
@@ -57,12 +61,18 @@ jobs:
         run: |
           JOBS=$(gh api "repos/$REPO/actions/runs/$RUN_ID/jobs" --jq '[.jobs[] | select(.conclusion=="failure") | .name] | join(", ")')
 
-          # Extract and sanitize PR_NUMBER (only allow numeric digits)
+          # Extract, sanitize, and strictly validate PR_NUMBER (must be an integer)
           RAW_PR=$(jq -r '.workflow_run.pull_requests[0].number // empty' "$GITHUB_EVENT_PATH")
           PR_NUMBER=$(echo "$RAW_PR" | tr -cd '0-9')
+          if [[ ! "$PR_NUMBER" =~ ^[0-9]+$ ]]; then
+            PR_NUMBER=""
+          fi
 
-          # Sanitize branch name to prevent any special/malicious character execution
+          # Sanitize and strictly validate branch name to prevent any malicious execution
           BRANCH_NAME=$(echo "$HEAD_BRANCH" | tr -cd 'a-zA-Z0-9_.-/')
+          if [[ ! "$BRANCH_NAME" =~ ^[a-zA-Z0-9_.-/]+$ ]]; then
+            BRANCH_NAME="unknown-branch"
+          fi
 
           {
             echo "failing_jobs=$JOBS"
@@ -132,14 +142,15 @@ jobs:
           LABEL="ci-failure"
           EXTRA_LABELS=""
           NL=$'\n'
+          FAILING_JOBS_CLEAN=$(echo "${{ steps.context.outputs.failing_jobs }}" | tr -d '"`' | tr -s ' ')
 
           if [[ "$IS_MAIN" == "true" ]]; then
             LABEL="main-ci-failure"
             EXTRA_LABELS=",spec-driven"
             gh label create main-ci-failure --color FF0000 --description "CI failures on main branch" || true
 
-            TITLE="fix(ci): main branch failure at ${{ steps.context.outputs.sha_short }} — ${{ steps.context.outputs.failing_jobs }}"
-            BODY="CI failure detected in run [$RUN_ID]($RUN_URL).${NL}${NL}**Commit:** $SHA${NL}**Failing Jobs:** ${{ steps.context.outputs.failing_jobs }}${NL}${NL}🤖 Jules repair session will be dispatched automatically."
+            TITLE="fix(ci): main branch failure at ${{ steps.context.outputs.sha_short }} — $FAILING_JOBS_CLEAN"
+            BODY="CI failure detected in run [$RUN_ID]($RUN_URL).${NL}${NL}**Commit:** $SHA${NL}**Failing Jobs:** $FAILING_JOBS_CLEAN${NL}${NL}🤖 Jules repair session will be dispatched automatically."
           else
             gh label create ci-failure --color FF0000 --description "CI failures" || true
 
@@ -154,7 +165,7 @@ jobs:
               TAGS="<!-- ci-failure-branch:$BRANCH_NAME -->"
             fi
 
-            BODY="CI failure detected in run [$RUN_ID]($RUN_URL).${NL}${NL}**Commit:** $SHA${NL}**Failing Jobs:** ${{ steps.context.outputs.failing_jobs }}${NL}${NL}$TAGS"
+            BODY="CI failure detected in run [$RUN_ID]($RUN_URL).${NL}${NL}**Commit:** $SHA${NL}**Failing Jobs:** $FAILING_JOBS_CLEAN${NL}${NL}$TAGS"
           fi
 
           ISSUE_NUMBER=$(gh issue create --title "$TITLE" --body "$BODY" --label "$LABEL$EXTRA_LABELS")
@@ -168,11 +179,11 @@ jobs:
           RUN_ID: ${{ github.event.workflow_run.id }}
           RUN_URL: ${{ github.event.workflow_run.html_url }}
           SHA: ${{ steps.context.outputs.sha }}
-          FAILING_JOBS: ${{ steps.context.outputs.failing_jobs }}
           IS_MAIN: ${{ steps.context.outputs.is_main }}
         run: |
           NL=$'\n'
-          COMMENT_BODY="Another CI failure detected in run [$RUN_ID]($RUN_URL).${NL}${NL}**Commit:** $SHA${NL}**Failing Jobs:** $FAILING_JOBS"
+          FAILING_JOBS_CLEAN=$(echo "${{ steps.context.outputs.failing_jobs }}" | tr -d '"`' | tr -s ' ')
+          COMMENT_BODY="Another CI failure detected in run [$RUN_ID]($RUN_URL).${NL}${NL}**Commit:** $SHA${NL}**Failing Jobs:** $FAILING_JOBS_CLEAN"
 
           gh issue comment "$EXISTING_ISSUE" --body "$COMMENT_BODY"
 
