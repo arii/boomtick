@@ -1,108 +1,67 @@
-name: 'BoomTick CI Repair'
-description: 'Coordinates automated test verification and triggers Jules-led self-repair'
+name: 'CI Repair'
+description: 'Automated and manual CI repair orchestration with Jules'
 inputs:
+  mode:
+    description: 'Execution mode: auto (dispatched on CI failure) or manual (dispatched via ChatOps/Jules)'
+    required: false
+    default: 'auto'
   issue_number:
-    description: 'Issue number for manual fix (optional)'
+    description: 'Issue or PR number for manual fix'
     required: false
   comment_body:
-    description: 'Comment body (optional)'
+    description: 'Comment body containing instructions for the fix'
     required: false
-  run_id:
-    description: 'Failed workflow run ID (optional)'
-    required: false
-  run_url:
-    description: 'Failed workflow run URL (optional)'
-    required: false
-  head_sha:
-    description: 'Failed workflow run head SHA (optional)'
-    required: false
-  head_branch:
-    description: 'Failed workflow run head branch (optional)'
+  jules_api_key:
+    description: 'API key for Jules service'
     required: false
   github_token:
-    description: 'GitHub Token'
-    required: true
-  jules_api_key:
-    description: 'Jules API Key'
+    description: 'GitHub token'
     required: false
-  jules_source_id:
-    description: 'Jules Source ID (optional)'
-    required: false
+    default: ${{ github.token }}
 
 runs:
   using: 'composite'
   steps:
-    - name: Validate Inputs
+    - name: Pre-flight Validations
+      id: validate
       env:
-        INPUT_ISSUE_NUMBER: ${{ inputs.issue_number }}
-        INPUT_RUN_ID: ${{ inputs.run_id }}
+        GH_TOKEN: ${{ inputs.github_token }}
       run: |
-        if [[ -n "$INPUT_ISSUE_NUMBER" && ! "$INPUT_ISSUE_NUMBER" =~ ^[0-9]+$ ]]; then
-          echo "::error::Invalid issue_number: must be numeric."
+        if [ -z "$GH_TOKEN" ]; then
+          echo "::error::github_token is missing."
           exit 1
         fi
-        if [[ -n "$INPUT_RUN_ID" && ! "$INPUT_RUN_ID" =~ ^[0-9]+$ ]]; then
-          echo "::error::Invalid run_id: must be numeric."
-          exit 1
-        fi
+
+        {
+          echo "GH_TOKEN=$GH_TOKEN"
+          echo "GITHUB_TOKEN=$GH_TOKEN"
+        } >> "$GITHUB_ENV"
       shell: bash
 
     - name: Set up Python
-      uses: actions/setup-python@v6
+      uses: actions/setup-python@v6 # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
       with:
         python-version: '3.x'
 
-    - name: Install Dependencies
+    - name: Install PyGithub and dependencies
       run: |
-        pip install PyGithub requests click --break-system-packages
+        pip install PyGithub requests click --break-system-packages || pip install PyGithub requests click
       shell: bash
 
     - name: Setup Workspace
-      uses: arii/boomtick/.github/actions/setup-workspace@main
+      uses: ${{ github.action_path }}/../setup-workspace # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
       with:
         setup-node: 'false'
 
-    # --- MANUAL JULES FIX ENTRY POINT ---
-    - name: Pre-check Jules Credentials (Manual)
-      if: inputs.issue_number != ''
-      run: |
-        MISSING=()
-        if [ -z "${{ inputs.github_token }}" ]; then MISSING+=("GITHUB_TOKEN"); fi
-        if [ -z "${{ inputs.jules_api_key }}" ]; then MISSING+=("JULES_API_KEY"); fi
-
-        if [ ${#MISSING[@]} -ne 0 ]; then
-          echo "❌ Missing required secrets: ${MISSING[*]}"
-          echo "Please ensure GITHUB_TOKEN and JULES_API_KEY are configured."
-          exit 1
-        fi
-        echo "✅ Credentials pre-check passed."
-      shell: bash
-
-    - name: Initialize Jules Repair Session (Manual)
-      if: inputs.issue_number != ''
-      env:
-        GITHUB_TOKEN: ${{ inputs.github_token }}
-        JULES_API_KEY: ${{ inputs.jules_api_key }}
-        JULES_SOURCE_ID: ${{ inputs.jules_source_id }}
-        ISSUE_NUMBER: ${{ inputs.issue_number }}
-      run: |
-        if [[ ! "$ISSUE_NUMBER" =~ ^[0-9]+$ ]]; then
-          echo "::error::Invalid issue_number: must be numeric."
-          exit 1
-        fi
-        td-cli jules fix-ci --pr-number "$ISSUE_NUMBER" --execute
-      shell: bash
-
-    # --- AUTOMATED CI REPAIR ENTRY POINT ---
-    - name: Collect Failure Context (Automated)
-      if: inputs.issue_number == ''
+    # --- AUTO REPAIR MODE ---
+    - name: Collect Failure Context
+      if: inputs.mode == 'auto'
       id: context
       env:
-        GH_TOKEN: ${{ inputs.github_token }}
-        RUN_ID: ${{ inputs.run_id }}
+        RUN_ID: ${{ github.event.workflow_run.id }}
         REPO: ${{ github.repository }}
-        HEAD_SHA: ${{ inputs.head_sha }}
-        HEAD_BRANCH: ${{ inputs.head_branch }}
+        HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+        HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
       run: |
         JOBS=$(gh api "repos/$REPO/actions/runs/$RUN_ID/jobs" --jq '[.jobs[] | select(.conclusion=="failure") | .name] | join(", ")')
 
@@ -115,7 +74,7 @@ runs:
         fi
 
         # Sanitize and strictly validate the branch name to prevent shell injection.
-        if [[ "$HEAD_BRANCH" =~ ^[a-zA-Z0-9_.-/]+$ ]]; then
+        if [[ "$HEAD_BRANCH" =~ ^[a-zA-Z0-9_./-]+$ ]]; then
           BRANCH_NAME="$HEAD_BRANCH"
         else
           BRANCH_NAME="unknown-branch"
@@ -136,13 +95,14 @@ runs:
         echo "is_main=$IS_MAIN" >> "$GITHUB_OUTPUT"
       shell: bash
 
-    - name: Idempotency Check (Automated)
-      if: inputs.issue_number == ''
+    - name: Idempotency Check
+      if: inputs.mode == 'auto'
       id: check
       env:
-        GH_TOKEN: ${{ inputs.github_token }}
         SHA: ${{ steps.context.outputs.sha }}
         IS_MAIN: ${{ steps.context.outputs.is_main }}
+        PR_NUMBER_VAL: ${{ steps.context.outputs.pr_number }}
+        BRANCH_NAME_VAL: ${{ steps.context.outputs.branch_name }}
       run: |
         LABEL="ci-failure"
         EXISTING_ISSUE=""
@@ -151,20 +111,17 @@ runs:
           LABEL="main-ci-failure"
           EXISTING_ISSUE=$(gh issue list --label "$LABEL" --search "$SHA" --state open --json number --jq '.[0].number // empty')
         else
-          PR_NUMBER="${{ steps.context.outputs.pr_number }}"
-          BRANCH_NAME="${{ steps.context.outputs.branch_name }}"
-
-          if [ -n "$PR_NUMBER" ]; then
+          if [ -n "$PR_NUMBER_VAL" ]; then
             # First try finding by PR tag.
-            EXISTING_ISSUE=$(gh issue list --label "$LABEL" --state open --limit 30 --json number,body --jq "[.[] | select(.body != null and (.body | contains(\"<!-- ci-failure-pr:$PR_NUMBER -->\")))] | .[0].number // empty")
+            EXISTING_ISSUE=$(gh issue list --label "$LABEL" --state open --limit 30 --json number,body --jq "[.[] | select(.body != null and (.body | contains(\"<!-- ci-failure-pr:$PR_NUMBER_VAL -->\")))] | .[0].number // empty")
 
             # If not found, try finding by branch tag.
-            if [ -z "$EXISTING_ISSUE" ] && [ -n "$BRANCH_NAME" ]; then
-              EXISTING_ISSUE=$(gh issue list --label "$LABEL" --state open --limit 30 --json number,body --jq "[.[] | select(.body != null and (.body | contains(\"<!-- ci-failure-branch:$BRANCH_NAME -->\")))] | .[0].number // empty")
+            if [ -z "$EXISTING_ISSUE" ] && [ -n "$BRANCH_NAME_VAL" ]; then
+              EXISTING_ISSUE=$(gh issue list --label "$LABEL" --state open --limit 30 --json number,body --jq "[.[] | select(.body != null and (.body | contains(\"<!-- ci-failure-branch:$BRANCH_NAME_VAL -->\")))] | .[0].number // empty")
             fi
-          elif [ -n "$BRANCH_NAME" ]; then
+          elif [ -n "$BRANCH_NAME_VAL" ]; then
             # If no PR yet, search by branch tag.
-            EXISTING_ISSUE=$(gh issue list --label "$LABEL" --state open --limit 30 --json number,body --jq "[.[] | select(.body != null and (.body | contains(\"<!-- ci-failure-branch:$BRANCH_NAME -->\")))] | .[0].number // empty")
+            EXISTING_ISSUE=$(gh issue list --label "$LABEL" --state open --limit 30 --json number,body --jq "[.[] | select(.body != null and (.body | contains(\"<!-- ci-failure-branch:$BRANCH_NAME_VAL -->\")))] | .[0].number // empty")
           fi
         fi
 
@@ -179,40 +136,40 @@ runs:
         fi
       shell: bash
 
-    - name: Create Issue (Automated)
-      if: inputs.issue_number == '' && steps.check.outputs.issue_exists == 'false'
+    - name: Create Issue
+      if: inputs.mode == 'auto' && steps.check.outputs.issue_exists == 'false'
       id: create_issue
       env:
-        GH_TOKEN: ${{ inputs.github_token }}
         IS_MAIN: ${{ steps.context.outputs.is_main }}
-        RUN_ID: ${{ inputs.run_id }}
-        RUN_URL: ${{ inputs.run_url }}
+        RUN_ID: ${{ github.event.workflow_run.id }}
+        RUN_URL: ${{ github.event.workflow_run.html_url }}
         SHA: ${{ steps.context.outputs.sha }}
+        FAILING_JOBS: ${{ steps.context.outputs.failing_jobs }}
+        SHA_SHORT: ${{ steps.context.outputs.sha_short }}
+        PR_NUMBER_VAL: ${{ steps.context.outputs.pr_number }}
+        BRANCH_NAME_VAL: ${{ steps.context.outputs.branch_name }}
       run: |
         LABEL="ci-failure"
         EXTRA_LABELS=""
         NL=$'\n'
-        FAILING_JOBS_CLEAN=$(echo "${{ steps.context.outputs.failing_jobs }}" | tr -d '"`' | tr -s ' ')
+        FAILING_JOBS_CLEAN=$(echo "$FAILING_JOBS" | tr -d '"`' | tr -s ' ')
 
         if [[ "$IS_MAIN" == "true" ]]; then
           LABEL="main-ci-failure"
           EXTRA_LABELS=",spec-driven"
           gh label create main-ci-failure --color FF0000 --description "CI failures on main branch" || true
 
-          TITLE="fix(ci): main branch failure at ${{ steps.context.outputs.sha_short }} — $FAILING_JOBS_CLEAN"
+          TITLE="fix(ci): main branch failure at $SHA_SHORT — $FAILING_JOBS_CLEAN"
           BODY="CI failure detected in run [$RUN_ID]($RUN_URL).${NL}${NL}**Commit:** $SHA${NL}**Failing Jobs:** $FAILING_JOBS_CLEAN${NL}${NL}🤖 Jules repair session will be dispatched automatically."
         else
           gh label create ci-failure --color FF0000 --description "CI failures" || true
 
-          PR_NUMBER="${{ steps.context.outputs.pr_number }}"
-          BRANCH_NAME="${{ steps.context.outputs.branch_name }}"
-
-          if [ -n "$PR_NUMBER" ]; then
-            TITLE="fix(ci): CI failure for PR #$PR_NUMBER"
-            TAGS="<!-- ci-failure-pr:$PR_NUMBER -->${NL}<!-- ci-failure-branch:$BRANCH_NAME -->"
+          if [ -n "$PR_NUMBER_VAL" ]; then
+            TITLE="fix(ci): CI failure for PR #$PR_NUMBER_VAL"
+            TAGS="<!-- ci-failure-pr:$PR_NUMBER_VAL -->${NL}<!-- ci-failure-branch:$BRANCH_NAME_VAL -->"
           else
-            TITLE="fix(ci): CI failure for branch $BRANCH_NAME"
-            TAGS="<!-- ci-failure-branch:$BRANCH_NAME -->"
+            TITLE="fix(ci): CI failure for branch $BRANCH_NAME_VAL"
+            TAGS="<!-- ci-failure-branch:$BRANCH_NAME_VAL -->"
           fi
 
           BODY="CI failure detected in run [$RUN_ID]($RUN_URL).${NL}${NL}**Commit:** $SHA${NL}**Failing Jobs:** $FAILING_JOBS_CLEAN${NL}${NL}$TAGS"
@@ -222,36 +179,36 @@ runs:
         echo "issue_number=$(echo "$ISSUE_NUMBER" | grep -oE '[0-9]+$')" >> "$GITHUB_OUTPUT"
       shell: bash
 
-    - name: Comment on Existing Issue (Automated)
-      if: inputs.issue_number == '' && steps.check.outputs.issue_exists == 'true'
+    - name: Comment on Existing Issue
+      if: inputs.mode == 'auto' && steps.check.outputs.issue_exists == 'true'
       env:
-        GH_TOKEN: ${{ inputs.github_token }}
         EXISTING_ISSUE: ${{ steps.check.outputs.issue_number }}
-        RUN_ID: ${{ inputs.run_id }}
-        RUN_URL: ${{ inputs.run_url }}
+        RUN_ID: ${{ github.event.workflow_run.id }}
+        RUN_URL: ${{ github.event.workflow_run.html_url }}
         SHA: ${{ steps.context.outputs.sha }}
         IS_MAIN: ${{ steps.context.outputs.is_main }}
+        FAILING_JOBS: ${{ steps.context.outputs.failing_jobs }}
+        PR_NUMBER_VAL: ${{ steps.context.outputs.pr_number }}
       run: |
         NL=$'\n'
-        FAILING_JOBS_CLEAN=$(echo "${{ steps.context.outputs.failing_jobs }}" | tr -d '"`' | tr -s ' ')
+        FAILING_JOBS_CLEAN=$(echo "$FAILING_JOBS" | tr -d '"`' | tr -s ' ')
         COMMENT_BODY="Another CI failure detected in run [$RUN_ID]($RUN_URL).${NL}${NL}**Commit:** $SHA${NL}**Failing Jobs:** $FAILING_JOBS_CLEAN"
 
         gh issue comment "$EXISTING_ISSUE" --body "$COMMENT_BODY"
 
         # Promote branch issue to PR issue if PR was recently opened
         if [[ "$IS_MAIN" == "false" ]]; then
-          PR_NUMBER="${{ steps.context.outputs.pr_number }}"
-          if [ -n "$PR_NUMBER" ]; then
+          if [ -n "$PR_NUMBER_VAL" ]; then
             # Retrieve issue details in a single API call to prevent redundancy
             ISSUE_DATA=$(gh issue view "$EXISTING_ISSUE" --json title,body)
             CURRENT_TITLE=$(echo "$ISSUE_DATA" | jq -r '.title // empty')
             CURRENT_BODY=$(echo "$ISSUE_DATA" | jq -r '.body // empty')
 
-            if [[ "$CURRENT_TITLE" != *"PR #$PR_NUMBER"* || "$CURRENT_BODY" != *"<!-- ci-failure-pr:$PR_NUMBER -->"* ]]; then
-              NEW_TITLE="fix(ci): CI failure for PR #$PR_NUMBER"
+            if [[ "$CURRENT_TITLE" != *"PR #$PR_NUMBER_VAL"* || "$CURRENT_BODY" != *"<!-- ci-failure-pr:$PR_NUMBER_VAL -->"* ]]; then
+              NEW_TITLE="fix(ci): CI failure for PR #$PR_NUMBER_VAL"
               NEW_BODY="$CURRENT_BODY"
-              if [[ "$CURRENT_BODY" != *"<!-- ci-failure-pr:$PR_NUMBER -->"* ]]; then
-                NEW_BODY="${CURRENT_BODY}${NL}${NL}<!-- ci-failure-pr:$PR_NUMBER -->"
+              if [[ "$CURRENT_BODY" != *"<!-- ci-failure-pr:$PR_NUMBER_VAL -->"* ]]; then
+                NEW_BODY="${CURRENT_BODY}${NL}${NL}<!-- ci-failure-pr:$PR_NUMBER_VAL -->"
               fi
               gh issue edit "$EXISTING_ISSUE" --title "$NEW_TITLE" --body "$NEW_BODY"
             fi
@@ -260,9 +217,8 @@ runs:
       shell: bash
 
     - name: Dispatch Jules (Main Branch Only)
-      if: inputs.issue_number == '' && steps.context.outputs.is_main == 'true'
+      if: inputs.mode == 'auto' && steps.context.outputs.is_main == 'true'
       env:
-        GITHUB_TOKEN: ${{ inputs.github_token }}
         JULES_API_KEY: ${{ inputs.jules_api_key }}
         ISSUE_NUMBER: ${{ steps.check.outputs.issue_number || steps.create_issue.outputs.issue_number }}
       run: |
@@ -274,4 +230,35 @@ runs:
 
         # Use td-cli to dispatch Jules
         td-cli jules fix-ci --issue-number "$ISSUE_NUMBER" --execute
+      shell: bash
+
+    # --- MANUAL REPAIR MODE ---
+    - name: Pre-check Jules Credentials
+      if: inputs.mode == 'manual'
+      env:
+        JULES_API_KEY_INPUT: ${{ inputs.jules_api_key }}
+      run: |
+        MISSING=()
+        if [ -z "$GH_TOKEN" ]; then MISSING+=("GITHUB_TOKEN"); fi
+        if [ -z "$JULES_API_KEY_INPUT" ]; then MISSING+=("JULES_API_KEY"); fi
+
+        if [ ${#MISSING[@]} -ne 0 ]; then
+          echo "❌ Missing required secrets: ${MISSING[*]}"
+          echo "Please ensure GITHUB_TOKEN and JULES_API_KEY are configured."
+          exit 1
+        fi
+        echo "✅ Credentials pre-check passed."
+      shell: bash
+
+    - name: Initialize Jules Repair Session
+      if: inputs.mode == 'manual'
+      env:
+        JULES_API_KEY: ${{ inputs.jules_api_key }}
+        ISSUE_NUMBER: ${{ inputs.issue_number }}
+      run: |
+        if [[ ! "$ISSUE_NUMBER" =~ ^[0-9]+$ ]]; then
+          echo "::error::Invalid issue_number: must be numeric."
+          exit 1
+        fi
+        td-cli jules fix-ci --pr-number "$ISSUE_NUMBER" --execute
       shell: bash

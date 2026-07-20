@@ -21,7 +21,7 @@ jobs:
           fetch-depth: 1
 
       - name: BoomTick ChatOps Dispatcher
-        uses: ./.github/actions/chatops
+        uses: ./.github/actions/chatops-trigger
         with:
           comment_body: ${{ github.event.comment.body }}
           author_association: ${{ github.event.comment.author_association }}

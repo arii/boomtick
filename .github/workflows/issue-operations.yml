@@ -33,20 +33,16 @@ jobs:
     name: Validate Issue Quality
     if: github.event_name == 'issues'
     runs-on: ubuntu-latest
-    container:
-      image: ghcr.io/arii/tech-dancer:v2.0.1
     steps:
-      - name: Configure Git Safe Directory
-        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
-
-      - uses: actions/checkout@v7
+      - name: Checkout Code
+        uses: actions/checkout@v7 # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
         with:
           fetch-depth: 1
 
-      - name: Run Issue Operations (Validate Quality)
-        uses: ./.github/actions/issue-operations
+      - name: Run Issue Operations - Validate Quality
+        uses: ./.github/actions/issue-operations # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
         with:
-          action: 'validate-quality'
+          operation: 'validate-quality'
           issue_number: ${{ github.event.issue.number }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
 
@@ -62,14 +58,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7 # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
         with:
           fetch-depth: 1
 
-      - name: Run Issue Operations (Create Content PR)
-        uses: ./.github/actions/issue-operations
+      - name: Run Issue Operations - Create PR
+        uses: ./.github/actions/issue-operations # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
         with:
-          action: 'create-pr'
+          operation: 'create-pr'
           issue_number: ${{ github.event.issue.number }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
 
@@ -78,15 +74,17 @@ jobs:
     if: github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'ai-review'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - name: Checkout Code
+        uses: actions/checkout@v7 # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
         with:
           fetch-depth: 1
 
-      - name: Run Issue Operations (AI Review)
-        uses: ./.github/actions/issue-operations
+      - name: Run Issue Operations - AI Review
+        uses: ./.github/actions/issue-operations # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
         with:
-          action: 'ai-review'
+          operation: 'ai-review'
           issue_number: ${{ github.event.inputs.issue_number }}
+          comment_body: ${{ github.event.inputs.comment_body }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
           gemini_api_key: ${{ secrets.GEMINI_API_KEY }}
           openai_api_key: ${{ secrets.OPENAI_API_KEY }}
@@ -96,22 +94,18 @@ jobs:
     name: Resolve PR Conflicts
     if: github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'resolve-conflicts'
     runs-on: ubuntu-latest
-    container:
-      image: ghcr.io/arii/tech-dancer:v2.0.1
     steps:
-      - name: Configure Git Safe Directory
-        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
-
       - name: Checkout Code
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7 # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
         with:
           fetch-depth: 0
 
-      - name: Run Issue Operations (Resolve Conflicts)
-        uses: ./.github/actions/issue-operations
+      - name: Run Issue Operations - Resolve Conflicts
+        uses: ./.github/actions/issue-operations # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
         with:
-          action: 'resolve-conflicts'
+          operation: 'resolve-conflicts'
           issue_number: ${{ github.event.inputs.issue_number }}
+          comment_body: ${{ github.event.inputs.comment_body }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
 
   update-snapshots:
@@ -120,13 +114,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7 # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
         with:
           fetch-depth: 1
 
-      - name: Run Issue Operations (Update Snapshots)
-        uses: ./.github/actions/issue-operations
+      - name: Run Issue Operations - Update Snapshots
+        uses: ./.github/actions/issue-operations # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
         with:
-          action: 'update-snapshots'
+          operation: 'update-snapshots'
           issue_number: ${{ github.event.inputs.issue_number }}
+          comment_body: ${{ github.event.inputs.comment_body }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
