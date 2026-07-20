@@ -143,11 +143,29 @@ jobs:
         if: github.event_name == 'push'
         env:
           GH_TOKEN: ${{ github.token }}
+          GH_REF_NAME: ${{ github.ref_name }}
         run: |
+          if [[ ! "$GH_REF_NAME" =~ ^[a-zA-Z0-9_.-]+$ ]]; then
+            echo "Error: Invalid GH_REF_NAME value."
+            exit 1
+          fi
+
+          HAS_ASSETS=false
           if [ -d "cli/dist" ] && [ "$(ls -A cli/dist)" ]; then
-            gh release create "${{ github.ref_name }}" --title "Release ${{ github.ref_name }}" --generate-notes cli/dist/*
-          else
-            gh release create "${{ github.ref_name }}" --title "Release ${{ github.ref_name }}" --generate-notes
+            HAS_ASSETS=true
+          fi
+
+          RELEASE_EXISTS=false
+          if gh release view "$GH_REF_NAME" >/dev/null 2>&1; then
+            RELEASE_EXISTS=true
+          fi
+
+          if [ "$RELEASE_EXISTS" = true ] && [ "$HAS_ASSETS" = true ]; then
+            gh release upload "$GH_REF_NAME" cli/dist/* --clobber
+          elif [ "$RELEASE_EXISTS" = false ] && [ "$HAS_ASSETS" = true ]; then
+            gh release create "$GH_REF_NAME" --title "Release $GH_REF_NAME" --generate-notes cli/dist/*
+          elif [ "$RELEASE_EXISTS" = false ] && [ "$HAS_ASSETS" = false ]; then
+            gh release create "$GH_REF_NAME" --title "Release $GH_REF_NAME" --generate-notes
           fi
 
       - name: Log in to GitHub Container Registry
