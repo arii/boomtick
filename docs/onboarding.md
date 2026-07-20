@@ -158,6 +158,30 @@ To authorize the automation workflows, you must configure the following reposito
 - `JULES_API_KEY`: Required to communicate with the Jules session orchestrator.
 - `GEMINI_API_KEY`: Required to enable deep vision-based review pipelines.
 
+#### GitHub App Authentication (Optional - Replaces GITHUB_TOKEN)
+If you require your workflows to trigger other workflows (to allow recursion) or need higher privileges without using Personal Access Tokens (PATs), we recommend using the **GitHub App Authentication Flow**.
+
+1. Create a GitHub App in your organization/account with read/write permissions for **Contents**, **Pull Requests**, **Issues**, and **Actions**.
+2. Configure `APP_ID` and `APP_PRIVATE_KEY` as repository Secrets.
+3. In your caller workflow, generate a dynamic installation token and pass it as the `github_token` input to BoomTick composite actions:
+
+```yaml
+      - name: Generate GitHub App Token
+        id: app-token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+
+      - name: BoomTick ChatOps Dispatcher
+        uses: arii/boomtick/.github/actions/chatops@main
+        with:
+          comment_body: ${{ github.event.comment.body }}
+          author_association: ${{ github.event.comment.author_association }}
+          issue_number: ${{ github.event.issue.number }}
+          github_token: ${{ steps.app-token.outputs.token }}
+```
+
 ---
 
 ### 3. Local Run & Verification Workflows
