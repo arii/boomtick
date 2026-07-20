@@ -73,7 +73,7 @@ runs:
         elif [ -f "boomtick/scripts/resolve-cli.sh" ]; then
           CLI_DIR=$(bash boomtick/scripts/resolve-cli.sh | sed "s|$(pwd)/||")
         elif [ -f "${{ github.action_path }}/../../../scripts/resolve-cli.sh" ]; then
-          CLI_DIR=$(bash "${{ github.action_path }}/../../../scripts/resolve-cli.sh" | sed "s|$(pwd)/||")
+          CLI_DIR="${{ github.action_path }}/../../../cli"
         elif [ -d "cli" ]; then
           CLI_DIR="cli"
         elif [ -d "boomtick-pkg/cli" ]; then
@@ -127,7 +127,11 @@ runs:
       run: |
         # Use $(pwd) to get the container-internal path, avoiding host-path leakage from $GITHUB_WORKSPACE
         REPO_DIR=$(pwd)
-        CLI_DIR_ABS="$REPO_DIR/$CLI_DIR"
+        if [[ "$CLI_DIR" = /* ]]; then
+          CLI_DIR_ABS="$CLI_DIR"
+        else
+          CLI_DIR_ABS="$REPO_DIR/$CLI_DIR"
+        fi
 
         # 1. Update PYTHONPATH for subsequent steps
         # Ensure it works even if PYTHONPATH is initially empty
