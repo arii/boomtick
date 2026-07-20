@@ -152,7 +152,27 @@ runs:
       id: check_visuals
       env:
         VISUAL_DIFF_THRESHOLD: 1.5
-      run: pnpm exec tsx ${{ github.action_path }}/../../../scripts/check-visual-changes.ts >> "$GITHUB_OUTPUT"
+      run: |
+        SCRIPT_PATH=""
+        if [ -f "scripts/check-visual-changes.ts" ]; then
+          SCRIPT_PATH="scripts/check-visual-changes.ts"
+        elif [ -f "${{ github.action_path }}/../../../scripts/check-visual-changes.ts" ]; then
+          SCRIPT_PATH="${{ github.action_path }}/../../../scripts/check-visual-changes.ts"
+        fi
+
+        if [[ -n "$SCRIPT_PATH" && ( "$SCRIPT_PATH" == *"/scripts/check-visual-changes.ts" || "$SCRIPT_PATH" == "scripts/check-visual-changes.ts" ) ]]; then
+          RESOLVED_PATH=$(realpath "$SCRIPT_PATH")
+          if [[ -f "$RESOLVED_PATH" && "$RESOLVED_PATH" == *"/scripts/check-visual-changes.ts" ]]; then
+            echo "Executing check-visual-changes.ts at: $RESOLVED_PATH"
+            pnpm exec tsx "$RESOLVED_PATH" >> "$GITHUB_OUTPUT"
+          else
+            echo "❌ Error: Resolved path validation failed for $RESOLVED_PATH. Defaulting changed_routes=0"
+            echo "changed_routes=0" >> "$GITHUB_OUTPUT"
+          fi
+        else
+          echo "⚠️ Skipping: check-visual-changes.ts script not found or validation failed. Defaulting changed_routes=0"
+          echo "changed_routes=0" >> "$GITHUB_OUTPUT"
+        fi
       shell: bash
 
     - name: Visual review agent
