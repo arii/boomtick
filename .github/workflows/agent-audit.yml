@@ -12,6 +12,10 @@ on:
           - codebase-integrity-audit
           - issue-audit
           - review-ux
+          - review-pr
+          - review-all-prs
+      # Controls whether the agent evaluation runs remotely via the Jules API
+      # or directly on the GitHub Actions runner environment.
       execution_mode:
         description: 'Agent execution mode (remote-dispatch sends to Jules via GitHub API; local-orchestrator runs directly on runner)'
         required: true
@@ -58,7 +62,7 @@ jobs:
               echo "$EOF_DELIMITER"
             } >> "$GITHUB_ENV"
           else
-            echo "Error: Audit template not found at .agents/workflows/${AUDIT_TYPE}.md"
+            echo "Error: Audit template not found at .agents/workflows/${AUDIT_TYPE}.md. Please ensure the template file exists and the audit type is correctly spelled."
             # fail task without exiting
             false
           fi
@@ -89,6 +93,8 @@ jobs:
               echo "Error: PR number must be a valid integer."
               exit 1
             fi
-            echo "Running local orchestrator for PR #$PR_NUMBER..."
-            td-cli agent run-local --pr "$PR_NUMBER"
+            # Use sanitized value
+            VALID_PR=$(echo "$PR_NUMBER" | grep -o -E '^[0-9]+$')
+            echo "Running local orchestrator for PR #$VALID_PR..."
+            td-cli agent run-local --pr "$VALID_PR"
           fi

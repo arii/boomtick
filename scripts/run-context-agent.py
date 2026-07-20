@@ -8,6 +8,7 @@ and a persistent Agent Scratch Pad to save and carry over intermediate observati
 
 import sys
 import os
+from typing import Optional
 
 # Ensure the cli/ directory is on the PYTHONPATH
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "cli"))
@@ -80,7 +81,7 @@ class TriageNode(WorkflowNode):
             role=self.role
         )
 
-def run_single_agent_multi_role_scratchpad(pr_number: int = None, issue_number: int = None):
+def run_single_agent_multi_role_scratchpad(pr_number: Optional[int] = None, issue_number: Optional[int] = None):
     orch = Orchestrator()
     pr_numbers = []
 
