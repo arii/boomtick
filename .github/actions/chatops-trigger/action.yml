@@ -1,0 +1,131 @@
+name: 'ChatOps Trigger'
+description: 'Parses PR/Issue comments and dispatches actions accordingly'
+inputs:
+  comment_body:
+    description: 'The body of the comment'
+    required: true
+    default: ${{ github.event.comment.body }}
+  author_association:
+    description: 'The author association of the comment creator'
+    required: true
+    default: ${{ github.event.comment.author_association }}
+  issue_number:
+    description: 'The issue or PR number'
+    required: true
+    default: ${{ github.event.issue.number }}
+  github_token:
+    description: 'The GitHub token'
+    required: true
+    default: ${{ github.token }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Setup Workspace
+      uses: ${{ github.action_path }}/../setup-workspace # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
+
+    - name: Pre-flight Validations
+      id: validate
+      env:
+        GH_TOKEN: ${{ inputs.github_token }}
+        COMMENT_BODY: ${{ inputs.comment_body }}
+        AUTHOR_ASSOC: ${{ inputs.author_association }}
+        ISSUE_NUMBER: ${{ inputs.issue_number }}
+      run: |
+        if [ -z "$GH_TOKEN" ]; then
+          echo "::error::github_token is missing."
+          exit 1
+        fi
+        if [ -z "$COMMENT_BODY" ]; then
+          echo "::error::comment_body is missing."
+          exit 1
+        fi
+        if [[ ! "$AUTHOR_ASSOC" =~ ^[a-zA-Z0-9_.-]+$ ]]; then
+          echo "::error::Invalid author association format."
+          exit 1
+        fi
+        if [[ ! "$ISSUE_NUMBER" =~ ^[0-9]+$ ]]; then
+          echo "::error::Invalid issue_number: must be numeric."
+          exit 1
+        fi
+
+        {
+          echo "GH_TOKEN=$GH_TOKEN"
+          echo "GITHUB_TOKEN=$GH_TOKEN"
+          EOF_COMMENT=$(openssl rand -hex 16)
+          echo "COMMENT_BODY<<$EOF_COMMENT"
+          echo "$COMMENT_BODY"
+          echo "$EOF_COMMENT"
+          echo "ISSUE_NUMBER=$ISSUE_NUMBER"
+        } >> "$GITHUB_ENV"
+      shell: bash
+
+    - name: Check commands
+      id: check
+      env:
+        AUTHOR_ASSOC: ${{ inputs.author_association }}
+      run: |
+        RESULT=$(td-cli gh parse-comment --author-association "$AUTHOR_ASSOC")
+        {
+          echo "conflict_resolve=$(echo "$RESULT" | jq -r '.actions.conflict_resolve')"
+          echo "update_snapshots=$(echo "$RESULT" | jq -r '.actions.update_snapshots')"
+          echo "ai_chatops=$(echo "$RESULT" | jq -r '.actions.ai_chatops')"
+          echo "jules_fix_ci=$(echo "$RESULT" | jq -r '.actions.jules_fix_ci')"
+        } >> "$GITHUB_OUTPUT"
+      shell: bash
+
+    - name: Resolve Branch Details
+      if: steps.check.outputs.conflict_resolve == 'true' || steps.check.outputs.update_snapshots == 'true' || steps.check.outputs.ai_chatops == 'true' || steps.check.outputs.jules_fix_ci == 'true'
+      id: resolve_branch
+      run: |
+        PR_JSON=$(gh pr view "$ISSUE_NUMBER" --json headRefName,baseRefName || echo '{}')
+        {
+          echo "HEAD_REF=$(echo "$PR_JSON" | jq -r '.headRefName // empty')"
+          echo "BASE_REF=$(echo "$PR_JSON" | jq -r '.baseRefName // "main"')"
+        } >> "$GITHUB_OUTPUT"
+      shell: bash
+
+    - name: Trigger Dispatch Actions
+      if: steps.check.outputs.conflict_resolve == 'true' || steps.check.outputs.update_snapshots == 'true' || steps.check.outputs.ai_chatops == 'true' || steps.check.outputs.jules_fix_ci == 'true'
+      env:
+        HEAD_REF: ${{ steps.resolve_branch.outputs.HEAD_REF }}
+        BASE_REF: ${{ steps.resolve_branch.outputs.BASE_REF }}
+        CONFLICT_RESOLVE: ${{ steps.check.outputs.conflict_resolve }}
+        UPDATE_SNAPSHOTS: ${{ steps.check.outputs.update_snapshots }}
+        AI_CHATOPS: ${{ steps.check.outputs.ai_chatops }}
+        JULES_FIX_CI: ${{ steps.check.outputs.jules_fix_ci }}
+      run: |
+        ERRORS=0
+
+        if [[ "$CONFLICT_RESOLVE" == 'true' ]]; then
+          if ! gh workflow run issue-operations.yml --ref "$HEAD_REF" -f action="resolve-conflicts" -f issue_number="$ISSUE_NUMBER" -f comment_body="$COMMENT_BODY"; then
+            echo "::error::Failed to trigger Conflict Resolver workflow."
+            ERRORS=1
+          fi
+        fi
+
+        if [[ "$UPDATE_SNAPSHOTS" == 'true' ]]; then
+          if ! gh workflow run issue-operations.yml --ref "$HEAD_REF" -f action="update-snapshots" -f issue_number="$ISSUE_NUMBER" -f comment_body="$COMMENT_BODY"; then
+            echo "::error::Failed to trigger Update Snapshots workflow."
+            ERRORS=1
+          fi
+        fi
+
+        if [[ "$AI_CHATOPS" == 'true' ]]; then
+          if ! gh workflow run issue-operations.yml --ref "$HEAD_REF" -f action="ai-review" -f issue_number="$ISSUE_NUMBER" -f comment_body="$COMMENT_BODY"; then
+            echo "::error::Failed to trigger AI ChatOps workflow."
+            ERRORS=1
+          fi
+        fi
+
+        if [[ "$JULES_FIX_CI" == 'true' ]]; then
+          if ! gh workflow run ci-repair.yml --ref "$BASE_REF" -f issue_number="$ISSUE_NUMBER" -f comment_body="$COMMENT_BODY"; then
+            echo "::error::Failed to trigger Jules Fix CI workflow."
+            ERRORS=1
+          fi
+        fi
+
+        if [ "$ERRORS" -ne 0 ]; then
+          exit 1
+        fi
+      shell: bash

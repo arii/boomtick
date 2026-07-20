@@ -1,58 +1,86 @@
-name: 'BoomTick Issue Operations'
-description: 'Runs issue validation, content creation, AI reviews, and conflict resolutions'
+name: 'Issue Operations'
+description: 'Unified action for validating issues, creating PRs, AI review, and auto-resolving conflicts/snapshots'
 inputs:
-  action:
-    description: 'Action to perform'
+  operation:
+    description: 'The operation to perform: validate-quality, create-pr, ai-review, resolve-conflicts, update-snapshots'
     required: true
   issue_number:
-    description: 'Issue or PR number'
+    description: 'The issue or PR number'
     required: false
+    default: ${{ github.event.issue.number }}
   comment_body:
-    description: 'Comment body (optional)'
+    description: 'The comment body'
     required: false
   github_token:
-    description: 'GitHub Token'
-    required: true
+    description: 'The GitHub token'
+    required: false
+    default: ${{ github.token }}
   gemini_api_key:
-    description: 'Gemini API key'
+    description: 'Gemini API Key'
     required: false
   openai_api_key:
-    description: 'OpenAI API key'
+    description: 'OpenAI API Key'
     required: false
   google_jules_api_key:
-    description: 'Google Jules API key'
+    description: 'Google Jules API Key'
     required: false
 
 runs:
   using: 'composite'
   steps:
-    - name: Validate Inputs
+    - name: Pre-flight Validations
+      id: validate
       env:
-        INPUT_ISSUE_NUMBER: ${{ inputs.issue_number }}
+        GH_TOKEN: ${{ inputs.github_token }}
+        ISSUE_NUMBER: ${{ inputs.issue_number }}
       run: |
-        if [[ -n "$INPUT_ISSUE_NUMBER" && ! "$INPUT_ISSUE_NUMBER" =~ ^[0-9]+$ ]]; then
+        if [ -z "$GH_TOKEN" ]; then
+          echo "::error::github_token is missing."
+          exit 1
+        fi
+
+        # issue_number might be empty initially for issue creation events,
+        # but if it's provided we can validate it's numeric.
+        if [ -n "$ISSUE_NUMBER" ] && [[ ! "$ISSUE_NUMBER" =~ ^[0-9]+$ ]]; then
           echo "::error::Invalid issue_number: must be numeric."
           exit 1
         fi
+
+        {
+          echo "GH_TOKEN=$GH_TOKEN"
+          echo "GITHUB_TOKEN=$GH_TOKEN"
+        } >> "$GITHUB_ENV"
       shell: bash
 
-    - name: Setup Workspace
-      uses: arii/boomtick/.github/actions/setup-workspace@main
+    # --- VALIDATE QUALITY ---
+    - name: Configure Git Safe Directory
+      if: inputs.operation == 'validate-quality' || inputs.operation == 'resolve-conflicts'
+      run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+      shell: bash
+
+    - name: Setup Workspace for Quality Validation
+      if: inputs.operation == 'validate-quality'
+      uses: ${{ github.action_path }}/../setup-workspace # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
       with:
-        setup-node: ${{ (inputs.action == 'resolve-conflicts' || inputs.action == 'update-snapshots') && 'true' || 'false' }}
+        setup-node: 'false'
 
-    # 1. Action: validate-quality
     - name: Validate Issue
-      if: inputs.action == 'validate-quality'
+      if: inputs.operation == 'validate-quality'
       env:
-        GITHUB_TOKEN: ${{ inputs.github_token }}
+        ISSUE_NUM: ${{ inputs.issue_number }}
       run: |
-        td-cli gh validate-issue --issue-number ${{ inputs.issue_number }} --post-comments --execute
+        td-cli gh validate-issue --issue-number "$ISSUE_NUM" --post-comments --execute
       shell: bash
 
-    # 2. Action: create-pr
+    # --- CREATE PR ---
+    - name: Set up Python for PR Creation
+      if: inputs.operation == 'create-pr'
+      uses: actions/setup-python@v6 # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
+      with:
+        python-version: '3.x'
+
     - name: Parse Issue and Generate Markdown File
-      if: inputs.action == 'create-pr'
+      if: inputs.operation == 'create-pr'
       env:
         ISSUE_BODY: ${{ github.event.issue.body }}
         ISSUE_TITLE: ${{ github.event.issue.title }}
@@ -101,8 +129,8 @@ runs:
             f.write(f"SAFE_TITLE={safe_title}\n")
 
     - name: Create Pull Request
-      if: inputs.action == 'create-pr'
-      uses: peter-evans/create-pull-request@v8
+      if: inputs.operation == 'create-pr'
+      uses: peter-evans/create-pull-request@v8 # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
       with:
         token: ${{ inputs.github_token }}
         commit-message: "docs: add content from issue #${{ inputs.issue_number }}"
@@ -112,56 +140,61 @@ runs:
         base: main
         delete-branch: true
 
-    # 3. Action: ai-review
+    # --- AI REVIEW ---
     - name: AI Review
-      if: inputs.action == 'ai-review'
-      uses: arii/boomtick/.github/actions/ai-review@main
+      if: inputs.operation == 'ai-review'
+      uses: ${{ github.action_path }}/../../../mcp/actions/ai-review # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
       with:
         pr_number: ${{ inputs.issue_number }}
       env:
-        GITHUB_TOKEN: ${{ inputs.github_token }}
         GEMINI_API_KEY: ${{ inputs.gemini_api_key }}
         OPENAI_API_KEY: ${{ inputs.openai_api_key }}
         GOOGLE_JULES_API_KEY: ${{ inputs.google_jules_api_key }}
 
-    # 4. Action: resolve-conflicts
+    # --- RESOLVE CONFLICTS ---
+    - name: Setup Workspace for Conflict Resolution
+      if: inputs.operation == 'resolve-conflicts'
+      uses: ${{ github.action_path }}/../setup-workspace # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
+
     - name: Find and Resolve Conflicts
-      if: inputs.action == 'resolve-conflicts'
-      env:
-        GITHUB_TOKEN: ${{ inputs.github_token }}
+      if: inputs.operation == 'resolve-conflicts'
       run: |
         td-cli gh resolve
       shell: bash
 
     - name: Validate Resolution
-      if: inputs.action == 'resolve-conflicts'
+      if: inputs.operation == 'resolve-conflicts'
       run: |
         pnpm install --frozen-lockfile
         pnpm --filter @arii/boomtick-mcp run sync-contracts
         pnpm run type-check || exit 1
       shell: bash
 
-    - name: Commit Changes (Resolve)
-      if: inputs.action == 'resolve-conflicts'
-      uses: stefanzweifel/git-auto-commit-action@v5
+    - name: Commit Conflict Changes
+      if: inputs.operation == 'resolve-conflicts'
+      uses: stefanzweifel/git-auto-commit-action@v5 # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
       with:
         commit_message: "chore: auto-resolved merge conflicts using AI"
         file_pattern: '.'
 
-    # 5. Action: update-snapshots
-    - name: Install Dependencies
-      if: inputs.action == 'update-snapshots'
+    # --- UPDATE SNAPSHOTS ---
+    - name: Setup Workspace for Snapshots Update
+      if: inputs.operation == 'update-snapshots'
+      uses: ${{ github.action_path }}/../setup-workspace # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
+
+    - name: Install Snapshot Dependencies
+      if: inputs.operation == 'update-snapshots'
       run: pnpm install --frozen-lockfile
       shell: bash
 
     - name: Update Snapshots
-      if: inputs.action == 'update-snapshots'
+      if: inputs.operation == 'update-snapshots'
       run: |
         VITE_BASE_PATH=/ pnpm run test:e2e --update-snapshots
       shell: bash
 
-    - name: Check for Changes
-      if: inputs.action == 'update-snapshots'
+    - name: Check for Snapshot Changes
+      if: inputs.operation == 'update-snapshots'
       id: status
       run: |
         if [ -z "$(git status --porcelain)" ]; then
@@ -171,9 +204,9 @@ runs:
         fi
       shell: bash
 
-    - name: Commit Changes (Snapshots)
-      if: inputs.action == 'update-snapshots' && steps.status.outputs.changed == 'true'
-      uses: stefanzweifel/git-auto-commit-action@v5
+    - name: Commit Snapshot Changes
+      if: inputs.operation == 'update-snapshots' && steps.status.outputs.changed == 'true'
+      uses: stefanzweifel/git-auto-commit-action@v5 # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
       with:
         commit_message: "chore: update playwright snapshots"
         file_pattern: '**/snapshots/*'

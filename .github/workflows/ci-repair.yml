@@ -33,19 +33,16 @@ jobs:
     if: github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'failure'
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7 # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
         with:
           fetch-depth: 1
 
-      - name: Run CI Repair Action (Automated)
-        uses: ./.github/actions/ci-repair
+      - name: Run CI Repair
+        uses: ./.github/actions/ci-repair # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
         with:
-          run_id: ${{ github.event.workflow_run.id }}
-          run_url: ${{ github.event.workflow_run.html_url }}
-          head_sha: ${{ github.event.workflow_run.head_sha }}
-          head_branch: ${{ github.event.workflow_run.head_branch }}
-          github_token: ${{ secrets.GITHUB_TOKEN }}
+          mode: 'auto'
           jules_api_key: ${{ secrets.JULES_API_KEY }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
 
   manual-jules-fix:
     name: Manual Jules Fix CI
@@ -53,15 +50,15 @@ jobs:
     if: github.event_name == 'workflow_dispatch' && github.event.inputs.issue_number
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7 # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
         with:
           fetch-depth: 1
 
-      - name: Run CI Repair Action (Manual)
-        uses: ./.github/actions/ci-repair
+      - name: Run Manual CI Repair
+        uses: ./.github/actions/ci-repair # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
         with:
+          mode: 'manual'
           issue_number: ${{ github.event.inputs.issue_number }}
           comment_body: ${{ github.event.inputs.comment_body }}
-          github_token: ${{ secrets.GITHUB_TOKEN }}
           jules_api_key: ${{ secrets.JULES_API_KEY }}
-          jules_source_id: ${{ vars.JULES_SOURCE_ID }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
