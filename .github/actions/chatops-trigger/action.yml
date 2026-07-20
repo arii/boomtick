@@ -40,7 +40,7 @@ runs:
           echo "::error::comment_body is missing."
           exit 1
         fi
-        if [[ ! "$AUTHOR_ASSOC" =~ ^(COLLABORATOR|CONTRIBUTOR|FIRST_TIMER|FIRST_TIME_CONTRIBUTOR|MANNEQUIN|MEMBER|NONE|OWNER)$ ]]; then
+        if [[ ! "$AUTHOR_ASSOC" =~ ^[A-Z_]+$ ]]; then
           echo "::error::Invalid author association format."
           exit 1
         fi
@@ -49,10 +49,10 @@ runs:
           exit 1
         fi
 
+        EOF_COMMENT=$(openssl rand -hex 16)
         {
-          EOF_COMMENT=$(openssl rand -hex 16)
           echo "COMMENT_BODY<<$EOF_COMMENT"
-          printf "%s\n" "$COMMENT_BODY"
+          echo -E "$COMMENT_BODY"
           echo "$EOF_COMMENT"
         } >> "$GITHUB_ENV"
       shell: bash
@@ -100,26 +100,33 @@ runs:
         OPS_WORKFLOW="issue-operations.yml"
         CI_WORKFLOW="ci-repair.yml"
 
-        declare -A ACTIONS
-        [[ "$CONFLICT_RESOLVE" == 'true' ]] && ACTIONS["resolve-conflicts"]="$OPS_WORKFLOW|$HEAD_REF"
-        [[ "$UPDATE_SNAPSHOTS" == 'true' ]] && ACTIONS["update-snapshots"]="$OPS_WORKFLOW|$HEAD_REF"
-        [[ "$AI_CHATOPS" == 'true' ]]      && ACTIONS["ai-review"]="$OPS_WORKFLOW|$HEAD_REF"
-        [[ "$JULES_FIX_CI" == 'true' ]]    && ACTIONS["jules-fix-ci"]="$CI_WORKFLOW|$BASE_REF"
-
-        for action in "${!ACTIONS[@]}"; do
-          IFS='|' read -r workflow ref <<< "${ACTIONS[$action]}"
-          if [[ "$action" == "jules-fix-ci" ]]; then
-            if ! gh workflow run "$workflow" --ref "$ref" -f issue_number="$ISSUE_NUMBER" -f comment_body="$COMMENT_BODY"; then
-              echo "::error::Failed to trigger $workflow for $action on ref $ref (Issue: $ISSUE_NUMBER)."
-              ERRORS=1
-            fi
-          else
-            if ! gh workflow run "$workflow" --ref "$ref" -f action="$action" -f issue_number="$ISSUE_NUMBER" -f comment_body="$COMMENT_BODY"; then
-              echo "::error::Failed to trigger $workflow for $action on ref $ref (Issue: $ISSUE_NUMBER)."
-              ERRORS=1
-            fi
+        if [[ "$CONFLICT_RESOLVE" == 'true' ]]; then
+          if ! gh workflow run "$OPS_WORKFLOW" --ref "$HEAD_REF" -f action="resolve-conflicts" -f issue_number="$ISSUE_NUMBER" -f comment_body="$COMMENT_BODY"; then
+            echo "::error::Trigger failed for $OPS_WORKFLOW resolve-conflicts on PR $ISSUE_NUMBER"
+            ERRORS=1
           fi
-        done
+        fi
+
+        if [[ "$UPDATE_SNAPSHOTS" == 'true' ]]; then
+          if ! gh workflow run "$OPS_WORKFLOW" --ref "$HEAD_REF" -f action="update-snapshots" -f issue_number="$ISSUE_NUMBER" -f comment_body="$COMMENT_BODY"; then
+            echo "::error::Trigger failed for $OPS_WORKFLOW update-snapshots on PR $ISSUE_NUMBER"
+            ERRORS=1
+          fi
+        fi
+
+        if [[ "$AI_CHATOPS" == 'true' ]]; then
+          if ! gh workflow run "$OPS_WORKFLOW" --ref "$HEAD_REF" -f action="ai-review" -f issue_number="$ISSUE_NUMBER" -f comment_body="$COMMENT_BODY"; then
+            echo "::error::Trigger failed for $OPS_WORKFLOW ai-review on PR $ISSUE_NUMBER"
+            ERRORS=1
+          fi
+        fi
+
+        if [[ "$JULES_FIX_CI" == 'true' ]]; then
+          if ! gh workflow run "$CI_WORKFLOW" --ref "$BASE_REF" -f issue_number="$ISSUE_NUMBER" -f comment_body="$COMMENT_BODY"; then
+            echo "::error::Trigger failed for $CI_WORKFLOW jules-fix-ci on PR $ISSUE_NUMBER"
+            ERRORS=1
+          fi
+        fi
 
         if [ "$ERRORS" -ne 0 ]; then
           bash -c 'exit 1'
