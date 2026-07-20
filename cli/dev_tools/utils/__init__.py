@@ -994,6 +994,7 @@ def get_any_count(search_dir="src"):
 
 
 def get_changed_files():
+    """Returns the list of files changed in the current branch."""
     from dev_tools.config import get_config
 
     config = get_config()
@@ -1008,6 +1009,7 @@ def get_changed_files():
 
 
 def verify_pr_scope(file_list: Optional[List[str]] = None) -> Optional[str]:
+    """Checks if a PR touches too many core layout/component files or mixes content scopes."""
     from dev_tools.config import get_config
 
     if file_list is None:
