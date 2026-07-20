@@ -143,16 +143,22 @@ jobs:
         if: github.event_name == 'push'
         env:
           GH_TOKEN: ${{ github.token }}
+          GH_REF_NAME: ${{ github.ref_name }}
         run: |
-          if gh release view "${{ github.ref_name }}" >/dev/null 2>&1; then
-            if [ -d "cli/dist" ] && [ "$(ls -A cli/dist)" ]; then
-              gh release upload "${{ github.ref_name }}" cli/dist/* --clobber
+          HAS_ASSETS=false
+          if [ -d "cli/dist" ] && [ "$(ls -A cli/dist)" ]; then
+            HAS_ASSETS=true
+          fi
+
+          if gh release view "$GH_REF_NAME" >/dev/null 2>&1; then
+            if [ "$HAS_ASSETS" = true ]; then
+              gh release upload "$GH_REF_NAME" cli/dist/* --clobber
             fi
           else
-            if [ -d "cli/dist" ] && [ "$(ls -A cli/dist)" ]; then
-              gh release create "${{ github.ref_name }}" --title "Release ${{ github.ref_name }}" --generate-notes cli/dist/*
+            if [ "$HAS_ASSETS" = true ]; then
+              gh release create "$GH_REF_NAME" --title "Release $GH_REF_NAME" --generate-notes cli/dist/*
             else
-              gh release create "${{ github.ref_name }}" --title "Release ${{ github.ref_name }}" --generate-notes
+              gh release create "$GH_REF_NAME" --title "Release $GH_REF_NAME" --generate-notes
             fi
           fi
 
