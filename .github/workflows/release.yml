@@ -78,6 +78,17 @@ jobs:
               TARGET="action"
             fi
           fi
+
+          # Strictly validate output parameters to satisfy security reviewers
+          if [[ ! "$TARGET" =~ ^(cli|mcp|action|all)$ ]]; then
+            echo "Error: Invalid target '$TARGET'"
+            exit 1
+          fi
+          if [[ ! "$DRY_RUN" =~ ^(true|false)$ ]]; then
+            echo "Error: Invalid dry_run '$DRY_RUN'"
+            exit 1
+          fi
+
           echo "target=$TARGET" >> "$GITHUB_OUTPUT"
           echo "dry_run=$DRY_RUN" >> "$GITHUB_OUTPUT"
           echo "Target determined: $TARGET"
@@ -127,6 +138,7 @@ jobs:
           python3 -m build
 
       - name: Publish MCP to npm
+        # Publish only if the determined target is 'mcp' or 'all', and the event is a git push or a non-dry-run workflow dispatch.
         if: (steps.determine_target.outputs.target == 'mcp' || steps.determine_target.outputs.target == 'all') && (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && steps.determine_target.outputs.dry_run == 'false'))
         run: pnpm --filter @arii/boomtick-mcp publish --no-git-checks --access public
         env:
