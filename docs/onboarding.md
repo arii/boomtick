@@ -27,6 +27,75 @@ This guide details the integration lifecycle of `boomtick` in four operational s
 
 ---
 
+### Zero-Submodule Integration (Zero-Submodule Strategy)
+
+Downstream consumer repositories can integrate BoomTick's powerful automation capabilities **without** initializing it as a git submodule. This decouples your workflows from direct filesystem dependency trees, speeding up CI pipelines and removing submodule overhead.
+
+#### Direct Integration in GitHub Workflows
+Instead of using local workflow configurations pointing to submodule paths, reference BoomTick's composite actions directly:
+
+```yaml
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 1
+
+      - name: BoomTick ChatOps Dispatcher
+        uses: arii/boomtick/.github/actions/chatops@main
+        with:
+          comment_body: ${{ github.event.comment.body }}
+          author_association: ${{ github.event.comment.author_association }}
+          issue_number: ${{ github.event.issue.number }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+```
+
+#### Available Reusable Actions
+BoomTick exposes the following Composite Actions under `.github/actions/`:
+1. **`setup-workspace`**: Installs pnpm, Node, Python, and the `td-cli` developer tool natively onto the runner.
+   ```yaml
+   uses: arii/boomtick/.github/actions/setup-workspace@main
+   with:
+     setup-node: 'true'
+     setup-python: 'true'
+   ```
+2. **`chatops`**: Handles comment parsing and automatically dispatches appropriate workflow operations.
+   ```yaml
+   uses: arii/boomtick/.github/actions/chatops@main
+   with:
+     comment_body: ${{ inputs.comment_body }}
+     author_association: ${{ inputs.author_association }}
+     issue_number: ${{ inputs.issue_number }}
+     github_token: ${{ secrets.GITHUB_TOKEN }}
+   ```
+3. **`ci-repair`**: Coordinates Automated CI failure tracking and manual Jules fix sessions.
+   ```yaml
+   uses: arii/boomtick/.github/actions/ci-repair@main
+   with:
+     run_id: ${{ github.event.workflow_run.id }}
+     run_url: ${{ github.event.workflow_run.html_url }}
+     head_sha: ${{ github.event.workflow_run.head_sha }}
+     head_branch: ${{ github.event.workflow_run.head_branch }}
+     github_token: ${{ secrets.GITHUB_TOKEN }}
+     jules_api_key: ${{ secrets.JULES_API_KEY }}
+   ```
+4. **`issue-operations`**: Orchestrates issue validation, content creation, AI reviews, conflict resolution, and snapshot updates.
+   ```yaml
+   uses: arii/boomtick/.github/actions/issue-operations@main
+   with:
+     action: 'ai-review'
+     issue_number: ${{ github.event.inputs.issue_number }}
+     github_token: ${{ secrets.GITHUB_TOKEN }}
+     gemini_api_key: ${{ secrets.GEMINI_API_KEY }}
+   ```
+5. **`ai-review`**: Runs AI review audits on a given pull request.
+   ```yaml
+   uses: arii/boomtick/.github/actions/ai-review@main
+   with:
+     pr_number: ${{ inputs.pr_number }}
+   ```
+
+---
+
 ### 1. Dependency & Submodule Integration
 
 To include `boomtick` in a new repository (acting as the superproject), follow these initial integration steps:

@@ -1,0 +1,16 @@
+name: BoomTick AI Review
+description: Runs AI code review via python3 -m dev_tools.cli CLI
+inputs:
+  pr_number:
+    description: PR number to review
+    required: true
+runs:
+  using: composite
+  steps:
+    - name: Setup Workspace
+      uses: arii/boomtick/.github/actions/setup-workspace@main
+    - name: AI review
+      env:
+        PR_NUMBER: ${{ inputs.pr_number }}
+      run: python3 -m dev_tools.cli gh audit-pr "$PR_NUMBER" --fetch --audit
+      shell: bash
