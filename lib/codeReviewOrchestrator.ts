@@ -3,7 +3,7 @@ import * as path from 'path';
 import { IMPACT_CONFIG } from '../scripts/impact-analysis.config';
 import { ARTIFACTS_DIR } from './visualReviewConstants';
 import { postPRComment, countExistingReviews, getJulesSessionIdFromPR, sendJulesMessage, getPreviousReviewState } from './visualReviewUtils';
-import { runWithConcurrencyLimit } from './sharedUtils';
+import { runWithConcurrencyLimit, checkReviewQuota } from './sharedUtils';
 import { calculateEstimatedTokens, cleanupFeedback, batchFiles, calculateReviewHash, pruneCache, filterLowImpactFiles } from './codeReviewUtils';
 import type { CodeReviewSummary, CodeReviewResult, CodeReviewState, CodeReviewRole } from './codeReviewTypes';
 import { execFile as execFileCb, spawn } from 'child_process';
@@ -583,22 +583,17 @@ export async function orchestrateCodeReview(
   }
 
   const existing = await countExistingReviews(allReportTitles);
-  if (existing >= MAX_REVIEWS_PER_PR) {
-    console.log(`⏭️  Skipping ${client.botName} — ${existing}/${MAX_REVIEWS_PER_PR} reviews already posted.`);
-    fs.writeFileSync(
-      agentReportPath,
-      `## ${client.reportTitle}\n\nSkipped: review quota (${MAX_REVIEWS_PER_PR}) already met.\n`
-    );
-    const prevState = await getPreviousReviewState<CodeReviewState>(client.reportTitle);
-    fs.writeFileSync(path.join(ARTIFACTS_DIR, `${client.reportFileName.replace('.md', '')}-verdict.json`), JSON.stringify({
-      passed: true,
-      highCount: 0,
-      routes: [],
-      llmVerdict: 'pass',
-      state: prevState || { findings: [] }
-    }, null, 2));
-    return;
-  }
+  const isQuotaMet = await checkReviewQuota(
+    existing,
+    MAX_REVIEWS_PER_PR,
+    client.botName,
+    client.reportTitle,
+    agentReportPath,
+    client.reportFileName,
+    ARTIFACTS_DIR,
+    (title) => getPreviousReviewState<any>(title)
+  );
+  if (isQuotaMet) return;
 
   // Get initial summary to find changed files
   const initialSummary = await getCodeDiffSummary();

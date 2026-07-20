@@ -1,3 +1,6 @@
+import * as fs from 'fs';
+import * as path from 'path';
+
 export async function runWithConcurrencyLimit(
   taskQueue: Array<() => Promise<void>>,
   limit: number
@@ -10,4 +13,33 @@ export async function runWithConcurrencyLimit(
   });
 
   await Promise.all(workers);
+}
+
+export async function checkReviewQuota(
+  existingCount: number,
+  maxReviews: number,
+  botName: string,
+  reportTitle: string,
+  agentReportPath: string,
+  reportFileName: string,
+  artifactsDir: string,
+  getPrevState: (title: string) => Promise<any>
+): Promise<boolean> {
+  if (existingCount >= maxReviews) {
+    console.log(`⏭️  Skipping ${botName} — ${existingCount}/${maxReviews} reviews already posted.`);
+    fs.writeFileSync(
+      agentReportPath,
+      `## ${reportTitle}\n\nSkipped: review quota (${maxReviews}) already met.\n`
+    );
+    const prevState = await getPrevState(reportTitle);
+    fs.writeFileSync(path.join(artifactsDir, `${reportFileName.replace('.md', '')}-verdict.json`), JSON.stringify({
+      passed: true,
+      highCount: 0,
+      routes: [],
+      llmVerdict: 'pass',
+      state: prevState || { findings: [] }
+    }, null, 2));
+    return true; // Quota met, skip review
+  }
+  return false; // Quota not met, continue review
 }
