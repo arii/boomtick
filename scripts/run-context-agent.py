@@ -8,6 +8,8 @@ and a persistent Agent Scratch Pad to save and carry over intermediate observati
 
 import sys
 import os
+import subprocess
+import traceback
 from typing import Optional
 
 # Ensure the cli/ directory is on the PYTHONPATH
@@ -88,8 +90,6 @@ def run_single_agent_multi_role_scratchpad(pr_number: Optional[int] = None, issu
     if pr_number:
         pr_numbers.append(pr_number)
     else:
-        import subprocess
-        import json
         print("🔍 [Agent] No PR number provided. Fetching all open PRs...")
         try:
             res = subprocess.run(
@@ -98,7 +98,6 @@ def run_single_agent_multi_role_scratchpad(pr_number: Optional[int] = None, issu
                 text=True,
                 check=True
             )
-            # The output is a newline-separated list of PR numbers
             pr_numbers = [int(num) for num in res.stdout.strip().split("\n") if num.strip().isdigit()]
             print(f"✅ Found {len(pr_numbers)} open PRs: {pr_numbers}")
         except Exception as e:
@@ -111,7 +110,6 @@ def run_single_agent_multi_role_scratchpad(pr_number: Optional[int] = None, issu
         print(f"\n{'='*50}\n🚀 RUNNING EVALUATION FOR PR #{pr}\n{'='*50}")
         graph = WorkflowGraph()
 
-        # Add nodes
         graph.add_node(IngestionNode())
         graph.add_node(ReviewerNode())
         graph.add_node(AuditorNode())
@@ -119,7 +117,6 @@ def run_single_agent_multi_role_scratchpad(pr_number: Optional[int] = None, issu
         graph.add_node(DeploymentImpactCheckNode())
         graph.add_node(FinalSynthesisNode())
 
-        # Define sequential execution flow
         graph.add_edge("Ingestion", "Reviewer")
         graph.add_edge("Reviewer", "Auditor")
         graph.add_edge("Auditor", "Triage")
@@ -141,7 +138,6 @@ def run_single_agent_multi_role_scratchpad(pr_number: Optional[int] = None, issu
             print("=" * 50 + "\n")
         except Exception as e:
             print(f"❌ Workflow execution failed for PR #{pr}: {e}", file=sys.stderr)
-            import traceback
             traceback.print_exc()
             failed_prs.append((pr, str(e)))
             continue

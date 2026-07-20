@@ -14,8 +14,9 @@ on:
           - review-ux
           - review-pr
           - review-all-prs
-      # Controls whether the agent evaluation runs remotely via the Jules API
-      # or directly on the GitHub Actions runner environment.
+      # execution_mode controls whether the agent evaluation runs remotely via the Jules API
+      # ('remote-dispatch') or directly on the GitHub Actions runner environment ('local-orchestrator').
+      # Choosing 'local-orchestrator' avoids API rate limits but consumes runner compute time.
       execution_mode:
         description: 'Agent execution mode (remote-dispatch sends to Jules via GitHub API; local-orchestrator runs directly on runner)'
         required: true
@@ -62,7 +63,7 @@ jobs:
               echo "$EOF_DELIMITER"
             } >> "$GITHUB_ENV"
           else
-            echo "Error: Audit template not found at .agents/workflows/${AUDIT_TYPE}.md. Please ensure the template file exists and the audit type is correctly spelled."
+            echo "Error: Audit template not found at .agents/workflows/${AUDIT_TYPE}.md. You must create this file and populate it with valid Markdown instructions for the chosen audit_type before execution."
             # fail task without exiting
             false
           fi
