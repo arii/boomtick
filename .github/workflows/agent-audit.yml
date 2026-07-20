@@ -12,6 +12,8 @@ on:
           - codebase-integrity-audit
           - issue-audit
           - review-ux
+          - review-pr
+          - review-all-prs
       # Controls whether the agent evaluation runs remotely via the Jules API
       # or directly on the GitHub Actions runner environment.
       execution_mode:
