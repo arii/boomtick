@@ -1010,30 +1010,42 @@ def get_changed_files():
 
 
 def verify_pr_scope(file_list: Optional[List[str]] = None) -> Optional[str]:
-    """Checks if a PR touches too many core layout/component files or mixes content scopes."""
+    """
+    Checks if a PR touches too many core layout/component files or mixes content scopes.
+    This replaces the old scope_check.py functionality natively.
+    """
     from dev_tools.config import get_config
+    from typing import Set
 
-    if file_list is None:
-        file_list = get_changed_files()
+    # 1. Fetch changed files if none provided
+    files = file_list if file_list is not None else get_changed_files()
+
     config = get_config()
     core_dirs = config.core_dirs
     threshold = config.monolithic_pr_threshold
-    core_files = [f for f in file_list if any(f.startswith(d) for d in core_dirs)]
+
+    # 2. Check core files threshold
+    core_files = [f for f in files if any(f.startswith(d) for d in core_dirs)]
     if len(core_files) > threshold:
         return f"PR scope warning: Touching {len(core_files)} core files in {core_dirs}. Consider splitting this monolithic PR to avoid merge conflicts (AGENTS.md §23)."
-    content_scopes = config.content_scopes
-    from typing import Set
 
+    # 3. Check for mixed content domains
+    content_scopes = config.content_scopes
     active_scopes: Set[str] = set()
-    for f in file_list:
+    for f in files:
         for scope_name, prefix in content_scopes.items():
             if f.startswith(prefix):
                 active_scopes.add(scope_name)
+
     if len(active_scopes) > 1:
         scope_names = ", ".join(sorted(content_scopes.keys()))
         return f"Content scope warning: Mixed content domains detected ({', '.join(active_scopes)}). PRs should be split by scope: {scope_names} (AGENTS.md §21)."
+
+    # 4. Check for mixing significant code changes with content updates
     has_content = len(active_scopes) > 0
-    code_files = [f for f in file_list if f.startswith("src/") and not any(f.startswith(d) for d in core_dirs)]
+    code_files = [f for f in files if f.startswith("src/") and not any(f.startswith(d) for d in core_dirs)]
+
     if has_content and len(code_files) > 2:
         return "PR scope warning: Mixing significant code changes with content updates. Consider splitting content corrections from feature development."
+
     return None
