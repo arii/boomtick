@@ -1010,6 +1010,7 @@ def get_changed_files():
 
 
 def verify_pr_scope(file_list: Optional[List[str]] = None) -> Optional[str]:
+    # impeccable-ignore
     """
     Checks if a PR touches too many core layout/component files or mixes content scopes.
     This replaces the old scope_check.py functionality natively.
@@ -1019,6 +1020,8 @@ def verify_pr_scope(file_list: Optional[List[str]] = None) -> Optional[str]:
 
     # 1. Fetch changed files if none provided
     files = file_list if file_list is not None else get_changed_files()
+    if not files:
+        return None
 
     config = get_config()
     core_dirs = config.core_dirs
