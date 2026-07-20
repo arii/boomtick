@@ -1002,9 +1002,10 @@ def get_changed_files():
     res = run_command(["git", "diff", "--name-only", base], check=False, log_on_error=False)
     if res.returncode == 0:
         return res.stdout.strip().splitlines()
-    res = run_command(["git", "diff", "--name-only", "HEAD"], check=False, log_on_error=False)
+    res = run_command(["git", "diff", "--name-only", "HEAD"], check=False, log_on_error=True)
     if res.returncode == 0:
         return res.stdout.strip().splitlines()
+    log_error("Failed to get changed files from git diff.")
     return []
 
 
