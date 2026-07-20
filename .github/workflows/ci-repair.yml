@@ -15,6 +15,11 @@ on:
         required: false
         type: string
 
+concurrency:
+  # Group executions by head branch to serialize runs and prevent concurrent write race conditions.
+  group: ci-repair-${{ github.event.workflow_run.head_branch }}
+  cancel-in-progress: false
+
 permissions:
   contents: read
   issues: write
@@ -32,114 +37,15 @@ jobs:
         with:
           fetch-depth: 1
 
-      - name: Set up Python
-        uses: actions/setup-python@v6
+      - name: Run CI Repair Action (Automated)
+        uses: ./.github/actions/ci-repair
         with:
-          python-version: '3.x'
-
-      - name: Install Dependencies
-        run: |
-          pip install PyGithub requests click
-
-      - name: Setup Workspace
-        uses: ./mcp/actions/setup-workspace
-        with:
-          setup-node: 'false'
-
-      - name: Collect Failure Context
-        id: context
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          RUN_ID: ${{ github.event.workflow_run.id }}
-          REPO: ${{ github.repository }}
-          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
-          HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
-        run: |
-          JOBS=$(gh api "repos/$REPO/actions/runs/$RUN_ID/jobs" --jq '[.jobs[] | select(.conclusion=="failure") | .name] | join(", ")')
-          {
-            echo "failing_jobs=$JOBS"
-            echo "sha=$HEAD_SHA"
-            echo "sha_short=$(echo "$HEAD_SHA" | cut -c1-8)"
-          } >> "$GITHUB_OUTPUT"
-
-          IS_MAIN="false"
-          if [[ "$HEAD_BRANCH" == "main" ]]; then
-            IS_MAIN="true"
-          fi
-          echo "is_main=$IS_MAIN" >> "$GITHUB_OUTPUT"
-
-      - name: Idempotency Check
-        id: check
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          SHA: ${{ steps.context.outputs.sha }}
-          IS_MAIN: ${{ steps.context.outputs.is_main }}
-        run: |
-          LABEL="ci-failure"
-          if [[ "$IS_MAIN" == "true" ]]; then
-            LABEL="main-ci-failure"
-          fi
-
-          EXISTING_ISSUE=$(gh issue list --label "$LABEL" --search "$SHA" --state open --json number --jq '.[0].number // empty')
-          if [ -n "$EXISTING_ISSUE" ]; then
-            {
-              echo "issue_exists=true"
-              echo "issue_number=$EXISTING_ISSUE"
-            } >> "$GITHUB_OUTPUT"
-            echo "Found existing issue #$EXISTING_ISSUE for this SHA. Skipping creation."
-          else
-            echo "issue_exists=false" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Create Issue
-        if: steps.check.outputs.issue_exists == 'false'
-        id: create_issue
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          IS_MAIN: ${{ steps.context.outputs.is_main }}
-          TITLE: "${{ steps.context.outputs.is_main == 'true' && 'fix(ci): main branch failure' || 'fix(ci): CI failure' }} at ${{ steps.context.outputs.sha_short }} — ${{ steps.context.outputs.failing_jobs }}"
-          RUN_ID: ${{ github.event.workflow_run.id }}
-          RUN_URL: ${{ github.event.workflow_run.html_url }}
-          SHA: ${{ steps.context.outputs.sha }}
-        run: |
-          LABEL="ci-failure"
-          EXTRA_LABELS=""
-          BODY_SUFFIX=""
-          if [[ "$IS_MAIN" == "true" ]]; then
-            LABEL="main-ci-failure"
-            EXTRA_LABELS=",spec-driven"
-            BODY_SUFFIX="\n\n🤖 Jules repair session will be dispatched automatically."
-            gh label create main-ci-failure --color FF0000 --description "CI failures on main branch" || true
-          else
-            gh label create ci-failure --color FF0000 --description "CI failures" || true
-          fi
-
-          BODY=$(cat <<EOF
-          CI failure detected in run [$RUN_ID]($RUN_URL).
-
-          **Commit:** $SHA
-          **Failing Jobs:** ${{ steps.context.outputs.failing_jobs }}$BODY_SUFFIX
-          EOF
-          )
-
-          ISSUE_NUMBER=$(gh issue create --title "$TITLE" --body "$BODY" --label "$LABEL$EXTRA_LABELS")
-          echo "issue_number=$(echo "$ISSUE_NUMBER" | grep -oE '[0-9]+$')" >> "$GITHUB_OUTPUT"
-
-      - name: Dispatch Jules (Main Branch Only)
-        if: steps.context.outputs.is_main == 'true'
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          JULES_API_KEY: ${{ secrets.JULES_API_KEY }}
-          ISSUE_NUMBER: ${{ steps.check.outputs.issue_number || steps.create_issue.outputs.issue_number }}
-        run: |
-          if [ -z "$JULES_API_KEY" ]; then
-            echo "::warning::JULES_API_KEY is missing. Jules repair session cannot be dispatched."
-            gh issue comment "$ISSUE_NUMBER" --body "⚠️ JULES_API_KEY is missing. Jules repair session cannot be dispatched."
-            exit 0
-          fi
-
-          # Use td-cli to dispatch Jules
-          td-cli jules fix-ci --issue-number "$ISSUE_NUMBER" --execute
+          run_id: ${{ github.event.workflow_run.id }}
+          run_url: ${{ github.event.workflow_run.html_url }}
+          head_sha: ${{ github.event.workflow_run.head_sha }}
+          head_branch: ${{ github.event.workflow_run.head_branch }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          jules_api_key: ${{ secrets.JULES_API_KEY }}
 
   manual-jules-fix:
     name: Manual Jules Fix CI
@@ -151,46 +57,11 @@ jobs:
         with:
           fetch-depth: 1
 
-      - name: Set up Python
-        uses: actions/setup-python@v6
+      - name: Run CI Repair Action (Manual)
+        uses: ./.github/actions/ci-repair
         with:
-          python-version: '3.x'
-
-      - name: Install Dependencies
-        run: |
-          pip install PyGithub requests click
-
-      - name: Pre-check Jules Credentials
-        run: |
-          MISSING=()
-          if [ -z "${{ secrets.GITHUB_TOKEN }}" ]; then MISSING+=("GITHUB_TOKEN"); fi
-          if [ -z "${{ secrets.JULES_API_KEY }}" ]; then MISSING+=("JULES_API_KEY"); fi
-
-          if [ ${#MISSING[@]} -ne 0 ]; then
-            echo "❌ Missing required secrets: ${MISSING[*]}"
-            echo "Please ensure GITHUB_TOKEN and JULES_API_KEY are configured in repository secrets."
-            exit 1
-          fi
-
-          if [ -z "${{ vars.JULES_SOURCE_ID }}" ]; then
-            echo "⚠️ JULES_SOURCE_ID variable not found. Script will attempt auto-discovery."
-          fi
-          echo "✅ Credentials pre-check passed."
-
-      - name: Setup Workspace
-        uses: ./mcp/actions/setup-workspace
-        with:
-          setup-node: 'false'
-
-      - name: Initialize Jules Repair Session
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          JULES_API_KEY: ${{ secrets.JULES_API_KEY }}
-          JULES_SOURCE_ID: ${{ vars.JULES_SOURCE_ID }}
-          ISSUE_NUMBER: ${{ github.event.inputs.issue_number }}
-        run: |
-          if [[ ! "$ISSUE_NUMBER" =~ ^[0-9]+$ ]]; then
-            echo "::error::Invalid issue_number: must be numeric."
-            exit 1
-          fi
-          td-cli jules fix-ci --pr-number "$ISSUE_NUMBER" --execute
+          issue_number: ${{ github.event.inputs.issue_number }}
+          comment_body: ${{ github.event.inputs.comment_body }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          jules_api_key: ${{ secrets.JULES_API_KEY }}
+          jules_source_id: ${{ vars.JULES_SOURCE_ID }}

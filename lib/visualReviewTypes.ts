@@ -22,6 +22,24 @@ export interface VisualRouteSummary {
   afterPath: string;
   diffPath?: string;
   previousFindings?: VisualReviewFinding[];
+  validation?: {
+    passed: boolean;
+    reason?: string;
+  };
+  metrics?: {
+    before: {
+      scrollWidth: number;
+      mainWidth: number;
+      scrollHeight: number;
+    };
+    after: {
+      scrollWidth: number;
+      mainWidth: number;
+      scrollHeight: number;
+      viewportWidth: number;
+    };
+  };
+  tokens?: number;
 }
 
 export interface VisualSummary {

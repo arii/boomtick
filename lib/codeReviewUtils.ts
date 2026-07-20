@@ -1,6 +1,6 @@
 import * as path from 'path';
 import * as crypto from 'crypto';
-import type { CodeReviewSummary, CodeReviewState, ParsedFindingsResult, CodeReviewResult } from './codeReviewTypes';
+import type { CodeReviewSummary, CodeReviewState, ParsedFindingsResult, CodeReviewResult, ReviewFinding, CodeReviewParseError } from './codeReviewTypes';
 
 /**
  * Generates a stable SHA-256 hash for a code review batch.
@@ -74,7 +74,8 @@ export function pruneCache(
 }
 
 export function parseCodeReviewVerdict(feedback: string): 'pass' | 'fail' | 'warn' {
-  const matches = [...feedback.matchAll(/\[VERDICT:\s*(PASS|WARN|FAIL)\]/gi)];
+  if (typeof feedback !== 'string') return 'pass';
+  const matches = Array.from(feedback.matchAll(/\[VERDICT:\s*(PASS|WARN|FAIL)\]/gi));
   if (matches.length > 0) {
     const lastMatch = matches[matches.length - 1][1].toUpperCase();
     if (lastMatch === 'FAIL') return 'fail';
@@ -93,17 +94,37 @@ export function parseCodeReviewState(feedback: string): CodeReviewState | undefi
  * Validates the findings schema to ensure all required fields are present.
  * Performs deep type checking to avoid runtime crashes on malformed LLM output.
  */
+export function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function getSafeString(obj: Record<string, unknown>, key: string): string | undefined {
+  const val = obj[key];
+  return typeof val === 'string' ? val : undefined;
+}
+
+function getSafeNumber(obj: Record<string, unknown>, key: string): number | undefined {
+  const val = obj[key];
+  return typeof val === 'number' ? val : undefined;
+}
+
 function validateFindingsSchema(state: CodeReviewState): boolean {
   if (!state.findings || !Array.isArray(state.findings)) return false;
-  return state.findings.every(f =>
-    f &&
-    typeof f === 'object' &&
-    typeof f.id === 'string' && f.id.trim() !== '' &&
-    typeof f.file === 'string' && f.file.trim() !== '' &&
-    typeof f.issue === 'string' && f.issue.trim() !== '' &&
-    (f.status === 'open' || f.status === 'resolved') &&
-    (f.confidence === undefined || ['high', 'medium', 'low'].includes(f.confidence))
-  );
+  return state.findings.every(f => {
+    if (!isRecord(f)) return false;
+    const id = getSafeString(f, 'id');
+    const file = getSafeString(f, 'file');
+    const issue = getSafeString(f, 'issue');
+    const status = getSafeString(f, 'status');
+    const confidence = getSafeString(f, 'confidence');
+    return (
+      id !== undefined && id.trim() !== '' &&
+      file !== undefined && file.trim() !== '' &&
+      issue !== undefined && issue.trim() !== '' &&
+      (status === 'open' || status === 'resolved') &&
+      (confidence === undefined || ['high', 'medium', 'low'].includes(confidence))
+    );
+  });
 }
 
 /**
@@ -113,22 +134,65 @@ function validateFindingsSchema(state: CodeReviewState): boolean {
 export function normalizeFindings(findings: unknown[]): ReviewFinding[] {
   if (!Array.isArray(findings)) return [];
   return findings.map((f, idx) => {
-    if (!f || typeof f !== 'object') return f;
+    if (!isRecord(f)) {
+      return {
+        id: `finding-${idx}`,
+        file: 'unknown',
+        issue: 'Unspecified issue',
+        status: 'open',
+        confidence: 'medium'
+      };
+    }
+
+    const id = getSafeString(f, 'id') ?? `finding-${idx}`;
+    const file = getSafeString(f, 'file') ?? 'unknown';
+    const issue = getSafeString(f, 'issue') ?? 'Unspecified issue';
+
+    const rawStatus = getSafeString(f, 'status');
+    const status = (rawStatus !== undefined && rawStatus.toLowerCase() === 'resolved') ? 'resolved' : 'open';
+
+    const rawSeverity = getSafeString(f, 'severity');
+    let severity: 'HIGH' | 'MEDIUM' | 'LOW' | undefined;
+    if (rawSeverity !== undefined) {
+      const lower = rawSeverity.toLowerCase();
+      const severityMap: Record<string, 'HIGH' | 'MEDIUM' | 'LOW'> = {
+        high: 'HIGH',
+        medium: 'MEDIUM',
+        low: 'LOW',
+        error: 'HIGH',
+        warn: 'MEDIUM',
+        info: 'LOW'
+      };
+      if (lower in severityMap) {
+        severity = severityMap[lower];
+      }
+    }
+
+    const rawConfidence = getSafeString(f, 'confidence');
+    let confidence: 'high' | 'medium' | 'low' = 'medium';
+    if (rawConfidence !== undefined) {
+      const lower = rawConfidence.toLowerCase();
+      if (['high', 'medium', 'low'].includes(lower)) {
+        confidence = lower as 'high' | 'medium' | 'low';
+      }
+    }
+
+    const line = getSafeNumber(f, 'line');
+    const snippet = getSafeString(f, 'snippet');
+    const fixSummary = getSafeString(f, 'fixSummary');
+    const counterexample = getSafeString(f, 'counterexample');
+
     return {
-      id: typeof f.id === 'string' ? f.id : `finding-${idx}`,
-      file: typeof f.file === 'string' ? f.file : 'unknown',
-      issue: typeof f.issue === 'string' ? f.issue : 'Unspecified issue',
-      status: (typeof f.status === 'string' && f.status.toLowerCase() === 'resolved') ? 'resolved' : 'open',
-      severity: (typeof f.severity === 'string' && ['error', 'warn', 'info', 'high', 'medium', 'low'].includes(f.severity.toLowerCase()))
-        ? f.severity.toUpperCase() as 'HIGH' | 'MEDIUM' | 'LOW'
-        : undefined,
-      confidence: (typeof f.confidence === 'string' && ['high', 'medium', 'low'].includes(f.confidence.toLowerCase()))
-        ? f.confidence.toLowerCase() as 'high' | 'medium' | 'low'
-        : 'medium',
-      line: typeof f.line === 'number' ? f.line : undefined,
-      snippet: typeof f.snippet === 'string' ? f.snippet : undefined,
-      fixSummary: typeof f.fixSummary === 'string' ? f.fixSummary : undefined,
-      counterexample: typeof f.counterexample === 'string' ? f.counterexample : undefined,
+      id,
+      file,
+      issue,
+      status,
+      severity,
+      confidence,
+      line,
+      snippet,
+      fixSummary,
+      counterexample,
     };
   });
 }

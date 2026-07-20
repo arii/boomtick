@@ -101,9 +101,13 @@ ${dynamicGuidance}`;
 Include Confidence (high/medium/low) for every issue.
 
 Severity rules:
-- High/Blocking: Concerns must feature concrete code contradictions (e.g., type mismatch, nonexistent call, wrong arity, failing test). Cite exact lines.
-- No Speculation: If it uses "could" or "might", it is non-blocking. Downgrade to "Approved with Minor Changes".
-- Verification: Do not raise concerns you cannot verify. State what is needed to verify rather than assuming the worst case.`;
+- High/Blocking: A blocking concern must point to a concrete contradiction in the diff itself, such as:
+  - A value passed where the type doesn't allow it.
+  - A class or function that doesn't exist.
+  - A call with the wrong arity.
+  - A test that would fail.
+- No Speculation: Concerns phrased with speculative hedging language (e.g., "could", "might", "unless", "if not handled properly") are NOT blocking. These should be downgraded to a "Question" or "Nitpick" section (or "Approved with Minor Changes").
+- Verification: Reviewers must not raise concerns they cannot verify against the code provided. Instead, they should state what would be needed to verify the concern, avoiding assumptions of the worst case.`;
 
   const outputContract = `## 5. Output
 - STRICT SNIPPET: Quote entire line from diff.

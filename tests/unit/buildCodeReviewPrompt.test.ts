@@ -65,4 +65,15 @@ describe('buildCodeReviewPrompt', () => {
     expect(prompt).toContain('repos/{owner}/{repo}');
     expect(prompt).toContain('NEVER flag');
   });
+
+  it('contains the explicit evidentiary and non-speculative guidelines for HIGH/blocking severity', () => {
+    const prompt = buildSystemPrompt({
+      diffContext: 'some diff',
+      changedFiles: ['src/components/Button.tsx']
+    });
+    expect(prompt).toContain('High/Blocking: A blocking concern must point to a concrete contradiction in the diff itself');
+    expect(prompt).toContain("A value passed where the type doesn't allow it");
+    expect(prompt).toContain("No Speculation: Concerns phrased with speculative hedging language");
+    expect(prompt).toContain('Verification: Reviewers must not raise concerns they cannot verify');
+  });
 });

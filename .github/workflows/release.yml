@@ -128,8 +128,7 @@ jobs:
 
       - name: Publish MCP to npm
         # [NOTE]: Temporarily disabling MCP publishing due to npm auth errors.
-        # actionlint-disable if-cond
-        if: false
+        if: github.event_name == 'none'
         run: pnpm --filter @arii/boomtick-mcp publish --no-git-checks --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
@@ -145,9 +144,11 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          ASSETS=""
-          if [ -d "cli/dist" ]; then ASSETS="cli/dist/*"; fi
-          gh release create "${{ github.ref_name }}" --title "Release ${{ github.ref_name }}" --generate-notes "$ASSETS"
+          if [ -d "cli/dist" ] && [ "$(ls -A cli/dist)" ]; then
+            gh release create "${{ github.ref_name }}" --title "Release ${{ github.ref_name }}" --generate-notes cli/dist/*
+          else
+            gh release create "${{ github.ref_name }}" --title "Release ${{ github.ref_name }}" --generate-notes
+          fi
 
       - name: Log in to GitHub Container Registry
         if: (steps.determine_target.outputs.target == 'all' || steps.determine_target.outputs.target == 'cli') && (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && steps.determine_target.outputs.dry_run == 'false'))

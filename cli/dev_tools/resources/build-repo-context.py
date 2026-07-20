@@ -2,7 +2,45 @@
 #!/usr/bin/env python3
 import json
 import pathlib
+import re
 import sys
+
+
+def safe_read_and_minify(file_path: pathlib.Path, base_dir: pathlib.Path) -> str:
+    """Reads a file safely, ensuring no path traversal, and returns minified content."""
+    try:
+        # Resolve to prevent path traversal
+        resolved_path = file_path.resolve()
+        resolved_base = base_dir.resolve()
+
+        # Security validation: Ensure resolved_path starts with resolved_base
+        if not str(resolved_path).startswith(str(resolved_base)):
+            raise ValueError(f"Path traversal detected: {file_path} is outside {base_dir}")
+
+        if not resolved_path.exists() or not resolved_path.is_file():
+            return ""
+
+        content = resolved_path.read_text(encoding="utf-8")
+
+        # 1. Strip block comments: /* ... */
+        content = re.sub(r'/\*[\s\S]*?\*/', '', content)
+
+        # 2. Strip single-line comments: // ... (making sure we don't match http:// or https://)
+        content = re.sub(r'(?<!:)\/\/.*', '', content)
+
+        # 3. Normalize whitespace (replace any sequence of whitespace with a single space)
+        content = re.sub(r'\s+', ' ', content)
+
+        return content.strip()
+    except (FileNotFoundError, PermissionError) as e:
+        print(f"File access error reading or minifying {file_path}: {e}", file=sys.stderr)
+        return ""
+    except ValueError as e:
+        print(f"Path traversal validation error for {file_path}: {e}", file=sys.stderr)
+        return ""
+    except Exception as e:
+        print(f"Unexpected error reading or minifying {file_path}: {e}", file=sys.stderr)
+        return ""
 
 
 def build_repo_context():
@@ -157,6 +195,28 @@ def build_repo_context():
 
     file_tree = get_dir_structure(repo_root)
 
+    # 6. Design Tokens (Package Internal/Repo Root)
+    design_tokens = {}
+    try:
+        layout_maps_path = repo_root / "src" / "layouts" / "layout-maps.ts"
+        if not layout_maps_path.exists():
+            layout_maps_path = package_root / "src" / "layouts" / "layout-maps.ts"
+
+        index_css_path = repo_root / "src" / "index.css"
+        if not index_css_path.exists():
+            index_css_path = package_root / "src" / "index.css"
+
+        # Secure read and minify each design token file
+        minified_layout_maps = safe_read_and_minify(layout_maps_path, repo_root)
+        if minified_layout_maps:
+            design_tokens["layout_maps"] = minified_layout_maps
+
+        minified_index_css = safe_read_and_minify(index_css_path, repo_root)
+        if minified_index_css:
+            design_tokens["index_css"] = minified_index_css
+    except Exception as e:
+        print(f"Error gathering design tokens: {e}", file=sys.stderr)
+
     # Assemble context
     return {
         "repo": {
@@ -167,6 +227,7 @@ def build_repo_context():
         "mcp_schema": mcp_schema,
         "cli_schema": cli_schema,
         "file_tree": file_tree,
+        "design_tokens": design_tokens,
     }
 
 

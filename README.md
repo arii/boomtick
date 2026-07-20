@@ -43,7 +43,6 @@ The codebase is split into two primary operational layers:
 ---
 
 ## Planned Updates
-* Composite GitHub Actions (for zero-submodule integration)
 * Docker Container Packages & PyPI Packaging
 * Advanced RAG / Vector Store enhancements
 

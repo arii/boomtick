@@ -45,6 +45,189 @@ export interface ImpactReport {
   routes: string[];
   visualReviewRequired: string[];
   impactLevel: 'HIGH' | 'MEDIUM' | 'LOW';
+  sharedLayouts?: string[];
+  layoutTrace?: Record<string, string[]>;
+}
+
+/**
+ * Checks if a given file path represents a layout file.
+ */
+export function isLayoutFile(filePath: string): boolean {
+  return filePath.startsWith('src/layouts/') || /Layout\.[jt]sx?$/i.test(filePath);
+}
+
+/**
+ * Sanitizes and validates a file path to prevent path traversal and restrict execution
+ * to valid, localized workspace files.
+ * Rejects absolute paths, protocols, or path traversal sequences containing "..".
+ *
+ * @param filePath The file path to validate.
+ */
+export function sanitizeFilePath(filePath: unknown): string | null {
+  if (typeof filePath !== 'string' || !filePath.trim()) {
+    return null;
+  }
+  const cleanPath = filePath.trim();
+  if (path.isAbsolute(cleanPath) || cleanPath.includes('..') || cleanPath.startsWith('/') || cleanPath.includes('\0')) {
+    return null;
+  }
+  // Reject URLs/protocols or backslashes
+  if (cleanPath.includes('://') || cleanPath.includes('\\')) {
+    return null;
+  }
+  return cleanPath;
+}
+
+/**
+ * Options to customize the behavior of the dependency graph traversal.
+ */
+export interface TraversalOptions {
+  /**
+   * If true, the traversal along a path stops immediately when a match is found
+   * (meaning we record the matching file but do not enqueue its ancestors).
+   */
+  stopAtMatch?: boolean;
+  /**
+   * Optional callback function invoked when a match is discovered during traversal.
+   * Useful for separating traversal logic from custom side-effects (e.g., logging).
+   */
+  onMatch?: (current: string, matched: string) => void;
+}
+
+/**
+ * Traverses the reverse dependency graph starting from a set of files using an optimized BFS.
+ * Implements strict O(V + E) time complexity with O(1) constant array queue operations using a pointer.
+ * Defensive against malformed inputs and prevents infinite loops caused by circular dependencies.
+ *
+ * @param startFiles List of files to begin traversal from.
+ * @param reverseMap The reverse dependency map (child -> parents).
+ * @param predicate A callback function to determine if a visited parent should be collected.
+ * @param options Traversal options to customize BFS behavior.
+ */
+export function traverseDependencyGraph(
+  startFiles: string[],
+  reverseMap: Record<string, ReverseDependency[]>,
+  predicate: (filePath: string) => boolean,
+  options: TraversalOptions = {}
+): {
+  tracePaths: Record<string, string[]>;
+  collected: string[];
+} {
+  // Defensive type validation on reverseMap
+  if (!reverseMap || typeof reverseMap !== 'object') {
+    return { tracePaths: {}, collected: [] };
+  }
+
+  const tracePaths: Record<string, string[]> = {};
+  const collectedSet = new Set<string>();
+  const MAX_ITERATIONS = 50000;
+
+  for (const file of startFiles) {
+    if (typeof file !== 'string') continue;
+
+    let iterations = 0;
+    const trace: string[] = [];
+    const queue: string[] = [file];
+    const visited = new Set<string>([file]);
+
+    let head = 0;
+    while (head < queue.length) {
+      iterations++;
+      if (iterations > MAX_ITERATIONS) {
+        throw new Error(`❌ Infinite loop safety limit exceeded (${MAX_ITERATIONS} iterations) during dependency graph traversal.`);
+      }
+
+      const current = queue[head++];
+      const parents = reverseMap[current];
+
+      // Validate parent collection structure safely
+      if (!Array.isArray(parents)) continue;
+
+      for (const parent of parents) {
+        if (!parent || typeof parent !== 'object' || typeof parent.source !== 'string') {
+          continue;
+        }
+
+        if (!visited.has(parent.source)) {
+          visited.add(parent.source);
+
+          const isMatch = predicate(parent.source);
+          if (isMatch) {
+            trace.push(parent.source);
+            collectedSet.add(parent.source);
+            if (options.onMatch) {
+              options.onMatch(current, parent.source);
+            }
+          }
+
+          // Decide if we should continue queueing parents along this path
+          const shouldEnqueue = !isMatch || !options.stopAtMatch;
+          if (shouldEnqueue) {
+            queue.push(parent.source);
+          }
+        }
+      }
+    }
+
+    if (trace.length > 0) {
+      tracePaths[file] = trace;
+    }
+  }
+
+  return {
+    tracePaths,
+    collected: Array.from(collectedSet).sort()
+  };
+}
+
+/**
+ * Traverses the layout hierarchy upward starting from each point of change detection.
+ * If a changed file is a layout, or if it eventually affects a layout, it traces
+ * any parent/ancestor layout files recursively through standard/static imports in the
+ * reverse dependency map.
+ *
+ * Rejects and filters out any untrusted or invalid file paths to prevent path traversal risks.
+ *
+ * @param changedFiles List of changed files detected.
+ * @param reverseMap The reverse dependency map (child -> parents).
+ */
+export function traceLayoutHierarchyUpward(
+  changedFiles: string[],
+  reverseMap: Record<string, ReverseDependency[]>
+): {
+  layoutTrace: Record<string, string[]>;
+  sharedLayouts: string[];
+} {
+  // 1. Sanitize and validate inputs
+  const sanitizedFiles: string[] = [];
+  for (const file of changedFiles) {
+    const clean = sanitizeFilePath(file);
+    if (clean) {
+      sanitizedFiles.push(clean);
+    }
+  }
+
+  const directLayouts = sanitizedFiles.filter(isLayoutFile);
+  const nonLayouts = sanitizedFiles.filter(file => !isLayoutFile(file));
+
+  // Defined callback for decoupled, structured logging
+  const logMatch = (current: string, matched: string) => {
+    console.log(`🔄 [Layout Hierarchy] Shared layout change detected: "${matched}" is affected by component/layout "${current}"`);
+  };
+
+  // 2. Locate layout entry points for non-layout files first
+  const entryResult = traverseDependencyGraph(nonLayouts, reverseMap, isLayoutFile, { stopAtMatch: true });
+
+  // 3. Union direct layout changes and transitive layout entry points to avoid redundant traversals
+  const uniqueLayoutEntryPoints = Array.from(new Set([...directLayouts, ...entryResult.collected])).sort();
+
+  // 4. Run a single unified BFS traversal upward from unique layout entry points
+  const traceResult = traverseDependencyGraph(uniqueLayoutEntryPoints, reverseMap, isLayoutFile, { onMatch: logMatch });
+
+  return {
+    layoutTrace: traceResult.tracePaths,
+    sharedLayouts: traceResult.collected
+  };
 }
 
 /**
@@ -321,13 +504,35 @@ export function generateReports(report: ImpactReport, changedFiles: string[], af
   const severityEmoji = report.impactLevel === 'HIGH' ? '🔴' : report.impactLevel === 'MEDIUM' ? '🟡' : '🟢';
   const changedFilesList = changedFiles.map(f => `- ${f}`).join('\n');
 
+  let sharedLayoutsContent = '';
+  if (report.sharedLayouts && report.sharedLayouts.length > 0) {
+    sharedLayoutsContent = `
+<details>
+<summary><b>🔄 Shared Layouts Affected (${report.sharedLayouts.length})</b></summary>
+
+${report.sharedLayouts.map(l => `- ${l}`).join('\n')}
+</details>
+`;
+  }
+
+  let layoutTraceMarkdown = '';
+  if (report.layoutTrace && Object.keys(report.layoutTrace).length > 0) {
+    layoutTraceMarkdown = `
+<details>
+<summary><b>🗺️ Layout Dependency Trace</b></summary>
+
+${Object.entries(report.layoutTrace).map(([file, trace]) => `**${file}** affects layout(s): ${trace.join(', ')}`).join('\n\n')}
+</details>
+`;
+  }
+
   const markdown = `## ${severityEmoji} Deployment Impact Analysis
 
 > **Impact Level:** ${report.impactLevel}
 
 ### 👁️ Visual Review Required
 ${report.routes.length > 0 ? report.routes.map((url: string) => `- [${url}](${baseUrl}${url})`).join('\n') : '_None detected (code-only change)_'}
-
+${sharedLayoutsContent}${layoutTraceMarkdown}
 <details>
 <summary><b>📦 Dynamic Imports Affected (${affectedDynamicImportsSet.length})</b></summary>
 
