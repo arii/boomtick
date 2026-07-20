@@ -2,7 +2,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { ARTIFACTS_DIR, VISUAL_SUMMARY_PATH, MAX_ROUTES_TO_REVIEW } from './visualReviewConstants';
 import { generateMarkdownReport, postPRComment, countExistingReviews, getJulesSessionIdFromPR, sendJulesMessage, getPreviousReviewState } from './visualReviewUtils';
-import { runWithConcurrencyLimit } from './sharedUtils';
+import { runWithConcurrencyLimit, checkReviewQuota } from './sharedUtils';
 import type { RouteReview, VisualRouteSummary, VisualSummary, VisualReviewState } from './visualReviewTypes';
 import { logReviewExecution } from './aiLogger';
 export type AgentRole = 'CODE_REVIEW' | 'ACCESSIBILITY' | 'UX' | 'VISUAL_REGRESSION' | 'RESPONSIVE_LAYOUT';
@@ -24,22 +24,17 @@ export async function orchestrateVisualReview(
   const agentReportPath = path.join(ARTIFACTS_DIR, client.reportFileName);
 
   const existing = await countExistingReviews(allReportTitles);
-  if (existing >= MAX_REVIEWS_PER_PR) {
-    console.log(`⏭️  Skipping ${client.botName} — ${existing}/${MAX_REVIEWS_PER_PR} reviews already posted.`);
-    fs.writeFileSync(
-      agentReportPath,
-      `## ${client.reportTitle}\n\nSkipped: review quota (${MAX_REVIEWS_PER_PR}) already met.\n`
-    );
-    const prevState = await getPreviousReviewState<VisualReviewState>(client.reportTitle);
-    fs.writeFileSync(path.join(ARTIFACTS_DIR, `${client.reportFileName.replace('.md', '')}-verdict.json`), JSON.stringify({
-      passed: true,
-      highCount: 0,
-      routes: [],
-      llmVerdict: 'pass',
-      state: prevState || { findings: [] }
-    }, null, 2));
-    return;
-  }
+  const isQuotaMet = await checkReviewQuota(
+    existing,
+    MAX_REVIEWS_PER_PR,
+    client.botName,
+    client.reportTitle,
+    agentReportPath,
+    client.reportFileName,
+    ARTIFACTS_DIR,
+    (title) => getPreviousReviewState<any>(title)
+  );
+  if (isQuotaMet) return;
 
   if (!fs.existsSync(VISUAL_SUMMARY_PATH)) {
     console.warn('⚠️  Skipping agent review — missing visual summary. Run pnpm impact:visual-diff first.');

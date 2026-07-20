@@ -6,14 +6,14 @@ Currently, downstream consumers (such as `tech-dancer`) integrate `boomtick` as 
 
 # Goal
 
-- Migrate downstream repositories (e.g., `tech-dancer`) to utilize Boomtick's composite GitHub Actions directly (e.g., `uses: arii/boomtick/.github/actions/...@main`) instead of relying on a local `mcp` Git submodule.
+- Migrate downstream repositories (e.g., `tech-dancer`) to use Boomtick's composite GitHub Actions directly (e.g., `uses: arii/boomtick/.github/actions/...@main`) instead of relying on a local `mcp` Git submodule.
 - Remove the `mcp/` submodule from the downstream repository.
-- Ensure all CI workflows (chatops, ci-repair, issue-operations) function seamlessly via the remote reusable actions.
+- Ensure all GitHub Actions workflows (chatops, ci-repair, issue-operations) function seamlessly via the remote reusable actions.
 
 # Non-Goals
 
 - Deprecating the `td-cli` developer tool or MCP server for local development. This migration primarily targets CI pipeline integration and remote AI reviews.
-- Changes to the underlying implementations of `td-cli` or `boomtick-mcp`.
+- Changes to `td-cli` or `boomtick-mcp` implementations.
 
 # Proposed Approach
 
@@ -39,11 +39,11 @@ Currently, downstream consumers (such as `tech-dancer`) integrate `boomtick` as 
 
 This issue covers the migration of existing downstream GitHub Actions workflows (specifically in consumer repos like `tech-dancer`) to directly use `arii/boomtick/.github/actions/*` and the removal of the Git submodule.
 
-# UNDERSTAND THE ISSUE
+# Understand the Issue
 
 The underlying problem stems from the legacy choice of embedding Boomtick workflows via a submodule. According to `docs/onboarding.md`, a Zero-Submodule Strategy is now preferred because referencing BoomTick's composite actions directly via `uses: arii/boomtick/.github/actions/...@main` removes direct filesystem dependency coupling.
 
-# DETERMINE APPROACH
+# Determine Approach
 
 To execute this transition safely:
 1. Identify all occurrences of `./mcp/.github/actions/` in the `tech-dancer` (or target consumer repo) `.github/workflows/` YAML files using text search.
@@ -51,7 +51,7 @@ To execute this transition safely:
 3. Validate that the required secrets (e.g., `GITHUB_TOKEN`, `JULES_API_KEY`) map correctly to the action inputs as expected by the composite actions defined in Boomtick.
 4. Finally, formally detach and remove the `mcp` submodule from the `.gitmodules` and repository structure.
 
-# SPECIFY SCOPE
+# Specify Scope
 
 The boundaries of this issue strictly encompass:
 - Alteration of downstream `.github/workflows/*.yml` files.
