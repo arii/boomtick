@@ -42,7 +42,6 @@ runs:
       uses: actions/setup-python@v6 # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
       with:
         python-version: '3.x'
-        cache: 'pip'
 
     - name: Install PyGithub and dependencies
       run: |

@@ -40,7 +40,7 @@ runs:
           echo "::error::comment_body is missing."
           exit 1
         fi
-        if [[ ! "$AUTHOR_ASSOC" =~ ^[a-zA-Z0-9_.-]+$ ]]; then
+        if [[ ! "$AUTHOR_ASSOC" =~ ^[A-Z_]+$ ]]; then
           echo "::error::Invalid author association format."
           exit 1
         fi
@@ -50,13 +50,16 @@ runs:
         fi
 
         {
-          echo "GH_TOKEN=$GH_TOKEN"
-          echo "GITHUB_TOKEN=$GH_TOKEN"
+
+
+
+
+
+
           EOF_COMMENT=$(openssl rand -hex 16)
           echo "COMMENT_BODY<<$EOF_COMMENT"
-          echo "$COMMENT_BODY"
+          printf "%s\n" "$COMMENT_BODY"
           echo "$EOF_COMMENT"
-          echo "ISSUE_NUMBER=$ISSUE_NUMBER"
         } >> "$GITHUB_ENV"
       shell: bash
 
