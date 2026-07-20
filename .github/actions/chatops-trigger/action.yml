@@ -48,13 +48,6 @@ runs:
           echo "::error::Invalid issue_number: must be numeric."
           exit 1
         fi
-
-        EOF_COMMENT=$(openssl rand -hex 16)
-        {
-          echo "COMMENT_BODY<<$EOF_COMMENT"
-          echo -E "$COMMENT_BODY"
-          echo "$EOF_COMMENT"
-        } >> "$GITHUB_ENV"
       shell: bash
 
     - name: Check commands
@@ -94,6 +87,7 @@ runs:
         AI_CHATOPS: ${{ steps.check.outputs.ai_chatops }}
         JULES_FIX_CI: ${{ steps.check.outputs.jules_fix_ci }}
         ISSUE_NUMBER: ${{ inputs.issue_number }}
+        COMMENT_BODY: ${{ inputs.comment_body }}
         GH_TOKEN: ${{ inputs.github_token }}
       run: |
         ERRORS=0
