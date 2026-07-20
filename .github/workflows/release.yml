@@ -127,8 +127,7 @@ jobs:
           python3 -m build
 
       - name: Publish MCP to npm
-        # [NOTE]: Temporarily disabling MCP publishing due to npm auth errors.
-        if: github.event_name == 'none'
+        if: (steps.determine_target.outputs.target == 'mcp' || steps.determine_target.outputs.target == 'all') && (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && steps.determine_target.outputs.dry_run == 'false'))
         run: pnpm --filter @arii/boomtick-mcp publish --no-git-checks --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
