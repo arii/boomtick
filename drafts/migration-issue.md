@@ -17,10 +17,24 @@ Currently, downstream consumers (such as `tech-dancer`) integrate `boomtick` as 
 
 # Proposed Approach
 
-1.  **Remove Submodule**: In the downstream repository (e.g., `tech-dancer`), execute `git submodule deinit -f mcp` and `git rm -f mcp` to remove the submodule.
-2.  **Update GitHub Workflows**: Modify all downstream GitHub Action workflow files (e.g., `.github/workflows/chatops-trigger.yml`, `.github/workflows/ci-repair.yml`, `.github/workflows/issue-operations.yml`) to replace local path references with Boomtick's composite action references.
-    -   Example: Replace `uses: ./mcp/.github/actions/setup-workspace` with `uses: arii/boomtick/.github/actions/setup-workspace@main`.
-    -   Example: Replace `uses: ./mcp/.github/actions/chatops` with `uses: arii/boomtick/.github/actions/chatops@main`.
+1.  **Remove Submodule**: In the downstream repository (e.g., `tech-dancer`), execute the following from the root to safely detach the submodule:
+    ```bash
+    git submodule deinit -f mcp
+    git rm -f mcp
+    rm -rf .git/modules/mcp
+    ```
+2.  **Update GitHub Workflows**: Modify the following downstream GitHub Action workflow files located in `.github/workflows/`:
+    - `chatops-trigger.yml`
+    - `ci-repair.yml`
+    - `issue-operations.yml`
+
+    You must replace all local relative action paths referencing the `mcp` submodule with absolute remote references to the `arii/boomtick` repository. Specifically:
+    - Change `uses: ./mcp/.github/actions/setup-workspace` to `uses: arii/boomtick/.github/actions/setup-workspace@main`
+    - Change `uses: ./mcp/.github/actions/chatops` to `uses: arii/boomtick/.github/actions/chatops@main`
+    - Change `uses: ./mcp/.github/actions/ci-repair` to `uses: arii/boomtick/.github/actions/ci-repair@main`
+    - Change `uses: ./mcp/.github/actions/issue-operations` to `uses: arii/boomtick/.github/actions/issue-operations@main`
+    - Change `uses: ./mcp/.github/actions/ai-review` to `uses: arii/boomtick/.github/actions/ai-review@main`
+
 3.  **Local Tooling Access (If applicable)**: For developers needing `td-cli` locally, rely on the `boomtick-cli` PyPI package installation, which will be facilitated by the updated remote `setup-workspace` action.
 4.  **Verify Setup**: Run `pnpm run verify:schemas` and run the CI test suite to ensure the migration did not break the downstream workflows.
 
@@ -37,7 +51,7 @@ Currently, downstream consumers (such as `tech-dancer`) integrate `boomtick` as 
 
 # Scope
 
-This issue covers the migration of existing downstream GitHub Actions workflows (specifically in consumer repos like `tech-dancer`) to directly use `arii/boomtick/.github/actions/*` and the removal of the Git submodule.
+This issue covers the migration of existing downstream GitHub Actions workflows (`chatops-trigger.yml`, `ci-repair.yml`, `issue-operations.yml`) to directly use `arii/boomtick/.github/actions/*@main` and the removal of the Git submodule directory (`mcp`).
 
 # Understand the Issue
 
@@ -45,17 +59,22 @@ The underlying problem stems from the legacy choice of embedding Boomtick workfl
 
 # Determine Approach
 
-To execute this transition safely:
-1. Identify all occurrences of `./mcp/.github/actions/` in the `tech-dancer` (or target consumer repo) `.github/workflows/` YAML files using text search.
-2. Substitute those lines with the equivalent `arii/boomtick/.github/actions/...@main` references.
-3. Validate that the required secrets (e.g., `GITHUB_TOKEN`, `JULES_API_KEY`) map correctly to the action inputs as expected by the composite actions defined in Boomtick.
-4. Finally, formally detach and remove the `mcp` submodule from the `.gitmodules` and repository structure.
+To execute this transition safely, the implementing engineer must perform the following explicit steps:
+1. In the target consumer repo (e.g. `tech-dancer`), open the `.github/workflows/chatops-trigger.yml`, `.github/workflows/ci-repair.yml`, and `.github/workflows/issue-operations.yml` files.
+2. Perform a strict string replacement on the `uses:` declarations:
+   - Replace any occurrence of `uses: ./mcp/.github/actions/setup-workspace` with `uses: arii/boomtick/.github/actions/setup-workspace@main`.
+   - Replace any occurrence of `uses: ./mcp/.github/actions/chatops` with `uses: arii/boomtick/.github/actions/chatops@main`.
+   - Replace any occurrence of `uses: ./mcp/.github/actions/ci-repair` with `uses: arii/boomtick/.github/actions/ci-repair@main`.
+   - Replace any occurrence of `uses: ./mcp/.github/actions/issue-operations` with `uses: arii/boomtick/.github/actions/issue-operations@main`.
+   - Replace any occurrence of `uses: ./mcp/.github/actions/ai-review` with `uses: arii/boomtick/.github/actions/ai-review@main`.
+3. Verify that all required secrets (e.g., `GITHUB_TOKEN`, `JULES_API_KEY`) continue to map correctly to the action inputs as defined in the remote composite actions.
+4. Execute `git submodule deinit -f mcp` and `git rm -f mcp` to formally detach and remove the submodule from the repository, followed by `rm -rf .git/modules/mcp`.
 
 # Specify Scope
 
 The boundaries of this issue strictly encompass:
-- Alteration of downstream `.github/workflows/*.yml` files.
-- Modification of downstream `.gitmodules` and local workspace to remove the `mcp/` directory.
+- Alteration of exactly three downstream workflow files: `.github/workflows/chatops-trigger.yml`, `.github/workflows/ci-repair.yml`, and `.github/workflows/issue-operations.yml`.
+- Modification of downstream `.gitmodules` and local workspace to completely remove the `mcp/` directory.
 - Ensuring the Python-based `td-cli` remains accessible via the newly invoked composite actions (e.g., `setup-workspace` caching and installation).
 
 # DEFINITION OF DONE
