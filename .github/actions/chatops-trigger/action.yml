@@ -40,7 +40,7 @@ runs:
           echo "::error::comment_body is missing."
           exit 1
         fi
-        if [[ ! "$AUTHOR_ASSOC" =~ ^[A-Z_]+$ ]]; then
+        if [[ ! "$AUTHOR_ASSOC" =~ ^(COLLABORATOR|CONTRIBUTOR|FIRST_TIMER|FIRST_TIME_CONTRIBUTOR|MANNEQUIN|MEMBER|NONE|OWNER)$ ]]; then
           echo "::error::Invalid author association format."
           exit 1
         fi
@@ -52,7 +52,6 @@ runs:
         {
           EOF_COMMENT=$(openssl rand -hex 16)
           echo "COMMENT_BODY<<$EOF_COMMENT"
-          COMMENT_BODY=$(printf "%s" "$COMMENT_BODY" | tr -d '\0')
           printf "%s\n" "$COMMENT_BODY"
           echo "$EOF_COMMENT"
         } >> "$GITHUB_ENV"
