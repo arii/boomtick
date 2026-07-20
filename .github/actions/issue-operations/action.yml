@@ -143,7 +143,7 @@ runs:
     # --- AI REVIEW ---
     - name: AI Review
       if: inputs.operation == 'ai-review'
-      uses: ../../../mcp/actions/ai-review # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
+      uses: ../../mcp/actions/ai-review # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
       with:
         pr_number: ${{ inputs.issue_number }}
       env:
