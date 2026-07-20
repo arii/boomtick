@@ -8,6 +8,9 @@ and a persistent Agent Scratch Pad to save and carry over intermediate observati
 
 import sys
 import os
+import subprocess
+import traceback
+from typing import Optional
 
 # Ensure the cli/ directory is on the PYTHONPATH
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "cli"))
@@ -80,47 +83,73 @@ class TriageNode(WorkflowNode):
             role=self.role
         )
 
-def run_single_agent_multi_role_scratchpad(pr_number: int, issue_number: int = None):
-    graph = WorkflowGraph()
-
-    # Add nodes
-    graph.add_node(IngestionNode())
-    graph.add_node(ReviewerNode())
-    graph.add_node(AuditorNode())
-    graph.add_node(TriageNode())
-    graph.add_node(DeploymentImpactCheckNode())
-    graph.add_node(FinalSynthesisNode())
-
-    # Define sequential execution flow
-    graph.add_edge("Ingestion", "Reviewer")
-    graph.add_edge("Reviewer", "Auditor")
-    graph.add_edge("Auditor", "Triage")
-    graph.add_edge("Triage", "DeploymentImpactCheck")
-    graph.add_edge("DeploymentImpactCheck", "FinalSynthesis")
-
-    initial_inputs = {
-        "pr_number": pr_number,
-        "issue_number": issue_number,
-    }
-
+def run_single_agent_multi_role_scratchpad(pr_number: Optional[int] = None, issue_number: Optional[int] = None):
     orch = Orchestrator()
-    try:
-        context = orch.run_workflow_graph(graph, initial_inputs)
+    pr_numbers = []
 
-        print("\n" + "=" * 50)
-        print("🤖 CONSOLIDATED SINGLE-AGENT AI EVALUATION RESULT:")
-        print("=" * 50)
-        print(context.get("final_synthesis_report"))
-        print("=" * 50 + "\n")
-    except Exception as e:
-        print(f"❌ Workflow execution failed: {e}", file=sys.stderr)
-        import traceback
-        traceback.print_exc()
-        sys.exit(1)
+    if pr_number:
+        pr_numbers.append(pr_number)
+    else:
+        print("🔍 [Agent] No PR number provided. Fetching all open PRs...")
+        try:
+            res = subprocess.run(
+                ["gh", "pr", "list", "--state", "open", "--json", "number", "--jq", ".[].number"],
+                capture_output=True,
+                text=True,
+                check=True
+            )
+            pr_numbers = [int(num) for num in res.stdout.strip().split("\n") if num.strip().isdigit()]
+            print(f"✅ Found {len(pr_numbers)} open PRs: {pr_numbers}")
+        except Exception as e:
+            print(f"❌ Failed to fetch open PRs: {e}", file=sys.stderr)
+            sys.exit(1)
+
+    failed_prs = []
+
+    for pr in pr_numbers:
+        print(f"\n{'='*50}\n🚀 RUNNING EVALUATION FOR PR #{pr}\n{'='*50}")
+        graph = WorkflowGraph()
+
+        graph.add_node(IngestionNode())
+        graph.add_node(ReviewerNode())
+        graph.add_node(AuditorNode())
+        graph.add_node(TriageNode())
+        graph.add_node(DeploymentImpactCheckNode())
+        graph.add_node(FinalSynthesisNode())
+
+        graph.add_edge("Ingestion", "Reviewer")
+        graph.add_edge("Reviewer", "Auditor")
+        graph.add_edge("Auditor", "Triage")
+        graph.add_edge("Triage", "DeploymentImpactCheck")
+        graph.add_edge("DeploymentImpactCheck", "FinalSynthesis")
+
+        initial_inputs = {
+            "pr_number": pr,
+            "issue_number": issue_number,
+        }
+
+        try:
+            context = orch.run_workflow_graph(graph, initial_inputs)
+
+            print("\n" + "=" * 50)
+            print(f"🤖 CONSOLIDATED AI EVALUATION RESULT (PR #{pr}):")
+            print("=" * 50)
+            print(context.get("final_synthesis_report"))
+            print("=" * 50 + "\n")
+        except Exception as e:
+            print(f"❌ Workflow execution failed for PR #{pr}: {e}", file=sys.stderr)
+            traceback.print_exc()
+            failed_prs.append((pr, str(e)))
+            continue
+
+    if failed_prs:
+        print(f"\n❌ Evaluation completed with failures in {len(failed_prs)} PRs:")
+        for failed_pr, err_msg in failed_prs:
+            print(f"  - PR #{failed_pr}: {err_msg}")
         sys.exit(1)
 
 if __name__ == "__main__":
-    target_pr = 175
+    target_pr = None
     if len(sys.argv) > 1:
         try:
             target_pr = int(sys.argv[1])

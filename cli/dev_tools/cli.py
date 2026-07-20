@@ -5,6 +5,8 @@ import os
 import subprocess
 import sys
 import tempfile
+import importlib.util
+from pathlib import Path
 from dataclasses import asdict
 from typing import Any, Dict, List
 
@@ -1217,6 +1219,17 @@ def dispatch(ctx, branch, task):
     """
     orch = ctx.obj["ORCHESTRATOR"]
     res = orch.dispatch_jules_review(branch, task)
+
+    if not ctx.obj.get("JSON", False):
+        click.echo("\n" * 2)
+        click.echo("=" * 60)
+        click.echo("   🚀  JULES SESSION DISPATCHED SUCCESSFULLY  🚀   ")
+        click.echo("=" * 60)
+        click.echo("\n")
+        click.echo(f"  Branch : {branch}")
+        click.echo(f"  Task   : {task[:60]}{'...' if len(task) > 60 else ''}")
+        click.echo("\n" * 2)
+
     out(ctx, f"✅ Dispatched task on branch {branch}", data=res)
 
 
@@ -1259,6 +1272,15 @@ def fix_ci(ctx, pr_number, issue_number, branch, api_key, dry_run):
         dry_run=dry_run,
     )
     agent_name = res.get("agent_name", "Jules")
+    if not ctx.obj.get("JSON", False):
+        click.echo("\n" * 2)
+        click.echo("=" * 60)
+        click.echo(f"   🚀  {agent_name.upper()} SESSION INITIALIZED  🚀   ".center(60))
+        click.echo("=" * 60)
+        click.echo("\n")
+        click.echo(f"  Branch : {res.get('branch', branch)}")
+        click.echo("\n" * 2)
+
     out(ctx, f"🚀 Initialized {agent_name} session for branch `{res['branch']}`", data=res)
 
 
@@ -1367,6 +1389,41 @@ def send(ctx, session_ids, message):
         summary = f"✅ {summary}"
 
     out(ctx, summary, data=res)
+
+
+@agent_group.command(name="run-local")
+@click.option("--pr", "pr_number", required=False, type=int, help="Pull Request number to evaluate.")
+@click.option("--issue", "issue_number", type=int, help="Optional linked Issue number.")
+@click.pass_context
+def run_local(ctx, pr_number, issue_number):
+    """Run a single-agent multi-role sequential workflow locally."""
+    try:
+        script_path = Path("scripts/run-context-agent.py").resolve()
+        if not script_path.exists():
+            err(ctx, f"Local orchestration script not found at {script_path}")
+            return
+
+        spec = importlib.util.spec_from_file_location("run_context_agent", script_path)
+        module = importlib.util.module_from_spec(spec)
+        sys.modules["run_context_agent"] = module
+        spec.loader.exec_module(module)
+
+        target_str = f"PR #{pr_number}" if pr_number else "all open PRs"
+
+        if not ctx.obj.get("JSON", False):
+            click.echo("\n" * 2)
+            click.echo("=" * 60)
+            click.echo("   🚀  LOCAL AGENT WORKFLOW DISPATCHED  🚀   ".center(60))
+            click.echo("=" * 60)
+            click.echo("\n")
+            click.echo(f"  Target : {target_str}")
+            click.echo("\n" * 2)
+
+        out(ctx, f"Starting local multi-role agent for {target_str}...")
+        module.run_single_agent_multi_role_scratchpad(pr_number, issue_number)
+        out(ctx, "✅ Local agent workflow completed successfully.")
+    except Exception as e:
+        _handle_unexpected_error(ctx, "agent run-local", e)
 
 
 @agent_group.command(name="plan-review")
