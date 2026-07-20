@@ -1,0 +1,26 @@
+name: BoomTick AI Review
+description: Runs AI code review via python3 -m dev_tools.cli CLI
+inputs:
+  pr_number:
+    description: PR number to review
+    required: true
+runs:
+  using: composite
+  steps:
+    - name: Validate Inputs
+      env:
+        INPUT_PR_NUMBER: ${{ inputs.pr_number }}
+      run: |
+        if [[ ! "$INPUT_PR_NUMBER" =~ ^[0-9]+$ ]]; then
+          echo "::error::Invalid pr_number: must be numeric."
+          exit 1
+        fi
+      shell: bash
+
+    - name: Setup Workspace
+      uses: arii/boomtick/.github/actions/setup-workspace@main
+    - name: AI review
+      env:
+        PR_NUMBER: ${{ inputs.pr_number }}
+      run: python3 -m dev_tools.cli gh audit-pr "$PR_NUMBER" --fetch --audit
+      shell: bash

@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.3](https://github.com/arii/boomtick/compare/mcp-v0.3.2...mcp-v0.3.3) (2026-07-20)
+
+
+### Bug Fixes
+
+* resolve ERR_MODULE_NOT_FOUND when running check-visual-changes.ts ([#259](https://github.com/arii/boomtick/issues/259)) ([54f4a2f](https://github.com/arii/boomtick/commit/54f4a2f842517d4de31cf201efbeb6fdf5a57c94))
+
 ## [0.3.2](https://github.com/arii/boomtick/compare/mcp-v0.3.1...mcp-v0.3.2) (2026-07-17)
 
 

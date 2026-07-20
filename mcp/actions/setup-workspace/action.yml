@@ -73,7 +73,7 @@ runs:
         elif [ -f "boomtick/scripts/resolve-cli.sh" ]; then
           CLI_DIR=$(bash boomtick/scripts/resolve-cli.sh | sed "s|$(pwd)/||")
         elif [ -f "${{ github.action_path }}/../../../scripts/resolve-cli.sh" ]; then
-          CLI_DIR=$(bash "${{ github.action_path }}/../../../scripts/resolve-cli.sh" | sed "s|$(pwd)/||")
+          CLI_DIR=$(REPO_ROOT="${{ github.action_path }}/../../../" bash "${{ github.action_path }}/../../../scripts/resolve-cli.sh" | sed "s|$(pwd)/||")
         elif [ -d "cli" ]; then
           CLI_DIR="cli"
         elif [ -d "boomtick-pkg/cli" ]; then
@@ -83,6 +83,13 @@ runs:
         else
           CLI_DIR="cli"
         fi
+
+        # Validate that the resolved CLI directory exists
+        if [ -z "$CLI_DIR" ] || { [ ! -d "$CLI_DIR" ] && [ ! -d "${{ github.action_path }}/../../../$CLI_DIR" ]; }; then
+          echo "::error::Could not resolve a valid CLI directory. Resolved: '$CLI_DIR'"
+          exit 1
+        fi
+
         echo "CLI_DIR=$CLI_DIR" >> "$GITHUB_OUTPUT"
 
         # Consolidate GITHUB_PATH updates
@@ -127,7 +134,11 @@ runs:
       run: |
         # Use $(pwd) to get the container-internal path, avoiding host-path leakage from $GITHUB_WORKSPACE
         REPO_DIR=$(pwd)
-        CLI_DIR_ABS="$REPO_DIR/$CLI_DIR"
+        if [[ "$CLI_DIR" = /* ]]; then
+          CLI_DIR_ABS="$CLI_DIR"
+        else
+          CLI_DIR_ABS="$REPO_DIR/$CLI_DIR"
+        fi
 
         # 1. Update PYTHONPATH for subsequent steps
         # Ensure it works even if PYTHONPATH is initially empty
