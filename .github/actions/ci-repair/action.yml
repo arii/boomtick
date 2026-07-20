@@ -33,12 +33,15 @@ runs:
   using: 'composite'
   steps:
     - name: Validate Inputs
+      env:
+        INPUT_ISSUE_NUMBER: ${{ inputs.issue_number }}
+        INPUT_RUN_ID: ${{ inputs.run_id }}
       run: |
-        if [[ -n "${{ inputs.issue_number }}" && ! "${{ inputs.issue_number }}" =~ ^[0-9]+$ ]]; then
+        if [[ -n "$INPUT_ISSUE_NUMBER" && ! "$INPUT_ISSUE_NUMBER" =~ ^[0-9]+$ ]]; then
           echo "::error::Invalid issue_number: must be numeric."
           exit 1
         fi
-        if [[ -n "${{ inputs.run_id }}" && ! "${{ inputs.run_id }}" =~ ^[0-9]+$ ]]; then
+        if [[ -n "$INPUT_RUN_ID" && ! "$INPUT_RUN_ID" =~ ^[0-9]+$ ]]; then
           echo "::error::Invalid run_id: must be numeric."
           exit 1
         fi

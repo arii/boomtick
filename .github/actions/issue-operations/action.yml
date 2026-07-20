@@ -27,8 +27,10 @@ runs:
   using: 'composite'
   steps:
     - name: Validate Inputs
+      env:
+        INPUT_ISSUE_NUMBER: ${{ inputs.issue_number }}
       run: |
-        if [[ -n "${{ inputs.issue_number }}" && ! "${{ inputs.issue_number }}" =~ ^[0-9]+$ ]]; then
+        if [[ -n "$INPUT_ISSUE_NUMBER" && ! "$INPUT_ISSUE_NUMBER" =~ ^[0-9]+$ ]]; then
           echo "::error::Invalid issue_number: must be numeric."
           exit 1
         fi

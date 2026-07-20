@@ -18,12 +18,15 @@ runs:
   using: 'composite'
   steps:
     - name: Validate Inputs
+      env:
+        INPUT_ISSUE_NUMBER: ${{ inputs.issue_number }}
+        INPUT_AUTHOR_ASSOC: ${{ inputs.author_association }}
       run: |
-        if [[ ! "${{ inputs.issue_number }}" =~ ^[0-9]+$ ]]; then
+        if [[ ! "$INPUT_ISSUE_NUMBER" =~ ^[0-9]+$ ]]; then
           echo "::error::Invalid issue_number: must be numeric."
           exit 1
         fi
-        if [[ ! "${{ inputs.author_association }}" =~ ^[A-Z_]+$ ]]; then
+        if [[ ! "$INPUT_AUTHOR_ASSOC" =~ ^[A-Z_]+$ ]]; then
           echo "::error::Invalid author_association: must contain only uppercase letters or underscores."
           exit 1
         fi
