@@ -5,7 +5,7 @@ import re
 import sys
 import time
 from collections import defaultdict
-from typing import Any, Dict, List, Optional, Tuple, Type
+from typing import Any, Dict, List, Optional, Tuple, Type, TYPE_CHECKING
 
 from dev_tools.models import AIFullReview, AISynthesisReview, AIFileReview
 from dev_tools.review_read_pass import parse_diff_into_file_chunks
@@ -24,6 +24,10 @@ from dev_tools.utils import (
 )
 from dev_tools.verify_versions import parse_diff, verify_changes
 from pydantic import BaseModel, ValidationError
+
+if TYPE_CHECKING:
+    from dev_tools.services.dependency_graph import DependencyGraph
+    from dev_tools.services.vector_store import VectorStore
 
 # Model used for per-file chunk review (code-aware, focused)
 _REVIEW_MODEL = get_ai_review_model()
@@ -109,8 +113,8 @@ class AIClient:
         self.ai_model = ai_model or get_ai_model()
         self.gemini_api_key = os.environ.get("GEMINI_API_KEY")
 
-        self._dependency_graph: Optional[DependencyGraph] = None
-        self._vector_store: Optional[VectorStore] = None
+        self._dependency_graph: Optional['DependencyGraph'] = None
+        self._vector_store: Optional['VectorStore'] = None
 
     @property
     def dependency_graph(self) -> 'DependencyGraph':
