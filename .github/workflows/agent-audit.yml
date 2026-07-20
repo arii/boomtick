@@ -12,6 +12,23 @@ on:
           - codebase-integrity-audit
           - issue-audit
           - review-ux
+          - review-pr
+          - review-all-prs
+      # execution_mode controls whether the agent evaluation runs remotely via the Jules API
+      # ('remote-dispatch') or directly on the GitHub Actions runner environment ('local-orchestrator').
+      # Choosing 'local-orchestrator' avoids API rate limits but consumes runner compute time.
+      execution_mode:
+        description: 'Agent execution mode (remote-dispatch sends to Jules via GitHub API; local-orchestrator runs directly on runner)'
+        required: true
+        default: 'remote-dispatch'
+        type: choice
+        options:
+          - remote-dispatch
+          - local-orchestrator
+      pr_number:
+        description: 'Optional PR Number for local orchestration'
+        required: false
+        type: string
 
 permissions:
   contents: write
@@ -30,27 +47,55 @@ jobs:
         uses: ./.github/actions/setup-workspace
 
       - name: Resolve Audit Content
+        if: ${{ inputs.execution_mode == 'remote-dispatch' }}
         id: resolve-content
+        env:
+          # Bound to env to prevent shell command injection from inputs
+          AUDIT_TYPE: ${{ inputs.audit_type }}
         run: |
           # Read the selected agent workflow content
-          if [ -f ".agents/workflows/${{ inputs.audit_type }}.md" ]; then
+          if [ -f ".agents/workflows/${AUDIT_TYPE}.md" ]; then
             # We export the prompt to an environment variable to pass it to the CLI safely
             EOF_DELIMITER=$(openssl rand -hex 16)
             {
               echo "AUDIT_PROMPT<<$EOF_DELIMITER"
-              cat ".agents/workflows/${{ inputs.audit_type }}.md"
+              cat ".agents/workflows/${AUDIT_TYPE}.md"
               echo "$EOF_DELIMITER"
             } >> "$GITHUB_ENV"
           else
-            echo "Error: Audit template not found."
+            echo "Error: Audit template not found at .agents/workflows/${AUDIT_TYPE}.md. You must create this file and populate it with valid Markdown instructions for the chosen audit_type before execution."
             # fail task without exiting
             false
           fi
 
       - name: Dispatch Jules Agent
+        if: ${{ inputs.execution_mode == 'remote-dispatch' }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           JULES_API_KEY: ${{ secrets.JULES_API_KEY }}
         run: |
           # Use td-cli to dispatch the task to jules targeting the main branch
           td-cli agent dispatch main "$AUDIT_PROMPT"
+
+      - name: Run Local Orchestrator
+        if: ${{ inputs.execution_mode == 'local-orchestrator' }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          JULES_API_KEY: ${{ secrets.JULES_API_KEY }}
+          PR_NUMBER: ${{ inputs.pr_number }}
+        run: |
+          if [ -z "$PR_NUMBER" ]; then
+            echo "No PR number provided. Running local orchestrator for all open PRs..."
+            td-cli agent run-local
+          else
+            # Validate input to prevent command injection
+            if ! [[ "$PR_NUMBER" =~ ^[0-9]+$ ]]; then
+              echo "Error: PR number must be a valid integer."
+              exit 1
+            fi
+            # Use sanitized value
+            VALID_PR=$(echo "$PR_NUMBER" | grep -o -E '^[0-9]+$')
+            echo "Running local orchestrator for PR #$VALID_PR..."
+            td-cli agent run-local --pr "$VALID_PR"
+          fi
