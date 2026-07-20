@@ -156,6 +156,10 @@ runs:
         SCRIPT_PATH=""
         if [ -f "scripts/check-visual-changes.ts" ]; then
           SCRIPT_PATH="scripts/check-visual-changes.ts"
+        elif [ -f "boomtick-pkg/scripts/check-visual-changes.ts" ]; then
+          SCRIPT_PATH="boomtick-pkg/scripts/check-visual-changes.ts"
+        elif [ -f "boomtick/scripts/check-visual-changes.ts" ]; then
+          SCRIPT_PATH="boomtick/scripts/check-visual-changes.ts"
         elif [ -f "${{ github.action_path }}/../../../scripts/check-visual-changes.ts" ]; then
           SCRIPT_PATH="${{ github.action_path }}/../../../scripts/check-visual-changes.ts"
         fi
@@ -323,6 +327,10 @@ runs:
       run: |
         if [ -f "scripts/send-jules-impact.py" ]; then
           python3 scripts/send-jules-impact.py
+        elif [ -f "boomtick-pkg/scripts/send-jules-impact.py" ]; then
+          python3 boomtick-pkg/scripts/send-jules-impact.py
+        elif [ -f "boomtick/scripts/send-jules-impact.py" ]; then
+          python3 boomtick/scripts/send-jules-impact.py
         elif [ -f "${{ github.action_path }}/../../../scripts/send-jules-impact.py" ]; then
           python3 "${{ github.action_path }}/../../../scripts/send-jules-impact.py"
         else
