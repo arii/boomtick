@@ -164,15 +164,17 @@ runs:
           SCRIPT_PATH="${{ github.action_path }}/../../../scripts/check-visual-changes.ts"
         fi
 
-        if [[ -n "$SCRIPT_PATH" && ( "$SCRIPT_PATH" == "scripts/check-visual-changes.ts" || "$SCRIPT_PATH" == "boomtick-pkg/scripts/check-visual-changes.ts" || "$SCRIPT_PATH" == "boomtick/scripts/check-visual-changes.ts" || "$SCRIPT_PATH" == *"/scripts/check-visual-changes.ts" ) ]]; then
+        IS_VALID=false
+        if [ -n "$SCRIPT_PATH" ]; then
           RESOLVED_PATH=$(realpath "$SCRIPT_PATH")
-          if [[ -f "$RESOLVED_PATH" && "$RESOLVED_PATH" == *"/scripts/check-visual-changes.ts" ]]; then
-            echo "Executing check-visual-changes.ts at: $RESOLVED_PATH"
-            pnpm exec tsx "$RESOLVED_PATH" >> "$GITHUB_OUTPUT"
-          else
-            echo "❌ Error: Resolved path validation failed for $RESOLVED_PATH. Defaulting changed_routes=0"
-            echo "changed_routes=0" >> "$GITHUB_OUTPUT"
+          if [ -f "$RESOLVED_PATH" ] && [[ "$RESOLVED_PATH" =~ scripts/check-visual-changes\.ts$ ]]; then
+            IS_VALID=true
           fi
+        fi
+
+        if [ "$IS_VALID" = true ]; then
+          echo "Executing check-visual-changes.ts at: $RESOLVED_PATH"
+          pnpm exec tsx "$RESOLVED_PATH" >> "$GITHUB_OUTPUT"
         else
           echo "⚠️ Skipping: check-visual-changes.ts script not found or validation failed. Defaulting changed_routes=0"
           echo "changed_routes=0" >> "$GITHUB_OUTPUT"
@@ -336,14 +338,17 @@ runs:
           SCRIPT_PATH="${{ github.action_path }}/../../../scripts/send-jules-impact.py"
         fi
 
-        if [[ -n "$SCRIPT_PATH" && ( "$SCRIPT_PATH" == "scripts/send-jules-impact.py" || "$SCRIPT_PATH" == "boomtick-pkg/scripts/send-jules-impact.py" || "$SCRIPT_PATH" == "boomtick/scripts/send-jules-impact.py" || "$SCRIPT_PATH" == *"/scripts/send-jules-impact.py" ) ]]; then
+        IS_VALID=false
+        if [ -n "$SCRIPT_PATH" ]; then
           RESOLVED_PATH=$(realpath "$SCRIPT_PATH")
-          if [[ -f "$RESOLVED_PATH" && "$RESOLVED_PATH" == *"/scripts/send-jules-impact.py" ]]; then
-            echo "Executing send-jules-impact.py at: $RESOLVED_PATH"
-            python3 "$RESOLVED_PATH"
-          else
-            echo "❌ Error: Resolved path validation failed for $RESOLVED_PATH."
+          if [ -f "$RESOLVED_PATH" ] && [[ "$RESOLVED_PATH" =~ scripts/send-jules-impact\.py$ ]]; then
+            IS_VALID=true
           fi
+        fi
+
+        if [ "$IS_VALID" = true ]; then
+          echo "Executing send-jules-impact.py at: $RESOLVED_PATH"
+          python3 "$RESOLVED_PATH"
         else
           echo "⚠️ Skipping: send-jules-impact.py script not found or validation failed."
         fi
