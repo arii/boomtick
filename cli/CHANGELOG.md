@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.6.0](https://github.com/arii/boomtick/compare/cli-v0.5.1...cli-v0.6.0) (2026-07-20)
+
+
+### Features
+
+* support local agent orchestration in audit dispatch workflow ([#209](https://github.com/arii/boomtick/issues/209)) ([4df676a](https://github.com/arii/boomtick/commit/4df676ac265f2290a9003069c243627e85237962))
+
 ## [0.5.1](https://github.com/arii/boomtick/compare/cli-v0.5.0...cli-v0.5.1) (2026-07-18)
 
 
