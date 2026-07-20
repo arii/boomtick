@@ -1,0 +1,179 @@
+name: 'BoomTick Issue Operations'
+description: 'Runs issue validation, content creation, AI reviews, and conflict resolutions'
+inputs:
+  action:
+    description: 'Action to perform'
+    required: true
+  issue_number:
+    description: 'Issue or PR number'
+    required: false
+  comment_body:
+    description: 'Comment body (optional)'
+    required: false
+  github_token:
+    description: 'GitHub Token'
+    required: true
+  gemini_api_key:
+    description: 'Gemini API key'
+    required: false
+  openai_api_key:
+    description: 'OpenAI API key'
+    required: false
+  google_jules_api_key:
+    description: 'Google Jules API key'
+    required: false
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Validate Inputs
+      env:
+        INPUT_ISSUE_NUMBER: ${{ inputs.issue_number }}
+      run: |
+        if [[ -n "$INPUT_ISSUE_NUMBER" && ! "$INPUT_ISSUE_NUMBER" =~ ^[0-9]+$ ]]; then
+          echo "::error::Invalid issue_number: must be numeric."
+          exit 1
+        fi
+      shell: bash
+
+    - name: Setup Workspace
+      uses: arii/boomtick/.github/actions/setup-workspace@main
+      with:
+        setup-node: ${{ (inputs.action == 'resolve-conflicts' || inputs.action == 'update-snapshots') && 'true' || 'false' }}
+
+    # 1. Action: validate-quality
+    - name: Validate Issue
+      if: inputs.action == 'validate-quality'
+      env:
+        GITHUB_TOKEN: ${{ inputs.github_token }}
+      run: |
+        td-cli gh validate-issue --issue-number ${{ inputs.issue_number }} --post-comments --execute
+      shell: bash
+
+    # 2. Action: create-pr
+    - name: Parse Issue and Generate Markdown File
+      if: inputs.action == 'create-pr'
+      env:
+        ISSUE_BODY: ${{ github.event.issue.body }}
+        ISSUE_TITLE: ${{ github.event.issue.title }}
+      shell: python
+      run: |
+        import re
+        from datetime import datetime
+        import os
+
+        body = os.environ['ISSUE_BODY']
+        title = os.environ['ISSUE_TITLE']
+        title = re.sub(r'^Draft[^:]*:\s*', '', title).strip()
+
+        match = re.search(r'```markdown\n(.*?)\n```', body, re.DOTALL)
+        if not match:
+            print("No markdown block found in issue. Exiting.")
+            exit(1)
+
+        content = match.group(1).strip()
+
+        # Detect content type from frontmatter
+        type_match = re.search(r'^type:\s*"?(\w+)"?', content, re.MULTILINE)
+        content_type = type_match.group(1) if type_match else 'post'
+
+        # Route to the right folder
+        folder_map = {
+            'post': 'content/posts',
+            'resource': 'content/resources',
+            'study': 'content/studies',
+        }
+        folder = folder_map.get(content_type, 'content/posts')
+
+        date_str = datetime.now().strftime('%Y-%m-%d')
+        safe_title = re.sub(r'[^a-z0-9]+', '-', title.lower()).strip('-')
+        filename = f"{folder}/{date_str}-{safe_title}.md"
+
+        os.makedirs(folder, exist_ok=True)
+
+        with open(filename, 'w', encoding='utf-8') as f:
+            f.write(content)
+
+        print(f"File created: {filename}")
+
+        with open(os.environ['GITHUB_ENV'], 'a') as f:
+            f.write(f"NEW_FILE={filename}\n")
+            f.write(f"SAFE_TITLE={safe_title}\n")
+
+    - name: Create Pull Request
+      if: inputs.action == 'create-pr'
+      uses: peter-evans/create-pull-request@v8
+      with:
+        token: ${{ inputs.github_token }}
+        commit-message: "docs: add content from issue #${{ inputs.issue_number }}"
+        title: "Content: ${{ github.event.issue.title }}"
+        body: "This PR was automatically generated from issue #${{ inputs.issue_number }}."
+        branch: "content/${{ env.SAFE_TITLE }}"
+        base: main
+        delete-branch: true
+
+    # 3. Action: ai-review
+    - name: AI Review
+      if: inputs.action == 'ai-review'
+      uses: arii/boomtick/.github/actions/ai-review@main
+      with:
+        pr_number: ${{ inputs.issue_number }}
+      env:
+        GITHUB_TOKEN: ${{ inputs.github_token }}
+        GEMINI_API_KEY: ${{ inputs.gemini_api_key }}
+        OPENAI_API_KEY: ${{ inputs.openai_api_key }}
+        GOOGLE_JULES_API_KEY: ${{ inputs.google_jules_api_key }}
+
+    # 4. Action: resolve-conflicts
+    - name: Find and Resolve Conflicts
+      if: inputs.action == 'resolve-conflicts'
+      env:
+        GITHUB_TOKEN: ${{ inputs.github_token }}
+      run: |
+        td-cli gh resolve
+      shell: bash
+
+    - name: Validate Resolution
+      if: inputs.action == 'resolve-conflicts'
+      run: |
+        pnpm install --frozen-lockfile
+        pnpm --filter @arii/boomtick-mcp run sync-contracts
+        pnpm run type-check || exit 1
+      shell: bash
+
+    - name: Commit Changes (Resolve)
+      if: inputs.action == 'resolve-conflicts'
+      uses: stefanzweifel/git-auto-commit-action@v5
+      with:
+        commit_message: "chore: auto-resolved merge conflicts using AI"
+        file_pattern: '.'
+
+    # 5. Action: update-snapshots
+    - name: Install Dependencies
+      if: inputs.action == 'update-snapshots'
+      run: pnpm install --frozen-lockfile
+      shell: bash
+
+    - name: Update Snapshots
+      if: inputs.action == 'update-snapshots'
+      run: |
+        VITE_BASE_PATH=/ pnpm run test:e2e --update-snapshots
+      shell: bash
+
+    - name: Check for Changes
+      if: inputs.action == 'update-snapshots'
+      id: status
+      run: |
+        if [ -z "$(git status --porcelain)" ]; then
+          echo "changed=false" >> "$GITHUB_OUTPUT"
+        else
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+        fi
+      shell: bash
+
+    - name: Commit Changes (Snapshots)
+      if: inputs.action == 'update-snapshots' && steps.status.outputs.changed == 'true'
+      uses: stefanzweifel/git-auto-commit-action@v5
+      with:
+        commit_message: "chore: update playwright snapshots"
+        file_pattern: '**/snapshots/*'
