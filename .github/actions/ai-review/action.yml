@@ -7,6 +7,14 @@ inputs:
 runs:
   using: composite
   steps:
+    - name: Validate Inputs
+      run: |
+        if [[ ! "${{ inputs.pr_number }}" =~ ^[0-9]+$ ]]; then
+          echo "::error::Invalid pr_number: must be numeric."
+          exit 1
+        fi
+      shell: bash
+
     - name: Setup Workspace
       uses: arii/boomtick/.github/actions/setup-workspace@main
     - name: AI review

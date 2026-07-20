@@ -74,7 +74,7 @@ runs:
         elif [ -f "boomtick/scripts/resolve-cli.sh" ]; then
           CLI_DIR=$(bash boomtick/scripts/resolve-cli.sh | sed "s|$(pwd)/||")
         elif [ -f "${{ github.action_path }}/../../../scripts/resolve-cli.sh" ]; then
-          CLI_DIR="${{ github.action_path }}/../../../cli"
+          CLI_DIR=$(REPO_ROOT="${{ github.action_path }}/../../../" bash "${{ github.action_path }}/../../../scripts/resolve-cli.sh" | sed "s|$(pwd)/||")
         elif [ -d "cli" ]; then
           CLI_DIR="cli"
         elif [ -d "boomtick-pkg/cli" ]; then
@@ -84,6 +84,13 @@ runs:
         else
           CLI_DIR="cli"
         fi
+
+        # Validate that the resolved CLI directory exists
+        if [ -z "$CLI_DIR" ] || { [ ! -d "$CLI_DIR" ] && [ ! -d "${{ github.action_path }}/../../../$CLI_DIR" ]; }; then
+          echo "::error::Could not resolve a valid CLI directory. Resolved: '$CLI_DIR'"
+          exit 1
+        fi
+
         echo "CLI_DIR=$CLI_DIR" >> "$GITHUB_OUTPUT"
 
         # Consolidate GITHUB_PATH updates

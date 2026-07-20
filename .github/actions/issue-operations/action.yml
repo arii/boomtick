@@ -26,6 +26,14 @@ inputs:
 runs:
   using: 'composite'
   steps:
+    - name: Validate Inputs
+      run: |
+        if [[ -n "${{ inputs.issue_number }}" && ! "${{ inputs.issue_number }}" =~ ^[0-9]+$ ]]; then
+          echo "::error::Invalid issue_number: must be numeric."
+          exit 1
+        fi
+      shell: bash
+
     - name: Setup Workspace
       uses: arii/boomtick/.github/actions/setup-workspace@main
       with:

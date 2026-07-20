@@ -32,6 +32,18 @@ inputs:
 runs:
   using: 'composite'
   steps:
+    - name: Validate Inputs
+      run: |
+        if [[ -n "${{ inputs.issue_number }}" && ! "${{ inputs.issue_number }}" =~ ^[0-9]+$ ]]; then
+          echo "::error::Invalid issue_number: must be numeric."
+          exit 1
+        fi
+        if [[ -n "${{ inputs.run_id }}" && ! "${{ inputs.run_id }}" =~ ^[0-9]+$ ]]; then
+          echo "::error::Invalid run_id: must be numeric."
+          exit 1
+        fi
+      shell: bash
+
     - name: Set up Python
       uses: actions/setup-python@v6
       with:
