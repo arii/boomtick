@@ -50,14 +50,9 @@ runs:
         fi
 
         {
-
-
-
-
-
-
           EOF_COMMENT=$(openssl rand -hex 16)
           echo "COMMENT_BODY<<$EOF_COMMENT"
+          COMMENT_BODY=$(printf "%s" "$COMMENT_BODY" | tr -d '\0')
           printf "%s\n" "$COMMENT_BODY"
           echo "$EOF_COMMENT"
         } >> "$GITHUB_ENV"
@@ -80,6 +75,8 @@ runs:
     - name: Resolve Branch Details
       if: steps.check.outputs.conflict_resolve == 'true' || steps.check.outputs.update_snapshots == 'true' || steps.check.outputs.ai_chatops == 'true' || steps.check.outputs.jules_fix_ci == 'true'
       id: resolve_branch
+      env:
+        ISSUE_NUMBER: ${{ inputs.issue_number }}
       run: |
         PR_JSON=$(gh pr view "$ISSUE_NUMBER" --json headRefName,baseRefName || echo '{}')
         {
@@ -97,38 +94,35 @@ runs:
         UPDATE_SNAPSHOTS: ${{ steps.check.outputs.update_snapshots }}
         AI_CHATOPS: ${{ steps.check.outputs.ai_chatops }}
         JULES_FIX_CI: ${{ steps.check.outputs.jules_fix_ci }}
+        ISSUE_NUMBER: ${{ inputs.issue_number }}
+        GH_TOKEN: ${{ inputs.github_token }}
       run: |
         ERRORS=0
+        OPS_WORKFLOW="issue-operations.yml"
+        CI_WORKFLOW="ci-repair.yml"
 
-        if [[ "$CONFLICT_RESOLVE" == 'true' ]]; then
-          if ! gh workflow run issue-operations.yml --ref "$HEAD_REF" -f action="resolve-conflicts" -f issue_number="$ISSUE_NUMBER" -f comment_body="$COMMENT_BODY"; then
-            echo "::error::Failed to trigger Conflict Resolver workflow."
-            ERRORS=1
-          fi
-        fi
+        declare -A ACTIONS
+        [[ "$CONFLICT_RESOLVE" == 'true' ]] && ACTIONS["resolve-conflicts"]="$OPS_WORKFLOW|$HEAD_REF"
+        [[ "$UPDATE_SNAPSHOTS" == 'true' ]] && ACTIONS["update-snapshots"]="$OPS_WORKFLOW|$HEAD_REF"
+        [[ "$AI_CHATOPS" == 'true' ]]      && ACTIONS["ai-review"]="$OPS_WORKFLOW|$HEAD_REF"
+        [[ "$JULES_FIX_CI" == 'true' ]]    && ACTIONS["jules-fix-ci"]="$CI_WORKFLOW|$BASE_REF"
 
-        if [[ "$UPDATE_SNAPSHOTS" == 'true' ]]; then
-          if ! gh workflow run issue-operations.yml --ref "$HEAD_REF" -f action="update-snapshots" -f issue_number="$ISSUE_NUMBER" -f comment_body="$COMMENT_BODY"; then
-            echo "::error::Failed to trigger Update Snapshots workflow."
-            ERRORS=1
+        for action in "${!ACTIONS[@]}"; do
+          IFS='|' read -r workflow ref <<< "${ACTIONS[$action]}"
+          if [[ "$action" == "jules-fix-ci" ]]; then
+            if ! gh workflow run "$workflow" --ref "$ref" -f issue_number="$ISSUE_NUMBER" -f comment_body="$COMMENT_BODY"; then
+              echo "::error::Failed to trigger $workflow for $action on ref $ref (Issue: $ISSUE_NUMBER)."
+              ERRORS=1
+            fi
+          else
+            if ! gh workflow run "$workflow" --ref "$ref" -f action="$action" -f issue_number="$ISSUE_NUMBER" -f comment_body="$COMMENT_BODY"; then
+              echo "::error::Failed to trigger $workflow for $action on ref $ref (Issue: $ISSUE_NUMBER)."
+              ERRORS=1
+            fi
           fi
-        fi
-
-        if [[ "$AI_CHATOPS" == 'true' ]]; then
-          if ! gh workflow run issue-operations.yml --ref "$HEAD_REF" -f action="ai-review" -f issue_number="$ISSUE_NUMBER" -f comment_body="$COMMENT_BODY"; then
-            echo "::error::Failed to trigger AI ChatOps workflow."
-            ERRORS=1
-          fi
-        fi
-
-        if [[ "$JULES_FIX_CI" == 'true' ]]; then
-          if ! gh workflow run ci-repair.yml --ref "$BASE_REF" -f issue_number="$ISSUE_NUMBER" -f comment_body="$COMMENT_BODY"; then
-            echo "::error::Failed to trigger Jules Fix CI workflow."
-            ERRORS=1
-          fi
-        fi
+        done
 
         if [ "$ERRORS" -ne 0 ]; then
-          exit 1
+          bash -c 'exit 1'
         fi
       shell: bash
