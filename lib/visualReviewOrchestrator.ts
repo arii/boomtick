@@ -2,7 +2,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { ARTIFACTS_DIR, VISUAL_SUMMARY_PATH, MAX_ROUTES_TO_REVIEW } from './visualReviewConstants';
 import { generateMarkdownReport, postPRComment, countExistingReviews, getJulesSessionIdFromPR, sendJulesMessage, getPreviousReviewState } from './visualReviewUtils';
-import { runWithConcurrencyLimit, checkReviewQuota } from './sharedUtils';
+import { runWithConcurrencyLimit, checkReviewQuota, writeVerdictJson } from './sharedUtils';
 import type { RouteReview, VisualRouteSummary, VisualSummary, VisualReviewState } from './visualReviewTypes';
 import { logReviewExecution } from './aiLogger';
 export type AgentRole = 'CODE_REVIEW' | 'ACCESSIBILITY' | 'UX' | 'VISUAL_REGRESSION' | 'RESPONSIVE_LAYOUT';
@@ -40,13 +40,13 @@ export async function orchestrateVisualReview(
     console.warn('⚠️  Skipping agent review — missing visual summary. Run pnpm impact:visual-diff first.');
     fs.writeFileSync(agentReportPath, `## ${client.reportTitle}\n\nSkipped: Missing visual summary.\n`);
     const prevState = await getPreviousReviewState<VisualReviewState>(client.reportTitle);
-    fs.writeFileSync(path.join(ARTIFACTS_DIR, `${client.reportFileName.replace('.md', '')}-verdict.json`), JSON.stringify({
+    writeVerdictJson(path.join(ARTIFACTS_DIR, `${client.reportFileName.replace('.md', '')}-verdict.json`), {
       passed: true,
       highCount: 0,
       routes: [],
       llmVerdict: 'pass',
       state: prevState || { findings: [] }
-    }, null, 2));
+    });
     return;
   }
 
@@ -88,7 +88,7 @@ export async function orchestrateVisualReview(
   if (routesToReview.length === 0) {
     console.log(`✅ No visual changes detected — skipping agent review.`);
     fs.writeFileSync(agentReportPath, `## ${client.reportTitle}\n\nNo visual changes detected.\n`);
-    fs.writeFileSync(path.join(ARTIFACTS_DIR, `${client.reportFileName.replace('.md', '')}-verdict.json`), JSON.stringify({ passed: true, highCount: 0, routes: [], llmVerdict: 'pass', state: { findings: [] } }, null, 2));
+    writeVerdictJson(path.join(ARTIFACTS_DIR, `${client.reportFileName.replace('.md', '')}-verdict.json`), { passed: true, highCount: 0, routes: [], llmVerdict: 'pass', state: { findings: [] } });
     return;
   }
 

@@ -1,7 +1,7 @@
 import { buildVisualReviewPayload, parseLLMVerdict, parseVisualReviewFindings } from '../../lib/visualReviewUtils';
 import { extractFeedbackText } from '../../lib/codeReviewUtils';
 import { pickGeminiModel, getGeminiPricing } from '../../lib/geminiModelPicker';
-import { extractFinishReason, createGeminiModel, applyRetryStrategy } from '../../lib/geminiUtils';
+import { extractFinishReason, createGeminiModel, applyRetryStrategy, invokeGeminiWithBudgetRetry } from '../../lib/geminiUtils';
 import type { LLMClientStrategy, AgentRole } from '../../lib/visualReviewOrchestrator';
 
 import type { RouteReview, VisualRouteSummary } from '../../lib/visualReviewTypes';
@@ -32,7 +32,6 @@ export const geminiVisualReviewClient: LLMClientStrategy = {
 
     let maxOutputTokens = 4096;
     let thinkingBudget = 1024;
-    let model = createGeminiModel(modelName, maxOutputTokens, thinkingBudget);
     const baseContent = buildVisualReviewPayload(summary);
 
     baseContent.push({
@@ -83,24 +82,21 @@ Your job:
 
     const { HumanMessage } = await import('@langchain/core/messages');
     const message = new HumanMessage({ content: baseContent });
-    let response = await model.invoke([message]);
 
-    let finishReason = extractFinishReason(response);
+    // Polyfill for withRetry since it's not imported here
+    const pseudoWithRetry = async (fn: () => Promise<any>) => fn();
+    const retryResult = await invokeGeminiWithBudgetRetry(
+      modelName,
+      maxOutputTokens,
+      thinkingBudget,
+      message,
+      pseudoWithRetry
+    );
 
-    if (finishReason === 'MAX_TOKENS') {
-      console.warn('Gemini MAX_TOKENS — retrying with adjusted budget', {
-        usage: response.usage_metadata,
-      });
-
-      const { newMax, newThinking } = applyRetryStrategy(maxOutputTokens, thinkingBudget);
-      maxOutputTokens = newMax;
-      thinkingBudget = newThinking;
-
-      model = createGeminiModel(modelName, maxOutputTokens, thinkingBudget);
-      response = await model.invoke([message]);
-
-      finishReason = extractFinishReason(response);
-    }
+    const response = retryResult.response;
+    const finishReason = retryResult.finishReason;
+    maxOutputTokens = retryResult.finalMaxOutputTokens;
+    thinkingBudget = retryResult.finalThinkingBudget;
 
     const usageMetadata = response.usage_metadata as {
       input_tokens?: number;

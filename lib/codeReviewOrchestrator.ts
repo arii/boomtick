@@ -3,7 +3,7 @@ import * as path from 'path';
 import { IMPACT_CONFIG } from '../scripts/impact-analysis.config';
 import { ARTIFACTS_DIR } from './visualReviewConstants';
 import { postPRComment, countExistingReviews, getJulesSessionIdFromPR, sendJulesMessage, getPreviousReviewState } from './visualReviewUtils';
-import { runWithConcurrencyLimit, checkReviewQuota } from './sharedUtils';
+import { runWithConcurrencyLimit, checkReviewQuota, writeVerdictJson } from './sharedUtils';
 import { calculateEstimatedTokens, cleanupFeedback, batchFiles, calculateReviewHash, pruneCache, filterLowImpactFiles } from './codeReviewUtils';
 import type { CodeReviewSummary, CodeReviewResult, CodeReviewState, CodeReviewRole } from './codeReviewTypes';
 import { execFile as execFileCb, spawn } from 'child_process';
@@ -600,7 +600,7 @@ export async function orchestrateCodeReview(
   if (!initialSummary.diffContext) {
     console.log(`✅ No code changes detected — skipping agent review.`);
     fs.writeFileSync(agentReportPath, `## ${client.reportTitle}\n\nNo code changes detected.\n`);
-    fs.writeFileSync(path.join(ARTIFACTS_DIR, `${client.reportFileName.replace('.md', '')}-verdict.json`), JSON.stringify({ passed: true, highCount: 0, routes: [], llmVerdict: 'pass', state: { findings: [] } }, null, 2));
+    writeVerdictJson(path.join(ARTIFACTS_DIR, `${client.reportFileName.replace('.md', '')}-verdict.json`), { passed: true, highCount: 0, routes: [], llmVerdict: 'pass', state: { findings: [] } });
     return;
   }
 
@@ -614,13 +614,13 @@ export async function orchestrateCodeReview(
   if (changedFiles.length === 0) {
     console.log(`✅ No reviewable code changes detected after filtering (${rawChangedFiles.length} files filtered) — skipping agent review.`);
     fs.writeFileSync(agentReportPath, `## ${client.reportTitle}\n\nNo reviewable code changes detected.\n`);
-    fs.writeFileSync(path.join(ARTIFACTS_DIR, `${client.reportFileName.replace('.md', '')}-verdict.json`), JSON.stringify({
+    writeVerdictJson(path.join(ARTIFACTS_DIR, `${client.reportFileName.replace('.md', '')}-verdict.json`), {
       passed: true,
       highCount: 0,
       routes: [],
       llmVerdict: 'pass',
       state: prevState || { findings: [] }
-    }, null, 2));
+    });
     return;
   }
 
@@ -633,14 +633,14 @@ export async function orchestrateCodeReview(
     await postPRComment(report, client.reportTitle, prevState);
 
     const verdictPath = path.join(ARTIFACTS_DIR, `${client.reportFileName.replace('.md', '')}-verdict.json`);
-    fs.writeFileSync(verdictPath, JSON.stringify({
+    writeVerdictJson(verdictPath, {
       passed: true,
       highCount: 0,
       routes: [],
       llmVerdict: 'warn',
       isTruncated: true,
       state: prevState || { findings: [] }
-    }, null, 2));
+    });
     return;
   }
 
@@ -870,7 +870,7 @@ export async function orchestrateCodeReview(
 
   const openHighFindings = finalResult.state?.findings?.filter(f => f.status === 'open' && (f.severity === 'HIGH' || f.severity === 'error')) || [];
   const verdictPath = path.join(ARTIFACTS_DIR, `${client.reportFileName.replace('.md', '')}-verdict.json`);
-  fs.writeFileSync(verdictPath, JSON.stringify({
+  writeVerdictJson(verdictPath, {
     passed: !isFail,
     highCount: openHighFindings.length || (isFail ? 1 : 0),
     routes: [],

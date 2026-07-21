@@ -15,6 +15,10 @@ export async function runWithConcurrencyLimit(
   await Promise.all(workers);
 }
 
+export function writeVerdictJson(verdictPath: string, data: any): void {
+  fs.writeFileSync(verdictPath, JSON.stringify(data, null, 2));
+}
+
 export async function checkReviewQuota(
   existingCount: number,
   maxReviews: number,
@@ -32,13 +36,13 @@ export async function checkReviewQuota(
       `## ${reportTitle}\n\nSkipped: review quota (${maxReviews}) already met.\n`
     );
     const prevState = await getPrevState(reportTitle);
-    fs.writeFileSync(path.join(artifactsDir, `${reportFileName.replace('.md', '')}-verdict.json`), JSON.stringify({
+    writeVerdictJson(path.join(artifactsDir, `${reportFileName.replace('.md', '')}-verdict.json`), {
       passed: true,
       highCount: 0,
       routes: [],
       llmVerdict: 'pass',
       state: prevState || { findings: [] }
-    }, null, 2));
+    });
     return true; // Quota met, skip review
   }
   return false; // Quota not met, continue review
