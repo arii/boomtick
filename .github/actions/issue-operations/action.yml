@@ -190,7 +190,11 @@ runs:
     - name: Update Snapshots
       if: inputs.operation == 'update-snapshots'
       run: |
-        VITE_BASE_PATH=/ pnpm run test:e2e --update-snapshots
+        if node -e "const pkg = require('./package.json'); if (!pkg.scripts || !pkg.scripts['test:e2e']) process.exit(1)" 2>/dev/null; then
+          VITE_BASE_PATH=/ pnpm run test:e2e --update-snapshots
+        else
+          echo "⚠️ Skipping: test:e2e script not found in package.json"
+        fi
       shell: bash
 
     - name: Check for Snapshot Changes
