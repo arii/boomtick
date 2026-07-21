@@ -1,6 +1,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { ARTIFACTS_DIR } from '../../lib/visualReviewConstants';
+import { writeVerdictJson } from '../../lib/sharedUtils';
 
 export function writeMissingApiKeyVerdict(reportFileName: string, reportTitle: string, clientName: string): void {
   fs.mkdirSync(ARTIFACTS_DIR, { recursive: true });
@@ -8,8 +9,8 @@ export function writeMissingApiKeyVerdict(reportFileName: string, reportTitle: s
     path.join(ARTIFACTS_DIR, reportFileName),
     `## ${reportTitle}\n\nSkipped: No ${clientName} provided.\n`
   );
-  fs.writeFileSync(
+  writeVerdictJson(
     path.join(ARTIFACTS_DIR, `${reportFileName.replace('.md', '')}-verdict.json`),
-    JSON.stringify({ passed: true, highCount: 0, routes: [], llmVerdict: 'warn', skipReason: 'MISSING_API_KEY', state: { findings: [] } }, null, 2)
+    { passed: true, highCount: 0, routes: [], llmVerdict: 'warn', skipReason: 'MISSING_API_KEY', state: { findings: [] } }
   );
 }
