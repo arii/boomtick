@@ -172,12 +172,12 @@ export async function orchestrateVisualReview(
   }
 
   const verdictPath = path.join(ARTIFACTS_DIR, `${client.reportFileName.replace('.md', '')}-verdict.json`);
-  fs.writeFileSync(verdictPath, JSON.stringify({
+  writeVerdictJson(verdictPath, {
     passed: !hasBlockingIssues,
     highCount: reviews.filter(r => r.severity === 'HIGH').length,
     routes: reviews.map(r => ({ route: r.route, severity: r.severity, llmVerdict: r.llmVerdict })),
     state: state || { findings: [] }
-  }, null, 2));
+  });
 
   if (hasBlockingIssues) {
     console.error(`❌ Visual review found HIGH severity issues — failing CI.`);

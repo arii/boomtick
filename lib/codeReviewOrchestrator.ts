@@ -878,7 +878,7 @@ export async function orchestrateCodeReview(
     isTruncated: isTruncated,
     skipReason: skipReasons.size > 0 ? Array.from(skipReasons).join(', ') : undefined,
     state: finalResult.state || { findings: [] }
-  }, null, 2));
+  });
 
   if (isFail) {
     console.error(`❌ Code review returned FAIL — failing CI.`);
