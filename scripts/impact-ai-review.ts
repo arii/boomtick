@@ -14,7 +14,7 @@ async function main(): Promise<void> {
   if (provider === 'gemini') {
     if (!process.env.GEMINI_API_KEY) {
       console.warn('⚠️  Skipping agent review — GEMINI_API_KEY not set.');
-      writeMissingApiKeyVerdict(
+      await writeMissingApiKeyVerdict(
         geminiVisualReviewClient.reportFileName,
         geminiVisualReviewClient.reportTitle,
         'GEMINI_API_KEY'
@@ -25,7 +25,7 @@ async function main(): Promise<void> {
   } else if (provider === 'github-models') {
     if (!process.env.GITHUB_TOKEN) {
       console.warn('⚠️  Skipping agent review — GITHUB_TOKEN not set.');
-      writeMissingApiKeyVerdict(
+      await writeMissingApiKeyVerdict(
         githubModelsVisualReviewClient.reportFileName,
         githubModelsVisualReviewClient.reportTitle,
         'GITHUB_TOKEN'

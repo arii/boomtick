@@ -38,9 +38,9 @@ export async function orchestrateVisualReview(
 
   if (!fs.existsSync(VISUAL_SUMMARY_PATH)) {
     console.warn('⚠️  Skipping agent review — missing visual summary. Run pnpm impact:visual-diff first.');
-    fs.writeFileSync(agentReportPath, `## ${client.reportTitle}\n\nSkipped: Missing visual summary.\n`);
+    await fs.promises.writeFile(agentReportPath, `## ${client.reportTitle}\n\nSkipped: Missing visual summary.\n`);
     const prevState = await getPreviousReviewState<VisualReviewState>(client.reportTitle);
-    writeVerdictJson(path.join(ARTIFACTS_DIR, `${client.reportFileName.replace('.md', '')}-verdict.json`), {
+    await writeVerdictJson(path.join(ARTIFACTS_DIR, `${client.reportFileName.replace('.md', '')}-verdict.json`), {
       passed: true,
       highCount: 0,
       routes: [],
@@ -87,8 +87,8 @@ export async function orchestrateVisualReview(
 
   if (routesToReview.length === 0) {
     console.log(`✅ No visual changes detected — skipping agent review.`);
-    fs.writeFileSync(agentReportPath, `## ${client.reportTitle}\n\nNo visual changes detected.\n`);
-    writeVerdictJson(path.join(ARTIFACTS_DIR, `${client.reportFileName.replace('.md', '')}-verdict.json`), { passed: true, highCount: 0, routes: [], llmVerdict: 'pass', state: { findings: [] } });
+    await fs.promises.writeFile(agentReportPath, `## ${client.reportTitle}\n\nNo visual changes detected.\n`);
+    await writeVerdictJson(path.join(ARTIFACTS_DIR, `${client.reportFileName.replace('.md', '')}-verdict.json`), { passed: true, highCount: 0, routes: [], llmVerdict: 'pass', state: { findings: [] } });
     return;
   }
 
@@ -135,7 +135,7 @@ export async function orchestrateVisualReview(
   const report = generateMarkdownReport(reviews, client.botName, client.reportTitle, client.botTagline);
 
   // Write local report
-  fs.writeFileSync(agentReportPath, report);
+  await fs.promises.writeFile(agentReportPath, report);
   console.log(`✅ Local report written to ${agentReportPath}`);
 
   // Collect all findings from all reviews and merge with previous state to avoid loss
@@ -172,7 +172,7 @@ export async function orchestrateVisualReview(
   }
 
   const verdictPath = path.join(ARTIFACTS_DIR, `${client.reportFileName.replace('.md', '')}-verdict.json`);
-  writeVerdictJson(verdictPath, {
+  await writeVerdictJson(verdictPath, {
     passed: !hasBlockingIssues,
     highCount: reviews.filter(r => r.severity === 'HIGH').length,
     routes: reviews.map(r => ({ route: r.route, severity: r.severity, llmVerdict: r.llmVerdict })),

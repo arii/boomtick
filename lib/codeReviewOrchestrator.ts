@@ -599,8 +599,8 @@ export async function orchestrateCodeReview(
   const initialSummary = await getCodeDiffSummary();
   if (!initialSummary.diffContext) {
     console.log(`✅ No code changes detected — skipping agent review.`);
-    fs.writeFileSync(agentReportPath, `## ${client.reportTitle}\n\nNo code changes detected.\n`);
-    writeVerdictJson(path.join(ARTIFACTS_DIR, `${client.reportFileName.replace('.md', '')}-verdict.json`), { passed: true, highCount: 0, routes: [], llmVerdict: 'pass', state: { findings: [] } });
+    await fs.promises.writeFile(agentReportPath, `## ${client.reportTitle}\n\nNo code changes detected.\n`);
+    await writeVerdictJson(path.join(ARTIFACTS_DIR, `${client.reportFileName.replace('.md', '')}-verdict.json`), { passed: true, highCount: 0, routes: [], llmVerdict: 'pass', state: { findings: [] } });
     return;
   }
 
@@ -613,8 +613,8 @@ export async function orchestrateCodeReview(
 
   if (changedFiles.length === 0) {
     console.log(`✅ No reviewable code changes detected after filtering (${rawChangedFiles.length} files filtered) — skipping agent review.`);
-    fs.writeFileSync(agentReportPath, `## ${client.reportTitle}\n\nNo reviewable code changes detected.\n`);
-    writeVerdictJson(path.join(ARTIFACTS_DIR, `${client.reportFileName.replace('.md', '')}-verdict.json`), {
+    await fs.promises.writeFile(agentReportPath, `## ${client.reportTitle}\n\nNo reviewable code changes detected.\n`);
+    await writeVerdictJson(path.join(ARTIFACTS_DIR, `${client.reportFileName.replace('.md', '')}-verdict.json`), {
       passed: true,
       highCount: 0,
       routes: [],
@@ -629,11 +629,11 @@ export async function orchestrateCodeReview(
 
   if (filteredSummary.isTruncated) {
     const report = generateTruncatedReviewMarkdown(filteredSummary, client);
-    fs.writeFileSync(agentReportPath, report);
+    await fs.promises.writeFile(agentReportPath, report);
     await postPRComment(report, client.reportTitle, prevState);
 
     const verdictPath = path.join(ARTIFACTS_DIR, `${client.reportFileName.replace('.md', '')}-verdict.json`);
-    writeVerdictJson(verdictPath, {
+    await writeVerdictJson(verdictPath, {
       passed: true,
       highCount: 0,
       routes: [],
@@ -853,7 +853,7 @@ export async function orchestrateCodeReview(
   const report = generateCodeReviewMarkdown(finalResult, client);
 
   // Write local report
-  fs.writeFileSync(agentReportPath, report);
+  await fs.promises.writeFile(agentReportPath, report);
   console.log(`✅ Local report written to ${agentReportPath}`);
 
   // Post to GitHub PR
@@ -870,7 +870,7 @@ export async function orchestrateCodeReview(
 
   const openHighFindings = finalResult.state?.findings?.filter(f => f.status === 'open' && (f.severity === 'HIGH' || f.severity === 'error')) || [];
   const verdictPath = path.join(ARTIFACTS_DIR, `${client.reportFileName.replace('.md', '')}-verdict.json`);
-  writeVerdictJson(verdictPath, {
+  await writeVerdictJson(verdictPath, {
     passed: !isFail,
     highCount: openHighFindings.length || (isFail ? 1 : 0),
     routes: [],

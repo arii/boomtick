@@ -15,8 +15,16 @@ export async function runWithConcurrencyLimit(
   await Promise.all(workers);
 }
 
-export function writeVerdictJson(verdictPath: string, data: any): void {
-  fs.writeFileSync(verdictPath, JSON.stringify(data, null, 2));
+export async function writeVerdictJson(verdictPath: string, data: any): Promise<void> {
+  const resolvedPath = path.resolve(verdictPath);
+  const normalizedArtifactsDir = path.resolve('artifacts');
+  if (!resolvedPath.startsWith(normalizedArtifactsDir)) {
+    throw new Error(`Security Error: attempt to write outside artifacts directory (${resolvedPath})`);
+  }
+  if (!data || typeof data !== 'object') {
+    throw new Error('Invalid data: data must be an object');
+  }
+  await fs.promises.writeFile(resolvedPath, JSON.stringify(data, null, 2));
 }
 
 export async function checkReviewQuota(
@@ -31,12 +39,12 @@ export async function checkReviewQuota(
 ): Promise<boolean> {
   if (existingCount >= maxReviews) {
     console.log(`⏭️  Skipping ${botName} — ${existingCount}/${maxReviews} reviews already posted.`);
-    fs.writeFileSync(
+    await fs.promises.writeFile(
       agentReportPath,
       `## ${reportTitle}\n\nSkipped: review quota (${maxReviews}) already met.\n`
     );
     const prevState = await getPrevState(reportTitle);
-    writeVerdictJson(path.join(artifactsDir, `${reportFileName.replace('.md', '')}-verdict.json`), {
+    await writeVerdictJson(path.join(artifactsDir, `${reportFileName.replace('.md', '')}-verdict.json`), {
       passed: true,
       highCount: 0,
       routes: [],
