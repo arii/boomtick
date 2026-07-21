@@ -1,0 +1,30 @@
+name: 'Generate Token'
+description: 'Generates a GitHub App token with fallback to GITHUB_TOKEN'
+inputs:
+  app_id:
+    description: 'The GitHub App ID'
+    required: false
+  app_private_key:
+    description: 'The GitHub App Private Key'
+    required: false
+  github_token:
+    description: 'The GITHUB_TOKEN fallback'
+    required: true
+
+outputs:
+  token:
+    description: 'The generated GitHub App token or fallback GITHUB_TOKEN'
+    value: ${{ steps.create_token.outputs.token || inputs.github_token }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Create GitHub App Token
+      id: create_token
+      if: ${{ inputs.app_id != '' && inputs.app_private_key != '' }}
+      uses: actions/create-github-app-token@v1
+      continue-on-error: true
+      with:
+        app-id: ${{ inputs.app_id }}
+        private-key: ${{ inputs.app_private_key }}
+        owner: ${{ github.repository_owner }}

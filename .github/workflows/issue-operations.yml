@@ -40,26 +40,36 @@ jobs:
     steps:
       - name: Generate Token
         id: generate_token
-        if: ${{ env.APP_ID != '' && env.APP_PRIVATE_KEY != '' }}
-        uses: actions/create-github-app-token@v1
-        continue-on-error: true
+        uses: ./.github/actions/generate-token
         with:
-          app-id: ${{ env.APP_ID }}
-          private-key: ${{ env.APP_PRIVATE_KEY }}
-          owner: ${{ github.repository_owner }}
+          app_id: ${{ env.APP_ID }}
+          app_private_key: ${{ env.APP_PRIVATE_KEY }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Checkout Code
         uses: actions/checkout@v7 # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
         with:
           fetch-depth: 1
-          token: ${{ steps.generate_token.outputs.token || secrets.GITHUB_TOKEN }}
+          token: ${{ steps.generate_token.outputs.token }}
+
+      - name: Sanitize and Validate Inputs
+        id: sanitize
+        env:
+          ISSUE_NUM: ${{ github.event.issue.number }}
+        run: |
+          if [[ ! "$ISSUE_NUM" =~ ^[0-9]+$ ]]; then
+            echo "::error::Invalid issue_number: must be numeric."
+            exit 1
+          fi
+          echo "issue_number=$ISSUE_NUM" >> "$GITHUB_OUTPUT"
+        shell: bash
 
       - name: Run Issue Operations - Validate Quality
         uses: ./.github/actions/issue-operations # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
         with:
           operation: 'validate-quality'
-          issue_number: ${{ github.event.issue.number }}
-          github_token: ${{ steps.generate_token.outputs.token || secrets.GITHUB_TOKEN }}
+          issue_number: ${{ steps.sanitize.outputs.issue_number }}
+          github_token: ${{ steps.generate_token.outputs.token }}
 
   create-pr:
     name: Issue to Content PR
@@ -74,26 +84,36 @@ jobs:
     steps:
       - name: Generate Token
         id: generate_token
-        if: ${{ env.APP_ID != '' && env.APP_PRIVATE_KEY != '' }}
-        uses: actions/create-github-app-token@v1
-        continue-on-error: true
+        uses: ./.github/actions/generate-token
         with:
-          app-id: ${{ env.APP_ID }}
-          private-key: ${{ env.APP_PRIVATE_KEY }}
-          owner: ${{ github.repository_owner }}
+          app_id: ${{ env.APP_ID }}
+          app_private_key: ${{ env.APP_PRIVATE_KEY }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Checkout code
         uses: actions/checkout@v7 # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
         with:
           fetch-depth: 1
-          token: ${{ steps.generate_token.outputs.token || secrets.GITHUB_TOKEN }}
+          token: ${{ steps.generate_token.outputs.token }}
+
+      - name: Sanitize and Validate Inputs
+        id: sanitize
+        env:
+          ISSUE_NUM: ${{ github.event.issue.number }}
+        run: |
+          if [[ ! "$ISSUE_NUM" =~ ^[0-9]+$ ]]; then
+            echo "::error::Invalid issue_number: must be numeric."
+            exit 1
+          fi
+          echo "issue_number=$ISSUE_NUM" >> "$GITHUB_OUTPUT"
+        shell: bash
 
       - name: Run Issue Operations - Create PR
         uses: ./.github/actions/issue-operations # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
         with:
           operation: 'create-pr'
-          issue_number: ${{ github.event.issue.number }}
-          github_token: ${{ steps.generate_token.outputs.token || secrets.GITHUB_TOKEN }}
+          issue_number: ${{ steps.sanitize.outputs.issue_number }}
+          github_token: ${{ steps.generate_token.outputs.token }}
 
   ai-review:
     name: AI Review
@@ -102,27 +122,39 @@ jobs:
     steps:
       - name: Generate Token
         id: generate_token
-        if: ${{ env.APP_ID != '' && env.APP_PRIVATE_KEY != '' }}
-        uses: actions/create-github-app-token@v1
-        continue-on-error: true
+        uses: ./.github/actions/generate-token
         with:
-          app-id: ${{ env.APP_ID }}
-          private-key: ${{ env.APP_PRIVATE_KEY }}
-          owner: ${{ github.repository_owner }}
+          app_id: ${{ env.APP_ID }}
+          app_private_key: ${{ env.APP_PRIVATE_KEY }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Checkout Code
         uses: actions/checkout@v7 # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
         with:
           fetch-depth: 1
-          token: ${{ steps.generate_token.outputs.token || secrets.GITHUB_TOKEN }}
+          token: ${{ steps.generate_token.outputs.token }}
+
+      - name: Sanitize and Validate Inputs
+        id: sanitize
+        env:
+          ISSUE_NUM: ${{ github.event.inputs.issue_number }}
+          COMMENT: ${{ github.event.inputs.comment_body }}
+        run: |
+          if [[ ! "$ISSUE_NUM" =~ ^[0-9]+$ ]]; then
+            echo "::error::Invalid issue_number: must be numeric."
+            exit 1
+          fi
+          echo "issue_number=$ISSUE_NUM" >> "$GITHUB_OUTPUT"
+          echo "comment_body=$COMMENT" >> "$GITHUB_OUTPUT"
+        shell: bash
 
       - name: Run Issue Operations - AI Review
         uses: ./.github/actions/issue-operations # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
         with:
           operation: 'ai-review'
-          issue_number: ${{ github.event.inputs.issue_number }}
-          comment_body: ${{ github.event.inputs.comment_body }}
-          github_token: ${{ steps.generate_token.outputs.token || secrets.GITHUB_TOKEN }}
+          issue_number: ${{ steps.sanitize.outputs.issue_number }}
+          comment_body: ${{ steps.sanitize.outputs.comment_body }}
+          github_token: ${{ steps.generate_token.outputs.token }}
           gemini_api_key: ${{ secrets.GEMINI_API_KEY }}
           openai_api_key: ${{ secrets.OPENAI_API_KEY }}
           google_jules_api_key: ${{ secrets.GOOGLE_JULES_API_KEY }}
@@ -134,27 +166,39 @@ jobs:
     steps:
       - name: Generate Token
         id: generate_token
-        if: ${{ env.APP_ID != '' && env.APP_PRIVATE_KEY != '' }}
-        uses: actions/create-github-app-token@v1
-        continue-on-error: true
+        uses: ./.github/actions/generate-token
         with:
-          app-id: ${{ env.APP_ID }}
-          private-key: ${{ env.APP_PRIVATE_KEY }}
-          owner: ${{ github.repository_owner }}
+          app_id: ${{ env.APP_ID }}
+          app_private_key: ${{ env.APP_PRIVATE_KEY }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Checkout Code
         uses: actions/checkout@v7 # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
         with:
           fetch-depth: 0
-          token: ${{ steps.generate_token.outputs.token || secrets.GITHUB_TOKEN }}
+          token: ${{ steps.generate_token.outputs.token }}
+
+      - name: Sanitize and Validate Inputs
+        id: sanitize
+        env:
+          ISSUE_NUM: ${{ github.event.inputs.issue_number }}
+          COMMENT: ${{ github.event.inputs.comment_body }}
+        run: |
+          if [[ ! "$ISSUE_NUM" =~ ^[0-9]+$ ]]; then
+            echo "::error::Invalid issue_number: must be numeric."
+            exit 1
+          fi
+          echo "issue_number=$ISSUE_NUM" >> "$GITHUB_OUTPUT"
+          echo "comment_body=$COMMENT" >> "$GITHUB_OUTPUT"
+        shell: bash
 
       - name: Run Issue Operations - Resolve Conflicts
         uses: ./.github/actions/issue-operations # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
         with:
           operation: 'resolve-conflicts'
-          issue_number: ${{ github.event.inputs.issue_number }}
-          comment_body: ${{ github.event.inputs.comment_body }}
-          github_token: ${{ steps.generate_token.outputs.token || secrets.GITHUB_TOKEN }}
+          issue_number: ${{ steps.sanitize.outputs.issue_number }}
+          comment_body: ${{ steps.sanitize.outputs.comment_body }}
+          github_token: ${{ steps.generate_token.outputs.token }}
 
   update-snapshots:
     name: Update Playwright Snapshots
@@ -163,24 +207,36 @@ jobs:
     steps:
       - name: Generate Token
         id: generate_token
-        if: ${{ env.APP_ID != '' && env.APP_PRIVATE_KEY != '' }}
-        uses: actions/create-github-app-token@v1
-        continue-on-error: true
+        uses: ./.github/actions/generate-token
         with:
-          app-id: ${{ env.APP_ID }}
-          private-key: ${{ env.APP_PRIVATE_KEY }}
-          owner: ${{ github.repository_owner }}
+          app_id: ${{ env.APP_ID }}
+          app_private_key: ${{ env.APP_PRIVATE_KEY }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Checkout Code
         uses: actions/checkout@v7 # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
         with:
           fetch-depth: 1
-          token: ${{ steps.generate_token.outputs.token || secrets.GITHUB_TOKEN }}
+          token: ${{ steps.generate_token.outputs.token }}
+
+      - name: Sanitize and Validate Inputs
+        id: sanitize
+        env:
+          ISSUE_NUM: ${{ github.event.inputs.issue_number }}
+          COMMENT: ${{ github.event.inputs.comment_body }}
+        run: |
+          if [[ ! "$ISSUE_NUM" =~ ^[0-9]+$ ]]; then
+            echo "::error::Invalid issue_number: must be numeric."
+            exit 1
+          fi
+          echo "issue_number=$ISSUE_NUM" >> "$GITHUB_OUTPUT"
+          echo "comment_body=$COMMENT" >> "$GITHUB_OUTPUT"
+        shell: bash
 
       - name: Run Issue Operations - Update Snapshots
         uses: ./.github/actions/issue-operations # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
         with:
           operation: 'update-snapshots'
-          issue_number: ${{ github.event.inputs.issue_number }}
-          comment_body: ${{ github.event.inputs.comment_body }}
-          github_token: ${{ steps.generate_token.outputs.token || secrets.GITHUB_TOKEN }}
+          issue_number: ${{ steps.sanitize.outputs.issue_number }}
+          comment_body: ${{ steps.sanitize.outputs.comment_body }}
+          github_token: ${{ steps.generate_token.outputs.token }}

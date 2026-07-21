@@ -38,26 +38,24 @@ jobs:
     steps:
       - name: Generate Token
         id: generate_token
-        if: ${{ env.APP_ID != '' && env.APP_PRIVATE_KEY != '' }}
-        uses: actions/create-github-app-token@v1
-        continue-on-error: true
+        uses: ./.github/actions/generate-token
         with:
-          app-id: ${{ env.APP_ID }}
-          private-key: ${{ env.APP_PRIVATE_KEY }}
-          owner: ${{ github.repository_owner }}
+          app_id: ${{ env.APP_ID }}
+          app_private_key: ${{ env.APP_PRIVATE_KEY }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Checkout
         uses: actions/checkout@v7 # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
         with:
           fetch-depth: 1
-          token: ${{ steps.generate_token.outputs.token || secrets.GITHUB_TOKEN }}
+          token: ${{ steps.generate_token.outputs.token }}
 
       - name: Run CI Repair
         uses: ./.github/actions/ci-repair # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
         with:
           mode: 'auto'
           jules_api_key: ${{ secrets.JULES_API_KEY }}
-          github_token: ${{ steps.generate_token.outputs.token || secrets.GITHUB_TOKEN }}
+          github_token: ${{ steps.generate_token.outputs.token }}
 
   manual-jules-fix:
     name: Manual Jules Fix CI
@@ -66,19 +64,17 @@ jobs:
     steps:
       - name: Generate Token
         id: generate_token
-        if: ${{ env.APP_ID != '' && env.APP_PRIVATE_KEY != '' }}
-        uses: actions/create-github-app-token@v1
-        continue-on-error: true
+        uses: ./.github/actions/generate-token
         with:
-          app-id: ${{ env.APP_ID }}
-          private-key: ${{ env.APP_PRIVATE_KEY }}
-          owner: ${{ github.repository_owner }}
+          app_id: ${{ env.APP_ID }}
+          app_private_key: ${{ env.APP_PRIVATE_KEY }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Checkout
         uses: actions/checkout@v7 # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
         with:
           fetch-depth: 1
-          token: ${{ steps.generate_token.outputs.token || secrets.GITHUB_TOKEN }}
+          token: ${{ steps.generate_token.outputs.token }}
 
       - name: Run Manual CI Repair
         uses: ./.github/actions/ci-repair # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
@@ -87,4 +83,4 @@ jobs:
           issue_number: ${{ github.event.inputs.issue_number }}
           comment_body: ${{ github.event.inputs.comment_body }}
           jules_api_key: ${{ secrets.JULES_API_KEY }}
-          github_token: ${{ steps.generate_token.outputs.token || secrets.GITHUB_TOKEN }}
+          github_token: ${{ steps.generate_token.outputs.token }}

@@ -21,19 +21,17 @@ jobs:
     steps:
       - name: Generate Token
         id: generate_token
-        if: ${{ env.APP_ID != '' && env.APP_PRIVATE_KEY != '' }}
-        uses: actions/create-github-app-token@v1
-        continue-on-error: true
+        uses: ./.github/actions/generate-token
         with:
-          app-id: ${{ env.APP_ID }}
-          private-key: ${{ env.APP_PRIVATE_KEY }}
-          owner: ${{ github.repository_owner }}
+          app_id: ${{ env.APP_ID }}
+          app_private_key: ${{ env.APP_PRIVATE_KEY }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Checkout repository
         uses: actions/checkout@v7
         with:
           fetch-depth: 1
-          token: ${{ steps.generate_token.outputs.token || secrets.GITHUB_TOKEN }}
+          token: ${{ steps.generate_token.outputs.token }}
 
       - name: BoomTick ChatOps Dispatcher
         uses: ./.github/actions/chatops-trigger
@@ -41,4 +39,4 @@ jobs:
           comment_body: '${{ github.event.comment.body }}'
           author_association: '${{ github.event.comment.author_association }}'
           issue_number: '${{ github.event.issue.number }}'
-          github_token: ${{ steps.generate_token.outputs.token || secrets.GITHUB_TOKEN }}
+          github_token: ${{ steps.generate_token.outputs.token }}
