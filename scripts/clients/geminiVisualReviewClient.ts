@@ -2,6 +2,11 @@ import { buildVisualReviewPayload, parseLLMVerdict, parseVisualReviewFindings } 
 import { extractFeedbackText } from '../../lib/codeReviewUtils';
 import { pickGeminiModel, getGeminiPricing } from '../../lib/geminiModelPicker';
 import { extractFinishReason, createGeminiModel, applyRetryStrategy } from '../../lib/geminiUtils';
+import { invokeGeminiModelWithRetry } from '../../lib/geminiClientUtils';
+import { invokeGeminiModelWithRetry } from '../../lib/geminiClientUtils';
+import { invokeGeminiModelWithRetry } from '../../lib/geminiClientUtils';
+import { addPreviousFindingsToPayload, formatVisualResponse } from '../../lib/geminiClientUtils';
+import { invokeGeminiModelWithRetry } from '../../lib/geminiClientUtils';
 import type { LLMClientStrategy, AgentRole } from '../../lib/visualReviewOrchestrator';
 
 import type { RouteReview, VisualRouteSummary } from '../../lib/visualReviewTypes';
@@ -32,106 +37,25 @@ export const geminiVisualReviewClient: LLMClientStrategy = {
 
     let maxOutputTokens = 4096;
     let thinkingBudget = 1024;
-    let model = createGeminiModel(modelName, maxOutputTokens, thinkingBudget);
-    const baseContent = buildVisualReviewPayload(summary);
-
-    baseContent.push({
-      type: 'text',
-      text: `YOUR SPECIFIC ROLE FOR THIS REVIEW: ${role}\n${ROLE_PROMPTS[role]}`
-    });
-
-    if (summary.previousFindings && summary.previousFindings.length > 0) {
-      const findingsStr = summary.previousFindings
-        .map(f => {
-          let line = `- [${f.id}] ${f.issue} (Status: ${f.status})`;
-          if (f.fixSummary) {
-            line += `\n   → ${f.fixSummary}`;
-          }
-          return line;
-        })
-        .join('\n');
-
-      baseContent.push({
-        type: 'text',
-        text: `PREVIOUS REVIEW ROUND FINDINGS FOR THIS ROUTE:
-${findingsStr}
-
-Your job:
-- Confirm THIS issue is resolved before raising anything new.
-- Only raise a NEW issue if it is unrelated to anything already addressed, or if the fix for a previous issue introduced a new problem.
-- Do not re-open a resolved issue under a different framing.`
-      });
-    }
-
-    baseContent.push({
-      type: 'text',
-      text: `You MUST also provide a structured JSON summary of the findings (both old and new) for this route at the end of your response, inside a <findings> tag:
-<findings>
-{
-  "findings": [
-    {
-      "id": "finding-1",
-      "route": "${summary.route}",
-      "issue": "Brief description of the issue",
-      "status": "resolved",
-      "fixSummary": "Brief summary of how it was addressed"
-    }
-  ]
-}
-</findings>`
-    });
-
-    const { HumanMessage } = await import('@langchain/core/messages');
-    const message = new HumanMessage({ content: baseContent });
-    let response = await model.invoke([message]);
-
-    let finishReason = extractFinishReason(response);
-
-    if (finishReason === 'MAX_TOKENS') {
-      console.warn('Gemini MAX_TOKENS — retrying with adjusted budget', {
-        usage: response.usage_metadata,
-      });
-
-      const { newMax, newThinking } = applyRetryStrategy(maxOutputTokens, thinkingBudget);
-      maxOutputTokens = newMax;
-      thinkingBudget = newThinking;
-
-      model = createGeminiModel(modelName, maxOutputTokens, thinkingBudget);
-      response = await model.invoke([message]);
-
-      finishReason = extractFinishReason(response);
-    }
-
-    const usageMetadata = response.usage_metadata as {
-      input_tokens?: number;
-      output_tokens?: number;
-      total_tokens?: number;
-      thoughts_token_count?: number;
-    };
-    const inputTokens = usageMetadata?.input_tokens ?? 0;
-    const outputTokens = usageMetadata?.output_tokens ?? 0;
-    const totalTokens = usageMetadata?.total_tokens ?? 0;
-    const cacheTokens = (usageMetadata as { cache_read_tokens?: number })?.cache_read_tokens ?? 0;
-    const thoughtsTokenCount = usageMetadata?.thoughts_token_count ??
-                               (typeof response.response_metadata === 'object' && response.response_metadata !== null
-                                 ? ((response.response_metadata as Record<string, unknown>).usage as Record<string, unknown>)?.thoughts_token_count as number | undefined
-                                 : 0) ?? 0;
-
-    if (thoughtsTokenCount > thinkingBudget * 1.1) {
-      console.warn('Thinking budget exceeded by >10%', {
-        budgetSet: thinkingBudget,
-        thoughtsUsed: thoughtsTokenCount,
-        model: modelName,
-      });
-    }
-
-    const isTruncated = finishReason === 'MAX_TOKENS' || finishReason === 'length' || finishReason === 'max_tokens';
+        const {
+      finishReason,
+      usageMetadata,
+      inputTokens,
+      outputTokens,
+      totalTokens,
+      cacheTokens,
+      isTruncated,
+      cost,
+      feedback
+    } = await invokeGeminiModelWithRetry(modelName, maxOutputTokens, thinkingBudget, message);
 
     if (isTruncated) {
       console.error('Gemini truncation', {
         finishReason,
         usage: usageMetadata,
       });
+      // Do not throw here, instead pass the error state gracefully
+      // so it can be handled by orchestrator without breaking the CI suite
       return {
         route: summary.route,
         severity: summary.severity,
@@ -146,12 +70,21 @@ Your job:
       };
     }
 
-    const pricing = getGeminiPricing(modelName);
-    const cost = pricing ? (inputTokens / 1_000_000) * pricing.inputCostPerM + (outputTokens / 1_000_000) * pricing.outputCostPerM : 0;
+    return {
+        route: summary.route,
+        severity: summary.severity,
+        differencePercent: summary.differencePercent,
+        feedback: `Error: Gemini model was truncated during execution (finishReason=${finishReason}).`,
+        tokens: totalTokens,
+        cost: 0,
+        modelName,
+        llmVerdict: 'warn',
+        findings: [],
+        truncated: true,
+      };
+    }
 
-    const feedback = extractFeedbackText(response.content) || (
-      typeof response.content === 'string' ? response.content : JSON.stringify(response.content)
-    );
+
 
     return {
       route: summary.route,

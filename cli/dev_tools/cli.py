@@ -798,11 +798,7 @@ def manage_reviews(ctx, check_responses, cleanup_comments, dry_run, limit):
 def audit_gate(ctx):
     orch = ctx.obj["ORCHESTRATOR"]
     res = orch.handle_audit_gate()
-    msg = f"UI Anti-Pattern Audit: Current={res['current']}, Baseline={res['baseline']}"
-    if res["status"] == "error":
-        err(ctx, msg, data=res)
-    else:
-        out(ctx, msg, data=res)
+    _handle_gate(ctx, res, "UI Anti-Pattern Audit")
 
 
 @gh.command()

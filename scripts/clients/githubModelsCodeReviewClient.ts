@@ -1,3 +1,4 @@
+import { prepareReviewContext } from '../../lib/geminiClientUtils';
 import {
   parseCodeReviewVerdict,
   parseCodeReviewStateDetailed,
@@ -17,8 +18,7 @@ export const githubModelsCodeReviewClient: CodeReviewClientStrategy = {
   reportFileName: 'github-models-code-review.md',
 
   invokeReview: async (summary: CodeReviewSummary, forceMaxOutputTokens?: number): Promise<CodeReviewResult> => {
-    const systemPrompt = buildSystemPrompt(summary);
-    const { diffText, externalText } = budgetInputContext(systemPrompt, summary);
+    const { systemPrompt, diffText, externalText } = prepareReviewContext(summary, buildSystemPrompt, budgetInputContext);
 
     if (forceMaxOutputTokens) {
       console.log(`[AI Review] Invoking with forced max output tokens budget: ${forceMaxOutputTokens}`);

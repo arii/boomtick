@@ -1,0 +1,549 @@
+# Integrity Audit Status
+
+## 24-Hour Review Checklist (Count: 297)
+- [ ] .agents/AGENT_CONTRACT.md
+- [ ] .agents/INSTRUCTION_LAYERS.md
+- [ ] .agents/README.md
+- [ ] .agents/audit.config.yaml
+- [ ] .agents/scripts/audit-ai-slop.py
+- [ ] .agents/workflows/REVIEW_INSTRUCTIONS.md
+- [ ] .agents/workflows/aggregate-prs.md
+- [ ] .agents/workflows/codebase-integrity-audit.md
+- [ ] .agents/workflows/issue-audit.md
+- [ ] .agents/workflows/issue-authoring.md
+- [ ] .agents/workflows/review-all-prs.md
+- [ ] .agents/workflows/review-pr.md
+- [ ] .agents/workflows/review-ux.md
+- [ ] .dependency-cruiser.config.mjs
+- [ ] .dockerignore
+- [ ] .env.example
+- [ ] .github/DEVSECOPS_RULESET_ISSUE_TEMPLATE.md
+- [x] .github/actions/ai-review/action.yml — Verified Clean
+- [x] .github/actions/chatops-trigger/action.yml — Verified Clean
+- [x] .github/actions/ci-repair/action.yml — Verified Clean
+- [x] .github/actions/issue-operations/action.yml — Verified Clean
+- [ ] .github/actions/setup-all/CHANGELOG.md
+- [ ] .github/actions/setup-all/README.md
+- [x] .github/actions/setup-all/action.yml — Verified Clean
+- [ ] .github/actions/setup-all/package.json
+- [x] .github/actions/setup-env/action.yml — Verified Clean
+- [x] .github/actions/setup-workspace/action.yml — Verified Clean
+- [ ] .github/rulesets/default-branch-ruleset.json
+- [ ] .github/workflows/agent-audit.yml
+- [ ] .github/workflows/chatops-trigger.yml
+- [ ] .github/workflows/ci-repair.yml
+- [ ] .github/workflows/ci.yml
+- [ ] .github/workflows/dependabot-alert-handler.yml
+- [ ] .github/workflows/issue-operations.yml
+- [ ] .github/workflows/publish-runner.yml
+- [ ] .github/workflows/release.yml
+- [ ] .github/workflows/smoke-test-impact-analysis.yml
+- [ ] .github/workflows/trigger-parent-ci.yml
+- [ ] .gitignore
+- [ ] .jscpd.json
+- [ ] .node-version
+- [ ] .npmrc
+- [ ] .pylintrc
+- [ ] .release-please-manifest.json
+- [ ] CHANGELOG.md
+- [ ] Dockerfile
+- [ ] README.md
+- [ ] artifacts/.gitkeep
+- [ ] cli/CHANGELOG.md
+- [ ] cli/MANIFEST.in
+- [ ] cli/README.md
+- [ ] cli/aggregate-prs.sh
+- [ ] cli/ai-debugger.mjs
+- [ ] cli/analyze_overlaps.sh
+- [ ] cli/analyze_workflows.sh
+- [x] cli/clients/__init__.py — Verified Clean
+- [x] cli/dev_tools/__init__.py — Verified Clean
+- [x] cli/dev_tools/cli.py — Verified Clean
+- [x] cli/dev_tools/config.py — Verified Clean
+- [ ] cli/dev_tools/constants.py
+- [ ] cli/dev_tools/daemon.py
+- [ ] cli/dev_tools/get_ai_context.py
+- [x] cli/dev_tools/handlers/__init__.py — Verified Clean
+- [ ] cli/dev_tools/handlers/command_handler.py
+- [ ] cli/dev_tools/mcp_server.py
+- [ ] cli/dev_tools/models.py
+- [ ] cli/dev_tools/orchestrator.py
+- [ ] cli/dev_tools/pr_overlap.py
+- [x] cli/dev_tools/resources/__init__.py — Verified Clean
+- [ ] cli/dev_tools/resources/build-repo-context.py
+- [ ] cli/dev_tools/resources/prompt_constants.json
+- [ ] cli/dev_tools/resources/review_template.md
+- [ ] cli/dev_tools/resources/ux-audit.config.json
+- [ ] cli/dev_tools/resources/visual_guidelines.json
+- [ ] cli/dev_tools/review_read_pass.py
+- [ ] cli/dev_tools/schema_gen.py
+- [ ] cli/dev_tools/schema_utils.py
+- [x] cli/dev_tools/services/__init__.py — Verified Clean
+- [ ] cli/dev_tools/services/ai_service.py
+- [ ] cli/dev_tools/services/context_builder.py
+- [ ] cli/dev_tools/services/dependency_graph.py
+- [ ] cli/dev_tools/services/github.py
+- [ ] cli/dev_tools/services/jules.py
+- [ ] cli/dev_tools/services/repair_service.py
+- [x] cli/dev_tools/services/vector_store.py — Verified Clean
+- [ ] cli/dev_tools/services/vision_service.py
+- [x] cli/dev_tools/td_cli.py — Verified Clean
+- [x] cli/dev_tools/utils/__init__.py — Verified Clean
+- [ ] cli/dev_tools/utils/git.py
+- [ ] cli/dev_tools/ux_report.py
+- [ ] cli/dev_tools/verify_infra.py
+- [ ] cli/dev_tools/verify_versions.py
+- [x] cli/dev_tools/version_utils.py — Verified Clean
+- [x] cli/dev_tools/workflows/__init__.py — Verified Clean
+- [ ] cli/dev_tools/workflows/context.py
+- [ ] cli/dev_tools/workflows/graph.py
+- [ ] cli/dev_tools/workflows/node.py
+- [ ] cli/dev_tools/workflows/nodes.py
+- [ ] cli/dev_tools/workflows/runner.py
+- [ ] cli/instructions.txt
+- [ ] cli/plan-template.md
+- [ ] cli/pyproject.toml
+- [ ] cli/requirements-ai.txt
+- [ ] cli/requirements-dev.txt
+- [ ] cli/requirements.txt
+- [ ] cli/setup-python.sh
+- [ ] cli/snapshot.sh
+- [ ] cli/tests/services/test_ai_service_validation.py
+- [ ] cli/tests/services/test_context_builder.py
+- [ ] cli/tests/services/test_github.py
+- [ ] cli/tests/services/test_pr_aggregator.py
+- [ ] cli/tests/test_build_repo_context.py
+- [x] cli/tests/test_config.py — Verified Clean
+- [ ] cli/tests/test_dependency_graph.py
+- [ ] cli/tests/test_fail_fast.py
+- [ ] cli/tests/test_github_diff_parser.py
+- [ ] cli/tests/test_github_no_gh.py
+- [ ] cli/tests/test_github_parser.py
+- [ ] cli/tests/test_install_workflows.py
+- [ ] cli/tests/test_issue_validation_local.py
+- [ ] cli/tests/test_jules_batch_send.py
+- [ ] cli/tests/test_labels.py
+- [ ] cli/tests/test_latency_mitigation.py
+- [ ] cli/tests/test_orchestrator_aggregation.py
+- [ ] cli/tests/test_orchestrator_heuristics.py
+- [ ] cli/tests/test_parse_comment.py
+- [ ] cli/tests/test_plan_issue_audit.py
+- [ ] cli/tests/test_pr_overlap.py
+- [ ] cli/tests/test_review_template_validation.py
+- [ ] cli/tests/test_schema_utils.py
+- [ ] cli/tests/test_verify_ci_metrics.py
+- [ ] cli/tests/test_workflow_audit.py
+- [ ] cli/tests/test_workflow_orchestration.py
+- [ ] cli/verify-ai-resolve.sh
+- [ ] cli/verify-workflows.sh
+- [ ] cli/verify.sh
+- [ ] docs/collecting-ai-logs.md
+- [ ] docs/impact-analysis-integration.md
+- [ ] docs/onboarding.md
+- [ ] docs/release-process.md
+- [ ] eslint.config.mjs
+- [ ] install.sh
+- [ ] lib/ReviewPromptConstants.ts
+- [ ] lib/aiLogger.ts
+- [ ] lib/buildCodeReviewPrompt.ts
+- [ ] lib/codeReviewOrchestrator.ts
+- [ ] lib/codeReviewTypes.ts
+- [ ] lib/codeReviewUtils.ts
+- [ ] lib/geminiModelPicker.ts
+- [ ] lib/geminiUtils.ts
+- [ ] lib/heartbeat.ts
+- [ ] lib/impact-analysis-utils.ts
+- [ ] lib/modelPicker.ts
+- [ ] lib/projectConfig.ts
+- [ ] lib/promptCategories.ts
+- [ ] lib/sharedUtils.ts
+- [ ] lib/visualGuidelines.ts
+- [ ] lib/visualReviewConstants.ts
+- [ ] lib/visualReviewOrchestrator.ts
+- [ ] lib/visualReviewTypes.ts
+- [x] lib/visualReviewUtils.ts — Verified Clean
+- [ ] mcp/.env.example
+- [ ] mcp/.gitignore
+- [ ] mcp/CHANGELOG.md
+- [ ] mcp/README.md
+- [x] mcp/actions/ai-review/action.yml — Verified Clean
+- [x] mcp/actions/audit/action.yml — Verified Clean
+- [x] mcp/actions/ci-validate/action.yml — Verified Clean
+- [x] mcp/actions/impact-analysis/action.yml — Verified Clean
+- [x] mcp/actions/lint-typecheck/action.yml — Verified Clean
+- [x] mcp/actions/run-project-gate/action.yml — Verified Clean
+- [x] mcp/actions/setup-workspace/action.yml — Verified Clean
+- [x] mcp/actions/setup/action.yml — Verified Clean
+- [x] mcp/actions/test-build/action.yml — Verified Clean
+- [x] mcp/actions/update-pr-comment/action.yml — Verified Clean
+- [ ] mcp/docs/testing.md
+- [ ] mcp/package.json
+- [ ] mcp/scripts/create_instructions.sh
+- [ ] mcp/scripts/export-mcp-schema.ts
+- [ ] mcp/scripts/sync-contracts.ts
+- [ ] mcp/scripts/sync-mcp-schemas.ts
+- [ ] mcp/src/agents/conflict-scout.prompt.md
+- [ ] mcp/src/agents/pr-consolidation.prompt.md
+- [ ] mcp/src/agents/pr-writer.prompt.md
+- [ ] mcp/src/agents/repair-agent.prompt.md
+- [ ] mcp/src/agents/repo-context.prompt.md
+- [ ] mcp/src/agents/verifier-agent.prompt.md
+- [ ] mcp/src/config.ts
+- [ ] mcp/src/evals/fixtures/merge-conflict-simple/README.md
+- [ ] mcp/src/evals/run-evals.ts
+- [ ] mcp/src/index.ts
+- [ ] mcp/src/lib/error_utils.ts
+- [ ] mcp/src/lib/git.ts
+- [ ] mcp/src/lib/result.ts
+- [ ] mcp/src/lib/shell.test.ts
+- [ ] mcp/src/lib/shell.ts
+- [ ] mcp/src/lib/td-cli.ts
+- [ ] mcp/src/lib/test-utils.ts
+- [ ] mcp/src/mcp/definitions.ts
+- [ ] mcp/src/mcp/server.ts
+- [ ] mcp/src/mcp/tools.ts
+- [ ] mcp/src/tools/ddgs.search.test.ts
+- [ ] mcp/src/tools/ddgs.search.ts
+- [ ] mcp/src/tools/ddgs_search.py
+- [ ] mcp/src/tools/github.checkout_branch.ts
+- [ ] mcp/src/tools/github.comment_triage_summary.ts
+- [ ] mcp/src/tools/github.create_issue.test.ts
+- [ ] mcp/src/tools/github.create_issue.ts
+- [ ] mcp/src/tools/github.create_pull_request.ts
+- [ ] mcp/src/tools/github.get_merge_conflict_files.ts
+- [ ] mcp/src/tools/github.get_pr.ts
+- [ ] mcp/src/tools/github.get_pr_diff.ts
+- [ ] mcp/src/tools/github.issue_comment.ts
+- [ ] mcp/src/tools/github.issue_update.ts
+- [ ] mcp/src/tools/github.issue_view.ts
+- [ ] mcp/src/tools/github.open_replacement_pr.ts
+- [ ] mcp/src/tools/github.search_open_prs.test.ts
+- [ ] mcp/src/tools/github.search_open_prs.ts
+- [ ] mcp/src/tools/jules/cancel-session.ts
+- [ ] mcp/src/tools/jules/create-session.test.ts
+- [ ] mcp/src/tools/jules/create-session.ts
+- [ ] mcp/src/tools/jules/get-messages.test.ts
+- [ ] mcp/src/tools/jules/get-messages.ts
+- [ ] mcp/src/tools/jules/get-pr.test.ts
+- [ ] mcp/src/tools/jules/get-pr.ts
+- [ ] mcp/src/tools/jules/get-session.ts
+- [ ] mcp/src/tools/jules/list-sessions.ts
+- [ ] mcp/src/tools/jules/send-message.test.ts
+- [ ] mcp/src/tools/jules/send-message.ts
+- [ ] mcp/src/tools/jules/shared.ts
+- [ ] mcp/src/tools/jules/trigger-feedback.test.ts
+- [ ] mcp/src/tools/jules/trigger-feedback.ts
+- [ ] mcp/src/tools/repo.commit_patch.ts
+- [ ] mcp/src/tools/repo.create_branch.test.ts
+- [ ] mcp/src/tools/repo.create_branch.ts
+- [ ] mcp/src/tools/repo.create_repair_branch.ts
+- [ ] mcp/src/tools/repo.get_changed_files.ts
+- [ ] mcp/src/tools/repo.get_command_schema.ts
+- [ ] mcp/src/tools/repo.get_package_scripts.test.ts
+- [ ] mcp/src/tools/repo.get_package_scripts.ts
+- [ ] mcp/src/tools/repo.get_route_map.ts
+- [ ] mcp/src/tools/repo.logs.ts
+- [ ] mcp/src/tools/repo.read_agent_context.ts
+- [ ] mcp/src/tools/repo.read_ci_logs.ts
+- [ ] mcp/src/tools/repo.run_lighthouse.ts
+- [ ] mcp/src/tools/repo.run_playwright.ts
+- [ ] mcp/src/tools/repo.run_tests.ts
+- [ ] mcp/src/tools/types.ts
+- [ ] mcp/start_browsermcp.sh
+- [ ] mcp/start_github_mcp.sh
+- [ ] mcp/tsconfig.json
+- [ ] mcp/vitest.config.ts
+- [ ] oxlint.json
+- [ ] package.json
+- [ ] pnpm-workspace.yaml
+- [ ] project_config.json
+- [ ] release-please-config.json
+- [ ] scripts/bulk_collect_runs.sh
+- [ ] scripts/check-runtime-files.mjs
+- [ ] scripts/check-runtime.mjs
+- [ ] scripts/check-suppression-inventory.mjs
+- [ ] scripts/check-visual-changes.ts
+- [x] scripts/clients/geminiCodeReviewClient.ts — Verified Clean
+- [x] scripts/clients/geminiVisualReviewClient.ts — Verified Clean
+- [x] scripts/clients/githubModelsCodeReviewClient.ts — Verified Clean
+- [x] scripts/clients/githubModelsVisualReviewClient.ts — Verified Clean
+- [ ] scripts/detect-antipatterns.mjs
+- [ ] scripts/detect-semantic-duplicates.mjs
+- [ ] scripts/download_run.sh
+- [ ] scripts/finalize-extraction.sh
+- [ ] scripts/image-processing-utils.ts
+- [ ] scripts/impact-ai-code-review.ts
+- [ ] scripts/impact-ai-review.ts
+- [ ] scripts/impact-analysis.config.ts
+- [ ] scripts/impact-analysis.ts
+- [ ] scripts/impact-build-main.ts
+- [ ] scripts/impact-dom-diff.ts
+- [ ] scripts/impact-review-utils.ts
+- [ ] scripts/impact-visual-diff.ts
+- [ ] scripts/resolve-cli.sh
+- [ ] scripts/run-context-agent.py
+- [ ] scripts/send-jules-impact.py
+- [ ] scripts/sync-python-deps.py
+- [ ] scripts/test-audit.mjs
+- [ ] scripts/utils/verdict.ts
+- [ ] scripts/validate_workspace.py
+- [ ] scripts/verify-schemas.mjs
+- [ ] setup-agent.sh
+- [ ] src/components/ui/MarkdownRenderer.tsx
+- [ ] src/components/ui/SafeImage.tsx
+- [ ] src/index.css
+- [ ] src/layouts/layout-maps.ts
+- [ ] src/reviewers/factory.ts
+- [ ] src/reviewers/runner.ts
+- [ ] tsconfig.app.json
+- [ ] workspace-schema.json
+- [ ] workspace.json
+
+## Full Codebase Drift Review
+- [ ] ./CHANGELOG.md
+- [ ] ./Dockerfile
+- [ ] ./README.md
+- [ ] ./all_files.txt
+- [ ] ./cli/CHANGELOG.md
+- [ ] ./cli/MANIFEST.in
+- [ ] ./cli/README.md
+- [ ] ./cli/aggregate-prs.sh
+- [ ] ./cli/ai-debugger.mjs
+- [ ] ./cli/analyze_overlaps.sh
+- [ ] ./cli/analyze_workflows.sh
+- [ ] ./cli/boomtick_cli.egg-info/PKG-INFO
+- [ ] ./cli/boomtick_cli.egg-info/SOURCES.txt
+- [ ] ./cli/boomtick_cli.egg-info/dependency_links.txt
+- [ ] ./cli/boomtick_cli.egg-info/entry_points.txt
+- [ ] ./cli/boomtick_cli.egg-info/requires.txt
+- [ ] ./cli/boomtick_cli.egg-info/top_level.txt
+- [x] ./cli/clients/__init__.py — Verified Clean
+- [x] ./cli/dev_tools/__init__.py — Verified Clean
+- [x] ./cli/dev_tools/cli.py — Verified Clean
+- [x] ./cli/dev_tools/config.py — Verified Clean
+- [ ] ./cli/dev_tools/constants.py
+- [ ] ./cli/dev_tools/daemon.py
+- [ ] ./cli/dev_tools/get_ai_context.py
+- [x] ./cli/dev_tools/handlers/__init__.py — Verified Clean
+- [ ] ./cli/dev_tools/handlers/command_handler.py
+- [ ] ./cli/dev_tools/mcp_server.py
+- [ ] ./cli/dev_tools/models.py
+- [ ] ./cli/dev_tools/orchestrator.py
+- [ ] ./cli/dev_tools/pr_overlap.py
+- [x] ./cli/dev_tools/resources/__init__.py — Verified Clean
+- [ ] ./cli/dev_tools/resources/build-repo-context.py
+- [ ] ./cli/dev_tools/resources/prompt_constants.json
+- [ ] ./cli/dev_tools/resources/review_template.md
+- [ ] ./cli/dev_tools/resources/ux-audit.config.json
+- [ ] ./cli/dev_tools/resources/visual_guidelines.json
+- [ ] ./cli/dev_tools/review_read_pass.py
+- [ ] ./cli/dev_tools/schema_gen.py
+- [ ] ./cli/dev_tools/schema_utils.py
+- [x] ./cli/dev_tools/services/__init__.py — Verified Clean
+- [ ] ./cli/dev_tools/services/ai_service.py
+- [ ] ./cli/dev_tools/services/context_builder.py
+- [ ] ./cli/dev_tools/services/dependency_graph.py
+- [ ] ./cli/dev_tools/services/github.py
+- [ ] ./cli/dev_tools/services/jules.py
+- [ ] ./cli/dev_tools/services/repair_service.py
+- [x] ./cli/dev_tools/services/vector_store.py — Verified Clean
+- [ ] ./cli/dev_tools/services/vision_service.py
+- [x] ./cli/dev_tools/td_cli.py — Verified Clean
+- [x] ./cli/dev_tools/utils/__init__.py — Verified Clean
+- [ ] ./cli/dev_tools/utils/git.py
+- [ ] ./cli/dev_tools/ux_report.py
+- [ ] ./cli/dev_tools/verify_infra.py
+- [ ] ./cli/dev_tools/verify_versions.py
+- [x] ./cli/dev_tools/version_utils.py — Verified Clean
+- [x] ./cli/dev_tools/workflows/__init__.py — Verified Clean
+- [ ] ./cli/dev_tools/workflows/context.py
+- [ ] ./cli/dev_tools/workflows/graph.py
+- [ ] ./cli/dev_tools/workflows/node.py
+- [ ] ./cli/dev_tools/workflows/nodes.py
+- [ ] ./cli/dev_tools/workflows/runner.py
+- [ ] ./cli/instructions.txt
+- [ ] ./cli/plan-template.md
+- [ ] ./cli/pyproject.toml
+- [ ] ./cli/requirements-ai.txt
+- [ ] ./cli/requirements-dev.txt
+- [ ] ./cli/requirements.txt
+- [ ] ./cli/setup-python.sh
+- [ ] ./cli/snapshot.sh
+- [ ] ./cli/verify-ai-resolve.sh
+- [ ] ./cli/verify-workflows.sh
+- [ ] ./cli/verify.sh
+- [x] ./deduplicate_cli.py — Verified Clean
+- [ ] ./docs/collecting-ai-logs.md
+- [ ] ./docs/impact-analysis-integration.md
+- [ ] ./docs/onboarding.md
+- [ ] ./docs/release-process.md
+- [ ] ./eslint.config.mjs
+- [ ] ./fix_ai_clients.js
+- [ ] ./fix_ai_clients2.js
+- [ ] ./fix_ai_clients3.js
+- [ ] ./fix_ai_clients4.js
+- [ ] ./fix_ai_clients5.js
+- [ ] ./fix_ai_clients6.js
+- [ ] ./fix_impact.py
+- [ ] ./fix_impact2.py
+- [ ] ./fix_impact3.py
+- [ ] ./fix_vector_store2.py
+- [ ] ./install.sh
+- [ ] ./jscpd_clients.txt
+- [ ] ./lib/ReviewPromptConstants.ts
+- [ ] ./lib/aiLogger.ts
+- [ ] ./lib/buildCodeReviewPrompt.ts
+- [ ] ./lib/codeReviewOrchestrator.ts
+- [ ] ./lib/codeReviewTypes.ts
+- [ ] ./lib/codeReviewUtils.ts
+- [ ] ./lib/geminiClientUtils.ts
+- [ ] ./lib/geminiModelPicker.ts
+- [ ] ./lib/geminiUtils.ts
+- [ ] ./lib/heartbeat.ts
+- [ ] ./lib/impact-analysis-utils.ts
+- [ ] ./lib/modelPicker.ts
+- [ ] ./lib/projectConfig.ts
+- [ ] ./lib/promptCategories.ts
+- [ ] ./lib/sharedUtils.ts
+- [ ] ./lib/visualGuidelines.ts
+- [ ] ./lib/visualReviewConstants.ts
+- [ ] ./lib/visualReviewOrchestrator.ts
+- [ ] ./lib/visualReviewTypes.ts
+- [x] ./lib/visualReviewUtils.ts — Verified Clean
+- [ ] ./mcp/CHANGELOG.md
+- [ ] ./mcp/README.md
+- [x] ./mcp/actions/ai-review/action.yml — Verified Clean
+- [x] ./mcp/actions/audit/action.yml — Verified Clean
+- [x] ./mcp/actions/ci-validate/action.yml — Verified Clean
+- [x] ./mcp/actions/impact-analysis/action.yml — Verified Clean
+- [x] ./mcp/actions/lint-typecheck/action.yml — Verified Clean
+- [x] ./mcp/actions/run-project-gate/action.yml — Verified Clean
+- [x] ./mcp/actions/setup-workspace/action.yml — Verified Clean
+- [x] ./mcp/actions/setup/action.yml — Verified Clean
+- [x] ./mcp/actions/test-build/action.yml — Verified Clean
+- [x] ./mcp/actions/update-pr-comment/action.yml — Verified Clean
+- [ ] ./mcp/docs/testing.md
+- [ ] ./mcp/package.json
+- [ ] ./mcp/scripts/create_instructions.sh
+- [ ] ./mcp/scripts/export-mcp-schema.ts
+- [ ] ./mcp/scripts/sync-contracts.ts
+- [ ] ./mcp/scripts/sync-mcp-schemas.ts
+- [ ] ./mcp/src/agents/conflict-scout.prompt.md
+- [ ] ./mcp/src/agents/pr-consolidation.prompt.md
+- [ ] ./mcp/src/agents/pr-writer.prompt.md
+- [ ] ./mcp/src/agents/repair-agent.prompt.md
+- [ ] ./mcp/src/agents/repo-context.prompt.md
+- [ ] ./mcp/src/agents/verifier-agent.prompt.md
+- [ ] ./mcp/src/config.ts
+- [ ] ./mcp/src/evals/fixtures/merge-conflict-simple/README.md
+- [ ] ./mcp/src/evals/run-evals.ts
+- [ ] ./mcp/src/index.ts
+- [ ] ./mcp/src/lib/error_utils.ts
+- [ ] ./mcp/src/lib/git.ts
+- [ ] ./mcp/src/lib/result.ts
+- [ ] ./mcp/src/lib/shell.test.ts
+- [ ] ./mcp/src/lib/shell.ts
+- [ ] ./mcp/src/lib/td-cli.ts
+- [ ] ./mcp/src/lib/test-utils.ts
+- [ ] ./mcp/src/mcp/definitions.ts
+- [ ] ./mcp/src/mcp/server.ts
+- [ ] ./mcp/src/mcp/tools.ts
+- [ ] ./mcp/src/tools/ddgs.search.test.ts
+- [ ] ./mcp/src/tools/ddgs.search.ts
+- [ ] ./mcp/src/tools/ddgs_search.py
+- [ ] ./mcp/src/tools/github.checkout_branch.ts
+- [ ] ./mcp/src/tools/github.comment_triage_summary.ts
+- [ ] ./mcp/src/tools/github.create_issue.test.ts
+- [ ] ./mcp/src/tools/github.create_issue.ts
+- [ ] ./mcp/src/tools/github.create_pull_request.ts
+- [ ] ./mcp/src/tools/github.get_merge_conflict_files.ts
+- [ ] ./mcp/src/tools/github.get_pr.ts
+- [ ] ./mcp/src/tools/github.get_pr_diff.ts
+- [ ] ./mcp/src/tools/github.issue_comment.ts
+- [ ] ./mcp/src/tools/github.issue_update.ts
+- [ ] ./mcp/src/tools/github.issue_view.ts
+- [ ] ./mcp/src/tools/github.open_replacement_pr.ts
+- [ ] ./mcp/src/tools/github.search_open_prs.test.ts
+- [ ] ./mcp/src/tools/github.search_open_prs.ts
+- [ ] ./mcp/src/tools/jules/cancel-session.ts
+- [ ] ./mcp/src/tools/jules/create-session.test.ts
+- [ ] ./mcp/src/tools/jules/create-session.ts
+- [ ] ./mcp/src/tools/jules/get-messages.test.ts
+- [ ] ./mcp/src/tools/jules/get-messages.ts
+- [ ] ./mcp/src/tools/jules/get-pr.test.ts
+- [ ] ./mcp/src/tools/jules/get-pr.ts
+- [ ] ./mcp/src/tools/jules/get-session.ts
+- [ ] ./mcp/src/tools/jules/list-sessions.ts
+- [ ] ./mcp/src/tools/jules/send-message.test.ts
+- [ ] ./mcp/src/tools/jules/send-message.ts
+- [ ] ./mcp/src/tools/jules/shared.ts
+- [ ] ./mcp/src/tools/jules/trigger-feedback.test.ts
+- [ ] ./mcp/src/tools/jules/trigger-feedback.ts
+- [ ] ./mcp/src/tools/repo.commit_patch.ts
+- [ ] ./mcp/src/tools/repo.create_branch.test.ts
+- [ ] ./mcp/src/tools/repo.create_branch.ts
+- [ ] ./mcp/src/tools/repo.create_repair_branch.ts
+- [ ] ./mcp/src/tools/repo.get_changed_files.ts
+- [ ] ./mcp/src/tools/repo.get_command_schema.ts
+- [ ] ./mcp/src/tools/repo.get_package_scripts.test.ts
+- [ ] ./mcp/src/tools/repo.get_package_scripts.ts
+- [ ] ./mcp/src/tools/repo.get_route_map.ts
+- [ ] ./mcp/src/tools/repo.logs.ts
+- [ ] ./mcp/src/tools/repo.read_agent_context.ts
+- [ ] ./mcp/src/tools/repo.read_ci_logs.ts
+- [ ] ./mcp/src/tools/repo.run_lighthouse.ts
+- [ ] ./mcp/src/tools/repo.run_playwright.ts
+- [ ] ./mcp/src/tools/repo.run_tests.ts
+- [ ] ./mcp/src/tools/types.ts
+- [ ] ./mcp/start_browsermcp.sh
+- [ ] ./mcp/start_github_mcp.sh
+- [ ] ./mcp/tsconfig.json
+- [ ] ./mcp/vitest.config.ts
+- [ ] ./oxlint.json
+- [ ] ./package.json
+- [ ] ./pnpm-workspace.yaml
+- [ ] ./project_config.json
+- [ ] ./release-please-config.json
+- [ ] ./scripts/bulk_collect_runs.sh
+- [ ] ./scripts/check-runtime-files.mjs
+- [ ] ./scripts/check-runtime.mjs
+- [ ] ./scripts/check-suppression-inventory.mjs
+- [ ] ./scripts/check-visual-changes.ts
+- [x] ./scripts/clients/geminiCodeReviewClient.ts — Verified Clean
+- [x] ./scripts/clients/geminiVisualReviewClient.ts — Verified Clean
+- [x] ./scripts/clients/githubModelsCodeReviewClient.ts — Verified Clean
+- [x] ./scripts/clients/githubModelsVisualReviewClient.ts — Verified Clean
+- [ ] ./scripts/detect-antipatterns.mjs
+- [ ] ./scripts/detect-semantic-duplicates.mjs
+- [ ] ./scripts/download_run.sh
+- [ ] ./scripts/finalize-extraction.sh
+- [ ] ./scripts/image-processing-utils.ts
+- [ ] ./scripts/impact-ai-code-review.ts
+- [ ] ./scripts/impact-ai-review.ts
+- [ ] ./scripts/impact-analysis.config.ts
+- [ ] ./scripts/impact-analysis.ts
+- [ ] ./scripts/impact-build-main.ts
+- [ ] ./scripts/impact-dom-diff.ts
+- [ ] ./scripts/impact-review-utils.ts
+- [ ] ./scripts/impact-visual-diff.ts
+- [ ] ./scripts/resolve-cli.sh
+- [ ] ./scripts/run-context-agent.py
+- [ ] ./scripts/send-jules-impact.py
+- [ ] ./scripts/sync-python-deps.py
+- [ ] ./scripts/test-audit.mjs
+- [ ] ./scripts/utils/verdict.ts
+- [ ] ./scripts/validate_workspace.py
+- [ ] ./scripts/verify-schemas.mjs
+- [ ] ./setup-agent.sh
+- [ ] ./src/components/ui/MarkdownRenderer.tsx
+- [ ] ./src/components/ui/SafeImage.tsx
+- [ ] ./src/index.css
+- [ ] ./src/layouts/layout-maps.ts
+- [ ] ./src/reviewers/factory.ts
+- [ ] ./src/reviewers/runner.ts
+- [ ] ./test_action.py
+- [ ] ./test_clients.py
+- [ ] ./test_jscpd.sh
+- [ ] ./tsconfig.app.json
+- [ ] ./workspace-schema.json
+- [ ] ./workspace.json

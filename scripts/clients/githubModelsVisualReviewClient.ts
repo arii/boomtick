@@ -1,3 +1,4 @@
+import { addPreviousFindingsToPayload, formatVisualResponse } from '../../lib/geminiClientUtils';
 import * as fs from 'fs';
 import * as path from 'path';
 import { buildVisualReviewPayload, parseLLMVerdict, parseVisualReviewFindings } from '../../lib/visualReviewUtils';
@@ -46,13 +47,8 @@ export const githubModelsVisualReviewClient: LLMClientStrategy = {
     const { apiKey, modelName, maxTokens } = await createModelConfig(estimatedInputTokens);
     const baseContent = buildVisualReviewPayload(summary);
 
-    if (summary.previousFindings && summary.previousFindings.length > 0) {
-      const findingsStr = summary.previousFindings
-        .map(f => {
-          let line = `- [${f.id}] ${f.issue} (Status: ${f.status})`;
-          if (f.fixSummary) {
-            line += `\n   → ${f.fixSummary}`;
-          }
+    addPreviousFindingsToPayload(summary, baseContent);
+
           return line;
         })
         .join('\n');
