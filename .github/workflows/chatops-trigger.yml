@@ -3,6 +3,17 @@ name: ChatOps Trigger
 on:
   issue_comment:
     types: [created]
+  workflow_dispatch:
+    inputs:
+      comment_body:
+        description: 'The comment body to process'
+        required: true
+      author_association:
+        description: 'The author association of the user who commented'
+        required: true
+      issue_number:
+        description: 'The issue or PR number'
+        required: true
 
 permissions:
   contents: read
