@@ -1,4 +1,4 @@
-# pylint: disable=import-outside-toplevel,line-too-long,missing-docstring,too-many-branches,too-many-instance-attributes,too-many-statements,use-maxsplit-arg
+# pylint: disable=import-outside-toplevel,line-too-long,missing-docstring,too-many-branches,too-many-instance-attributes,too-many-statements,use-maxsplit-arg,cyclic-import
 from __future__ import annotations
 import subprocess
 import re
