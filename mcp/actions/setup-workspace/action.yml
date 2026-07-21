@@ -164,9 +164,15 @@ runs:
         fi
         export PYTHONPATH="$CLI_DIR_ABS:$PYTHONPATH"
         if command -v td-cli >/dev/null 2>&1; then
-          td-cli schema --generate
+          if ! td-cli schema --generate; then
+            echo "::error::td-cli schema generation failed!"
+            exit 1
+          fi
         else
-          python3 "$CLI_DIR_ABS/dev_tools/schema_gen.py"
+          if ! python3 "$CLI_DIR_ABS/dev_tools/schema_gen.py"; then
+            echo "::error::Schema generation via python3 failed!"
+            exit 1
+          fi
         fi
 
         MCP_DIR="mcp"
