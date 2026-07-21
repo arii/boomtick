@@ -9,6 +9,7 @@ RUN npm install -g pnpm@10.28.2
 # Copy root workspace and MCP package files
 COPY pnpm-workspace.yaml pnpm-lock.yaml package.json .npmrc ./
 COPY mcp/package.json ./mcp/
+COPY scripts/check-runtime-files.mjs ./scripts/
 
 # Install dependencies for MCP
 RUN pnpm install --frozen-lockfile
