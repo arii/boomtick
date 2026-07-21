@@ -186,7 +186,11 @@ runs:
       run: |
         echo "::group::Initialize Schemas and Contracts"
         export PYTHONPATH="$CLI_DIR_ABS:$PYTHONPATH"
-        python3 "$CLI_DIR_ABS/dev_tools/schema_gen.py"
+        if command -v td-cli >/dev/null 2>&1; then
+          td-cli schema --generate
+        else
+          python3 "$CLI_DIR_ABS/dev_tools/schema_gen.py"
+        fi
         # Only run sync-contracts if node_modules exist, otherwise skip and let caller build pipeline handle it
         if [ -d "node_modules" ] || [ -d "mcp/node_modules" ]; then
           pnpm --filter @arii/boomtick-mcp run sync-contracts

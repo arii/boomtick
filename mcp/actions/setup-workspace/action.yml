@@ -159,7 +159,11 @@ runs:
       run: |
         echo "::group::Initialize Schemas and Contracts"
         export PYTHONPATH="$CLI_DIR_ABS:$PYTHONPATH"
-        python3 "$CLI_DIR_ABS/dev_tools/schema_gen.py"
+        if command -v td-cli >/dev/null 2>&1; then
+          td-cli schema --generate
+        else
+          python3 "$CLI_DIR_ABS/dev_tools/schema_gen.py"
+        fi
 
         MCP_DIR="mcp"
 

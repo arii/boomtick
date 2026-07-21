@@ -22,13 +22,32 @@ async function verifySchemas() {
       ? `${existingPythonPath}${delimiter}${cliDir}`
       : cliDir;
 
-    execFileSync(pythonPath, ['cli/dev_tools/schema_gen.py'], {
-      stdio: 'inherit',
-      env: {
-        ...process.env,
-        PYTHONPATH: newPythonPath,
-      },
-    });
+    let hasTdCli = existsSync('.venv/bin/td-cli');
+    if (!hasTdCli) {
+      try {
+        execSync('command -v td-cli', { stdio: 'ignore' });
+        hasTdCli = true;
+      } catch (_) {}
+    }
+
+    if (hasTdCli) {
+      const tdCliPath = existsSync('.venv/bin/td-cli') ? '.venv/bin/td-cli' : 'td-cli';
+      execFileSync(tdCliPath, ['schema', '--generate'], {
+        stdio: 'inherit',
+        env: {
+          ...process.env,
+          PYTHONPATH: newPythonPath,
+        },
+      });
+    } else {
+      execFileSync(pythonPath, ['cli/dev_tools/schema_gen.py'], {
+        stdio: 'inherit',
+        env: {
+          ...process.env,
+          PYTHONPATH: newPythonPath,
+        },
+      });
+    }
   } catch (_error) {
     console.error('❌ Failed to generate CLI schema.');
     process.exit(254);
