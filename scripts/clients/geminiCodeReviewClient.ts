@@ -12,7 +12,7 @@ import {
 import { buildSystemPrompt } from '../../lib/buildCodeReviewPrompt';
 
 import { pickGeminiModel, getGeminiPricing } from '../../lib/geminiModelPicker';
-import { extractFinishReason, createGeminiModel, applyRetryStrategy, invokeGeminiWithBudgetRetry } from '../../lib/geminiUtils';
+import { invokeGeminiWithBudgetRetry } from '../../lib/geminiUtils';
 
 import type { CodeReviewSummary, CodeReviewResult } from '../../lib/codeReviewTypes';
 import type { CodeReviewClientStrategy } from '../../lib/codeReviewOrchestrator';

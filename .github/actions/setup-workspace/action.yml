@@ -187,11 +187,20 @@ runs:
         echo "::group::Initialize Schemas and Contracts"
         export PYTHONPATH="$CLI_DIR_ABS:$PYTHONPATH"
         python3 "$CLI_DIR_ABS/dev_tools/schema_gen.py"
-        # Only run sync-contracts if node_modules exist, otherwise skip and let caller build pipeline handle it
-        if [ -d "node_modules" ] || [ -d "mcp/node_modules" ]; then
-          pnpm --filter @arii/boomtick-mcp run sync-contracts
+
+        MCP_DIR="mcp"
+
+        # Check for sync-contracts script in the resolved MCP directory
+        if [ -f "$MCP_DIR/package.json" ] && grep -q "sync-contracts" "$MCP_DIR/package.json"; then
+          echo "::group::Run sync-contracts in $MCP_DIR"
+          # Ensure dependencies are installed if we're in the MCP directory
+          if [ ! -d "$MCP_DIR/node_modules" ]; then
+             (cd "$MCP_DIR" && pnpm install --frozen-lockfile --prefer-offline)
+          fi
+          pnpm --filter "@arii/boomtick-mcp" run sync-contracts || (cd "$MCP_DIR" && pnpm run sync-contracts)
+          echo "::endgroup::"
         else
-          echo "⚠️ node_modules missing, skipping sync-contracts. Run pnpm install and sync-contracts in caller workflow."
+          echo "⚠️ Skipping: sync-contracts script not found in $MCP_DIR/package.json"
         fi
         echo "::endgroup::"
       shell: bash

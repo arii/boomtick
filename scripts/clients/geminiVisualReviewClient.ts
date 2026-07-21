@@ -1,7 +1,7 @@
 import { buildVisualReviewPayload, parseLLMVerdict, parseVisualReviewFindings } from '../../lib/visualReviewUtils';
 import { extractFeedbackText } from '../../lib/codeReviewUtils';
 import { pickGeminiModel, getGeminiPricing } from '../../lib/geminiModelPicker';
-import { extractFinishReason, createGeminiModel, applyRetryStrategy, invokeGeminiWithBudgetRetry } from '../../lib/geminiUtils';
+import { invokeGeminiWithBudgetRetry } from '../../lib/geminiUtils';
 import type { LLMClientStrategy, AgentRole } from '../../lib/visualReviewOrchestrator';
 
 import type { RouteReview, VisualRouteSummary } from '../../lib/visualReviewTypes';
