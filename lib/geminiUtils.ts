@@ -57,3 +57,35 @@ export function applyRetryStrategy(currentMax: number, currentThinking: number):
   const newThinking = Math.round(currentThinking * 0.5);
   return { newMax, newThinking };
 }
+
+import { withRetry } from './codeReviewUtils';
+
+export async function invokeGeminiWithBudgetRetry(
+  modelName: string,
+  initialMaxTokens: number,
+  initialThinkingBudget: number,
+  message: any
+): Promise<any> {
+  let maxOutputTokens = initialMaxTokens;
+  let thinkingBudget = initialThinkingBudget;
+  let model = createGeminiModel(modelName, maxOutputTokens, thinkingBudget);
+
+  let response = await withRetry(() => model.invoke([message]), { maxRetries: 3, initialDelayMs: 1000 });
+  let finishReason = extractFinishReason(response);
+
+  if (finishReason === 'MAX_TOKENS') {
+    console.warn('Gemini MAX_TOKENS — retrying with adjusted budget', {
+      usage: response.usage_metadata,
+    });
+
+    const { newMax, newThinking } = applyRetryStrategy(maxOutputTokens, thinkingBudget);
+    maxOutputTokens = newMax;
+    thinkingBudget = newThinking;
+
+    model = createGeminiModel(modelName, maxOutputTokens, thinkingBudget);
+    response = await withRetry(() => model.invoke([message]), { maxRetries: 3, initialDelayMs: 1000 });
+    finishReason = extractFinishReason(response);
+  }
+
+  return { response, finishReason };
+}

@@ -36,7 +36,7 @@ export const geminiVisualReviewClient: LLMClientStrategy = {
 
     baseContent.push({
       type: 'text',
-      text: `YOUR SPECIFIC ROLE FOR THIS REVIEW: ${role}\n${ROLE_PROMPTS[role]}`
+      text: `YOUR SPECIFIC ROLE FOR THIS REVIEW: ${role.replace(/[^A-Za-z0-9_]/g, '')}\n${ROLE_PROMPTS[role] || ''}`
     });
 
     if (summary.previousFindings && summary.previousFindings.length > 0) {

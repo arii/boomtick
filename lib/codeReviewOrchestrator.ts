@@ -3,7 +3,7 @@ import * as path from 'path';
 import { IMPACT_CONFIG } from '../scripts/impact-analysis.config';
 import { ARTIFACTS_DIR } from './visualReviewConstants';
 import { postPRComment, countExistingReviews, getJulesSessionIdFromPR, sendJulesMessage, getPreviousReviewState } from './visualReviewUtils';
-import { runWithConcurrencyLimit, checkReviewQuota } from './sharedUtils';
+import { runWithConcurrencyLimit, checkReviewQuota, writeVerdictJson } from './sharedUtils';
 import { calculateEstimatedTokens, cleanupFeedback, batchFiles, calculateReviewHash, pruneCache, filterLowImpactFiles } from './codeReviewUtils';
 import type { CodeReviewSummary, CodeReviewResult, CodeReviewState, CodeReviewRole } from './codeReviewTypes';
 import { execFile as execFileCb, spawn } from 'child_process';
@@ -614,13 +614,13 @@ export async function orchestrateCodeReview(
   if (changedFiles.length === 0) {
     console.log(`✅ No reviewable code changes detected after filtering (${rawChangedFiles.length} files filtered) — skipping agent review.`);
     fs.writeFileSync(agentReportPath, `## ${client.reportTitle}\n\nNo reviewable code changes detected.\n`);
-    fs.writeFileSync(path.join(ARTIFACTS_DIR, `${client.reportFileName.replace('.md', '')}-verdict.json`), JSON.stringify({
+    writeVerdictJson(ARTIFACTS_DIR, client.reportFileName, {
       passed: true,
       highCount: 0,
       routes: [],
       llmVerdict: 'pass',
       state: prevState || { findings: [] }
-    }, null, 2));
+    });
     return;
   }
 
@@ -869,8 +869,7 @@ export async function orchestrateCodeReview(
   }
 
   const openHighFindings = finalResult.state?.findings?.filter(f => f.status === 'open' && (f.severity === 'HIGH' || f.severity === 'error')) || [];
-  const verdictPath = path.join(ARTIFACTS_DIR, `${client.reportFileName.replace('.md', '')}-verdict.json`);
-  fs.writeFileSync(verdictPath, JSON.stringify({
+  writeVerdictJson(ARTIFACTS_DIR, client.reportFileName, {
     passed: !isFail,
     highCount: openHighFindings.length || (isFail ? 1 : 0),
     routes: [],
@@ -878,7 +877,7 @@ export async function orchestrateCodeReview(
     isTruncated: isTruncated,
     skipReason: skipReasons.size > 0 ? Array.from(skipReasons).join(', ') : undefined,
     state: finalResult.state || { findings: [] }
-  }, null, 2));
+  });
 
   if (isFail) {
     console.error(`❌ Code review returned FAIL — failing CI.`);
