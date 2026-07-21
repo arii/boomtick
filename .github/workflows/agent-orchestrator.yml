@@ -73,7 +73,6 @@ on:
   repository_dispatch:
     types: [audit, repair, dependabot]
   dependabot_alert:
-    types: [created]
 
 permissions:
   contents: write
