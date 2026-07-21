@@ -20,6 +20,9 @@ Releases are triggered by pushing specific Git tags:
 
 We use **Release Drafter** and **git-cliff** to automate our release notes and changelog updates.
 
+### Conventional Commits Requirement
+It is **critical** to use [Conventional Commits](https://www.conventionalcommits.org/) syntax (e.g., `fix: ...`, `feat: ...`, `refactor: ...`) for all commits. `release-please` strictly relies on this format to parse commits, evaluate changes, and bump versions appropriately. Commits starting with capitalized words (like `Refactor`, `Fix`, `Continue`) without conventional formatting will cause parsing errors, resulting in `release-please` skipping candidate PR generation for the affected components.
+
 ### Release Drafting
 Whenever a Pull Request is merged into `main`, **Release Drafter** automatically updates a draft release with the changes.
 - It categorizes changes based on PR labels (e.g., `feature`, `bug`, `documentation`).

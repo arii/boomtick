@@ -60,7 +60,7 @@ runs:
 
     - name: Setup Workspace for Quality Validation
       if: inputs.operation == 'validate-quality'
-      uses: ./.github/actions/setup-workspace
+      uses: ./.github/actions/setup-workspace # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
       with:
         setup-node: 'false'
 
@@ -143,7 +143,7 @@ runs:
     # --- AI REVIEW ---
     - name: AI Review
       if: inputs.operation == 'ai-review'
-      uses: ./mcp/actions/ai-review
+      uses: ./mcp/actions/ai-review # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
       with:
         pr_number: ${{ inputs.issue_number }}
       env:
@@ -154,7 +154,7 @@ runs:
     # --- RESOLVE CONFLICTS ---
     - name: Setup Workspace for Conflict Resolution
       if: inputs.operation == 'resolve-conflicts'
-      uses: ./.github/actions/setup-workspace
+      uses: ./.github/actions/setup-workspace # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
 
     - name: Find and Resolve Conflicts
       if: inputs.operation == 'resolve-conflicts'
@@ -180,7 +180,7 @@ runs:
     # --- UPDATE SNAPSHOTS ---
     - name: Setup Workspace for Snapshots Update
       if: inputs.operation == 'update-snapshots'
-      uses: ./.github/actions/setup-workspace
+      uses: ./.github/actions/setup-workspace # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
 
     - name: Install Snapshot Dependencies
       if: inputs.operation == 'update-snapshots'
@@ -190,7 +190,11 @@ runs:
     - name: Update Snapshots
       if: inputs.operation == 'update-snapshots'
       run: |
-        VITE_BASE_PATH=/ pnpm run test:e2e --update-snapshots
+        if node -e "const pkg = require('./package.json'); if (!pkg.scripts || !pkg.scripts['test:e2e']) process.exit(1)" 2>/dev/null; then
+          VITE_BASE_PATH=/ pnpm run test:e2e --update-snapshots
+        else
+          echo "⚠️ Skipping: test:e2e script not found in package.json"
+        fi
       shell: bash
 
     - name: Check for Snapshot Changes
