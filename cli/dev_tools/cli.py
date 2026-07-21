@@ -6,6 +6,7 @@ import subprocess
 import sys
 import tempfile
 import importlib.util
+import re
 from pathlib import Path
 from dataclasses import asdict
 from typing import Any, Dict, List
@@ -814,7 +815,6 @@ def audit_gate(ctx):
 @click.option("--dry-run/--execute", default=True)
 @click.pass_context
 def track_review(ctx, pr, status, auditor, dry_run):
-    import re
     # Validate untrusted user input status and auditor
     if not re.match(r"^[a-zA-Z0-9_\-\s]+$", status):
         err(ctx, "Invalid status format.")
@@ -824,8 +824,11 @@ def track_review(ctx, pr, status, auditor, dry_run):
         return
 
     orch = ctx.obj["ORCHESTRATOR"]
-    res = orch.track_review(pr, status, auditor, dry_run=dry_run)
-    out(ctx, f"✅ Updated tracking for PR #{pr}", data=res)
+    try:
+        res = orch.track_review(pr, status, auditor, dry_run=dry_run)
+        out(ctx, f"✅ Updated tracking for PR #{pr}", data=res)
+    except Exception as e:
+        err(ctx, f"Error updating tracking for PR #{pr}: {e}")
 
 
 @cli.command(name="schema")
@@ -836,7 +839,6 @@ def schema_cmd(ctx, command_path):
     # Sanitize and validate command_path to prevent injection
     # Allowed format: words separated by single spaces (no special shell characters)
     if command_path:
-        import re
 
         # Stricter regex: words containing only lowercase alphanumeric, hyphens, and underscores,
         # separated by single spaces. No leading/trailing spaces.
