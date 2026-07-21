@@ -84,3 +84,32 @@ export async function resolveGeminiModelAndBudget(
   const maxOutputTokens = forceMaxOutputTokens ?? estimateMaxOutputTokens(summary, systemPromptLength, thinkingBudget);
   return { modelName, thinkingBudget, maxOutputTokens };
 }
+
+import { parseVisualReviewFindings, parseLLMVerdict } from './visualReviewUtils';
+export function parseVisualReviewReturn(
+  summary: any,
+  feedback: string,
+  totalTokens: number,
+  inputTokens: number,
+  outputTokens: number,
+  cacheTokens: number,
+  cost: number,
+  modelName: string,
+  isTruncated: boolean
+) {
+  return {
+    route: summary.route,
+    severity: summary.severity,
+    differencePercent: summary.differencePercent,
+    feedback: feedback,
+    tokens: totalTokens,
+    inputTokens,
+    outputTokens,
+    cacheTokens,
+    cost: cost,
+    modelName: modelName,
+    llmVerdict: parseLLMVerdict(feedback),
+    findings: parseVisualReviewFindings(feedback),
+    truncated: isTruncated,
+  };
+}

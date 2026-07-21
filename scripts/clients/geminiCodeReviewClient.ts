@@ -15,9 +15,6 @@ import { buildSystemPrompt } from '../../lib/buildCodeReviewPrompt';
 import { pickGeminiModel, getGeminiPricing } from '../../lib/geminiModelPicker';
 import { extractFinishReason, createGeminiModel, applyRetryStrategy } from '../../lib/geminiUtils';
 import { invokeGeminiModelWithRetry } from '../../lib/geminiClientUtils';
-import { invokeGeminiModelWithRetry } from '../../lib/geminiClientUtils';
-import { invokeGeminiModelWithRetry } from '../../lib/geminiClientUtils';
-import { invokeGeminiModelWithRetry } from '../../lib/geminiClientUtils';
 
 import type { CodeReviewSummary, CodeReviewResult } from '../../lib/codeReviewTypes';
 import type { CodeReviewClientStrategy } from '../../lib/codeReviewOrchestrator';
@@ -35,46 +32,20 @@ export const geminiCodeReviewClient: CodeReviewClientStrategy = {
     // For code review, we prefer Flash if the diff is complex/large, otherwise Lite.
     const preferredTier = (estimatedInputTokens > 15000 || (summary.previousState?.findings.length ?? 0) > 5) ? 'flash' : 'lite';
 
-    const { modelName, thinkingBudget, maxOutputTokens } = await resolveGeminiModelAndBudget(preferredTier, estimatedInputTokens, forceMaxOutputTokens, summary, systemPrompt.length, estimateMaxOutputTokens);
+    const { modelName, thinkingBudget, maxOutputTokens } = await resolveGeminiModelAndBudget(
+      preferredTier,
+      estimatedInputTokens,
+      forceMaxOutputTokens,
+      summary,
+      systemPrompt.length,
+      estimateMaxOutputTokens
+    );
 
-        const {
-      finishReason,
-      usageMetadata,
-      inputTokens,
-      outputTokens,
-      totalTokens,
-      cacheTokens,
-      isTruncated,
-      cost,
-      feedback
-    } = await invokeGeminiModelWithRetry(modelName, maxOutputTokens, thinkingBudget, message);
+        const reviewPayload = await invokeGeminiModelWithRetry(modelName, maxOutputTokens, thinkingBudget, message);
+    const { finishReason, usageMetadata, inputTokens, outputTokens, totalTokens, cacheTokens, isTruncated, cost, feedback } = reviewPayload;
 
     if (isTruncated) {
-      console.error('Gemini truncation', {
-        finishReason,
-        usage: usageMetadata,
-      });
-      // Do not throw here, instead pass the error state gracefully
-      // so it can be handled by orchestrator without breaking the CI suite
-      return {
-
-        feedback: `Error: Gemini model was truncated during execution (finishReason=${finishReason}).`,
-        tokens: totalTokens,
-        cost: 0,
-        modelName,
-        llmVerdict: 'warn',
-        truncated: true,
-      };
-    }
-
-    return {
-        feedback: `Error: Gemini model was truncated during execution (finishReason=${finishReason}).`,
-        tokens: totalTokens,
-        cost: 0,
-        modelName,
-        llmVerdict: 'warn',
-        truncated: true,
-      };
+      return handleTruncation(false, finishReason, usageMetadata, summary, totalTokens, modelName);
     }
 
     const parsedState = parseCodeReviewStateDetailed(feedback);

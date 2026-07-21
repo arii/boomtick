@@ -2,11 +2,7 @@ import { buildVisualReviewPayload, parseLLMVerdict, parseVisualReviewFindings } 
 import { extractFeedbackText } from '../../lib/codeReviewUtils';
 import { pickGeminiModel, getGeminiPricing } from '../../lib/geminiModelPicker';
 import { extractFinishReason, createGeminiModel, applyRetryStrategy } from '../../lib/geminiUtils';
-import { invokeGeminiModelWithRetry } from '../../lib/geminiClientUtils';
-import { invokeGeminiModelWithRetry } from '../../lib/geminiClientUtils';
-import { invokeGeminiModelWithRetry } from '../../lib/geminiClientUtils';
-import { addPreviousFindingsToPayload, formatVisualResponse } from '../../lib/geminiClientUtils';
-import { invokeGeminiModelWithRetry } from '../../lib/geminiClientUtils';
+import { addPreviousFindingsToPayload, formatVisualResponse, invokeGeminiModelWithRetry, handleTruncation } from '../../lib/geminiClientUtils';
 import type { LLMClientStrategy, AgentRole } from '../../lib/visualReviewOrchestrator';
 
 import type { RouteReview, VisualRouteSummary } from '../../lib/visualReviewTypes';
@@ -37,69 +33,15 @@ export const geminiVisualReviewClient: LLMClientStrategy = {
 
     let maxOutputTokens = 4096;
     let thinkingBudget = 1024;
-        const {
-      finishReason,
-      usageMetadata,
-      inputTokens,
-      outputTokens,
-      totalTokens,
-      cacheTokens,
-      isTruncated,
-      cost,
-      feedback
-    } = await invokeGeminiModelWithRetry(modelName, maxOutputTokens, thinkingBudget, message);
+        const reviewPayload = await invokeGeminiModelWithRetry(modelName, maxOutputTokens, thinkingBudget, message);
+    const { finishReason, usageMetadata, inputTokens, outputTokens, totalTokens, cacheTokens, isTruncated, cost, feedback } = reviewPayload;
 
     if (isTruncated) {
-      console.error('Gemini truncation', {
-        finishReason,
-        usage: usageMetadata,
-      });
-      // Do not throw here, instead pass the error state gracefully
-      // so it can be handled by orchestrator without breaking the CI suite
-      return {
-        route: summary.route,
-        severity: summary.severity,
-        differencePercent: summary.differencePercent,
-        feedback: `Error: Gemini model was truncated during execution (finishReason=${finishReason}).`,
-        tokens: totalTokens,
-        cost: 0,
-        modelName,
-        llmVerdict: 'warn',
-        findings: [],
-        truncated: true,
-      };
-    }
-
-    return {
-        route: summary.route,
-        severity: summary.severity,
-        differencePercent: summary.differencePercent,
-        feedback: `Error: Gemini model was truncated during execution (finishReason=${finishReason}).`,
-        tokens: totalTokens,
-        cost: 0,
-        modelName,
-        llmVerdict: 'warn',
-        findings: [],
-        truncated: true,
-      };
+      return handleTruncation(true, finishReason, usageMetadata, summary, totalTokens, modelName);
     }
 
 
 
-    return {
-      route: summary.route,
-      severity: summary.severity,
-      differencePercent: summary.differencePercent,
-      feedback: feedback,
-      tokens: totalTokens,
-      inputTokens,
-      outputTokens,
-      cacheTokens,
-      cost: cost,
-      modelName: modelName,
-      llmVerdict: parseLLMVerdict(feedback),
-      findings: parseVisualReviewFindings(feedback),
-      truncated: isTruncated,
-    };
+    return parseVisualReviewReturn(summary, feedback, totalTokens, inputTokens, outputTokens, cacheTokens, cost, modelName, isTruncated);
   }
 };

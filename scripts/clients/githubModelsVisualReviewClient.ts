@@ -49,15 +49,7 @@ export const githubModelsVisualReviewClient: LLMClientStrategy = {
 
     addPreviousFindingsToPayload(summary, baseContent);
 
-          return line;
-        })
-        .join('\n');
 
-      baseContent.push({
-        type: 'text',
-        text: `PREVIOUS REVIEW ROUND FINDINGS FOR THIS ROUTE:\n${findingsStr}\n\nYour job:\n- Confirm THIS issue is resolved before raising anything new.\n- Only raise a NEW issue if it is unrelated to anything already addressed, or if the fix for a previous issue introduced a new problem.\n- Do not re-open a resolved issue under a different framing.`
-      });
-    }
 
     baseContent.push({
       type: 'text',
@@ -101,19 +93,6 @@ export const githubModelsVisualReviewClient: LLMClientStrategy = {
     const rawContent = firstChoice?.message?.content || '';
     const feedback = extractFeedbackText(rawContent);
 
-    return {
-      route: summary.route,
-      severity: summary.severity,
-      differencePercent: summary.differencePercent,
-      feedback: feedback,
-      tokens: totalTokens,
-      inputTokens,
-      outputTokens,
-      cacheTokens,
-      cost: cost,
-      modelName: modelName,
-      llmVerdict: parseLLMVerdict(feedback),
-      findings: parseVisualReviewFindings(feedback),
-    };
+    return parseVisualReviewReturn(summary, feedback, totalTokens, inputTokens, outputTokens, cacheTokens, cost, modelName, false);
   }
 };
