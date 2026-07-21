@@ -16,6 +16,15 @@ class TestLabels(unittest.TestCase):
         # Mock GitHubClient for Orchestrator tests
         self.orch = Orchestrator()
         self.orch._github = MagicMock(spec=GitHubClient)
+        dummy = {
+            "number": 123,
+            "title": "T",
+            "html_url": "U",
+            "state": "S",
+        }
+        self.orch.github.fetch_issue_details.return_value = dummy
+        self.orch.github.add_labels.return_value = dummy
+        self.orch.github.update_issue.return_value = dummy
 
     @patch("dev_tools.services.github.requests.Session.request")
     def test_github_client_update_issue_labels(self, mock_request):
@@ -47,34 +56,19 @@ class TestLabels(unittest.TestCase):
         self.assertEqual(call_args[0][0], "DELETE")
         self.assertIn("/issues/123/labels/ui%20bug", call_args[0][1])
 
-    def _setup_issue_mocks(self):
-        dummy = {
-            "number": 123,
-            "title": "T",
-            "html_url": "U",
-            "state": "S",
-        }
-        self.orch.github.fetch_issue_details.return_value = dummy
-        self.orch.github.add_labels.return_value = dummy
-        self.orch.github.update_issue.return_value = dummy
-
     def test_orchestrator_update_issue_add_labels(self):
-        self._setup_issue_mocks()
         self.orch.update_issue(123, add_labels=["new-label"])
         self.orch.github.add_labels.assert_called_once_with(123, ["new-label"])
 
     def test_orchestrator_update_issue_remove_labels(self):
-        self._setup_issue_mocks()
         self.orch.update_issue(123, remove_labels=["old-label"])
         self.orch.github.remove_label.assert_called_once_with(123, "old-label")
 
     def test_orchestrator_update_issue_full_labels(self):
-        self._setup_issue_mocks()
         self.orch.update_issue(123, labels=["l1", "l2"])
         self.orch.github.update_issue.assert_called_once_with(123, body=None, labels=["l1", "l2"], state=None)
 
     def test_orchestrator_update_issue_simultaneous_add_remove(self):
-        self._setup_issue_mocks()
         self.orch.update_issue(123, add_labels=["new"], remove_labels=["old"])
         self.orch.github.add_labels.assert_called_once_with(123, ["new"])
         self.orch.github.remove_label.assert_called_once_with(123, "old")
@@ -85,12 +79,6 @@ class TestLabels(unittest.TestCase):
         pass
 
     def test_orchestrator_update_issue_body_and_add_labels(self):
-        self.orch.github.update_issue.return_value = {
-            "number": 123,
-            "title": "T",
-            "html_url": "U",
-            "state": "S",
-        }
         self.orch.update_issue(123, body="new body", add_labels=["l1"])
         self.orch.github.add_labels.assert_called_once_with(123, ["l1"])
         self.orch.github.update_issue.assert_called_once_with(123, body="new body", state=None)

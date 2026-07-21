@@ -797,8 +797,14 @@ def manage_reviews(ctx, check_responses, cleanup_comments, dry_run, limit):
 @click.pass_context
 def audit_gate(ctx):
     orch = ctx.obj["ORCHESTRATOR"]
-    res = orch.handle_audit_gate()
-    _handle_gate(ctx, res, "UI Anti-Pattern Audit")
+    try:
+        res = orch.handle_audit_gate()
+        if not res or "status" not in res:
+            err(ctx, "Audit gate returned invalid or empty result.")
+            return
+        _handle_gate(ctx, res, "UI Anti-Pattern Audit")
+    except Exception as e:
+        err(ctx, f"Error processing audit gate: {e}")
 
 
 @gh.command()
@@ -808,6 +814,15 @@ def audit_gate(ctx):
 @click.option("--dry-run/--execute", default=True)
 @click.pass_context
 def track_review(ctx, pr, status, auditor, dry_run):
+    import re
+    # Validate untrusted user input status and auditor
+    if not re.match(r"^[a-zA-Z0-9_\-\s]+$", status):
+        err(ctx, "Invalid status format.")
+        return
+    if not re.match(r"^[a-zA-Z0-9_\-]+$", auditor):
+        err(ctx, "Invalid auditor format.")
+        return
+
     orch = ctx.obj["ORCHESTRATOR"]
     res = orch.track_review(pr, status, auditor, dry_run=dry_run)
     out(ctx, f"✅ Updated tracking for PR #{pr}", data=res)
