@@ -38,6 +38,11 @@ jobs:
     if: github.event_name == 'issues'
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout Code
+        uses: actions/checkout@v7 # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
+        with:
+          fetch-depth: 1
+
       - name: Generate Token
         id: generate_token
         uses: ./.github/actions/generate-token
@@ -45,12 +50,6 @@ jobs:
           app_id: ${{ env.APP_ID }}
           app_private_key: ${{ env.APP_PRIVATE_KEY }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Checkout Code
-        uses: actions/checkout@v7 # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
-        with:
-          fetch-depth: 1
-          token: ${{ steps.generate_token.outputs.token }}
 
       - name: Sanitize and Validate Inputs
         id: sanitize
@@ -82,6 +81,11 @@ jobs:
        github.event.issue.author_association == 'COLLABORATOR')
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v7 # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
+        with:
+          fetch-depth: 1
+
       - name: Generate Token
         id: generate_token
         uses: ./.github/actions/generate-token
@@ -89,12 +93,6 @@ jobs:
           app_id: ${{ env.APP_ID }}
           app_private_key: ${{ env.APP_PRIVATE_KEY }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Checkout code
-        uses: actions/checkout@v7 # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
-        with:
-          fetch-depth: 1
-          token: ${{ steps.generate_token.outputs.token }}
 
       - name: Sanitize and Validate Inputs
         id: sanitize
@@ -120,6 +118,11 @@ jobs:
     if: github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'ai-review'
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout Code
+        uses: actions/checkout@v7 # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
+        with:
+          fetch-depth: 1
+
       - name: Generate Token
         id: generate_token
         uses: ./.github/actions/generate-token
@@ -127,12 +130,6 @@ jobs:
           app_id: ${{ env.APP_ID }}
           app_private_key: ${{ env.APP_PRIVATE_KEY }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Checkout Code
-        uses: actions/checkout@v7 # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
-        with:
-          fetch-depth: 1
-          token: ${{ steps.generate_token.outputs.token }}
 
       - name: Sanitize and Validate Inputs
         id: sanitize
@@ -171,6 +168,11 @@ jobs:
     if: github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'resolve-conflicts'
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout Code
+        uses: actions/checkout@v7 # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
+        with:
+          fetch-depth: 0
+
       - name: Generate Token
         id: generate_token
         uses: ./.github/actions/generate-token
@@ -179,7 +181,7 @@ jobs:
           app_private_key: ${{ env.APP_PRIVATE_KEY }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Checkout Code
+      - name: Checkout Code with App Token
         uses: actions/checkout@v7 # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
         with:
           fetch-depth: 0
@@ -219,6 +221,11 @@ jobs:
     if: github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'update-snapshots'
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout Code
+        uses: actions/checkout@v7 # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
+        with:
+          fetch-depth: 1
+
       - name: Generate Token
         id: generate_token
         uses: ./.github/actions/generate-token
@@ -227,7 +234,7 @@ jobs:
           app_private_key: ${{ env.APP_PRIVATE_KEY }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Checkout Code
+      - name: Checkout Code with App Token
         uses: actions/checkout@v7 # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
         with:
           fetch-depth: 1
