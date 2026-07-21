@@ -3,25 +3,44 @@ from typing import Any, Dict, List
 
 
 class VectorStore:
+    # pylint: disable=too-many-instance-attributes
     def __init__(self, persist_directory: str = "artifacts/chroma_db", collection_name: str = "codebase"):
         self.persist_directory = persist_directory
         self.collection_name = collection_name
         self._client = None
         self._collection = None
         self._embedding_fn = None
+        self._chromadb_module = None
+        self._embedding_functions_module = None
+        self._init_attempted = False
+
+    def _lazy_init(self) -> bool:
+        if self._init_attempted:
+            return self._chromadb_module is not None
+
+        self._init_attempted = True
+        try:
+            import chromadb  # pylint: disable=import-error
+            from chromadb.utils import embedding_functions  # pylint: disable=import-error
+            import sentence_transformers  # pylint: disable=unused-import
+            self._chromadb_module = chromadb
+            self._embedding_functions_module = embedding_functions
+            return True
+        except ImportError:
+            return False
 
     @property
     def client(self):
-        if self._client is None and self.is_available():
-            import chromadb  # pylint: disable=import-error
-            self._client = chromadb.PersistentClient(path=self.persist_directory)
+        if self._client is None and self._lazy_init():
+            self._client = self._chromadb_module.PersistentClient(path=self.persist_directory)
         return self._client
 
     @property
     def embedding_fn(self):
-        if self._embedding_fn is None and self.is_available():
-            from chromadb.utils import embedding_functions  # pylint: disable=import-error
-            self._embedding_fn = embedding_functions.SentenceTransformerEmbeddingFunction(model_name="all-MiniLM-L6-v2")
+        if self._embedding_fn is None and self._lazy_init():
+            self._embedding_fn = self._embedding_functions_module.SentenceTransformerEmbeddingFunction(
+                model_name="all-MiniLM-L6-v2"
+            )
         return self._embedding_fn
 
     @property
@@ -37,14 +56,7 @@ class VectorStore:
 
     def is_available(self) -> bool:
         """Checks if ChromaDB and dependencies are available."""
-        try:
-            # pylint: disable=unused-import
-            import chromadb  # pylint: disable=import-error
-            # sentence_transformers is used for our SentenceTransformerEmbeddingFunction
-            import sentence_transformers
-            return True
-        except ImportError:
-            return False
+        return self._lazy_init()
 
     def add_documents(self, documents: List[str], metadatas: List[Dict[str, Any]], ids: List[str]):
         """Adds documents to the collection."""
