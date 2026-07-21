@@ -7,7 +7,7 @@ WORKDIR /app
 RUN npm install -g pnpm@10.28.2
 
 # Copy root workspace and MCP package files
-COPY pnpm-workspace.yaml pnpm-lock.yaml package.json .npmrc ./
+COPY pnpm-workspace.yaml pnpm-lock.yaml package.json .npmrc .node-version .nvmrc* ./
 COPY mcp/package.json ./mcp/
 COPY scripts/check-runtime-files.mjs ./scripts/
 
