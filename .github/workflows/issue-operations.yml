@@ -33,18 +33,31 @@ jobs:
     name: Validate Issue Quality
     if: github.event_name == 'issues'
     runs-on: ubuntu-latest
+    env:
+      APP_ID: ${{ secrets.APP_ID }}
+      APP_PRIVATE_KEY: ${{ secrets.APP_PRIVATE_KEY }}
     steps:
+      - name: Generate Token
+        id: generate_token
+        if: ${{ env.APP_ID != '' && env.APP_PRIVATE_KEY != '' }}
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ env.APP_ID }}
+          private-key: ${{ env.APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+
       - name: Checkout Code
         uses: actions/checkout@v7 # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
         with:
           fetch-depth: 1
+          token: ${{ steps.generate_token.outputs.token || secrets.GITHUB_TOKEN }}
 
       - name: Run Issue Operations - Validate Quality
         uses: ./.github/actions/issue-operations # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
         with:
           operation: 'validate-quality'
           issue_number: ${{ github.event.issue.number }}
-          github_token: ${{ secrets.GITHUB_TOKEN }}
+          github_token: ${{ steps.generate_token.outputs.token || secrets.GITHUB_TOKEN }}
 
   create-pr:
     name: Issue to Content PR
@@ -56,28 +69,54 @@ jobs:
        github.event.issue.author_association == 'MEMBER' ||
        github.event.issue.author_association == 'COLLABORATOR')
     runs-on: ubuntu-latest
+    env:
+      APP_ID: ${{ secrets.APP_ID }}
+      APP_PRIVATE_KEY: ${{ secrets.APP_PRIVATE_KEY }}
     steps:
+      - name: Generate Token
+        id: generate_token
+        if: ${{ env.APP_ID != '' && env.APP_PRIVATE_KEY != '' }}
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ env.APP_ID }}
+          private-key: ${{ env.APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+
       - name: Checkout code
         uses: actions/checkout@v7 # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
         with:
           fetch-depth: 1
+          token: ${{ steps.generate_token.outputs.token || secrets.GITHUB_TOKEN }}
 
       - name: Run Issue Operations - Create PR
         uses: ./.github/actions/issue-operations # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
         with:
           operation: 'create-pr'
           issue_number: ${{ github.event.issue.number }}
-          github_token: ${{ secrets.GITHUB_TOKEN }}
+          github_token: ${{ steps.generate_token.outputs.token || secrets.GITHUB_TOKEN }}
 
   ai-review:
     name: AI Review
     if: github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'ai-review'
     runs-on: ubuntu-latest
+    env:
+      APP_ID: ${{ secrets.APP_ID }}
+      APP_PRIVATE_KEY: ${{ secrets.APP_PRIVATE_KEY }}
     steps:
+      - name: Generate Token
+        id: generate_token
+        if: ${{ env.APP_ID != '' && env.APP_PRIVATE_KEY != '' }}
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ env.APP_ID }}
+          private-key: ${{ env.APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+
       - name: Checkout Code
         uses: actions/checkout@v7 # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
         with:
           fetch-depth: 1
+          token: ${{ steps.generate_token.outputs.token || secrets.GITHUB_TOKEN }}
 
       - name: Run Issue Operations - AI Review
         uses: ./.github/actions/issue-operations # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
@@ -85,7 +124,7 @@ jobs:
           operation: 'ai-review'
           issue_number: ${{ github.event.inputs.issue_number }}
           comment_body: ${{ github.event.inputs.comment_body }}
-          github_token: ${{ secrets.GITHUB_TOKEN }}
+          github_token: ${{ steps.generate_token.outputs.token || secrets.GITHUB_TOKEN }}
           gemini_api_key: ${{ secrets.GEMINI_API_KEY }}
           openai_api_key: ${{ secrets.OPENAI_API_KEY }}
           google_jules_api_key: ${{ secrets.GOOGLE_JULES_API_KEY }}
@@ -94,11 +133,24 @@ jobs:
     name: Resolve PR Conflicts
     if: github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'resolve-conflicts'
     runs-on: ubuntu-latest
+    env:
+      APP_ID: ${{ secrets.APP_ID }}
+      APP_PRIVATE_KEY: ${{ secrets.APP_PRIVATE_KEY }}
     steps:
+      - name: Generate Token
+        id: generate_token
+        if: ${{ env.APP_ID != '' && env.APP_PRIVATE_KEY != '' }}
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ env.APP_ID }}
+          private-key: ${{ env.APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+
       - name: Checkout Code
         uses: actions/checkout@v7 # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
         with:
           fetch-depth: 0
+          token: ${{ steps.generate_token.outputs.token || secrets.GITHUB_TOKEN }}
 
       - name: Run Issue Operations - Resolve Conflicts
         uses: ./.github/actions/issue-operations # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
@@ -106,17 +158,30 @@ jobs:
           operation: 'resolve-conflicts'
           issue_number: ${{ github.event.inputs.issue_number }}
           comment_body: ${{ github.event.inputs.comment_body }}
-          github_token: ${{ secrets.GITHUB_TOKEN }}
+          github_token: ${{ steps.generate_token.outputs.token || secrets.GITHUB_TOKEN }}
 
   update-snapshots:
     name: Update Playwright Snapshots
     if: github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'update-snapshots'
     runs-on: ubuntu-latest
+    env:
+      APP_ID: ${{ secrets.APP_ID }}
+      APP_PRIVATE_KEY: ${{ secrets.APP_PRIVATE_KEY }}
     steps:
+      - name: Generate Token
+        id: generate_token
+        if: ${{ env.APP_ID != '' && env.APP_PRIVATE_KEY != '' }}
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ env.APP_ID }}
+          private-key: ${{ env.APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+
       - name: Checkout Code
         uses: actions/checkout@v7 # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
         with:
           fetch-depth: 1
+          token: ${{ steps.generate_token.outputs.token || secrets.GITHUB_TOKEN }}
 
       - name: Run Issue Operations - Update Snapshots
         uses: ./.github/actions/issue-operations # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
@@ -124,4 +189,4 @@ jobs:
           operation: 'update-snapshots'
           issue_number: ${{ github.event.inputs.issue_number }}
           comment_body: ${{ github.event.inputs.comment_body }}
-          github_token: ${{ secrets.GITHUB_TOKEN }}
+          github_token: ${{ steps.generate_token.outputs.token || secrets.GITHUB_TOKEN }}
