@@ -40,7 +40,8 @@ export async function orchestrateVisualReview(
     console.warn('⚠️  Skipping agent review — missing visual summary. Run pnpm impact:visual-diff first.');
     await fs.promises.writeFile(agentReportPath, `## ${client.reportTitle}\n\nSkipped: Missing visual summary.\n`);
     const prevState = await getPreviousReviewState<VisualReviewState>(client.reportTitle);
-    await writeVerdictJson(path.join(ARTIFACTS_DIR, `${client.reportFileName.replace('.md', '')}-verdict.json`), {
+    const safeReportFileName = path.basename(client.reportFileName);
+    await writeVerdictJson(path.join(ARTIFACTS_DIR, `${safeReportFileName.replace('.md', '')}-verdict.json`), {
       passed: true,
       highCount: 0,
       routes: [],
@@ -88,7 +89,8 @@ export async function orchestrateVisualReview(
   if (routesToReview.length === 0) {
     console.log(`✅ No visual changes detected — skipping agent review.`);
     await fs.promises.writeFile(agentReportPath, `## ${client.reportTitle}\n\nNo visual changes detected.\n`);
-    await writeVerdictJson(path.join(ARTIFACTS_DIR, `${client.reportFileName.replace('.md', '')}-verdict.json`), { passed: true, highCount: 0, routes: [], llmVerdict: 'pass', state: { findings: [] } });
+    const safeReportFileName = path.basename(client.reportFileName);
+    await writeVerdictJson(path.join(ARTIFACTS_DIR, `${safeReportFileName.replace('.md', '')}-verdict.json`), { passed: true, highCount: 0, routes: [], llmVerdict: 'pass', state: { findings: [] } });
     return;
   }
 
@@ -171,7 +173,8 @@ export async function orchestrateVisualReview(
     await sendJulesMessage(julesSessionId, julesMessage);
   }
 
-  const verdictPath = path.join(ARTIFACTS_DIR, `${client.reportFileName.replace('.md', '')}-verdict.json`);
+  const safeReportFileName = path.basename(client.reportFileName);
+  const verdictPath = path.join(ARTIFACTS_DIR, `${safeReportFileName.replace('.md', '')}-verdict.json`);
   await writeVerdictJson(verdictPath, {
     passed: !hasBlockingIssues,
     highCount: reviews.filter(r => r.severity === 'HIGH').length,

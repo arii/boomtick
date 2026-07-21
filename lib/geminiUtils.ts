@@ -65,6 +65,11 @@ export async function invokeGeminiWithBudgetRetry(
   message: any,
   withRetryFunction: (fn: () => Promise<any>, options: any) => Promise<any>
 ) {
+  if (!modelName || typeof modelName !== 'string') throw new Error('Invalid modelName');
+  if (typeof maxOutputTokens !== 'number' || maxOutputTokens < 0) throw new Error('Invalid maxOutputTokens');
+  if (typeof thinkingBudget !== 'number' || thinkingBudget < 0) throw new Error('Invalid thinkingBudget');
+  if (!message || typeof message !== 'object') throw new Error('Invalid message payload');
+
   let model = createGeminiModel(modelName, maxOutputTokens, thinkingBudget);
   let response = await withRetryFunction(() => model.invoke([message]), { maxRetries: 3, initialDelayMs: 1000 });
 

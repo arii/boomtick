@@ -600,7 +600,8 @@ export async function orchestrateCodeReview(
   if (!initialSummary.diffContext) {
     console.log(`✅ No code changes detected — skipping agent review.`);
     await fs.promises.writeFile(agentReportPath, `## ${client.reportTitle}\n\nNo code changes detected.\n`);
-    await writeVerdictJson(path.join(ARTIFACTS_DIR, `${client.reportFileName.replace('.md', '')}-verdict.json`), { passed: true, highCount: 0, routes: [], llmVerdict: 'pass', state: { findings: [] } });
+    const safeReportFileName = path.basename(client.reportFileName);
+    await writeVerdictJson(path.join(ARTIFACTS_DIR, `${safeReportFileName.replace('.md', '')}-verdict.json`), { passed: true, highCount: 0, routes: [], llmVerdict: 'pass', state: { findings: [] } });
     return;
   }
 
@@ -614,7 +615,8 @@ export async function orchestrateCodeReview(
   if (changedFiles.length === 0) {
     console.log(`✅ No reviewable code changes detected after filtering (${rawChangedFiles.length} files filtered) — skipping agent review.`);
     await fs.promises.writeFile(agentReportPath, `## ${client.reportTitle}\n\nNo reviewable code changes detected.\n`);
-    await writeVerdictJson(path.join(ARTIFACTS_DIR, `${client.reportFileName.replace('.md', '')}-verdict.json`), {
+    const safeReportFileName = path.basename(client.reportFileName);
+    await writeVerdictJson(path.join(ARTIFACTS_DIR, `${safeReportFileName.replace('.md', '')}-verdict.json`), {
       passed: true,
       highCount: 0,
       routes: [],
@@ -632,7 +634,8 @@ export async function orchestrateCodeReview(
     await fs.promises.writeFile(agentReportPath, report);
     await postPRComment(report, client.reportTitle, prevState);
 
-    const verdictPath = path.join(ARTIFACTS_DIR, `${client.reportFileName.replace('.md', '')}-verdict.json`);
+    const safeReportFileName = path.basename(client.reportFileName);
+    const verdictPath = path.join(ARTIFACTS_DIR, `${safeReportFileName.replace('.md', '')}-verdict.json`);
     await writeVerdictJson(verdictPath, {
       passed: true,
       highCount: 0,
@@ -869,7 +872,8 @@ export async function orchestrateCodeReview(
   }
 
   const openHighFindings = finalResult.state?.findings?.filter(f => f.status === 'open' && (f.severity === 'HIGH' || f.severity === 'error')) || [];
-  const verdictPath = path.join(ARTIFACTS_DIR, `${client.reportFileName.replace('.md', '')}-verdict.json`);
+  const safeReportFileName = path.basename(client.reportFileName);
+  const verdictPath = path.join(ARTIFACTS_DIR, `${safeReportFileName.replace('.md', '')}-verdict.json`);
   await writeVerdictJson(verdictPath, {
     passed: !isFail,
     highCount: openHighFindings.length || (isFail ? 1 : 0),
