@@ -101,14 +101,27 @@ jobs:
           EXECUTION_MODE_INPUT: ${{ github.event.inputs.execution_mode || github.event.client_payload.execution_mode || 'remote-dispatch' }}
           PR_NUMBER_INPUT: ${{ github.event.inputs.pr_number || github.event.client_payload.pr_number }}
         run: |
-          if [[ ! "$AUDIT_TYPE_INPUT" =~ ^[a-zA-Z0-9-]+$ ]]; then
-            echo "Error: Invalid audit_type format."
-            exit 1
-          fi
-          if [[ ! "$EXECUTION_MODE_INPUT" =~ ^[a-zA-Z0-9-]+$ ]]; then
-            echo "Error: Invalid execution_mode format."
-            exit 1
-          fi
+          # Strictly validate choices to completely eliminate injection or path traversal risks
+          case "$AUDIT_TYPE_INPUT" in
+            "codebase-integrity-audit"|"issue-audit"|"review-ux"|"review-pr"|"review-all-prs")
+              echo "AUDIT_TYPE=$AUDIT_TYPE_INPUT" >> "$GITHUB_ENV"
+              ;;
+            *)
+              echo "Error: Invalid audit_type format or value: $AUDIT_TYPE_INPUT"
+              exit 1
+              ;;
+          esac
+
+          case "$EXECUTION_MODE_INPUT" in
+            "remote-dispatch"|"local-orchestrator")
+              echo "EXECUTION_MODE=$EXECUTION_MODE_INPUT" >> "$GITHUB_ENV"
+              ;;
+            *)
+              echo "Error: Invalid execution_mode format or value: $EXECUTION_MODE_INPUT"
+              exit 1
+              ;;
+          esac
+
           if [ -n "$PR_NUMBER_INPUT" ]; then
             if [[ ! "$PR_NUMBER_INPUT" =~ ^[0-9]+$ ]]; then
               echo "Error: Invalid pr_number: must be numeric."
@@ -116,8 +129,6 @@ jobs:
             fi
             echo "PR_NUMBER=$PR_NUMBER_INPUT" >> "$GITHUB_ENV"
           fi
-          echo "AUDIT_TYPE=$AUDIT_TYPE_INPUT" >> "$GITHUB_ENV"
-          echo "EXECUTION_MODE=$EXECUTION_MODE_INPUT" >> "$GITHUB_ENV"
         shell: bash
 
       - name: Resolve Audit Content
@@ -178,6 +189,18 @@ jobs:
         with:
           fetch-depth: 1
 
+      - name: Validate Inputs
+        env:
+          ISSUE_NUMBER_INPUT: ${{ github.event.inputs.issue_number || github.event.client_payload.issue_number }}
+        run: |
+          if [ -n "$ISSUE_NUMBER_INPUT" ]; then
+            if [[ ! "$ISSUE_NUMBER_INPUT" =~ ^[0-9]+$ ]]; then
+              echo "Error: Invalid issue_number format."
+              exit 1
+            fi
+          fi
+        shell: bash
+
       - name: Determine Mode
         id: determine_mode
         run: |
@@ -207,6 +230,38 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v7
+
+      - name: Validate Inputs
+        env:
+          INPUT_PACKAGE_NAME: ${{ github.event.inputs.package_name || github.event.client_payload.package_name || 'example-pkg' }}
+          INPUT_ECOSYSTEM: ${{ github.event.inputs.ecosystem || github.event.client_payload.ecosystem || 'npm' }}
+          INPUT_SEVERITY: ${{ github.event.inputs.severity || github.event.client_payload.severity || 'high' }}
+          INPUT_GHSA_ID: ${{ github.event.inputs.ghsa_id || github.event.client_payload.ghsa_id || 'GHSA-xxxx-xxxx-xxxx' }}
+          INPUT_PATCHED_VERSION: ${{ github.event.inputs.patched_version || github.event.client_payload.patched_version || '1.2.3' }}
+        run: |
+          if [[ ! "$INPUT_PACKAGE_NAME" =~ ^[a-zA-Z0-9_.-]+$ ]]; then
+            echo "Error: Invalid package_name format."
+            exit 1
+          fi
+          if [[ ! "$INPUT_ECOSYSTEM" =~ ^[a-zA-Z0-9_-]+$ ]]; then
+            echo "Error: Invalid ecosystem format."
+            exit 1
+          fi
+          if [[ ! "$INPUT_SEVERITY" =~ ^[a-zA-Z0-9_-]+$ ]]; then
+            echo "Error: Invalid severity format."
+            exit 1
+          fi
+          if [[ ! "$INPUT_GHSA_ID" =~ ^[a-zA-Z0-9-]+$ ]]; then
+            echo "Error: Invalid ghsa_id format."
+            exit 1
+          fi
+          if [ -n "$INPUT_PATCHED_VERSION" ] && [ "$INPUT_PATCHED_VERSION" != "null" ]; then
+            if [[ ! "$INPUT_PATCHED_VERSION" =~ ^[a-zA-Z0-9_.-]+$ ]]; then
+              echo "Error: Invalid patched_version format."
+              exit 1
+            fi
+          fi
+        shell: bash
 
       - name: Setup Workspace
         uses: ./mcp/actions/setup-workspace
