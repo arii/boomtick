@@ -1,4 +1,4 @@
-name: Agent Audit Dispatch
+name: "[DEPRECATED] Agent Audit Dispatch"
 
 on:
   workflow_dispatch:
@@ -40,6 +40,11 @@ jobs:
     name: Dispatch Audit Agent
     runs-on: ubuntu-latest
     steps:
+      - name: Deprecation Warning
+        run: |
+          echo "::warning::This workflow is deprecated. Please use agent-orchestrator.yml instead."
+        shell: bash
+
       - name: Checkout repository
         uses: actions/checkout@v7
 

@@ -1,4 +1,4 @@
-name: Dependabot Alert Handler
+name: "[DEPRECATED] Dependabot Alert Handler"
 
 on:
   workflow_dispatch:
@@ -32,6 +32,11 @@ jobs:
       contents: write
       pull-requests: write
     steps:
+      - name: Deprecation Warning
+        run: |
+          echo "::warning::This workflow is deprecated. Please use agent-orchestrator.yml instead."
+        shell: bash
+
       - name: Checkout
         uses: actions/checkout@v7 # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
 

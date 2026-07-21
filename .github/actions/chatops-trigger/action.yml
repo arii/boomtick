@@ -92,7 +92,7 @@ runs:
       run: |
         ERRORS=0
         OPS_WORKFLOW="issue-operations.yml"
-        CI_WORKFLOW="ci-repair.yml"
+        CI_WORKFLOW="agent-orchestrator.yml"
 
         if [[ "$CONFLICT_RESOLVE" == 'true' ]]; then
           if ! gh workflow run "$OPS_WORKFLOW" --ref "$HEAD_REF" -f action="resolve-conflicts" -f issue_number="$ISSUE_NUMBER" -f comment_body="$COMMENT_BODY"; then
@@ -116,8 +116,8 @@ runs:
         fi
 
         if [[ "$JULES_FIX_CI" == 'true' ]]; then
-          if ! gh workflow run "$CI_WORKFLOW" --ref "$BASE_REF" -f issue_number="$ISSUE_NUMBER" -f comment_body="$COMMENT_BODY"; then
-            echo "::error::Trigger failed for $CI_WORKFLOW jules-fix-ci on PR $ISSUE_NUMBER"
+          if ! gh workflow run "$CI_WORKFLOW" --ref "$BASE_REF" -f task_type="repair" -f issue_number="$ISSUE_NUMBER" -f comment_body="$COMMENT_BODY"; then
+            echo "::error::Trigger failed for $CI_WORKFLOW repair on PR $ISSUE_NUMBER"
             ERRORS=1
           fi
         fi

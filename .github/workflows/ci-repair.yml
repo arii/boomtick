@@ -1,4 +1,4 @@
-name: CI Repair
+name: "[DEPRECATED] CI Repair"
 
 on:
   workflow_run:
@@ -32,6 +32,11 @@ jobs:
     runs-on: ubuntu-latest
     if: github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'failure'
     steps:
+      - name: Deprecation Warning
+        run: |
+          echo "::warning::This workflow is deprecated. Please use agent-orchestrator.yml instead."
+        shell: bash
+
       - name: Checkout
         uses: actions/checkout@v7 # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
         with:
@@ -49,6 +54,11 @@ jobs:
     runs-on: ubuntu-latest
     if: github.event_name == 'workflow_dispatch' && github.event.inputs.issue_number
     steps:
+      - name: Deprecation Warning
+        run: |
+          echo "::warning::This workflow is deprecated. Please use agent-orchestrator.yml instead."
+        shell: bash
+
       - name: Checkout
         uses: actions/checkout@v7 # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
         with:

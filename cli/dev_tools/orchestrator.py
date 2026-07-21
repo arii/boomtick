@@ -2989,7 +2989,7 @@ Run the validation suite to ensure the aggregated branch is stable.
             submodule_name = ""
 
         # Workflows to copy
-        target_workflows = ["chatops-trigger.yml", "ci-repair.yml", "issue-operations.yml"]
+        target_workflows = ["chatops-trigger.yml", "ci-repair.yml", "issue-operations.yml", "agent-orchestrator.yml"]
         source_dir = os.path.join(submodule_path, ".github", "workflows")
         target_dir = os.path.join(parent_root, ".github", "workflows")
 
