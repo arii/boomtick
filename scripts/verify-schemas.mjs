@@ -32,6 +32,9 @@ async function verifySchemas() {
 
     if (hasTdCli) {
       const tdCliPath = existsSync('.venv/bin/td-cli') ? '.venv/bin/td-cli' : 'td-cli';
+      if (!/^[a-zA-Z0-9/._-]+$/.test(tdCliPath)) {
+        throw new Error("Invalid td-cli path detected.");
+      }
       execFileSync(tdCliPath, ['schema', '--generate'], {
         stdio: 'inherit',
         env: {

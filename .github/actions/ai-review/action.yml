@@ -22,5 +22,10 @@ runs:
     - name: AI review
       env:
         PR_NUMBER: ${{ inputs.pr_number }}
-      run: td-cli gh audit-pr "$PR_NUMBER" --fetch --audit
+      run: |
+        if [[ ! "$PR_NUMBER" =~ ^[0-9]+$ ]]; then
+          echo "::error::Invalid PR_NUMBER: must be numeric."
+          exit 1
+        fi
+        td-cli gh audit-pr "$PR_NUMBER" --fetch --audit
       shell: bash
