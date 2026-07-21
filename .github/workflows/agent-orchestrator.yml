@@ -101,11 +101,11 @@ jobs:
           EXECUTION_MODE_INPUT: ${{ github.event.inputs.execution_mode || github.event.client_payload.execution_mode || 'remote-dispatch' }}
           PR_NUMBER_INPUT: ${{ github.event.inputs.pr_number || github.event.client_payload.pr_number }}
         run: |
-          if [[ ! "$AUDIT_TYPE_INPUT" =~ ^[a-zA-Z0-9/._-]+$ ]]; then
+          if [[ ! "$AUDIT_TYPE_INPUT" =~ ^[a-zA-Z0-9-]+$ ]]; then
             echo "Error: Invalid audit_type format."
             exit 1
           fi
-          if [[ ! "$EXECUTION_MODE_INPUT" =~ ^[a-zA-Z0-9/._-]+$ ]]; then
+          if [[ ! "$EXECUTION_MODE_INPUT" =~ ^[a-zA-Z0-9-]+$ ]]; then
             echo "Error: Invalid execution_mode format."
             exit 1
           fi
