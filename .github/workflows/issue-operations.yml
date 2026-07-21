@@ -145,7 +145,14 @@ jobs:
             exit 1
           fi
           echo "issue_number=$ISSUE_NUM" >> "$GITHUB_OUTPUT"
-          echo "comment_body=$COMMENT" >> "$GITHUB_OUTPUT"
+
+          # Basic sanitization of the comment body
+          SANITIZED_COMMENT=$(echo "$COMMENT" | sed 's/[<>;&`|]//g')
+          {
+            echo "comment_body<<EOF"
+            echo "$SANITIZED_COMMENT"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
         shell: bash
 
       - name: Run Issue Operations - AI Review
@@ -189,7 +196,14 @@ jobs:
             exit 1
           fi
           echo "issue_number=$ISSUE_NUM" >> "$GITHUB_OUTPUT"
-          echo "comment_body=$COMMENT" >> "$GITHUB_OUTPUT"
+
+          # Basic sanitization of the comment body
+          SANITIZED_COMMENT=$(echo "$COMMENT" | sed 's/[<>;&`|]//g')
+          {
+            echo "comment_body<<EOF"
+            echo "$SANITIZED_COMMENT"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
         shell: bash
 
       - name: Run Issue Operations - Resolve Conflicts
@@ -230,7 +244,14 @@ jobs:
             exit 1
           fi
           echo "issue_number=$ISSUE_NUM" >> "$GITHUB_OUTPUT"
-          echo "comment_body=$COMMENT" >> "$GITHUB_OUTPUT"
+
+          # Basic sanitization of the comment body
+          SANITIZED_COMMENT=$(echo "$COMMENT" | sed 's/[<>;&`|]//g')
+          {
+            echo "comment_body<<EOF"
+            echo "$SANITIZED_COMMENT"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
         shell: bash
 
       - name: Run Issue Operations - Update Snapshots
