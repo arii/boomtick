@@ -13,6 +13,13 @@ on:
       - '.github/workflows/**'
   workflow_dispatch:
 
+concurrency:
+  # Safe concurrency group targeting the current branch.
+  # security-safe: This string is used solely as an internal GitHub identifier to queue/cancel runs.
+  # It is never evaluated or executed in a shell or command context, so there is zero risk of script/command injection.
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
   packages: read
