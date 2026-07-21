@@ -2,7 +2,7 @@ import { buildVisualReviewPayload, parseLLMVerdict, parseVisualReviewFindings } 
 import { extractFeedbackText } from '../../lib/codeReviewUtils';
 import { pickGeminiModel, getGeminiPricing } from '../../lib/geminiModelPicker';
 import { extractFinishReason, createGeminiModel, applyRetryStrategy } from '../../lib/geminiUtils';
-import { addPreviousFindingsToPayload, formatVisualResponse, invokeGeminiModelWithRetry, handleTruncation } from '../../lib/geminiClientUtils';
+import { addPreviousFindingsToPayload, formatVisualResponse, invokeGeminiModelWithRetry, handleTruncation, parseVisualReviewReturn } from '../../lib/geminiClientUtils';
 import type { LLMClientStrategy, AgentRole } from '../../lib/visualReviewOrchestrator';
 
 import type { RouteReview, VisualRouteSummary } from '../../lib/visualReviewTypes';
@@ -33,6 +33,17 @@ export const geminiVisualReviewClient: LLMClientStrategy = {
 
     let maxOutputTokens = 4096;
     let thinkingBudget = 1024;
+    const baseContent = buildVisualReviewPayload(summary);
+    baseContent.push({
+      type: 'text',
+      text: `YOUR SPECIFIC ROLE FOR THIS REVIEW: ${role}\n${ROLE_PROMPTS[role]}`
+    });
+    addPreviousFindingsToPayload(summary, baseContent);
+    baseContent.push({
+      type: 'text',
+      text: `You MUST also provide a structured JSON summary of the findings (both old and new) for this route at the end of your response, inside a <findings> tag:\n<findings>\n{\n  "verdict": "fail" | "pass" | "warn",\n  "findings": [ { "id": "V-001", "issue": "description", "status": "resolved" | "unresolved", "severity": "high" | "low" | "info" } ]\n}\n</findings>`
+    });
+
     const { HumanMessage } = await import('@langchain/core/messages');
     const message = new HumanMessage({ content: baseContent });
 
