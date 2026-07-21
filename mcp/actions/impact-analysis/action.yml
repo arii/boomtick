@@ -153,8 +153,9 @@ runs:
       env:
         VISUAL_DIFF_THRESHOLD: 1.5
       run: |
-        RESOLVED_PATH=$(realpath "${{ github.action_path }}/../../../scripts/check-visual-changes.ts")
-        if [[ -f "$RESOLVED_PATH" && "$RESOLVED_PATH" == *"/scripts/check-visual-changes.ts" ]]; then
+        SUBMODULE_ROOT=$(realpath "${{ github.action_path }}/../../../")
+        RESOLVED_PATH=$(realpath "$SUBMODULE_ROOT/scripts/check-visual-changes.ts")
+        if [[ -f "$RESOLVED_PATH" && "$RESOLVED_PATH" == "$SUBMODULE_ROOT/scripts/check-visual-changes.ts" ]]; then
           echo "Executing check-visual-changes.ts at: $RESOLVED_PATH"
           pnpm exec tsx "$RESOLVED_PATH" >> "$GITHUB_OUTPUT"
         else
@@ -309,8 +310,9 @@ runs:
         PR_NUMBER: ${{ inputs.pr_number }}
         GITHUB_REPOSITORY: ${{ github.repository }}
       run: |
-        RESOLVED_PATH=$(realpath "${{ github.action_path }}/../../../scripts/send-jules-impact.py")
-        if [[ -f "$RESOLVED_PATH" && "$RESOLVED_PATH" == *"/scripts/send-jules-impact.py" ]]; then
+        SUBMODULE_ROOT=$(realpath "${{ github.action_path }}/../../../")
+        RESOLVED_PATH=$(realpath "$SUBMODULE_ROOT/scripts/send-jules-impact.py")
+        if [[ -f "$RESOLVED_PATH" && "$RESOLVED_PATH" == "$SUBMODULE_ROOT/scripts/send-jules-impact.py" ]]; then
           echo "Executing send-jules-impact.py at: $RESOLVED_PATH"
           python3 "$RESOLVED_PATH"
         else
