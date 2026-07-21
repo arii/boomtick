@@ -22,7 +22,7 @@ runs:
   using: 'composite'
   steps:
     - name: Setup Workspace
-      uses: ../setup-workspace # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
+      uses: ./../setup-workspace # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
 
     - name: Pre-flight Validations
       id: validate
