@@ -144,7 +144,7 @@ async function captureRoute(
           };
         }, viewport.width);
 
-        await page.screenshot({ path: imagePath, fullPage: true });
+        await page.screenshot({ path: imagePath, fullPage: true, mask: [page.locator('[data-visual-mask]')] });
         fs.writeFileSync(htmlPath, await page.content());
         return metrics;
       } catch (err) {
