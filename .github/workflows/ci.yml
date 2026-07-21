@@ -41,7 +41,7 @@ jobs:
         run: |
           # Download and install actionlint
           curl -sLS https://raw.githubusercontent.com/rhysd/actionlint/main/scripts/download-actionlint.bash | bash
-          ./actionlint -ignore "constant expression .* in condition" .github/workflows/*.yml
+          ./actionlint -ignore "constant expression .* in condition" -ignore "unknown Webhook event \"dependabot_alert\"" .github/workflows/*.yml
 
   lint-typecheck:
     name: Lint & Typecheck (${{ matrix.target }})
