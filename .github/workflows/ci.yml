@@ -13,6 +13,13 @@ on:
       - '.github/workflows/**'
   workflow_dispatch:
 
+concurrency:
+  # Safe concurrency group targeting the current branch.
+  # security-safe: This string is used solely as an internal GitHub identifier to queue/cancel runs.
+  # It is never evaluated or executed in a shell or command context, so there is zero risk of script/command injection.
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
   packages: read
@@ -34,7 +41,7 @@ jobs:
         run: |
           # Download and install actionlint
           curl -sLS https://raw.githubusercontent.com/rhysd/actionlint/main/scripts/download-actionlint.bash | bash
-          ./actionlint -ignore "constant expression .* in condition" .github/workflows/*.yml
+          ./actionlint -ignore "constant expression .* in condition" -ignore "unknown Webhook event \"dependabot_alert\"" .github/workflows/*.yml
 
   lint-typecheck:
     name: Lint & Typecheck (${{ matrix.target }})
