@@ -1,11 +1,10 @@
 # pylint: disable=missing-docstring,protected-access,redefined-outer-name
-import json
 import os
 from unittest.mock import MagicMock, patch
 
 import pytest
 from dev_tools.services.ai_service import AIClient
-from dev_tools.models import AIFileReview, AISynthesisReview
+from dev_tools.models import AIFileReview
 
 
 @pytest.fixture
