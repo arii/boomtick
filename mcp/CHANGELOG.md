@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.4](https://github.com/arii/boomtick/compare/mcp-v0.3.3...mcp-v0.3.4) (2026-07-21)
+
+
+### Bug Fixes
+
+* **actions:** use proper relative paths for composite actions ([#272](https://github.com/arii/boomtick/issues/272)) ([bba0e52](https://github.com/arii/boomtick/commit/bba0e52d68510e1a9905dc9675b4f74d052a4a2b))
+
 ## [0.3.3](https://github.com/arii/boomtick/compare/mcp-v0.3.2...mcp-v0.3.3) (2026-07-20)
 
 

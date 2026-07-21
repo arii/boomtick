@@ -445,7 +445,7 @@ class AIClient:
         self._write_review_file(pr_num, pr, final, chunks, file_reviews)
         return final
 
-    def _process_piecemeal_review(
+    def _process_piecemeal_review(  # pylint: disable=too-many-arguments,too-many-positional-arguments
         self,
         reviewable: List[Dict],
         pr_num: Any,

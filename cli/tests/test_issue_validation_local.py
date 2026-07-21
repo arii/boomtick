@@ -18,12 +18,12 @@ def test_validate_content_basic(orchestrator):
     orchestrator.get_audit_results = MagicMock(return_value={"violations": {}, "config": {}})
 
     title = "Test Issue"
-    body = "Problem Statement\nGoal\nNon-Goals\nProposed Approach\nAlternatives Considered\nArchitectural Impact\nScope\nUNDERSTAND THE ISSUE\nDETERMINE APPROACH\nACCEPTANCE CRITERIA"
+    body = "Problem Statement\nGoal\nNon-Goals\nProposed Approach..."
 
     # We need to make sure _has_spec_section works for these headers.
     # In orchestrator.py, SPEC_SECTIONS are:
     # "Problem Statement", "Goal", "Non-Goals", "Proposed Approach", "Alternatives Considered",
-    # "Architectural Impact", "Scope", "UNDERSTAND THE ISSUE", "DETERMINE APPROACH", "SPECIFY SCOPE", "DEFINITION OF DONE"
+    # "Architectural Impact", "Scope", "UNDERSTAND THE ISSUE", "DETERMINE APPROACH", "SPECIFY SCOPE", ...
 
     # Let's use headers that definitely match
     body = """
@@ -71,7 +71,10 @@ def test_validate_content_missing_sections(orchestrator):
 def test_cli_validate_issue_file(tmp_path):
     runner = CliRunner()
     draft = tmp_path / "draft.md"
-    draft.write_text("# Problem Statement\n# Goal\n# Non-Goals\n# Proposed Approach\n# Alternatives Considered\n# Architectural Impact\n# Scope\n# UNDERSTAND THE ISSUE\n# DETERMINE APPROACH\n# SPECIFY SCOPE\n# DEFINITION OF DONE\nAcceptance Criteria")
+    draft.write_text("\n".join(["# Problem Statement", "# Goal", "# Non-Goals", "# Proposed Approach", \
+                                 "# Alternatives Considered", "# Architectural Impact", "# Scope", \
+                                 "# UNDERSTAND THE ISSUE", "# DETERMINE APPROACH", "# SPECIFY SCOPE", \
+                                 "# DEFINITION OF DONE", "Acceptance Criteria"]))
 
     with patch("dev_tools.cli.PROJECT_CONFIG"), \
          patch("dev_tools.orchestrator.GitHubClient"):

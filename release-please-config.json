@@ -15,5 +15,6 @@
       "release-type": "node",
       "component": "action"
     }
-  }
+  },
+  "pull-request-title-pattern": "chore${scope}: release ${component} ${version}"
 }

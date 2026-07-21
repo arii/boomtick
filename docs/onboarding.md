@@ -247,7 +247,7 @@ To maintain a clean history and prevent breaking changes between host repositori
 - **No Direct Push to Main**: All development must occur on separate branch names. Directly committing to the `main` branch is blocked.
 - **Squash & Rebase Merges**: To preserve a linear history, Pull Requests must be merged using either Squash or Rebase merge strategies.
 - **Approvals & Reviews**: Merging a Pull Request requires at least one review approval.
-- **Conventional Commits**: Every commit message must adhere to the Conventional Commits specification (e.g., `feat:`, `fix:`, `docs:`, `chore:`).
+- **Conventional Commits**: Every commit message must strictly adhere to the [Conventional Commits](https://www.conventionalcommits.org/) specification (e.g., `feat:`, `fix:`, `docs:`, `chore:`). This is required because our automated release system (`release-please`) relies on this format to parse changes and bump versions. Non-compliant commits will break automated release PR generation.
 
 #### Coordinating Submodule Changes
 When a feature requires changes across both the `boomtick` submodule and its consuming parent (superproject) repository, follow this workflow to prevent broken dependencies and build failures:

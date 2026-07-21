@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.6.1](https://github.com/arii/boomtick/compare/cli-v0.6.0...cli-v0.6.1) (2026-07-21)
+
+
+### Bug Fixes
+
+* resolve python lint and type check errors ([#275](https://github.com/arii/boomtick/issues/275)) ([09abb29](https://github.com/arii/boomtick/commit/09abb29d156301396ffa06148800b5bb6c6ed510))
+
 ## [0.6.0](https://github.com/arii/boomtick/compare/cli-v0.5.1...cli-v0.6.0) (2026-07-20)
 
 
