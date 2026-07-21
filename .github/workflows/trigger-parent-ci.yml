@@ -1,6 +1,8 @@
 name: Trigger Parent CI
 
 on:
+  push:
+    branches: [ "main" ]
   pull_request:
     branches: [ "main" ]
   workflow_dispatch:
@@ -65,6 +67,11 @@ jobs:
             echo "::warning::GitHub App Token could not be generated. Cannot trigger downstream CI."
             echo "triggered=false" >> "$GITHUB_OUTPUT"
             exit 0
+          fi
+
+          if [[ ! "$BRANCH_NAME" =~ ^[a-zA-Z0-9/._-]+$ ]]; then
+            echo "::error::Invalid branch name for security validation: $BRANCH_NAME"
+            exit 1
           fi
 
           echo "Triggering tech-dancer update-submodule workflow with boomtick branch: $BRANCH_NAME"
