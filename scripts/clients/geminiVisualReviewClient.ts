@@ -33,7 +33,10 @@ export const geminiVisualReviewClient: LLMClientStrategy = {
 
     let maxOutputTokens = 4096;
     let thinkingBudget = 1024;
-        const reviewPayload = await invokeGeminiModelWithRetry(modelName, maxOutputTokens, thinkingBudget, message);
+    const { HumanMessage } = await import('@langchain/core/messages');
+    const message = new HumanMessage({ content: baseContent });
+
+    const reviewPayload = await invokeGeminiModelWithRetry(modelName, maxOutputTokens, thinkingBudget, message);
     const { finishReason, usageMetadata, inputTokens, outputTokens, totalTokens, cacheTokens, isTruncated, cost, feedback } = reviewPayload;
 
     if (isTruncated) {

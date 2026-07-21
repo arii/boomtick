@@ -41,7 +41,11 @@ export const geminiCodeReviewClient: CodeReviewClientStrategy = {
       estimateMaxOutputTokens
     );
 
-        const reviewPayload = await invokeGeminiModelWithRetry(modelName, maxOutputTokens, thinkingBudget, message);
+    const baseContent = buildReviewPayload(systemPrompt, diffText, externalText).map(msg => msg.content).join('\n\n');
+    const { HumanMessage } = await import('@langchain/core/messages');
+    const message = new HumanMessage({ content: baseContent });
+
+    const reviewPayload = await invokeGeminiModelWithRetry(modelName, maxOutputTokens, thinkingBudget, message);
     const { finishReason, usageMetadata, inputTokens, outputTokens, totalTokens, cacheTokens, isTruncated, cost, feedback } = reviewPayload;
 
     if (isTruncated) {
