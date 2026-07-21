@@ -13,7 +13,7 @@ def test_install_workflows_standalone():
         os.makedirs(source_dir, exist_ok=True)
 
         # Write dummy workflow files
-        for name in ["chatops-trigger.yml", "ci-repair.yml", "issue-operations.yml", "agent-orchestrator.yml"]:
+        for name in ["chatops-trigger.yml", "issue-operations.yml", "agent-orchestrator.yml"]:
             with open(os.path.join(source_dir, name), "w", encoding="utf-8") as f:
                 f.write("uses: ./mcp/actions/setup\nuses: ./.github/actions/setup-all\n$GITHUB_WORKSPACE/cli\n")
 
@@ -31,7 +31,7 @@ def test_install_workflows_standalone():
 
             assert res["status"] == "success"
             assert res["submodule_name"] == ""
-            assert len(res["copied_files"]) == 4
+            assert len(res["copied_files"]) == 3
 
             # Verify no rewrite happened for standalone
             for dest_file in res["copied_files"]:
@@ -52,7 +52,7 @@ def test_install_workflows_submodule():
         os.makedirs(source_dir, exist_ok=True)
 
         # Write dummy workflow files
-        for name in ["chatops-trigger.yml", "ci-repair.yml", "issue-operations.yml", "agent-orchestrator.yml"]:
+        for name in ["chatops-trigger.yml", "issue-operations.yml", "agent-orchestrator.yml"]:
             with open(os.path.join(source_dir, name), "w", encoding="utf-8") as f:
                 f.write("uses: ./mcp/actions/setup\nuses: ./.github/actions/setup-all\n$GITHUB_WORKSPACE/cli\n")
 
@@ -70,7 +70,7 @@ def test_install_workflows_submodule():
 
             assert res["status"] == "success"
             assert res["submodule_name"] == "boomtick-pkg"
-            assert len(res["copied_files"]) == 4
+            assert len(res["copied_files"]) == 3
 
             # Verify paths were correctly rewritten
             for dest_file in res["copied_files"]:
