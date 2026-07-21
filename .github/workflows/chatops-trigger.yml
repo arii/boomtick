@@ -23,7 +23,7 @@ jobs:
       - name: BoomTick ChatOps Dispatcher
         uses: ./.github/actions/chatops-trigger
         with:
-          comment_body: ${{ github.event.comment.body }}
-          author_association: ${{ github.event.comment.author_association }}
-          issue_number: ${{ github.event.issue.number }}
-          github_token: ${{ secrets.GITHUB_TOKEN }}
+          comment_body: '${{ github.event.comment.body }}'
+          author_association: '${{ github.event.comment.author_association }}'
+          issue_number: '${{ github.event.issue.number }}'
+          github_token: '${{ secrets.GITHUB_TOKEN }}'
