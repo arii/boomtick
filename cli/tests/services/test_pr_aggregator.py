@@ -1,4 +1,4 @@
-# pylint: disable=missing-docstring,protected-access,redefined-outer-name
+# pylint: disable=missing-docstring,protected-access,redefined-outer-name,cyclic-import
 import os
 from unittest.mock import MagicMock, patch
 
