@@ -1,0 +1,11 @@
+Refactor duplicate code and setup actions for codebase integrity
+
+- Centralized Gemini token retry logic into `invokeGeminiWithBudgetRetry` in `lib/geminiUtils.ts`.
+- Refactored `writeVerdictJson` into `lib/sharedUtils.ts` to reduce boilerplate across orchestrators.
+- Consolidated duplicate `setup-workspace` actions by removing the redundant copy in `mcp/` and updating references.
+- Added `integrity-audit-status.md` to track the verified clean state of these files.
+- Addressed code review feedback to remove unused imports `extractFinishReason`, `createGeminiModel`, and `applyRetryStrategy` from `scripts/clients/geminiCodeReviewClient.ts` and `scripts/clients/geminiVisualReviewClient.ts`.
+- Replaced `fs.writeFileSync` in `scripts/utils/verdict.ts` with `writeVerdictJson`.
+- Addressed additional reviewer feedback by migrating `writeVerdictJson` to `async` returning promises with `fs.promises.writeFile`.
+- Addressed final security reviewer feedback by adding validation inside `invokeGeminiWithBudgetRetry` and using `path.basename` to prevent path traversal when writing JSON verdicts.
+- Fixed `invokeGeminiWithBudgetRetry` parameter typing and removed untrusted callback references to resolve remaining security warnings.
