@@ -49,7 +49,7 @@ runs:
       shell: bash
 
     - name: Setup Workspace
-      uses: ${{ github.action_path }}/../setup-workspace # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
+      uses: ../setup-workspace # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
       with:
         setup-node: 'false'
 
