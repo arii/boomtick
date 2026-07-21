@@ -33,7 +33,9 @@ jobs:
       - name: Check workflow files with actionlint
         run: |
           # Download and install actionlint
-          curl -sLS https://raw.githubusercontent.com/rhysd/actionlint/main/scripts/download-actionlint.bash | bash
+          wget -qO- https://raw.githubusercontent.com/rhysd/actionlint/main/scripts/download-actionlint.bash > download-actionlint.sh
+          /bin/bash download-actionlint.sh
+          rm download-actionlint.sh
           ./actionlint -ignore "constant expression .* in condition" .github/workflows/*.yml
 
   lint-typecheck:
