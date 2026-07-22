@@ -48,6 +48,11 @@ runs:
           echo "::error::Invalid issue_number: must be numeric."
           exit 1
         fi
+        # security-safe: basic sanitization for COMMENT_BODY to avoid command injection
+        if [[ ! "$COMMENT_BODY" =~ ^[a-zA-Z0-9\ \.\,\!\?\-\_\/\@]+$ ]]; then
+          echo "::error::Invalid characters detected in comment_body."
+          exit 1
+        fi
       shell: bash
 
     - name: Check commands
