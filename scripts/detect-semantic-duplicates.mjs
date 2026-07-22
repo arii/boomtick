@@ -610,17 +610,23 @@ function repeatedSubtreePatterns(components) {
     .sort((left, right) => right.owners.length - left.owners.length || right.occurrences - left.occurrences);
 }
 
+function _formatComponentGroupList(title, members) {
+  return [
+    title,
+    '',
+    ...members.map((member) => `- ${member.file}#${member.name}`),
+    '',
+  ].join('\n');
+}
+
 function renderRoleGroups(groups) {
   if (groups.length === 0) {
     return 'No semantic role groups were detected.';
   }
 
-  return groups.map((group) => [
-    `### ${group.role} components (${group.members.length})`,
-    '',
-    ...group.members.map((member) => `- ${member.file}#${member.name}`),
-    '',
-  ].join('\n')).join('\n');
+  return groups.map((group) =>
+    _formatComponentGroupList(`### ${group.role} components (${group.members.length})`, group.members)
+  ).join('\n');
 }
 
 function renderExactStructureGroups(groups) {
@@ -628,12 +634,9 @@ function renderExactStructureGroups(groups) {
     return 'No exact structural groups were detected.';
   }
 
-  return groups.slice(0, 40).map((group) => [
-    `### ${group.members.length} components with \`${group.signature}\``,
-    '',
-    ...group.members.map((member) => `- ${member.file}#${member.name}`),
-    '',
-  ].join('\n')).join('\n');
+  return groups.slice(0, 40).map((group) =>
+    _formatComponentGroupList(`### ${group.members.length} components with \`${group.signature}\``, group.members)
+  ).join('\n');
 }
 
 function renderSubtreePatterns(patterns) {
