@@ -390,7 +390,11 @@ run_validation() {
       log "Generating CLI schemas and contracts..."
       (
         export PYTHONPATH="$CLI_ROOT:${PYTHONPATH:-}"
-        python3 "$CLI_ROOT/dev_tools/schema_gen.py"
+        if command -v td-cli >/dev/null 2>&1; then
+          td-cli schema --generate
+        else
+          python3 "$CLI_ROOT/dev_tools/schema_gen.py"
+        fi
         pnpm --filter @arii/boomtick-mcp run sync-contracts
       ) || warn "Failed to generate schemas/contracts."
     fi

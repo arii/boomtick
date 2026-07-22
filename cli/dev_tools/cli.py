@@ -6,6 +6,7 @@ import subprocess
 import sys
 import tempfile
 import importlib.util
+import re
 from pathlib import Path
 from dataclasses import asdict
 from typing import Any, Dict, List
@@ -797,12 +798,14 @@ def manage_reviews(ctx, check_responses, cleanup_comments, dry_run, limit):
 @click.pass_context
 def audit_gate(ctx):
     orch = ctx.obj["ORCHESTRATOR"]
-    res = orch.handle_audit_gate()
-    msg = f"UI Anti-Pattern Audit: Current={res['current']}, Baseline={res['baseline']}"
-    if res["status"] == "error":
-        err(ctx, msg, data=res)
-    else:
-        out(ctx, msg, data=res)
+    try:
+        res = orch.handle_audit_gate()
+        if not res or "status" not in res:
+            err(ctx, "Audit gate returned invalid or empty result.")
+            return
+        _handle_gate(ctx, res, "UI Anti-Pattern Audit")
+    except Exception as e:
+        err(ctx, f"Error processing audit gate: {e}")
 
 
 @gh.command()
@@ -812,20 +815,37 @@ def audit_gate(ctx):
 @click.option("--dry-run/--execute", default=True)
 @click.pass_context
 def track_review(ctx, pr, status, auditor, dry_run):
+    # Validate untrusted user input status and auditor
+    if not re.match(r"^[a-zA-Z0-9_\-\s]+$", status):
+        err(ctx, "Invalid status format.")
+        return
+    if not re.match(r"^[a-zA-Z0-9_\-]+$", auditor):
+        err(ctx, "Invalid auditor format.")
+        return
+
     orch = ctx.obj["ORCHESTRATOR"]
-    res = orch.track_review(pr, status, auditor, dry_run=dry_run)
-    out(ctx, f"✅ Updated tracking for PR #{pr}", data=res)
+    try:
+        res = orch.track_review(pr, status, auditor, dry_run=dry_run)
+        out(ctx, f"✅ Updated tracking for PR #{pr}", data=res)
+    except Exception as e:
+        err(ctx, f"Error updating tracking for PR #{pr}: {e}")
 
 
 @cli.command(name="schema")
 @click.argument("command_path", required=False)
+@click.option("--generate", is_flag=True, help="Generate CLI schema from Python models")
 @click.pass_context
-def schema_cmd(ctx, command_path):
+def schema_cmd(ctx, command_path, generate):
     """Retrieve the schema for a specific subcommand or all commands."""
+    if generate:
+        from dev_tools.schema_gen import generate_schema
+        generate_schema()
+        out(ctx, "✅ Schema generation complete")
+        return
+
     # Sanitize and validate command_path to prevent injection
     # Allowed format: words separated by single spaces (no special shell characters)
     if command_path:
-        import re
 
         # Stricter regex: words containing only lowercase alphanumeric, hyphens, and underscores,
         # separated by single spaces. No leading/trailing spaces.
