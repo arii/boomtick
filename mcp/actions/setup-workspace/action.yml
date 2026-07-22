@@ -38,7 +38,7 @@ runs:
         fi
       shell: bash
 
-    - uses: ./.github/actions/setup-workspace
+    - uses: ../../.github/actions/setup-workspace
       with:
         setup-node: ${{ inputs.setup-node }}
         setup-python: ${{ inputs.setup-python }}
