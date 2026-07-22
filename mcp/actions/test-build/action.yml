@@ -28,7 +28,7 @@ runs:
         GITHUB_TOKEN: ${{ inputs.github_token }}
       run: |
         export PATH="$HOME/.local/bin:/github/home/.local/bin:$PATH"
-        python3 -m dev_tools.cli gh bundle-size
+        td-cli gh bundle-size
       shell: bash
 
     - name: Run Playwright Smoke Test

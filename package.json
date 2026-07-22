@@ -18,7 +18,7 @@
     "test": "pnpm --filter @arii/boomtick-mcp run test",
     "verify:schemas": "node scripts/verify-schemas.mjs",
     "check:runtime-files": "node scripts/check-runtime-files.mjs",
-    "doctor": "node scripts/check-runtime-files.mjs",
+    "doctor": "td-cli doctor",
     "preinstall": "node scripts/check-runtime-files.mjs",
     "sync-python-deps": "python3 scripts/sync-python-deps.py",
     "impact:analysis": "tsx scripts/impact-analysis.ts",

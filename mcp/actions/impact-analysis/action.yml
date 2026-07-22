@@ -18,6 +18,16 @@ runs:
   steps:
     - uses: ./mcp/actions/setup
 
+    - name: Validate PR Number
+      env:
+        PR_NUMBER: ${{ inputs.pr_number }}
+      run: |
+        if [[ ! "$PR_NUMBER" =~ ^[0-9]+$ ]]; then
+          echo "::error::Invalid PR_NUMBER: must be numeric."
+          exit 1
+        fi
+      shell: bash
+
     - run: pnpm install --frozen-lockfile --prefer-offline
       shell: bash
 
@@ -327,8 +337,8 @@ runs:
         fi
 
         mkdir -p .boomtick/logs/ai
-        python3 -m dev_tools.cli gh summary-report >> "$GITHUB_STEP_SUMMARY"
-        if ! python3 -m dev_tools.cli gh verify-metrics; then
+        td-cli gh summary-report >> "$GITHUB_STEP_SUMMARY"
+        if ! td-cli gh verify-metrics; then
           echo "CI Metrics verification failed."
           exit 1
         fi
