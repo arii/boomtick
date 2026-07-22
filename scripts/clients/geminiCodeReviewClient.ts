@@ -6,14 +6,14 @@ import {
   buildReviewPayload,
   calculateEstimatedTokens,
   extractFeedbackText
-} from '../codeReviewUtils';
+} from '../../lib/codeReviewUtils';
 
-import { buildSystemPrompt } from '../buildCodeReviewPrompt';
-import { pickGeminiModel, getGeminiPricing } from '../geminiModelPicker';
-import { invokeGeminiWithBudgetRetry, createGeminiModel } from '../geminiUtils';
+import { buildSystemPrompt } from '../../lib/buildCodeReviewPrompt';
+import { pickGeminiModel, getGeminiPricing } from '../../lib/geminiModelPicker';
+import { invokeGeminiWithBudgetRetry, createGeminiModel } from '../../lib/geminiUtils';
 
-import type { CodeReviewSummary, CodeReviewResult } from '../codeReviewTypes';
-import type { CodeReviewClientStrategy } from '../codeReviewOrchestrator';
+import type { CodeReviewSummary, CodeReviewResult } from '../../lib/codeReviewTypes';
+import type { CodeReviewClientStrategy } from '../../lib/codeReviewOrchestrator';
 
 export const geminiCodeReviewClient: CodeReviewClientStrategy = {
   botName: 'gemini-code-review',

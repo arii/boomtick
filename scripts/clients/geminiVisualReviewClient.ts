@@ -1,10 +1,10 @@
-import { buildVisualReviewPayload, parseLLMVerdict, parseVisualReviewFindings } from '../visualReviewUtils';
-import { extractFeedbackText } from '../codeReviewUtils';
-import { pickGeminiModel, getGeminiPricing } from '../geminiModelPicker';
-import { invokeGeminiWithBudgetRetry, createGeminiModel } from '../geminiUtils';
-import type { LLMClientStrategy, AgentRole } from '../visualReviewOrchestrator';
+import { buildVisualReviewPayload, parseLLMVerdict, parseVisualReviewFindings } from '../../lib/visualReviewUtils';
+import { extractFeedbackText } from '../../lib/codeReviewUtils';
+import { pickGeminiModel, getGeminiPricing } from '../../lib/geminiModelPicker';
+import { invokeGeminiWithBudgetRetry, createGeminiModel } from '../../lib/geminiUtils';
+import type { LLMClientStrategy, AgentRole } from '../../lib/visualReviewOrchestrator';
 
-import type { RouteReview, VisualRouteSummary } from '../visualReviewTypes';
+import type { RouteReview, VisualRouteSummary } from '../../lib/visualReviewTypes';
 
 const ROLE_PROMPTS: Record<AgentRole, string> = {
   CODE_REVIEW: "You are a Senior Software Engineer. Focus on the impact of code changes on the rendered output. Verify that the DOM diff aligns with the visual changes.",
