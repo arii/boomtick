@@ -4,19 +4,19 @@ inputs:
   comment_body:
     description: 'The body of the comment'
     required: true
-    default: ${{ github.event.comment.body }}
+    default: '${{ github.event.comment.body }}'
   author_association:
     description: 'The author association of the comment creator'
     required: true
-    default: ${{ github.event.comment.author_association }}
+    default: '${{ github.event.comment.author_association }}'
   issue_number:
     description: 'The issue or PR number'
     required: true
-    default: ${{ github.event.issue.number }}
+    default: '${{ github.event.issue.number }}'
   github_token:
     description: 'The GitHub token'
     required: true
-    default: ${{ github.token }}
+    default: '${{ github.token }}'
 
 runs:
   using: 'composite'
@@ -54,8 +54,9 @@ runs:
       id: check
       env:
         AUTHOR_ASSOC: ${{ inputs.author_association }}
+        COMMENT_BODY: ${{ inputs.comment_body }}
       run: |
-        RESULT=$(td-cli gh parse-comment --author-association "$AUTHOR_ASSOC")
+        RESULT=$(td-cli gh parse-comment --author-association "$AUTHOR_ASSOC" --body "$COMMENT_BODY")
         {
           echo "conflict_resolve=$(echo "$RESULT" | jq -r '.actions.conflict_resolve')"
           echo "update_snapshots=$(echo "$RESULT" | jq -r '.actions.update_snapshots')"
