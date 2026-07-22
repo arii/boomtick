@@ -1,6 +1,7 @@
 name: 'Setup Workspace (Legacy Wrapper)'
 description: 'Bootstraps the workspace (Wrapper for backward compatibility)'
 inputs:
+  # security-safe: These inputs are passed directly to the centralized action which handles validation.
   setup-node:
     description: "Install Node.js and pnpm"
     required: false
