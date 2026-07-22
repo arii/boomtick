@@ -1,10 +1,10 @@
-import { buildVisualReviewPayload, parseLLMVerdict, parseVisualReviewFindings } from '../../lib/visualReviewUtils';
-import { extractFeedbackText } from '../../lib/codeReviewUtils';
-import { pickGeminiModel, getGeminiPricing } from '../../lib/geminiModelPicker';
-import { extractFinishReason, createGeminiModel, applyRetryStrategy } from '../../lib/geminiUtils';
-import type { LLMClientStrategy, AgentRole } from '../../lib/visualReviewOrchestrator';
+import { buildVisualReviewPayload, parseLLMVerdict, parseVisualReviewFindings } from '../visualReviewUtils';
+import { extractFeedbackText } from '../codeReviewUtils';
+import { pickGeminiModel, getGeminiPricing } from '../geminiModelPicker';
+import { invokeGeminiWithBudgetRetry, createGeminiModel } from '../geminiUtils';
+import type { LLMClientStrategy, AgentRole } from '../visualReviewOrchestrator';
 
-import type { RouteReview, VisualRouteSummary } from '../../lib/visualReviewTypes';
+import type { RouteReview, VisualRouteSummary } from '../visualReviewTypes';
 
 const ROLE_PROMPTS: Record<AgentRole, string> = {
   CODE_REVIEW: "You are a Senior Software Engineer. Focus on the impact of code changes on the rendered output. Verify that the DOM diff aligns with the visual changes.",
@@ -32,7 +32,6 @@ export const geminiVisualReviewClient: LLMClientStrategy = {
 
     let maxOutputTokens = 4096;
     let thinkingBudget = 1024;
-    let model = createGeminiModel(modelName, maxOutputTokens, thinkingBudget);
     const baseContent = buildVisualReviewPayload(summary);
 
     baseContent.push({
@@ -83,24 +82,13 @@ Your job:
 
     const { HumanMessage } = await import('@langchain/core/messages');
     const message = new HumanMessage({ content: baseContent });
-    let response = await model.invoke([message]);
 
-    let finishReason = extractFinishReason(response);
-
-    if (finishReason === 'MAX_TOKENS') {
-      console.warn('Gemini MAX_TOKENS — retrying with adjusted budget', {
-        usage: response.usage_metadata,
-      });
-
-      const { newMax, newThinking } = applyRetryStrategy(maxOutputTokens, thinkingBudget);
-      maxOutputTokens = newMax;
-      thinkingBudget = newThinking;
-
-      model = createGeminiModel(modelName, maxOutputTokens, thinkingBudget);
-      response = await model.invoke([message]);
-
-      finishReason = extractFinishReason(response);
-    }
+    const { response, finishReason, thinkBudget: finalThinkingBudget } = await invokeGeminiWithBudgetRetry(
+      (maxOut, think) => createGeminiModel(modelName, maxOut, think),
+      maxOutputTokens,
+      thinkingBudget,
+      message
+    );
 
     const usageMetadata = response.usage_metadata as {
       input_tokens?: number;
@@ -117,9 +105,9 @@ Your job:
                                  ? ((response.response_metadata as Record<string, unknown>).usage as Record<string, unknown>)?.thoughts_token_count as number | undefined
                                  : 0) ?? 0;
 
-    if (thoughtsTokenCount > thinkingBudget * 1.1) {
+    if (thoughtsTokenCount > finalThinkingBudget * 1.1) {
       console.warn('Thinking budget exceeded by >10%', {
-        budgetSet: thinkingBudget,
+        budgetSet: finalThinkingBudget,
         thoughtsUsed: thoughtsTokenCount,
         model: modelName,
       });

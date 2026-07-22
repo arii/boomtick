@@ -1,6 +1,6 @@
 import { orchestrateVisualReview } from '../lib/visualReviewOrchestrator';
-import { geminiVisualReviewClient } from './clients/geminiVisualReviewClient';
-import { githubModelsVisualReviewClient } from './clients/githubModelsVisualReviewClient';
+import { geminiVisualReviewClient } from '../lib/clients/geminiVisualReviewClient';
+import { githubModelsVisualReviewClient } from '../lib/clients/githubModelsVisualReviewClient';
 import { writeMissingApiKeyVerdict } from './utils/verdict';
 
 const ALL_REVIEW_TITLES = [

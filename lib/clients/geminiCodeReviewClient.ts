@@ -5,17 +5,15 @@ import {
   budgetInputContext,
   buildReviewPayload,
   calculateEstimatedTokens,
-  extractFeedbackText,
-  withRetry
-} from '../../lib/codeReviewUtils';
+  extractFeedbackText
+} from '../codeReviewUtils';
 
-import { buildSystemPrompt } from '../../lib/buildCodeReviewPrompt';
+import { buildSystemPrompt } from '../buildCodeReviewPrompt';
+import { pickGeminiModel, getGeminiPricing } from '../geminiModelPicker';
+import { invokeGeminiWithBudgetRetry, createGeminiModel } from '../geminiUtils';
 
-import { pickGeminiModel, getGeminiPricing } from '../../lib/geminiModelPicker';
-import { extractFinishReason, createGeminiModel, applyRetryStrategy } from '../../lib/geminiUtils';
-
-import type { CodeReviewSummary, CodeReviewResult } from '../../lib/codeReviewTypes';
-import type { CodeReviewClientStrategy } from '../../lib/codeReviewOrchestrator';
+import type { CodeReviewSummary, CodeReviewResult } from '../codeReviewTypes';
+import type { CodeReviewClientStrategy } from '../codeReviewOrchestrator';
 
 export const geminiCodeReviewClient: CodeReviewClientStrategy = {
   botName: 'gemini-code-review',
@@ -42,28 +40,16 @@ export const geminiCodeReviewClient: CodeReviewClientStrategy = {
     let thinkingBudget = estimatedInputTokens > 10000 ? 4096 : 2048;
     const maxOutputTokens = forceMaxOutputTokens ?? estimateMaxOutputTokens(summary, systemPrompt.length, thinkingBudget);
 
-    let model = createGeminiModel(modelName, maxOutputTokens, thinkingBudget);
     const baseContent = buildReviewPayload(systemPrompt, diffText, externalText).map(msg => msg.content).join('\n\n');
     const { HumanMessage } = await import('@langchain/core/messages');
     const message = new HumanMessage({ content: baseContent });
 
-    let response = await withRetry(() => model.invoke([message]), { maxRetries: 3, initialDelayMs: 1000 });
-
-    let finishReason = extractFinishReason(response);
-
-    if (finishReason === 'MAX_TOKENS') {
-      console.warn('Gemini MAX_TOKENS — retrying with adjusted budget', {
-        usage: response.usage_metadata,
-      });
-
-      const { newMax, newThinking } = applyRetryStrategy(maxOutputTokens, thinkingBudget);
-      thinkingBudget = newThinking;
-
-      model = createGeminiModel(modelName, newMax, thinkingBudget);
-      response = await withRetry(() => model.invoke([message]), { maxRetries: 3, initialDelayMs: 1000 });
-
-      finishReason = extractFinishReason(response);
-    }
+    const { response, finishReason, thinkBudget: finalThinkingBudget } = await invokeGeminiWithBudgetRetry(
+      (maxOut, think) => createGeminiModel(modelName, maxOut, think),
+      maxOutputTokens,
+      thinkingBudget,
+      message
+    );
 
     const usageMetadata = response.usage_metadata as {
       input_tokens?: number;
@@ -83,9 +69,9 @@ export const geminiCodeReviewClient: CodeReviewClientStrategy = {
                                  ? ((response.response_metadata as Record<string, unknown>).usage as Record<string, unknown>)?.thoughts_token_count as number | undefined
                                  : 0) ?? 0;
 
-    if (thoughtsTokenCount > thinkingBudget * 1.1) {
+    if (thoughtsTokenCount > finalThinkingBudget * 1.1) {
       console.warn('Thinking budget exceeded by >10%', {
-        budgetSet: thinkingBudget,
+        budgetSet: finalThinkingBudget,
         thoughtsUsed: thoughtsTokenCount,
         model: modelName,
       });
