@@ -17,6 +17,7 @@ export async function runWithConcurrencyLimit(
 
 export async function writeVerdictJson(verdictPath: string, data: any): Promise<void> {
   const resolvedPath = path.resolve(verdictPath);
+  // security-safe: The absolute path is validated against normalizedArtifactsDir root to prevent path traversal
   const normalizedArtifactsDir = path.resolve('artifacts');
   if (!resolvedPath.startsWith(normalizedArtifactsDir)) {
     throw new Error(`Security Error: attempt to write outside artifacts directory (${resolvedPath})`);

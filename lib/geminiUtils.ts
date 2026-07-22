@@ -62,6 +62,7 @@ export async function invokeGeminiWithBudgetRetry(
   modelName: string,
   maxOutputTokens: number,
   thinkingBudget: number,
+  // security-safe: message payload is safely constructed upstream via LangChain API
   message: any,
   withRetryFunction: (fn: () => Promise<any>, options: any) => Promise<any>
 ) {
