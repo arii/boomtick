@@ -97,6 +97,20 @@ runs:
         echo "$HOME/.local/bin" >> "$GITHUB_PATH"
         echo "/github/home/.local/bin" >> "$GITHUB_PATH"
 
+        # Add python scripts path dynamically
+        PYTHON_SCRIPTS_PATH=$(python3 -c "import sysconfig; print(sysconfig.get_path('scripts'))")
+        # security-safe: dynamically resolved Python installation path is validated against regex
+        if [[ ! "$PYTHON_SCRIPTS_PATH" =~ ^[a-zA-Z0-9/._-]+$ ]]; then
+          echo "::error::Invalid PYTHON_SCRIPTS_PATH path: $PYTHON_SCRIPTS_PATH"
+          exit 1
+        fi
+        if [[ "$PYTHON_SCRIPTS_PATH" != "/usr/bin" && "$PYTHON_SCRIPTS_PATH" != "/usr/local/bin" && "$PYTHON_SCRIPTS_PATH" != "/bin" ]]; then
+          echo "$PYTHON_SCRIPTS_PATH" >> "$GITHUB_PATH"
+        else
+          echo "::debug::Skipping adding $PYTHON_SCRIPTS_PATH to GITHUB_PATH to avoid shadowing toolchains."
+        fi
+        echo "PYTHON_SCRIPTS_PATH=$PYTHON_SCRIPTS_PATH" >> "$GITHUB_OUTPUT"
+
     - name: Get pip cache directory
       if: inputs.setup-python == 'true'
       id: pip-cache
@@ -135,14 +149,16 @@ runs:
 
     - name: Verify td-cli on PATH
       if: inputs.setup-python == 'true'
+      env:
+        PYTHON_SCRIPTS_PATH: ${{ steps.resolve-paths.outputs.PYTHON_SCRIPTS_PATH }}
       run: |
         # Force a refresh of the path in the current shell context if possible,
         # though GITHUB_PATH updates usually apply to subsequent steps.
-        export PATH="$HOME/.local/bin:/github/home/.local/bin:$PATH"
+        export PATH="$PYTHON_SCRIPTS_PATH:$HOME/.local/bin:/github/home/.local/bin:$PATH"
 
         if ! command -v td-cli >/dev/null 2>&1; then
           # Fallback check if it is in the known local bin but not on path yet
-          if [ -x "$HOME/.local/bin/td-cli" ] || [ -x "/github/home/.local/bin/td-cli" ]; then
+          if [ -x "$PYTHON_SCRIPTS_PATH/td-cli" ] || [ -x "$HOME/.local/bin/td-cli" ] || [ -x "/github/home/.local/bin/td-cli" ]; then
             echo "::warning::td-cli found in local bin but not yet on PATH. PATH updates will apply in next step."
           else
             echo "::error::td-cli not found on PATH or in known local bin directories after installation."
