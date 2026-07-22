@@ -21,6 +21,25 @@ outputs:
 runs:
   using: 'composite'
   steps:
+    - name: Validate Inputs
+      id: validate_inputs
+      env:
+        APP_ID: ${{ inputs.app_id }}
+        APP_KEY: ${{ inputs.app_private_key }}
+      run: |
+        if [ -n "$APP_ID" ] && [ "$APP_ID" != "null" ]; then
+          if [[ ! "$APP_ID" =~ ^[0-9]+$ ]]; then
+             echo "::error::Invalid app_id format. Must be numeric."
+             exit 1
+          fi
+        fi
+        if [ -n "$APP_KEY" ] && [ "$APP_KEY" != "null" ]; then
+          if [[ ! "$APP_KEY" =~ ^-----BEGIN[[:space:]](RSA|OPENSSH)?[[:space:]]?PRIVATE[[:space:]]KEY-----[a-zA-Z0-9/+=[:space:]]+-----END[[:space:]](RSA|OPENSSH)?[[:space:]]?PRIVATE[[:space:]]KEY-----$ ]]; then
+             echo "::warning::The provided private key does not strictly match the expected PEM format regex."
+          fi
+        fi
+      shell: bash
+
     - name: Create GitHub App Token
       id: create_token
       if: ${{ inputs.app_id != null && inputs.app_private_key != null && inputs.app_id != '' && inputs.app_private_key != '' }}
