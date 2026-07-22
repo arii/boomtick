@@ -22,15 +22,15 @@ runs:
         # security-safe: validating paths and boolean flags to prevent command injection
         if [[ -n "${{ inputs.node-version-file }}" && ! "${{ inputs.node-version-file }}" =~ ^[a-zA-Z0-9/._-]+$ ]]; then
           echo "::error::Invalid node-version-file format"
-          return 1 2>/dev/null || bash -c "exit 1"
+          return 1 2>/dev/null || false
         fi
         if [[ -n "${{ inputs.pnpm-version }}" && ! "${{ inputs.pnpm-version }}" =~ ^[0-9.]+$ ]]; then
           echo "::error::Invalid pnpm-version format"
-          return 1 2>/dev/null || bash -c "exit 1"
+          return 1 2>/dev/null || false
         fi
       shell: bash
 
-    - uses: ./.github/actions/setup-workspace
+    - uses: ../../.github/actions/setup-workspace
       with:
         setup-node: ${{ inputs.setup-node }}
         setup-python: ${{ inputs.setup-python }}
