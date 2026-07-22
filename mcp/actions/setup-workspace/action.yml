@@ -1,23 +1,35 @@
 name: 'Setup Workspace (Legacy Wrapper)'
 description: 'Bootstraps the workspace (Wrapper for backward compatibility)'
 inputs:
-  # security-safe: These inputs are passed directly to the centralized action which handles validation.
   setup-node:
-    description: "Install Node.js and pnpm"
+    description: "Install Node.js and pnpm (e.g. 'true' or 'false')"
     required: false
   setup-python:
-    description: "Install dev-tools (Python)"
+    description: "Install dev-tools Python (e.g. 'true' or 'false')"
     required: false
   node-version-file:
-    description: "Path to .node-version file"
+    description: "Path to .node-version file for Node.js"
     required: false
   pnpm-version:
-    description: "Version of pnpm to activate"
+    description: "Version of pnpm to activate (e.g. 10.28.2)"
     required: false
 
 runs:
   using: 'composite'
   steps:
+    - name: Validate Inputs
+      run: |
+        # security-safe: validating paths and boolean flags to prevent command injection
+        if [[ -n "${{ inputs.node-version-file }}" && ! "${{ inputs.node-version-file }}" =~ ^[a-zA-Z0-9/._-]+$ ]]; then
+          echo "::error::Invalid node-version-file format"
+          return 1 2>/dev/null || bash -c "exit 1"
+        fi
+        if [[ -n "${{ inputs.pnpm-version }}" && ! "${{ inputs.pnpm-version }}" =~ ^[0-9.]+$ ]]; then
+          echo "::error::Invalid pnpm-version format"
+          return 1 2>/dev/null || bash -c "exit 1"
+        fi
+      shell: bash
+
     - uses: ./.github/actions/setup-workspace
       with:
         setup-node: ${{ inputs.setup-node }}
