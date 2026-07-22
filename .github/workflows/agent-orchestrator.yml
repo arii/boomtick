@@ -290,7 +290,7 @@ jobs:
         shell: bash
 
       - name: Setup Workspace
-        uses: ./.github/actions/setup-workspace
+        uses: ./mcp/actions/setup-workspace
         with:
           setup-python: 'true'
 
