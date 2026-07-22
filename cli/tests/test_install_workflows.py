@@ -13,7 +13,7 @@ def test_install_workflows_standalone():
         os.makedirs(source_dir, exist_ok=True)
 
         # Write dummy workflow files
-        for name in ["chatops-trigger.yml", "ci-repair.yml", "issue-operations.yml"]:
+        for name in ["chatops-trigger.yml", "issue-operations.yml", "agent-orchestrator.yml"]:
             with open(os.path.join(source_dir, name), "w", encoding="utf-8") as f:
                 f.write("uses: ./mcp/actions/setup\nuses: ./.github/actions/setup-all\n$GITHUB_WORKSPACE/cli\n")
 
@@ -52,7 +52,7 @@ def test_install_workflows_submodule():
         os.makedirs(source_dir, exist_ok=True)
 
         # Write dummy workflow files
-        for name in ["chatops-trigger.yml", "ci-repair.yml", "issue-operations.yml"]:
+        for name in ["chatops-trigger.yml", "issue-operations.yml", "agent-orchestrator.yml"]:
             with open(os.path.join(source_dir, name), "w", encoding="utf-8") as f:
                 f.write("uses: ./mcp/actions/setup\nuses: ./.github/actions/setup-all\n$GITHUB_WORKSPACE/cli\n")
 

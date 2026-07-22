@@ -41,7 +41,7 @@ class VectorStore:
             # pylint: disable=unused-import
             import chromadb  # pylint: disable=import-error
             # sentence_transformers is used for our SentenceTransformerEmbeddingFunction
-            import sentence_transformers
+            import sentence_transformers # pylint: disable=import-error
             return True
         except ImportError:
             return False

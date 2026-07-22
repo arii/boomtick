@@ -1,4 +1,4 @@
-# pylint: disable=import-outside-toplevel,missing-docstring,too-many-branches,too-many-locals,too-many-return-statements
+# pylint: disable=import-outside-toplevel,missing-docstring,too-many-branches,too-many-locals,too-many-return-statements,cyclic-import
 import json
 import os
 import re
