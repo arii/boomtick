@@ -149,7 +149,7 @@ echo "BoomTick installation complete!"
 
 echo "Running post-installation diagnostics..."
 if [ -n "$VENV_PATH" ]; then
-    $PYTHON_BIN -m dev_tools.cli doctor
+    "$VENV_PATH/bin/td-cli" doctor
 else
-    td-cli doctor || python3 -m dev_tools.cli doctor
+    td-cli doctor
 fi

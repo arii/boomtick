@@ -1,5 +1,5 @@
 name: BoomTick AI Review
-description: Runs AI code review via python3 -m dev_tools.cli CLI
+description: Runs AI code review via td-cli CLI
 inputs:
   pr_number:
     description: PR number to review
@@ -22,5 +22,10 @@ runs:
     - name: AI review
       env:
         PR_NUMBER: ${{ inputs.pr_number }}
-      run: python3 -m dev_tools.cli gh audit-pr "$PR_NUMBER" --fetch --audit
+      run: |
+        if [[ ! "$PR_NUMBER" =~ ^[0-9]+$ ]]; then
+          echo "::error::Invalid PR_NUMBER: must be numeric."
+          exit 1
+        fi
+        td-cli gh audit-pr "$PR_NUMBER" --fetch --audit
       shell: bash

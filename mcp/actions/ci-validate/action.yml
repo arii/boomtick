@@ -1,9 +1,9 @@
 name: BoomTick CI Validate
-description: Runs pre-submit checks via python3 -m dev_tools.cli CLI
+description: Runs pre-submit checks via td-cli CLI
 runs:
   using: composite
   steps:
     - uses: ./mcp/actions/setup
     - name: Pre-submit gate
-      run: python3 -m dev_tools.cli gh pre-submit
+      run: td-cli gh pre-submit
       shell: bash

@@ -833,9 +833,16 @@ def track_review(ctx, pr, status, auditor, dry_run):
 
 @cli.command(name="schema")
 @click.argument("command_path", required=False)
+@click.option("--generate", is_flag=True, help="Generate CLI schema from Python models")
 @click.pass_context
-def schema_cmd(ctx, command_path):
+def schema_cmd(ctx, command_path, generate):
     """Retrieve the schema for a specific subcommand or all commands."""
+    if generate:
+        from dev_tools.schema_gen import generate_schema
+        generate_schema()
+        out(ctx, "✅ Schema generation complete")
+        return
+
     # Sanitize and validate command_path to prevent injection
     # Allowed format: words separated by single spaces (no special shell characters)
     if command_path:

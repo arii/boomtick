@@ -158,8 +158,22 @@ runs:
         CLI_DIR_ABS: ${{ steps.export-env.outputs.cli_dir_abs }}
       run: |
         echo "::group::Initialize Schemas and Contracts"
+        if [[ ! "$CLI_DIR_ABS" =~ ^[a-zA-Z0-9/._-]+$ ]]; then
+          echo "::error::Invalid CLI_DIR_ABS path: $CLI_DIR_ABS"
+          exit 1
+        fi
         export PYTHONPATH="$CLI_DIR_ABS:$PYTHONPATH"
-        python3 "$CLI_DIR_ABS/dev_tools/schema_gen.py"
+        if command -v td-cli >/dev/null 2>&1; then
+          if ! td-cli schema --generate; then
+            echo "::error::td-cli schema generation failed!"
+            exit 1
+          fi
+        else
+          if ! python3 "$CLI_DIR_ABS/dev_tools/schema_gen.py"; then
+            echo "::error::Schema generation via python3 failed!"
+            exit 1
+          fi
+        fi
 
         MCP_DIR="mcp"
 

@@ -11,5 +11,5 @@ runs:
       uses: ./mcp/actions/setup-workspace
 
     - name: Verify setup
-      run: python3 -m dev_tools.cli doctor
+      run: td-cli doctor
       shell: bash
