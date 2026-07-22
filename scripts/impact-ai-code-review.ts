@@ -1,6 +1,6 @@
 import { orchestrateCodeReview } from '../lib/codeReviewOrchestrator';
-import { githubModelsCodeReviewClient } from '../lib/clients/githubModelsCodeReviewClient';
-import { geminiCodeReviewClient } from '../lib/clients/geminiCodeReviewClient';
+import { githubModelsCodeReviewClient } from './clients/githubModelsCodeReviewClient';
+import { geminiCodeReviewClient } from './clients/geminiCodeReviewClient';
 import { writeMissingApiKeyVerdict } from './utils/verdict';
 
 const ALL_REVIEW_TITLES = [

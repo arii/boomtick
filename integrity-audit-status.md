@@ -1,0 +1,45 @@
+## Full Codebase Drift Review Checklist
+- [x] CHANGELOG.md
+- [x] Dockerfile
+- [x] README.md
+- [x] artifacts/dependency-graph.json
+- [x] cli/CHANGELOG.md
+- [x] cli/MANIFEST.in
+- [x] cli/README.md
+- [x] cli/aggregate-prs.sh
+- [x] cli/ai-debugger.mjs
+- [x] cli/analyze_overlaps.sh
+- [x] cli/analyze_workflows.sh
+- [x] cli/boomtick_cli.egg-info/PKG-INFO
+- [x] cli/boomtick_cli.egg-info/SOURCES.txt
+- [x] cli/boomtick_cli.egg-info/dependency_links.txt
+- [x] cli/boomtick_cli.egg-info/entry_points.txt
+- [x] cli/boomtick_cli.egg-info/requires.txt
+- [x] cli/boomtick_cli.egg-info/top_level.txt
+- [x] cli/clients/__init__.py
+- [x] cli/dev_tools/__init__.py
+- [x] scripts/impact-review-utils.ts
+- [x] scripts/impact-visual-diff.ts
+- [x] scripts/resolve-cli.sh
+- [x] scripts/run-context-agent.py
+- [x] scripts/send-jules-impact.py
+- [x] scripts/sync-python-deps.py
+- [x] scripts/test-audit.mjs
+- [x] scripts/utils/verdict.ts
+- [x] scripts/validate_workspace.py
+- [x] scripts/verify-schemas.mjs
+- [x] setup-agent.sh
+- [x] src/components/ui/MarkdownRenderer.tsx
+- [x] src/components/ui/SafeImage.tsx
+- [x] src/index.css
+- [x] src/layouts/layout-maps.ts
+- [x] src/reviewers/factory.ts
+- [x] src/reviewers/runner.ts
+- [x] tsconfig.app.json
+- [x] workspace-schema.json
+- [x] workspace.json
+
+## 24-Hour Review Checklist (Count: 3)
+- [x] lib/geminiUtils.ts — Verified Clean
+- [x] scripts/clients/geminiCodeReviewClient.ts — Verified Clean
+- [x] scripts/clients/geminiVisualReviewClient.ts — Verified Clean

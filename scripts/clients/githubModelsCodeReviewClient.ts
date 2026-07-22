@@ -3,10 +3,10 @@ import {
   parseCodeReviewStateDetailed,
   budgetInputContext,
   extractFeedbackText,
-} from '../codeReviewUtils';
-import { buildSystemPrompt } from '../buildCodeReviewPrompt';
-import type { CodeReviewSummary, CodeReviewResult } from '../codeReviewTypes';
-import type { CodeReviewClientStrategy } from '../codeReviewOrchestrator';
+} from '../../lib/codeReviewUtils';
+import { buildSystemPrompt } from '../../lib/buildCodeReviewPrompt';
+import type { CodeReviewSummary, CodeReviewResult } from '../../lib/codeReviewTypes';
+import type { CodeReviewClientStrategy } from '../../lib/codeReviewOrchestrator';
 import { runReview } from '../../src/reviewers/runner';
 import { GitHubModelFactory } from '../../src/reviewers/factory';
 

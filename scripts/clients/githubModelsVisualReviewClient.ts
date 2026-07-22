@@ -1,11 +1,11 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import { buildVisualReviewPayload, parseLLMVerdict, parseVisualReviewFindings } from '../visualReviewUtils';
-import { extractFeedbackText } from '../codeReviewUtils';
-import type { LLMClientStrategy } from '../visualReviewOrchestrator';
-import type { RouteReview, VisualRouteSummary } from '../visualReviewTypes';
-import { pickOptimalModel } from '../modelPicker';
-import { DOM_REVIEW_DIR } from '../visualReviewConstants';
+import { buildVisualReviewPayload, parseLLMVerdict, parseVisualReviewFindings } from '../../lib/visualReviewUtils';
+import { extractFeedbackText } from '../../lib/codeReviewUtils';
+import type { LLMClientStrategy } from '../../lib/visualReviewOrchestrator';
+import type { RouteReview, VisualRouteSummary } from '../../lib/visualReviewTypes';
+import { pickOptimalModel } from '../../lib/modelPicker';
+import { DOM_REVIEW_DIR } from '../../lib/visualReviewConstants';
 
 class VisualReviewError extends Error {
   cause?: unknown;
