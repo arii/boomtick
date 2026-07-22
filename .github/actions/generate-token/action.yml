@@ -1,0 +1,43 @@
+name: 'Generate GitHub App Token'
+description: 'Generates an installation access token for a GitHub App'
+
+inputs:
+  app_id:
+    description: 'The GitHub App ID'
+    required: true
+  app_private_key:
+    description: 'The GitHub App Private Key'
+    required: true
+  github_token:
+    description: 'Fallback GITHUB_TOKEN if app credentials are not available'
+    required: false
+    default: ''
+
+outputs:
+  token:
+    description: 'The generated GitHub App token, or the fallback token'
+    value: ${{ steps.get_token.outputs.token || inputs.github_token }}
+
+runs:
+  using: 'composite'
+  steps:
+    - id: get_token
+      uses: actions/create-github-app-token@v1
+      if: ${{ inputs.app_id != '' && inputs.app_private_key != '' }}
+      with:
+        app-id: ${{ inputs.app_id }}
+        private-key: ${{ inputs.app_private_key }}
+        owner: ${{ github.repository_owner }}
+
+    - id: fallback
+      if: ${{ inputs.app_id == '' || inputs.app_private_key == '' }}
+      shell: bash
+      env:
+        FALLBACK_TOKEN: ${{ inputs.github_token }}
+      run: |
+        if [ -n "$FALLBACK_TOKEN" ]; then
+          echo "Using fallback GITHUB_TOKEN"
+        else
+          echo "::error::No valid GitHub App credentials or fallback GITHUB_TOKEN provided"
+          return 1 2>/dev/null || false
+        fi
