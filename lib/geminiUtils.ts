@@ -57,3 +57,43 @@ export function applyRetryStrategy(currentMax: number, currentThinking: number):
   const newThinking = Math.round(currentThinking * 0.5);
   return { newMax, newThinking };
 }
+
+export async function invokeGeminiWithBudgetRetry(
+  modelName: string,
+  maxOutputTokens: number,
+  thinkingBudget: number,
+  message: any,
+  withRetryFunction: (fn: () => Promise<any>, options: any) => Promise<any>
+) {
+  if (!modelName || typeof modelName !== 'string') throw new Error('Invalid modelName');
+  if (typeof maxOutputTokens !== 'number' || maxOutputTokens < 0) throw new Error('Invalid maxOutputTokens');
+  if (typeof thinkingBudget !== 'number' || thinkingBudget < 0) throw new Error('Invalid thinkingBudget');
+  if (!message || typeof message !== 'object') throw new Error('Invalid message payload');
+
+  let model = createGeminiModel(modelName, maxOutputTokens, thinkingBudget);
+  let response = await withRetryFunction(() => model.invoke([message]), { maxRetries: 3, initialDelayMs: 1000 });
+
+  let finishReason = extractFinishReason(response);
+
+  if (finishReason === 'MAX_TOKENS') {
+    console.warn('Gemini MAX_TOKENS — retrying with adjusted budget', {
+      usage: response.usage_metadata,
+    });
+
+    const { newMax, newThinking } = applyRetryStrategy(maxOutputTokens, thinkingBudget);
+    maxOutputTokens = newMax;
+    thinkingBudget = newThinking;
+
+    model = createGeminiModel(modelName, maxOutputTokens, thinkingBudget);
+    response = await withRetryFunction(() => model.invoke([message]), { maxRetries: 3, initialDelayMs: 1000 });
+
+    finishReason = extractFinishReason(response);
+  }
+
+  return {
+    response,
+    finishReason,
+    finalMaxOutputTokens: maxOutputTokens,
+    finalThinkingBudget: thinkingBudget
+  };
+}

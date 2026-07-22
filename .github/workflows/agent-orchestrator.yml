@@ -263,7 +263,7 @@ jobs:
         shell: bash
 
       - name: Setup Workspace
-        uses: ./mcp/actions/setup-workspace
+        uses: ./.github/actions/setup-workspace
         with:
           setup-python: 'true'
 
