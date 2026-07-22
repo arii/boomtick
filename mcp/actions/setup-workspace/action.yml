@@ -1,0 +1,193 @@
+name: 'Setup Workspace'
+description: 'Bootstraps the workspace by installing Node.js, Python, and dev-tools'
+inputs:
+  setup-node:
+    description: "Install Node.js and pnpm"
+    required: false
+    default: 'true'
+  setup-python:
+    description: "Install dev-tools (Python)"
+    required: false
+    default: 'true'
+  node-version-file:
+    description: "Path to .node-version file"
+    required: false
+    default: ".node-version"
+  pnpm-version:
+    description: "Version of pnpm to activate"
+    required: false
+    default: "10.28.2"
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Setup pnpm
+      if: inputs.setup-node == 'true'
+      uses: pnpm/action-setup@v6 # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
+      with:
+        version: ${{ inputs.pnpm-version }}
+
+    - name: Get pnpm store directory
+      if: inputs.setup-node == 'true'
+      id: pnpm-cache
+      shell: bash
+      run: |
+        echo "STORE_PATH=$(pnpm store path)" >> "$GITHUB_OUTPUT"
+
+    - name: Cache pnpm store
+      if: inputs.setup-node == 'true'
+      uses: actions/cache@v4.2.0 # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
+      with:
+        path: ${{ steps.pnpm-cache.outputs.STORE_PATH }}
+        key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+        restore-keys: |
+          ${{ runner.os }}-pnpm-store-
+
+    - name: Setup Node.js
+      if: inputs.setup-node == 'true'
+      uses: actions/setup-node@v7 # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
+      with:
+        node-version-file: ${{ inputs.node-version-file }}
+
+    - name: Enable Corepack
+      if: inputs.setup-node == 'true'
+      run: corepack enable
+      shell: bash
+
+    - name: Activate pinned pnpm
+      if: inputs.setup-node == 'true'
+      env:
+        PNPM_VERSION: ${{ inputs.pnpm-version }}
+      run: corepack prepare pnpm@"$PNPM_VERSION" --activate
+      shell: bash
+
+    - name: Resolve Paths
+      id: resolve-paths
+      shell: bash
+      run: |
+        # Use centralized script for CLI path resolution
+        if [ -f "scripts/resolve-cli.sh" ]; then
+          CLI_DIR=$(bash scripts/resolve-cli.sh | sed "s|$(pwd)/||")
+        elif [ -f "boomtick-pkg/scripts/resolve-cli.sh" ]; then
+          CLI_DIR=$(bash boomtick-pkg/scripts/resolve-cli.sh | sed "s|$(pwd)/||")
+        elif [ -f "boomtick/scripts/resolve-cli.sh" ]; then
+          CLI_DIR=$(bash boomtick/scripts/resolve-cli.sh | sed "s|$(pwd)/||")
+        elif [ -f "${{ github.action_path }}/../../../scripts/resolve-cli.sh" ]; then
+          CLI_DIR=$(REPO_ROOT="${{ github.action_path }}/../../../" bash "${{ github.action_path }}/../../../scripts/resolve-cli.sh" | sed "s|$(pwd)/||")
+        elif [ -d "cli" ]; then
+          CLI_DIR="cli"
+        elif [ -d "boomtick-pkg/cli" ]; then
+          CLI_DIR="boomtick-pkg/cli"
+        elif [ -d "boomtick/cli" ]; then
+          CLI_DIR="boomtick/cli"
+        else
+          CLI_DIR="cli"
+        fi
+
+        # Validate that the resolved CLI directory exists
+        if [ -z "$CLI_DIR" ] || { [ ! -d "$CLI_DIR" ] && [ ! -d "${{ github.action_path }}/../../../$CLI_DIR" ]; }; then
+          echo "::error::Could not resolve a valid CLI directory. Resolved: '$CLI_DIR'"
+          exit 1
+        fi
+
+        echo "CLI_DIR=$CLI_DIR" >> "$GITHUB_OUTPUT"
+
+        # Consolidate GITHUB_PATH updates
+        echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+        echo "/github/home/.local/bin" >> "$GITHUB_PATH"
+
+    - name: Get pip cache directory
+      if: inputs.setup-python == 'true'
+      id: pip-cache
+      shell: bash
+      run: |
+        echo "DIR=$(pip cache dir)" >> "$GITHUB_OUTPUT"
+
+    - name: Cache pip
+      if: inputs.setup-python == 'true'
+      uses: actions/cache@v4.2.0 # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
+      with:
+        path: ${{ steps.pip-cache.outputs.DIR }}
+        key: ${{ runner.os }}-pip-${{ hashFiles('**/pyproject.toml') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+
+    - name: Install dev-tools
+      if: inputs.setup-python == 'true'
+      env:
+        CLI_DIR: ${{ steps.resolve-paths.outputs.CLI_DIR }}
+      run: |
+        echo "::group::Install dev-tools"
+        if [ -f "requirements-dev.txt" ]; then
+          pip install -r requirements-dev.txt --break-system-packages
+        fi
+        pip install -e "$CLI_DIR" --break-system-packages
+
+        echo "::endgroup::"
+      shell: bash
+
+    - name: Export Environment Variables
+      if: inputs.setup-python == 'true'
+      id: export-env
+      env:
+        CLI_DIR: ${{ steps.resolve-paths.outputs.CLI_DIR }}
+      run: |
+        # Use $(pwd) to get the container-internal path, avoiding host-path leakage from $GITHUB_WORKSPACE
+        REPO_DIR=$(pwd)
+        if [[ "$CLI_DIR" = /* ]]; then
+          CLI_DIR_ABS="$CLI_DIR"
+        else
+          CLI_DIR_ABS="$REPO_DIR/$CLI_DIR"
+        fi
+
+        # 1. Update PYTHONPATH for subsequent steps
+        # Ensure it works even if PYTHONPATH is initially empty
+        if [ -z "$PYTHONPATH" ]; then
+          echo "PYTHONPATH=$CLI_DIR_ABS" >> "$GITHUB_ENV"
+        else
+          echo "PYTHONPATH=$CLI_DIR_ABS:$PYTHONPATH" >> "$GITHUB_ENV"
+        fi
+        echo "cli_dir_abs=$CLI_DIR_ABS" >> "$GITHUB_OUTPUT"
+
+        echo "✅ Environment configured: PYTHONPATH includes $CLI_DIR_ABS"
+      shell: bash
+
+    - name: Initialize Schemas and Contracts
+      if: inputs.setup-node == 'true' && inputs.setup-python == 'true'
+      env:
+        CLI_DIR_ABS: ${{ steps.export-env.outputs.cli_dir_abs }}
+      run: |
+        echo "::group::Initialize Schemas and Contracts"
+        if [[ ! "$CLI_DIR_ABS" =~ ^[a-zA-Z0-9/._-]+$ ]]; then
+          echo "::error::Invalid CLI_DIR_ABS path: $CLI_DIR_ABS"
+          exit 1
+        fi
+        export PYTHONPATH="$CLI_DIR_ABS:$PYTHONPATH"
+        if command -v td-cli >/dev/null 2>&1; then
+          if ! td-cli schema --generate; then
+            echo "::error::td-cli schema generation failed!"
+            exit 1
+          fi
+        else
+          if ! python3 "$CLI_DIR_ABS/dev_tools/schema_gen.py"; then
+            echo "::error::Schema generation via python3 failed!"
+            exit 1
+          fi
+        fi
+
+        MCP_DIR="mcp"
+
+        # Check for sync-contracts script in the resolved MCP directory
+        if [ -f "$MCP_DIR/package.json" ] && grep -q "sync-contracts" "$MCP_DIR/package.json"; then
+          echo "::group::Run sync-contracts in $MCP_DIR"
+          # Ensure dependencies are installed if we're in the MCP directory
+          if [ ! -d "$MCP_DIR/node_modules" ]; then
+             (cd "$MCP_DIR" && pnpm install --frozen-lockfile --prefer-offline)
+          fi
+          pnpm --filter "@arii/boomtick-mcp" run sync-contracts || (cd "$MCP_DIR" && pnpm run sync-contracts)
+          echo "::endgroup::"
+        else
+          echo "⚠️ Skipping: sync-contracts script not found in $MCP_DIR/package.json"
+        fi
+        echo "::endgroup::"
+      shell: bash

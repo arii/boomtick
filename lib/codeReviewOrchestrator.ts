@@ -3,7 +3,7 @@ import * as path from 'path';
 import { IMPACT_CONFIG } from '../scripts/impact-analysis.config';
 import { ARTIFACTS_DIR } from './visualReviewConstants';
 import { postPRComment, countExistingReviews, getJulesSessionIdFromPR, sendJulesMessage, getPreviousReviewState } from './visualReviewUtils';
-import { runWithConcurrencyLimit, checkReviewQuota, writeVerdictJson } from './sharedUtils';
+import { runWithConcurrencyLimit, checkReviewQuota } from './sharedUtils';
 import { calculateEstimatedTokens, cleanupFeedback, batchFiles, calculateReviewHash, pruneCache, filterLowImpactFiles } from './codeReviewUtils';
 import type { CodeReviewSummary, CodeReviewResult, CodeReviewState, CodeReviewRole } from './codeReviewTypes';
 import { execFile as execFileCb, spawn } from 'child_process';
@@ -599,9 +599,8 @@ export async function orchestrateCodeReview(
   const initialSummary = await getCodeDiffSummary();
   if (!initialSummary.diffContext) {
     console.log(`✅ No code changes detected — skipping agent review.`);
-    await fs.promises.writeFile(agentReportPath, `## ${client.reportTitle}\n\nNo code changes detected.\n`);
-    const safeReportFileName = path.basename(client.reportFileName);
-    await writeVerdictJson(path.join(ARTIFACTS_DIR, `${safeReportFileName.replace('.md', '')}-verdict.json`), { passed: true, highCount: 0, routes: [], llmVerdict: 'pass', state: { findings: [] } });
+    fs.writeFileSync(agentReportPath, `## ${client.reportTitle}\n\nNo code changes detected.\n`);
+    fs.writeFileSync(path.join(ARTIFACTS_DIR, `${client.reportFileName.replace('.md', '')}-verdict.json`), JSON.stringify({ passed: true, highCount: 0, routes: [], llmVerdict: 'pass', state: { findings: [] } }, null, 2));
     return;
   }
 
@@ -614,15 +613,14 @@ export async function orchestrateCodeReview(
 
   if (changedFiles.length === 0) {
     console.log(`✅ No reviewable code changes detected after filtering (${rawChangedFiles.length} files filtered) — skipping agent review.`);
-    await fs.promises.writeFile(agentReportPath, `## ${client.reportTitle}\n\nNo reviewable code changes detected.\n`);
-    const safeReportFileName = path.basename(client.reportFileName);
-    await writeVerdictJson(path.join(ARTIFACTS_DIR, `${safeReportFileName.replace('.md', '')}-verdict.json`), {
+    fs.writeFileSync(agentReportPath, `## ${client.reportTitle}\n\nNo reviewable code changes detected.\n`);
+    fs.writeFileSync(path.join(ARTIFACTS_DIR, `${client.reportFileName.replace('.md', '')}-verdict.json`), JSON.stringify({
       passed: true,
       highCount: 0,
       routes: [],
       llmVerdict: 'pass',
       state: prevState || { findings: [] }
-    });
+    }, null, 2));
     return;
   }
 
@@ -631,19 +629,18 @@ export async function orchestrateCodeReview(
 
   if (filteredSummary.isTruncated) {
     const report = generateTruncatedReviewMarkdown(filteredSummary, client);
-    await fs.promises.writeFile(agentReportPath, report);
+    fs.writeFileSync(agentReportPath, report);
     await postPRComment(report, client.reportTitle, prevState);
 
-    const safeReportFileName = path.basename(client.reportFileName);
-    const verdictPath = path.join(ARTIFACTS_DIR, `${safeReportFileName.replace('.md', '')}-verdict.json`);
-    await writeVerdictJson(verdictPath, {
+    const verdictPath = path.join(ARTIFACTS_DIR, `${client.reportFileName.replace('.md', '')}-verdict.json`);
+    fs.writeFileSync(verdictPath, JSON.stringify({
       passed: true,
       highCount: 0,
       routes: [],
       llmVerdict: 'warn',
       isTruncated: true,
       state: prevState || { findings: [] }
-    });
+    }, null, 2));
     return;
   }
 
@@ -856,7 +853,7 @@ export async function orchestrateCodeReview(
   const report = generateCodeReviewMarkdown(finalResult, client);
 
   // Write local report
-  await fs.promises.writeFile(agentReportPath, report);
+  fs.writeFileSync(agentReportPath, report);
   console.log(`✅ Local report written to ${agentReportPath}`);
 
   // Post to GitHub PR
@@ -872,9 +869,8 @@ export async function orchestrateCodeReview(
   }
 
   const openHighFindings = finalResult.state?.findings?.filter(f => f.status === 'open' && (f.severity === 'HIGH' || f.severity === 'error')) || [];
-  const safeReportFileName = path.basename(client.reportFileName);
-  const verdictPath = path.join(ARTIFACTS_DIR, `${safeReportFileName.replace('.md', '')}-verdict.json`);
-  await writeVerdictJson(verdictPath, {
+  const verdictPath = path.join(ARTIFACTS_DIR, `${client.reportFileName.replace('.md', '')}-verdict.json`);
+  fs.writeFileSync(verdictPath, JSON.stringify({
     passed: !isFail,
     highCount: openHighFindings.length || (isFail ? 1 : 0),
     routes: [],
@@ -882,7 +878,7 @@ export async function orchestrateCodeReview(
     isTruncated: isTruncated,
     skipReason: skipReasons.size > 0 ? Array.from(skipReasons).join(', ') : undefined,
     state: finalResult.state || { findings: [] }
-  });
+  }, null, 2));
 
   if (isFail) {
     console.error(`❌ Code review returned FAIL — failing CI.`);

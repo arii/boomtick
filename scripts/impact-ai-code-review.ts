@@ -12,34 +12,24 @@ async function main(): Promise<void> {
   const provider = process.argv[2];
 
   if (provider === 'gemini') {
-    // security-safe: Environment variables are trusted in this workflow context.
     if (!process.env.GEMINI_API_KEY) {
       console.warn('⚠️  Skipping agent code review — GEMINI_API_KEY not set.');
-      try {
-        await writeMissingApiKeyVerdict(
-          geminiCodeReviewClient.reportFileName,
-          geminiCodeReviewClient.reportTitle,
-          'GEMINI_API_KEY'
-        );
-      } catch (err) {
-        console.error('Failed to write missing API key verdict', err);
-      }
+      writeMissingApiKeyVerdict(
+        geminiCodeReviewClient.reportFileName,
+        geminiCodeReviewClient.reportTitle,
+        'GEMINI_API_KEY'
+      );
       return;
     }
     await orchestrateCodeReview(geminiCodeReviewClient, ALL_REVIEW_TITLES);
   } else if (provider === 'github-models') {
-    // security-safe: Environment variables are trusted in this workflow context.
     if (!process.env.GITHUB_TOKEN) {
       console.warn('⚠️  Skipping agent code review — GITHUB_TOKEN not set.');
-      try {
-        await writeMissingApiKeyVerdict(
-          githubModelsCodeReviewClient.reportFileName,
-          githubModelsCodeReviewClient.reportTitle,
-          'GITHUB_TOKEN'
-        );
-      } catch (err) {
-        console.error('Failed to write missing API key verdict', err);
-      }
+      writeMissingApiKeyVerdict(
+        githubModelsCodeReviewClient.reportFileName,
+        githubModelsCodeReviewClient.reportTitle,
+        'GITHUB_TOKEN'
+      );
       return;
     }
     await orchestrateCodeReview(githubModelsCodeReviewClient, ALL_REVIEW_TITLES);
