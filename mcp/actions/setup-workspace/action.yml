@@ -28,6 +28,14 @@ runs:
           echo "::error::Invalid pnpm-version format"
           return 1 2>/dev/null || false
         fi
+        if [[ -n "${{ inputs.setup-node }}" && ! "${{ inputs.setup-node }}" =~ ^(true|false)$ ]]; then
+          echo "::error::Invalid setup-node format"
+          return 1 2>/dev/null || false
+        fi
+        if [[ -n "${{ inputs.setup-python }}" && ! "${{ inputs.setup-python }}" =~ ^(true|false)$ ]]; then
+          echo "::error::Invalid setup-python format"
+          return 1 2>/dev/null || false
+        fi
       shell: bash
 
     - uses: ../../.github/actions/setup-workspace
