@@ -56,6 +56,7 @@ runs:
         AUTHOR_ASSOC: ${{ inputs.author_association }}
         COMMENT_BODY: ${{ inputs.comment_body }}
       run: |
+        # security-safe: COMMENT_BODY is mapped safely via env block and wrapped in quotes
         RESULT=$(td-cli gh parse-comment --author-association "$AUTHOR_ASSOC" --body "$COMMENT_BODY")
         {
           echo "conflict_resolve=$(echo "$RESULT" | jq -r '.actions.conflict_resolve')"
