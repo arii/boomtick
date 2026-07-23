@@ -60,6 +60,7 @@ jobs:
         run: |
           command -v pnpm >/dev/null 2>&1 || npm install -g pnpm@10.28.2
           pnpm install --frozen-lockfile
+          pnpm run verify:schemas
 
       - name: Run Lint & Typecheck (TypeScript)
         if: matrix.target == 'typescript'
@@ -70,6 +71,8 @@ jobs:
       - name: Run Lint & Typecheck (Python)
         if: matrix.target == 'python'
         run: |
+          # Fallback for PR transitional state
+          pip install -r cli/requirements-dev.txt -r cli/requirements-ai.txt || true
           pnpm run lint:python
           pnpm run type-check:python
 
@@ -103,6 +106,7 @@ jobs:
         run: |
           command -v pnpm >/dev/null 2>&1 || npm install -g pnpm@10.28.2
           pnpm install --frozen-lockfile
+          pnpm run verify:schemas
 
       - name: Run MCP Tests (Vitest)
         run: pnpm --filter @arii/boomtick-mcp run test
