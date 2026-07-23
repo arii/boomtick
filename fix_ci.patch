@@ -1,0 +1,29 @@
+--- .github/workflows/ci.yml
++++ .github/workflows/ci.yml
+@@ -62,8 +62,8 @@
+       - name: Run Lint & Typecheck (Python)
+         if: matrix.target == 'python'
+         run: |
+-          # Fallback for PR transitional state
+-          pip install -r cli/requirements-dev.txt -r cli/requirements-ai.txt || true
++          # Install CLI editably to test PR code instead of container code
++          pip install -e cli/ --break-system-packages || true
+           pnpm run lint:python
+           pnpm run type-check:python
+
+@@ -93,12 +93,8 @@
+
+       - name: Run Python CLI Tests (pytest)
+         run: |
+-          # Fallback for PR transitional state
+-          pip install -r cli/requirements-dev.txt -r cli/requirements-ai.txt || true
+-          if command -v td-cli >/dev/null 2>&1; then
+-            td-cli test cli
+-          else
+-            PYTHONPATH="$PYTHONPATH:$(pwd)/cli" python3 -m pytest cli/tests
+-          fi
++          # Install CLI editably to test PR code instead of container code
++          pip install -e cli/ --break-system-packages || true
++          td-cli test cli
+
+   impact-analysis:

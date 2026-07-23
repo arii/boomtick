@@ -71,8 +71,8 @@ jobs:
       - name: Run Lint & Typecheck (Python)
         if: matrix.target == 'python'
         run: |
-          # Install CLI editably to test PR code instead of container code
-          pip install -e cli/ --break-system-packages || true
+          # Fallback for PR transitional state
+          pip install -r cli/requirements-dev.txt -r cli/requirements-ai.txt || true
           pnpm run lint:python
           pnpm run type-check:python
 
@@ -113,9 +113,13 @@ jobs:
 
       - name: Run Python CLI Tests (pytest)
         run: |
-          # Install CLI editably to test PR code instead of container code
-          pip install -e cli/ --break-system-packages || true
-          td-cli test cli
+          # Fallback for PR transitional state
+          pip install -r cli/requirements-dev.txt -r cli/requirements-ai.txt || true
+          if command -v td-cli >/dev/null 2>&1; then
+            td-cli test cli
+          else
+            PYTHONPATH="$PYTHONPATH:$(pwd)/cli" python3 -m pytest cli/tests
+          fi
 
   impact-analysis:
     name: Deployment Impact Analysis
@@ -136,4 +140,3 @@ jobs:
           gemini_api_key: ${{ secrets.GEMINI_API_KEY }}
           pr_number: ${{ github.event.pull_request.number }}
           jules_api_key: ${{ secrets.JULES_API_KEY }}
-
