@@ -1289,7 +1289,7 @@ Compare the current branch against `{base_branch_name}`, identify issues, fix th
 5. Validate using the repo scripts from `package.json`, such as lint, typecheck, test, and build.
    - For CI remediation, favor targeted testing (e.g., `pnpm run test:e2e:targeted -- <args>`) and represent failures using the structured schema described in `docs/agent/ci-remediation.md`.
 6. If validation fails, fix the root cause and rerun the failing check. If the environment blocks a check, document the exact command and reason.
-7. Final review with `git status`, `git diff {base_branch}...HEAD`, `git diff --stat {base_branch}...HEAD`, and a search for TODO/FIXME/debug leftovers.
+7. Final review with `git status`, `git diff {base_branch}...HEAD`, `git diff --stat {base_branch}...HEAD`, and a search for TO-DO/FIX-ME/debug leftovers.
 8. Commit, push, and create or update the PR with a clear summary and validation notes.
 
 ## Final response
