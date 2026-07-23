@@ -46,6 +46,7 @@ jobs:
   lint-typecheck:
     name: Lint & Typecheck (${{ matrix.target }})
     runs-on: ubuntu-latest
+    container: ghcr.io/${{ github.repository }}/ai-workspace-runner:latest
     if: github.event_name != 'workflow_run'
     strategy:
       fail-fast: false
@@ -55,35 +56,37 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v7
 
-      - name: Setup Workspace
-        uses: ./.github/actions/setup-workspace
+      - name: Install Dependencies
+        uses: ./.github/actions/install-dependencies
+      - name: Verify Schemas
+        run: pnpm run verify:schemas
 
       - name: Run Lint & Typecheck (TypeScript)
         if: matrix.target == 'typescript'
         run: |
-          pnpm install --frozen-lockfile
           pnpm --filter @arii/boomtick-mcp run lint
           pnpm --filter @arii/boomtick-mcp run type-check
 
       - name: Run Lint & Typecheck (Python)
         if: matrix.target == 'python'
         run: |
+          # Install CLI editably to test PR code instead of container code
+          # security-safe: This directory strictly contains the repository's own code and dependencies, so it is safe to execute in this trusted CI pipeline context.
+          pip install -e cli/ --break-system-packages || true
           pnpm run lint:python
           pnpm run type-check:python
 
   audit:
     name: Anti-Pattern & Code Smell Checks
     runs-on: ubuntu-latest
+    container: ghcr.io/${{ github.repository }}/ai-workspace-runner:latest
     if: github.event_name != 'workflow_run'
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
 
-      - name: Setup Workspace
-        uses: ./.github/actions/setup-workspace
-
       - name: Install Dependencies
-        run: pnpm install --frozen-lockfile
+        uses: ./.github/actions/install-dependencies
 
       - name: Run Duplication Detection (jscpd)
         run: pnpm exec jscpd .
@@ -91,31 +94,31 @@ jobs:
   test-build:
     name: Unit & Integration Tests
     runs-on: ubuntu-latest
+    container: ghcr.io/${{ github.repository }}/ai-workspace-runner:latest
     if: github.event_name != 'workflow_run'
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
 
-      - name: Setup Workspace
-        uses: ./.github/actions/setup-workspace
-
       - name: Install Dependencies
-        run: pnpm install --frozen-lockfile
+        uses: ./.github/actions/install-dependencies
+      - name: Verify Schemas
+        run: pnpm run verify:schemas
 
       - name: Run MCP Tests (Vitest)
         run: pnpm --filter @arii/boomtick-mcp run test
 
       - name: Run Python CLI Tests (pytest)
         run: |
-          if command -v td-cli >/dev/null 2>&1; then
-            td-cli test cli
-          else
-            PYTHONPATH="$PYTHONPATH:$(pwd)/cli" python3 -m pytest cli/tests
-          fi
+          # Install CLI editably to test PR code instead of container code
+          # security-safe: This directory strictly contains the repository's own code and dependencies, so it is safe to execute in this trusted CI pipeline context.
+          pip install -e cli/ --break-system-packages || true
+          td-cli test cli
 
   impact-analysis:
     name: Deployment Impact Analysis
     runs-on: ubuntu-latest
+    container: ghcr.io/${{ github.repository }}/ai-workspace-runner:latest
     needs: [workflow-lint, lint-typecheck, audit, test-build]
     if: github.event_name == 'pull_request'
     steps:
