@@ -25,11 +25,12 @@ FROM python:3.12-slim
 
 WORKDIR /app
 
-# Install Node.js (matching version 24)
+# Install Node.js (matching version 24) and pnpm
 RUN apt-get update && apt-get install -y \
     curl \
     && curl -fsSL https://deb.nodesource.com/setup_24.x | bash - \
     && apt-get install -y nodejs \
+    && npm install -g pnpm@10.28.2 \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy built MCP artifacts and CLI source from builder
@@ -42,7 +43,7 @@ COPY --from=builder /app/project_config.json /app/project_config.json
 RUN mkdir -p /app/cli/dev_tools/dist && \
     cp -r /app/mcp/dist/* /app/cli/dev_tools/dist/
 
-# Install the CLI package
-RUN cd /app/cli && pip install --no-cache-dir .
+# Install the CLI package and heavy AI dependencies
+RUN cd /app/cli && pip install --no-cache-dir . -r requirements-dev.txt -r requirements-ai.txt
 
 ENTRYPOINT ["td-cli"]
