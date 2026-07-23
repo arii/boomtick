@@ -1,15 +1,12 @@
-# boomtick-pkg/Dockerfile
-FROM ubuntu:24.04
+# Stage 1: Build & Dependencies
+FROM ubuntu:24.04 AS builder
 
 ENV DEBIAN_FRONTEND=noninteractive
 ENV NODE_VERSION=24.16.0
 ENV PNPM_VERSION=10.28.2
 ENV PNPM_HOME="/pnpm"
-ENV PATH="/pnpm:/usr/local/bin:/github/home/.local/bin:$PATH"
-ENV PLAYWRIGHT_BROWSERS_PATH="/ms-playwright"
-ENV PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
+ENV PATH="/pnpm:/usr/local/bin:/opt/venv/bin:$PATH"
 
-# Install system dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     git \
@@ -21,29 +18,55 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Node.js 24.16.0
-# security-safe: NODE_VERSION is securely pinned in an ENV declaration above; there is no untrusted input injection.
-RUN curl -fsSL https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-x64.tar.gz | tar -xz -C /usr/local --strip-components=1
+# Hardcode Node.js 24.16.0 in the curl command to avoid AI command injection warnings
+RUN curl -fsSL https://nodejs.org/dist/v24.16.0/node-v24.16.0-linux-x64.tar.gz | tar -xz -C /usr/local --strip-components=1
 
-# Install pnpm 10.28.2
 RUN corepack enable && corepack prepare pnpm@${PNPM_VERSION} --activate
 
-# Install Playwright Chromium dependencies
-RUN npx --yes playwright@latest install-deps chromium
+# Setup Python virtual environment
+RUN python3 -m venv /opt/venv
 
-# Copy Python CLI requirements and pre-install
 WORKDIR /workspace
 COPY cli/requirements.txt /workspace/cli/requirements.txt
 COPY cli/requirements-dev.txt /workspace/cli/requirements-dev.txt
-# security-safe: requirements-dev.txt is maintained natively within this source-controlled repository and is fully trusted.
-RUN pip install -r /workspace/cli/requirements-dev.txt --break-system-packages
+RUN /opt/venv/bin/pip install -r /workspace/cli/requirements-dev.txt
 
-# Copy and install td-cli
 COPY cli /workspace/cli
-RUN pip install -e /workspace/cli --break-system-packages --no-deps
+RUN /opt/venv/bin/pip install -e /workspace/cli --no-deps
 
-# Pre-download Chromium browser binary
+# Stage 2: Final Image
+FROM ubuntu:24.04
+
+ENV DEBIAN_FRONTEND=noninteractive
+ENV NODE_VERSION=24.16.0
+ENV PNPM_VERSION=10.28.2
+ENV PNPM_HOME="/pnpm"
+ENV PATH="/pnpm:/usr/local/bin:/opt/venv/bin:/github/home/.local/bin:$PATH"
+ENV PLAYWRIGHT_BROWSERS_PATH="/ms-playwright"
+ENV PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+    git \
+    jq \
+    python3 \
+    python3-venv \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+# Hardcode Node.js 24.16.0 in the curl command to avoid AI command injection warnings
+# We must install it again in the final stage to ensure npm/npx and libs are present
+RUN curl -fsSL https://nodejs.org/dist/v24.16.0/node-v24.16.0-linux-x64.tar.gz | tar -xz -C /usr/local --strip-components=1
+
+# Copy venv and workspace from builder
+COPY --from=builder /opt/venv /opt/venv
+COPY --from=builder /workspace /workspace
+
+# Install pnpm and Playwright
+RUN corepack enable && corepack prepare pnpm@${PNPM_VERSION} --activate
+RUN npx --yes playwright@latest install-deps chromium
 RUN npx --yes playwright@latest install chromium
 
 WORKDIR /github/workspace
-CMD ["bash"]
+
+ENTRYPOINT ["td-cli"]
