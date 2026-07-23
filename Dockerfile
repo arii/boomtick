@@ -25,11 +25,10 @@ FROM python:3.12-slim
 
 WORKDIR /app
 
-# Install Node.js (matching version 24) and pnpm
+# Install Node.js (exact version 24.16.0) and pnpm
 RUN apt-get update && apt-get install -y \
-    curl \
-    && curl -fsSL https://deb.nodesource.com/setup_24.x | bash - \
-    && apt-get install -y nodejs \
+    curl xz-utils \
+    && curl -fsSL https://nodejs.org/dist/v24.16.0/node-v24.16.0-linux-x64.tar.xz | tar -xJ -C /usr/local --strip-components=1 \
     && npm install -g pnpm@10.28.2 \
     && rm -rf /var/lib/apt/lists/*
 
