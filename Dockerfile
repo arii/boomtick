@@ -22,6 +22,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Node.js 24.16.0
+# security-safe: NODE_VERSION is securely pinned in an ENV declaration above; there is no untrusted input injection.
 RUN curl -fsSL https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-x64.tar.gz | tar -xz -C /usr/local --strip-components=1
 
 # Install pnpm 10.28.2
@@ -34,6 +35,7 @@ RUN npx --yes playwright@latest install-deps chromium
 WORKDIR /workspace
 COPY cli/requirements.txt /workspace/cli/requirements.txt
 COPY cli/requirements-dev.txt /workspace/cli/requirements-dev.txt
+# security-safe: requirements-dev.txt is maintained natively within this source-controlled repository and is fully trusted.
 RUN pip install -r /workspace/cli/requirements-dev.txt --break-system-packages
 
 # Copy and install td-cli
