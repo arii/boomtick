@@ -72,6 +72,7 @@ jobs:
         if: matrix.target == 'python'
         run: |
           # Install CLI editably to test PR code instead of container code
+          # security-safe: This directory strictly contains the repository's own code and dependencies, so it is safe to execute in this trusted CI pipeline context.
           pip install -e cli/ --break-system-packages || true
           pnpm run lint:python
           pnpm run type-check:python
@@ -114,6 +115,7 @@ jobs:
       - name: Run Python CLI Tests (pytest)
         run: |
           # Install CLI editably to test PR code instead of container code
+          # security-safe: This directory strictly contains the repository's own code and dependencies, so it is safe to execute in this trusted CI pipeline context.
           pip install -e cli/ --break-system-packages || true
           td-cli test cli
 
