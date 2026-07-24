@@ -46,19 +46,14 @@ ENV PLAYWRIGHT_BROWSERS_PATH="/ms-playwright"
 ENV PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    curl \
-    git \
-    jq \
     python3 \
     python3-venv \
     ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
-# Hardcode Node.js 24.16.0 in the curl command to avoid AI command injection warnings
-# We must install it again in the final stage to ensure npm/npx and libs are present
-RUN curl -fsSL https://nodejs.org/dist/v24.16.0/node-v24.16.0-linux-x64.tar.gz | tar -xz -C /usr/local --strip-components=1
-
-# Copy venv and workspace from builder
+# Copy Node.js, venv, and workspace from builder
+COPY --from=builder /usr/local/bin /usr/local/bin
+COPY --from=builder /usr/local/lib /usr/local/lib
 COPY --from=builder /opt/venv /opt/venv
 COPY --from=builder /workspace /workspace
 
