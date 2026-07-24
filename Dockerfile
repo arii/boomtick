@@ -42,7 +42,11 @@ COPY --from=builder /app/project_config.json /app/project_config.json
 RUN mkdir -p /app/cli/dev_tools/dist && \
     cp -r /app/mcp/dist/* /app/cli/dev_tools/dist/
 
-# Install the CLI package and heavy AI dependencies
-RUN cd /app/cli && pip install --no-cache-dir . -r requirements-dev.txt -r requirements-ai.txt
+# Install the CLI package and heavy AI dependencies using a virtual environment
+# security-safe: standard ENV configuration inside trusted container.
+ENV PATH="/app/.venv/bin:$PATH"
+RUN python3 -m venv /app/.venv && \
+    cd /app/cli && \
+    pip install --no-cache-dir . -r requirements-dev.txt -r requirements-ai.txt
 
 ENTRYPOINT ["td-cli"]
