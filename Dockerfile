@@ -37,6 +37,17 @@ COPY --from=builder /app/mcp/dist /app/mcp/dist
 COPY --from=builder /app/cli /app/cli
 COPY --from=builder /app/package.json /app/package.json
 COPY --from=builder /app/project_config.json /app/project_config.json
+COPY --from=builder /app/pnpm-workspace.yaml /app/pnpm-workspace.yaml
+COPY --from=builder /app/pnpm-lock.yaml /app/pnpm-lock.yaml
+COPY --from=builder /app/.npmrc /app/.npmrc
+COPY --from=builder /app/scripts/check-runtime-files.mjs /app/scripts/check-runtime-files.mjs
+COPY --from=builder /app/mcp/package.json /app/mcp/package.json
+
+# Pre-install workspace dependencies in the final image
+RUN corepack enable && corepack prepare pnpm@10.28.2 --activate && \
+    pnpm install --frozen-lockfile && \
+    mv /app/node_modules /app/node_modules_cache && \
+    mv /app/mcp/node_modules /app/mcp/node_modules_cache
 
 # Bundle MCP into CLI dist so it's packaged with the CLI
 RUN mkdir -p /app/cli/dev_tools/dist && \
