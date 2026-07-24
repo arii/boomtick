@@ -72,7 +72,9 @@ jobs:
         run: |
           # Install CLI editably to test PR code instead of container code
           # security-safe: installing from local, checked-out repository code within the trusted CI pipeline.
-          pip install -e cli/ || true
+          python3 -m venv .venv
+          export PATH="$PWD/.venv/bin:$PATH"
+          pip install -e cli/ -r cli/requirements-dev.txt || true
           pnpm run lint:python
           pnpm run type-check:python
 
@@ -112,7 +114,9 @@ jobs:
         run: |
           # Install CLI editably to test PR code instead of container code
           # security-safe: installing from local, checked-out repository code within the trusted CI pipeline.
-          pip install -e cli/ || true
+          python3 -m venv .venv
+          export PATH="$PWD/.venv/bin:$PATH"
+          pip install -e cli/ -r cli/requirements-dev.txt || true
           td-cli test cli
 
   impact-analysis:
