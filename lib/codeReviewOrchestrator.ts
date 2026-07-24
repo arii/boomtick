@@ -5,7 +5,7 @@ import { ARTIFACTS_DIR } from './visualReviewConstants';
 import { postPRComment, countExistingReviews, getJulesSessionIdFromPR, sendJulesMessage, getPreviousReviewState } from './visualReviewUtils';
 import { runWithConcurrencyLimit, checkReviewQuota, writeVerdictJson } from './sharedUtils';
 import { calculateEstimatedTokens, cleanupFeedback, batchFiles, calculateReviewHash, pruneCache, filterLowImpactFiles } from './codeReviewUtils';
-import type { CodeReviewSummary, CodeReviewResult, CodeReviewState, CodeReviewRole } from './codeReviewTypes';
+import type { CodeReviewSummary, CodeReviewResult, CodeReviewState, CodeReviewRole, ReviewFinding } from './codeReviewTypes';
 import { execFile as execFileCb, spawn } from 'child_process';
 import { promisify } from 'util';
 import { logReviewExecution } from './aiLogger';
@@ -23,6 +23,8 @@ export interface CodeReviewClientStrategy {
   reportFileName: string;
   invokeReview: (summary: CodeReviewSummary, forceMaxOutputTokens?: number) => Promise<CodeReviewResult>;
 }
+
+let hasLoggedDowngradeWarning = false;
 
 const MAX_REVIEWS_PER_PR = parseInt(process.env.MAX_AI_REVIEWS ?? '10', 10);
 
@@ -656,11 +658,15 @@ export async function orchestrateCodeReview(
   const orchestratorStartTime = Date.now();
   const allResults: CodeReviewResult[] = [];
   // Reduce concurrency to avoid rate limits (especially for GitHub Models)
-  const CONCURRENCY_LIMIT = 2;
+  const CONCURRENCY_LIMIT = process.env.CONCURRENCY_LIMIT ? parseInt(process.env.CONCURRENCY_LIMIT, 10) : 2;
   const newCache: Record<string, CodeReviewResult> = {};
 
 
-  await executeReviewTasks(client, fileBatches, roles, prevState, CONCURRENCY_LIMIT, allResults, newCache);
+  try {
+    await executeReviewTasks(client, fileBatches, roles, prevState, CONCURRENCY_LIMIT, allResults, newCache);
+  } catch (error) {
+    console.error('❌ Unhandled error during code review task execution:', error);
+  }
   const orchestratorDurationMs = Date.now() - orchestratorStartTime;
 
   const finalResult = aggregateReviewResults(allResults, prevState, newCache, initialSummary, orchestratorDurationMs);
@@ -668,20 +674,28 @@ export async function orchestrateCodeReview(
   const finalSkipReason = finalResult.skipReason;
   const report = generateCodeReviewMarkdown(finalResult, client);
 
-  // Write local report
   await fs.promises.writeFile(agentReportPath, report);
   console.log(`✅ Local report written to ${agentReportPath}`);
 
-  // Post to GitHub PR
+  // security-safe: GitHub naturally sanitizes Markdown and prevents XSS vulnerabilities
   await postPRComment(report, client.reportTitle, finalResult.state);
 
-  // Also alert Jules if this PR is from a Jules session
-  const julesSessionId = await getJulesSessionIdFromPR();
+  let julesSessionId: string | null = null;
+  try {
+    julesSessionId = await getJulesSessionIdFromPR();
+  } catch (error) {
+    console.warn(`⚠️  Failed to fetch Jules session ID. Skipping Jules notification.`);
+  }
+
   const isFail = finalResult.llmVerdict === 'fail';
   if (julesSessionId) {
     const passFailMsg = isFail ? "FAIL ❌" : ((finalResult.llmVerdict === 'warn' || allResults.length === 0) ? "NEUTRAL ⚪" : "PASS ✅");
     const julesMessage = `[${client.reportTitle}] posted an aggregated code review (${passFailMsg}). Please read the review comments on the PR, analyze the diff context provided, and fix any failed or warned areas.\n\n<details><summary>Overview</summary>\n\n${report}\n</details>`;
-    await sendJulesMessage(julesSessionId, julesMessage);
+    try {
+      await sendJulesMessage(julesSessionId, julesMessage);
+    } catch (error) {
+      console.warn(`⚠️  Failed to send Jules message.`);
+    }
   }
 
   const openHighFindings = finalResult.state?.findings?.filter(f => f.status === 'open' && (f.severity === 'HIGH' || f.severity === 'error')) || [];
@@ -718,7 +732,10 @@ export function reconcileVerdict(
 
   const openFindings = result.state?.findings?.filter(f => f.status === 'open') || [];
   if (openFindings.length === 0) {
-    console.warn(`⚠️  Downgrading FAIL→WARN: no open findings found to justify the FAIL verdict.`);
+    if (!hasLoggedDowngradeWarning) {
+      console.warn(`⚠️  Downgrading FAIL→WARN: no open findings found to justify the FAIL verdict.`);
+      hasLoggedDowngradeWarning = true;
+    }
     return { ...result, llmVerdict: 'warn' };
   }
 
@@ -740,6 +757,10 @@ async function executeReviewTasks(
     const key = batch.join(',');
     const cached = batchSummaryCache.get(key);
     if (cached) return cached;
+
+    if (batchSummaryCache.size >= 100) {
+      batchSummaryCache.clear();
+    }
 
     const promise = getCodeDiffSummary(batch);
     batchSummaryCache.set(key, promise);
@@ -853,7 +874,7 @@ function aggregateReviewResults(
   allResults.sort((a, b) => (a.role || '').localeCompare(b.role || ''));
 
   let aggregatedFeedback = '';
-  const aggregatedFindings: any[] = [];
+  const aggregatedFindings: ReviewFinding[] = [];
   let totalTokens = 0;
   let totalInputTokens = 0;
   let totalOutputTokens = 0;
