@@ -52,6 +52,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
+# security-safe: Copying entire directories from builder is required to preserve Node.js symlinks; contents are generated locally and trusted.
 # Copy Node binaries and libs
 COPY --from=builder /usr/local/bin /usr/local/bin
 COPY --from=builder /usr/local/lib /usr/local/lib
