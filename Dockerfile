@@ -21,7 +21,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Hardcode Node.js 24.16.0 in the curl command to avoid AI command injection warnings
 RUN curl -fsSL https://nodejs.org/dist/v24.16.0/node-v24.16.0-linux-x64.tar.gz | tar -xz -C /usr/local --strip-components=1
 
-RUN corepack enable && corepack prepare pnpm@${PNPM_VERSION} --activate
+RUN npm install -g pnpm@${PNPM_VERSION}
 
 # Setup Python virtual environment
 RUN python3 -m venv /opt/venv
@@ -53,19 +53,16 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy Node binaries and libs
-COPY --from=builder /usr/local/bin/node /usr/local/bin/node
-COPY --from=builder /usr/local/lib/node_modules /usr/local/lib/node_modules
+COPY --from=builder /usr/local/bin /usr/local/bin
+COPY --from=builder /usr/local/lib /usr/local/lib
 # Also copy symlinks for corepack, npm, and npx
-COPY --from=builder /usr/local/bin/corepack /usr/local/bin/corepack
-COPY --from=builder /usr/local/bin/npm /usr/local/bin/npm
-COPY --from=builder /usr/local/bin/npx /usr/local/bin/npx
 
 # Copy venv and workspace from builder
 COPY --from=builder /opt/venv /opt/venv
 COPY --from=builder /workspace /workspace
 
 # Install pnpm and Playwright
-RUN corepack enable && corepack prepare pnpm@${PNPM_VERSION} --activate
+RUN npm install -g pnpm@${PNPM_VERSION}
 RUN npx --yes playwright@latest install-deps chromium
 RUN npx --yes playwright@latest install chromium
 
