@@ -659,6 +659,82 @@ export async function orchestrateCodeReview(
   const CONCURRENCY_LIMIT = 2;
   const newCache: Record<string, CodeReviewResult> = {};
 
+
+  await executeReviewTasks(client, fileBatches, roles, prevState, CONCURRENCY_LIMIT, allResults, newCache);
+  const orchestratorDurationMs = Date.now() - orchestratorStartTime;
+
+  const finalResult = aggregateReviewResults(allResults, prevState, newCache, initialSummary, orchestratorDurationMs);
+  const isTruncated = finalResult.isTruncated || false;
+  const finalSkipReason = finalResult.skipReason;
+  const report = generateCodeReviewMarkdown(finalResult, client);
+
+  // Write local report
+  await fs.promises.writeFile(agentReportPath, report);
+  console.log(`✅ Local report written to ${agentReportPath}`);
+
+  // Post to GitHub PR
+  await postPRComment(report, client.reportTitle, finalResult.state);
+
+  // Also alert Jules if this PR is from a Jules session
+  const julesSessionId = await getJulesSessionIdFromPR();
+  const isFail = finalResult.llmVerdict === 'fail';
+  if (julesSessionId) {
+    const passFailMsg = isFail ? "FAIL ❌" : ((finalResult.llmVerdict === 'warn' || allResults.length === 0) ? "NEUTRAL ⚪" : "PASS ✅");
+    const julesMessage = `[${client.reportTitle}] posted an aggregated code review (${passFailMsg}). Please read the review comments on the PR, analyze the diff context provided, and fix any failed or warned areas.\n\n<details><summary>Overview</summary>\n\n${report}\n</details>`;
+    await sendJulesMessage(julesSessionId, julesMessage);
+  }
+
+  const openHighFindings = finalResult.state?.findings?.filter(f => f.status === 'open' && (f.severity === 'HIGH' || f.severity === 'error')) || [];
+  const safeReportFileName = path.basename(client.reportFileName);
+  const verdictPath = path.join(ARTIFACTS_DIR, `${safeReportFileName.replace('.md', '')}-verdict.json`);
+  await writeVerdictJson(verdictPath, {
+    passed: !isFail,
+    highCount: openHighFindings.length || (isFail ? 1 : 0),
+    routes: [],
+    llmVerdict: finalResult.llmVerdict,
+    isTruncated: isTruncated,
+    skipReason: finalSkipReason,
+    state: finalResult.state || { findings: [] }
+  });
+
+  if (isFail) {
+    console.error(`❌ Code review returned FAIL — failing CI.`);
+    // We intentionally don't crash the script here to allow the review workflow to complete fully
+  }
+}
+
+
+/**
+ * Simple verdict reconciliation: ensures that a FAIL verdict is backed by at least one
+ * open finding.
+ */
+export function reconcileVerdict(
+  result: CodeReviewResult,
+  _diffForVerification: string
+): CodeReviewResult {
+  if (result.llmVerdict !== 'fail') {
+    return result;
+  }
+
+  const openFindings = result.state?.findings?.filter(f => f.status === 'open') || [];
+  if (openFindings.length === 0) {
+    console.warn(`⚠️  Downgrading FAIL→WARN: no open findings found to justify the FAIL verdict.`);
+    return { ...result, llmVerdict: 'warn' };
+  }
+
+  return result;
+}
+
+
+async function executeReviewTasks(
+  client: CodeReviewClientStrategy,
+  fileBatches: string[][],
+  roles: CodeReviewRole[],
+  prevState: CodeReviewState | undefined,
+  concurrencyLimit: number,
+  allResults: CodeReviewResult[],
+  newCache: Record<string, CodeReviewResult>
+): Promise<void> {
   const batchSummaryCache = new Map<string, Promise<CodeReviewSummary>>();
   const getMemoizedBatchSummary = async (batch: string[]) => {
     const key = batch.join(',');
@@ -712,9 +788,6 @@ export async function orchestrateCodeReview(
           }
 
           // HARD GATE: a truncated/malformed response must never silently resolve to PASS.
-          // A cut-off <findings> block, or a verdict tag that got chopped off the end,
-          // both currently degrade to the parser's default ('pass', undefined state) —
-          // which would let real bugs slip through with zero signal anyone is missing.
           if (result.truncated || result.parseError) {
             const reason = result.truncated 
               ? "was truncated before completion (likely an output token limit)"
@@ -763,17 +836,24 @@ export async function orchestrateCodeReview(
   }
 
   // Execute with concurrency limit
-  await runWithConcurrencyLimit(taskQueue, CONCURRENCY_LIMIT);
-  const orchestratorDurationMs = Date.now() - orchestratorStartTime;
+  await runWithConcurrencyLimit(taskQueue, concurrencyLimit);
 
   // Clear batch summary cache to free memory
   batchSummaryCache.clear();
+}
 
+function aggregateReviewResults(
+  allResults: CodeReviewResult[],
+  prevState: CodeReviewState | undefined,
+  newCache: Record<string, CodeReviewResult>,
+  initialSummary: CodeReviewSummary,
+  orchestratorDurationMs: number
+): CodeReviewResult & { isTruncated: boolean; skipReason?: string } {
   // Aggregation logic - Sort results for deterministic output
   allResults.sort((a, b) => (a.role || '').localeCompare(b.role || ''));
 
   let aggregatedFeedback = '';
-  const aggregatedFindings = [];
+  const aggregatedFindings: any[] = [];
   let totalTokens = 0;
   let totalInputTokens = 0;
   let totalOutputTokens = 0;
@@ -837,7 +917,7 @@ export async function orchestrateCodeReview(
     }
   }
 
-  const finalResult: CodeReviewResult = {
+  return {
     feedback: aggregatedFeedback.trim(),
     tokens: totalTokens,
     inputTokens: totalInputTokens,
@@ -851,63 +931,7 @@ export async function orchestrateCodeReview(
     },
     modelName: Array.from(modelNames).join(', '),
     durationMs: orchestratorDurationMs,
+    isTruncated,
+    skipReason: skipReasons.size > 0 ? Array.from(skipReasons).join(', ') : undefined
   };
-
-  const report = generateCodeReviewMarkdown(finalResult, client);
-
-  // Write local report
-  await fs.promises.writeFile(agentReportPath, report);
-  console.log(`✅ Local report written to ${agentReportPath}`);
-
-  // Post to GitHub PR
-  await postPRComment(report, client.reportTitle, finalResult.state);
-
-  // Also alert Jules if this PR is from a Jules session
-  const julesSessionId = await getJulesSessionIdFromPR();
-  const isFail = finalResult.llmVerdict === 'fail';
-  if (julesSessionId) {
-    const passFailMsg = isFail ? "FAIL ❌" : ((finalResult.llmVerdict === 'warn' || allResults.length === 0) ? "NEUTRAL ⚪" : "PASS ✅");
-    const julesMessage = `[${client.reportTitle}] posted an aggregated code review (${passFailMsg}). Please read the review comments on the PR, analyze the diff context provided, and fix any failed or warned areas.\n\n<details><summary>Overview</summary>\n\n${report}\n</details>`;
-    await sendJulesMessage(julesSessionId, julesMessage);
-  }
-
-  const openHighFindings = finalResult.state?.findings?.filter(f => f.status === 'open' && (f.severity === 'HIGH' || f.severity === 'error')) || [];
-  const safeReportFileName = path.basename(client.reportFileName);
-  const verdictPath = path.join(ARTIFACTS_DIR, `${safeReportFileName.replace('.md', '')}-verdict.json`);
-  await writeVerdictJson(verdictPath, {
-    passed: !isFail,
-    highCount: openHighFindings.length || (isFail ? 1 : 0),
-    routes: [],
-    llmVerdict: finalResult.llmVerdict,
-    isTruncated: isTruncated,
-    skipReason: skipReasons.size > 0 ? Array.from(skipReasons).join(', ') : undefined,
-    state: finalResult.state || { findings: [] }
-  });
-
-  if (isFail) {
-    console.error(`❌ Code review returned FAIL — failing CI.`);
-    // We intentionally don't crash the script here to allow the review workflow to complete fully
-  }
-}
-
-
-/**
- * Simple verdict reconciliation: ensures that a FAIL verdict is backed by at least one
- * open finding.
- */
-export function reconcileVerdict(
-  result: CodeReviewResult,
-  _diffForVerification: string
-): CodeReviewResult {
-  if (result.llmVerdict !== 'fail') {
-    return result;
-  }
-
-  const openFindings = result.state?.findings?.filter(f => f.status === 'open') || [];
-  if (openFindings.length === 0) {
-    console.warn(`⚠️  Downgrading FAIL→WARN: no open findings found to justify the FAIL verdict.`);
-    return { ...result, llmVerdict: 'warn' };
-  }
-
-  return result;
 }
