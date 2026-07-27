@@ -13,18 +13,19 @@ export function extractFinishReason(res: any): string {
   return 'UNKNOWN';
 }
 
+import type { ChatGoogleGenerativeAI } from '@langchain/google-genai';
 
-import { ChatGoogleGenerativeAI } from '@langchain/google-genai';
-
-export function createGeminiModel(
+export async function createGeminiModel(
   modelName: string,
   maxOutputTokens: number,
   thinkingBudget: number
-): ChatGoogleGenerativeAI {
+): Promise<ChatGoogleGenerativeAI> {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) throw new Error('Missing GEMINI_API_KEY environment variable');
 
-  return new ChatGoogleGenerativeAI({
+  const { ChatGoogleGenerativeAI: ChatModel } = await import('@langchain/google-genai');
+
+  return new ChatModel({
     model: modelName,
     apiKey,
     maxOutputTokens: maxOutputTokens,
@@ -71,7 +72,7 @@ export async function invokeGeminiWithBudgetRetry(
   if (typeof thinkingBudget !== 'number' || thinkingBudget < 0) throw new Error('Invalid thinkingBudget');
   if (!message || typeof message !== 'object') throw new Error('Invalid message payload');
 
-  let model = createGeminiModel(modelName, maxOutputTokens, thinkingBudget);
+  let model = await createGeminiModel(modelName, maxOutputTokens, thinkingBudget);
   let response = await withRetryFunction(() => model.invoke([message]), { maxRetries: 3, initialDelayMs: 1000 });
 
   let finishReason = extractFinishReason(response);
@@ -85,7 +86,7 @@ export async function invokeGeminiWithBudgetRetry(
     maxOutputTokens = newMax;
     thinkingBudget = newThinking;
 
-    model = createGeminiModel(modelName, maxOutputTokens, thinkingBudget);
+    model = await createGeminiModel(modelName, maxOutputTokens, thinkingBudget);
     response = await withRetryFunction(() => model.invoke([message]), { maxRetries: 3, initialDelayMs: 1000 });
 
     finishReason = extractFinishReason(response);
