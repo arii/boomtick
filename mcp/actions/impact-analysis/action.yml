@@ -26,9 +26,6 @@ runs:
         fi
       shell: bash
 
-    - run: pnpm install --frozen-lockfile --prefer-offline
-      shell: bash
-
     - name: Deployment Impact Analysis
       id: impact_analysis
       env:

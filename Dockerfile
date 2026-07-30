@@ -34,6 +34,10 @@ RUN /opt/venv/bin/pip install -r /workspace/cli/requirements-dev.txt
 COPY cli /workspace/cli
 RUN /opt/venv/bin/pip install -e /workspace/cli --no-deps
 
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY mcp/package.json ./mcp/
+RUN pnpm install --frozen-lockfile
+
 # Stage 2: Final Image
 FROM ubuntu:24.04
 
@@ -63,6 +67,10 @@ COPY --from=builder /usr/local/lib /usr/local/lib
 # Copy venv and workspace from builder
 COPY --from=builder /opt/venv /opt/venv
 COPY --from=builder /workspace /workspace
+
+# Copy node_modules for CI caching
+COPY --from=builder /workspace/node_modules /app/node_modules
+COPY --from=builder /workspace/mcp/node_modules /app/mcp/node_modules
 
 # Install pnpm and Playwright
 RUN corepack enable && corepack prepare pnpm@${PNPM_VERSION} --activate
