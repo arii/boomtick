@@ -56,21 +56,24 @@ jobs:
           comm -23 active_branches.txt open_pr_branches.txt > stale_candidates.txt
           sed -i '/^[[:space:]]*$/d' stale_candidates.txt
 
-          rm -f to_prune_branches.txt to_prune_reasons.txt
-          touch to_prune_branches.txt to_prune_reasons.txt
+          rm -f to_prune_branches.txt to_prune_reasons.txt merged_branches.txt
+          touch to_prune_branches.txt to_prune_reasons.txt merged_branches.txt
+
+          # security-safe: Capture remote branches already merged into main to avoid redundant nested git calls.
+          git branch -r --merged origin/main | sed 's/^[[:space:]]*origin\///' | sort > merged_branches.txt
 
           if [ -s stale_candidates.txt ]; then
             echo "Evaluating stale branch candidates for pruning..."
             while IFS= read -r branch; do
-              # 1. Check if the branch is merged into main
-              # security-safe: Comparing remote branch tracking references to see if they are merged into origin/main.
-              if git branch -r --merged origin/main | grep -qE "origin/$branch$"; then
+              # 1. Check if the branch is merged into main using safe fixed-string exact matching
+              # security-safe: Check against pre-computed list of merged branches to protect branch refs.
+              if grep -qFx "$branch" merged_branches.txt; then
                 echo "$branch" >> to_prune_branches.txt
                 echo "Branch \`$branch\` is merged into main." >> to_prune_reasons.txt
               else
                 # 2. Check the age of the last commit (stale if older than 30 days)
-                # security-safe: Getting the commit timestamp using standard git log format %ct.
-                last_commit_timestamp=$(git log -1 --format=%ct "origin/$branch" 2>/dev/null || echo "0")
+                # security-safe: Use '--' to signal the end of options and prevent option injection.
+                last_commit_timestamp=$(git log -1 --format=%ct -- "origin/$branch" 2>/dev/null || echo "0")
                 current_timestamp=$(date +%s)
                 age_seconds=$((current_timestamp - last_commit_timestamp))
                 # 30 days = 2592000 seconds
@@ -95,8 +98,8 @@ jobs:
             # Delete the branches
             while IFS= read -r branch; do
               echo "Deleting remote branch: $branch"
-              # security-safe: Only deleting remote branches explicitly identified as merged or stale.
-              git push origin --delete "$branch" || echo "Warning: Failed to delete remote branch $branch"
+              # security-safe: Only deleting remote branches explicitly identified as merged or stale. Use '--' to prevent option injection.
+              git push origin --delete -- "$branch" || echo "Warning: Failed to delete remote branch $branch"
             done < to_prune_branches.txt
           else
             echo "### ✅ No Stale Branches Found" >> "$GITHUB_STEP_SUMMARY"
