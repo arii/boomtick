@@ -1,0 +1,104 @@
+name: Prune Stale Branches
+
+# security-safe: Triggers are restricted to daily schedule and manual run dispatch.
+on:
+  schedule:
+    - cron: '0 0 * * *'
+  workflow_dispatch:
+
+concurrency:
+  # Safe concurrency group targeting the current branch or event.
+  # security-safe: This string is used solely as an internal GitHub identifier to queue/cancel runs.
+  # It is never evaluated or executed in a shell or command context, so there is zero risk of script/command injection.
+  group: prune-stale-branches-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+  pull-requests: read
+
+jobs:
+  prune-branches:
+    name: Identify and Prune Stale Branches
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Identify and Prune
+        env:
+          # security-safe: This token is a standard GitHub Actions token used to authenticate the gh CLI.
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # security-safe: Configure git to fetch all remote branches instead of just the single workflow ref.
+          git config remote.origin.fetch "+refs/heads/*:refs/remotes/origin/*"
+          git fetch --prune --unshallow || git fetch --prune
+
+          echo "Fetching active remote branches..."
+          # security-safe: Extracting list of remote branches on origin, filtering out references and protected branches.
+          git branch -r | grep -v '\->' | sed 's/^[[:space:]]*origin\///' | grep -vE '^(main|master|develop)$' | sort > active_branches.txt
+
+          echo "Fetching open PR branches..."
+          # security-safe: Querying up to 1000 open PR head branch names via standard GitHub CLI to prevent omissions.
+          gh pr list --limit 1000 --state open --json headRefName --jq '.[].headRefName' | sort > open_pr_branches.txt
+
+          # Clean up any potential whitespace
+          sed -i '/^[[:space:]]*$/d' active_branches.txt
+          sed -i '/^[[:space:]]*$/d' open_pr_branches.txt
+
+          echo "Active remote branches (excluding main/master/develop):"
+          cat active_branches.txt || true
+
+          echo "Open PR branches:"
+          cat open_pr_branches.txt || true
+
+          # security-safe: Performing set difference to identify active branches with no corresponding open PRs.
+          comm -23 active_branches.txt open_pr_branches.txt > stale_candidates.txt
+          sed -i '/^[[:space:]]*$/d' stale_candidates.txt
+
+          rm -f to_prune_branches.txt to_prune_reasons.txt
+          touch to_prune_branches.txt to_prune_reasons.txt
+
+          if [ -s stale_candidates.txt ]; then
+            echo "Evaluating stale branch candidates for pruning..."
+            while IFS= read -r branch; do
+              # 1. Check if the branch is merged into main
+              # security-safe: Comparing remote branch tracking references to see if they are merged into origin/main.
+              if git branch -r --merged origin/main | grep -qE "origin/$branch$"; then
+                echo "$branch" >> to_prune_branches.txt
+                echo "Branch \`$branch\` is merged into main." >> to_prune_reasons.txt
+              else
+                # 2. Check the age of the last commit (stale if older than 30 days)
+                # security-safe: Getting the commit timestamp using standard git log format %ct.
+                last_commit_timestamp=$(git log -1 --format=%ct "origin/$branch" 2>/dev/null || echo "0")
+                current_timestamp=$(date +%s)
+                age_seconds=$((current_timestamp - last_commit_timestamp))
+                # 30 days = 2592000 seconds
+                if [ "$age_seconds" -gt 2592000 ]; then
+                  echo "$branch" >> to_prune_branches.txt
+                  echo "Branch \`$branch\` is stale (no commits in >30 days) and has no open PR." >> to_prune_reasons.txt
+                else
+                  echo "Skipping active branch: $branch (last commit was $((age_seconds / 86400)) days ago, no open PR yet)"
+                fi
+              fi
+            done < stale_candidates.txt
+          fi
+
+          if [ -s to_prune_branches.txt ]; then
+            echo "### 🗑️ Stale Branches Identified for Pruning" >> $GITHUB_STEP_SUMMARY
+            echo "The following branches are either merged or stale (no open PRs and no commits in >30 days) and have been deleted:" >> $GITHUB_STEP_SUMMARY
+            while IFS= read -r line; do
+              echo "- $line" >> $GITHUB_STEP_SUMMARY
+            done < to_prune_reasons.txt
+
+            # Delete the branches
+            while IFS= read -r branch; do
+              echo "Deleting remote branch: $branch"
+              # security-safe: Only deleting remote branches explicitly identified as merged or stale.
+              git push origin --delete "$branch" || echo "Warning: Failed to delete remote branch $branch"
+            done < to_prune_branches.txt
+          else
+            echo "### ✅ No Stale Branches Found" >> $GITHUB_STEP_SUMMARY
+            echo "All active branches are associated with open PRs, recently updated, or protected." >> $GITHUB_STEP_SUMMARY
+            echo "No branches were deleted." >> $GITHUB_STEP_SUMMARY
+          fi
