@@ -84,11 +84,12 @@ jobs:
             done < stale_candidates.txt
           fi
 
+          # shellcheck disable=SC2129
           if [ -s to_prune_branches.txt ]; then
-            echo "### 🗑️ Stale Branches Identified for Pruning" >> $GITHUB_STEP_SUMMARY
-            echo "The following branches are either merged or stale (no open PRs and no commits in >30 days) and have been deleted:" >> $GITHUB_STEP_SUMMARY
+            echo "### 🗑️ Stale Branches Identified for Pruning" >> "$GITHUB_STEP_SUMMARY"
+            echo "The following branches are either merged or stale (no open PRs and no commits in >30 days) and have been deleted:" >> "$GITHUB_STEP_SUMMARY"
             while IFS= read -r line; do
-              echo "- $line" >> $GITHUB_STEP_SUMMARY
+              echo "- $line" >> "$GITHUB_STEP_SUMMARY"
             done < to_prune_reasons.txt
 
             # Delete the branches
@@ -98,7 +99,7 @@ jobs:
               git push origin --delete "$branch" || echo "Warning: Failed to delete remote branch $branch"
             done < to_prune_branches.txt
           else
-            echo "### ✅ No Stale Branches Found" >> $GITHUB_STEP_SUMMARY
-            echo "All active branches are associated with open PRs, recently updated, or protected." >> $GITHUB_STEP_SUMMARY
-            echo "No branches were deleted." >> $GITHUB_STEP_SUMMARY
+            echo "### ✅ No Stale Branches Found" >> "$GITHUB_STEP_SUMMARY"
+            echo "All active branches are associated with open PRs, recently updated, or protected." >> "$GITHUB_STEP_SUMMARY"
+            echo "No branches were deleted." >> "$GITHUB_STEP_SUMMARY"
           fi
