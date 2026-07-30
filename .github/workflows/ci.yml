@@ -120,10 +120,6 @@ jobs:
     if: github.event_name == 'pull_request'
     container: ghcr.io/${{ github.repository }}/ai-workspace-runner:latest
     steps:
-      - name: Install Git
-        run: apt-get update && apt-get install -y git
-        shell: bash
-
       - name: Checkout repository
         uses: actions/checkout@v7
         with:
