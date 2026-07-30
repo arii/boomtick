@@ -9,7 +9,7 @@ describe('Submodule Dockerfile Validation', () => {
 
     expect(dockerfileContent).toContain('NODE_VERSION=24.16.0');
     expect(dockerfileContent).toContain('PNPM_VERSION=10.28.2');
-    expect(dockerfileContent).toContain('PLAYWRIGHT_VERSION=1.61.1');
+    expect(dockerfileContent).toContain('PLAYWRIGHT_VERSION=1.60.0');
     expect(dockerfileContent).toContain('playwright@${PLAYWRIGHT_VERSION}');
     expect(dockerfileContent).toContain('ENTRYPOINT ["td-cli"]');
   });
