@@ -10,34 +10,9 @@ export interface ModelConfiguration {
   fallbacks: string[]; // Ordered list of backups if this model hits limits
 }
 
-export class GitHubModelFactory {
-  private static readonly MODEL_REGISTRY: Record<string, ModelConfiguration> = {
-    "grok-3": {
-      modelId: "Grok 3",
-      fallbacks: ["gpt-4o", "gpt-4o-mini"]
-    },
-    "phi-4": {
-      modelId: "Phi-4",
-      fallbacks: ["gpt-4o-mini", "Phi-4-mini-instruct"]
-    },
-    "deepseek": {
-      modelId: "DeepSeek-R1",
-      fallbacks: ["gpt-4o-mini", "Phi-4"]
-    },
-    "gpt-4o-mini": {
-      modelId: "gpt-4o-mini",
-      fallbacks: ["Phi-4-mini-instruct"]
-    },
-    "gpt-4": {
-      modelId: "gpt-4o",
-      fallbacks: ["gpt-4o-mini", "Phi-4"]
-    },
-    "claude": {
-      modelId: "claude-3-5-sonnet",
-      fallbacks: ["gpt-4o-mini", "Phi-4"]
-    }
-  };
+import { loadProjectConfig } from "../../lib/projectConfig";
 
+export class GitHubModelFactory {
   private static clientInstance: OpenAI | null = null;
 
   static getClient(): OpenAI {
@@ -69,12 +44,43 @@ export class GitHubModelFactory {
   }
 
   static getFallbackChain(): string[] {
-    const target = (process.env.AI_PROVIDER || '').toLowerCase();
-    const config = Object.prototype.hasOwnProperty.call(this.MODEL_REGISTRY, target)
-      ? this.MODEL_REGISTRY[target]
-      : this.MODEL_REGISTRY["gpt-4o-mini"];
+    // 1. Check environment variables
+    const primaryEnv = process.env.AI_CHAIN_PRIMARY;
+    const fallbacksEnv = process.env.AI_CHAIN_FALLBACKS;
+    if (primaryEnv) {
+      const fallbacks = fallbacksEnv ? fallbacksEnv.split(',').map(s => s.trim()) : [];
+      return [primaryEnv, ...fallbacks];
+    }
 
-    // Return the primary model followed by its dedicated backups
-    return [config.modelId, ...config.fallbacks];
+    // 2. Check AI_PROVIDER environment variable first for testing / legacy compatibility
+    const target = (process.env.AI_PROVIDER || '').toLowerCase();
+    if (target) {
+      const defaultRegistry: Record<string, string[]> = {
+        "grok-3": ["Grok 3", "gpt-4o", "gpt-4o-mini"],
+        "phi-4": ["Phi-4", "gpt-4o-mini", "Phi-4-mini-instruct"],
+        "deepseek": ["DeepSeek-R1", "gpt-4o-mini", "Phi-4"],
+        "gpt-4o-mini": ["gpt-4o-mini", "Phi-4-mini-instruct"],
+        "gpt-4": ["gpt-4o", "gpt-4o-mini", "Phi-4"],
+        "claude": ["claude-3-5-sonnet", "gpt-4o-mini", "Phi-4"]
+      };
+
+      if (Object.prototype.hasOwnProperty.call(defaultRegistry, target)) {
+        return defaultRegistry[target];
+      }
+    }
+
+    // 3. Check project config (only if not running in vitest tests to prevent local config from interfering with unit tests)
+    if (!process.env.VITEST) {
+      try {
+        const projConfig = loadProjectConfig();
+        if (projConfig.code_review_chain) {
+          return [projConfig.code_review_chain.primary, ...projConfig.code_review_chain.fallbacks];
+        }
+      } catch {
+        // ignore
+      }
+    }
+
+    return ["gpt-4o-mini", "Phi-4-mini-instruct"];
   }
 }

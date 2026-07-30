@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach, type Mock } from 'vitest';
 import { GitHubModelFactory } from '../../src/reviewers/factory';
-import { runReview } from '../../src/reviewers/runner';
+import { runReview, complete, normalizeModelId } from '../../src/reviewers/runner';
 import { OpenAI } from 'openai';
 
 const mockCreate = vi.fn();
@@ -18,6 +18,17 @@ vi.mock('openai', () => {
   };
 });
 
+describe('normalizeModelId', () => {
+  it('correctly maps various case-insensitive names to official Azure/GitHub model IDs', () => {
+    expect(normalizeModelId('gpt-4o')).toBe('gpt-4o');
+    expect(normalizeModelId('gpt-4o-mini')).toBe('gpt-4o-mini');
+    expect(normalizeModelId('deepseek-r1')).toBe('DeepSeek-R1');
+    expect(normalizeModelId('llama-3.3-70b-instruct')).toBe('Llama-3.3-70B-Instruct');
+    expect(normalizeModelId('phi-4')).toBe('Phi-4');
+    expect(normalizeModelId('unrecognized-model')).toBe('unrecognized-model');
+  });
+});
+
 describe('GitHubModelFactory', () => {
   const originalEnv = process.env;
 
@@ -32,6 +43,13 @@ describe('GitHubModelFactory', () => {
   });
 
   describe('getFallbackChain', () => {
+    it('returns custom chain if AI_CHAIN_PRIMARY is set', () => {
+      process.env.AI_CHAIN_PRIMARY = 'my-model';
+      process.env.AI_CHAIN_FALLBACKS = 'fallback-1, fallback-2';
+      const chain = GitHubModelFactory.getFallbackChain();
+      expect(chain).toEqual(['my-model', 'fallback-1', 'fallback-2']);
+    });
+
     it('returns fallbacks for grok-3', () => {
       process.env.AI_PROVIDER = 'grok-3';
       const chain = GitHubModelFactory.getFallbackChain();
@@ -93,7 +111,7 @@ describe('GitHubModelFactory', () => {
   });
 });
 
-describe('runReview', () => {
+describe('runReview & complete', () => {
   const originalEnv = process.env;
 
   beforeEach(() => {
@@ -129,63 +147,91 @@ describe('runReview', () => {
         { role: 'system', content: 'You are an expert automated code review agent. Rules to enforce:\nno bugs' },
         { role: 'user', content: 'Review the following Pull Request changes:\n\n<pr_content>\nsome changes\n</pr_content>' }
       ],
-      temperature: 0.2
+      temperature: 0.2,
+      max_tokens: undefined
     });
   });
 
-  it('rotates to next model on 429 rate limit error', async () => {
+  it('rotates to next model on 429 rate limit error after exhausting retries', async () => {
     const mockClient = GitHubModelFactory.getClient();
     const createMock = mockClient.chat.completions.create as unknown as Mock;
 
-    // First model fails with 429 status
-    createMock.mockRejectedValueOnce({
-      status: 429,
-      message: 'Rate limit exceeded'
-    });
-    // Second model succeeds
+    // First model fails twice with 429, then rotates to backup model which succeeds
+    createMock.mockRejectedValueOnce({ status: 429, message: 'Rate limit' });
+    createMock.mockRejectedValueOnce({ status: 429, message: 'Rate limit' });
     createMock.mockResolvedValueOnce({
       choices: [{ message: { content: 'Fallback review' } }]
     });
 
-    process.env.AI_PROVIDER = 'phi-4';
-
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
-    const result = await runReview({
-      prContent: 'some changes',
-      rules: ['no bugs']
+    const chain = {
+      primary: 'Phi-4',
+      fallbacks: ['gpt-4o-mini'],
+      max_retries: 2
+    };
+
+    const result = await complete(chain, {
+      messages: [{ role: 'user', content: 'hello' }]
     });
 
-    expect(result).toBe('Fallback review');
-    expect(createMock).toHaveBeenCalledTimes(2);
-    expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('Usage/Rate limit hit for Phi-4'));
+    expect(result.content).toBe('Fallback review');
+    expect(result.modelUsed).toBe('gpt-4o-mini');
+    expect(createMock).toHaveBeenCalledTimes(3); // 2 failures on Phi-4, then 1 success on gpt-4o-mini
+    expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('Usage/Rate limit or server error hit for Phi-4'));
     warnSpy.mockRestore();
   });
 
-  it('rotates to next model on other errors', async () => {
+  it('rotates to next model immediately on non-recoverable error without retrying', async () => {
     const mockClient = GitHubModelFactory.getClient();
     const createMock = mockClient.chat.completions.create as unknown as Mock;
 
-    // First model fails with standard error
-    createMock.mockRejectedValueOnce(new Error('Network error'));
-    // Second model succeeds
+    // First model fails with unexpected error, rotates immediately
+    createMock.mockRejectedValueOnce(new Error('Unexpected network glitch'));
     createMock.mockResolvedValueOnce({
       choices: [{ message: { content: 'Fallback review 2' } }]
     });
 
-    process.env.AI_PROVIDER = 'phi-4';
-
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
-    const result = await runReview({
-      prContent: 'some changes',
-      rules: ['no bugs']
+    const chain = {
+      primary: 'Phi-4',
+      fallbacks: ['gpt-4o-mini'],
+      max_retries: 3
+    };
+
+    const result = await complete(chain, {
+      messages: [{ role: 'user', content: 'hello' }]
     });
 
-    expect(result).toBe('Fallback review 2');
-    expect(createMock).toHaveBeenCalledTimes(2);
-    expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('Model Phi-4 encountered an error: Network error'));
+    expect(result.content).toBe('Fallback review 2');
+    expect(result.modelUsed).toBe('gpt-4o-mini');
+    expect(createMock).toHaveBeenCalledTimes(2); // 1 immediate failure, then fallback success
+    expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('encountered an unexpected error: Unexpected network glitch'));
     warnSpy.mockRestore();
+  });
+
+  it('throws error immediately without fallback on hard failure (401 unauthorized)', async () => {
+    const mockClient = GitHubModelFactory.getClient();
+    const createMock = mockClient.chat.completions.create as unknown as Mock;
+
+    createMock.mockRejectedValue({ status: 401, message: 'Unauthorized / Invalid Key' });
+
+    const chain = {
+      primary: 'Phi-4',
+      fallbacks: ['gpt-4o-mini'],
+      max_retries: 3
+    };
+
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    await expect(complete(chain, {
+      messages: [{ role: 'user', content: 'hello' }]
+    })).rejects.toEqual({ status: 401, message: 'Unauthorized / Invalid Key' });
+
+    expect(createMock).toHaveBeenCalledTimes(1); // halts immediately on 401
+    expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining('Hard failure (non-recoverable) encountered for model Phi-4'));
+    errorSpy.mockRestore();
   });
 
   it('throws error if all models fail', async () => {
@@ -203,7 +249,7 @@ describe('runReview', () => {
       rules: ['no bugs']
     })).rejects.toThrow('All requested GitHub Model providers and fallbacks failed or exhausted their usage limits.');
 
-    // Phi-4 fallback chain is ["Phi-4", "gpt-4o-mini", "Phi-4-mini-instruct"], so it should try 3 times
+    // Phi-4 fallback chain is ["Phi-4", "gpt-4o-mini", "Phi-4-mini-instruct"], so it should try 3 times (once per model since they fail with unexpected error immediately)
     expect(createMock).toHaveBeenCalledTimes(3);
     warnSpy.mockRestore();
   });

@@ -1,6 +1,12 @@
 import * as fs from 'fs';
 import * as path from 'path';
 
+export interface ModelChainConfig {
+  primary: string;
+  fallbacks: string[];
+  max_retries?: number;
+}
+
 export interface ProjectConfig {
   core_dirs: string[];
   monolithic_pr_threshold: number;
@@ -8,6 +14,7 @@ export interface ProjectConfig {
   max_diff_chars: number;
   content_scopes: Record<string, string>;
   ai_synthesis_model: string;
+  code_review_chain?: ModelChainConfig;
 }
 
 export const DEFAULT_CONFIG: ProjectConfig = {
@@ -70,13 +77,24 @@ export function loadProjectConfig(explicitPath?: string): ProjectConfig {
       ? raw.ai_synthesis_model
       : DEFAULT_CONFIG.ai_synthesis_model;
 
+    let code_review_chain: ModelChainConfig | undefined = undefined;
+    if (raw['code-review-chain'] && typeof raw['code-review-chain'] === 'object' && !Array.isArray(raw['code-review-chain'])) {
+      const crc = raw['code-review-chain'] as Record<string, unknown>;
+      code_review_chain = {
+        primary: typeof crc.primary === 'string' ? crc.primary : 'gpt-4o',
+        fallbacks: Array.isArray(crc.fallbacks) ? crc.fallbacks.map(String) : ['deepseek-r1', 'llama-3.3-70b-instruct'],
+        max_retries: getInt(crc.max_retries, 3)
+      };
+    }
+
     return {
       core_dirs,
       monolithic_pr_threshold,
       base_branch,
       max_diff_chars,
       content_scopes,
-      ai_synthesis_model
+      ai_synthesis_model,
+      code_review_chain
     };
   } catch (err) {
     console.warn('⚠️  Failed to load project_config.json, using defaults.', err);
