@@ -368,7 +368,7 @@ export async function getCodeDiffSummary(targetFiles?: string[]): Promise<CodeRe
     }
 
     // Filter and validate file paths to ensure existence and handle potential exceptions
-    const accessibleFiles = files.filter(file => {
+    const existingFiles = files.filter(file => {
       if (typeof file !== 'string') return false;
       try {
         return fs.existsSync(file);
@@ -382,7 +382,7 @@ export async function getCodeDiffSummary(targetFiles?: string[]): Promise<CodeRe
     const externalFilePaths = new Set<string>();
     let localDefinitions = '';
 
-    for (const file of accessibleFiles) {
+    for (const file of existingFiles) {
       try {
         if (fs.lstatSync(file).isDirectory()) {
           continue;
@@ -456,7 +456,7 @@ export async function getCodeDiffSummary(targetFiles?: string[]): Promise<CodeRe
     let impactSemanticContext = '';
     try {
       const batchFiles = [];
-      for (const file of accessibleFiles) {
+      for (const file of existingFiles) {
         try {
           const diffResult = await execFile('git', ['diff', contextBaseRef, '--', file], { encoding: 'utf-8' });
           const fileDiff = (diffResult.stdout as string) || '';
