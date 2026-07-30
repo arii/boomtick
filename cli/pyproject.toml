@@ -21,6 +21,8 @@ dependencies = [
     "click",
     "PyGithub",
     "semgrep",
+    "opentelemetry-api==1.37.0",
+    "opentelemetry-sdk==1.37.0",
     "duckduckgo-search>=6.0.0",
     "setuptools<81.0.0",
     "importlib-resources"
