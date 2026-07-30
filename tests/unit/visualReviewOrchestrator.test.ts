@@ -7,8 +7,8 @@ vi.mock('fs', () => ({
   readFileSync: vi.fn(),
   writeFileSync: vi.fn(),
   promises: {
-    writeFile: vi.fn(),
-  },
+    writeFile: vi.fn().mockResolvedValue(undefined),
+  }
 }));
 
 vi.mock('../../lib/visualReviewUtils', () => ({

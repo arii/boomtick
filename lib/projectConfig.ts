@@ -1,6 +1,12 @@
 import * as fs from 'fs';
 import * as path from 'path';
 
+export interface ModelChainConfig {
+  primary: string;
+  fallbacks: string[];
+  max_retries?: number;
+}
+
 export interface ProjectConfig {
   core_dirs: string[];
   monolithic_pr_threshold: number;
@@ -8,6 +14,8 @@ export interface ProjectConfig {
   max_diff_chars: number;
   content_scopes: Record<string, string>;
   ai_synthesis_model: string;
+  code_review_chain?: ModelChainConfig;
+  triage_chain?: ModelChainConfig;
 }
 
 export const DEFAULT_CONFIG: ProjectConfig = {
@@ -70,13 +78,37 @@ export function loadProjectConfig(explicitPath?: string): ProjectConfig {
       ? raw.ai_synthesis_model
       : DEFAULT_CONFIG.ai_synthesis_model;
 
+    let code_review_chain: ModelChainConfig | undefined = undefined;
+    const crcRaw = raw['code_review_chain'] || raw['code-review-chain'];
+    if (crcRaw && typeof crcRaw === 'object' && !Array.isArray(crcRaw)) {
+      const crc = crcRaw as Record<string, unknown>;
+      code_review_chain = {
+        primary: typeof crc.primary === 'string' ? crc.primary : 'gpt-4o',
+        fallbacks: Array.isArray(crc.fallbacks) ? crc.fallbacks.map(String) : ['deepseek-r1', 'llama-3.3-70b-instruct'],
+        max_retries: getInt(crc.max_retries, 3)
+      };
+    }
+
+    let triage_chain: ModelChainConfig | undefined = undefined;
+    const tcRaw = raw['triage_chain'] || raw['triage-chain'];
+    if (tcRaw && typeof tcRaw === 'object' && !Array.isArray(tcRaw)) {
+      const tc = tcRaw as Record<string, unknown>;
+      triage_chain = {
+        primary: typeof tc.primary === 'string' ? tc.primary : 'gpt-4o-mini',
+        fallbacks: Array.isArray(tc.fallbacks) ? tc.fallbacks.map(String) : ['llama-3.3-70b-instruct'],
+        max_retries: getInt(tc.max_retries, 2)
+      };
+    }
+
     return {
       core_dirs,
       monolithic_pr_threshold,
       base_branch,
       max_diff_chars,
       content_scopes,
-      ai_synthesis_model
+      ai_synthesis_model,
+      code_review_chain,
+      triage_chain
     };
   } catch (err) {
     console.warn('⚠️  Failed to load project_config.json, using defaults.', err);
