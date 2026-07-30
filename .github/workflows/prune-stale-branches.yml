@@ -29,14 +29,17 @@ jobs:
         env:
           # security-safe: This token is a standard GitHub Actions token used to authenticate the gh CLI.
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Specify the list of protected branches to keep (comma-separated).
+          PROTECTED_BRANCHES: "main,master,develop,gh-pages"
         run: |
           # security-safe: Configure git to fetch all remote branches instead of just the single workflow ref.
           git config remote.origin.fetch "+refs/heads/*:refs/remotes/origin/*"
           git fetch --prune --unshallow || git fetch --prune
 
-          # Define the list of protected branches to keep (as a regex pattern).
-          # security-safe: Protected branches that must never be evaluated or deleted.
-          PROTECTED_BRANCHES_REGEX="^(main|master|develop|gh-pages)$"
+          # security-safe: Convert the comma-separated PROTECTED_BRANCHES into a clean anchored regex pattern.
+          # For example, "main,master,develop,gh-pages" becomes "^(main|master|develop|gh-pages)$"
+          PROTECTED_BRANCHES_REGEX="^($(echo "$PROTECTED_BRANCHES" | tr ',' '|'))$"
+          echo "Using protected branches pattern: $PROTECTED_BRANCHES_REGEX"
 
           echo "Fetching active remote branches..."
           # security-safe: Extracting list of remote branches on origin, filtering out references and protected branches.
