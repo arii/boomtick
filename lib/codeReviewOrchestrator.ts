@@ -367,14 +367,22 @@ export async function getCodeDiffSummary(targetFiles?: string[]): Promise<CodeRe
       files = (res.stdout as string || '').split('\n').filter(Boolean);
     }
 
+    // Filter and validate file paths to ensure existence and handle potential exceptions
+    const accessibleFiles = files.filter(file => {
+      if (typeof file !== 'string') return false;
+      try {
+        return fs.existsSync(file);
+      } catch (err) {
+        console.warn(`⚠️ Error checking existence of file ${file}:`, err);
+        return false;
+      }
+    });
 
     // Context gathering
     const externalFilePaths = new Set<string>();
     let localDefinitions = '';
 
-    for (const file of files) {
-      if (!fs.existsSync(file)) continue;
-
+    for (const file of accessibleFiles) {
       try {
         if (fs.lstatSync(file).isDirectory()) {
           continue;
@@ -448,8 +456,7 @@ export async function getCodeDiffSummary(targetFiles?: string[]): Promise<CodeRe
     let impactSemanticContext = '';
     try {
       const batchFiles = [];
-      for (const file of files) {
-        if (!fs.existsSync(file)) continue;
+      for (const file of accessibleFiles) {
         try {
           const diffResult = await execFile('git', ['diff', contextBaseRef, '--', file], { encoding: 'utf-8' });
           const fileDiff = (diffResult.stdout as string) || '';
