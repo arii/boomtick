@@ -9,6 +9,7 @@ import type { CodeReviewSummary, CodeReviewResult } from '../../lib/codeReviewTy
 import type { CodeReviewClientStrategy } from '../../lib/codeReviewOrchestrator';
 import { complete } from '../../src/reviewers/runner';
 import { GitHubModelFactory } from '../../src/reviewers/factory';
+import { loadProjectConfig } from '../../lib/projectConfig';
 
 function parseTriageResult(content: string): { needsSpecialistReview: boolean; reason?: string; fastFeedback?: string } {
   try {
@@ -62,10 +63,14 @@ Your output must be wrapped inside a single block of XML tags like this:
       { role: "user" as const, content: `Review the following changes and requirements:\n\n<diff>\n${diffText}\n</diff>\n\nREQUIREMENTS/GOALS:\n${summary.prGoal || 'Analyze code quality.'}` }
     ];
 
+    const projConfig = loadProjectConfig();
+
     const triageChain = {
-      primary: process.env.AI_TRIAGE_CHAIN_PRIMARY || 'gpt-4o-mini',
-      fallbacks: process.env.AI_TRIAGE_CHAIN_FALLBACKS ? process.env.AI_TRIAGE_CHAIN_FALLBACKS.split(',').map(s => s.trim()) : ['llama-3.3-70b-instruct'],
-      max_retries: 2
+      primary: process.env.AI_TRIAGE_CHAIN_PRIMARY || projConfig.triage_chain?.primary || 'gpt-4o-mini',
+      fallbacks: process.env.AI_TRIAGE_CHAIN_FALLBACKS
+        ? process.env.AI_TRIAGE_CHAIN_FALLBACKS.split(',').map(s => s.trim())
+        : (projConfig.triage_chain?.fallbacks || ['llama-3.3-70b-instruct']),
+      max_retries: projConfig.triage_chain?.max_retries ?? 2
     };
 
     console.log(`[AI Triage] Invoking Triage Agent using fast/cheap model...`);
