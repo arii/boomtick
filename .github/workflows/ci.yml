@@ -120,10 +120,18 @@ jobs:
     if: github.event_name == 'pull_request'
     container: ghcr.io/${{ github.repository }}/ai-workspace-runner:latest
     steps:
+      - name: Install Git
+        run: apt-get update && apt-get install -y git
+        shell: bash
+
       - name: Checkout repository
         uses: actions/checkout@v7
         with:
           fetch-depth: 0
+
+      - name: Configure Git Safe Directory
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+        shell: bash
 
       - name: Restore pre-built node_modules
         run: |
