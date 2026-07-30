@@ -40,6 +40,7 @@ FROM ubuntu:24.04
 ENV DEBIAN_FRONTEND=noninteractive
 ENV NODE_VERSION=24.16.0
 ENV PNPM_VERSION=10.28.2
+ENV PLAYWRIGHT_VERSION=1.60.0
 ENV PNPM_HOME="/pnpm"
 ENV PATH="/pnpm:/usr/local/bin:/opt/venv/bin:/github/home/.local/bin:$PATH"
 ENV PLAYWRIGHT_BROWSERS_PATH="/ms-playwright"
@@ -64,8 +65,8 @@ COPY --from=builder /workspace /workspace
 
 # Install pnpm and Playwright
 RUN corepack enable && corepack prepare pnpm@${PNPM_VERSION} --activate
-RUN npx --yes playwright@latest install-deps chromium
-RUN npx --yes playwright@latest install chromium
+RUN npx --yes playwright@${PLAYWRIGHT_VERSION} install-deps chromium
+RUN npx --yes playwright@${PLAYWRIGHT_VERSION} install chromium
 
 WORKDIR /github/workspace
 
