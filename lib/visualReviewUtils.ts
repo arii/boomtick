@@ -323,7 +323,7 @@ export async function getPreviousReviewState<T>(reportTitle: string): Promise<T 
   }
 }
 
-export async function postPRComment(body: string, reportTitle: string, state?: unknown): Promise<void> {
+export async function postPRComment(body: string, reportTitle: string, state?: unknown, verdict?: 'pass' | 'fail' | 'warn'): Promise<void> {
   const token = process.env.GITHUB_TOKEN;
   const repo = process.env.GITHUB_REPOSITORY;
   const prNumber = process.env.PR_NUMBER;
@@ -332,8 +332,6 @@ export async function postPRComment(body: string, reportTitle: string, state?: u
     console.warn('⚠️  Skipping PR comment — GITHUB_TOKEN, GITHUB_REPOSITORY, or PR_NUMBER not set.');
     return;
   }
-
-  const url = `https://api.github.com/repos/${repo}/issues/${prNumber}/comments`;
 
   let stateTag = '';
   if (state) {
@@ -344,6 +342,49 @@ export async function postPRComment(body: string, reportTitle: string, state?: u
       stateTag = '';
     }
   }
+
+  if (verdict) {
+    const reviewUrl = `https://api.github.com/repos/${repo}/pulls/${prNumber}/reviews`;
+    let event = 'COMMENT';
+    if (verdict === 'pass') event = 'APPROVE';
+    else if (verdict === 'fail') event = 'REQUEST_CHANGES';
+
+    const response = await fetch(reviewUrl, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: 'application/vnd.github+json',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ body: `${stateTag}${body}`, event }),
+    });
+
+    if (!response.ok) {
+      const text = await response.text();
+      // If we cannot approve our own PR, fallback to COMMENT
+      if (response.status === 422 && text.includes('Can not approve your own pull request')) {
+         console.warn('⚠️  Cannot approve own PR. Retrying as COMMENT...');
+         const fallbackResponse = await fetch(reviewUrl, {
+           method: 'POST',
+           headers: {
+             Authorization: `Bearer ${token}`,
+             Accept: 'application/vnd.github+json',
+             'Content-Type': 'application/json',
+           },
+           body: JSON.stringify({ body: `${stateTag}${body}`, event: 'COMMENT' }),
+         });
+         if (!fallbackResponse.ok) {
+           throw new Error(`GitHub API error ${fallbackResponse.status}: ${await fallbackResponse.text()}`);
+         }
+      } else {
+         throw new Error(`GitHub API error ${response.status}: ${text}`);
+      }
+    }
+    console.log(`✅ Posted PR review (${event})`);
+    return;
+  }
+
+  const url = `https://api.github.com/repos/${repo}/issues/${prNumber}/comments`;
 
   // Check for existing comments from this bot to avoid spamming the PR
   let fetchUrl: string | null = `${url}?per_page=100`;

@@ -414,6 +414,8 @@ export function extractFeedbackText(content: unknown): string {
 export function cleanupFeedback(feedback: string): string {
   let cleaned = feedback.replace(/<findings>[\s\S]*?<\/findings>/gi, '');
   cleaned = cleaned.replace(/\[VERDICT:\s*(PASS|WARN|FAIL)\]/gi, '');
+  // Remove empty markdown code blocks that might have been left over
+  cleaned = cleaned.replace(/```(?:json|xml)?\s*\n\s*```/gi, '');
   // Collapse multiple newlines into two and trim
   return cleaned.replace(/\n{3,}/g, '\n\n').trim();
 }
