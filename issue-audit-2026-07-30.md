@@ -466,3 +466,4 @@
 3. Review and merge active PRs (#386, #385).
 4. Proceed with feature requests and refactors (#384, #383, #360, #304, #301, #20, #15).
 5. Continue tracking and executing long-term epics and infrastructure tasks (#167, #166, #163, #162, #143, #142, #141, #138, #135, #126, #73, #28).
+- #394 spec: Identify final dependencies blocking boomtick-pkg submodule removal

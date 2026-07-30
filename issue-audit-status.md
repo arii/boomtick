@@ -402,3 +402,18 @@
 **Audit Note:** CI improvement request to capture context window limits.
 **Recommendation:** Keep open
 **Reason:** Actionable CI improvement to filter models by context limits.
+
+
+### Issue #394 — spec: Identify final dependencies blocking boomtick-pkg submodule removal
+
+- [x] Relevance checked
+- [x] Duplicate check completed
+- [x] Related PRs checked
+- [x] Current codebase checked
+- [x] Labels / milestone / priority reviewed
+- [x] Audit note written
+- [x] Recommendation recorded
+
+**Audit Note:** New issue created to identify remaining dependencies blocking submodule removal.
+**Recommendation:** Keep open
+**Reason:** Needed to complete the decoupling of the boomtick-pkg submodule.
