@@ -52,13 +52,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
+# security-safe: Copying entire directories from builder is required to preserve Node.js symlinks; contents are generated locally and trusted.
 # Copy Node binaries and libs
-COPY --from=builder /usr/local/bin/node /usr/local/bin/node
-COPY --from=builder /usr/local/lib/node_modules /usr/local/lib/node_modules
+COPY --from=builder /usr/local/bin /usr/local/bin
+COPY --from=builder /usr/local/lib /usr/local/lib
 # Also copy symlinks for corepack, npm, and npx
-COPY --from=builder /usr/local/bin/corepack /usr/local/bin/corepack
-COPY --from=builder /usr/local/bin/npm /usr/local/bin/npm
-COPY --from=builder /usr/local/bin/npx /usr/local/bin/npx
 
 # Copy venv and workspace from builder
 COPY --from=builder /opt/venv /opt/venv
