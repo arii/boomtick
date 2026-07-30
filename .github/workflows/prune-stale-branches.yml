@@ -34,9 +34,13 @@ jobs:
           git config remote.origin.fetch "+refs/heads/*:refs/remotes/origin/*"
           git fetch --prune --unshallow || git fetch --prune
 
+          # Define the list of protected branches to keep (as a regex pattern).
+          # security-safe: Protected branches that must never be evaluated or deleted.
+          PROTECTED_BRANCHES_REGEX="^(main|master|develop|gh-pages)$"
+
           echo "Fetching active remote branches..."
           # security-safe: Extracting list of remote branches on origin, filtering out references and protected branches.
-          git branch -r | grep -v '\->' | sed 's/^[[:space:]]*origin\///' | grep -vE '^(main|master|develop)$' | sort > active_branches.txt
+          git branch -r | grep -v '\->' | sed 's/^[[:space:]]*origin\///' | grep -vE "$PROTECTED_BRANCHES_REGEX" | sort > active_branches.txt
 
           echo "Fetching open PR branches..."
           # security-safe: Querying up to 1000 open PR head branch names via standard GitHub CLI to prevent omissions.
@@ -46,7 +50,7 @@ jobs:
           sed -i '/^[[:space:]]*$/d' active_branches.txt
           sed -i '/^[[:space:]]*$/d' open_pr_branches.txt
 
-          echo "Active remote branches (excluding main/master/develop):"
+          echo "Active remote branches (excluding protected ones):"
           cat active_branches.txt || true
 
           echo "Open PR branches:"
