@@ -323,6 +323,66 @@ class AIClient:
                 break
             combined_diff += f"\n\n{chunk['diff_text']}"
 
+        # ── Triage routing step using the lighter rapid-response model (_SYNTHESIS_MODEL, e.g. gpt-4o-mini) ──
+        needs_specialist = True
+        fast_feedback_text = ""
+        triage_model_used = _SYNTHESIS_MODEL
+
+        if os.environ.get("TD_DISABLE_TRIAGE") == "true":
+            log_info("[AI Triage] Triage bypassed due to TD_DISABLE_TRIAGE environment variable.")
+            needs_specialist = True
+        else:
+            triage_system_prompt = (
+                "You are an expert AI Triage Agent. Your task is to perform a fast, initial validation on the Pull Request diff.\n"
+                "Determine if there are complex architectural issues, critical bugs, security vulnerabilities, or performance issues that require a deeper, specialized review.\n\n"
+                "You must respond strictly in JSON format matching this schema:\n"
+                "{\n"
+                '  "needsSpecialistReview": boolean,\n'
+                '  "reason": "string describing why a specialist is or is not needed",\n'
+                '  "fastFeedback": "string of initial review feedback if no specialist is needed"\n'
+                "}\n\n"
+                "Your output must be wrapped inside a single block of XML tags like this:\n"
+                "<triage_result>\n"
+                "{\n"
+                '  "needsSpecialistReview": ...\n'
+                "}\n"
+                "</triage_result>\n"
+            )
+
+            triage_prompt = (
+                f"Review the following changes and requirements:\n\n"
+                f"<diff>\n{combined_diff[:50000]}\n</diff>\n\n"
+                f"REQUIREMENTS/GOALS:\nPR Title: {pr_title}"
+            )
+
+            try:
+                log_info(f"[AI Triage] Invoking Triage Agent using fast/cheap model ({triage_model_used})...")
+                # Combine system prompt and user prompt
+                triage_raw = call_ai(f"{triage_system_prompt}\n\n{triage_prompt}", model=triage_model_used, max_retries=2)
+                if triage_raw:
+                    match = re.search(r"<triage_result>([\s\S]*?)</triage_result>", triage_raw)
+                    json_str = match.group(1).strip() if match else triage_raw.strip()
+                    triage_data = json.loads(json_str)
+                    needs_specialist = bool(triage_data.get("needsSpecialistReview", True))
+                    fast_feedback_text = triage_data.get("fastFeedback", "")
+                    log_info(f"[AI Triage Success] Triage complete. Needs specialist: {needs_specialist}. Model: {triage_model_used}")
+            except Exception as err:
+                log_warn(f"⚠️ Triage Agent failed, falling back to Specialist review: {err}")
+
+        if not needs_specialist and fast_feedback_text:
+            log_info("[AI Triage] Fast triage review sufficient. Bypassing specialist review.")
+            final = {
+                "reviewComment": fast_feedback_text,
+                "labels": ["lgtm"],
+                "recommendation": "Approved",
+            }
+            # CI guard: never approve if checks are failing
+            if has_ci_failures:
+                final["recommendation"] = "Not Approved"
+                final["reviewComment"] = f"CI checks are failing ({failing_names}). Recommendation downgraded.\n\n{fast_feedback_text}"
+            self._write_review_file(pr_num, pr, final, chunks, [])
+            return final
+
         # Determine whether to use piecemeal review aggregator or single-pass review using token estimation
         estimated_tokens = self._estimate_tokens(combined_diff)
         use_piecemeal = (estimated_tokens > 25000) or (os.environ.get("FORCE_PIECEMEAL_REVIEW", "false").lower() == "true")
@@ -459,11 +519,14 @@ class AIClient:
         estimated_tokens: int,
     ) -> Dict:
         """Process code review by chunks and aggregate individual results into a synthesized verdict."""
-        log_info(f"🧱 PR Context Aggregator: Large PR (estimated {estimated_tokens} tokens) or forced mode detected. Running piecemeal review across {len(reviewable)} chunks.")
+        import concurrent.futures
+
+        log_info(f"🧱 PR Context Aggregator: Large PR (estimated {estimated_tokens} tokens) or forced mode detected. Running parallel piecemeal review across {len(reviewable)} chunks.")
         file_reviews = []
         completed = 0
+        total_chunks = len(reviewable)
 
-        for chunk_data in reviewable:
+        def review_single_chunk(chunk_data: Dict) -> Dict:
             chunk_prompt = self._build_chunk_prompt(chunk_data, pr_title, checks_summary)
             parsed_chunk = None
 
@@ -493,10 +556,20 @@ class AIClient:
                 }
             else:
                 parsed_chunk["chunk_index"] = chunk_data.get("chunk_index", 0)
+            return parsed_chunk
 
-            file_reviews.append(parsed_chunk)
-            completed += 1
-            self._write_progress_snapshot(pr_num, reviewable, file_reviews, completed, "")
+        # Process reviewable chunks concurrently using a ThreadPoolExecutor
+        max_workers = min(4, total_chunks) if total_chunks > 0 else 1
+        with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
+            future_to_chunk = {
+                executor.submit(review_single_chunk, chunk_data): chunk_data
+                for chunk_data in reviewable
+            }
+            for future in concurrent.futures.as_completed(future_to_chunk):
+                parsed_chunk = future.result()
+                file_reviews.append(parsed_chunk)
+                completed += 1
+                self._write_progress_snapshot(pr_num, reviewable, file_reviews, completed, "")
 
         # Synthesize all chunk reviews into a consolidated final review
         final = self._synthesize_review(file_reviews, pr_num, pr_title, has_ci_failures, ci_failures)
