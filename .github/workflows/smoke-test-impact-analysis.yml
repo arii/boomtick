@@ -11,6 +11,10 @@ jobs:
     runs-on: ubuntu-latest
     container: ghcr.io/${{ github.repository }}/ai-workspace-runner:latest
     steps:
+      - name: Install Git
+        run: apt-get update && apt-get install -y git
+        shell: bash
+
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
