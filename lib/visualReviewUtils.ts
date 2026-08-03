@@ -349,38 +349,116 @@ export async function postPRComment(body: string, reportTitle: string, state?: u
     if (verdict === 'pass') event = 'APPROVE';
     else if (verdict === 'fail') event = 'REQUEST_CHANGES';
 
-    const response = await fetch(reviewUrl, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${token}`,
-        Accept: 'application/vnd.github+json',
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ body: `${stateTag}${body}`, event }),
-    });
+    // 1. Fetch existing reviews to see if we can just update the body
+    let fetchReviewsUrl: string | null = `${reviewUrl}?per_page=100`;
+    let existingReview: { id: number; body: string; state: string; user: { type: string } } | undefined;
 
-    if (!response.ok) {
-      const text = await response.text();
-      // If we cannot approve our own PR, fallback to COMMENT
-      if (response.status === 422 && text.includes('Can not approve your own pull request')) {
-         console.warn('⚠️  Cannot approve own PR. Retrying as COMMENT...');
-         const fallbackResponse = await fetch(reviewUrl, {
-           method: 'POST',
-           headers: {
-             Authorization: `Bearer ${token}`,
-             Accept: 'application/vnd.github+json',
-             'Content-Type': 'application/json',
-           },
-           body: JSON.stringify({ body: `${stateTag}${body}`, event: 'COMMENT' }),
-         });
-         if (!fallbackResponse.ok) {
-           throw new Error(`GitHub API error ${fallbackResponse.status}: ${await fallbackResponse.text()}`);
-         }
-      } else {
-         throw new Error(`GitHub API error ${response.status}: ${text}`);
-      }
+    while (fetchReviewsUrl) {
+      const getReviewsResponse = await fetch(fetchReviewsUrl, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: 'application/vnd.github+json',
+        },
+      });
+
+      if (!getReviewsResponse.ok) break;
+
+      const reviews = await getReviewsResponse.json() as Array<{
+        id: number;
+        body: string;
+        state: string;
+        user: { type: string };
+      }>;
+
+      existingReview = reviews.find(r =>
+        r.user && r.user.type === 'Bot' && r.body && r.body.includes(`## ${reportTitle}`)
+      );
+
+      if (existingReview) break;
+
+      const linkHeader = getReviewsResponse.headers.get('Link');
+      const nextMatch = linkHeader?.match(/<([^>]+)>;\s*rel="next"/);
+      fetchReviewsUrl = nextMatch ? nextMatch[1] : null;
     }
-    console.log(`✅ Posted PR review (${event})`);
+
+    let reviewBody = `${stateTag}${body}`;
+    if (existingReview) {
+      const match = existingReview.body.match(/<!-- ai-review-count: (\d+) -->/);
+      const currentCount = match ? parseInt(match[1], 10) : 1;
+      const newCount = currentCount + 1;
+      reviewBody = `<!-- ai-review-count: ${newCount} -->\n${reviewBody}`;
+
+      // Update the body of the existing review
+      const updateUrl = `https://api.github.com/repos/${repo}/pulls/${prNumber}/reviews/${existingReview.id}`;
+      const updateResponse = await fetch(updateUrl, {
+        method: 'PUT',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: 'application/vnd.github+json',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ body: reviewBody }),
+      });
+
+      if (!updateResponse.ok) {
+        console.warn(`⚠️  Failed to update existing PR review body: ${await updateResponse.text()}`);
+      } else {
+        console.log(`✅ Updated existing PR review body`);
+      }
+
+      // If the current PR review state matches the desired event (or we just want to COMMENT), we are done.
+      // E.g., state 'APPROVED' maps to event 'APPROVE', 'CHANGES_REQUESTED' to 'REQUEST_CHANGES'
+      const currentState = existingReview.state.toUpperCase();
+      const desiredState = event === 'APPROVE' ? 'APPROVED' : (event === 'REQUEST_CHANGES' ? 'CHANGES_REQUESTED' : 'COMMENTED');
+
+      if (currentState === desiredState || event === 'COMMENT') {
+        return;
+      }
+
+      // If the state needs to change (e.g. was REQUEST_CHANGES, now APPROVE),
+      // we must submit a NEW review to change the GitHub UI state.
+      // We will submit an empty/minimal body to avoid double-posting the long feedback.
+      reviewBody = `Status updated to ${desiredState}. See the updated review comment above for details.`;
+    } else {
+      reviewBody = `<!-- ai-review-count: 1 -->\n${reviewBody}`;
+    }
+
+    const submitReview = async (submitEvent: string) => {
+      const response = await fetch(reviewUrl, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: 'application/vnd.github+json',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ body: reviewBody, event: submitEvent }),
+      });
+
+      if (!response.ok) {
+        const text = await response.text();
+        if (response.status === 422 && text.includes('Can not approve your own pull request')) {
+           console.warn('⚠️  Cannot approve own PR. Retrying as COMMENT...');
+           return await fetch(reviewUrl, {
+             method: 'POST',
+             headers: {
+               Authorization: `Bearer ${token}`,
+               Accept: 'application/vnd.github+json',
+               'Content-Type': 'application/json',
+             },
+             body: JSON.stringify({ body: reviewBody, event: 'COMMENT' }),
+           });
+        }
+        throw new Error(`GitHub API error ${response.status}: ${text}`);
+      }
+      return response;
+    };
+
+    let response = await submitReview(event);
+    if (!response.ok) {
+      throw new Error(`GitHub API error ${response.status}: ${await response.text()}`);
+    }
+
+    console.log(`✅ Posted PR review state change (${event})`);
     return;
   }
 
