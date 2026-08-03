@@ -68,6 +68,8 @@ COPY --from=builder /usr/local/lib /usr/local/lib
 # Copy venv and workspace from builder
 COPY --from=builder /opt/venv /opt/venv
 COPY --from=builder /workspace /workspace
+COPY --from=builder /workspace/node_modules /workspace/node_modules
+COPY --from=builder /workspace/mcp/node_modules /workspace/mcp/node_modules
 
 # Install pnpm and Playwright
 RUN corepack enable && corepack prepare pnpm@${PNPM_VERSION} --activate
