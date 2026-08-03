@@ -289,6 +289,20 @@ def search_prs(ctx, state, limit, include_drafts, labels):
     out(ctx, f"Found {len(res['prs'])} PRs.", data=res)
 
 
+@gh.command(name="search-issues")
+@json_option
+@click.option("--state", default="open")
+@limit_option(help_text="Limit the number of issues to process")
+@click.option("--labels")
+@click.pass_context
+def search_issues(ctx, state, limit, labels):
+    orch = ctx.obj["ORCHESTRATOR"]
+    label_list = [l.strip() for l in labels.split(",")] if labels else None
+
+    res = orch.list_issues(state=state, limit=limit, labels=label_list)
+    out(ctx, f"Found {len(res['issues'])} issues.", data=res)
+
+
 @gh.command()
 @click.argument("pr_number", type=int)
 @click.option("--base", default=PROJECT_CONFIG.base_branch_name)
