@@ -410,7 +410,7 @@ def create_issue(ctx, title, file, body):
 
 
 @gh.command()
-@click.argument("issue_number", type=int)
+@click.option("--issue-number", type=int, required=True, help="The GitHub issue number to view")
 @click.pass_context
 def issue_view(ctx, issue_number):
     """View details of a GitHub issue."""
