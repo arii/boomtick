@@ -2081,6 +2081,20 @@ Follow the "Audit comment template" in `docs/agent/issue-audit-rules.md` to post
 
         return {"status": "success", "prs": [PRSummary(**pr).model_dump() for pr in prs]}
 
+    def list_issues(
+        self,
+        state: str = "open",
+        limit: int = 100,
+        labels: Optional[List[str]] = None,
+        **kwargs,
+    ) -> Dict[str, Any]:
+        """Lists issues with optional filtering."""
+        if "labels" in kwargs and labels is None:
+            labels = kwargs["labels"]
+        issues = self.github.list_issues(state=state, limit=limit, labels=labels)
+
+        return {"status": "success", "issues": [IssueSummary(**issue).model_dump() for issue in issues]}
+
     def get_pr_comments(self, prNumber: int, **kwargs) -> Dict[str, Any]:
         """Fetches and aggregates standard issue comments and inline review comments for a PR."""
         if "prNumber" in kwargs:
