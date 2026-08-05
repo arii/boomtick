@@ -275,7 +275,7 @@ runs:
 
           if [[ "$VERDICT" == "warn" ]]; then
              # Only allow specific safe-skip reasons for warnings to pass CI
-             IS_TRUNCATED=$(jq -r '.isTruncated // .truncated // "false"' "$f" 2>/dev/null)
+             IS_TRUNCATED=$(jq -r '.isTruncated // "false"' "$f" 2>/dev/null)
              SKIP_REASON=$(jq -r '.skipReason // "NONE"' "$f" 2>/dev/null)
 
              if [[ "$IS_TRUNCATED" == "true" || "$SKIP_REASON" == *"MISSING_API_KEY"* || "$SKIP_REASON" == *"RATE_LIMIT"* || "$SKIP_REASON" == *"UNHANDLED_ERROR"* || "$SKIP_REASON" == *"TRUNCATED"* || "$SKIP_REASON" == *"PARSE_ERROR"* || "$SKIP_REASON" == "NONE" ]]; then

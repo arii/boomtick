@@ -2093,7 +2093,7 @@ Follow the "Audit comment template" in `docs/agent/issue-audit-rules.md` to post
                 for f in files
             ],
             "diffText": diff_text,
-            "truncated": truncated,
+            "isTruncated": truncated,
         }
 
     def list_prs(

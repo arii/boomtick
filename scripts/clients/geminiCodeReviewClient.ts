@@ -99,7 +99,6 @@ export const geminiCodeReviewClient: CodeReviewClientStrategy = {
         modelName,
         llmVerdict: 'warn',
         isTruncated: true,
-        truncated: true,
       };
     }
 
@@ -126,7 +125,6 @@ export const geminiCodeReviewClient: CodeReviewClientStrategy = {
       llmVerdict: parseCodeReviewVerdict(feedback),
       state: parsedState.state,
       isTruncated: isTruncated,
-      truncated: isTruncated,
       parseError: parsedState.parseError,
     };
   }

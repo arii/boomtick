@@ -143,7 +143,7 @@ def parse_diff_into_file_chunks(diff_text: str) -> list[dict]:
         "reason": str | None, # populated when skip=True
         "diff_text": str,     # the raw diff text for this chunk
         "added_lines": int,
-        "truncated": bool,    # True when diff_text was trimmed to MAX_CHUNK_CHARS
+        "isTruncated": bool,  # True when diff_text was trimmed to MAX_CHUNK_CHARS
     }
     """
     raw_files = _parse_raw_files(diff_text)
@@ -165,7 +165,7 @@ def parse_diff_into_file_chunks(diff_text: str) -> list[dict]:
                     "reason": skip_reason or "no hunks",
                     "diff_text": "",
                     "added_lines": 0,
-                    "truncated": False,
+                    "isTruncated": False,
                 }
             )
             continue
@@ -192,11 +192,11 @@ def parse_diff_into_file_chunks(diff_text: str) -> list[dict]:
             text = f"--- a/{filepath}\n+++ b/{filepath}\n"
             text += "".join(_hunk_to_text(h) for h in group)
             added = sum(h["added_count"] for h in group)
-            truncated = False
+            is_truncated = False
 
             if len(text) > MAX_CHUNK_CHARS:
                 text = text[:MAX_CHUNK_CHARS] + f"\n... (diff truncated at {MAX_CHUNK_CHARS} chars)"
-                truncated = True
+                is_truncated = True
 
             chunks.append(
                 {
@@ -207,7 +207,7 @@ def parse_diff_into_file_chunks(diff_text: str) -> list[dict]:
                     "reason": None,
                     "diff_text": text,
                     "added_lines": added,
-                    "truncated": truncated,
+                    "isTruncated": is_truncated,
                 }
             )
 

@@ -792,14 +792,14 @@ async function executeReviewTasks(
 
           let result = await invokeWithTelemetry();
 
-          if (result.truncated) {
+          if (result.isTruncated) {
             console.warn(`⚠️  Initial review truncated — retrying once with a larger output budget.`);
             result = await invokeWithTelemetry(8192);
           }
 
           // HARD GATE: a truncated/malformed response must never silently resolve to PASS.
-          if (result.truncated || result.parseError) {
-            const reason = result.truncated 
+          if (result.isTruncated || result.parseError) {
+            const reason = result.isTruncated
               ? "was truncated before completion (likely an output token limit)"
               : `had a malformed findings block (parse error: ${result.parseError})`;
             console.error(
@@ -808,7 +808,7 @@ async function executeReviewTasks(
             result = {
               ...result,
               llmVerdict: 'warn',
-              skipReason: result.truncated ? 'TRUNCATED' : 'PARSE_ERROR',
+              skipReason: result.isTruncated ? 'TRUNCATED' : 'PARSE_ERROR',
               feedback: `${result.feedback}\n\n---\n⚠️ **Review incomplete:** the model's response ${reason}. This review could not verify all findings and should not be treated as a clean pass. Consider re-running.`,
             };
           }
@@ -894,7 +894,7 @@ function aggregateReviewResults(
     if (res.llmVerdict === 'fail') finalVerdict = 'fail';
     else if (res.llmVerdict === 'warn' && finalVerdict !== 'fail') finalVerdict = 'warn';
 
-    if (res.truncated) isTruncated = true;
+    if (res.isTruncated) isTruncated = true;
     if (res.skipReason) skipReasons.add(res.skipReason);
 
     if (res.modelName) modelNames.add(res.modelName);

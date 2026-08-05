@@ -19,7 +19,7 @@ export interface AIRunLogEntry {
   pr?: string;
   route?: string;
   error?: string;
-  truncated?: boolean;
+  isTruncated?: boolean;
   parseError?: string;
   rawResponse?: string;
   findings?: unknown[];
@@ -57,7 +57,7 @@ interface ReviewResultLike {
   cost: number;
   modelName?: string;
   llmVerdict?: string;
-  truncated?: boolean;
+  isTruncated?: boolean;
   parseError?: string;
   feedback: string;
   state?: { findings: unknown[] };
@@ -85,7 +85,7 @@ export function logReviewExecution(
     verdict: result.llmVerdict || 'unknown',
     pr: additional.pr || process.env.PR_NUMBER,
     route: additional.route,
-    truncated: result.truncated,
+    isTruncated: result.isTruncated,
     parseError: result.parseError,
     rawResponse: result.feedback,
     findings: result.findings || result.state?.findings,
