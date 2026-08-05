@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.8.0](https://github.com/arii/boomtick/compare/cli-v0.7.0...cli-v0.8.0) (2026-08-05)
+
+
+### Features
+
+* add --all flag to detect-conflicts command ([#419](https://github.com/arii/boomtick/issues/419)) ([7760ef2](https://github.com/arii/boomtick/commit/7760ef270e7c7f3fd54f283144ccbd385a005b5e))
+
+
+### Bug Fixes
+
+* td-cli gh issue-view --issue-number fails to parse argument ([#420](https://github.com/arii/boomtick/issues/420)) ([c916796](https://github.com/arii/boomtick/commit/c9167968bb0b1d9b19ed36961a9ba4834ff2ec9c))
+
+
+### Documentation
+
+* update agent workflows to reference search-issues command ([#422](https://github.com/arii/boomtick/issues/422)) ([3d94c11](https://github.com/arii/boomtick/commit/3d94c115a576297735202c613eb138c176d20390))
+
 ## [0.7.0](https://github.com/arii/boomtick/compare/cli-v0.6.1...cli-v0.7.0) (2026-08-05)
 
 

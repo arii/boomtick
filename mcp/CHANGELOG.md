@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.5](https://github.com/arii/boomtick/compare/mcp-v0.3.4...mcp-v0.3.5) (2026-08-05)
+
+
+### Bug Fixes
+
+* **ci:** add missing setup and install to impact-analysis action ([#433](https://github.com/arii/boomtick/issues/433)) ([cbfb073](https://github.com/arii/boomtick/commit/cbfb073ee8a817194a9cd147d249debecb152263))
+
 ## [0.3.4](https://github.com/arii/boomtick/compare/mcp-v0.3.3...mcp-v0.3.4) (2026-07-21)
 
 
