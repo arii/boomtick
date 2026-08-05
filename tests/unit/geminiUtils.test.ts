@@ -77,8 +77,11 @@ describe('geminiUtils', () => {
 
     expect(fetchSpy).toHaveBeenCalled();
     const [calledUrl, calledInit] = fetchSpy.mock.calls[0];
-    expect(calledUrl).toContain('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=fake-api-key');
+    expect(calledUrl).toContain('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent');
     expect(calledInit?.method).toBe('POST');
+    const headers = calledInit?.headers as Record<string, string>;
+    expect(headers).toBeDefined();
+    expect(headers['x-goog-api-key']).toBe('fake-api-key');
 
     const requestBody = JSON.parse(calledInit?.body as string);
     expect(requestBody.contents[0].parts[0].text).toBe('Hello Gemini!');
