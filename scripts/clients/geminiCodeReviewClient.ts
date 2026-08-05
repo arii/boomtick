@@ -43,8 +43,7 @@ export const geminiCodeReviewClient: CodeReviewClientStrategy = {
     const maxOutputTokens = forceMaxOutputTokens ?? estimateMaxOutputTokens(summary, systemPrompt.length, thinkingBudget);
 
     const baseContent = buildReviewPayload(systemPrompt, diffText, externalText).map(msg => msg.content).join('\n\n');
-    const { HumanMessage } = await import('@langchain/core/messages');
-    const message = new HumanMessage({ content: baseContent });
+    const message = { content: baseContent };
 
     const retryResult = await invokeGeminiWithBudgetRetry(
       modelName,
