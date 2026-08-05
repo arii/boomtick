@@ -83,6 +83,16 @@ class TestLabels(unittest.TestCase):
         self.orch.github.add_labels.assert_called_once_with(123, ["l1"])
         self.orch.github.update_issue.assert_called_once_with(123, body="new body", state=None)
 
+    def test_orchestrator_update_issue_add_labels_returns_list(self):
+        # Reset setup mocks and make add_labels return a list of labels (as GitHub API actually does)
+        self.orch.github.add_labels.return_value = [{"name": "l1"}]
+        # When update_issue detects a list or non-IssueSummary dictionary, it fetches full issue details
+        res = self.orch.update_issue(123, add_labels=["l1"])
+        self.orch.github.add_labels.assert_called_once_with(123, ["l1"])
+        self.orch.github.fetch_issue_details.assert_called_once_with(123)
+        self.assertEqual(res["status"], "success")
+        self.assertEqual(res["issue"]["number"], 123)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -479,6 +479,9 @@ class Orchestrator:
         if res is None:
             raise CLIError("Nothing to update. Provide body, labels, or state.")
 
+        if isinstance(res, list) or not isinstance(res, dict) or not all(k in res for k in ["number", "title", "html_url", "state"]):
+            res = self.github.fetch_issue_details(issueNumber)
+
         return {"status": "success", "issue": IssueSummary(**res).model_dump()}
 
     def post_comment(self, entity_number: int, body: Optional[str]) -> Dict[str, Any]:
