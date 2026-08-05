@@ -9,10 +9,30 @@ on:
 jobs:
   smoke-test:
     runs-on: ubuntu-latest
+    container: ghcr.io/${{ github.repository }}/ai-workspace-runner:latest
     steps:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
+
+      - name: Configure Git Safe Directory
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+        shell: bash
+
+      - name: Restore pre-built node_modules
+        run: |
+          if [ -d "/workspace/node_modules" ]; then
+            echo "Restoring node_modules from container cache..."
+            mv /workspace/node_modules ./node_modules
+            mkdir -p ./mcp
+            if [ -d "/workspace/mcp/node_modules" ]; then
+              mv /workspace/mcp/node_modules ./mcp/node_modules
+            fi
+          else
+            echo "⚠️ Pre-built node_modules not found. Falling back to dynamic installation."
+            pnpm install --frozen-lockfile
+          fi
+        shell: bash
 
       - name: Smoke Test Impact Analysis Action
         uses: ./mcp/actions/impact-analysis

@@ -34,6 +34,11 @@ RUN /opt/venv/bin/pip install -r /workspace/cli/requirements-dev.txt
 COPY cli /workspace/cli
 RUN /opt/venv/bin/pip install -e /workspace/cli --no-deps
 
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .node-version ./
+COPY scripts/check-runtime-files.mjs ./scripts/
+COPY mcp/package.json ./mcp/
+RUN pnpm install --frozen-lockfile
+
 # Stage 2: Final Image
 FROM ubuntu:24.04
 
@@ -48,6 +53,7 @@ ENV PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     jq \
+    git \
     python3 \
     python3-venv \
     ca-certificates \
@@ -62,6 +68,8 @@ COPY --from=builder /usr/local/lib /usr/local/lib
 # Copy venv and workspace from builder
 COPY --from=builder /opt/venv /opt/venv
 COPY --from=builder /workspace /workspace
+COPY --from=builder /workspace/node_modules /workspace/node_modules
+COPY --from=builder /workspace/mcp/node_modules /workspace/mcp/node_modules
 
 # Install pnpm and Playwright
 RUN corepack enable && corepack prepare pnpm@${PNPM_VERSION} --activate

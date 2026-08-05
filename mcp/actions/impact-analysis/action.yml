@@ -16,8 +16,6 @@ inputs:
 runs:
   using: composite
   steps:
-    - uses: ./mcp/actions/setup
-
     - name: Validate PR Number
       env:
         PR_NUMBER: ${{ inputs.pr_number }}
@@ -26,9 +24,6 @@ runs:
           echo "::error::Invalid PR_NUMBER: must be numeric."
           exit 1
         fi
-      shell: bash
-
-    - run: pnpm install --frozen-lockfile --prefer-offline
       shell: bash
 
     - name: Deployment Impact Analysis
