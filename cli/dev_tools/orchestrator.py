@@ -593,8 +593,11 @@ class Orchestrator:
             "total_findings": total_findings,
         }
 
-    def handle_detect_conflicts(self, pr_num: Optional[int] = None) -> List[Dict[str, Any]]:
-        conflicts = self.detect_conflicts(pr_num)
+    def handle_detect_conflicts(self, pr_num: Optional[int] = None, all_prs: bool = False) -> List[Dict[str, Any]]:
+        if pr_num is not None and all_prs:
+            raise CLIError("Provide either pr_num or all_prs, not both")
+        target_pr = pr_num if not all_prs else None
+        conflicts = self.detect_conflicts(target_pr)
         formatted = []
         for pr_pair, files in conflicts.items():
             formatted.append({"prs": list(pr_pair), "files": files})
