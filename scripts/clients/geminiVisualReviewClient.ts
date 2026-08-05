@@ -138,6 +138,7 @@ Your job:
         llmVerdict: 'warn',
         findings: [],
         truncated: true,
+        isTruncated: true,
       };
     }
 
@@ -162,6 +163,7 @@ Your job:
       llmVerdict: parseLLMVerdict(feedback),
       findings: parseVisualReviewFindings(feedback),
       truncated: isTruncated,
+      isTruncated: isTruncated,
     };
   }
 };

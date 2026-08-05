@@ -66,7 +66,8 @@ export class DirectGeminiModel {
       }
     };
 
-    if (this.thinkingBudget > 0) {
+    const supportsThinking = !this.model.includes('lite') && !this.model.includes('1.5');
+    if (this.thinkingBudget > 0 && supportsThinking) {
       payload.generationConfig.thinkingConfig = {
         thinkingBudget: this.thinkingBudget
       };
