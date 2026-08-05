@@ -596,11 +596,13 @@ def _render_conflicts(ctx, conflicts):
     out(ctx, f"Found {len(conflicts)} potential conflicts.", data={"conflicts": conflicts})
 
 
-@gh.command()
+@gh.command(deprecated=True)
 @click.pass_context
 def conflicts(ctx):
+    click.echo("⚠️ WARNING: 'td-cli gh conflicts' is deprecated and will be removed in a future release.", err=True)
+    click.echo("Please use 'td-cli gh detect-conflicts' instead.\n", err=True)
     orch = ctx.obj["ORCHESTRATOR"]
-    conflicts: List[Dict[str, Any]] = orch.handle_detect_conflicts()
+    conflicts: List[Dict[str, Any]] = orch.handle_detect_conflicts(all_prs=True)
     _render_conflicts(ctx, conflicts)
 
 
@@ -698,6 +700,9 @@ def verify_versions(ctx, diff_input):
 def detect_conflicts(ctx, pr, all_prs):
     if pr is not None and all_prs:
         err(ctx, "Provide either --pr or --all, not both")
+    if pr is None and not all_prs:
+        click.echo("💡 Suggestion: Use 'td-cli gh detect-conflicts --all' to explicitly scan all open PRs.", err=True)
+        all_prs = True
     orch = ctx.obj["ORCHESTRATOR"]
     conflicts = orch.handle_detect_conflicts(pr_num=pr, all_prs=all_prs)
     _render_conflicts(ctx, conflicts)

@@ -81,3 +81,45 @@ def test_cli_detect_conflicts_mutually_exclusive():
 
     assert result.exit_code != 0
     assert "Provide either --pr or --all, not both" in result.output
+
+
+def test_cli_conflicts_deprecated():
+    runner = CliRunner()
+
+    with patch("dev_tools.cli.LazyOrchestrator") as mock_lazy:
+        mock_orch = MagicMock()
+        mock_lazy.return_value = mock_orch
+
+        mock_orch.handle_detect_conflicts.return_value = [
+            {"prs": [1, 2], "files": ["shared.py"]}
+        ]
+
+        result = runner.invoke(cli, ["gh", "conflicts"])
+
+        assert result.exit_code == 0
+        assert "WARNING: 'td-cli gh conflicts' is deprecated" in result.stderr
+        data = json.loads(result.stdout)
+        assert data["status"] == "success"
+        assert len(data["conflicts"]) == 1
+        mock_orch.handle_detect_conflicts.assert_called_once_with(all_prs=True)
+
+
+def test_cli_detect_conflicts_no_args():
+    runner = CliRunner()
+
+    with patch("dev_tools.cli.LazyOrchestrator") as mock_lazy:
+        mock_orch = MagicMock()
+        mock_lazy.return_value = mock_orch
+
+        mock_orch.handle_detect_conflicts.return_value = [
+            {"prs": [1, 2], "files": ["shared.py"]}
+        ]
+
+        result = runner.invoke(cli, ["gh", "detect-conflicts"])
+
+        assert result.exit_code == 0
+        assert "Suggestion: Use 'td-cli gh detect-conflicts --all'" in result.stderr
+        data = json.loads(result.stdout)
+        assert data["status"] == "success"
+        assert len(data["conflicts"]) == 1
+        mock_orch.handle_detect_conflicts.assert_called_once_with(pr_num=None, all_prs=True)
