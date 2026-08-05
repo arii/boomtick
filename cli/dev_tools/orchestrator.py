@@ -1934,18 +1934,42 @@ Follow the "Audit comment template" in `docs/agent/issue-audit-rules.md` to post
         checks = self.github.fetch_check_runs(head_sha)
         failed_checks = [c for c in checks if c.get("conclusion") == "failure"]
 
-        logs = {}
+        logs: dict[str, str] = {}
         # Get check suites to find workflow runs
         check_suites = self.github.fetch_check_suites(head_sha)
 
-        for suite in check_suites:
-            runs = self.github.fetch_check_runs_for_suite(suite["id"])
-            for run in runs:
-                if include_all or run.get("conclusion") == "failure":
-                    run_id = run.get("id")
-                    if isinstance(run_id, int):
-                        log_content = self.github.fetch_check_run_logs(run_id, external_id=run.get("external_id"))
-                        logs[run["name"]] = log_content[:10000]
+        all_runs = []
+        import concurrent.futures
+        if check_suites:
+            with concurrent.futures.ThreadPoolExecutor(max_workers=min(4, len(check_suites))) as executor:
+                suite_futures = {executor.submit(self.github.fetch_check_runs_for_suite, suite["id"]): suite for suite in check_suites}
+                for future in concurrent.futures.as_completed(suite_futures):
+                    try:
+                        runs = future.result()
+                        all_runs.extend(runs)
+                    except Exception as e:
+                        suite = suite_futures[future]
+                        log_warn(f"Failed to fetch runs for suite {suite.get('id')}: {e}")
+
+        runs_to_fetch = [run for run in all_runs if include_all or run.get("conclusion") == "failure"]
+
+        def fetch_log(run):
+            run_id = run.get("id")
+            if isinstance(run_id, int):
+                return run["name"], self.github.fetch_check_run_logs(run_id, external_id=run.get("external_id"))
+            return None, None
+
+        if runs_to_fetch:
+            with concurrent.futures.ThreadPoolExecutor(max_workers=min(4, len(runs_to_fetch))) as executor:
+                log_futures = {executor.submit(fetch_log, run): run for run in runs_to_fetch}
+                for future in concurrent.futures.as_completed(log_futures):
+                    try:
+                        name, log_content = future.result()
+                        if name and isinstance(name, str) and log_content and isinstance(log_content, str):
+                            logs[name] = log_content[:10000]
+                    except Exception as e:
+                        run = log_futures[future]
+                        log_warn(f"Failed to fetch log for run {run.get('id')}: {e}")
 
         return {"checks": checks, "failedChecks": failed_checks, "logs": logs}
 
@@ -2243,9 +2267,21 @@ Follow the "Audit comment template" in `docs/agent/issue-audit-rules.md` to post
         aggregate_body = ""
         successfully_merged = []
 
+        import concurrent.futures
+        pr_details_map = {}
+        if prNumbers:
+            with concurrent.futures.ThreadPoolExecutor(max_workers=min(4, len(prNumbers))) as executor:
+                future_to_pr = {executor.submit(self.github.fetch_pr_details, pr_num): pr_num for pr_num in prNumbers}
+                for future in concurrent.futures.as_completed(future_to_pr):
+                    pr_num = future_to_pr[future]
+                    try:
+                        pr_details_map[pr_num] = future.result()
+                    except Exception as e:
+                        raise CLIError(f"Failed to fetch PR #{pr_num}: {e}")
+
         for pr_num in prNumbers:
             # 2. Sequential Extraction & Deterministic Sequence
-            pr_data = self.github.fetch_pr_details(pr_num)
+            pr_data = pr_details_map.get(pr_num) or {}
             head_ref = pr_data.get("head", {}).get("ref")
             title = pr_data.get("title")
             body = pr_data.get("body") or ""
@@ -2820,17 +2856,28 @@ Overlapping functionality identified and resolved.
         file_to_prs: Dict[str, set[int]] = defaultdict(set)
         pr_hunks = {}
 
-        for pr_num in prNumbers:
+        def fetch_pr_info(pr_num: int):
             details = self.github.fetch_pr_details(pr_num)
-            pr_details[pr_num] = details
             files = self.github.fetch_pr_files(pr_num)
             diff = self.github.fetch_pr_diff(pr_num)
-            pr_hunks[pr_num] = self._extract_diff_hunks(diff)
+            hunks = self._extract_diff_hunks(diff)
+            return pr_num, details, files, hunks
 
-            # Explicitly cast to str to satisfy type checkers
-            pr_files = {str(f.get("filename")) for f in files if f.get("filename")}
-            for filename_str in pr_files:
-                file_to_prs[filename_str].add(pr_num)
+        import concurrent.futures
+        if prNumbers:
+            with concurrent.futures.ThreadPoolExecutor(max_workers=min(4, len(prNumbers))) as executor:
+                future_to_pr = {executor.submit(fetch_pr_info, pr_num): pr_num for pr_num in prNumbers}
+                for future in concurrent.futures.as_completed(future_to_pr):
+                    pr_num = future_to_pr[future]
+                    try:
+                        pr_num, details, files, hunks = future.result()
+                        pr_details[pr_num] = details
+                        pr_hunks[pr_num] = hunks
+                        pr_files = {str(f.get("filename")) for f in files if f.get("filename")}
+                        for filename_str in pr_files:
+                            file_to_prs[filename_str].add(pr_num)
+                    except Exception as e:
+                        raise CLIError(f"Failed to fetch info for PR #{pr_num}: {e}")
 
         overlapping_files: Dict[str, List[int]] = {
             f: sorted(list(prs)) for f, prs in file_to_prs.items() if len(prs) > 1
