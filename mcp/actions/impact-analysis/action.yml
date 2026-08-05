@@ -16,6 +16,12 @@ inputs:
 runs:
   using: composite
   steps:
+    - uses: ./mcp/actions/setup
+
+    - name: pnpm install
+      run: pnpm install --frozen-lockfile --prefer-offline
+      shell: bash
+
     - name: Validate PR Number
       env:
         PR_NUMBER: ${{ inputs.pr_number }}
