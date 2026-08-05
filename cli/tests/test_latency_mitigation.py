@@ -19,8 +19,10 @@ def test_disk_cache_basic(tmp_path):
     assert cache.get(key) == val
 
     # Test expiration
-    cache.set(key, val, ttl=0.1)
+    cache.set(key, val, ttl=5.0)
     assert cache.get(key) == val
+
+    cache.set(key, val, ttl=0.1)
     time.sleep(0.2)
     assert cache.get(key) is None
 
