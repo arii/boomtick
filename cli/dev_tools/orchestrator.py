@@ -467,10 +467,7 @@ class Orchestrator:
 
             if removeLabels:
                 for label in removeLabels:
-                    self.github.remove_label(issueNumber, label)
-                # If we haven't updated yet (no add_labels, body, or state), fetch current state
-                if res is None and body is None and state is None:
-                    res = self.github.fetch_issue_details(issueNumber)
+                    res = self.github.remove_label(issueNumber, label)
 
             # Handle body/state update if not already done via 'labels' PATCH
             if body is not None or state is not None:
@@ -478,9 +475,6 @@ class Orchestrator:
 
         if res is None:
             raise CLIError("Nothing to update. Provide body, labels, or state.")
-
-        if isinstance(res, list) or not isinstance(res, dict) or not all(k in res for k in ["number", "title", "html_url", "state"]):
-            res = self.github.fetch_issue_details(issueNumber)
 
         return {"status": "success", "issue": IssueSummary(**res).model_dump()}
 
