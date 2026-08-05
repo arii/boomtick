@@ -24,6 +24,9 @@ You must continue working until every open issue has been reviewed. Do not stop 
 Use the dev-tools CLI wherever it helps inspect issues, labels, linked PRs, branches, commits, project status, or related files:
 
 ```bash
+# Search for issues (state defaults to open)
+td-cli gh search-issues --state open --limit 10
+
 # Validate a single issue or all open issues
 td-cli gh validate-issue --issue-number <N>
 td-cli gh validate-issue --all-open

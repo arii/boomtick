@@ -296,6 +296,7 @@ def search_prs(ctx, state, limit, include_drafts, labels):
 @click.option("--labels")
 @click.pass_context
 def search_issues(ctx, state, limit, labels):
+    """Search for GitHub issues (excluding pull requests) in the repository."""
     orch = ctx.obj["ORCHESTRATOR"]
     label_list = [l.strip() for l in labels.split(",")] if labels else None
 
