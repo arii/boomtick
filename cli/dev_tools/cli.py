@@ -686,11 +686,15 @@ def verify_versions(ctx, diff_input):
 
 
 @gh.command()
-@click.option("--pr", type=int)
+@click.option("--pr", type=int, help="Limit checks to conflicts involving this PR.")
+@click.option("--all", "all_prs", is_flag=True, help="Detect conflicts across all open PRs.")
 @click.pass_context
-def detect_conflicts(ctx, pr):
+def detect_conflicts(ctx, pr, all_prs):
+    """Detect potential merge conflicts between open PRs."""
+    if pr and all_prs:
+        err(ctx, "Cannot specify both --pr and --all options.")
     orch = ctx.obj["ORCHESTRATOR"]
-    conflicts = orch.handle_detect_conflicts(pr_num=pr)
+    conflicts = orch.handle_detect_conflicts(pr_num=None if all_prs else pr)
     _render_conflicts(ctx, conflicts)
 
 

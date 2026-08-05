@@ -16,7 +16,7 @@ You must continue working until every open issue has been reviewed. Do not stop 
 3. Verify environment and remote setup:
    ```bash
    td-cli doctor
-   td-cli gh detect-conflicts
+   td-cli gh detect-conflicts --all
    ```
 4. Create or update an `issue-audit-status.md` file before beginning detailed audit work.
 5. Keep `issue-audit-status.md` updated as you complete each issue review.
