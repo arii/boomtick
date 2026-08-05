@@ -46,4 +46,9 @@ export interface CodeReviewResult extends CodeReviewState {
   modelName: string;
   llmVerdict: 'pass' | 'warn' | 'fail';
   isTruncated?: boolean;
+  truncated?: boolean;
+  inputTokens?: number;
+  outputTokens?: number;
+  cacheTokens?: number;
+  parseError?: CodeReviewParseError;
 }
