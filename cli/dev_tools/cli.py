@@ -423,7 +423,7 @@ def create_issue(ctx, title, file, body):
     out(ctx, f"✅ Successfully created issue: {res['issue'].get('html_url')}", data=res)
 
 
-@gh.command(name="issue-view")
+@gh.command()
 @click.argument("issue_number_arg", required=False, type=int)
 @click.option("--issue-number", "issue_number_opt", type=int, help="The GitHub issue number to view")
 @click.pass_context
