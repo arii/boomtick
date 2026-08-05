@@ -25,8 +25,10 @@ export class DirectGeminiModel {
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) throw new Error('Missing GEMINI_API_KEY environment variable');
 
+    if (!messages || messages.length === 0) {
+      throw new Error('No message provided for invoke');
+    }
     const message = messages[0];
-    if (!message) throw new Error('No message provided for invoke');
 
     const parts: any[] = [];
     if (typeof message.content === 'string') {
