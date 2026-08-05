@@ -75,20 +75,9 @@ async function main() {
       return;
     }
 
-    try {
-      graphJson = exec(`pnpm exec depcruise src --config ${depCruiseConfig} --ts-config ${tsConfig} --output-type json`);
-    } catch (err: unknown) {
-      const error = err as Error;
-      throw new Error(`Failed to execute dependency-cruiser: ${error.message}`, { cause: err });
-    }
+    graphJson = exec(`pnpm exec depcruise src --config ${depCruiseConfig} --ts-config ${tsConfig} --output-type json`);
 
-    let graph: DependencyGraph;
-    try {
-      graph = JSON.parse(graphJson);
-    } catch (err: unknown) {
-      const error = err as Error;
-      throw new Error(`Failed to parse dependency-cruiser output as JSON. Output: ${graphJson.slice(0, 500)}... Error: ${error.message}`, { cause: err });
-    }
+    const graph: DependencyGraph = JSON.parse(graphJson);
 
     const reverseMap = buildReverseMap(graph);
 
