@@ -60,5 +60,6 @@ export interface RouteReview {
   llmVerdict?: 'pass' | 'fail' | 'warn';
   findings?: VisualReviewFinding[];
   truncated?: boolean;
+  isTruncated?: boolean;
   role?: string;
 }

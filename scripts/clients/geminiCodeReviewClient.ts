@@ -43,8 +43,7 @@ export const geminiCodeReviewClient: CodeReviewClientStrategy = {
     const maxOutputTokens = forceMaxOutputTokens ?? estimateMaxOutputTokens(summary, systemPrompt.length, thinkingBudget);
 
     const baseContent = buildReviewPayload(systemPrompt, diffText, externalText).map(msg => msg.content).join('\n\n');
-    const { HumanMessage } = await import('@langchain/core/messages');
-    const message = new HumanMessage({ content: baseContent });
+    const message = { content: baseContent };
 
     const retryResult = await invokeGeminiWithBudgetRetry(
       modelName,
@@ -99,6 +98,7 @@ export const geminiCodeReviewClient: CodeReviewClientStrategy = {
         cost: 0,
         modelName,
         llmVerdict: 'warn',
+        isTruncated: true,
         truncated: true,
       };
     }
@@ -125,6 +125,7 @@ export const geminiCodeReviewClient: CodeReviewClientStrategy = {
       modelName: modelName,
       llmVerdict: parseCodeReviewVerdict(feedback),
       state: parsedState.state,
+      isTruncated: isTruncated,
       truncated: isTruncated,
       parseError: parsedState.parseError,
     };

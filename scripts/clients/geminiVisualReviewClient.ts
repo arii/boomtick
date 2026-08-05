@@ -80,8 +80,7 @@ Your job:
 </findings>`
     });
 
-    const { HumanMessage } = await import('@langchain/core/messages');
-    const message = new HumanMessage({ content: baseContent });
+    const message = { content: baseContent };
 
     // Polyfill for withRetry since it's not imported here
     const pseudoWithRetry = async (fn: () => Promise<any>) => fn();
@@ -139,6 +138,7 @@ Your job:
         llmVerdict: 'warn',
         findings: [],
         truncated: true,
+        isTruncated: true,
       };
     }
 
@@ -163,6 +163,7 @@ Your job:
       llmVerdict: parseLLMVerdict(feedback),
       findings: parseVisualReviewFindings(feedback),
       truncated: isTruncated,
+      isTruncated: isTruncated,
     };
   }
 };
