@@ -423,11 +423,16 @@ def create_issue(ctx, title, file, body):
     out(ctx, f"✅ Successfully created issue: {res['issue'].get('html_url')}", data=res)
 
 
-@gh.command()
-@click.option("--issue-number", type=int, required=True, help="The GitHub issue number to view")
+@gh.command(name="issue-view")
+@click.argument("issue_number_arg", required=False, type=int)
+@click.option("--issue-number", "issue_number_opt", type=int, help="The GitHub issue number to view")
 @click.pass_context
-def issue_view(ctx, issue_number):
+def issue_view(ctx, issue_number_arg, issue_number_opt):
     """View details of a GitHub issue."""
+    issue_number = issue_number_arg if issue_number_arg is not None else issue_number_opt
+    if issue_number is None:
+        err(ctx, "Provide --issue-number or a positional issue number")
+
     orch = ctx.obj["ORCHESTRATOR"]
     issue = orch.get_issue_details(issue_number)
     msg = f"Issue #{issue.get('number')}: {issue.get('title')}\nState: {issue.get('state')}\n\n{issue.get('body')}"
