@@ -19,6 +19,8 @@ from dev_tools.ux_report import generate_report
 if TYPE_CHECKING:
     from dev_tools.services.ai_service import AIClient
     from dev_tools.services.vision_service import VisionService
+    from dev_tools.workflows.graph import WorkflowGraph
+    from dev_tools.workflows.context import WorkflowContext
 
 from dev_tools.config import get_config
 from dev_tools.handlers.command_handler import CommandHandler
@@ -735,7 +737,7 @@ class Orchestrator:
         review_dir = get_or_create_log_dir("reviews")
         ctx_path = os.path.join(review_dir, f"pr-context-{prNumber}.md")
         rev_path = os.path.join(review_dir, f"pr-review-{prNumber}.md")
-        res = {"pr": prNumber, "files": {}}
+        res: Dict[str, Any] = {"pr": prNumber, "files": {}}
         if fetch:
             repo = get_github_client().get_repo(get_repo_name())
             pr = repo.get_pull(prNumber)
@@ -994,7 +996,7 @@ class Orchestrator:
             try:
                 import importlib_metadata  # type: ignore
             except ImportError:
-                importlib_metadata = None
+                importlib_metadata = None  # type: ignore[assignment]
 
         if importlib_metadata:
             otel_issues = []
@@ -1960,8 +1962,11 @@ Follow the "Audit comment template" in `docs/agent/issue-audit-rules.md` to post
         # Limit to latest 20 jobs to avoid extreme memory usage
         for run in check_runs[:20]:
             # Fetch logs via API to avoid terminal paging/buffering issues
-            log_content = self.github.fetch_check_run_logs(run.get("id"), external_id=run.get("external_id"))
-            header = f"--- LOGS FOR JOB: {run['name']} (ID: {run['id']}) ---"
+            run_id = run.get("id")
+            if not isinstance(run_id, int):
+                continue
+            log_content = self.github.fetch_check_run_logs(run_id, external_id=run.get("external_id"))
+            header = f"--- LOGS FOR JOB: {run['name']} (ID: {run_id}) ---"
             all_logs.append(header)
             # Truncate each log to 20k chars to balance detail vs memory
             all_logs.append(log_content[-20000:])
@@ -2373,15 +2378,15 @@ Follow the "Audit comment template" in `docs/agent/issue-audit-rules.md` to post
 
         if os.path.exists(impact_script):
             # Use check=False to swallow errors from impact analysis in the planning phase
-            res = run_command(
+            impact_res = run_command(
                 ["npx", "tsx", impact_script],
                 check=False,
                 log_on_error=False,
             )
-            if isinstance(res, subprocess.CompletedProcess):
-                impact_output = (res.stdout or "") + (res.stderr or "")
-                if res.returncode != 0:
-                    impact_output = f"Impact analysis failed (exit {res.returncode}):\n{impact_output}"
+            if isinstance(impact_res, subprocess.CompletedProcess):
+                impact_output = (impact_res.stdout or "") + (impact_res.stderr or "")
+                if impact_res.returncode != 0:
+                    impact_output = f"Impact analysis failed (exit {impact_res.returncode}):\n{impact_output}"
 
         # 6. Existing Review Data
         gemini_review = "None."

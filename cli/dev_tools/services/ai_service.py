@@ -147,7 +147,7 @@ class AIClient:
         url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent"
         headers = {"Content-Type": "application/json", "x-goog-api-key": self.gemini_api_key}
 
-        payload = {"contents": [{"parts": [{"text": prompt}]}]}
+        payload: Dict[str, Any] = {"contents": [{"parts": [{"text": prompt}]}]}
 
         if schema:
             payload["generationConfig"] = {
@@ -366,8 +366,8 @@ class AIClient:
                     needs_specialist = bool(triage_data.get("needsSpecialistReview", True))
                     fast_feedback_text = triage_data.get("fastFeedback", "")
                     log_info(f"[AI Triage Success] Triage complete. Needs specialist: {needs_specialist}. Model: {triage_model_used}")
-            except Exception as err:
-                log_warn(f"⚠️ Triage Agent failed, falling back to Specialist review: {err}")
+            except Exception as e:
+                log_warn(f"⚠️ Triage Agent failed, falling back to Specialist review: {e}")
 
         if not needs_specialist and fast_feedback_text:
             log_info("[AI Triage] Fast triage review sufficient. Bypassing specialist review.")
@@ -500,7 +500,8 @@ class AIClient:
         # CI guard: never approve if checks are failing
         if has_ci_failures and final.get("recommendation") == "Approved":
             final["recommendation"] = "Not Approved"
-            final["reviewComment"] = f"CI checks are failing ({failing_names}). Recommendation downgraded.\n\n" + (final.get("reviewComment") or "")
+            final_comment = final.get("reviewComment") or ""
+            final["reviewComment"] = f"CI checks are failing ({failing_names}). Recommendation downgraded.\n\n{final_comment}"
 
         self._write_review_file(pr_num, pr, final, chunks, file_reviews)
         return final

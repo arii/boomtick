@@ -1,4 +1,5 @@
 # pylint: disable=missing-docstring,protected-access,redefined-outer-name
+import json
 from unittest.mock import patch, MagicMock
 
 import pytest
@@ -67,7 +68,6 @@ def test_cli_search_issues():
         result = runner.invoke(cli, ["gh", "search-issues", "--state", "open", "--limit", "10", "--labels", "bug,high"])
 
         assert result.exit_code == 0
-        import json
         data = json.loads(result.output)
         assert data["status"] == "success"
         assert len(data["issues"]) == 1

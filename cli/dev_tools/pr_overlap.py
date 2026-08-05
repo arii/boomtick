@@ -1,7 +1,7 @@
 # pylint: disable=invalid-name,line-too-long,missing-docstring,no-value-for-parameter
 import sys
 from collections import defaultdict
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Set, Tuple
 
 import click
 from dev_tools.services.github import GitHubClient
@@ -57,17 +57,17 @@ def get_pr_overlaps(github: GitHubClient, limit: int) -> List[Dict[str, Any]]:
     # We use a simple disjoint-set or just group by overlap.
     # For PR consolidation, we want to see pairs/groups that have overlaps.
 
-    overlaps: Dict[tuple, set] = defaultdict(set)
+    overlaps: Dict[Tuple[int, ...], Set[str]] = defaultdict(set)
     for filename, pr_set in file_to_prs.items():
         if len(pr_set) > 1:
             pr_tuple_key = tuple(sorted(list(pr_set)))
             overlaps[pr_tuple_key].add(filename)
 
     clusters: List[Dict[str, Any]] = []
-    for pr_tuple_key, files in overlaps.items():
+    for pr_tuple_key, overlapping_files in overlaps.items():
         clusters.append({
             "prs": list(pr_tuple_key),
-            "files": sorted(list(files)),
+            "files": sorted(list(overlapping_files)),
             "metadata": {num: pr_metadata[num] for num in pr_tuple_key}
         })
 

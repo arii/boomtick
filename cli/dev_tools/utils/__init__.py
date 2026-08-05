@@ -8,7 +8,7 @@ import sys
 import time
 import urllib.parse
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Union, Literal, overload
 
 import requests  # type: ignore[import-untyped]
 
@@ -60,7 +60,7 @@ def run_git_commands(
     commands: List[List[str]], cwd: Optional[str] = None
 ) -> List[Union[str, subprocess.CompletedProcess[str]]]:
     """Executes a sequence of git commands."""
-    results = []
+    results: List[Union[str, subprocess.CompletedProcess[str]]] = []
     for cmd in commands:
         results.append(run_command(cmd, cwd=cwd))
     return results
@@ -710,6 +710,28 @@ def call_ai_service(
         return res
 
     return None
+
+
+@overload
+def run_command(
+    cmd: Union[str, List[str]],
+    shell: bool = False,
+    check: Literal[True] = True,
+    input_str: Optional[str] = None,
+    log_on_error: bool = True,
+    **kwargs: Any,
+) -> str: ...
+
+
+@overload
+def run_command(
+    cmd: Union[str, List[str]],
+    shell: bool = False,
+    check: Literal[False] = False,
+    input_str: Optional[str] = None,
+    log_on_error: bool = True,
+    **kwargs: Any,
+) -> subprocess.CompletedProcess[str]: ...
 
 
 def run_command(
