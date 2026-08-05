@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.7.0](https://github.com/arii/boomtick/compare/cli-v0.6.1...cli-v0.7.0) (2026-08-05)
+
+
+### Features
+
+* implement td-cli gh search-issues command ([#411](https://github.com/arii/boomtick/issues/411)) ([d5537df](https://github.com/arii/boomtick/commit/d5537df8b8a3792b652fc0269ec51655b72d5fea))
+
+
+### Documentation
+
+* Audit all open GitHub issues ([#391](https://github.com/arii/boomtick/issues/391)) ([dfced8f](https://github.com/arii/boomtick/commit/dfced8f0ce616d5c9f1c8449525b8f9c28ad3f9d))
+
 ## [0.6.1](https://github.com/arii/boomtick/compare/cli-v0.6.0...cli-v0.6.1) (2026-07-21)
 
 
