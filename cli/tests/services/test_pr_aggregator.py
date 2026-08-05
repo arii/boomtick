@@ -28,8 +28,8 @@ def test_estimate_tokens_heuristic(ai_client):
 @patch("dev_tools.services.ai_service.call_ai")
 @patch("dev_tools.services.ai_service.validate_with_model")
 def test_generate_code_review_forced_piecemeal(mock_validate, mock_call, ai_client):
-    # Mock FORCE_PIECEMEAL_REVIEW env var
-    with patch.dict(os.environ, {"FORCE_PIECEMEAL_REVIEW": "true"}):
+    # Mock FORCE_PIECEMEAL_REVIEW env var and disable triage
+    with patch.dict(os.environ, {"FORCE_PIECEMEAL_REVIEW": "true", "TD_DISABLE_TRIAGE": "true"}):
         pr = {
             "number": 123,
             "title": "Forced Piecemeal PR",
@@ -88,7 +88,7 @@ def test_generate_code_review_forced_piecemeal(mock_validate, mock_call, ai_clie
 @patch("dev_tools.services.ai_service.call_ai")
 @patch("dev_tools.services.ai_service.validate_with_model")
 def test_generate_code_review_chunk_failure(mock_validate, mock_call, ai_client):
-    with patch.dict(os.environ, {"FORCE_PIECEMEAL_REVIEW": "true"}):
+    with patch.dict(os.environ, {"FORCE_PIECEMEAL_REVIEW": "true", "TD_DISABLE_TRIAGE": "true"}):
         pr = {
             "number": 456,
             "title": "Failed Chunk PR",

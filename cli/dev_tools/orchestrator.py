@@ -749,6 +749,28 @@ class Orchestrator:
             check_runs = self.github.fetch_check_runs(pr.head.sha)
             failed_check_names = []
             detected_errors = []
+
+            # Pre-fetch logs for failed runs in parallel to minimize sequential GHA latency
+            failed_runs = [run for run in check_runs if run.get("conclusion") == "failure"]
+            fetched_logs = {}
+            if failed_runs:
+                import concurrent.futures
+                log_info(f"⚡ Pre-fetching logs for {len(failed_runs)} failed check runs in parallel...")
+                def fetch_logs_for_run(run_item):
+                    r_id = run_item.get("id")
+                    if isinstance(r_id, int):
+                        try:
+                            return r_id, self.github.fetch_check_run_logs(r_id, external_id=run_item.get("external_id"))
+                        except Exception as e:
+                            log_warn(f"Failed to fetch logs for run {r_id}: {e}")
+                    return r_id, ""
+
+                with concurrent.futures.ThreadPoolExecutor(max_workers=min(4, len(failed_runs))) as executor:
+                    results = executor.map(fetch_logs_for_run, failed_runs)
+                    for r_id, r_logs in results:
+                        if r_id is not None:
+                            fetched_logs[r_id] = r_logs
+
             if check_runs:
                 for run in check_runs:
                     status_icon = (
@@ -764,7 +786,10 @@ class Orchestrator:
                         run_id = run.get("id")
                         findings: List[Dict[str, Any]] = []
                         if isinstance(run_id, int):
-                            logs = self.github.fetch_check_run_logs(run_id, external_id=run.get("external_id"))
+                            # Retrieve pre-fetched logs with a fallback
+                            logs = fetched_logs.get(run_id, "")
+                            if not logs:
+                                logs = self.github.fetch_check_run_logs(run_id, external_id=run.get("external_id"))
 
                             # Structured failure analysis
                             findings = extract_failing_info(logs)
@@ -2055,6 +2080,20 @@ Follow the "Audit comment template" in `docs/agent/issue-audit-rules.md` to post
             prs = [pr for pr in prs if not pr.get("isDraft")]
 
         return {"status": "success", "prs": [PRSummary(**pr).model_dump() for pr in prs]}
+
+    def list_issues(
+        self,
+        state: str = "open",
+        limit: int = 100,
+        labels: Optional[List[str]] = None,
+        **kwargs,
+    ) -> Dict[str, Any]:
+        """Lists issues with optional filtering."""
+        if "labels" in kwargs and labels is None:
+            labels = kwargs["labels"]
+        issues = self.github.list_issues(state=state, limit=limit, labels=labels)
+
+        return {"status": "success", "issues": [IssueSummary(**issue).model_dump() for issue in issues]}
 
     def get_pr_comments(self, prNumber: int, **kwargs) -> Dict[str, Any]:
         """Fetches and aggregates standard issue comments and inline review comments for a PR."""
