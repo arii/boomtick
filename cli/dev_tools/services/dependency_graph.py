@@ -3,17 +3,16 @@ from collections import deque
 import json
 import os
 import subprocess
-from typing import Dict, List, Set
+from typing import Any, Dict, List, Set
 
 from dev_tools.utils import CLIError, log_error, log_warn
-
 
 def validate_and_sanitize_graph_data(data: dict) -> dict:
     """Validates and sanitizes the dependency graph data structure."""
     if not isinstance(data, dict):
         raise ValueError("Graph data must be a dictionary")
 
-    sanitized = {}
+    sanitized: Dict[str, Any] = {}
     if "modules" in data:
         if not isinstance(data["modules"], list):
             raise ValueError("modules must be a list")
@@ -21,7 +20,7 @@ def validate_and_sanitize_graph_data(data: dict) -> dict:
         for mod in data["modules"]:
             if not isinstance(mod, dict):
                 raise ValueError("Module must be a dictionary")
-            sanitized_mod = {}
+            sanitized_mod: Dict[str, Any] = {}
             if "source" in mod:
                 if not isinstance(mod["source"], str):
                     raise ValueError("source must be a string")
@@ -33,7 +32,7 @@ def validate_and_sanitize_graph_data(data: dict) -> dict:
                 for dep in mod["dependencies"]:
                     if not isinstance(dep, dict):
                         raise ValueError("Dependency must be a dictionary")
-                    sanitized_dep = {}
+                    sanitized_dep: Dict[str, Any] = {}
                     if "resolved" in dep:
                         if not isinstance(dep["resolved"], str):
                             raise ValueError("resolved must be a string")
@@ -125,20 +124,21 @@ class DependencyGraph:
     def _parse_modules(self, modules: List[Dict]):
         for mod in modules:
             source = mod.get("source")
-            deps = mod.get("dependencies", [])
-            self.graph[source] = deps
+            if isinstance(source, str):
+                deps = mod.get("dependencies", [])
+                self.graph[source] = deps
 
-            for dep in deps:
-                resolved = dep.get("resolved")
-                if resolved:
-                    if resolved not in self.reverse_graph:
-                        self.reverse_graph[resolved] = []
-                    self.reverse_graph[resolved].append(source)
+                for dep in deps:
+                    resolved = dep.get("resolved")
+                    if isinstance(resolved, str):
+                        if resolved not in self.reverse_graph:
+                            self.reverse_graph[resolved] = []
+                        self.reverse_graph[resolved].append(source)
 
     def get_dependencies(self, filepath: str) -> List[str]:
         """Returns files that the given file depends on."""
         deps = self.graph.get(filepath, [])
-        return [d.get("resolved") for d in deps if d.get("resolved")]
+        return [str(d.get("resolved")) for d in deps if isinstance(d.get("resolved"), str)]
 
     def get_dependents(self, filepath: str) -> List[str]:
         """Returns files that depend on the given file."""

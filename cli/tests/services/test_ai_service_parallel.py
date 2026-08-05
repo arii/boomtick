@@ -1,10 +1,8 @@
 # pylint: disable=missing-docstring,unused-argument,protected-access
 import json
-from unittest.mock import MagicMock, patch
-import pytest
+from unittest.mock import patch
 
 from dev_tools.services.ai_service import AIClient
-from dev_tools.models import AIFileReview
 
 # A realistic unified diff that parse_diff_into_file_chunks will consider reviewable
 REALISTIC_DIFF_1 = (
