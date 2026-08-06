@@ -756,7 +756,7 @@ class Orchestrator:
             failed_runs = [run for run in check_runs if run.get("conclusion") == "failure"]
             fetched_logs = {}
             if failed_runs:
-                import concurrent.futures
+                from dev_tools.utils.concurrency import run_concurrently
                 log_info(f"⚡ Pre-fetching logs for {len(failed_runs)} failed check runs in parallel...")
                 def fetch_logs_for_run(run_item):
                     r_id = run_item.get("id")
@@ -767,11 +767,10 @@ class Orchestrator:
                             log_warn(f"Failed to fetch logs for run {r_id}: {e}")
                     return r_id, ""
 
-                with concurrent.futures.ThreadPoolExecutor(max_workers=min(4, len(failed_runs))) as executor:
-                    results = executor.map(fetch_logs_for_run, failed_runs)
-                    for r_id, r_logs in results:
-                        if r_id is not None:
-                            fetched_logs[r_id] = r_logs
+                results = run_concurrently(fetch_logs_for_run, failed_runs, max_workers=4, ignore_exceptions=True)
+                for r_id, r_logs in results:
+                    if r_id is not None:
+                        fetched_logs[r_id] = r_logs
 
             if check_runs:
                 for run in check_runs:
@@ -1933,37 +1932,35 @@ Follow the "Audit comment template" in `docs/agent/issue-audit-rules.md` to post
         check_suites = self.github.fetch_check_suites(head_sha)
 
         all_runs = []
-        import concurrent.futures
+        from dev_tools.utils.concurrency import run_concurrently
         if check_suites:
-            with concurrent.futures.ThreadPoolExecutor(max_workers=min(4, len(check_suites))) as executor:
-                suite_futures = {executor.submit(self.github.fetch_check_runs_for_suite, suite["id"]): suite for suite in check_suites}
-                for future in concurrent.futures.as_completed(suite_futures):
-                    try:
-                        runs = future.result()
-                        all_runs.extend(runs)
-                    except Exception as e:
-                        suite = suite_futures[future]
-                        log_warn(f"Failed to fetch runs for suite {suite.get('id')}: {e}")
+            def fetch_suite_runs(suite):
+                try:
+                    return self.github.fetch_check_runs_for_suite(suite["id"])
+                except Exception as e:
+                    log_warn(f"Failed to fetch runs for suite {suite.get('id')}: {e}")
+                    return []
+
+            results = run_concurrently(fetch_suite_runs, check_suites, max_workers=4, ignore_exceptions=True)
+            for runs in results:
+                all_runs.extend(runs)
 
         runs_to_fetch = [run for run in all_runs if include_all or run.get("conclusion") == "failure"]
 
         def fetch_log(run):
-            run_id = run.get("id")
-            if isinstance(run_id, int):
-                return run["name"], self.github.fetch_check_run_logs(run_id, external_id=run.get("external_id"))
+            try:
+                run_id = run.get("id")
+                if isinstance(run_id, int):
+                    return run["name"], self.github.fetch_check_run_logs(run_id, external_id=run.get("external_id"))
+            except Exception as e:
+                log_warn(f"Failed to fetch log for run {run.get('id')}: {e}")
             return None, None
 
         if runs_to_fetch:
-            with concurrent.futures.ThreadPoolExecutor(max_workers=min(4, len(runs_to_fetch))) as executor:
-                log_futures = {executor.submit(fetch_log, run): run for run in runs_to_fetch}
-                for future in concurrent.futures.as_completed(log_futures):
-                    try:
-                        name, log_content = future.result()
-                        if name and isinstance(name, str) and log_content and isinstance(log_content, str):
-                            logs[name] = log_content[:10000]
-                    except Exception as e:
-                        run = log_futures[future]
-                        log_warn(f"Failed to fetch log for run {run.get('id')}: {e}")
+            log_results = run_concurrently(fetch_log, runs_to_fetch, max_workers=4, ignore_exceptions=True)
+            for name, log_content in log_results:
+                if name and isinstance(name, str) and log_content and isinstance(log_content, str):
+                    logs[name] = log_content[:10000]
 
         return {"checks": checks, "failedChecks": failed_checks, "logs": logs}
 
@@ -2241,6 +2238,22 @@ Follow the "Audit comment template" in `docs/agent/issue-audit-rules.md` to post
         else:
             feedback = "All checks passed successfully. You may proceed."
 
+        # Fetch recent messages to perform state-aware deduplication
+        messages = self.jules.get_messages(session_id)
+        user_messages = [m for m in messages if m.get("role") == "user"]
+        if user_messages:
+            last_user_msg = user_messages[-1]
+            last_content = last_user_msg.get("content", "").strip()
+
+            # 1. Direct identical content check
+            if last_content == feedback.strip():
+                return {"status": "skipped", "message": "Feedback is identical to the last user message."}
+
+            # 2. Generic success check if state hasn't changed
+            generic_success = "All checks passed successfully. You may proceed."
+            if last_content == generic_success and feedback.strip() == generic_success:
+                return {"status": "skipped", "message": "Feedback is already a generic success message and CI state hasn't changed."}
+
         self.jules.send_message(session_id, feedback)
         return {"status": "success", "feedback": feedback}
 
@@ -2262,17 +2275,18 @@ Follow the "Audit comment template" in `docs/agent/issue-audit-rules.md` to post
         aggregate_body = ""
         successfully_merged = []
 
-        import concurrent.futures
+        from dev_tools.utils.concurrency import run_concurrently
         pr_details_map = {}
         if prNumbers:
-            with concurrent.futures.ThreadPoolExecutor(max_workers=min(4, len(prNumbers))) as executor:
-                future_to_pr = {executor.submit(self.github.fetch_pr_details, pr_num): pr_num for pr_num in prNumbers}
-                for future in concurrent.futures.as_completed(future_to_pr):
-                    pr_num = future_to_pr[future]
-                    try:
-                        pr_details_map[pr_num] = future.result()
-                    except Exception as e:
-                        raise CLIError(f"Failed to fetch PR #{pr_num}: {e}")
+            def fetch_pr_details_with_error(pr_num):
+                try:
+                    return pr_num, self.github.fetch_pr_details(pr_num)
+                except Exception as e:
+                    raise CLIError(f"Failed to fetch PR #{pr_num}: {e}")
+
+            results = run_concurrently(fetch_pr_details_with_error, prNumbers, max_workers=4, ignore_exceptions=False)
+            for pr_num, pr_detail in results:
+                pr_details_map[pr_num] = pr_detail
 
         for pr_num in prNumbers:
             # 2. Sequential Extraction & Deterministic Sequence
@@ -2851,28 +2865,25 @@ Overlapping functionality identified and resolved.
         file_to_prs: Dict[str, set[int]] = defaultdict(set)
         pr_hunks = {}
 
-        def fetch_pr_info(pr_num: int):
-            details = self.github.fetch_pr_details(pr_num)
-            files = self.github.fetch_pr_files(pr_num)
-            diff = self.github.fetch_pr_diff(pr_num)
-            hunks = self._extract_diff_hunks(diff)
-            return pr_num, details, files, hunks
-
-        import concurrent.futures
+        from dev_tools.utils.concurrency import run_concurrently
         if prNumbers:
-            with concurrent.futures.ThreadPoolExecutor(max_workers=min(4, len(prNumbers))) as executor:
-                future_to_pr = {executor.submit(fetch_pr_info, pr_num): pr_num for pr_num in prNumbers}
-                for future in concurrent.futures.as_completed(future_to_pr):
-                    pr_num = future_to_pr[future]
-                    try:
-                        pr_num, details, files, hunks = future.result()
-                        pr_details[pr_num] = details
-                        pr_hunks[pr_num] = hunks
-                        pr_files = {str(f.get("filename")) for f in files if f.get("filename")}
-                        for filename_str in pr_files:
-                            file_to_prs[filename_str].add(pr_num)
-                    except Exception as e:
-                        raise CLIError(f"Failed to fetch info for PR #{pr_num}: {e}")
+            def fetch_pr_info_with_error(pr_num: int):
+                try:
+                    details = self.github.fetch_pr_details(pr_num)
+                    files = self.github.fetch_pr_files(pr_num)
+                    diff = self.github.fetch_pr_diff(pr_num)
+                    hunks = self._extract_diff_hunks(diff)
+                    return pr_num, details, files, hunks
+                except Exception as e:
+                    raise CLIError(f"Failed to fetch info for PR #{pr_num}: {e}")
+
+            results = run_concurrently(fetch_pr_info_with_error, prNumbers, max_workers=4, ignore_exceptions=False)
+            for pr_num, details, files, hunks in results:
+                pr_details[pr_num] = details
+                pr_hunks[pr_num] = hunks
+                pr_files = {str(f.get("filename")) for f in files if f.get("filename")}
+                for filename_str in pr_files:
+                    file_to_prs[filename_str].add(pr_num)
 
         overlapping_files: Dict[str, List[int]] = {
             f: sorted(list(prs)) for f, prs in file_to_prs.items() if len(prs) > 1
