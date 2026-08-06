@@ -1,4 +1,7 @@
 # pylint: disable=import-outside-toplevel,missing-docstring,protected-access,unused-argument
+# Unit tests to ensure GHA workflow files are verified for Buildx setup compliance
+# before utilizing docker/build-push-action with cache-to: type=gha configuration.
+
 import os
 import importlib.util
 
