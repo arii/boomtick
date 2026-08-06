@@ -57,3 +57,19 @@ def test_run_concurrently_raise_on_exception():
     items = [1, 0, 2]
     with pytest.raises(ValueError, match="Cannot divide by zero"):
         run_concurrently(divide_one, items, ignore_exceptions=False)
+
+
+def test_run_concurrently_custom_log_fn():
+    def raise_err(x: int) -> int:
+        raise RuntimeError("Oops!")
+
+    items = [1]
+    logged_errors = []
+
+    def custom_logger(msg: str):
+        logged_errors.append(msg)
+
+    results = run_concurrently(raise_err, items, log_fn=custom_logger)
+    assert results == []
+    assert len(logged_errors) == 1
+    assert "Oops!" in logged_errors[0]
