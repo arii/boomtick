@@ -12,6 +12,8 @@ from collections import defaultdict
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
 
+from github import UnknownObjectException
+
 from dev_tools.services.github import GitHubClient
 from dev_tools.services.jules import JulesClient
 from dev_tools.ux_report import generate_report
@@ -1255,7 +1257,7 @@ class Orchestrator:
                 # Try fetching as PR first as it's the common case for fix-ci
                 pr = repo.get_pull(int(issueNumber))
                 branch = pr.head.ref
-            except Exception:
+            except UnknownObjectException:
                 issue_details = self.github.fetch_issue_details(int(issueNumber))
                 if "pull_request" in issue_details:
                     pr = repo.get_pull(int(issueNumber))
