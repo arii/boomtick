@@ -1,6 +1,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import { execSync } from 'child_process';
+import { execFileSync } from 'child_process';
 
 interface InterfaceField {
   name: string;
@@ -216,9 +216,9 @@ async function syncContracts() {
   if (!fs.existsSync(path.join(rootDir, 'pnpm-workspace.yaml'))) {
     rootDir = path.dirname(rootDir);
   }
-  const pythonCmd = `python3 ${path.join(rootDir, 'cli/dev_tools/schema_gen.py')}`;
+  const pythonScriptPath = path.join(rootDir, 'cli/dev_tools/schema_gen.py');
   console.log(`Regenerating cli-schema.json...`);
-  execSync(pythonCmd, { cwd: rootDir, stdio: 'inherit' });
+  execFileSync('python3', [pythonScriptPath], { cwd: rootDir, stdio: 'inherit' });
 
   // Then perform the original Zod contract generation
   let jsonSchemaToZod;
