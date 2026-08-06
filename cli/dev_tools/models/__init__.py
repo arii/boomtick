@@ -6,11 +6,10 @@ from pydantic import ConfigDict, Field, field_validator, model_validator
 
 from .base import CamelCaseModel
 
-# Import auto-generated models if they exist
-try:
-    from .contracts import *
-except ImportError:
-    pass
+# Import auto-generated models (fail fast if not generated)
+from .contracts import *
+
+SESSION_ID_PATTERN = re.compile(r"^[a-zA-Z0-9/_-]+$")
 
 
 class PRSummary(CamelCaseModel):
@@ -40,7 +39,7 @@ class CreateIssueInput(CamelCaseModel):
 
 
 class SearchPRsInput(CamelCaseModel):
-    state: str = Field("open", description="The state of the PRs to search for (open, closed, all).")
+    state: Literal["open", "closed", "all"] = Field("open", description="The state of the PRs to search for.")
     limit: int = Field(100, description="The maximum number of PRs to return (default: 100, range: 1-100).")
     include_drafts: bool = Field(True, description="Whether to include draft PRs in the results.")
     labels: Optional[List[str]] = Field(None, description="Filter PRs by labels.")
@@ -57,7 +56,7 @@ class IssueUpdateInput(CamelCaseModel):
     remove_labels: Optional[List[str]] = Field(
         None, description="Comma-separated list of labels to remove."
     )
-    state: Optional[str] = Field(None, description="The state to set the issue to (open or closed).")
+    state: Optional[Literal["open", "closed"]] = Field(None, description="The state to set the issue to.")
 
     @model_validator(mode="after")
     def check_updates(self) -> "IssueUpdateInput":
@@ -262,12 +261,10 @@ class JulesSendMessageInput(CamelCaseModel):
             raise ValueError(f"Batch size exceeds maximum limit of {BATCH_CAP}")
 
         # Allow alphanumeric, hyphens, underscores, and forward slashes (for sessions/ prefix)
-        pattern = re.compile(r"^[a-zA-Z0-9/_-]+$")
-
         for sid in ids:
             if not sid.strip():
                 raise ValueError("Session ID cannot be empty or whitespace")
-            if not pattern.match(sid):
+            if not SESSION_ID_PATTERN.match(sid):
                 raise ValueError(f"Invalid characters in session ID: {sid}")
 
         if not self.message.strip():
