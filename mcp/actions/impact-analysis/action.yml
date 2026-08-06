@@ -26,6 +26,9 @@ runs:
       env:
         PR_NUMBER: ${{ inputs.pr_number }}
       run: |
+        if [[ -z "$PR_NUMBER" ]]; then
+          exit 0
+        fi
         if [[ ! "$PR_NUMBER" =~ ^[0-9]+$ ]]; then
           echo "::error::Invalid PR_NUMBER: must be numeric."
           exit 1
@@ -372,6 +375,9 @@ runs:
       env:
         GITHUB_TOKEN: ${{ inputs.github_token }}
       run: |
+        # Inject custom CLI path for td-cli resolution
+        export PATH="$HOME/.local/bin:/github/home/.local/bin:$PATH"
+
         # Resolve CLI dir for PYTHONPATH
         if [ -d "cli" ]; then
           export PYTHONPATH="cli:$PYTHONPATH"
