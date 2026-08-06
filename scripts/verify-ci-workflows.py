@@ -2,6 +2,8 @@
 # This script statically verifies that any GitHub Actions workflow utilizing
 # `docker/build-push-action` with cache export (`cache-to: type=gha`) is preceded
 # by Buildx setup or our custom setup-docker-buildx action in the same job context.
+#
+# It enforces compliance with repository policies regarding Docker caching.
 
 import os
 import sys
