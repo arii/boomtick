@@ -32,16 +32,20 @@ class CreateIssueInput(CamelCaseModel):
 
     @model_validator(mode="after")
     def check_body_or_file(self) -> "CreateIssueInput":
-        if (self.body is None or not self.body.strip()) and (self.file is None or not self.file.strip()):
+        body_val = self.body.strip() if self.body else None
+        file_val = self.file.strip() if self.file else None
+        if not body_val and not file_val:
             raise ValueError("Provide either --file or --body (cannot be empty)")
-        if self.body and self.file:
+        if body_val and file_val:
             raise ValueError("Provide --file or --body, not both")
         return self
 
 
 class SearchPRsInput(CamelCaseModel):
     state: Literal["open", "closed", "all"] = Field("open", description="The state of the PRs to search for.")
-    limit: int = Field(100, description="The maximum number of PRs to return (default: 100, range: 1-100).")
+    limit: int = Field(
+        100, ge=1, le=100, description="The maximum number of PRs to return (default: 100, range: 1-100)."
+    )
     include_drafts: bool = Field(True, description="Whether to include draft PRs in the results.")
     labels: Optional[List[str]] = Field(None, description="Filter PRs by labels.")
 
@@ -64,7 +68,9 @@ class IssueUpdateInput(CamelCaseModel):
         fields = (self.body, self.file, self.labels, self.add_labels, self.remove_labels, self.state)
         if all(v is None for v in fields):
             raise ValueError("Provide --file, --body, --labels, --add_labels, --remove_labels, or --state")
-        if self.body and self.file:
+        body_val = self.body.strip() if self.body else None
+        file_val = self.file.strip() if self.file else None
+        if body_val and file_val:
             raise ValueError("Provide --file or --body, not both")
         return self
 
