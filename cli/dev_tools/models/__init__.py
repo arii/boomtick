@@ -60,7 +60,8 @@ class IssueUpdateInput(CamelCaseModel):
 
     @model_validator(mode="after")
     def check_updates(self) -> "IssueUpdateInput":
-        if not any([self.body, self.file, self.labels, self.add_labels, self.remove_labels, self.state]):
+        fields = (self.body, self.file, self.labels, self.add_labels, self.remove_labels, self.state)
+        if all(v is None for v in fields):
             raise ValueError("Provide --file, --body, --labels, --add_labels, --remove_labels, or --state")
         if self.body and self.file:
             raise ValueError("Provide --file or --body, not both")
