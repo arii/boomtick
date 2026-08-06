@@ -55,7 +55,7 @@ class TestLabels(unittest.TestCase):
         mock_response.raise_for_status.return_value = None
         mock_request.return_value = mock_response
 
-        client = GitHubClient(token="fake_token", repo="owner/repo", no_cache=True)
+        client = GitHubClient(token="fake_token", repo="owner/repo", no_cache=True, use_graphql=False)
         res = client.remove_label(123, "ui bug")
 
         calls = mock_request.call_args_list
@@ -78,7 +78,7 @@ class TestLabels(unittest.TestCase):
         mock_response.raise_for_status.return_value = None
         mock_request.return_value = mock_response
 
-        client = GitHubClient(token="fake_token", repo="owner/repo", no_cache=True)
+        client = GitHubClient(token="fake_token", repo="owner/repo", no_cache=True, use_graphql=False)
         res = client.add_labels(123, ["bug"])
 
         calls = mock_request.call_args_list
