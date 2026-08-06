@@ -2851,8 +2851,9 @@ Overlapping functionality identified and resolved.
         pr_hunks = {}
 
         def fetch_pr_info(pr_num: int):
-            details = self.github.fetch_pr_details(pr_num)
-            files = self.github.fetch_pr_files(pr_num)
+            graphql_data = self.github.fetch_pr_info_graphql(pr_num)
+            details = graphql_data["pr"]
+            files = graphql_data["files"]
             diff = self.github.fetch_pr_diff(pr_num)
             hunks = self._extract_diff_hunks(diff)
             return pr_num, details, files, hunks

@@ -96,5 +96,58 @@ def test_validate_review_payload_boilerplate_rejection():
     assert "Comment contains boilerplate placeholder" in str(excinfo.value)
 
 
+def test_fetch_pr_info_graphql():
+    with patch("dev_tools.utils.get_github_token", return_value="dummy_token"), patch(
+        "dev_tools.services.github.DiskCache"
+    ) as mock_cache:
+        mock_cache.return_value.get.return_value = None
+        client = GitHubClient(repo="owner/repo")
+
+        # Mock Response of GraphQL query
+        graphql_response = {
+            "data": {
+                "repository": {
+                    "pullRequest": {
+                        "title": "My GraphQL PR",
+                        "body": "This is body",
+                        "author": {
+                            "login": "testauthor"
+                        },
+                        "headRefName": "my-head-branch",
+                        "headRefOid": "head-sha-123",
+                        "baseRefName": "main",
+                        "files": {
+                            "nodes": [
+                                {"path": "file1.py"},
+                                {"path": "file2.py"}
+                            ]
+                        }
+                    }
+                }
+            }
+        }
+
+        with patch.object(client, "_request", return_value=graphql_response) as mock_request:
+            result = client.fetch_pr_info_graphql(123)
+
+            # Verify _request was called
+            mock_request.assert_called_once()
+            args, kwargs = mock_request.call_args
+            assert args[0] == "POST"
+            assert args[1] == "/graphql"
+            json_data = kwargs.get("json_data", {})
+            assert "query getPrInfo" in json_data.get("query", "")
+            assert json_data.get("variables", {}).get("prNumber") == 123
+
+            # Verify returned REST-compatible dictionary
+            assert result["pr"]["title"] == "My GraphQL PR"
+            assert result["pr"]["body"] == "This is body"
+            assert result["pr"]["user"]["login"] == "testauthor"
+            assert result["pr"]["head"]["ref"] == "my-head-branch"
+            assert result["pr"]["head"]["sha"] == "head-sha-123"
+            assert result["pr"]["base"]["ref"] == "main"
+            assert result["files"] == [{"filename": "file1.py"}, {"filename": "file2.py"}]
+
+
 if __name__ == "__main__":
     unittest.main()
