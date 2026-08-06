@@ -24,6 +24,7 @@ class TestLabels(unittest.TestCase):
         }
         self.orch.github.fetch_issue_details.return_value = dummy
         self.orch.github.add_labels.return_value = dummy
+        self.orch.github.remove_label.return_value = dummy
         self.orch.github.update_issue.return_value = dummy
 
     @patch("dev_tools.services.github.requests.Session.request")
@@ -33,7 +34,7 @@ class TestLabels(unittest.TestCase):
         mock_response.raise_for_status.return_value = None
         mock_request.return_value = mock_response
 
-        client = GitHubClient(token="fake_token", repo="owner/repo")
+        client = GitHubClient(token="fake_token", repo="owner/repo", no_cache=True)
         client.update_issue(123, labels=["bug"])
 
         # Verify PATCH request
@@ -45,16 +46,48 @@ class TestLabels(unittest.TestCase):
     @patch("dev_tools.services.github.requests.Session.request")
     def test_github_client_remove_label(self, mock_request):
         mock_response = MagicMock()
+        mock_response.json.return_value = {
+            "number": 123,
+            "title": "T",
+            "html_url": "U",
+            "state": "S",
+        }
         mock_response.raise_for_status.return_value = None
         mock_request.return_value = mock_response
 
-        client = GitHubClient(token="fake_token", repo="owner/repo")
-        client.remove_label(123, "ui bug")
+        client = GitHubClient(token="fake_token", repo="owner/repo", no_cache=True)
+        res = client.remove_label(123, "ui bug")
 
-        # Verify DELETE request with encoded label
-        call_args = mock_request.call_args
-        self.assertEqual(call_args[0][0], "DELETE")
-        self.assertIn("/issues/123/labels/ui%20bug", call_args[0][1])
+        calls = mock_request.call_args_list
+        self.assertEqual(calls[0][0][0], "DELETE")
+        self.assertIn("/issues/123/labels/ui%20bug", calls[0][0][1])
+        self.assertEqual(calls[1][0][0], "GET")
+        self.assertIn("/issues/123", calls[1][0][1])
+
+        self.assertEqual(res, {"number": 123, "title": "T", "html_url": "U", "state": "S"})
+
+    @patch("dev_tools.services.github.requests.Session.request")
+    def test_github_client_add_labels(self, mock_request):
+        mock_response = MagicMock()
+        mock_response.json.return_value = {
+            "number": 123,
+            "title": "T",
+            "html_url": "U",
+            "state": "S",
+        }
+        mock_response.raise_for_status.return_value = None
+        mock_request.return_value = mock_response
+
+        client = GitHubClient(token="fake_token", repo="owner/repo", no_cache=True)
+        res = client.add_labels(123, ["bug"])
+
+        calls = mock_request.call_args_list
+        self.assertEqual(calls[0][0][0], "POST")
+        self.assertIn("/issues/123/labels", calls[0][0][1])
+        self.assertEqual(calls[1][0][0], "GET")
+        self.assertIn("/issues/123", calls[1][0][1])
+
+        self.assertEqual(res, {"number": 123, "title": "T", "html_url": "U", "state": "S"})
 
     def test_orchestrator_update_issue_add_labels(self):
         self.orch.update_issue(123, add_labels=["new-label"])
@@ -83,13 +116,12 @@ class TestLabels(unittest.TestCase):
         self.orch.github.add_labels.assert_called_once_with(123, ["l1"])
         self.orch.github.update_issue.assert_called_once_with(123, body="new body", state=None)
 
-    def test_orchestrator_update_issue_add_labels_returns_list(self):
-        # Reset setup mocks and make add_labels return a list of labels (as GitHub API actually does)
-        self.orch.github.add_labels.return_value = [{"name": "l1"}]
-        # When update_issue detects a list or non-IssueSummary dictionary, it fetches full issue details
+    def test_orchestrator_update_issue_add_labels_no_fallback(self):
+        # We ensure fetch_issue_details is NOT called during update_issue
+        self.orch.github.fetch_issue_details.reset_mock()
         res = self.orch.update_issue(123, add_labels=["l1"])
         self.orch.github.add_labels.assert_called_once_with(123, ["l1"])
-        self.orch.github.fetch_issue_details.assert_called_once_with(123)
+        self.orch.github.fetch_issue_details.assert_not_called()
         self.assertEqual(res["status"], "success")
         self.assertEqual(res["issue"]["number"], 123)
 

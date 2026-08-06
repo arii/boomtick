@@ -366,7 +366,8 @@ class GitHubClient:
 
     def create_issue(self, title: str, body: str) -> Dict[str, Any]:
         """Creates a new GitHub issue."""
-        return self._request("POST", f"/repos/{self.repo}/issues", json_data={"title": title, "body": body})
+        res = self._request("POST", f"/repos/{self.repo}/issues", json_data={"title": title, "body": body})
+        return self._normalize_issue_response(res)
 
     @staticmethod
     def normalize_issue(issue: Dict[str, Any]) -> Dict[str, Any]:
@@ -379,6 +380,17 @@ class GitHubClient:
             "html_url": issue.get("html_url"),
             "labels": [l.get("name") if isinstance(l, dict) else l for l in issue.get("labels", [])],
             "updated_at": issue.get("updated_at"),
+        }
+
+    def _normalize_issue_response(self, raw_data: Any) -> Dict[str, Any]:
+        """Transforms issue responses of varying formats into the standard IssueSummary schema."""
+        if not isinstance(raw_data, dict):
+            return {}
+        return {
+            "number": raw_data.get("number"),
+            "title": raw_data.get("title"),
+            "html_url": raw_data.get("html_url"),
+            "state": raw_data.get("state"),
         }
 
     def fetch_issue_details(self, number: int) -> Dict[str, Any]:
@@ -478,20 +490,25 @@ class GitHubClient:
             data["labels"] = labels
         if state is not None:
             data["state"] = state
-        return self._request("PATCH", f"/repos/{self.repo}/issues/{number}", json_data=data)
+        res = self._request("PATCH", f"/repos/{self.repo}/issues/{number}", json_data=data)
+        return self._normalize_issue_response(res)
 
     def create_review(self, number: int, body: str, comments: List[Dict[str, Any]], event: str) -> Dict[str, Any]:
         data = {"body": body, "event": event, "comments": comments}
         return self._request("POST", f"/repos/{self.repo}/pulls/{number}/reviews", json_data=data)
 
-    def add_labels(self, number: int, labels: List[str]) -> List[Dict[str, Any]]:
-        """Adds labels to an issue or pull request."""
-        return self._request("POST", f"/repos/{self.repo}/issues/{number}/labels", json_data={"labels": labels})
+    def add_labels(self, number: int, labels: List[str]) -> Dict[str, Any]:
+        """Adds labels to an issue or pull request and returns the normalized issue dictionary."""
+        self._request("POST", f"/repos/{self.repo}/issues/{number}/labels", json_data={"labels": labels})
+        issue_data = self.fetch_issue_details(number)
+        return self._normalize_issue_response(issue_data)
 
-    def remove_label(self, number: int, label_name: str) -> None:
-        """Removes a label from an issue or pull request."""
+    def remove_label(self, number: int, label_name: str) -> Dict[str, Any]:
+        """Removes a label from an issue or pull request and returns the normalized issue dictionary."""
         encoded_label = quote(label_name)
-        return self._request("DELETE", f"/repos/{self.repo}/issues/{number}/labels/{encoded_label}")
+        self._request("DELETE", f"/repos/{self.repo}/issues/{number}/labels/{encoded_label}")
+        issue_data = self.fetch_issue_details(number)
+        return self._normalize_issue_response(issue_data)
 
     @staticmethod
     def validate_review_payload(payload: Dict[str, Any]):
