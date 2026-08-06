@@ -2,36 +2,36 @@
 import re
 from typing import Any, Dict, List, Literal, Optional, Union
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import ConfigDict, Field, field_validator, model_validator
+
+from .base import CamelCaseModel
+
+# Import auto-generated models if they exist
+try:
+    from .contracts import *
+except ImportError:
+    pass
 
 
-class IssueSummary(BaseModel):
-    number: int
-    title: str
-    html_url: str
-    state: str
-
-
-class PRSummary(BaseModel):
+class PRSummary(CamelCaseModel):
     number: int
     title: str
     author: Dict[str, str] = Field(default_factory=dict)
-    headRefName: Optional[str] = None
-    baseRefName: Optional[str] = None
-    isDraft: bool = False
-    mergeStateStatus: Optional[str] = None
-    updatedAt: Optional[str] = None
+    head_ref_name: Optional[str] = None
+    base_ref_name: Optional[str] = None
+    is_draft: bool = False
+    merge_state_status: Optional[str] = None
+    updated_at: Optional[str] = None
     url: Optional[str] = None
 
 
-class CreateIssueInput(BaseModel):
+class CreateIssueInput(CamelCaseModel):
     title: str = Field(..., min_length=1)
     body: Optional[str] = Field(None, min_length=1)
     file: Optional[str] = Field(None, min_length=1)
 
     @model_validator(mode="after")
     def check_body_or_file(self) -> "CreateIssueInput":
-        # pylint: disable=no-member
         if (self.body is None or not self.body.strip()) and (self.file is None or not self.file.strip()):
             raise ValueError("Provide either --file or --body (cannot be empty)")
         if self.body and self.file:
@@ -39,39 +39,36 @@ class CreateIssueInput(BaseModel):
         return self
 
 
-class SearchPRsInput(BaseModel):
-    model_config = ConfigDict(populate_by_name=True)
+class SearchPRsInput(CamelCaseModel):
     state: str = Field("open", description="The state of the PRs to search for (open, closed, all).")
     limit: int = Field(100, description="The maximum number of PRs to return (default: 100, range: 1-100).")
-    includeDrafts: bool = Field(True, alias="includeDrafts", description="Whether to include draft PRs in the results.")
+    include_drafts: bool = Field(True, description="Whether to include draft PRs in the results.")
     labels: Optional[List[str]] = Field(None, description="Filter PRs by labels.")
 
 
-class IssueUpdateInput(BaseModel):
-    model_config = ConfigDict(populate_by_name=True)
-    issueNumber: int = Field(..., alias="issueNumber", description="The number of the issue to update.")
+class IssueUpdateInput(CamelCaseModel):
+    issue_number: int = Field(..., description="The number of the issue to update.")
     body: Optional[str] = Field(None, description="The new body content for the issue.")
     file: Optional[str] = Field(None, description="Path to file containing new issue body.")
     labels: Optional[List[str]] = Field(None, description="Comma-separated list of labels to set.")
-    addLabels: Optional[List[str]] = Field(
-        None, alias="addLabels", description="Comma-separated list of labels to add."
+    add_labels: Optional[List[str]] = Field(
+        None, description="Comma-separated list of labels to add."
     )
-    removeLabels: Optional[List[str]] = Field(
-        None, alias="removeLabels", description="Comma-separated list of labels to remove."
+    remove_labels: Optional[List[str]] = Field(
+        None, description="Comma-separated list of labels to remove."
     )
     state: Optional[str] = Field(None, description="The state to set the issue to (open or closed).")
 
     @model_validator(mode="after")
     def check_updates(self) -> "IssueUpdateInput":
-        # pylint: disable=no-member
-        if not any([self.body, self.file, self.labels, self.addLabels, self.removeLabels, self.state]):
-            raise ValueError("Provide --file, --body, --labels, --addLabels, --removeLabels, or --state")
+        if not any([self.body, self.file, self.labels, self.add_labels, self.remove_labels, self.state]):
+            raise ValueError("Provide --file, --body, --labels, --add_labels, --remove_labels, or --state")
         if self.body and self.file:
             raise ValueError("Provide --file or --body, not both")
         return self
 
 
-class CLIResponse(BaseModel):
+class CLIResponse(CamelCaseModel):
     status: str = "success"
     message: Optional[str] = None
     data: Optional[Any] = None
@@ -89,18 +86,17 @@ class IssueUpdateResponse(CLIResponse):
     issue: Optional[IssueSummary] = None
 
 
-class ReadPRCommentsInput(BaseModel):
-    model_config = ConfigDict(populate_by_name=True)
-    prNumber: int = Field(..., alias="prNumber", gt=0, description="The PR number to fetch comments for.")
+class ReadPRCommentsInput(CamelCaseModel):
+    pr_number: int = Field(..., gt=0, description="The PR number to fetch comments for.")
 
 
-class PRComment(BaseModel):
+class PRComment(CamelCaseModel):
     user: str
     body: str
     created_at: str
 
 
-class ReviewComment(BaseModel):
+class ReviewComment(CamelCaseModel):
     user: str
     path: str
     line: Optional[int] = None
@@ -117,98 +113,104 @@ class ReadPRCommentsResponse(CLIResponse):
 # MCP Tool Inputs
 
 
-class HealthCheckInput(BaseModel):
-    checkDeep: bool = Field(
+class HealthCheckInput(CamelCaseModel):
+    check_deep: bool = Field(
         False, description="Whether to perform a deep health check including external dependencies."
     )
 
 
-class GetPrDiffInput(BaseModel):
-    prNumber: int = Field(..., description="The number of the pull request to get the diff for.")
+class GetPrDiffInput(CamelCaseModel):
+    pr_number: int = Field(..., description="The number of the pull request to get the diff for.")
 
 
-class CheckoutBranchInput(BaseModel):
+class CheckoutBranchInput(CamelCaseModel):
     branch: str = Field(..., description="The name of the branch to checkout.")
-    worktreePath: Optional[str] = Field(None, description="Optional path to the worktree to perform the checkout in.")
+    worktree_path: Optional[str] = Field(None, description="Optional path to the worktree to perform the checkout in.")
 
 
-class GetMergeConflictFilesInput(BaseModel):
-    prNumber: int = Field(..., description="The number of the pull request to check for conflicts.")
-    baseBranch: str = Field("main", description="The base branch to check against (default: 'main').")
+class GetMergeConflictFilesInput(CamelCaseModel):
+    pr_number: int = Field(..., description="The number of the pull request to check for conflicts.")
+    base_branch: str = Field("main", description="The base branch to check against (default: 'main').")
 
 
-class GetChangedFilesInput(BaseModel):
+class GetChangedFilesInput(CamelCaseModel):
     base: str = Field("main", description="The base ref to compare from (default: 'main').")
     head: str = Field("HEAD", description="The head ref to compare to (default: 'HEAD').")
 
 
-class GetPackageScriptsInput(BaseModel):
+class GetPackageScriptsInput(CamelCaseModel):
     filter: Optional[str] = Field(None, description="Optional glob pattern to filter script names.")
 
 
-class GetRouteMapInput(BaseModel):
-    includeStatic: Optional[bool] = Field(None, description="Whether to include static assets in the route map.")
+class GetRouteMapInput(CamelCaseModel):
+    include_static: Optional[bool] = Field(None, description="Whether to include static assets in the route map.")
 
 
-class ReadCiLogsInput(BaseModel):
-    prNumber: int = Field(..., description="The number of the pull request to read logs for.")
+class ReadCiLogsInput(CamelCaseModel):
+    pr_number: int = Field(..., description="The number of the pull request to read logs for.")
     all: bool = Field(False, description="Include logs for successful runs (default: false).")
 
 
-class RepoLogsInput(BaseModel):
-    prNumber: int = Field(..., description="The number of the pull request to stream logs for.")
+class RepoLogsInput(CamelCaseModel):
+    pr_number: int = Field(..., description="The number of the pull request to stream logs for.")
     grep: Optional[str] = Field(None, description="Optional pattern to filter log lines.")
 
 
-class CreateBranchInput(BaseModel):
-    branchName: str = Field(..., description="The name of the new branch")
-    baseBranch: str = Field("main", description="Branch to branch off from")
+class CreateBranchInput(CamelCaseModel):
+    branch_name: str = Field(..., description="The name of the new branch")
+    base_branch: str = Field("main", description="Branch to branch off from")
 
 
-class CreateRepairBranchInput(BaseModel):
-    prNumber: int = Field(..., description="The original pull request number to repair.")
-    repairBranchName: Optional[str] = Field(None, description="Optional custom name for the new repair branch.")
-    writeMode: bool = Field(..., description="Safety gate: Must be true to perform branch creation and worktree setup.")
+class CreateRepairBranchInput(CamelCaseModel):
+    pr_number: int = Field(..., description="The original pull request number to repair.")
+    repair_branch_name: Optional[str] = Field(
+        None, description="Optional custom name for the new repair branch."
+    )
+    write_mode: bool = Field(
+        ..., description="Safety gate: Must be true to perform branch creation and worktree setup."
+    )
 
 
-class RunTestsInput(BaseModel):
+class RunTestsInput(CamelCaseModel):
     commands: Optional[List[str]] = Field(
         None,
         description="Optional list of commands to run (default includes install, lint, test, build).",
     )
-    timeoutSeconds: int = Field(300, description="Maximum time in seconds to wait for tests (default: 300).")
-    worktreePath: Optional[str] = Field(None, description="Optional path to the worktree to run tests in.")
+    timeout_seconds: int = Field(300, description="Maximum time in seconds to wait for tests (default: 300).")
+    worktree_path: Optional[str] = Field(None, description="Optional path to the worktree to run tests in.")
 
 
-class RunLighthouseInput(BaseModel):
+class RunLighthouseInput(CamelCaseModel):
     route: str = Field("/", description="The route to audit (default: '/').")
-    worktreePath: Optional[str] = Field(None, description="Optional path to the worktree to run the audit in.")
+    worktree_path: Optional[str] = Field(None, description="Optional path to the worktree to run the audit in.")
 
 
-class RunPlaywrightInput(BaseModel):
+class RunPlaywrightInput(CamelCaseModel):
     grep: Optional[str] = Field(None, description="Optional pattern to filter tests by name.")
-    worktreePath: Optional[str] = Field(None, description="Optional path to the worktree to run tests in.")
+    worktree_path: Optional[str] = Field(None, description="Optional path to the worktree to run tests in.")
 
 
-class CommitPatchInput(BaseModel):
-    worktreePath: str = Field(..., description="Path to the worktree where changes are made.")
+class CommitPatchInput(CamelCaseModel):
+    worktree_path: str = Field(..., description="Path to the worktree where changes are made.")
     message: str = Field(..., description="Commit message.")
-    allowedFiles: List[str] = Field(..., description="List of files that are allowed to be committed.")
-    writeMode: bool = Field(..., description="Safety gate: Must be true to perform the commit.")
+    allowed_files: List[str] = Field(..., description="List of files that are allowed to be committed.")
+    write_mode: bool = Field(..., description="Safety gate: Must be true to perform the commit.")
 
 
-class OpenReplacementPrInput(BaseModel):
-    originalPrNumber: int = Field(..., description="The number of the pull request being replaced.")
-    repairBranch: str = Field(..., description="The branch containing the fixes.")
-    baseBranch: str = Field(..., description="The branch to merge the fixes into.")
+class OpenReplacementPrInput(CamelCaseModel):
+    original_pr_number: int = Field(..., description="The number of the pull request being replaced.")
+    repair_branch: str = Field(..., description="The branch containing the fixes.")
+    base_branch: str = Field(..., description="The branch to merge the fixes into.")
     title: str = Field(..., description="The title of the new PR.")
     body: str = Field(..., description="The body/description of the new PR.")
     draft: bool = Field(True, description="Whether to create the PR as a draft (default: true).")
-    worktreePath: Optional[str] = Field(None, description="Optional path to the worktree where the PR is created from.")
-    pushMode: bool = Field(..., description="Safety gate: Must be true to push the branch and open the PR.")
+    worktree_path: Optional[str] = Field(
+        None, description="Optional path to the worktree where the PR is created from."
+    )
+    push_mode: bool = Field(..., description="Safety gate: Must be true to push the branch and open the PR.")
 
 
-class CreatePullRequestInput(BaseModel):
+class CreatePullRequestInput(CamelCaseModel):
     title: str = Field(..., description="PR Title.")
     body: str = Field(..., description="Description of changes.")
     head: str = Field(..., description="The branch containing changes to merge.")
@@ -216,46 +218,46 @@ class CreatePullRequestInput(BaseModel):
     draft: bool = Field(False, description="Whether to create the PR as a draft.")
 
 
-class CommentTriageSummaryInput(BaseModel):
-    prNumber: int = Field(..., description="The number of the original PR to comment on.")
+class CommentTriageSummaryInput(CamelCaseModel):
+    pr_number: int = Field(..., description="The number of the original PR to comment on.")
     body: str = Field(..., description="The content of the comment.")
 
 
-class GetPrInput(BaseModel):
-    prNumber: int = Field(..., description="The number of the PR to view.")
+class GetPrInput(CamelCaseModel):
+    pr_number: int = Field(..., description="The number of the PR to view.")
 
 
-class IssueViewInput(BaseModel):
-    issueNumber: int = Field(..., description="The number of the issue to view.")
+class IssueViewInput(CamelCaseModel):
+    issue_number: int = Field(..., description="The number of the issue to view.")
 
 
-class IssueCommentInput(BaseModel):
-    issueNumber: int = Field(..., description="The number of the issue to comment on.")
+class IssueCommentInput(CamelCaseModel):
+    issue_number: int = Field(..., description="The number of the issue to comment on.")
     body: str = Field(..., description="The content of the comment.")
 
 
-class CreateJulesSessionInput(BaseModel):
+class CreateJulesSessionInput(CamelCaseModel):
     task: str = Field(..., description="The instructions for Jules.")
     branch: Optional[str] = Field(None, description="The base branch to start from (e.g., 'main').")
     pr: Optional[int] = Field(None, description="The PR number to use as the base branch context.")
 
 
-class JulesSessionIdInput(BaseModel):
-    sessionId: str = Field(..., description="The unique ID of the Jules session.")
+class JulesSessionIdInput(CamelCaseModel):
+    session_id: str = Field(..., description="The unique ID of the Jules session.")
 
 
-class JulesSendMessageInput(BaseModel):
-    sessionId: Union[str, List[str]] = Field(..., description="The unique ID or IDs of the Jules session(s).")
+class JulesSendMessageInput(CamelCaseModel):
+    session_id: Union[str, List[str]] = Field(..., description="The unique ID or IDs of the Jules session(s).")
     message: str = Field(..., min_length=1, description="The message content to send.")
 
     @model_validator(mode="after")
     def validate_send_message(self) -> "JulesSendMessageInput":
-        ids = [self.sessionId] if isinstance(self.sessionId, str) else self.sessionId
+        ids = [self.session_id] if isinstance(self.session_id, str) else self.session_id
 
         # Enforce batch cap of 50
         BATCH_CAP = 50
         if not ids:
-            raise ValueError("sessionId list cannot be empty")
+            raise ValueError("session_id list cannot be empty")
         if len(ids) > BATCH_CAP:
             raise ValueError(f"Batch size exceeds maximum limit of {BATCH_CAP}")
 
@@ -274,29 +276,28 @@ class JulesSendMessageInput(BaseModel):
         return self
 
 
-class JulesListSessionsInput(BaseModel):
-    pageSize: Optional[int] = Field(None, description="Maximum number of sessions to return.")
-    pageToken: Optional[str] = Field(None, description="Token for pagination.")
+class JulesListSessionsInput(CamelCaseModel):
+    page_size: Optional[int] = Field(None, description="Maximum number of sessions to return.")
+    page_token: Optional[str] = Field(None, description="Token for pagination.")
 
 
-class SearchDdgsInput(BaseModel):
+class SearchDdgsInput(CamelCaseModel):
     query: str = Field(..., description="The search query.")
-    maxResults: Optional[int] = Field(None, description="Maximum number of results to return.")
+    max_results: Optional[int] = Field(None, description="Maximum number of results to return.")
 
 
-class ReadAgentContextInput(BaseModel):
+class ReadAgentContextInput(CamelCaseModel):
     pass
 
 
-class GetCommandSchemaInput(BaseModel):
-    commandPath: str = Field(..., description="The CLI command path to retrieve the schema for (e.g. 'gh audit-pr')")
+class GetCommandSchemaInput(CamelCaseModel):
+    command_path: str = Field(..., description="The CLI command path to retrieve the schema for (e.g. 'gh audit-pr')")
 
 
 # AI Review Models
 
 
-class AIReviewIssue(BaseModel):
-    model_config = ConfigDict(populate_by_name=True)
+class AIReviewIssue(CamelCaseModel):
     id: Optional[str] = Field(None, description="Unique identifier for the finding.")
     line: Optional[int] = Field(None, description="Line number where the issue occurs.")
     file: Optional[str] = Field(None, description="File path (if not already scoped by AIFileReview).")
@@ -335,20 +336,27 @@ class AIReviewIssue(BaseModel):
         return self
 
 
-class AIFileReview(BaseModel):
+class AIFileReview(CamelCaseModel):
     file: str = Field(..., description="The path of the file being reviewed.")
     issues: List[AIReviewIssue] = Field(default_factory=list, description="List of findings in this file.")
     verdict: str = Field(..., description="The verdict for this file (ok, needs_changes, blocking).")
 
 
-class AIFullReview(BaseModel):
+class AIFullReview(CamelCaseModel):
     file_reviews: List[AIFileReview] = Field(default_factory=list, description="Per-file review results.")
-    reviewComment: str = Field(..., description="Overall summary comment for the PR.")
+    review_comment: str = Field(..., description="Overall summary comment for the PR.")
     labels: List[str] = Field(default_factory=list, description="Suggested labels for the PR.")
     recommendation: str = Field(..., description="Final recommendation (Approved, Not Approved, etc).")
 
 
-class AISynthesisReview(BaseModel):
-    reviewComment: str = Field(..., description="Overall summary comment for the PR.")
+class AISynthesisReview(CamelCaseModel):
+    review_comment: str = Field(..., description="Overall summary comment for the PR.")
     labels: List[str] = Field(default_factory=list, description="Suggested labels for the PR.")
     recommendation: str = Field(..., description="Final recommendation.")
+
+
+class PrDiffResponse(CamelCaseModel):
+    pr_number: int
+    files: List[Dict[str, Any]]
+    diff_text: str
+    is_truncated: bool
