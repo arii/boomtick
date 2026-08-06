@@ -9,6 +9,13 @@ import subprocess
 
 def main():
     repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+
+    # Verify that the script is being executed from the repository root
+    package_json_path = os.path.join(repo_root, "package.json")
+    if not os.path.exists(package_json_path):
+        print("Error: bootstrap-python.py must be run from within the repository structure.", file=sys.stderr)
+        sys.exit(1)
+
     venv_path = os.path.join(repo_root, ".venv")
 
     print("=== Centralized Python Toolchain Bootstrapping ===", flush=True)
@@ -39,25 +46,26 @@ def main():
     print(f"Installing CLI package in editable mode from {cli_dir}...", flush=True)
     subprocess.run([pip_bin, "install", "-e", cli_dir], check=True)
 
-    # 5. Install requirements.txt if present
+    # 5. Gather requirements files that exist to install them in a single resolution pass
+    req_args = []
+
     reqs_path = os.path.join(cli_dir, "requirements.txt")
     if os.path.exists(reqs_path):
-        print(f"Installing dependencies from {reqs_path}...", flush=True)
-        subprocess.run([pip_bin, "install", "-r", reqs_path], check=True)
+        req_args.extend(["-r", reqs_path])
 
-    # 6. Install requirements-dev.txt if present
     dev_reqs_path = os.path.join(cli_dir, "requirements-dev.txt")
     if os.path.exists(dev_reqs_path):
-        print(f"Installing dev dependencies from {dev_reqs_path}...", flush=True)
-        subprocess.run([pip_bin, "install", "-r", dev_reqs_path], check=True)
+        req_args.extend(["-r", dev_reqs_path])
 
-    # 7. Install requirements-ai.txt if present
     ai_reqs_path = os.path.join(cli_dir, "requirements-ai.txt")
     if os.path.exists(ai_reqs_path):
-        print(f"Installing AI dependencies from {ai_reqs_path}...", flush=True)
-        subprocess.run([pip_bin, "install", "-r", ai_reqs_path], check=True)
+        req_args.extend(["-r", ai_reqs_path])
 
-    # 8. Force/Pin opentelemetry dependencies to exactly version 1.37.0/0.37b0/etc to prevent semgrep and runtime compatibility issues
+    if req_args:
+        print("Installing dependencies in a single resolution pass...", flush=True)
+        subprocess.run([pip_bin, "install"] + req_args, check=True)
+
+    # 6. Force/Pin opentelemetry dependencies to exactly version 1.37.0 to prevent semgrep and runtime compatibility issues
     print("Pinning opentelemetry packages to 1.37.0 to avoid conflicts...", flush=True)
     subprocess.run([
         pip_bin, "install",
