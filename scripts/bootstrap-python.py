@@ -29,22 +29,20 @@ def main():
     else:
         print("Virtual environment already exists. Upgrading dependencies...", flush=True)
 
-    # 2. Get platform-specific paths for python and pip
+    # 2. Get platform-specific paths for python
     if sys.platform == "win32":
         python_bin = os.path.join(venv_path, "Scripts", "python.exe")
-        pip_bin = os.path.join(venv_path, "Scripts", "pip.exe")
     else:
         python_bin = os.path.join(venv_path, "bin", "python")
-        pip_bin = os.path.join(venv_path, "bin", "pip")
 
     # 3. Upgrade pip, setuptools, wheel
     print("Upgrading pip, setuptools, and wheel...", flush=True)
-    subprocess.run([pip_bin, "install", "--upgrade", "pip", "setuptools<81.0.0", "wheel"], check=True)
+    subprocess.run([python_bin, "-m", "pip", "install", "--upgrade", "pip", "setuptools<81.0.0", "wheel"], check=True)
 
     # 4. Perform editable install of the CLI package
     cli_dir = os.path.join(repo_root, "cli")
     print(f"Installing CLI package in editable mode from {cli_dir}...", flush=True)
-    subprocess.run([pip_bin, "install", "-e", cli_dir], check=True)
+    subprocess.run([python_bin, "-m", "pip", "install", "-e", cli_dir], check=True)
 
     # 5. Gather requirements files that exist to install them in a single resolution pass
     req_args = []
@@ -63,12 +61,12 @@ def main():
 
     if req_args:
         print("Installing dependencies in a single resolution pass...", flush=True)
-        subprocess.run([pip_bin, "install"] + req_args, check=True)
+        subprocess.run([python_bin, "-m", "pip", "install"] + req_args, check=True)
 
     # 6. Force/Pin opentelemetry dependencies to exactly version 1.37.0 to prevent semgrep and runtime compatibility issues
     print("Pinning opentelemetry packages to 1.37.0 to avoid conflicts...", flush=True)
     subprocess.run([
-        pip_bin, "install",
+        python_bin, "-m", "pip", "install",
         "opentelemetry-api==1.37.0",
         "opentelemetry-sdk==1.37.0",
         "opentelemetry-proto==1.37.0",
