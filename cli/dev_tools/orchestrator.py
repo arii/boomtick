@@ -2240,6 +2240,22 @@ Follow the "Audit comment template" in `docs/agent/issue-audit-rules.md` to post
         else:
             feedback = "All checks passed successfully. You may proceed."
 
+        # Fetch recent messages to perform state-aware deduplication
+        messages = self.jules.get_messages(session_id)
+        user_messages = [m for m in messages if m.get("role") == "user"]
+        if user_messages:
+            last_user_msg = user_messages[-1]
+            last_content = last_user_msg.get("content", "").strip()
+
+            # 1. Direct identical content check
+            if last_content == feedback.strip():
+                return {"status": "skipped", "message": "Feedback is identical to the last user message."}
+
+            # 2. Generic success check if state hasn't changed
+            generic_success = "All checks passed successfully. You may proceed."
+            if last_content == generic_success and feedback.strip() == generic_success:
+                return {"status": "skipped", "message": "Feedback is already a generic success message and CI state hasn't changed."}
+
         self.jules.send_message(session_id, feedback)
         return {"status": "success", "feedback": feedback}
 

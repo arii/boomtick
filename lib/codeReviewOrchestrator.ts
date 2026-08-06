@@ -682,6 +682,23 @@ export async function orchestrateCodeReview(
   await fs.promises.writeFile(agentReportPath, report);
   console.log(`✅ Local report written to ${agentReportPath}`);
 
+  const findings = finalResult.state?.findings || [];
+  if (findings.length === 0) {
+    console.log("No actionable findings or architectural/design violations found. Gracefully exiting without posting PR comment or notifying Jules.");
+    const safeReportFileName = path.basename(client.reportFileName);
+    const verdictPath = path.join(ARTIFACTS_DIR, `${safeReportFileName.replace('.md', '')}-verdict.json`);
+    await writeVerdictJson(verdictPath, {
+      passed: true,
+      highCount: 0,
+      routes: [],
+      llmVerdict: 'pass',
+      isTruncated: isTruncated,
+      skipReason: finalSkipReason,
+      state: finalResult.state || { findings: [] }
+    });
+    return;
+  }
+
   // Post to GitHub PR
   await postPRComment(report, client.reportTitle, finalResult.state, finalResult.llmVerdict);
 
