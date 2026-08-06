@@ -252,6 +252,13 @@ class CreateJulesSessionInput(CamelCaseModel):
 class JulesSessionIdInput(CamelCaseModel):
     session_id: str = Field(..., description="The unique ID of the Jules session.")
 
+    @field_validator("session_id")
+    @classmethod
+    def validate_session_id(cls, v: str) -> str:
+        if not SESSION_ID_PATTERN.match(v):
+            raise ValueError("Invalid session ID format")
+        return v
+
 
 class JulesSendMessageInput(CamelCaseModel):
     session_id: Union[str, List[str]] = Field(..., description="The unique ID or IDs of the Jules session(s).")
