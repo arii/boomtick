@@ -622,7 +622,7 @@ class AIClient:
         return "\n".join(context_parts)
 
     def _build_chunk_prompt(self, chunk: Dict, pr_title: str, checks_summary: str) -> str:
-        trunc_note = "\n(Note: diff was truncated to fit context window)" if chunk.get("truncated") else ""
+        trunc_note = "\n(Note: diff was truncated to fit context window)" if chunk.get("isTruncated") else ""
 
         context = self._get_context_for_chunk(chunk)
         context_section = f"\n\n## Repository Context\n{context}" if context else ""

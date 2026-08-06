@@ -47,8 +47,6 @@ export interface CodeReviewResult extends CodeReviewState {
   llmVerdict: 'pass' | 'warn' | 'fail';
   /** Modern standard field indicating if the LLM output was truncated */
   isTruncated?: boolean;
-  /** Legacy field maintained for backward compatibility with downstream orchestrator logic */
-  truncated?: boolean;
   inputTokens?: number;
   outputTokens?: number;
   cacheTokens?: number;

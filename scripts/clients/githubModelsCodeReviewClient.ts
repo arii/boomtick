@@ -138,7 +138,7 @@ Your output must be wrapped inside a single block of XML tags like this:
       llmVerdict: parseCodeReviewVerdict(cleanFeedback),
       state: parsedState.state,
       modelName: finalModelUsed,
-      truncated: false,
+      isTruncated: false,
       parseError: parsedState.parseError,
     };
   }

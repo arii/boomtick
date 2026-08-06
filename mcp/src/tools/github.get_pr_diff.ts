@@ -24,6 +24,6 @@ export async function getPrDiffHandler(args: z.infer<typeof GetPrDiffInputSchema
     prNumber: output.prNumber,
     files: output.files,
     diffText: output.diffText,
-    truncated: output.truncated
+    isTruncated: output.isTruncated
   };
 }
