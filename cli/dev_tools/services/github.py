@@ -1,9 +1,9 @@
-# pylint: disable=f-string-without-interpolation,import-outside-toplevel,invalid-name,line-too-long,missing-docstring,redefined-outer-name,reimported,subprocess-run-check,too-many-arguments,too-many-branches,too-many-locals,too-many-positional-arguments,too-many-public-methods,too-many-statements,try-except-raise
+# pylint: disable=f-string-without-interpolation,import-outside-toplevel,invalid-name,line-too-long,missing-docstring,redefined-outer-name,reimported,subprocess-run-check,too-many-arguments,too-many-branches,too-many-locals,too-many-positional-arguments,too-many-public-methods,too-many-statements,try-except-raise,too-many-instance-attributes
 import json
 import os
 import re
 import subprocess
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 from urllib.parse import quote
 
 import requests  # type: ignore[import-untyped]
@@ -17,7 +17,7 @@ class GitHubClient:
     ERROR_AUTO_PUSH_FAILED = "PR creation for '{head}' will likely fail because auto-push was unsuccessful."
     BRANCH_NAME_PATTERN = re.compile(r"^[a-zA-Z0-9._/-]+$")
 
-    def __init__(self, token: Optional[str] = None, repo: Optional[str] = None, no_cache: bool = False):
+    def __init__(self, token: Optional[str] = None, repo: Optional[str] = None, no_cache: bool = False, use_graphql: bool = True):
         from dev_tools.utils import get_github_token
 
         self.token = token or get_github_token()
@@ -36,6 +36,9 @@ class GitHubClient:
         )
         self._branch_cache : Dict[str, bool] = {}
         self._cache = DiskCache(subdir="github", no_cache=no_cache)
+        disable_gql_env = os.environ.get("TD_DISABLE_GRAPHQL", "").lower() in ("true", "1", "yes")
+        self.use_graphql = use_graphql and not disable_gql_env
+        self._node_id_cache: Dict[str, str] = {}
 
     def branch_exists(self, branch_name: str) -> bool:
         """Checks if a branch exists in the repository, with caching."""
@@ -61,6 +64,102 @@ class GitHubClient:
         """Invalidates the branch existence cache for a specific branch."""
         if branch_name in self._branch_cache:
             del self._branch_cache[branch_name]
+
+    def graphql(self, query: str, variables: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        """Executes a GraphQL query/mutation against the GitHub API."""
+        return self.graphql_query(query, variables)
+
+    def graphql_query(self, query: str, variables: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        """Executes a GraphQL query/mutation against the GitHub API."""
+        url = f"{self.base_url}/graphql"
+        payload: Dict[str, Any] = {"query": query}
+        if variables is not None:
+            payload["variables"] = variables
+
+        headers = {"Accept": "application/json"}
+        try:
+            response = self._session.post(
+                url,
+                headers=headers,
+                json=payload,
+                timeout=60,
+            )
+            response.raise_for_status()
+            res_json = response.json()
+            if "errors" in res_json:
+                errors_msg = json.dumps(res_json["errors"])
+                raise CLIError(f"GitHub GraphQL Error: {errors_msg}", code=200, data=res_json)
+            return res_json
+        except requests.exceptions.HTTPError as e:
+            status_code = e.response.status_code if e.response is not None else 500
+            raise CLIError(f"GitHub GraphQL Request failed: {str(e)}", code=status_code) from e
+        except Exception as e:
+            if isinstance(e, CLIError):
+                raise
+            raise CLIError(f"GitHub GraphQL Request failed: {str(e)}", code=500) from e
+
+    def _resolve_node_ids(self, number: int, label_names: List[str]) -> Tuple[Optional[str], Dict[str, str]]:
+        """Resolves the GraphQL node ID of the issue/PR and the given labels with caching."""
+        issue_cache_key = f"{self.repo}:issue:{number}"
+        issue_node_id = self._node_id_cache.get(issue_cache_key)
+
+        missing_labels = [l for l in label_names if f"{self.repo}:label:{l}" not in self._node_id_cache]
+        resolved_labels = {l: self._node_id_cache[f"{self.repo}:label:{l}"] for l in label_names if f"{self.repo}:label:{l}" in self._node_id_cache}
+
+        if issue_node_id and not missing_labels:
+            return issue_node_id, resolved_labels
+
+        # We need to query
+        if not self.repo:
+            raise CLIError("Repository not configured.")
+        owner, name = self.repo.split("/", 1)
+        query = """
+        query($owner: String!, $name: String!, $number: Int!, $labelNames: [String!]!) {
+          repository(owner: $owner, name: $name) {
+            issueOrPullRequest(number: $number) {
+              __typename
+              ... on Issue {
+                id
+              }
+              ... on PullRequest {
+                id
+              }
+            }
+            labels(first: 100, names: $labelNames) {
+              nodes {
+                id
+                name
+              }
+            }
+          }
+        }
+        """
+        variables = {
+            "owner": owner,
+            "name": name,
+            "number": number,
+            "labelNames": label_names,
+        }
+        res = self.graphql(query, variables)
+        repo_data = res.get("data", {}).get("repository") or {}
+
+        # Resolve issue node ID
+        iopr = repo_data.get("issueOrPullRequest")
+        if iopr:
+            issue_node_id = iopr.get("id")
+            if issue_node_id:
+                self._node_id_cache[issue_cache_key] = issue_node_id
+
+        # Resolve label node IDs
+        labels_nodes = repo_data.get("labels", {}).get("nodes") or []
+        for node in labels_nodes:
+            lbl_name = node.get("name")
+            lbl_id = node.get("id")
+            if lbl_name and lbl_id:
+                self._node_id_cache[f"{self.repo}:label:{lbl_name}"] = lbl_id
+                resolved_labels[lbl_name] = lbl_id
+
+        return issue_node_id, resolved_labels
 
     def _detect_repo(self) -> str:
         try:
@@ -499,12 +598,104 @@ class GitHubClient:
 
     def add_labels(self, number: int, labels: List[str]) -> Dict[str, Any]:
         """Adds labels to an issue or pull request and returns the normalized issue dictionary."""
+        if self.use_graphql:
+            try:
+                issue_node_id, resolved_labels = self._resolve_node_ids(number, labels)
+                if issue_node_id and all(l in resolved_labels for l in labels):
+                    label_ids = [resolved_labels[l] for l in labels]
+                    query = """
+                    mutation($labelableId: ID!, $labelIds: [ID!]!) {
+                      addLabelsToLabelable(input: {labelableId: $labelableId, labelIds: $labelIds}) {
+                        labelable {
+                          __typename
+                          ... on Issue {
+                            number
+                            title
+                            url
+                            state
+                          }
+                          ... on PullRequest {
+                            number
+                            title
+                            url
+                            state
+                          }
+                        }
+                      }
+                    }
+                    """
+                    variables = {
+                        "labelableId": issue_node_id,
+                        "labelIds": label_ids,
+                    }
+                    res = self.graphql(query, variables)
+                    labelable = res.get("data", {}).get("addLabelsToLabelable", {}).get("labelable") or {}
+                    state = labelable.get("state")
+                    if isinstance(state, str):
+                        state = state.lower()
+                    return {
+                        "number": labelable.get("number"),
+                        "title": labelable.get("title"),
+                        "html_url": labelable.get("url"),
+                        "state": state,
+                    }
+                log_warn(f"Could not resolve all node IDs for GraphQL add_labels. Falling back to REST.")
+            except Exception as e:
+                log_warn(f"GraphQL add_labels failed: {e}. Falling back to REST.")
+
+        # Fallback to REST
         self._request("POST", f"/repos/{self.repo}/issues/{number}/labels", json_data={"labels": labels})
         issue_data = self.fetch_issue_details(number)
         return self._normalize_issue_response(issue_data)
 
     def remove_label(self, number: int, label_name: str) -> Dict[str, Any]:
         """Removes a label from an issue or pull request and returns the normalized issue dictionary."""
+        if self.use_graphql:
+            try:
+                issue_node_id, resolved_labels = self._resolve_node_ids(number, [label_name])
+                if issue_node_id and label_name in resolved_labels:
+                    label_id = resolved_labels[label_name]
+                    query = """
+                    mutation($labelableId: ID!, $labelIds: [ID!]!) {
+                      removeLabelsFromLabelable(input: {labelableId: $labelableId, labelIds: $labelIds}) {
+                        labelable {
+                          __typename
+                          ... on Issue {
+                            number
+                            title
+                            url
+                            state
+                          }
+                          ... on PullRequest {
+                            number
+                            title
+                            url
+                            state
+                          }
+                        }
+                      }
+                    }
+                    """
+                    variables = {
+                        "labelableId": issue_node_id,
+                        "labelIds": [label_id],
+                    }
+                    res = self.graphql(query, variables)
+                    labelable = res.get("data", {}).get("removeLabelsFromLabelable", {}).get("labelable") or {}
+                    state = labelable.get("state")
+                    if isinstance(state, str):
+                        state = state.lower()
+                    return {
+                        "number": labelable.get("number"),
+                        "title": labelable.get("title"),
+                        "html_url": labelable.get("url"),
+                        "state": state,
+                    }
+                log_warn(f"Could not resolve label node ID for '{label_name}' under GraphQL. Falling back to REST.")
+            except Exception as e:
+                log_warn(f"GraphQL remove_label failed: {e}. Falling back to REST.")
+
+        # Fallback to REST
         encoded_label = quote(label_name)
         self._request("DELETE", f"/repos/{self.repo}/issues/{number}/labels/{encoded_label}")
         issue_data = self.fetch_issue_details(number)

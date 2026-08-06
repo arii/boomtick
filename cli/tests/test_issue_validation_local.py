@@ -108,3 +108,27 @@ def test_cli_scaffold_issue():
         assert "# Section 1" in result.output
         assert "# Section 2" in result.output
         assert "# Issue Title" in result.output
+
+
+def test_cli_scaffold_issue_file(tmp_path):
+    runner = CliRunner()
+    # Mocking the spec_sections of the returned config object
+    mock_config = MagicMock()
+    mock_config.spec_sections = ["Section 1", "Section 2"]
+
+    scaffold_file = tmp_path / "scaffold.md"
+
+    # Patch PROJECT_CONFIG in dev_tools.cli
+    with patch("dev_tools.cli.PROJECT_CONFIG", mock_config):
+        result = runner.invoke(cli, ["--no-json", "gh", "scaffold-issue", "--file", str(scaffold_file)])
+        if result.exit_code != 0:
+            print(result.output)
+        assert result.exit_code == 0
+        assert f"Scaffold successfully written to {scaffold_file}" in result.output
+
+        # Verify the file was written and has correct content
+        assert scaffold_file.exists()
+        content = scaffold_file.read_text(encoding="utf-8")
+        assert "# Section 1" in content
+        assert "# Section 2" in content
+        assert "# Issue Title" in content
