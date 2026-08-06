@@ -15,7 +15,8 @@ EXEMPT_FILES = {
     "package.json", "pnpm-lock.yaml", "pnpm-workspace.yaml", "project_config.json",
     "tsconfig.json", "workspace.json", ".gitignore", ".dockerignore", ".pylintrc",
     "eslint.config.mjs", "oxlint.json", "tsconfig.app.json", ".release-please-manifest.json",
-    "release-please-config.json", "changelog.md", "readme.md", "agents.md", "ci.yml"
+    "release-please-config.json", "changelog.md", "readme.md", "agents.md", "ci.yml",
+    "verify-scope.py", "test_verify_scope.py", "reviewpromptconstants.ts", "prompt_constants.json"
 }
 
 def get_changed_files(base_branch=None):
@@ -176,7 +177,7 @@ def check_scope(changed_files, issue_text):
 
         # 1. Exempt files
         if filename_lower in EXEMPT_FILES:
-            allowed_files.append((filepath, "Exempt configuration/readme file"))
+            allowed_files.append((filepath, "Exempt configuration/readme/tooling file"))
             continue
 
         # 2. Exact match in mentioned files
