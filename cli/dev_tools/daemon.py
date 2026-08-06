@@ -122,19 +122,13 @@ class JulesFeedbackDaemon:
             f"Matched PR #{matched_pr['number']} ({matched_pr.get('headRefName')}, {matched_pr.get('title')}) for session {session_id}"
         )
 
-        last_message = messages[-1]
-        if last_message.get("role") == "user":
-            logger.info(f"Last message from user, skipping feedback to avoid double-feedback for {session_id}")
-            return
-
-        if last_message.get("role") == "jules":
-            logger.info(f"Triggering feedback for session {session_id} matching PR #{matched_pr['number']}")
-            try:
-                # Use orchestrator.trigger_jules_feedback which executes CI validation logic
-                res = self.orchestrator.trigger_jules_feedback(session_id)
-                logger.info(f"Feedback triggered successfully: {res.get('status', 'unknown')}")
-            except Exception as e:
-                logger.error(f"Error triggering feedback for {session_id}: {e}")
+        logger.info(f"Triggering feedback for session {session_id} matching PR #{matched_pr['number']}")
+        try:
+            # Use orchestrator.trigger_jules_feedback which executes CI validation logic and performs stateful deduplication
+            res = self.orchestrator.trigger_jules_feedback(session_id)
+            logger.info(f"Feedback trigger result for {session_id}: {res.get('status', 'unknown')}")
+        except Exception as e:
+            logger.error(f"Error triggering feedback for {session_id}: {e}")
 
 
 if __name__ == "__main__":

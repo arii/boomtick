@@ -179,12 +179,11 @@ jobs:
             gh release create "$GH_REF_NAME" --title "Release $GH_REF_NAME" --generate-notes
           fi
 
-      - name: Log in to GitHub Container Registry
+      - name: Set up Docker Buildx and Registry Login
         if: (steps.determine_target.outputs.target == 'all' || steps.determine_target.outputs.target == 'cli') && (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && steps.determine_target.outputs.dry_run == 'false'))
-        uses: docker/login-action@v3
+        uses: ./.github/actions/setup-docker-buildx
         with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
+          login: 'true'
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Extract Docker metadata
@@ -198,10 +197,6 @@ jobs:
             type=semver,pattern={{major}}.{{minor}}
             type=ref,event=branch
             type=sha
-
-      - name: Set up Docker Buildx
-        if: (steps.determine_target.outputs.target == 'all' || steps.determine_target.outputs.target == 'cli') && (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && steps.determine_target.outputs.dry_run == 'false'))
-        uses: docker/setup-buildx-action@v3
 
       - name: Build and push Docker image
         if: (steps.determine_target.outputs.target == 'all' || steps.determine_target.outputs.target == 'cli') && (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && steps.determine_target.outputs.dry_run == 'false'))
