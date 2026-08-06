@@ -16,6 +16,7 @@
     "lint:types": "pnpm --filter @arii/boomtick-mcp run lint",
     "type-check:python": "python3 -m mypy cli --ignore-missing-imports || true",
     "test": "pnpm --filter @arii/boomtick-mcp run test",
+    "test:python": "python3 scripts/test-python.py",
     "verify:schemas": "node scripts/verify-schemas.mjs",
     "check:runtime-files": "node scripts/check-runtime-files.mjs",
     "doctor": "td-cli doctor",
