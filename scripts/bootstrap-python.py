@@ -7,6 +7,10 @@ import os
 import sys
 import subprocess
 
+# Ensure we can import from the local scripts package
+sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
+from lib.env_utils import get_venv_paths
+
 def main():
     repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 
@@ -16,7 +20,7 @@ def main():
         print("Error: bootstrap-python.py must be run from within the repository structure.", file=sys.stderr)
         sys.exit(1)
 
-    venv_path = os.path.join(repo_root, ".venv")
+    venv_path, python_bin = get_venv_paths(repo_root)
 
     print("=== Centralized Python Toolchain Bootstrapping ===", flush=True)
     print(f"Workspace root: {repo_root}", flush=True)
@@ -29,13 +33,7 @@ def main():
     else:
         print("Virtual environment already exists. Upgrading dependencies...", flush=True)
 
-    # 2. Get platform-specific paths for python
-    if sys.platform == "win32":
-        python_bin = os.path.join(venv_path, "Scripts", "python.exe")
-    else:
-        python_bin = os.path.join(venv_path, "bin", "python")
-
-    # 3. Upgrade pip, setuptools, wheel
+    # 2. Upgrade pip, setuptools, wheel
     print("Upgrading pip, setuptools, and wheel...", flush=True)
     subprocess.run([python_bin, "-m", "pip", "install", "--upgrade", "pip", "setuptools<81.0.0", "wheel"], check=True)
 
@@ -59,21 +57,13 @@ def main():
     if os.path.exists(ai_reqs_path):
         req_args.extend(["-r", ai_reqs_path])
 
+    pinned_reqs_path = os.path.join(cli_dir, "requirements-pinned.txt")
+    if os.path.exists(pinned_reqs_path):
+        req_args.extend(["-r", pinned_reqs_path])
+
     if req_args:
         print("Installing dependencies in a single resolution pass...", flush=True)
         subprocess.run([python_bin, "-m", "pip", "install"] + req_args, check=True)
-
-    # 6. Force/Pin opentelemetry dependencies to exactly version 1.37.0 to prevent semgrep and runtime compatibility issues
-    print("Pinning opentelemetry packages to 1.37.0 to avoid conflicts...", flush=True)
-    subprocess.run([
-        python_bin, "-m", "pip", "install",
-        "opentelemetry-api==1.37.0",
-        "opentelemetry-sdk==1.37.0",
-        "opentelemetry-proto==1.37.0",
-        "opentelemetry-exporter-otlp-proto-common==1.37.0",
-        "opentelemetry-exporter-otlp-proto-grpc==1.37.0",
-        "opentelemetry-exporter-otlp-proto-http==1.37.0"
-    ], check=True)
 
     print("✅ Python toolchain bootstrapping completed successfully!", flush=True)
 
