@@ -14,8 +14,8 @@ def get_models_schema():
             # Skip base classes if any
             if name in ("CLIResponse", "CLIInput"):
                 continue
-            # Force export using field names (camelCase) instead of aliases (snake_case)
-            schemas[name] = obj.model_json_schema(by_alias=False)
+            # Force export using camelCase aliases
+            schemas[name] = obj.model_json_schema(by_alias=True)
     return schemas
 
 

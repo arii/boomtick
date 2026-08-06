@@ -63,7 +63,12 @@ def validate_with_model(data: Any, model_class: Type[BaseModel]) -> Tuple[Option
             return None, f"Expected dictionary for validation, got {type(data).__name__}"
 
         parsed = model_class.model_validate(data)
-        return parsed.model_dump(), None
+        # Return a dictionary with both camelCase (by_alias=True) and snake_case (by_alias=False) keys
+        # for maximum backward and forward compatibility across Python/TS boundaries
+        res_dict = {}
+        res_dict.update(parsed.model_dump(by_alias=True))
+        res_dict.update(parsed.model_dump(by_alias=False))
+        return res_dict, None
     except ValidationError as e:
         # Extract specific error details from Pydantic
         errs = []
