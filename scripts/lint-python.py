@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Robust Python linting runner that ensures dependencies are available
-either in the active/current environment or via a local virtual environment (.venv).
+Robust Python linting runner that assumes the environment is already pre-warmed,
+failing fast if required developer tools are missing.
 """
 import os
 import sys
@@ -26,28 +26,16 @@ def main():
         venv_path = os.path.join(repo_root, ".venv")
         if sys.platform == "win32":
             python_bin = os.path.join(venv_path, "Scripts", "python.exe")
-            pip_bin = os.path.join(venv_path, "Scripts", "pip.exe")
         else:
             python_bin = os.path.join(venv_path, "bin", "python")
-            pip_bin = os.path.join(venv_path, "bin", "pip")
 
-        if not os.path.exists(python_bin) or not is_pylint_available(python_bin):
-            print("pylint not found in current environment or .venv. Setting up virtual environment...", flush=True)
-            # Create venv if not exists
-            if not os.path.exists(venv_path):
-                subprocess.run([sys.executable, "-m", "venv", venv_path], check=True)
-
-            # Install dev tools and requirements
-            print("Installing python dependencies into virtual environment...", flush=True)
-            subprocess.run([pip_bin, "install", "--upgrade", "pip", "setuptools<81.0.0", "wheel"], check=True)
-
-            # Editable install of cli and requirements
-            cli_dir = os.path.join(repo_root, "cli")
-            subprocess.run([pip_bin, "install", "-e", cli_dir], check=True)
-            if os.path.exists(os.path.join(cli_dir, "requirements-dev.txt")):
-                subprocess.run([pip_bin, "install", "-r", os.path.join(cli_dir, "requirements-dev.txt")], check=True)
-
-        pylint_cmd = [python_bin, "-m", "pylint"]
+        if os.path.exists(python_bin) and is_pylint_available(python_bin):
+            pylint_cmd = [python_bin, "-m", "pylint"]
+        else:
+            print("Error: pylint not found in current environment or .venv.", file=sys.stderr)
+            print("Please run the bootstrap script first to configure your local environment:", file=sys.stderr)
+            print("    pnpm run bootstrap:python", file=sys.stderr)
+            sys.exit(1)
 
     # Gather arguments: use any passed arguments, or default to linting 'cli'
     args = sys.argv[1:]

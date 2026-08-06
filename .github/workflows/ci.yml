@@ -68,6 +68,7 @@ jobs:
       - name: Run Lint & Typecheck (Python)
         if: matrix.target == 'python'
         run: |
+          pnpm run bootstrap:python
           pnpm run lint:python
           pnpm run type-check:python
 
@@ -107,11 +108,8 @@ jobs:
 
       - name: Run Python CLI Tests (pytest)
         run: |
-          if command -v td-cli >/dev/null 2>&1; then
-            td-cli test cli
-          else
-            PYTHONPATH="$PYTHONPATH:$(pwd)/cli" python3 -m pytest cli/tests
-          fi
+          pnpm run bootstrap:python
+          pnpm run test:python
 
   impact-analysis:
     name: Deployment Impact Analysis
