@@ -532,14 +532,21 @@ def validate_issue(ctx, issue_number, all_open, post_comments, dry_run, file=Non
 
 
 @gh.command()
+@click.option("--file", help="Path to write the generated markdown scaffold.")
 @click.pass_context
-def scaffold_issue(ctx):
+def scaffold_issue(ctx, file):
     """Output a markdown skeleton containing the required headers."""
     sections = PROJECT_CONFIG.spec_sections
 
     output = "# Issue Title\n\n"
     for section in sections:
         output += f"# {section}\n\n[Provide content for {section}]\n\n"
+
+    if file:
+        with open(file, "w", encoding="utf-8") as f:
+            f.write(output)
+        click.echo(f"Scaffold successfully written to {file}")
+        return
 
     if ctx.obj.get("JSON"):
         out(ctx, "Issue scaffold generated.", data={"template": output})
