@@ -29,11 +29,10 @@ jobs:
           pnpm install --frozen-lockfile
           pnpm run verify:schemas
 
-      - name: Log in to GitHub Container Registry
-        uses: docker/login-action@v3
+      - name: Set up Docker Buildx and Registry Login
+        uses: ./.github/actions/setup-docker-buildx
         with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
+          login: 'true'
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Extract metadata (tags, labels) for Docker
