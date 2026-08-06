@@ -63,7 +63,7 @@ function mapFieldTsTypeToPython(fieldName: string, tsType: string, typeMap: Map<
   const normType = tsType.trim();
   if (normType === 'number') {
     const lower = fieldName.toLowerCase();
-    if (lower.includes('token') || lower.includes('count') || lower.includes('line') || lower.includes('number') || lower.includes('char') || lower.includes('ms') || lower === 'id') {
+    if (lower.includes('tokens') || lower === 'token' || lower.includes('count') || lower.includes('line') || lower.includes('number') || lower.includes('char') || lower.includes('ms') || lower === 'id') {
       return 'int';
     }
     if (lower.includes('cost') || lower.includes('percent') || lower.includes('diff')) {
