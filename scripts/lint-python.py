@@ -7,6 +7,10 @@ import os
 import sys
 import subprocess
 
+# Ensure we can import from the local scripts package
+sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
+from lib.env_utils import get_venv_paths
+
 def is_pylint_available(python_exe):
     """Checks if pylint is installed/available via the given python executable."""
     try:
@@ -23,11 +27,7 @@ def main():
         pylint_cmd = [sys.executable, "-m", "pylint"]
     else:
         # 2. Check if local .venv has pylint
-        venv_path = os.path.join(repo_root, ".venv")
-        if sys.platform == "win32":
-            python_bin = os.path.join(venv_path, "Scripts", "python.exe")
-        else:
-            python_bin = os.path.join(venv_path, "bin", "python")
+        venv_path, python_bin = get_venv_paths(repo_root)
 
         if os.path.exists(python_bin) and is_pylint_available(python_bin):
             pylint_cmd = [python_bin, "-m", "pylint"]
