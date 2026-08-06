@@ -22,17 +22,6 @@ EXEMPT_FILES = {
 def get_changed_files(base_branch=None):
     files = set()
 
-    # 1. Unstaged changes
-    res = subprocess.run(["git", "diff", "--name-only"], capture_output=True, text=True, check=False)
-    if res.returncode == 0:
-        files.update(f.strip() for f in res.stdout.splitlines() if f.strip())
-
-    # 2. Staged changes
-    res = subprocess.run(["git", "diff", "--cached", "--name-only"], capture_output=True, text=True, check=False)
-    if res.returncode == 0:
-        files.update(f.strip() for f in res.stdout.splitlines() if f.strip())
-
-    # 3. Branch differences against base branch
     if not base_branch:
         base_ref = os.environ.get("GITHUB_BASE_REF")
         if base_ref:
@@ -40,6 +29,7 @@ def get_changed_files(base_branch=None):
         else:
             base_branch = "origin/main"
 
+    # Try diffing directly against base branch (compares base branch commit to the working directory)
     res = subprocess.run(["git", "diff", "--name-only", base_branch], capture_output=True, text=True, check=False)
     if res.returncode == 0:
         files.update(f.strip() for f in res.stdout.splitlines() if f.strip())
@@ -48,6 +38,22 @@ def get_changed_files(base_branch=None):
         res = subprocess.run(["git", "diff", "--name-only", "main"], capture_output=True, text=True, check=False)
         if res.returncode == 0:
             files.update(f.strip() for f in res.stdout.splitlines() if f.strip())
+        else:
+            # Fallback to HEAD~1 to catch local changes if base branches are not available
+            res = subprocess.run(["git", "diff", "--name-only", "HEAD~1"], capture_output=True, text=True, check=False)
+            if res.returncode == 0:
+                files.update(f.strip() for f in res.stdout.splitlines() if f.strip())
+            else:
+                res = subprocess.run(["git", "diff", "--name-only"], capture_output=True, text=True, check=False)
+                if res.returncode == 0:
+                    files.update(f.strip() for f in res.stdout.splitlines() if f.strip())
+
+    # Also include untracked files to be extremely thorough and developer-friendly!
+    res = subprocess.run(["git", "status", "--porcelain"], capture_output=True, text=True, check=False)
+    if res.returncode == 0:
+        for line in res.stdout.splitlines():
+            if line.startswith("?? "):
+                files.add(line[3:].strip())
 
     return sorted(list(files))
 
