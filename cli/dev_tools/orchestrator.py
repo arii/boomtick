@@ -26,7 +26,7 @@ if TYPE_CHECKING:
 
 from dev_tools.config import get_config
 from dev_tools.handlers.command_handler import CommandHandler
-from dev_tools.models import IssueSummary, PRSummary
+from dev_tools.models import IssueSummary, PRSummary, PrDiffResponse
 from dev_tools.utils import (
     log_info,
     CLIError,
@@ -2074,9 +2074,9 @@ Follow the "Audit comment template" in `docs/agent/issue-audit-rules.md` to post
             diff_text = diff_text[:MAX_DIFF_SIZE] + "\n\n... [Diff truncated due to size] ..."
             truncated = True
 
-        return {
-            "prNumber": prNumber,
-            "files": [
+        resp = PrDiffResponse(
+            pr_number=prNumber,
+            files=[
                 {
                     "path": f.get("filename"),
                     "status": f.get("status") or "modified",
@@ -2085,9 +2085,10 @@ Follow the "Audit comment template" in `docs/agent/issue-audit-rules.md` to post
                 }
                 for f in files
             ],
-            "diffText": diff_text,
-            "isTruncated": truncated,
-        }
+            diff_text=diff_text,
+            is_truncated=truncated,
+        )
+        return resp.model_dump()
 
     def list_prs(
         self,
