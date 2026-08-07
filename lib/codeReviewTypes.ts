@@ -38,6 +38,13 @@ export interface ModelChain {
   max_retries: number;
 }
 
+export interface IssueSummary {
+  number: number;
+  title: string;
+  html_url: string;
+  state: string;
+}
+
 export interface CodeReviewResult extends CodeReviewState {
   feedback: string;
   role: string;
