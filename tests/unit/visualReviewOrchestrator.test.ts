@@ -92,3 +92,57 @@ describe('visualReviewOrchestrator - Concurrency limit', () => {
     expect(maxActiveRequests).toBeLessThanOrEqual(2);
   });
 });
+
+describe('visualReviewOrchestrator - Empty Payload Validation', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('gracefully exits and does not call postPRComment or sendJulesMessage when findings are empty', async () => {
+    const mockSummary = {
+      routes: [
+        { route: '/home', differencePercent: 5.0, severity: 'LOW', slug: 'home' }
+      ]
+    };
+
+    vi.mocked(fs.existsSync).mockImplementation((p: unknown) => {
+      if (typeof p === 'string' && p.includes('summary.json')) {
+        return true;
+      }
+      return false;
+    });
+
+    vi.mocked(fs.readFileSync).mockImplementation((p: unknown) => {
+      if (typeof p === 'string' && p.includes('summary.json')) {
+        return JSON.stringify(mockSummary);
+      }
+      return '';
+    });
+
+    const mockClient = {
+      botName: 'mock-bot',
+      reportTitle: 'Mock Report',
+      botTagline: 'Mock Tagline',
+      reportFileName: 'mock-report.md',
+      invokeReview: vi.fn().mockResolvedValue({
+        route: '/home',
+        severity: 'LOW',
+        differencePercent: 5.0,
+        feedback: 'No differences',
+        tokens: 10,
+        cost: 0,
+        modelName: 'mock-model',
+        llmVerdict: 'pass',
+        findings: []
+      })
+    };
+
+    const visualReviewUtils = await import('../../lib/visualReviewUtils');
+
+    await orchestrateVisualReview(mockClient);
+
+    // Verify postPRComment and sendJulesMessage are not called
+    expect(visualReviewUtils.postPRComment).not.toHaveBeenCalled();
+    expect(visualReviewUtils.sendJulesMessage).not.toHaveBeenCalled();
+  });
+});

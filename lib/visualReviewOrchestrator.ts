@@ -153,6 +153,23 @@ export async function orchestrateVisualReview(
     }
   }
 
+  // If there are no findings, gracefully exit without posting comment or notifying Jules
+  if (state.findings.length === 0) {
+    console.log("No visual findings found. Gracefully exiting without posting PR comment or notifying Jules.");
+    const safeReportFileName = path.basename(client.reportFileName);
+    const verdictPath = path.join(ARTIFACTS_DIR, `${safeReportFileName.replace('.md', '')}-verdict.json`);
+    await writeVerdictJson(verdictPath, {
+      passed: true,
+      highCount: 0,
+      medCount: 0,
+      lowCount: 0,
+      routes: reviews.map(r => r.route),
+      llmVerdict: 'pass',
+      state: state
+    });
+    return;
+  }
+
   // Post to GitHub PR
   await postPRComment(report, client.reportTitle, state);
 

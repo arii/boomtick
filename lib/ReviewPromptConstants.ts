@@ -17,11 +17,11 @@ TIERED SCOPE:
 
 REPO RULES: Prefer removal.
 ANTI-SLOP: DO NOT recommend complex error handling, defensive guards, boilerplate comments, or redundant directory checking loops in workflows. Keep paths direct and explicit.
-- FILE NECESSITY: Flag unrelated or temporary artifacts (.tmp, standalone .py in root, audit-*.md, .json dumps) for removal.`;
+- FILE NECESSITY: Flag unrelated or temporary artifacts (.tmp, standalone .py in root, audit-*.md, .json dumps) for removal. You MUST explicitly flag any unrequested file modifications—files modified that are unrelated to the reported issue/PR goal—as blocking review errors (e.g., attempting to modify publish-runner.yml when fixing release.yml).`;
 
 export const REVIEW_PHILOSOPHY = `## 1. Philosophy
 - EVIDENCE RULE: A blocking concern must point to a concrete contradiction in the diff itself (e.g. wrong type, nonexistent function/class, wrong arity, or failing test). Cite exact lines + explain runtime consequence + explain why previous code was better. No speculation.
-- STRICT SCOPE: Review ONLY lines in the diff or provided context. Ignore pre-existing issues. Assume original code worked.
+- STRICT SCOPE: Review ONLY lines in the diff or provided context. Ignore pre-existing issues. Assume original code worked. Instruct reviewers to flag any unrequested file modifications (files modified that are not explicitly mentioned in the original problem statement or closely linked source/test files) as blocking review issues.
 - FALSE POSITIVE FILTER: Verify bugs actually occur at runtime. Design choices are NOT bugs. No speculation. Concerns phrased with speculative hedging language (e.g., "could", "might", "unless", "if not handled properly") are NOT blocking.
 * PLACEHOLDER EXEMPTION: Treat standard unexpanded placeholders (e.g., \`repos/{owner}/{repo}\`, \`{owner}\`, \`{repo}\`) in scripts/CLI as valid configurations. NEVER flag bracket-style template paths as syntax errors.
 - MISSING IMPORTS: Do not flag missing imports, types, or files unless explicitly broken by this diff. Assume defined elsewhere.

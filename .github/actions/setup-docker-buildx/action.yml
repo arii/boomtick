@@ -1,0 +1,33 @@
+name: 'Setup Docker Buildx'
+description: 'Sets up Docker Buildx and optionally logs into Docker registries'
+inputs:
+  registry:
+    description: 'Docker registry to log in to'
+    required: false
+    default: 'ghcr.io'
+  username:
+    description: 'Username for registry login'
+    required: false
+    default: '${{ github.actor }}'
+  password:
+    description: 'Password/Token for registry login'
+    required: false
+    default: '${{ github.token }}'
+  login:
+    description: 'Whether to log in to the registry'
+    required: false
+    default: 'true'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Log in to Registry
+      if: inputs.login == 'true'
+      uses: docker/login-action@v3
+      with:
+        registry: ${{ inputs.registry }}
+        username: ${{ inputs.username }}
+        password: ${{ inputs.password }}
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
