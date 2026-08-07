@@ -127,6 +127,15 @@ runs:
         restore-keys: |
           ${{ runner.os }}-pip-
 
+    - name: Cache Python .venv
+      if: inputs.setup-python == 'true'
+      uses: actions/cache@v6 # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
+      with:
+        path: .venv
+        key: ${{ runner.os }}-venv-${{ hashFiles('**/pyproject.toml', '**/requirements*.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-venv-
+
     - name: Install dev-tools
       if: inputs.setup-python == 'true'
       env:

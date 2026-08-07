@@ -2,10 +2,16 @@
 """
 Robust Python linting runner that ensures dependencies are available
 either in the active/current environment or via a local virtual environment (.venv).
+Robust Python linting runner that assumes the environment is already pre-warmed,
+failing fast if required developer tools are missing.
 """
 import os
 import sys
 import subprocess
+
+# Ensure we can import from the local scripts package
+sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
+from lib.env_utils import get_venv_paths
 
 def is_pylint_available(python_exe):
     """Checks if pylint is installed/available via the given python executable."""
@@ -48,6 +54,15 @@ def main():
                 subprocess.run([pip_bin, "install", "-r", os.path.join(cli_dir, "requirements-dev.txt")], check=True)
 
         pylint_cmd = [python_bin, "-m", "pylint"]
+        venv_path, python_bin = get_venv_paths(repo_root)
+
+        if os.path.exists(python_bin) and is_pylint_available(python_bin):
+            pylint_cmd = [python_bin, "-m", "pylint"]
+        else:
+            print("Error: pylint not found in current environment or .venv.", file=sys.stderr)
+            print("Please run the bootstrap script first to configure your local environment:", file=sys.stderr)
+            print("    pnpm run bootstrap:python", file=sys.stderr)
+            sys.exit(1)
 
     # Gather arguments: use any passed arguments, or default to linting 'cli'
     args = sys.argv[1:]

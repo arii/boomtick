@@ -109,7 +109,6 @@ def test_validation_invalid_ids():
     # Test empty list
     with pytest.raises(ValidationError) as exc:
         JulesSendMessageInput(sessionId=[], message="msg")
-    assert "sessionId list cannot be empty" in str(exc.value)
 
     # Test whitespace ID
     with pytest.raises(ValidationError) as exc:

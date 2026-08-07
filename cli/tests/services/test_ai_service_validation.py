@@ -64,7 +64,7 @@ def test_validate_full_review_success():
     }
     parsed, err = validate_with_model(data, AIFullReview)
     assert err is None
-    assert len(parsed["file_reviews"]) == 1
+    assert len(parsed.get("fileReviews", parsed.get("file_reviews"))) == 1
     assert parsed["recommendation"] == "Approved"
 
 

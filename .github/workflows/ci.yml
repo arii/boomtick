@@ -29,6 +29,20 @@ permissions:
   actions: read
 
 jobs:
+  scope-check:
+    name: Scope Constraint Validation
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Run Scope Verification Check
+        run: |
+          python3 scripts/verify-scope.py --strict-scope
+
   workflow-lint:
     name: GitHub Actions Lint
     runs-on: ubuntu-latest
@@ -68,6 +82,7 @@ jobs:
       - name: Run Lint & Typecheck (Python)
         if: matrix.target == 'python'
         run: |
+          pnpm run bootstrap:python
           pnpm run lint:python
           pnpm run type-check:python
 
@@ -112,6 +127,8 @@ jobs:
           else
             PYTHONPATH="$PYTHONPATH:$(pwd)/cli" python3 -m pytest cli/tests
           fi
+          pnpm run bootstrap:python
+          pnpm run test:python
 
   impact-analysis:
     name: Deployment Impact Analysis
