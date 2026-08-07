@@ -276,7 +276,7 @@ def gh():
 
 @gh.command()
 @json_option
-@click.option("--state", default="open")
+@click.option("--state", type=click.Choice(["open", "closed", "all"]), default="open")
 @limit_option(help_text="Limit the number of PRs to process")
 @click.option("--include-drafts/--no-include-drafts", default=True)
 @click.option("--labels")
@@ -291,7 +291,7 @@ def search_prs(ctx, state, limit, include_drafts, labels):
 
 @gh.command(name="search-issues")
 @json_option
-@click.option("--state", default="open")
+@click.option("--state", type=click.Choice(["open", "closed", "all"]), default="open")
 @limit_option(help_text="Limit the number of issues to process")
 @click.option("--labels")
 @click.pass_context
