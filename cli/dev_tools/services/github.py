@@ -329,9 +329,12 @@ class GitHubClient:
         """Lists pull requests with optional server-side label filtering or standard Pulls API."""
         if labels:
             # Use Search API for efficient server-side label filtering
-            query = f"state:{state}"
+            parts = []
+            if state != "all":
+                parts.append(f"state:{state}")
             for label in labels:
-                query += f' label:"{label}"'
+                parts.append(f'label:"{label}"')
+            query = " ".join(parts)
             return self.search_pull_requests(query, limit=limit)
 
         # Fallback to standard Pulls API if no labels, using internal pagination
@@ -500,7 +503,9 @@ class GitHubClient:
         self, state: str = "open", limit: int = 100, labels: Optional[List[str]] = None
     ) -> List[Dict[str, Any]]:
         """Lists issues (excluding pull requests) with optional filters."""
-        query = f"repo:{self.repo} is:issue state:{state}"
+        query = f"repo:{self.repo} is:issue"
+        if state != "all":
+            query += f" state:{state}"
         if labels:
             for label in labels:
                 query += f' label:"{label}"'
