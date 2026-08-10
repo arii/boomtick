@@ -31,8 +31,8 @@ export class GitHubModelFactory {
     }
 
     this.clientInstance = new OpenAI({
-      baseURL: "https://models.inference.ai.azure.com",
-      apiKey: token,
+      baseURL: "https://api.openai.com/v1",
+      apiKey: process.env.OPEN_API_KEY || token,
     });
 
     return this.clientInstance;
@@ -81,6 +81,6 @@ export class GitHubModelFactory {
       }
     }
 
-    return ["gpt-4o-mini", "Phi-4-mini-instruct"];
+    return ["gpt-4o-mini", "gpt-4o"];
   }
 }

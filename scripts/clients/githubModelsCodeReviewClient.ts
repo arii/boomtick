@@ -69,7 +69,7 @@ Your output must be wrapped inside a single block of XML tags like this:
       primary: process.env.AI_TRIAGE_CHAIN_PRIMARY || projConfig.triage_chain?.primary || 'gpt-4o-mini',
       fallbacks: process.env.AI_TRIAGE_CHAIN_FALLBACKS
         ? process.env.AI_TRIAGE_CHAIN_FALLBACKS.split(',').map(s => s.trim())
-        : (projConfig.triage_chain?.fallbacks || ['llama-3.3-70b-instruct']),
+        : (projConfig.triage_chain?.fallbacks || ['gpt-4o']),
       max_retries: projConfig.triage_chain?.max_retries ?? 2
     };
 
@@ -102,7 +102,7 @@ Your output must be wrapped inside a single block of XML tags like this:
         primary: process.env.AI_SPECIALIST_CHAIN_PRIMARY || fallbackChain[0] || 'gpt-4o',
         fallbacks: process.env.AI_SPECIALIST_CHAIN_FALLBACKS
           ? process.env.AI_SPECIALIST_CHAIN_FALLBACKS.split(',').map(s => s.trim())
-          : (fallbackChain.slice(1).length > 0 ? fallbackChain.slice(1) : ['deepseek-r1', 'llama-3.3-70b-instruct']),
+          : (fallbackChain.slice(1).length > 0 ? fallbackChain.slice(1) : ['gpt-4o-mini']),
         max_retries: 3
       };
 

@@ -163,4 +163,5 @@ jobs:
           gemini_api_key: ${{ secrets.GEMINI_API_KEY }}
           pr_number: ${{ github.event.pull_request.number }}
           jules_api_key: ${{ secrets.JULES_API_KEY }}
+          open_api_key: ${{ secrets.OPEN_API_KEY }}
 

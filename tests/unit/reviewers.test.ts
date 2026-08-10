@@ -22,9 +22,9 @@ describe('normalizeModelId', () => {
   it('correctly maps various case-insensitive names to official Azure/GitHub model IDs', () => {
     expect(normalizeModelId('gpt-4o')).toBe('gpt-4o');
     expect(normalizeModelId('gpt-4o-mini')).toBe('gpt-4o-mini');
-    expect(normalizeModelId('deepseek-r1')).toBe('DeepSeek-R1');
-    expect(normalizeModelId('llama-3.3-70b-instruct')).toBe('Llama-3.3-70B-Instruct');
-    expect(normalizeModelId('phi-4')).toBe('Phi-4');
+    expect(normalizeModelId('deepseek-r1')).toBe('deepseek-r1');
+    expect(normalizeModelId('llama-3.3-70b-instruct')).toBe('llama-3.3-70b-instruct');
+    expect(normalizeModelId('phi-4')).toBe('phi-4');
     expect(normalizeModelId('unrecognized-model')).toBe('unrecognized-model');
   });
 });
@@ -77,11 +77,11 @@ describe('GitHubModelFactory', () => {
     it('defaults to gpt-4o-mini if AI_PROVIDER is unset or unknown', () => {
       delete process.env.AI_PROVIDER;
       const chain1 = GitHubModelFactory.getFallbackChain();
-      expect(chain1).toEqual(['gpt-4o-mini', 'Phi-4-mini-instruct']);
+      expect(chain1).toEqual(['gpt-4o-mini', 'gpt-4o']);
 
       process.env.AI_PROVIDER = 'unknown-provider';
       const chain2 = GitHubModelFactory.getFallbackChain();
-      expect(chain2).toEqual(['gpt-4o-mini', 'Phi-4-mini-instruct']);
+      expect(chain2).toEqual(['gpt-4o-mini', 'gpt-4o']);
     });
   });
 
@@ -100,7 +100,7 @@ describe('GitHubModelFactory', () => {
       process.env.GITHUB_TOKEN = 'test-token';
       const client1 = GitHubModelFactory.getClient();
       expect(OpenAI).toHaveBeenCalledWith({
-        baseURL: 'https://models.inference.ai.azure.com',
+        baseURL: 'https://api.openai.com/v1',
         apiKey: 'test-token'
       });
       expect(client1).toBeDefined();

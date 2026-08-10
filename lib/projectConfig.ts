@@ -84,7 +84,7 @@ export function loadProjectConfig(explicitPath?: string): ProjectConfig {
       const crc = crcRaw as Record<string, unknown>;
       code_review_chain = {
         primary: typeof crc.primary === 'string' ? crc.primary : 'gpt-4o',
-        fallbacks: Array.isArray(crc.fallbacks) ? crc.fallbacks.map(String) : ['deepseek-r1', 'llama-3.3-70b-instruct'],
+        fallbacks: Array.isArray(crc.fallbacks) ? crc.fallbacks.map(String) : ['gpt-4o-mini'],
         max_retries: getInt(crc.max_retries, 3)
       };
     }
@@ -95,7 +95,7 @@ export function loadProjectConfig(explicitPath?: string): ProjectConfig {
       const tc = tcRaw as Record<string, unknown>;
       triage_chain = {
         primary: typeof tc.primary === 'string' ? tc.primary : 'gpt-4o-mini',
-        fallbacks: Array.isArray(tc.fallbacks) ? tc.fallbacks.map(String) : ['llama-3.3-70b-instruct'],
+        fallbacks: Array.isArray(tc.fallbacks) ? tc.fallbacks.map(String) : ['gpt-4o'],
         max_retries: getInt(tc.max_retries, 2)
       };
     }

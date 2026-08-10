@@ -455,13 +455,13 @@ def call_ai(
 ) -> Optional[str]:
     """Unified helper to call AI API using LangChain ChatOpenAI with retries."""
 
-    token = get_github_token()
+    token = os.environ.get("OPEN_API_KEY") or get_github_token()
     if not token:
         return None
 
     model = model or get_ai_model()
 
-    url_target = "https://models.inference.ai.azure.com/chat/completions"
+    url_target = "https://api.openai.com/v1/chat/completions"
     headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
     payload = {
         "model": model,
@@ -506,11 +506,11 @@ def call_github_models(
     prompt: str, model: Optional[str] = None, max_retries: int = 3, schema: Optional[Dict[str, Any]] = None
 ) -> Optional[str]:
     """Unified helper to call GitHub Models API (OpenAI-compatible)."""
-    token = get_github_token()
+    token = os.environ.get("OPEN_API_KEY") or get_github_token()
     if not token:
         return None
 
-    base_url = os.environ.get("GITHUB_MODELS_BASE_URL", "https://models.inference.ai.azure.com")
+    base_url = os.environ.get("GITHUB_MODELS_BASE_URL", "https://api.openai.com/v1")
     if not base_url.endswith("/"):
         base_url += "/"
     target_url = urllib.parse.urljoin(base_url, "chat/completions")

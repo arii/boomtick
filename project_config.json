@@ -3,7 +3,7 @@
   "vite_base_path": "/boomtick/",
   "code-review-chain": {
     "primary": "gpt-4o",
-    "fallbacks": ["deepseek-r1", "llama-3.3-70b-instruct"],
+    "fallbacks": ["gpt-4o-mini"],
     "max_retries": 3
   }
 }

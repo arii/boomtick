@@ -13,6 +13,9 @@ inputs:
   jules_api_key:
     description: 'Jules API key required for authenticating with the Jules API to send impact analysis results. Ensure this key is stored securely and not exposed in logs.'
     required: true
+  open_api_key:
+    description: 'OpenAI API key'
+    required: false
 runs:
   using: composite
   steps:
@@ -42,6 +45,7 @@ runs:
         PR_NUMBER: ${{ inputs.pr_number }}
         GITHUB_REPOSITORY: ${{ github.repository }}
         JULES_API_KEY: ${{ inputs.jules_api_key }}
+        OPEN_API_KEY: ${{ inputs.open_api_key || env.OPEN_API_KEY }}
       run: |
         if ! node -e "const pkg = require('./package.json'); if (!pkg.scripts || !pkg.scripts['impact:analysis']) process.exit(1)" 2>/dev/null; then
           echo "⚠️ Skipping: impact:analysis script not found in package.json"
@@ -123,6 +127,7 @@ runs:
         PR_NUMBER: ${{ inputs.pr_number }}
         GITHUB_REPOSITORY: ${{ github.repository }}
         JULES_API_KEY: ${{ inputs.jules_api_key }}
+        OPEN_API_KEY: ${{ inputs.open_api_key || env.OPEN_API_KEY }}
       run: |
         if node -e "const pkg = require('./package.json'); if (!pkg.scripts || !pkg.scripts['impact:github-models-code-review']) process.exit(1)" 2>/dev/null; then
           pnpm run impact:github-models-code-review
@@ -201,6 +206,7 @@ runs:
         PR_NUMBER: ${{ inputs.pr_number }}
         JULES_API_KEY: ${{ inputs.jules_api_key }}
         GITHUB_REPOSITORY: ${{ github.repository }}
+        OPEN_API_KEY: ${{ inputs.open_api_key || env.OPEN_API_KEY }}
       run: |
         if node -e "const pkg = require('./package.json'); if (!pkg.scripts || !pkg.scripts['impact:github-models-review']) process.exit(1)" 2>/dev/null; then
           pnpm run impact:github-models-review

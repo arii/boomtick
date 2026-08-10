@@ -15,7 +15,7 @@ class VisionService:
 
     def __init__(self, model: Optional[str] = None):
         self.model = model or os.environ.get("VISION_MODEL", PROJECT_CONFIG.ai_vision_model)
-        self.token = get_github_token()
+        self.token = os.environ.get("OPEN_API_KEY") or get_github_token()
 
     def call_ai(self, prompt: str, image_paths: List[str]) -> Optional[str]:
         """Calls the AI model with text prompt and images."""
@@ -29,7 +29,7 @@ class VisionService:
             return None
 
         if not self.token:
-            return "No GITHUB_TOKEN found."
+            return "No token found (neither GITHUB_TOKEN nor OPEN_API_KEY)."
 
         from dev_tools.utils import _call_api_with_retry
 
@@ -37,7 +37,7 @@ class VisionService:
         for img in images:
             message_content.append({"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{img}"}})
 
-        url_target = "https://models.inference.ai.azure.com/chat/completions"
+        url_target = "https://api.openai.com/v1/chat/completions"
         headers = {"Authorization": f"Bearer {self.token}", "Content-Type": "application/json"}
         payload = {
             "model": self.model,
