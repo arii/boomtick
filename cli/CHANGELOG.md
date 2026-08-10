@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.9.0](https://github.com/arii/boomtick/compare/cli-v0.8.0...cli-v0.9.0) (2026-08-10)
+
+
+### Features
+
+* centralized concurrency helper for Orchestrator ([#465](https://github.com/arii/boomtick/issues/465)) ([fd57148](https://github.com/arii/boomtick/commit/fd57148067f66a36719b32930427ba96fc265e65))
+
+
+### Bug Fixes
+
+* catch explicit UnknownObjectException in fix_ci method ([#487](https://github.com/arii/boomtick/issues/487)) ([5457c0e](https://github.com/arii/boomtick/commit/5457c0eb46b27c08e82456258751a5addfb24922))
+
 ## [0.8.0](https://github.com/arii/boomtick/compare/cli-v0.7.0...cli-v0.8.0) (2026-08-05)
 
 
