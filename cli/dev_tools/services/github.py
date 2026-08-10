@@ -279,6 +279,81 @@ class GitHubClient:
     def fetch_pr_diff(self, number: int) -> str:
         return self._request("GET", f"/repos/{self.repo}/pulls/{number}", is_text=True)
 
+    def fetch_pr_info_graphql(self, number: int) -> Dict[str, Any]:
+        """
+        Fetches PR details and files in a single GraphQL request.
+
+        Returns a dictionary containing:
+            - "pr": A REST-compatible dict of PR details (title, body, user, head, base).
+            - "files": A list of REST-compatible file dicts (each containing "filename").
+        """
+        if not self.repo:
+            raise CLIError("Repository not configured.")
+        owner, repo_name = self.repo.split("/", 1)
+        query = """
+        query getPrInfo($owner: String!, $repo: String!, $prNumber: Int!) {
+          repository(owner: $owner, name: $repo) {
+            pullRequest(number: $prNumber) {
+              title
+              body
+              author {
+                login
+              }
+              headRefName
+              headRefOid
+              baseRefName
+              files(first: 100) {
+                nodes {
+                  path
+                }
+              }
+            }
+          }
+        }
+        """
+        variables = {
+            "owner": owner,
+            "repo": repo_name,
+            "prNumber": number,
+        }
+
+        res = self._request("POST", "/graphql", json_data={"query": query, "variables": variables})
+
+        # Check for GraphQL errors
+        if "errors" in res:
+            errors_str = json.dumps(res["errors"])
+            raise CLIError(f"GitHub GraphQL API Error: {errors_str}", code=400, data=res)
+
+        pr_node = res.get("data", {}).get("repository", {}).get("pullRequest")
+        if not pr_node:
+            raise CLIError(f"Pull Request #{number} not found via GraphQL", code=404)
+
+        author_node = pr_node.get("author") or {}
+        author_login = author_node.get("login") if author_node else "unknown"
+
+        pr_data = {
+            "number": number,
+            "title": pr_node.get("title", ""),
+            "body": pr_node.get("body", ""),
+            "user": {"login": author_login},
+            "head": {
+                "ref": pr_node.get("headRefName", ""),
+                "sha": pr_node.get("headRefOid", ""),
+            },
+            "base": {
+                "ref": pr_node.get("baseRefName", ""),
+            }
+        }
+
+        files_node = pr_node.get("files") or {}
+        nodes = files_node.get("nodes") or []
+        files_data = [{"filename": node["path"]} for node in nodes if node and "path" in node]
+
+        return {
+            "pr": pr_data,
+            "files": files_data,
+        }
+
     def fetch_prs_for_commit(self, commit_sha: str) -> List[Dict[str, Any]]:
         return self._request("GET", f"/repos/{self.repo}/commits/{commit_sha}/pulls")
 

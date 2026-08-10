@@ -14,18 +14,20 @@ def orchestrator():
 
 
 def test_generate_aggregation_workflow_logic(orchestrator):
-    # Mock PR details
-    orchestrator.github.fetch_pr_details.side_effect = lambda pr_num: {
-        "number": pr_num,
-        "title": f"PR {pr_num} [with brackets]",
-        "user": {"login": f"user_{pr_num}"},
+    # Mock PR info GraphQL
+    orchestrator.github.fetch_pr_info_graphql.side_effect = lambda pr_num: {
+        "pr": {
+            "number": pr_num,
+            "title": f"PR {pr_num} [with brackets]",
+            "user": {"login": f"user_{pr_num}"},
+            "head": {"ref": f"branch_{pr_num}", "sha": f"sha_{pr_num}"},
+            "base": {"ref": "main"},
+        },
+        "files": [
+            {"filename": "overlapping_file.py"},
+            {"filename": f"unique_to_{pr_num}.py"},
+        ]
     }
-
-    # Mock PR files
-    orchestrator.github.fetch_pr_files.side_effect = lambda pr_num: [
-        {"filename": "overlapping_file.py"},
-        {"filename": f"unique_to_{pr_num}.py"},
-    ]
 
     # Mock PR diff with overlapping hunks
     orchestrator.github.fetch_pr_diff.side_effect = lambda pr_num: (
@@ -49,8 +51,7 @@ def test_generate_aggregation_workflow_logic(orchestrator):
         assert "aggregation-plan-feat-test-aggregation.md" in res["skeleton_path"]
 
         # Verify Github API calls
-        assert orchestrator.github.fetch_pr_details.call_count == 2
-        assert orchestrator.github.fetch_pr_files.call_count == 2
+        assert orchestrator.github.fetch_pr_info_graphql.call_count == 2
         assert orchestrator.github.fetch_pr_diff.call_count == 2
 
         # Verify content was written (at least once for each of the 3 files)
