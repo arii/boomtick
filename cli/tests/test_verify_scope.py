@@ -12,8 +12,10 @@ if repo_root not in sys.path:
 # Dynamically import the hyphenated script file 'verify-scope.py'
 script_path = os.path.join(repo_root, "scripts", "verify-scope.py")
 spec = importlib.util.spec_from_file_location("verify_scope", script_path)
+assert spec is not None
 verify_scope = importlib.util.module_from_spec(spec)
 sys.modules["verify_scope"] = verify_scope
+assert spec.loader is not None
 spec.loader.exec_module(verify_scope)
 
 
@@ -67,7 +69,7 @@ def test_test_file_mapping():
 
 def test_directory_match():
     issue_text = "Optimize files and configurations under scripts/ and help with validation."
-    changed_files = ["scripts/lint-python.py", "scripts/validate_workspace.py"]
+    changed_files = ["scripts/run-python-tool.py", "scripts/validate_workspace.py"]
 
     success, allowed, disallowed = verify_scope.check_scope(changed_files, issue_text)
 
