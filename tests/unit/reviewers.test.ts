@@ -53,25 +53,25 @@ describe('GitHubModelFactory', () => {
     it('returns fallbacks for grok-3', () => {
       process.env.AI_PROVIDER = 'grok-3';
       const chain = GitHubModelFactory.getFallbackChain();
-      expect(chain).toEqual(['Grok 3', 'gpt-4o', 'gpt-4o-mini']);
+      expect(chain).toEqual(['gpt-4o', 'gpt-4o-mini']);
     });
 
     it('returns fallbacks for deepseek', () => {
       process.env.AI_PROVIDER = 'deepseek';
       const chain = GitHubModelFactory.getFallbackChain();
-      expect(chain).toEqual(['DeepSeek-R1', 'gpt-4o-mini', 'Phi-4']);
+      expect(chain).toEqual(['gpt-4o-mini', 'gpt-4o']);
     });
 
     it('returns fallbacks for gpt-4', () => {
       process.env.AI_PROVIDER = 'gpt-4';
       const chain = GitHubModelFactory.getFallbackChain();
-      expect(chain).toEqual(['gpt-4o', 'gpt-4o-mini', 'Phi-4']);
+      expect(chain).toEqual(['gpt-4o', 'gpt-4o-mini']);
     });
 
     it('returns fallbacks for claude', () => {
       process.env.AI_PROVIDER = 'claude';
       const chain = GitHubModelFactory.getFallbackChain();
-      expect(chain).toEqual(['claude-3-5-sonnet', 'gpt-4o-mini', 'Phi-4']);
+      expect(chain).toEqual(['gpt-4o', 'gpt-4o-mini']);
     });
 
     it('defaults to gpt-4o-mini if AI_PROVIDER is unset or unknown', () => {
@@ -142,7 +142,7 @@ describe('runReview & complete', () => {
     expect(result).toBe('Good review');
     expect(createMock).toHaveBeenCalledTimes(1);
     expect(createMock).toHaveBeenLastCalledWith({
-      model: 'Phi-4',
+      model: 'gpt-4o-mini',
       messages: [
         { role: 'system', content: 'You are an expert automated code review agent. Rules to enforce:\nno bugs' },
         { role: 'user', content: 'Review the following Pull Request changes:\n\n<pr_content>\nsome changes\n</pr_content>' }
@@ -249,8 +249,8 @@ describe('runReview & complete', () => {
       rules: ['no bugs']
     })).rejects.toThrow('All requested GitHub Model providers and fallbacks failed or exhausted their usage limits.');
 
-    // Phi-4 fallback chain is ["Phi-4", "gpt-4o-mini", "Phi-4-mini-instruct"], so it should try 3 times (once per model since they fail with unexpected error immediately)
-    expect(createMock).toHaveBeenCalledTimes(3);
+    // phi-4 fallback chain is ["gpt-4o-mini", "gpt-4o"], so it should try 2 times (once per model since they fail with unexpected error immediately)
+    expect(createMock).toHaveBeenCalledTimes(2);
     warnSpy.mockRestore();
   });
 });

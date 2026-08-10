@@ -19,10 +19,10 @@ export async function getAvailableModels(token: string): Promise<GitHubModel[]> 
 }
 
 export async function pickOptimalModel(
-  token: string,
+  _token: string,
   fallback: string = 'gpt-4o-mini',
-  needsVision: boolean = false,
-  estimatedInputTokens: number = 0
+  _needsVision: boolean = false,
+  _estimatedInputTokens: number = 0
 ): Promise<string> {
   return fallback;
 }

@@ -56,12 +56,12 @@ export class GitHubModelFactory {
     const target = (process.env.AI_PROVIDER || '').toLowerCase();
     if (target) {
       const defaultRegistry: Record<string, string[]> = {
-        "grok-3": ["Grok 3", "gpt-4o", "gpt-4o-mini"],
-        "phi-4": ["Phi-4", "gpt-4o-mini", "Phi-4-mini-instruct"],
-        "deepseek": ["DeepSeek-R1", "gpt-4o-mini", "Phi-4"],
-        "gpt-4o-mini": ["gpt-4o-mini", "Phi-4-mini-instruct"],
-        "gpt-4": ["gpt-4o", "gpt-4o-mini", "Phi-4"],
-        "claude": ["claude-3-5-sonnet", "gpt-4o-mini", "Phi-4"]
+        "grok-3": ["gpt-4o", "gpt-4o-mini"],
+        "phi-4": ["gpt-4o-mini", "gpt-4o"],
+        "deepseek": ["gpt-4o-mini", "gpt-4o"],
+        "gpt-4o-mini": ["gpt-4o-mini", "gpt-4o"],
+        "gpt-4": ["gpt-4o", "gpt-4o-mini"],
+        "claude": ["gpt-4o", "gpt-4o-mini"]
       };
 
       if (Object.prototype.hasOwnProperty.call(defaultRegistry, target)) {
