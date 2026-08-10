@@ -22,7 +22,7 @@ runs:
   using: 'composite'
   steps:
     - name: Setup Workspace
-      uses: ./.github/actions/setup-workspace
+      uses: ${{ github.action_path }}/../setup-workspace
       with:
         setup-node: ${{ inputs.setup-node }}
         setup-python: ${{ inputs.setup-python }}

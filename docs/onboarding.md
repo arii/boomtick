@@ -41,7 +41,7 @@ Instead of using local workflow configurations pointing to submodule paths, refe
           fetch-depth: 1
 
       - name: BoomTick ChatOps Dispatcher
-        uses: arii/boomtick/.github/actions/chatops@main
+        uses: arii/boomtick/.github/actions/chatops-trigger@main
         with:
           comment_body: ${{ github.event.comment.body }}
           author_association: ${{ github.event.comment.author_association }}
@@ -58,9 +58,9 @@ BoomTick exposes the following Composite Actions under `.github/actions/`:
      setup-node: 'true'
      setup-python: 'true'
    ```
-2. **`chatops`**: Handles comment parsing and automatically dispatches appropriate workflow operations.
+2. **`chatops-trigger`**: Handles comment parsing and automatically dispatches appropriate workflow operations.
    ```yaml
-   uses: arii/boomtick/.github/actions/chatops@main
+   uses: arii/boomtick/.github/actions/chatops-trigger@main
    with:
      comment_body: ${{ inputs.comment_body }}
      author_association: ${{ inputs.author_association }}
@@ -174,7 +174,7 @@ If you require your workflows to trigger other workflows (to allow recursion) or
           private-key: ${{ secrets.APP_PRIVATE_KEY }}
 
       - name: BoomTick ChatOps Dispatcher
-        uses: arii/boomtick/.github/actions/chatops@main
+        uses: arii/boomtick/.github/actions/chatops-trigger@main
         with:
           comment_body: ${{ github.event.comment.body }}
           author_association: ${{ github.event.comment.author_association }}

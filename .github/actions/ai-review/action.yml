@@ -18,7 +18,7 @@ runs:
       shell: bash
 
     - name: Setup Workspace
-      uses: arii/boomtick/.github/actions/setup-workspace@main
+      uses: ${{ github.action_path }}/../setup-workspace
     - name: AI review
       env:
         PR_NUMBER: ${{ inputs.pr_number }}
