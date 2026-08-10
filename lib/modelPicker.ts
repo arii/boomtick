@@ -14,8 +14,8 @@ export interface GitHubModel {
   };
 }
 
-export async function getAvailableModels(token: string): Promise<GitHubModel[]> {
-  return [];
+export function getAvailableModels(_token: string): Promise<GitHubModel[]> {
+  return Promise.resolve([]);
 }
 
 export async function pickOptimalModel(
