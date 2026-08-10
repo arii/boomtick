@@ -376,7 +376,8 @@ runs:
         GITHUB_TOKEN: ${{ inputs.github_token }}
       run: |
         # Inject custom CLI path for td-cli resolution
-        export PATH="$HOME/.local/bin:/github/home/.local/bin:$PATH"
+        PYTHON_SCRIPTS_PATH=$(python3 -c "import sysconfig; print(sysconfig.get_path('scripts'))")
+        export PATH="$PYTHON_SCRIPTS_PATH:$HOME/.local/bin:/github/home/.local/bin:$PATH"
 
         # Resolve CLI dir for PYTHONPATH
         if [ -d "cli" ]; then
