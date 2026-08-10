@@ -3,7 +3,7 @@ description: Runs pre-submit checks via td-cli CLI
 runs:
   using: composite
   steps:
-    - uses: ${{ github.action_path }}/../setup
+    - uses: arii/boomtick/mcp/actions/setup@main
     - name: Pre-submit gate
       run: td-cli gh pre-submit
       shell: bash
