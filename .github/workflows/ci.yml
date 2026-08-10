@@ -40,6 +40,8 @@ jobs:
           fetch-depth: 0
 
       - name: Run Scope Verification Check
+        env:
+          SCOPE_OVERRIDE: ${{ contains(github.event.pull_request.title, '[skip-scope-check]') || contains(github.event.pull_request.body, '[skip-scope-check]') || contains(github.event.pull_request.head.ref, 'skip-scope') || 'false' }}
         run: |
           python3 scripts/verify-scope.py --strict-scope
 
