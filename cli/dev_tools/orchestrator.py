@@ -3086,41 +3086,47 @@ Run the validation suite to ensure the aggregated branch is stable.
         finally:
             runner.shutdown(wait=False)
 
-    def install_workflows(self, dry_run: bool = True) -> Dict[str, Any]:
+    def install_workflows(self, dry_run: bool = True, cwd: Optional[str] = None) -> Dict[str, Any]:
         """
         Detects if running in a submodule context, and copies/installs Jules automation workflows
         from the submodule directory to the parent repository's .github/workflows/ folder,
         updating composite action path references dynamically.
         """
+        if cwd is None:
+            cwd = os.path.abspath(os.getcwd())
+        else:
+            cwd = os.path.abspath(cwd)
 
         # 1. Detect parent root and submodule directory name
         parent_root = ""
         submodule_name = ""
-        submodule_path = os.path.abspath(os.getcwd())
+        submodule_path = cwd
 
         # Check if current directory is a submodule (running inside the submodule)
         res = subprocess.run(
             ["git", "rev-parse", "--show-superproject-working-tree"],
+            cwd=cwd,
             capture_output=True,
             text=True,
             check=False,
         )
         if res.returncode == 0 and res.stdout.strip():
             parent_root = os.path.abspath(res.stdout.strip())
-            submodule_name = os.path.basename(os.getcwd())
+            submodule_name = os.path.basename(cwd)
         else:
             # We might be running inside the parent repository
             # Search for a subdirectory that represents the submodule
             for candidate in ["boomtick-pkg", "boomtick"]:
-                if os.path.isdir(candidate) and os.path.isdir(os.path.join(candidate, "cli")):
-                    parent_root = os.path.abspath(os.getcwd())
+                candidate_abs = os.path.join(cwd, candidate)
+                if os.path.isdir(candidate_abs) and os.path.isdir(os.path.join(candidate_abs, "cli")):
+                    parent_root = cwd
                     submodule_name = candidate
-                    submodule_path = os.path.abspath(candidate)
+                    submodule_path = candidate_abs
                     break
 
         if not parent_root:
             # Standalone layout fallback
-            parent_root = os.path.abspath(os.getcwd())
+            parent_root = cwd
             submodule_name = ""
 
         # Workflows to copy
