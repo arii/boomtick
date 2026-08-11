@@ -510,7 +510,7 @@ def call_github_models(
     if not token:
         return None
 
-    base_url = os.environ.get("GITHUB_MODELS_BASE_URL", "https://api.openai.com/v1/")
+    base_url = os.environ.get("GITHUB_MODELS_BASE_URL", "https://api.openai.com/v1")
     if not base_url.endswith("/"):
         base_url += "/"
     target_url = urllib.parse.urljoin(base_url, "chat/completions")
