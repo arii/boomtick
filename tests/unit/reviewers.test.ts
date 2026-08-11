@@ -88,7 +88,7 @@ describe('GitHubModelFactory', () => {
   describe('getClient', () => {
     it('throws error if GITHUB_TOKEN is missing', () => {
       delete process.env.GITHUB_TOKEN;
-      expect(() => GitHubModelFactory.getClient()).toThrow('Missing GITHUB_TOKEN environment variable.');
+      expect(() => GitHubModelFactory.getClient()).toThrow('Missing OPEN_API_KEY or GITHUB_TOKEN environment variable.');
     });
 
     it('throws error if GITHUB_TOKEN format is invalid', () => {

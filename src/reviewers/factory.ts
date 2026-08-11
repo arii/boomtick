@@ -21,18 +21,22 @@ export class GitHubModelFactory {
     }
 
     const token = process.env.GITHUB_TOKEN;
-    if (!token) {
-      throw new Error("Missing GITHUB_TOKEN environment variable.");
+    const openApiKey = process.env.OPEN_API_KEY;
+
+    if (!openApiKey && !token) {
+      throw new Error("Missing OPEN_API_KEY or GITHUB_TOKEN environment variable.");
     }
 
-    // Validate GITHUB_TOKEN format strictly to prevent header injection or malicious token values
-    if (!/^[A-Za-z0-9_\-\.]+$/.test(token)) {
-      throw new Error("Invalid GITHUB_TOKEN format.");
+    if (token) {
+      // Validate GITHUB_TOKEN format strictly to prevent header injection or malicious token values
+      if (!/^[A-Za-z0-9_\-\.]+$/.test(token)) {
+        throw new Error("Invalid GITHUB_TOKEN format.");
+      }
     }
 
     this.clientInstance = new OpenAI({
       baseURL: "https://api.openai.com/v1",
-      apiKey: process.env.OPEN_API_KEY || token,
+      apiKey: openApiKey || token,
     });
 
     return this.clientInstance;
