@@ -29,13 +29,13 @@ async function main(): Promise<void> {
     await orchestrateCodeReview(geminiCodeReviewClient, ALL_REVIEW_TITLES);
   } else if (provider === 'github-models') {
     // security-safe: Environment variables are trusted in this workflow context.
-    if (!process.env.GITHUB_TOKEN) {
-      console.warn('⚠️  Skipping agent code review — GITHUB_TOKEN not set.');
+    if (!process.env.OPEN_API_KEY && !process.env.GITHUB_TOKEN) {
+      console.warn('⚠️  Skipping agent code review — OPEN_API_KEY or GITHUB_TOKEN not set.');
       try {
         await writeMissingApiKeyVerdict(
           githubModelsCodeReviewClient.reportFileName,
           githubModelsCodeReviewClient.reportTitle,
-          'GITHUB_TOKEN'
+          'OPEN_API_KEY or GITHUB_TOKEN'
         );
       } catch (err) {
         console.error('Failed to write missing API key verdict', err);
