@@ -27,7 +27,7 @@ def test_install_workflows_standalone():
             mock_run.return_value = mock_res
 
             orch = Orchestrator()
-            res = orch.install_workflows(dry_run=False)
+            res = orch.install_workflows(dry_run=False, cwd=temp_dir)
 
             assert res["status"] == "success"
             assert res["submodule_name"] == ""
@@ -66,7 +66,7 @@ def test_install_workflows_submodule():
             mock_run.return_value = mock_res
 
             orch = Orchestrator()
-            res = orch.install_workflows(dry_run=False)
+            res = orch.install_workflows(dry_run=False, cwd=sub_dir)
 
             assert res["status"] == "success"
             assert res["submodule_name"] == "boomtick-pkg"
