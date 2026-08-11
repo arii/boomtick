@@ -27,7 +27,8 @@ export class GitHubModelFactory {
       throw new Error("Missing OPEN_API_KEY or GITHUB_TOKEN environment variable.");
     }
 
-    if (token) {
+    // Only validate GITHUB_TOKEN format if we are actually using it (i.e. OPEN_API_KEY is not set)
+    if (!openApiKey && token) {
       // Validate GITHUB_TOKEN format strictly to prevent header injection or malicious token values
       if (!/^[A-Za-z0-9_\-\.]+$/.test(token)) {
         throw new Error("Invalid GITHUB_TOKEN format.");

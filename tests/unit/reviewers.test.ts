@@ -108,6 +108,29 @@ describe('GitHubModelFactory', () => {
       const client2 = GitHubModelFactory.getClient();
       expect(client1).toBe(client2); // Singleton pattern
     });
+
+    it('prioritizes OPEN_API_KEY over GITHUB_TOKEN', () => {
+      process.env.OPEN_API_KEY = 'openai-api-key';
+      process.env.GITHUB_TOKEN = 'test-token';
+      const client = GitHubModelFactory.getClient();
+      expect(OpenAI).toHaveBeenCalledWith({
+        baseURL: 'https://api.openai.com/v1',
+        apiKey: 'openai-api-key'
+      });
+      expect(client).toBeDefined();
+    });
+
+    it('does not validate GITHUB_TOKEN format if OPEN_API_KEY is present', () => {
+      process.env.OPEN_API_KEY = 'openai-api-key';
+      process.env.GITHUB_TOKEN = 'invalid token with spaces';
+      // This should NOT throw because OPEN_API_KEY is preferred and used.
+      const client = GitHubModelFactory.getClient();
+      expect(OpenAI).toHaveBeenCalledWith({
+        baseURL: 'https://api.openai.com/v1',
+        apiKey: 'openai-api-key'
+      });
+      expect(client).toBeDefined();
+    });
   });
 });
 
