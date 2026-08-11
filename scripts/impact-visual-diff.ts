@@ -9,7 +9,6 @@ import { PNG } from 'pngjs';
 import sharp from 'sharp';
 import {
   ARTIFACTS_DIR,
-  DEFAULT_VIEWPORTS,
   DOM_REVIEW_DIR,
   VISUAL_REVIEW_DIR,
   VISUAL_SUMMARY_PATH,
@@ -24,7 +23,8 @@ import {
   type LayoutMetrics,
   type LayoutValidation
 } from './impact-review-utils';
-import { whiteCanvas, copyImage } from './image-processing-utils.ts';
+import { DEFAULT_VIEWPORTS } from '../lib/visualReviewConstants';
+import { whiteCanvas, copyImage } from './image-processing-utils';
 
 const basePort = Number(process.env.IMPACT_BASE_PORT ?? 4173);
 const headPort = Number(process.env.IMPACT_HEAD_PORT ?? 4174);
