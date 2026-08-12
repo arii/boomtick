@@ -421,7 +421,8 @@ def clean_llm_output(text: str) -> str:
 
 def is_ai_available() -> bool:
     """Checks if AI API token is present."""
-    return bool(os.getenv("GITHUB_TOKEN"))
+    # Since GitHub Models is disabled, we return False to allow direct fallback to Gemini
+    return False
 
 
 def to_standard_schema(schema):
@@ -454,39 +455,8 @@ def call_ai(
     schema: Optional[Dict[str, Any]] = None,
 ) -> Optional[str]:
     """Unified helper to call AI API using LangChain ChatOpenAI with retries."""
-
-    token = get_github_token()
-    if not token:
-        return None
-
-    model = model or get_ai_model()
-
-    url_target = "https://models.inference.ai.azure.com/chat/completions"
-    headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
-    payload = {
-        "model": model,
-        "messages": [{"role": "user", "content": prompt}],
-        "temperature": 0.7,
-        "max_tokens": 2048,
-    }
-    if schema:
-        payload["response_format"] = {"type": "json_object"}
-
-    try:
-        response = _call_api_with_retry(
-            "POST",
-            url_target,
-            headers=headers,
-            json=payload,
-            max_retries=max_retries,
-            retry_status_codes=[429, 500, 502, 503, 504],
-        )
-        if not response:
-            return None
-        return response.json()["choices"][0]["message"]["content"]
-    except Exception as e:
-        log_error(f"AI Call failed: {e}")
-        return None
+    log_warn("GitHub Models is deprecated and disabled. Falling back to Gemini.")
+    return call_gemini(prompt, model=None, max_retries=max_retries, schema=schema)
 
 
 def log_ai_run(entry: dict):
@@ -506,67 +476,8 @@ def call_github_models(
     prompt: str, model: Optional[str] = None, max_retries: int = 3, schema: Optional[Dict[str, Any]] = None
 ) -> Optional[str]:
     """Unified helper to call GitHub Models API (OpenAI-compatible)."""
-    token = get_github_token()
-    if not token:
-        return None
-
-    base_url = os.environ.get("GITHUB_MODELS_BASE_URL", "https://models.inference.ai.azure.com")
-    if not base_url.endswith("/"):
-        base_url += "/"
-    target_url = urllib.parse.urljoin(base_url, "chat/completions")
-
-    data: Dict[str, Any] = {
-        "model": model or get_ai_model(),
-        "messages": [{"role": "user", "content": prompt}],
-        "stream": False,
-    }
-    if schema:
-        # OpenAI style: prompt injection + json_object mode
-        norm_schema = to_standard_schema(schema)
-        data["response_format"] = {"type": "json_object"}
-        messages = data.get("messages")
-        if isinstance(messages, list):
-            messages.insert(
-                0,
-                {
-                    "role": "system",
-                    "content": f"Output MUST be valid JSON matching this schema: {json.dumps(norm_schema)}",
-                },
-            )
-
-    start_time = time.time()
-    try:
-        response = _call_api_with_retry(
-            "POST",
-            target_url,
-            json=data,
-            headers={"Authorization": f"Bearer {token}"},
-            max_retries=max_retries,
-        )
-        res = response.json()
-    except Exception as e:
-        log_error(f"GitHub Models call failed: {e}")
-        return None
-
-    duration_ms = int((time.time() - start_time) * 1000)
-
-    if res and "usage" in res:
-        usage = res["usage"]
-        log_ai_run(
-            {
-                "type": "python-tool",
-                "model": model or get_ai_model(),
-                "inputTokens": usage.get("prompt_tokens", 0),
-                "outputTokens": usage.get("completion_tokens", 0),
-                "cacheTokens": usage.get("prompt_tokens_details", {}).get("cached_tokens", 0),
-                "totalTokens": usage.get("total_tokens", 0),
-                "durationMs": duration_ms,
-                "cost": 0,
-                "verdict": "unknown",
-            }
-        )
-
-    return res["choices"][0]["message"]["content"] if res and "choices" in res else None
+    log_warn("GitHub Models is deprecated and disabled. Falling back to Gemini.")
+    return call_gemini(prompt, model=None, max_retries=max_retries, schema=schema)
 
 
 def verify_ci_metrics(
