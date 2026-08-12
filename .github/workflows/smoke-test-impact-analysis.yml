@@ -15,7 +15,7 @@ jobs:
           fetch-depth: 0
 
       - name: Smoke Test Impact Analysis Action
-        uses: ./.github/actions/impact-analysis
+        uses: arii/boomtick/.github/actions/impact-analysis@main
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           gemini_api_key: "MOCK_KEY"

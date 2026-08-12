@@ -91,7 +91,7 @@ jobs:
         uses: actions/checkout@v7
 
       - name: Setup Workspace
-        uses: ./.github/actions/setup-workspace
+        uses: arii/boomtick/.github/actions/setup-workspace@main
 
       - name: Resolve Environment
         id: resolve_env
@@ -211,7 +211,7 @@ jobs:
         shell: bash
 
       - name: Run CI Repair
-        uses: ./.github/actions/ci-repair
+        uses: arii/boomtick/.github/actions/ci-repair@main
         with:
           mode: ${{ steps.determine_mode.outputs.mode }}
           issue_number: ${{ github.event.inputs.issue_number || github.event.client_payload.issue_number }}
@@ -263,7 +263,7 @@ jobs:
         shell: bash
 
       - name: Setup Workspace
-        uses: ./.github/actions/setup-workspace
+        uses: arii/boomtick/.github/actions/setup-workspace@main
         with:
           setup-python: 'true'
 
