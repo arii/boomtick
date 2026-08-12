@@ -392,7 +392,10 @@ def get_ai_model() -> str:
 
 def get_gemini_model() -> str:
     """Dynamic getter for the Gemini model."""
-    return _get_model_config("GEMINI_MODEL", "ai_synthesis_model", "gemini-2.5-flash-lite")
+    model = os.environ.get("GEMINI_MODEL")
+    if model and "gemini" in model.lower():
+        return model
+    return "gemini-1.5-flash"
 
 
 def clean_llm_output(text: str) -> str:
@@ -456,13 +459,19 @@ def call_ai(
 ) -> Optional[str]:
     """Unified helper to call AI API using LangChain ChatOpenAI with retries."""
 
-    token = os.getenv("OPENAI_API_KEY") or os.getenv("OPEN_API_KEY") or get_github_token()
-    if not token:
+    openai_key = os.getenv("OPENAI_API_KEY") or os.getenv("OPEN_API_KEY")
+    github_token = get_github_token()
+
+    if openai_key:
+        token = openai_key
+        url_target = "https://api.openai.com/v1/chat/completions"
+    elif github_token:
+        token = github_token
+        url_target = "https://models.inference.ai.azure.com/chat/completions"
+    else:
         return None
 
     model = model or get_ai_model()
-
-    url_target = "https://api.openai.com/v1/chat/completions"
     headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
     payload = {
         "model": model,
@@ -507,11 +516,17 @@ def call_github_models(
     prompt: str, model: Optional[str] = None, max_retries: int = 3, schema: Optional[Dict[str, Any]] = None
 ) -> Optional[str]:
     """Unified helper to call GitHub Models API (OpenAI-compatible)."""
-    token = os.getenv("OPENAI_API_KEY") or os.getenv("OPEN_API_KEY") or get_github_token()
-    if not token:
-        return None
+    openai_key = os.getenv("OPENAI_API_KEY") or os.getenv("OPEN_API_KEY")
+    github_token = get_github_token()
 
-    base_url = os.environ.get("GITHUB_MODELS_BASE_URL", "https://api.openai.com/v1")
+    if openai_key:
+        token = openai_key
+        base_url = os.environ.get("GITHUB_MODELS_BASE_URL", "https://api.openai.com/v1")
+    elif github_token:
+        token = github_token
+        base_url = os.environ.get("GITHUB_MODELS_BASE_URL", "https://models.inference.ai.azure.com")
+    else:
+        return None
     if not base_url.endswith("/"):
         base_url += "/"
     target_url = urllib.parse.urljoin(base_url, "chat/completions")

@@ -100,7 +100,7 @@ describe('GitHubModelFactory', () => {
       process.env.GITHUB_TOKEN = 'test-token';
       const client1 = GitHubModelFactory.getClient();
       expect(OpenAI).toHaveBeenCalledWith({
-        baseURL: 'https://api.openai.com/v1',
+        baseURL: 'https://models.inference.ai.azure.com',
         apiKey: 'test-token'
       });
       expect(client1).toBeDefined();
