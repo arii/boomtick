@@ -425,7 +425,7 @@ def clean_llm_output(text: str) -> str:
 
 def is_ai_available() -> bool:
     """Checks if AI API token is present."""
-    return bool(os.getenv("GITHUB_TOKEN"))
+    return bool(os.getenv("OPENAI_API_KEY") or os.getenv("OPEN_API_KEY") or os.getenv("GITHUB_TOKEN"))
 
 
 def to_standard_schema(schema):
