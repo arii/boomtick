@@ -13,6 +13,7 @@ from typing import Any, Dict, List, Optional
 @dataclass(frozen=True)
 class ProjectConfig:
     github_repo: str | None = None
+    package_name: str | None = None
     github_token_env: str = "GITHUB_TOKEN"
     jules_api_url: str | None = None
     core_dirs: List[str] = field(default_factory=lambda: ["src/layouts/", "src/components/"])
@@ -190,6 +191,11 @@ def load_project_config(path: str | Path = "project_config.json") -> ProjectConf
         kwargs["github_repo"] = raw.get("github_repo") or raw.get("repo_name")
     else:
         kwargs["github_repo"] = _detect_repo_name()
+
+    if "package_name" in raw:
+        kwargs["package_name"] = raw["package_name"]
+    elif "packageName" in raw:
+        kwargs["package_name"] = raw["packageName"]
 
     if "vite_base_path" in raw:
         kwargs["vite_base_path"] = raw["vite_base_path"]

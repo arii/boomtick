@@ -1,4 +1,5 @@
 {
+  "packageName": "boomtick",
   "github_repo": "arii/boomtick",
   "vite_base_path": "/boomtick/",
   "code-review-chain": {

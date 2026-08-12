@@ -186,3 +186,18 @@ jobs:
           pr_number: ${{ github.event.pull_request.number }}
           jules_api_key: ${{ secrets.JULES_API_KEY }}
 
+  validate-and-analyze:
+    runs-on: ubuntu-latest
+    if: false
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Run Standalone Impact Analysis
+        uses: arii/boomtick/.github/actions/impact-analysis@main
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          gemini_api_key: ${{ secrets.GEMINI_API_KEY }}
+          jules_api_key: ${{ secrets.JULES_API_KEY }}
