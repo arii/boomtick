@@ -190,12 +190,7 @@ class AIClient:
             return None
 
     def generate(self, prompt: str, schema: Optional[Dict] = None, model: Optional[str] = None) -> str:
-        if self.is_ai_available():
-            res = self.call_ai(prompt, model=model, schema=schema)
-            if res:
-                return res
-
-        res = self.call_gemini(prompt, schema=schema)
+        res = self.call_ai(prompt, model=model, schema=schema)
         if res:
             return res
 
