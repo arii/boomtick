@@ -28,6 +28,7 @@ runs:
           -e GEMINI_API_KEY="${GEMINI_API_KEY}" \
           -e JULES_API_KEY="${JULES_API_KEY}" \
           -e PR_NUMBER="${PR_NUMBER}" \
+          -e GITHUB_REPOSITORY="${GITHUB_REPOSITORY}" \
           -v "${{ github.workspace }}":/workspace \
           -w /workspace \
           ghcr.io/arii/boomtick:latest \
