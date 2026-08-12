@@ -391,7 +391,7 @@ def get_ai_model() -> str:
 
 def get_gemini_model() -> str:
     """Dynamic getter for the Gemini model."""
-    return _get_model_config("GEMINI_MODEL", "gemini_model", "gemini-2.5-flash")
+    return _get_model_config("GEMINI_MODEL", "ai_synthesis_model", "gemini-2.5-flash-lite")
 
 
 def clean_llm_output(text: str) -> str:
@@ -481,11 +481,11 @@ def call_ai(
             max_retries=max_retries,
             retry_status_codes=[429, 500, 502, 503, 504],
         )
-        if not response or getattr(response, "status_code", 200) != 200:
+        if not response:
             return None
         return response.json()["choices"][0]["message"]["content"]
     except Exception as e:
-        log_warn(f"AI Call failed: {e}")
+        log_error(f"AI Call failed: {e}")
         return None
 
 
@@ -543,12 +543,9 @@ def call_github_models(
             headers={"Authorization": f"Bearer {token}"},
             max_retries=max_retries,
         )
-        if not response or getattr(response, "status_code", 200) != 200:
-            log_warn(f"GitHub Models call returned error status: {getattr(response, 'status_code', 'None')}")
-            return None
         res = response.json()
     except Exception as e:
-        log_warn(f"GitHub Models call failed: {e}")
+        log_error(f"GitHub Models call failed: {e}")
         return None
 
     duration_ms = int((time.time() - start_time) * 1000)
