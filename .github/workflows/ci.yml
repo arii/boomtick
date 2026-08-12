@@ -26,8 +26,6 @@ on:
         required: false
       JULES_API_KEY:
         required: false
-      OPENAI_API_KEY:
-        required: false
 
 concurrency:
   # Safe concurrency group targeting the current branch.
@@ -169,7 +167,6 @@ jobs:
           gemini_api_key: ${{ secrets.GEMINI_API_KEY }}
           openai_api_key: ${{ secrets.OPENAI_API_KEY }}
           jules_api_key: ${{ secrets.JULES_API_KEY }}
-          openai_api_key: ${{ secrets.OPENAI_API_KEY }}
 
   validate-and-analyze:
     runs-on: ubuntu-latest
@@ -188,4 +185,3 @@ jobs:
           gemini_api_key: ${{ secrets.GEMINI_API_KEY }}
           openai_api_key: ${{ secrets.OPENAI_API_KEY }}
           jules_api_key: ${{ secrets.JULES_API_KEY }}
-          openai_api_key: ${{ secrets.OPENAI_API_KEY }}
