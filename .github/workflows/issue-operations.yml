@@ -40,7 +40,7 @@ jobs:
           fetch-depth: 1
 
       - name: Run Issue Operations - Validate Quality
-        uses: ./.github/actions/issue-operations # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
+        uses: arii/boomtick/.github/actions/issue-operations@main # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
         with:
           operation: 'validate-quality'
           issue_number: ${{ github.event.issue.number }}
@@ -63,7 +63,7 @@ jobs:
           fetch-depth: 1
 
       - name: Run Issue Operations - Create PR
-        uses: ./.github/actions/issue-operations # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
+        uses: arii/boomtick/.github/actions/issue-operations@main # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
         with:
           operation: 'create-pr'
           issue_number: ${{ github.event.issue.number }}
@@ -80,7 +80,7 @@ jobs:
           fetch-depth: 1
 
       - name: Run Issue Operations - AI Review
-        uses: ./.github/actions/issue-operations # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
+        uses: arii/boomtick/.github/actions/issue-operations@main # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
         with:
           operation: 'ai-review'
           issue_number: ${{ github.event.inputs.issue_number }}
@@ -101,7 +101,7 @@ jobs:
           fetch-depth: 0
 
       - name: Run Issue Operations - Resolve Conflicts
-        uses: ./.github/actions/issue-operations # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
+        uses: arii/boomtick/.github/actions/issue-operations@main # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
         with:
           operation: 'resolve-conflicts'
           issue_number: ${{ github.event.inputs.issue_number }}
@@ -119,7 +119,7 @@ jobs:
           fetch-depth: 1
 
       - name: Run Issue Operations - Update Snapshots
-        uses: ./.github/actions/issue-operations # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
+        uses: arii/boomtick/.github/actions/issue-operations@main # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
         with:
           operation: 'update-snapshots'
           issue_number: ${{ github.event.inputs.issue_number }}
