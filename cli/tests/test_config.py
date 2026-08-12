@@ -42,6 +42,30 @@ def test_load_custom_config(tmp_path):
     assert config.ai_synthesis_model == "gpt-4o"
 
 
+def test_load_package_name(tmp_path):
+    # Test loading packageName
+    config_file1 = tmp_path / "project_config1.json"
+    data1 = {
+        "github_repo": "owner/repo",
+        "vite_base_path": "/test/",
+        "packageName": "my-package"
+    }
+    config_file1.write_text(json.dumps(data1))
+    config1 = load_project_config(config_file1)
+    assert config1.package_name == "my-package"
+
+    # Test loading package_name
+    config_file2 = tmp_path / "project_config2.json"
+    data2 = {
+        "github_repo": "owner/repo",
+        "vite_base_path": "/test/",
+        "package_name": "another-package"
+    }
+    config_file2.write_text(json.dumps(data2))
+    config2 = load_project_config(config_file2)
+    assert config2.package_name == "another-package"
+
+
 def test_type_coercion(tmp_path):
     config_file = tmp_path / "project_config.json"
     data = {
