@@ -8,6 +8,9 @@ inputs:
   gemini_api_key:
     description: 'Gemini API key for review synthesis'
     required: false
+  openai_api_key:
+    description: 'OpenAI API key'
+    required: false
   jules_api_key:
     description: 'Jules API key for agent execution'
     required: false
@@ -20,12 +23,14 @@ runs:
       env:
         GITHUB_TOKEN: ${{ inputs.github_token }}
         GEMINI_API_KEY: ${{ inputs.gemini_api_key }}
+        OPENAI_API_KEY: ${{ inputs.openai_api_key }}
         JULES_API_KEY: ${{ inputs.jules_api_key }}
         PR_NUMBER: ${{ github.event.pull_request.number }}
       run: |
         docker run --rm \
           -e GITHUB_TOKEN="${GITHUB_TOKEN}" \
           -e GEMINI_API_KEY="${GEMINI_API_KEY}" \
+          -e OPENAI_API_KEY="${OPENAI_API_KEY}" \
           -e JULES_API_KEY="${JULES_API_KEY}" \
           -e PR_NUMBER="${PR_NUMBER}" \
           -e GITHUB_REPOSITORY="${GITHUB_REPOSITORY}" \

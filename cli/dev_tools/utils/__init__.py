@@ -421,7 +421,7 @@ def clean_llm_output(text: str) -> str:
 
 def is_ai_available() -> bool:
     """Checks if AI API token is present."""
-    return bool(os.getenv("GITHUB_TOKEN"))
+    return bool(os.getenv("GITHUB_TOKEN") or os.getenv("OPENAI_API_KEY"))
 
 
 def to_standard_schema(schema):
@@ -455,13 +455,18 @@ def call_ai(
 ) -> Optional[str]:
     """Unified helper to call AI API using LangChain ChatOpenAI with retries."""
 
-    token = get_github_token()
+    openai_token = os.environ.get("OPENAI_API_KEY")
+    token = openai_token or get_github_token()
     if not token:
         return None
 
     model = model or get_ai_model()
 
-    url_target = "https://models.inference.ai.azure.com/chat/completions"
+    if openai_token:
+        url_target = "https://api.openai.com/v1/chat/completions"
+    else:
+        url_target = "https://models.inference.ai.azure.com/chat/completions"
+
     headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
     payload = {
         "model": model,
