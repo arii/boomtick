@@ -395,10 +395,10 @@ run_validation() {
         else
           python3 "$CLI_ROOT/dev_tools/schema_gen.py"
         fi
-        pnpm --filter @arii/boomtick-mcp run sync-contracts
+        pnpm --filter @boomtick/mcp run sync-contracts
       ) || warn "Failed to generate schemas/contracts."
     fi
-    pnpm --filter @arii/boomtick-mcp run sync:mcp-schemas || true
+    pnpm --filter @boomtick/mcp run sync:mcp-schemas || true
   fi
 }
 

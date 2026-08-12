@@ -6,7 +6,7 @@
       "component": "cli"
     },
     "mcp": {
-      "package-name": "@arii/boomtick-mcp",
+      "package-name": "@boomtick/mcp",
       "release-type": "node",
       "component": "mcp"
     },

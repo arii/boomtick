@@ -1,65 +1,23 @@
 [build-system]
-requires = ["setuptools>=61.0"]
+requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "boomtick-cli"
-version = "0.9.0"
-description = "BoomTick CLI — agentic dev-tools for GitHub + AI workflows"
-authors = [{name = "Ariel Anders"}]
+version = "1.0.0"
+description = "Standalone CLI and MCP orchestration tools for BoomTick & TechDancer ecosystem"
 readme = "README.md"
-classifiers = [
-    "Programming Language :: Python :: 3",
-    "Operating System :: OS Independent",
-]
-requires-python = ">=3.8"
+requires-python = ">=3.10"
 dependencies = [
-    "requests>=2.0.0",
-    "packaging>=21.3",
-    "python-dotenv",
-    "pydantic",
-    "click",
-    "PyGithub",
-    "semgrep",
-    "opentelemetry-api==1.37.0",
-    "opentelemetry-sdk==1.37.0",
-    "duckduckgo-search>=6.0.0",
-    "setuptools<81.0.0",
-    "importlib-resources"
-]
-
-[project.urls]
-Homepage = "https://github.com/arii/boomtick"
-Repository = "https://github.com/arii/boomtick"
-
-[project.optional-dependencies]
-ai = [
-    "google-genai",
-    "chromadb>=1.5.9",
-    "sentence-transformers>=5.6.0",
-    "langchain-google-genai",
-    "langchain-openai"
+    "click>=8.1.0",
+    "pydantic>=2.0.0",
+    "mcp>=1.0.0",
+    "pyyaml>=6.0",
 ]
 
 [project.scripts]
-td = "dev_tools.cli:main"
 td-cli = "dev_tools.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["dev_tools*"]
-
-[tool.setuptools.package-data]
-"dev_tools" = [
-    "cli-schema.json",
-    "verify_versions.py",
-    "dist/index.js",
-    "dist/config.js",
-    "dist/mcp/*.js",
-    "dist/tools/*.js",
-    "dist/tools/jules/*.js",
-    "dist/tools/ddgs_search.py",
-    "dist/lib/*.js",
-    "resources/*",
-    "pr_overlap.py"
-]

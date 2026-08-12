@@ -38,7 +38,7 @@ When a new release is **published**, a GitHub Action triggers **git-cliff** to:
 
 1. **Update Version**:
    - For CLI: Update `version` in `cli/pyproject.toml`.
-   - For MCP: Run `pnpm --filter @arii/boomtick-mcp version <patch|minor|major>`.
+   - For MCP: Run `pnpm --filter @boomtick/mcp version <patch|minor|major>`.
 
 2. **Commit and Push Changes**:
    ```bash

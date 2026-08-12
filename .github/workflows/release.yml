@@ -110,7 +110,7 @@ jobs:
 
       - name: Run MCP Tests
         if: steps.determine_target.outputs.target == 'mcp' || steps.determine_target.outputs.target == 'all'
-        run: pnpm --filter @arii/boomtick-mcp test
+        run: pnpm --filter @boomtick/mcp test
 
       - name: Run CLI Tests
         if: steps.determine_target.outputs.target == 'cli' || steps.determine_target.outputs.target == 'all'
@@ -120,7 +120,7 @@ jobs:
           pytest tests/
 
       - name: Build MCP Tool
-        run: pnpm --filter @arii/boomtick-mcp build
+        run: pnpm --filter @boomtick/mcp build
 
       - name: Sync schemas/contracts
         run: pnpm run verify:schemas
@@ -140,7 +140,7 @@ jobs:
       - name: Publish MCP to npm
         # Publish only if the determined target is 'mcp' or 'all', and the event is a git push or a non-dry-run workflow dispatch.
         if: (steps.determine_target.outputs.target == 'mcp' || steps.determine_target.outputs.target == 'all') && (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && steps.determine_target.outputs.dry_run == 'false'))
-        run: pnpm --filter @arii/boomtick-mcp publish --no-git-checks --access public
+        run: pnpm --filter @boomtick/mcp publish --no-git-checks --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 

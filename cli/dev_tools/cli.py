@@ -171,11 +171,15 @@ def config_view(ctx):
     # ctx.obj might be None if the command is called directly or during unit tests
     is_json = ctx.obj.get("JSON", True) if ctx.obj is not None else True
 
+    data = asdict(PROJECT_CONFIG)
+    if "package_name" in data:
+        data["packageName"] = data["package_name"]
+
     if is_json:
-        click.echo(json.dumps(asdict(PROJECT_CONFIG), indent=2))
+        click.echo(json.dumps(data, indent=2))
     else:
         click.echo("Current configuration:")
-        click.echo(json.dumps(asdict(PROJECT_CONFIG), indent=2))
+        click.echo(json.dumps(data, indent=2))
 
 
 # ==========================================
@@ -951,7 +955,8 @@ def doctor(ctx):
     """Runtime Consistency Check"""
     orch = ctx.obj["ORCHESTRATOR"]
     res = orch.runtime_check()
-    out(ctx, f"✅ Runtime OK: node {res['node']}, pnpm {res['pnpm']}", data=res)
+    res["message"] = "Runtime Consistency Check"
+    out(ctx, f"✅ Runtime Consistency Check OK: node {res['node']}, pnpm {res['pnpm']}", data=res)
 
 
 @gh.command()

@@ -196,13 +196,13 @@ pnpm run verify:schemas
 This command triggers `scripts/verify-schemas.mjs`, which coordinates:
 1. Identifying the correct local Python interpreter (preferring `.venv/bin/python3`).
 2. Generating the CLI schema (`cli/dev_tools/cli-schema.json`) from the Python models via `cli/dev_tools/schema_gen.py`.
-3. Synchronizing TypeScript contracts inside the MCP package (`pnpm --filter @arii/boomtick-mcp sync-contracts`).
-4. Rebuilding and synchronizing the final MCP schemas (`pnpm --filter @arii/boomtick-mcp sync:mcp-schemas`).
+3. Synchronizing TypeScript contracts inside the MCP package (`pnpm --filter @boomtick/mcp sync-contracts`).
+4. Rebuilding and synchronizing the final MCP schemas (`pnpm --filter @boomtick/mcp sync:mcp-schemas`).
 
 #### Running Tests Locally
 To verify the TypeScript MCP codebase, run the test suite:
 ```bash
-pnpm --filter @arii/boomtick-mcp run test
+pnpm --filter @boomtick/mcp run test
 ```
 To run Python CLI unit tests, run:
 ```bash

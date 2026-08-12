@@ -228,7 +228,7 @@ runs:
         fi
         # Only run sync-contracts if node_modules exist, otherwise skip and let caller build pipeline handle it
         if [ -d "node_modules" ] || [ -d "mcp/node_modules" ]; then
-          pnpm --filter @arii/boomtick-mcp run sync-contracts
+          pnpm --filter @boomtick/mcp run sync-contracts
         else
           echo "⚠️ node_modules missing, skipping sync-contracts. Run pnpm install and sync-contracts in caller workflow."
         fi

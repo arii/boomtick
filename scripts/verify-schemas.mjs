@@ -59,7 +59,7 @@ async function verifySchemas() {
   // 3. Sync TS contracts from CLI schema
   try {
     console.log('🔄 Step 2/3: Synchronizing TS contracts...');
-    execSync('pnpm --filter @arii/boomtick-mcp sync-contracts', {
+    execSync('pnpm --filter @boomtick/mcp sync-contracts', {
       stdio: 'inherit'
     });
   } catch (_error) {
@@ -70,7 +70,7 @@ async function verifySchemas() {
   // 4. Sync MCP schemas
   try {
     console.log('🔄 Step 3/3: Synchronizing MCP schemas...');
-    execSync('pnpm --filter @arii/boomtick-mcp sync:mcp-schemas', {
+    execSync('pnpm --filter @boomtick/mcp sync:mcp-schemas', {
       stdio: 'inherit'
     });
   } catch (_error) {
