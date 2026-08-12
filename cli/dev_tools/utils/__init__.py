@@ -395,7 +395,7 @@ def get_gemini_model() -> str:
     model = os.environ.get("GEMINI_MODEL")
     if model and "gemini" in model.lower():
         return model
-    return "gemini-1.5-flash"
+    return "gemini-2.5-flash"
 
 
 def clean_llm_output(text: str) -> str:
