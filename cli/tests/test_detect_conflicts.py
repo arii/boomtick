@@ -84,7 +84,7 @@ def test_cli_detect_conflicts_mutually_exclusive():
 
 
 def test_cli_conflicts_deprecated():
-    runner = CliRunner()
+    runner = CliRunner(mix_stderr=False)
 
     with patch("dev_tools.cli.LazyOrchestrator") as mock_lazy:
         mock_orch = MagicMock()
@@ -105,7 +105,7 @@ def test_cli_conflicts_deprecated():
 
 
 def test_cli_detect_conflicts_no_args():
-    runner = CliRunner()
+    runner = CliRunner(mix_stderr=False)
 
     with patch("dev_tools.cli.LazyOrchestrator") as mock_lazy:
         mock_orch = MagicMock()
