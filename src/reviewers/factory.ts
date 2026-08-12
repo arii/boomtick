@@ -20,7 +20,7 @@ export class GitHubModelFactory {
       return this.clientInstance;
     }
 
-    const token = process.env.GITHUB_TOKEN;
+    const token = process.env.OPENAI_API_KEY || process.env.OPEN_API_KEY || process.env.GITHUB_TOKEN;
     if (!token) {
       throw new Error("Missing GITHUB_TOKEN environment variable.");
     }
@@ -31,7 +31,7 @@ export class GitHubModelFactory {
     }
 
     this.clientInstance = new OpenAI({
-      baseURL: "https://models.inference.ai.azure.com",
+      baseURL: "https://api.openai.com/v1",
       apiKey: token,
     });
 

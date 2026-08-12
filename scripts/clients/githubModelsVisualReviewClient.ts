@@ -19,8 +19,8 @@ class VisualReviewError extends Error {
 }
 
 async function createModelConfig(estimatedInputTokens: number = 0): Promise<{ apiKey: string; modelName: string; maxTokens: number }> {
-  const apiKey = process.env.GITHUB_TOKEN;
-  if (!apiKey) throw new Error('Missing GITHUB_TOKEN environment variable');
+  const apiKey = process.env.OPENAI_API_KEY || process.env.OPEN_API_KEY || process.env.GITHUB_TOKEN;
+  if (!apiKey) throw new Error('Missing GITHUB_TOKEN, OPENAI_API_KEY, or OPEN_API_KEY environment variable');
 
   const fallback = process.env.GITHUB_MODELS_MODEL || 'gpt-4o-mini';
   const modelName = await pickOptimalModel(apiKey, fallback, true, estimatedInputTokens);
@@ -70,7 +70,7 @@ export const githubModelsVisualReviewClient: LLMClientStrategy = {
 
     let response;
     try {
-      response = await fetch('https://models.inference.ai.azure.com/chat/completions', {
+      response = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

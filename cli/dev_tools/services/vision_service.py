@@ -15,7 +15,7 @@ class VisionService:
 
     def __init__(self, model: Optional[str] = None):
         self.model = model or os.environ.get("VISION_MODEL", PROJECT_CONFIG.ai_vision_model)
-        self.token = get_github_token()
+        self.token = os.getenv("OPENAI_API_KEY") or os.getenv("OPEN_API_KEY") or get_github_token()
 
     def call_ai(self, prompt: str, image_paths: List[str]) -> Optional[str]:
         """Calls the AI model with text prompt and images."""
@@ -37,7 +37,7 @@ class VisionService:
         for img in images:
             message_content.append({"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{img}"}})
 
-        url_target = "https://models.inference.ai.azure.com/chat/completions"
+        url_target = "https://api.openai.com/v1/chat/completions"
         headers = {"Authorization": f"Bearer {self.token}", "Content-Type": "application/json"}
         payload = {
             "model": self.model,
