@@ -1554,17 +1554,19 @@ def plan_workflow_audit(ctx, workflow):
 
 
 @agent_group.command(name="install-workflows")
-@click.option("--dry-run/--execute", default=True)
+@click.option("--target", default=".", help="Target directory to install workflows.")
+@click.option("--dry-run/--execute", default=True, help="Run without writing files.")
+@click.option("--force", is_flag=True, default=False, help="Overwrite existing files.")
 @click.pass_context
-def install_workflows(ctx, dry_run):
-    """Install and configure Jules/AI automation workflows for submodule or standalone use."""
-    orch = ctx.obj["ORCHESTRATOR"]
+def install_workflows(ctx, target, dry_run, force):
+    """Install and configure standardized GitHub Actions workflows."""
+    from dev_tools.handlers.workflow_installer import install_workflows as do_install
     try:
-        res = orch.install_workflows(dry_run=dry_run)
-        if res["status"] == "success":
-            out(ctx, "✅ Workflows installed successfully.", data=res)
+        success = do_install(target_dir=target, dry_run=dry_run, force=force)
+        if success:
+            out(ctx, "✅ Workflows installation complete.", data={"status": "success"})
         else:
-            out(ctx, "⚠️ Workflows partially installed or encountered errors.", data=res)
+            err(ctx, "Workflows installation failed.")
     except Exception as e:
         _handle_unexpected_error(ctx, "agent install-workflows", e)
 
