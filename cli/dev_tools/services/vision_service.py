@@ -33,8 +33,8 @@ class VisionService:
             token = self.openai_key
             url_target = "https://api.openai.com/v1/chat/completions"
         elif self.github_token:
-            # GitHub Models is deprecated/disabled. Do not call models.inference.ai.azure.com.
-            return "GitHub Models is deprecated and disabled."
+            token = self.github_token
+            url_target = "https://models.inference.ai.azure.com/chat/completions"
         else:
             return "No token found."
 

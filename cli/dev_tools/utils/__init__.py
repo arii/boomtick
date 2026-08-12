@@ -425,7 +425,7 @@ def clean_llm_output(text: str) -> str:
 
 def is_ai_available() -> bool:
     """Checks if AI API token is present."""
-    return bool(os.getenv("OPENAI_API_KEY") or os.getenv("OPEN_API_KEY"))
+    return bool(os.getenv("OPENAI_API_KEY") or os.getenv("OPEN_API_KEY") or os.getenv("GEMINI_API_KEY"))
 
 
 def to_standard_schema(schema):
@@ -474,39 +474,20 @@ def call_ai(
         if schema:
             payload["response_format"] = {"type": "json_object"}
 
-    openai_key = os.getenv("OPENAI_API_KEY") or os.getenv("OPEN_API_KEY")
-    github_token = get_github_token()
-
-    if openai_key:
-        token = openai_key
-        url_target = "https://api.openai.com/v1/chat/completions"
-    elif github_token:
-        # GitHub Models is deprecated/disabled. Do not call models.inference.ai.azure.com.
-        return None
-    else:
-        return None
-
-    model = model or get_ai_model()
-    headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
-    payload = {
-        "model": model,
-        "messages": [{"role": "user", "content": prompt}],
-        "temperature": 0.7,
-        "max_tokens": 2048,
-    }
-    if schema:
-        payload["response_format"] = {"type": "json_object"}
-
-    try:
-        response = _call_api_with_retry(
-            "POST",
-            url_target,
-            headers=headers,
-            json=payload,
-            max_retries=max_retries,
-            retry_status_codes=[429, 500, 502, 503, 504],
-        )
-        if not response:
+        try:
+            response = _call_api_with_retry(
+                "POST",
+                url_target,
+                headers=headers,
+                json=payload,
+                max_retries=max_retries,
+                retry_status_codes=[429, 500, 502, 503, 504],
+            )
+            if not response:
+                return None
+            return response.json()["choices"][0]["message"]["content"]
+        except Exception as e:
+            log_error(f"AI Call failed: {e}")
             return None
     else:
         log_warn("GitHub Models is deprecated and disabled. Falling back to Gemini.")
@@ -535,14 +516,44 @@ def call_github_models(
     if openai_key:
         token = openai_key
         base_url = os.environ.get("GITHUB_MODELS_BASE_URL", "https://api.openai.com/v1")
-    elif github_token:
-        # GitHub Models is deprecated/disabled. Do not call models.inference.ai.azure.com.
-        return None
-    else:
-        return None
-    if not base_url.endswith("/"):
-        base_url += "/"
-    target_url = urllib.parse.urljoin(base_url, "chat/completions")
+        if not base_url.endswith("/"):
+            base_url += "/"
+        target_url = urllib.parse.urljoin(base_url, "chat/completions")
+
+        data: Dict[str, Any] = {
+            "model": model or get_ai_model(),
+            "messages": [{"role": "user", "content": prompt}],
+            "stream": False,
+        }
+        if schema:
+            # OpenAI style: prompt injection + json_object mode
+            norm_schema = to_standard_schema(schema)
+            data["response_format"] = {"type": "json_object"}
+            messages = data.get("messages")
+            if isinstance(messages, list):
+                messages.insert(
+                    0,
+                    {
+                        "role": "system",
+                        "content": f"Output MUST be valid JSON matching this schema: {json.dumps(norm_schema)}",
+                    },
+                )
+
+        start_time = time.time()
+        try:
+            response = _call_api_with_retry(
+                "POST",
+                target_url,
+                json=data,
+                headers={"Authorization": f"Bearer {token}"},
+                max_retries=max_retries,
+            )
+            res = response.json()
+        except Exception as e:
+            log_error(f"GitHub Models call failed: {e}")
+            return None
+
+        duration_ms = int((time.time() - start_time) * 1000)
 
         if res and "usage" in res:
             usage = res["usage"]

@@ -27,15 +27,13 @@ export async function writeMissingApiKeyVerdict(reportFileName: string, reportTi
   );
 }
 
-export async function writeDeprecatedVerdict(reportFileName: string, reportTitle: string, clientName: string): Promise<void> {
-  if (!reportFileName || !reportTitle || !clientName) {
+export async function writeDeprecatedVerdict(reportFileName: string, reportTitle: string, reason: string): Promise<void> {
+  if (!reportFileName || !reportTitle || !reason) {
     throw new Error('writeDeprecatedVerdict requires valid non-empty string arguments.');
   }
 
-  // security-safe: path.basename safely extracts the file name and prevents path traversal
   const safeFileName = path.basename(reportFileName);
 
-  // security-safe: creating the directory safely if it does not exist
   try {
     await fs.promises.mkdir(ARTIFACTS_DIR, { recursive: true });
   } catch (err: any) {
@@ -43,7 +41,7 @@ export async function writeDeprecatedVerdict(reportFileName: string, reportTitle
   }
   await fs.promises.writeFile(
     path.join(ARTIFACTS_DIR, safeFileName),
-    `## ${reportTitle}\n\nSkipped: ${clientName} is deprecated and disabled.\n`
+    `## ${reportTitle}\n\nSkipped: ${reason}\n`
   );
   await writeVerdictJson(
     path.join(ARTIFACTS_DIR, `${safeFileName.replace('.md', '')}-verdict.json`),
