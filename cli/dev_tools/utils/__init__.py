@@ -425,8 +425,7 @@ def clean_llm_output(text: str) -> str:
 
 def is_ai_available() -> bool:
     """Checks if AI API token is present."""
-    # Since GitHub Models is disabled, we return False to allow direct fallback to Gemini
-    return False
+    return bool(os.getenv("OPENAI_API_KEY") or os.getenv("OPEN_API_KEY") or os.getenv("GEMINI_API_KEY"))
 
 
 def to_standard_schema(schema):
