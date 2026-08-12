@@ -190,6 +190,7 @@ def resolve_resource_path(resource_name: str) -> str:
     candidates = [
         base_dir / "resources" / resource_name,
         base_dir / resource_name,
+        base_dir.parent / "resources" / resource_name,
         base_dir.parent / resource_name,
         base_dir.parent.parent.parent / "scripts" / resource_name,
     ]
@@ -511,11 +512,17 @@ def call_github_models(
     prompt: str, model: Optional[str] = None, max_retries: int = 3, schema: Optional[Dict[str, Any]] = None
 ) -> Optional[str]:
     """Unified helper to call GitHub Models API (OpenAI-compatible)."""
-    token = get_github_token()
-    if not token:
-        return None
+    openai_key = os.getenv("OPENAI_API_KEY") or os.getenv("OPEN_API_KEY")
+    github_token = get_github_token()
 
-    base_url = os.environ.get("GITHUB_MODELS_BASE_URL", "https://models.inference.ai.azure.com")
+    if openai_key:
+        token = openai_key
+        base_url = os.environ.get("GITHUB_MODELS_BASE_URL", "https://api.openai.com/v1")
+    elif github_token:
+        token = github_token
+        base_url = os.environ.get("GITHUB_MODELS_BASE_URL", "https://models.inference.ai.azure.com")
+    else:
+        return None
     if not base_url.endswith("/"):
         base_url += "/"
     target_url = urllib.parse.urljoin(base_url, "chat/completions")

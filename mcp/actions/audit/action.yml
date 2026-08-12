@@ -7,7 +7,7 @@ inputs:
 runs:
   using: composite
   steps:
-    - uses: ./mcp/actions/setup
+    - uses: arii/boomtick/mcp/actions/setup@main
 
     - name: Install dependencies
       run: pnpm install --frozen-lockfile --prefer-offline

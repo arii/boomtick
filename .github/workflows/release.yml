@@ -44,7 +44,7 @@ jobs:
           app-id: ${{ secrets.APP_ID }}
           private-key: ${{ secrets.APP_PRIVATE_KEY }}
 
-      - uses: googleapis/release-please-action@v6
+      - uses: googleapis/release-please-action@v4
         with:
           token: ${{ steps.generate_token.outputs.token }}
           config-file: release-please-config.json
@@ -101,7 +101,7 @@ jobs:
           fetch-depth: 0
 
       - name: Setup Environment
-        uses: ./.github/actions/setup-all
+        uses: arii/boomtick/.github/actions/setup-all@main
         with:
           setup-python: 'true'
 
@@ -181,7 +181,7 @@ jobs:
 
       - name: Set up Docker Buildx and Registry Login
         if: (steps.determine_target.outputs.target == 'all' || steps.determine_target.outputs.target == 'cli') && (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && steps.determine_target.outputs.dry_run == 'false'))
-        uses: ./.github/actions/setup-docker-buildx
+        uses: arii/boomtick/.github/actions/setup-docker-buildx@main
         with:
           login: 'true'
           password: ${{ secrets.GITHUB_TOKEN }}
