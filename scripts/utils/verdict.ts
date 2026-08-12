@@ -26,3 +26,25 @@ export async function writeMissingApiKeyVerdict(reportFileName: string, reportTi
     { passed: true, highCount: 0, routes: [], llmVerdict: 'warn', skipReason: 'MISSING_API_KEY', state: { findings: [] } }
   );
 }
+
+export async function writeDeprecatedVerdict(reportFileName: string, reportTitle: string, reason: string): Promise<void> {
+  if (!reportFileName || !reportTitle || !reason) {
+    throw new Error('writeDeprecatedVerdict requires valid non-empty string arguments.');
+  }
+
+  const safeFileName = path.basename(reportFileName);
+
+  try {
+    await fs.promises.mkdir(ARTIFACTS_DIR, { recursive: true });
+  } catch (err: any) {
+    if (err.code !== 'EEXIST') throw err;
+  }
+  await fs.promises.writeFile(
+    path.join(ARTIFACTS_DIR, safeFileName),
+    `## ${reportTitle}\n\nSkipped: ${reason}\n`
+  );
+  await writeVerdictJson(
+    path.join(ARTIFACTS_DIR, `${safeFileName.replace('.md', '')}-verdict.json`),
+    { passed: true, highCount: 0, routes: [], llmVerdict: 'warn', skipReason: 'DEPRECATED', state: { findings: [] } }
+  );
+}
