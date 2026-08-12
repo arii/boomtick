@@ -190,7 +190,6 @@ def resolve_resource_path(resource_name: str) -> str:
     candidates = [
         base_dir / "resources" / resource_name,
         base_dir / resource_name,
-        base_dir.parent / "resources" / resource_name,
         base_dir.parent / resource_name,
         base_dir.parent.parent.parent / "scripts" / resource_name,
     ]
@@ -422,7 +421,7 @@ def clean_llm_output(text: str) -> str:
 
 def is_ai_available() -> bool:
     """Checks if AI API token is present."""
-    return bool(os.getenv("OPENAI_API_KEY") or os.getenv("OPEN_API_KEY"))
+    return bool(os.getenv("GITHUB_TOKEN") or os.getenv("OPENAI_API_KEY"))
 
 
 def to_standard_schema(schema):
@@ -465,9 +464,6 @@ def call_ai(
 
     if openai_token:
         url_target = "https://api.openai.com/v1/chat/completions"
-    elif github_token:
-        # GitHub Models is deprecated/disabled. Do not call models.inference.ai.azure.com.
-        return None
     else:
         url_target = "https://models.inference.ai.azure.com/chat/completions"
 
@@ -515,17 +511,11 @@ def call_github_models(
     prompt: str, model: Optional[str] = None, max_retries: int = 3, schema: Optional[Dict[str, Any]] = None
 ) -> Optional[str]:
     """Unified helper to call GitHub Models API (OpenAI-compatible)."""
-    openai_key = os.getenv("OPENAI_API_KEY") or os.getenv("OPEN_API_KEY")
-    github_token = get_github_token()
+    token = get_github_token()
+    if not token:
+        return None
 
-    if openai_key:
-        token = openai_key
-        base_url = os.environ.get("GITHUB_MODELS_BASE_URL", "https://api.openai.com/v1")
-    elif github_token:
-        # GitHub Models is deprecated/disabled. Do not call models.inference.ai.azure.com.
-        return None
-    else:
-        return None
+    base_url = os.environ.get("GITHUB_MODELS_BASE_URL", "https://models.inference.ai.azure.com")
     if not base_url.endswith("/"):
         base_url += "/"
     target_url = urllib.parse.urljoin(base_url, "chat/completions")

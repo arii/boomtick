@@ -29,7 +29,7 @@ RUN python3 -m venv /opt/venv
 WORKDIR /workspace
 COPY cli/requirements.txt /workspace/cli/requirements.txt
 COPY cli/requirements-dev.txt /workspace/cli/requirements-dev.txt
-RUN /opt/venv/bin/pip install -r /workspace/cli/requirements.txt -r /workspace/cli/requirements-dev.txt
+RUN /opt/venv/bin/pip install -r /workspace/cli/requirements-dev.txt
 
 COPY cli /workspace/cli
 RUN /opt/venv/bin/pip install -e /workspace/cli --no-deps

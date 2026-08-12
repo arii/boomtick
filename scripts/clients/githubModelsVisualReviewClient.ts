@@ -18,19 +18,14 @@ class VisualReviewError extends Error {
   }
 }
 
-async function createModelConfig(estimatedInputTokens: number = 0): Promise<{ apiKey: string; modelName: string; maxTokens: number; baseURL: string }> {
-  const openaiKey = process.env.OPENAI_API_KEY || process.env.OPEN_API_KEY;
-  const githubToken = process.env.GITHUB_TOKEN;
-
-  const apiKey = openaiKey || githubToken;
-  if (!apiKey) throw new Error('Missing GITHUB_TOKEN, OPENAI_API_KEY, or OPEN_API_KEY environment variable');
-
-  const baseURL = openaiKey ? 'https://api.openai.com/v1/chat/completions' : 'https://models.inference.ai.azure.com/chat/completions';
+async function createModelConfig(estimatedInputTokens: number = 0): Promise<{ apiKey: string; modelName: string; maxTokens: number }> {
+  const apiKey = process.env.GITHUB_TOKEN;
+  if (!apiKey) throw new Error('Missing GITHUB_TOKEN environment variable');
 
   const fallback = process.env.GITHUB_MODELS_MODEL || 'gpt-4o-mini';
   const modelName = await pickOptimalModel(apiKey, fallback, true, estimatedInputTokens);
 
-  return { apiKey, modelName, maxTokens: 1024, baseURL };
+  return { apiKey, modelName, maxTokens: 1024 };
 }
 
 export const githubModelsVisualReviewClient: LLMClientStrategy = {
@@ -48,7 +43,7 @@ export const githubModelsVisualReviewClient: LLMClientStrategy = {
     }
     const estimatedInputTokens = Math.ceil(domDiffLength / 4);
 
-    const { apiKey, modelName, maxTokens, baseURL } = await createModelConfig(estimatedInputTokens);
+    const { apiKey, modelName, maxTokens } = await createModelConfig(estimatedInputTokens);
     const baseContent = buildVisualReviewPayload(summary);
 
     if (summary.previousFindings && summary.previousFindings.length > 0) {
@@ -75,7 +70,7 @@ export const githubModelsVisualReviewClient: LLMClientStrategy = {
 
     let response;
     try {
-      response = await fetch(baseURL, {
+      response = await fetch('https://models.inference.ai.azure.com/chat/completions', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

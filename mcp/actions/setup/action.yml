@@ -8,7 +8,7 @@ runs:
       shell: bash
 
     - name: Setup Workspace
-      uses: arii/boomtick/.github/actions/setup-workspace@main
+      uses: ./.github/actions/setup-workspace
 
     - name: Verify setup
       run: td-cli doctor

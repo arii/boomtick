@@ -89,7 +89,7 @@ jobs:
           ref: ${{ inputs.ref || github.ref }}
 
       - name: Setup Workspace
-        uses: arii/boomtick/.github/actions/setup-workspace@main
+        uses: ./.github/actions/setup-workspace
 
       - name: Run Lint & Typecheck (TypeScript)
         if: matrix.target == 'typescript'
@@ -116,7 +116,7 @@ jobs:
           ref: ${{ inputs.ref || github.ref }}
 
       - name: Setup Workspace
-        uses: arii/boomtick/.github/actions/setup-workspace@main
+        uses: ./.github/actions/setup-workspace
 
       - name: Install Dependencies
         run: pnpm install --frozen-lockfile
@@ -135,7 +135,7 @@ jobs:
           ref: ${{ inputs.ref || github.ref }}
 
       - name: Setup Workspace
-        uses: arii/boomtick/.github/actions/setup-workspace@main
+        uses: ./.github/actions/setup-workspace
 
       - name: Install Dependencies
         run: pnpm install --frozen-lockfile
@@ -161,7 +161,7 @@ jobs:
           ref: ${{ inputs.ref || github.ref }}
 
       - name: Run Deployment Impact Analysis
-        uses: arii/boomtick/.github/actions/impact-analysis@main
+        uses: ./.github/actions/impact-analysis
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           gemini_api_key: ${{ secrets.GEMINI_API_KEY }}
