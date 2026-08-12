@@ -45,7 +45,8 @@ jobs:
 
 def install_workflows(target_dir: str, dry_run: bool = False, force: bool = False) -> bool:
     """Installs standardized workflow templates into the specified target directory."""
-    github_dir = Path(target_dir) / ".github" / "workflows"
+    resolved_target = Path(target_dir).resolve()
+    github_dir = resolved_target / ".github" / "workflows"
     if not dry_run:
         github_dir.mkdir(parents=True, exist_ok=True)
 
