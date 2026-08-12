@@ -142,7 +142,10 @@ class AIClient:
         max_retries: int = 3,
         schema: Optional[Dict] = None,
     ) -> Optional[str]:
-        return call_ai(prompt, model=model or self.ai_model, max_retries=max_retries, schema=schema)
+        res = call_ai(prompt, model=model or self.ai_model, max_retries=max_retries, schema=schema)
+        if res:
+            return res
+        return self.call_gemini(prompt, schema=schema)
 
     def call_gemini(self, prompt: str, schema: Optional[Dict] = None) -> Optional[str]:
         if not self.gemini_api_key:
@@ -173,12 +176,7 @@ class AIClient:
             return None
 
     def generate(self, prompt: str, schema: Optional[Dict] = None, model: Optional[str] = None) -> str:
-        if self.is_ai_available():
-            res = self.call_ai(prompt, model=model, schema=schema)
-            if res:
-                return res
-
-        res = self.call_gemini(prompt, schema=schema)
+        res = self.call_ai(prompt, model=model, schema=schema)
         if res:
             return res
 
@@ -363,7 +361,7 @@ class AIClient:
             try:
                 log_info(f"[AI Triage] Invoking Triage Agent using fast/cheap model ({triage_model_used})...")
                 # Combine system prompt and user prompt
-                triage_raw = call_ai(f"{triage_system_prompt}\n\n{triage_prompt}", model=triage_model_used, max_retries=2)
+                triage_raw = self.call_ai(f"{triage_system_prompt}\n\n{triage_prompt}", model=triage_model_used, max_retries=2)
                 if triage_raw:
                     match = re.search(r"<triage_result>([\s\S]*?)</triage_result>", triage_raw)
                     json_str = match.group(1).strip() if match else triage_raw.strip()
@@ -446,7 +444,7 @@ class AIClient:
         # Retry loop for generation and parsing
         for attempt in range(_MAX_AI_RETRIES):
             try:
-                raw = call_ai(prompt, model=_REVIEW_MODEL, schema=_REVIEW_SCHEMA, max_retries=1)
+                raw = self.call_ai(prompt, model=_REVIEW_MODEL, schema=_REVIEW_SCHEMA, max_retries=1)
                 if not raw:
                     continue
 
@@ -801,7 +799,7 @@ class AIClient:
         for attempt in range(_MAX_AI_RETRIES):
             try:
                 # We don't use strict schema mode here because we want mixed markdown + json
-                raw = call_ai(prompt, model=_SYNTHESIS_MODEL, max_retries=1)
+                raw = self.call_ai(prompt, model=_SYNTHESIS_MODEL, max_retries=1)
                 if not raw:
                     continue
 
