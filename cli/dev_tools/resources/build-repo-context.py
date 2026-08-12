@@ -48,37 +48,15 @@ def build_repo_context():
 
     # Discovery: find the repo root and package root
     script_path = pathlib.Path(__file__).resolve()
-    # scripts/build-repo-context.py -> boomtick-pkg
-    package_root = script_path.parent.parent
 
-    # Check if we are in a monorepo or a standalone repo
-    if (package_root.parent / "package.json").exists() and (package_root.parent / "boomtick-pkg").exists():
-        # Monorepo mode
-        repo_root = package_root.parent
-    else:
-        # Standalone mode
-        repo_root = package_root
+    # Always find the root of the repository
+    repo_root = pathlib.Path(".").resolve()
+    for parent in script_path.parents:
+        if (parent / "project_config.json").exists() or (parent / "package.json").exists():
+            repo_root = parent
+            break
 
-    # If we are running from a location that isn't scripts,
-    # fallback to discovery based on workspace.json
-    if package_root.name != "boomtick-pkg" or not (package_root / "workspace.json").exists():
-        # Search upwards for workspace.json using Path.parents
-        found_pkg = False
-        for parent in script_path.parents:
-            if (parent / "workspace.json").exists():
-                package_root = parent
-                found_pkg = True
-                break
-
-        if found_pkg:
-            if (package_root.parent / "package.json").exists() and (package_root.parent / "boomtick-pkg").exists():
-                repo_root = package_root.parent
-            else:
-                repo_root = package_root
-        else:
-            # Absolute fallback
-            repo_root = pathlib.Path(".").resolve()
-            package_root = repo_root if (repo_root / "workspace.json").exists() else repo_root / "boomtick-pkg"
+    package_root = repo_root
 
     # 1. Package JSON (Repo Root)
     try:
