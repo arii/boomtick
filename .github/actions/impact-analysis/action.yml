@@ -31,4 +31,4 @@ runs:
           -v "${{ github.workspace }}":/workspace \
           -w /workspace \
           ghcr.io/arii/boomtick:latest \
-          td-cli ai review "${PR_NUMBER}"
+          ai review "${PR_NUMBER}"
