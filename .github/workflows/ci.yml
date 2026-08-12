@@ -188,7 +188,7 @@ jobs:
 
   validate-and-analyze:
     runs-on: ubuntu-latest
-    if: false
+    if: github.event_name == 'pull_request'
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v7
