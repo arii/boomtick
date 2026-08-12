@@ -28,12 +28,12 @@ async function main(): Promise<void> {
     }
     await orchestrateCodeReview(geminiCodeReviewClient, ALL_REVIEW_TITLES);
   } else if (provider === 'github-models') {
-    console.warn('⚠️  GitHub Models is deprecated. Skipping agent code review.');
+    console.warn('⚠️  Skipping agent code review — GitHub Models is deprecated/disabled.');
     try {
       await writeDeprecatedVerdict(
         githubModelsCodeReviewClient.reportFileName,
         githubModelsCodeReviewClient.reportTitle,
-        'GitHub Models is deprecated and disabled.'
+        'GitHub Models'
       );
     } catch (err) {
       console.error('Failed to write deprecated verdict', err);
