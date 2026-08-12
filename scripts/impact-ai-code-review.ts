@@ -1,7 +1,7 @@
 import { orchestrateCodeReview } from '../lib/codeReviewOrchestrator';
 import { githubModelsCodeReviewClient } from './clients/githubModelsCodeReviewClient';
 import { geminiCodeReviewClient } from './clients/geminiCodeReviewClient';
-import { writeMissingApiKeyVerdict, writeDeprecatedVerdict } from './utils/verdict';
+import { writeMissingApiKeyVerdict } from './utils/verdict';
 
 const ALL_REVIEW_TITLES = [
   geminiCodeReviewClient.reportTitle,
@@ -28,17 +28,21 @@ async function main(): Promise<void> {
     }
     await orchestrateCodeReview(geminiCodeReviewClient, ALL_REVIEW_TITLES);
   } else if (provider === 'github-models') {
-    console.warn('⚠️  Skipping agent code review — GitHub Models is deprecated/disabled.');
-    try {
-      await writeDeprecatedVerdict(
-        githubModelsCodeReviewClient.reportFileName,
-        githubModelsCodeReviewClient.reportTitle,
-        'GitHub Models'
-      );
-    } catch (err) {
-      console.error('Failed to write deprecated verdict', err);
+    // security-safe: Environment variables are trusted in this workflow context.
+    if (!process.env.GITHUB_TOKEN) {
+      console.warn('⚠️  Skipping agent code review — GITHUB_TOKEN not set.');
+      try {
+        await writeMissingApiKeyVerdict(
+          githubModelsCodeReviewClient.reportFileName,
+          githubModelsCodeReviewClient.reportTitle,
+          'GITHUB_TOKEN'
+        );
+      } catch (err) {
+        console.error('Failed to write missing API key verdict', err);
+      }
+      return;
     }
-    return;
+    await orchestrateCodeReview(githubModelsCodeReviewClient, ALL_REVIEW_TITLES);
   } else {
     console.error('❌ Unknown provider specified.');
     process.exit(1);

@@ -392,10 +392,7 @@ def get_ai_model() -> str:
 
 def get_gemini_model() -> str:
     """Dynamic getter for the Gemini model."""
-    model = os.environ.get("GEMINI_MODEL")
-    if model and "gemini" in model.lower():
-        return model
-    return "gemini-2.5-flash"
+    return _get_model_config("GEMINI_MODEL", "gemini_model", "gemini-2.5-flash")
 
 
 def clean_llm_output(text: str) -> str:
@@ -425,7 +422,7 @@ def clean_llm_output(text: str) -> str:
 
 def is_ai_available() -> bool:
     """Checks if AI API token is present."""
-    return bool(os.getenv("OPENAI_API_KEY") or os.getenv("OPEN_API_KEY"))
+    return bool(os.getenv("GITHUB_TOKEN") or os.getenv("OPENAI_API_KEY"))
 
 
 def to_standard_schema(schema):
@@ -459,19 +456,18 @@ def call_ai(
 ) -> Optional[str]:
     """Unified helper to call AI API using LangChain ChatOpenAI with retries."""
 
-    openai_key = os.getenv("OPENAI_API_KEY") or os.getenv("OPEN_API_KEY")
-    github_token = get_github_token()
-
-    if openai_key:
-        token = openai_key
-        url_target = "https://api.openai.com/v1/chat/completions"
-    elif github_token:
-        # GitHub Models is deprecated/disabled. Do not call models.inference.ai.azure.com.
-        return None
-    else:
+    openai_token = os.environ.get("OPENAI_API_KEY")
+    token = openai_token or get_github_token()
+    if not token:
         return None
 
     model = model or get_ai_model()
+
+    if openai_token:
+        url_target = "https://api.openai.com/v1/chat/completions"
+    else:
+        url_target = "https://models.inference.ai.azure.com/chat/completions"
+
     headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
     payload = {
         "model": model,
@@ -491,11 +487,11 @@ def call_ai(
             max_retries=max_retries,
             retry_status_codes=[429, 500, 502, 503, 504],
         )
-        if not response:
+        if not response or getattr(response, "status_code", 200) != 200:
             return None
         return response.json()["choices"][0]["message"]["content"]
     except Exception as e:
-        log_error(f"AI Call failed: {e}")
+        log_warn(f"AI Call failed: {e}")
         return None
 
 
@@ -523,8 +519,8 @@ def call_github_models(
         token = openai_key
         base_url = os.environ.get("GITHUB_MODELS_BASE_URL", "https://api.openai.com/v1")
     elif github_token:
-        # GitHub Models is deprecated/disabled. Do not call models.inference.ai.azure.com.
-        return None
+        token = github_token
+        base_url = os.environ.get("GITHUB_MODELS_BASE_URL", "https://models.inference.ai.azure.com")
     else:
         return None
     if not base_url.endswith("/"):
@@ -559,9 +555,12 @@ def call_github_models(
             headers={"Authorization": f"Bearer {token}"},
             max_retries=max_retries,
         )
+        if not response or getattr(response, "status_code", 200) != 200:
+            log_warn(f"GitHub Models call returned error status: {getattr(response, 'status_code', 'None')}")
+            return None
         res = response.json()
     except Exception as e:
-        log_error(f"GitHub Models call failed: {e}")
+        log_warn(f"GitHub Models call failed: {e}")
         return None
 
     duration_ms = int((time.time() - start_time) * 1000)
