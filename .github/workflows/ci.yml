@@ -197,7 +197,7 @@ jobs:
           fetch-depth: 0
 
       - name: Run Standalone Impact Analysis
-        uses: arii/boomtick/.github/actions/impact-analysis@main
+        uses: arii/boomtick/.github/actions/impact-analysis@jules-15073583884591580982-fe4da8e4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           gemini_api_key: ${{ secrets.GEMINI_API_KEY }}

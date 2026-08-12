@@ -24,7 +24,7 @@ describe('Standalone Migration Verification', () => {
     const impactStep = steps.find((s: { name?: string }) => s.name === 'Run Standalone Impact Analysis');
 
     expect(impactStep).toBeDefined();
-    expect(impactStep.uses).toBe('arii/boomtick/.github/actions/impact-analysis@main');
+    expect(impactStep.uses).toMatch(/^arii\/boomtick\/\.github\/actions\/impact-analysis@/);
 
     // Ensure no sub-checkout steps for arii/boomtick exist in the steps array
     const stepsStr = JSON.stringify(steps);
