@@ -1,4 +1,4 @@
-import { execSync } from 'child_process';
+import { execFileSync } from 'child_process';
 import * as fs from 'fs';
 import * as path from 'path';
 import { fileURLToPath } from 'url';
@@ -14,7 +14,7 @@ describe('Workflow Installer Command', () => {
   afterEach(() => { fs.rmSync(tmpDir, { recursive: true, force: true }); });
 
   it('should generate workflow templates in dry-run mode', () => {
-    const output = execSync(`td-cli agent install-workflows --target ${tmpDir} --dry-run`, { encoding: 'utf-8' });
+    const output = execFileSync('td-cli', ['agent', 'install-workflows', '--target', tmpDir, '--dry-run'], { encoding: 'utf-8' });
     expect(output).toContain('DRY-RUN');
     expect(output).toContain('impact-analysis.yml');
   });
