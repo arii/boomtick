@@ -158,6 +158,9 @@ jobs:
       - name: Setup Workspace
         uses: ./.github/actions/setup-workspace
 
+      - name: Install Dependencies
+        run: pnpm install --frozen-lockfile
+
       - name: Install Python Dependencies
         run: |
           python -m pip install --upgrade pip
