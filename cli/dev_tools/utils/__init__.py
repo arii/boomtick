@@ -391,7 +391,7 @@ def get_ai_model() -> str:
 
 def get_gemini_model() -> str:
     """Dynamic getter for the Gemini model."""
-    return _get_model_config("GEMINI_MODEL", "ai_synthesis_model", "gemini-2.5-flash-lite")
+    return os.environ.get("GEMINI_MODEL") or "gemini-2.5-flash"
 
 
 def clean_llm_output(text: str) -> str:
