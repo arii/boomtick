@@ -43,7 +43,7 @@ runs:
     - name: Create GitHub App Token
       id: create_token
       if: ${{ inputs.app_id != null && inputs.app_private_key != null && inputs.app_id != '' && inputs.app_private_key != '' }}
-      uses: actions/create-github-app-token@v1
+      uses: actions/create-github-app-token@v3
       continue-on-error: true
       with:
         app-id: ${{ inputs.app_id }}
