@@ -27,8 +27,8 @@ export async function writeMissingApiKeyVerdict(reportFileName: string, reportTi
   );
 }
 
-export async function writeDeprecatedVerdict(reportFileName: string, reportTitle: string): Promise<void> {
-  if (!reportFileName || !reportTitle) {
+export async function writeDeprecatedVerdict(reportFileName: string, reportTitle: string, clientName: string): Promise<void> {
+  if (!reportFileName || !reportTitle || !clientName) {
     throw new Error('writeDeprecatedVerdict requires valid non-empty string arguments.');
   }
 
@@ -43,7 +43,7 @@ export async function writeDeprecatedVerdict(reportFileName: string, reportTitle
   }
   await fs.promises.writeFile(
     path.join(ARTIFACTS_DIR, safeFileName),
-    `## ${reportTitle}\n\nSkipped: Client disabled due to deprecation.\n`
+    `## ${reportTitle}\n\nSkipped: ${clientName} is deprecated and disabled.\n`
   );
   await writeVerdictJson(
     path.join(ARTIFACTS_DIR, `${safeFileName.replace('.md', '')}-verdict.json`),

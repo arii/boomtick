@@ -425,7 +425,7 @@ def clean_llm_output(text: str) -> str:
 
 def is_ai_available() -> bool:
     """Checks if AI API token is present."""
-    return bool(os.getenv("OPENAI_API_KEY") or os.getenv("OPEN_API_KEY") or os.getenv("GITHUB_TOKEN"))
+    return bool(os.getenv("OPENAI_API_KEY") or os.getenv("OPEN_API_KEY"))
 
 
 def to_standard_schema(schema):
@@ -466,8 +466,8 @@ def call_ai(
         token = openai_key
         url_target = "https://api.openai.com/v1/chat/completions"
     elif github_token:
-        token = github_token
-        url_target = "https://models.inference.ai.azure.com/chat/completions"
+        # GitHub Models is deprecated/disabled. Do not call models.inference.ai.azure.com.
+        return None
     else:
         return None
 
@@ -523,8 +523,8 @@ def call_github_models(
         token = openai_key
         base_url = os.environ.get("GITHUB_MODELS_BASE_URL", "https://api.openai.com/v1")
     elif github_token:
-        token = github_token
-        base_url = os.environ.get("GITHUB_MODELS_BASE_URL", "https://models.inference.ai.azure.com")
+        # GitHub Models is deprecated/disabled. Do not call models.inference.ai.azure.com.
+        return None
     else:
         return None
     if not base_url.endswith("/"):
