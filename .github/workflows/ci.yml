@@ -188,7 +188,8 @@ jobs:
 
   validate-and-analyze:
     runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request'
+    # Activated in downstream repositories; disabled locally to prevent circular action.yml resolution before merge
+    if: false
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v7
