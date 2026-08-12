@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.9.1](https://github.com/arii/boomtick/compare/cli-v0.9.0...cli-v0.9.1) (2026-08-12)
+
+
+### Bug Fixes
+
+* **ai:** add gemini fallback logic to AIClient ([b57ca81](https://github.com/arii/boomtick/commit/b57ca811881f22036c9bc025656a27fdd0642764))
+* **ai:** add gemini fallback logic to AIClient ([5cc87cc](https://github.com/arii/boomtick/commit/5cc87cc79e65df79db98bc27e679d14ffdd2d18d))
+* **ai:** add gemini fallback logic to AIClient ([3ba37ec](https://github.com/arii/boomtick/commit/3ba37ec50a7447a9517e9f0029ff05ee01adf4d8))
+* **ai:** add gemini fallback logic to AIClient ([f814c7f](https://github.com/arii/boomtick/commit/f814c7f7cd3a356d1e32c74474c1d5b5a02a97b0))
+* **ai:** Add Gemini fallback mechanism for AIClient operations ([#638](https://github.com/arii/boomtick/issues/638)) ([e86eb04](https://github.com/arii/boomtick/commit/e86eb04f583ede49d9408686c3e141ce151529f6))
+
 ## [0.9.0](https://github.com/arii/boomtick/compare/cli-v0.8.0...cli-v0.9.0) (2026-08-10)
 
 
