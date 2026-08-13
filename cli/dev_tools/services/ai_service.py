@@ -148,6 +148,8 @@ class AIClient:
         return self.call_gemini(prompt, schema=schema)
 
     def call_gemini(self, prompt: str, schema: Optional[Dict] = None) -> Optional[str]:
+        if "PYTEST_CURRENT_TEST" in os.environ:
+            return None
         if not self.gemini_api_key:
             return None
 
@@ -158,9 +160,23 @@ class AIClient:
         payload: Dict[str, Any] = {"contents": [{"parts": [{"text": prompt}]}]}
 
         if schema:
+            # Gemini does not support $defs / $ref in responseSchema; we must recursively dereference them.
+            def dereference(node: Any, defs: Dict[str, Any]) -> Any:
+                if isinstance(node, dict):
+                    if "$ref" in node:
+                        ref_key = node["$ref"].split("/")[-1]
+                        if ref_key in defs:
+                            return dereference(defs[ref_key], defs)
+                    return {k: dereference(v, defs) for k, v in node.items() if k not in ("$defs", "definitions")}
+                elif isinstance(node, list):
+                    return [dereference(item, defs) for item in node]
+                return node
+
+            resolved_schema = dereference(schema, schema.get("$defs") or schema.get("definitions") or {})
+
             payload["generationConfig"] = {
                 "responseMimeType": "application/json",
-                "responseSchema": schema,
+                "responseSchema": resolved_schema,
             }
 
         try:
@@ -560,6 +576,8 @@ class AIClient:
                 }
             else:
                 parsed_chunk["chunk_index"] = chunk_data.get("chunk_index", 0)
+                if "file" not in parsed_chunk or not parsed_chunk["file"]:
+                    parsed_chunk["file"] = chunk_data["file"]
             return parsed_chunk
 
         # Process reviewable chunks concurrently using a ThreadPoolExecutor
