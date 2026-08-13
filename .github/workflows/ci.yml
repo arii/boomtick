@@ -90,6 +90,10 @@ jobs:
 
       - name: Setup Workspace
         uses: arii/boomtick/.github/actions/setup-workspace@main
+        with:
+          setup-node: ${{ matrix.target == 'typescript' && 'true' || 'false' }}
+          setup-python: ${{ matrix.target == 'python' && 'true' || 'false' }}
+          init-schema: 'false'
 
       - name: Run Lint & Typecheck (TypeScript)
         if: matrix.target == 'typescript'
@@ -101,9 +105,9 @@ jobs:
       - name: Run Lint & Typecheck (Python)
         if: matrix.target == 'python'
         run: |
-          pnpm run bootstrap:python
-          pnpm run lint:python
-          pnpm run type-check:python
+          python3 scripts/bootstrap-python.py
+          python3 scripts/run-python-tool.py pylint
+          python3 scripts/run-python-tool.py mypy
 
   audit:
     name: Anti-Pattern & Code Smell Checks
@@ -117,6 +121,10 @@ jobs:
 
       - name: Setup Workspace
         uses: arii/boomtick/.github/actions/setup-workspace@main
+        with:
+          setup-node: 'true'
+          setup-python: 'false'
+          init-schema: 'false'
 
       - name: Install Dependencies
         run: pnpm install --frozen-lockfile
@@ -136,6 +144,10 @@ jobs:
 
       - name: Setup Workspace
         uses: arii/boomtick/.github/actions/setup-workspace@main
+        with:
+          setup-node: 'true'
+          setup-python: 'true'
+          init-schema: 'true'
 
       - name: Install Dependencies
         run: pnpm install --frozen-lockfile

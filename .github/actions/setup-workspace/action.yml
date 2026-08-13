@@ -9,6 +9,10 @@ inputs:
     description: "Install dev-tools (Python)"
     required: false
     default: 'true'
+  init-schema:
+    description: "Execute schema initialization and contract sync"
+    required: false
+    default: 'false'
   node-version-file:
     description: "Path to .node-version file"
     required: false
@@ -62,6 +66,7 @@ runs:
       shell: bash
 
     - name: Resolve Paths
+      if: inputs.setup-python == 'true'
       id: resolve-paths
       shell: bash
       run: |
@@ -205,9 +210,11 @@ runs:
       shell: bash
 
     - name: Initialize Schemas and Contracts
-      if: inputs.setup-node == 'true' && inputs.setup-python == 'true'
+      if: inputs.init-schema == 'true'
       env:
-        CLI_DIR_ABS: ${{ steps.export-env.outputs.cli_dir_abs }}
+        # Note: In single-job scenarios where setup-python is false but init-schema is true,
+        # the export-env step wouldn't have run. So we'll resolve CLI_DIR_ABS from CLI_DIR or default to cli
+        CLI_DIR_ABS: ${{ steps.export-env.outputs.cli_dir_abs || format('{0}/cli', github.workspace) }}
       run: |
         echo "::group::Initialize Schemas and Contracts"
         if [[ ! "$CLI_DIR_ABS" =~ ^[a-zA-Z0-9/._-]+$ ]]; then
