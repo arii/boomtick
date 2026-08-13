@@ -28,10 +28,10 @@ jobs:
         id: check-image
         run: |
           IMAGE_TAG="ghcr.io/arii/boomtick:${{ github.sha }}"
-          if docker pull $IMAGE_TAG; then
-            echo "exists=true" >> $GITHUB_OUTPUT
+          if docker pull "$IMAGE_TAG"; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
           else
-            echo "exists=false" >> $GITHUB_OUTPUT
+            echo "exists=false" >> "$GITHUB_OUTPUT"
           fi
         shell: bash
 
