@@ -75,7 +75,7 @@ async function main() {
       return;
     }
 
-    graphJson = exec(`pnpm exec depcruise src --config ${depCruiseConfig} --ts-config ${tsConfig} --output-type json`);
+    graphJson = exec(`depcruise src --config ${depCruiseConfig} --ts-config ${tsConfig} --output-type json`);
 
     const graph: DependencyGraph = JSON.parse(graphJson);
 

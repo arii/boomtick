@@ -49,7 +49,7 @@ ENV NODE_VERSION=24.16.0
 ENV PNPM_VERSION=10.28.2
 ENV PLAYWRIGHT_VERSION=1.60.0
 ENV PNPM_HOME="/pnpm"
-ENV PATH="/pnpm:/usr/local/bin:/opt/venv/bin:/github/home/.local/bin:$PATH"
+ENV PATH="/pnpm:/usr/local/bin:/opt/venv/bin:/workspace/node_modules/.bin:/github/home/.local/bin:$PATH"
 ENV PLAYWRIGHT_BROWSERS_PATH="/ms-playwright"
 ENV PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
 
