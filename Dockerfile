@@ -34,9 +34,11 @@ RUN /opt/venv/bin/pip install -r /workspace/cli/requirements.txt -r /workspace/c
 COPY cli /workspace/cli
 RUN /opt/venv/bin/pip install -e /workspace/cli --no-deps
 
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .node-version ./
-COPY scripts/check-runtime-files.mjs ./scripts/
-COPY mcp/package.json ./mcp/
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml tsconfig.app.json .node-version ./
+COPY scripts /workspace/scripts
+COPY lib /workspace/lib
+COPY src /workspace/src
+COPY mcp /workspace/mcp
 RUN pnpm install --frozen-lockfile
 
 # Stage 2: Final Image
