@@ -49,7 +49,7 @@ ENV NODE_VERSION=24.16.0
 ENV PNPM_VERSION=10.28.2
 ENV PLAYWRIGHT_VERSION=1.60.0
 ENV PNPM_HOME="/pnpm"
-ENV PATH="/pnpm:/usr/local/bin:/opt/venv/bin:/github/home/.local/bin:$PATH"
+ENV PATH="/pnpm:/usr/local/bin:/opt/venv/bin:/workspace/node_modules/.bin:/github/home/.local/bin:$PATH"
 ENV PLAYWRIGHT_BROWSERS_PATH="/ms-playwright"
 ENV PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
 
@@ -60,6 +60,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     python3-venv \
     ca-certificates \
     && rm -rf /var/lib/apt/lists/*
+
+# Allow git to operate on mounted repos owned by different users (e.g. GitHub Actions runner)
+RUN git config --global --add safe.directory '*'
 
 # security-safe: Copying entire directories from builder is required to preserve Node.js symlinks; contents are generated locally and trusted.
 # Copy Node binaries and libs
