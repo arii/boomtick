@@ -98,6 +98,7 @@ runs:
         GITHUB_TOKEN: ${{ inputs.github_token }}
         PR_NUMBER: ${{ github.event.pull_request.number }}
         GITHUB_REPOSITORY: ${{ github.repository }}
+        PYTHONPATH: ${{ github.workspace }}/cli
       run: |
         TARGET_PATH="${{ github.action_path }}/../../../scripts/send-jules-impact.py"
         if [ -f "$TARGET_PATH" ]; then

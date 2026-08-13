@@ -1,10 +1,12 @@
 # pylint: disable=invalid-name,logging-fstring-interpolation,missing-docstring,too-many-branches,too-many-locals,too-many-statements,wrong-import-order
-from dev_tools.services.jules import JulesClient
 import glob
 import json
 import logging
 import os
 import sys
+
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "cli")))
+from dev_tools.services.jules import JulesClient
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
