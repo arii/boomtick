@@ -130,7 +130,7 @@ runs:
 
     - name: Create Pull Request
       if: inputs.operation == 'create-pr'
-      uses: peter-evans/create-pull-request@v9 # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
+      uses: peter-evans/create-pull-request@v7 # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
       with:
         token: ${{ inputs.github_token }}
         commit-message: "docs: add content from issue #${{ inputs.issue_number }}"
