@@ -1,4 +1,4 @@
-# pylint: disable=global-statement,import-outside-toplevel,invalid-name,line-too-long,missing-docstring,redefined-outer-name,reimported,too-many-branches,too-many-locals,too-many-return-statements,too-many-statements,unused-argument
+# pylint: disable=global-statement,import-outside-toplevel,invalid-name,line-too-long,missing-docstring,redefined-outer-name,reimported,too-many-branches,too-many-locals,too-many-return-statements,too-many-statements,unused-argument,too-many-lines
 import json
 import os
 import re
@@ -168,7 +168,7 @@ class AIClient:
                         if ref_key in defs:
                             return dereference(defs[ref_key], defs)
                     return {k: dereference(v, defs) for k, v in node.items() if k not in ("$defs", "definitions")}
-                elif isinstance(node, list):
+                if isinstance(node, list):
                     return [dereference(item, defs) for item in node]
                 return node
 
