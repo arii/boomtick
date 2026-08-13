@@ -1,4 +1,4 @@
-# pylint: disable=invalid-name,line-too-long,missing-docstring,no-value-for-parameter
+# pylint: disable=invalid-name,line-too-long,missing-docstring,no-value-for-parameter,too-many-locals
 import sys
 from collections import defaultdict
 from typing import Any, Dict, List, Set, Tuple
