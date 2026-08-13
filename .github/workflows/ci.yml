@@ -132,8 +132,8 @@ jobs:
       - name: Run Duplication Detection (jscpd)
         run: pnpm exec jscpd .
 
-  test-build:
-    name: Unit & Integration Tests
+  test-typescript:
+    name: TypeScript Unit Tests
     runs-on: ubuntu-latest
     if: github.event_name != 'workflow_run'
     steps:
@@ -155,15 +155,32 @@ jobs:
       - name: Run MCP Tests (Vitest)
         run: pnpm --filter @arii/boomtick-mcp run test
 
+  test-python:
+    name: Python CLI Unit Tests
+    runs-on: ubuntu-latest
+    if: github.event_name != 'workflow_run'
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.ref || github.ref }}
+
+      - name: Setup Workspace
+        uses: arii/boomtick/.github/actions/setup-workspace@main
+        with:
+          setup-node: 'false'
+          setup-python: 'true'
+          init-schema: 'false'
+
       - name: Run Python CLI Tests (pytest)
         run: |
-          pnpm run bootstrap:python
-          pnpm run test:python
+          python3 scripts/bootstrap-python.py
+          python3 scripts/run-python-tool.py pytest
 
   impact-analysis:
     name: Deployment Impact Analysis
     runs-on: ubuntu-latest
-    needs: [workflow-lint, lint-typecheck, audit, test-build]
+    needs: [workflow-lint, lint-typecheck, audit, test-typescript, test-python]
     if: github.event_name == 'pull_request' || github.event_name == 'workflow_call'
     steps:
       - name: Checkout repository
