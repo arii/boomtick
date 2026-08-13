@@ -5,6 +5,12 @@ on:
   pull_request:
     branches: [ main ]
   workflow_dispatch:
+    inputs:
+      pr-number:
+        description: 'Explicit PR Number fallback'
+        required: false
+        default: ''
+        type: string
 
 jobs:
   smoke-test:
@@ -20,3 +26,4 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           gemini_api_key: "MOCK_KEY"
           jules_api_key: "MOCK_KEY"
+          pr-number: ${{ inputs.pr-number }}

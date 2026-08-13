@@ -14,10 +14,30 @@ inputs:
   jules_api_key:
     description: 'Jules API key for agent execution'
     required: false
+  pr-number:
+    description: 'Explicit PR Number fallback for non-pull_request triggers'
+    required: false
+    default: ''
 
 runs:
   using: 'composite'
   steps:
+    - name: Resolve PR Number
+      id: resolve-pr
+      shell: bash
+      env:
+        GITHUB_TOKEN: ${{ inputs.github_token }}
+      run: |
+        PR_NUM="${{ github.event.pull_request.number }}"
+        if [ -z "$PR_NUM" ] && [ -n "${{ inputs.pr-number }}" ]; then
+          PR_NUM="${{ inputs.pr-number }}"
+        fi
+        if [ -z "$PR_NUM" ]; then
+          PR_NUM=$(gh pr list --head "${{ github.ref_name }}" --json number --jq '.[0].number' 2>/dev/null || echo "")
+        fi
+        echo "pr_number=${PR_NUM}" >> $GITHUB_OUTPUT
+        echo "Resolved PR Number: ${PR_NUM}"
+
     - name: Execute Impact Analysis in Container
       shell: bash
       env:
@@ -25,7 +45,7 @@ runs:
         GEMINI_API_KEY: ${{ inputs.gemini_api_key }}
         OPENAI_API_KEY: ${{ inputs.openai_api_key }}
         JULES_API_KEY: ${{ inputs.jules_api_key }}
-        PR_NUMBER: ${{ github.event.pull_request.number }}
+        PR_NUMBER: ${{ steps.resolve-pr.outputs.pr_number }}
       run: |
         # 1. Run Impact Analysis
         docker run --rm \
@@ -68,4 +88,3 @@ runs:
             ghcr.io/arii/boomtick:latest \
             /workspace/scripts/impact-ai-code-review.ts github-models
         fi
-

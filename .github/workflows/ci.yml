@@ -12,12 +12,23 @@ on:
       - '**'
       - '.github/workflows/**'
   workflow_dispatch:
+    inputs:
+      pr-number:
+        description: 'Explicit PR Number fallback'
+        required: false
+        default: ''
+        type: string
   workflow_call:
     inputs:
       ref:
         description: 'Git ref to check out in boomtick'
         default: 'main'
         required: false
+        type: string
+      pr-number:
+        description: 'Explicit PR Number fallback'
+        required: false
+        default: ''
         type: string
     secrets:
       GEMINI_API_KEY:
@@ -167,6 +178,7 @@ jobs:
           gemini_api_key: ${{ secrets.GEMINI_API_KEY }}
           openai_api_key: ${{ secrets.OPENAI_API_KEY }}
           jules_api_key: ${{ secrets.JULES_API_KEY }}
+          pr-number: ${{ inputs.pr-number }}
 
   validate-and-analyze:
     runs-on: ubuntu-latest
@@ -185,3 +197,4 @@ jobs:
           gemini_api_key: ${{ secrets.GEMINI_API_KEY }}
           openai_api_key: ${{ secrets.OPENAI_API_KEY }}
           jules_api_key: ${{ secrets.JULES_API_KEY }}
+          pr-number: ${{ inputs.pr-number }}
