@@ -29,7 +29,7 @@ runs:
       run: |
         # 1. Run Impact Analysis
         docker run --rm \
-          --entrypoint /workspace/node_modules/.bin/tsx \
+          --entrypoint /workspace/scripts/resolve-cli.sh \
           -e GITHUB_TOKEN="${GITHUB_TOKEN}" \
           -e GEMINI_API_KEY="${GEMINI_API_KEY}" \
           -e JULES_API_KEY="${JULES_API_KEY}" \
@@ -39,12 +39,12 @@ runs:
           -v "${{ github.workspace }}":/github/workspace \
           -w /github/workspace \
           ghcr.io/arii/boomtick:latest \
-          /workspace/scripts/impact-analysis.ts
+          tsx /workspace/scripts/impact-analysis.ts
 
         # 2. Run Gemini Code Review
         if [ -n "${GEMINI_API_KEY}" ]; then
           docker run --rm \
-            --entrypoint /workspace/node_modules/.bin/tsx \
+            --entrypoint /workspace/scripts/resolve-cli.sh \
             -e GITHUB_TOKEN="${GITHUB_TOKEN}" \
             -e GEMINI_API_KEY="${GEMINI_API_KEY}" \
             -e PR_NUMBER="${PR_NUMBER}" \
@@ -52,13 +52,13 @@ runs:
             -v "${{ github.workspace }}":/github/workspace \
             -w /github/workspace \
             ghcr.io/arii/boomtick:latest \
-            /workspace/scripts/impact-ai-code-review.ts gemini
+            tsx /workspace/scripts/impact-ai-code-review.ts gemini
         fi
 
         # 3. Run OpenAI Code Review
         if [ -n "${OPENAI_API_KEY}" ]; then
           docker run --rm \
-            --entrypoint /workspace/node_modules/.bin/tsx \
+            --entrypoint /workspace/scripts/resolve-cli.sh \
             -e GITHUB_TOKEN="${GITHUB_TOKEN}" \
             -e OPENAI_API_KEY="${OPENAI_API_KEY}" \
             -e PR_NUMBER="${PR_NUMBER}" \
@@ -66,6 +66,6 @@ runs:
             -v "${{ github.workspace }}":/github/workspace \
             -w /github/workspace \
             ghcr.io/arii/boomtick:latest \
-            /workspace/scripts/impact-ai-code-review.ts github-models
+            tsx /workspace/scripts/impact-ai-code-review.ts github-models
         fi
 
