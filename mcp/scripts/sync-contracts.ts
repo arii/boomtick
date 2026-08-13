@@ -218,7 +218,13 @@ async function syncContracts() {
   }
   const pythonScriptPath = path.join(rootDir, 'cli/dev_tools/schema_gen.py');
   console.log(`Regenerating cli-schema.json...`);
-  execFileSync('python3', [pythonScriptPath], { cwd: rootDir, stdio: 'inherit' });
+  try {
+    const env = { ...process.env, PYTHONPATH: path.join(rootDir, 'cli') };
+    execFileSync('python3', [pythonScriptPath], { cwd: rootDir, env, stdio: 'inherit' });
+  } catch (err) {
+    console.warn(`⚠️ Warning: Failed to regenerate cli-schema.json via Python:`, err);
+    console.warn(`Proceeding with existing cli-schema.json if available.`);
+  }
 
   // Then perform the original Zod contract generation
   let jsonSchemaToZod;
