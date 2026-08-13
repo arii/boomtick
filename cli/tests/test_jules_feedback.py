@@ -32,10 +32,7 @@ def test_trigger_jules_feedback_no_messages(orchestrator):
 
     assert res["status"] == "success"
     assert res["feedback"] == "All checks passed successfully. You may proceed."
-    orchestrator.jules.send_message.assert_called_once_with(
-        "test-session-1",
-        "All checks passed successfully. You may proceed."
-    )
+    orchestrator.jules.send_message.assert_called_once_with("test-session-1", "All checks passed successfully. You may proceed.")
 
 
 def test_trigger_jules_feedback_identical_success_message(orchestrator):
@@ -116,10 +113,7 @@ def test_trigger_jules_feedback_state_changed_failure_to_success(orchestrator):
 
     assert res["status"] == "success"
     assert res["feedback"] == "All checks passed successfully. You may proceed."
-    orchestrator.jules.send_message.assert_called_once_with(
-        "test-session-1",
-        "All checks passed successfully. You may proceed."
-    )
+    orchestrator.jules.send_message.assert_called_once_with("test-session-1", "All checks passed successfully. You may proceed.")
 
 
 def test_trigger_jules_feedback_state_changed_success_to_failure(orchestrator):
