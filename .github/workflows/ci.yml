@@ -168,9 +168,12 @@ jobs:
       - name: Setup Workspace
         uses: arii/boomtick/.github/actions/setup-workspace@main
         with:
-          setup-node: 'false'
+          setup-node: 'true'
           setup-python: 'true'
           init-schema: 'false'
+
+      - name: Install Dependencies
+        run: pnpm install --frozen-lockfile
 
       - name: Run Python CLI Tests (pytest)
         run: |
