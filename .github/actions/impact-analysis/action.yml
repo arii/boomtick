@@ -14,6 +14,10 @@ inputs:
   jules_api_key:
     description: 'Jules API key for agent execution'
     required: false
+  container_image:
+    description: 'Container image (with tag) to use for the analysis'
+    required: false
+    default: 'ghcr.io/arii/boomtick:latest'
 
 runs:
   using: 'composite'
@@ -38,7 +42,7 @@ runs:
           -e GITHUB_REPOSITORY="${GITHUB_REPOSITORY}" \
           -v "${{ github.workspace }}":/github/workspace \
           -w /github/workspace \
-          ghcr.io/arii/boomtick:latest \
+          ${{ inputs.container_image }} \
           /workspace/scripts/impact-analysis.ts
 
         # 2. Run Gemini Code Review
@@ -47,11 +51,12 @@ runs:
             --entrypoint /workspace/node_modules/.bin/tsx \
             -e GITHUB_TOKEN="${GITHUB_TOKEN}" \
             -e GEMINI_API_KEY="${GEMINI_API_KEY}" \
+            -e JULES_API_KEY="${JULES_API_KEY}" \
             -e PR_NUMBER="${PR_NUMBER}" \
             -e GITHUB_REPOSITORY="${GITHUB_REPOSITORY}" \
             -v "${{ github.workspace }}":/github/workspace \
             -w /github/workspace \
-            ghcr.io/arii/boomtick:latest \
+            ${{ inputs.container_image }} \
             /workspace/scripts/impact-ai-code-review.ts gemini
         fi
 
@@ -61,11 +66,12 @@ runs:
             --entrypoint /workspace/node_modules/.bin/tsx \
             -e GITHUB_TOKEN="${GITHUB_TOKEN}" \
             -e OPENAI_API_KEY="${OPENAI_API_KEY}" \
+            -e JULES_API_KEY="${JULES_API_KEY}" \
             -e PR_NUMBER="${PR_NUMBER}" \
             -e GITHUB_REPOSITORY="${GITHUB_REPOSITORY}" \
             -v "${{ github.workspace }}":/github/workspace \
             -w /github/workspace \
-            ghcr.io/arii/boomtick:latest \
+            ${{ inputs.container_image }} \
             /workspace/scripts/impact-ai-code-review.ts github-models
         fi
 
