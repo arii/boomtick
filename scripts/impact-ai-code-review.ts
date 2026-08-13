@@ -52,5 +52,5 @@ async function main(): Promise<void> {
 
 main().catch(error => {
   console.error(`❌ Agent code review failed: ${error instanceof Error ? error.message : String(error)}`);
-  process.exit(0);
+  process.exit(1);
 });
