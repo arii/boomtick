@@ -29,12 +29,6 @@ export function normalizeModelId(id: string): string {
   const lowered = id.toLowerCase();
   if (lowered === 'gpt-4o') return 'gpt-4o';
   if (lowered === 'gpt-4o-mini') return 'gpt-4o-mini';
-  if (lowered === 'deepseek-r1') return 'DeepSeek-R1';
-  if (lowered === 'deepseek-v3') return 'DeepSeek-V3-0324';
-  if (lowered === 'llama-3.3-70b-instruct' || lowered === 'llama-3.3-70b') return 'Llama-3.3-70B-Instruct';
-  if (lowered === 'phi-4') return 'Phi-4';
-  if (lowered === 'phi-4-mini-instruct') return 'Phi-4-mini-instruct';
-  if (lowered === 'grok-3' || lowered === 'grok 3') return 'Grok 3';
   return id;
 }
 
