@@ -28,20 +28,15 @@ async function main(): Promise<void> {
     }
     await orchestrateCodeReview(geminiCodeReviewClient, ALL_REVIEW_TITLES);
   } else if (provider === 'github-models') {
-    // If OpenAI API key is present, we can run the reviewer using OpenAI!
-    if (process.env.OPENAI_API_KEY || process.env.OPEN_API_KEY) {
-      await orchestrateCodeReview(githubModelsCodeReviewClient, ALL_REVIEW_TITLES);
-    } else {
-      console.warn('⚠️  Skipping agent code review — GitHub Models is deprecated/disabled.');
-      try {
-        await writeDeprecatedVerdict(
-          githubModelsCodeReviewClient.reportFileName,
-          githubModelsCodeReviewClient.reportTitle,
-          'GitHub Models'
-        );
-      } catch (err) {
-        console.error('Failed to write deprecated verdict', err);
-      }
+    console.warn('⚠️  Skipping agent code review — GitHub Models/OpenAI review is disabled. Only Gemini review is active.');
+    try {
+      await writeDeprecatedVerdict(
+        githubModelsCodeReviewClient.reportFileName,
+        githubModelsCodeReviewClient.reportTitle,
+        'GitHub Models'
+      );
+    } catch (err) {
+      console.error('Failed to write deprecated verdict', err);
     }
     return;
   } else {
@@ -52,5 +47,5 @@ async function main(): Promise<void> {
 
 main().catch(error => {
   console.error(`❌ Agent code review failed: ${error instanceof Error ? error.message : String(error)}`);
-  process.exit(0);
+  process.exit(1);
 });
