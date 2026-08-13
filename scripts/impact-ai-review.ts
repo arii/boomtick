@@ -28,20 +28,15 @@ async function main(): Promise<void> {
     }
     await orchestrateVisualReview(geminiVisualReviewClient, ALL_REVIEW_TITLES);
   } else if (provider === 'github-models') {
-    // If OpenAI API key is present, we can run the reviewer using OpenAI!
-    if (process.env.OPENAI_API_KEY || process.env.OPEN_API_KEY) {
-      await orchestrateVisualReview(githubModelsVisualReviewClient, ALL_REVIEW_TITLES);
-    } else {
-      console.warn('⚠️  Skipping agent review — GitHub Models client disabled due to deprecation.');
-      try {
-        await writeDeprecatedVerdict(
-          githubModelsVisualReviewClient.reportFileName,
-          githubModelsVisualReviewClient.reportTitle,
-          'GitHub Models'
-        );
-      } catch (err) {
-        console.error('Failed to write deprecated verdict', err);
-      }
+    console.warn('⚠️  Skipping agent review — GitHub Models/OpenAI review is disabled. Only Gemini review is active.');
+    try {
+      await writeDeprecatedVerdict(
+        githubModelsVisualReviewClient.reportFileName,
+        githubModelsVisualReviewClient.reportTitle,
+        'GitHub Models'
+      );
+    } catch (err) {
+      console.error('Failed to write deprecated verdict', err);
     }
     return;
   } else {
