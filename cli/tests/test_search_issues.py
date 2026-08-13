@@ -1,4 +1,4 @@
-# pylint: disable=missing-docstring,protected-access,redefined-outer-name
+# pylint: disable=missing-docstring,protected-access,redefined-outer-name,import-outside-toplevel
 import json
 from unittest.mock import patch, MagicMock
 
