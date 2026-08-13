@@ -12,12 +12,23 @@ on:
       - '**'
       - '.github/workflows/**'
   workflow_dispatch:
+    inputs:
+      pr-number:
+        description: 'Explicit PR Number fallback'
+        required: false
+        default: ''
+        type: string
   workflow_call:
     inputs:
       ref:
         description: 'Git ref to check out in boomtick'
         default: 'main'
         required: false
+        type: string
+      pr-number:
+        description: 'Explicit PR Number fallback'
+        required: false
+        default: ''
         type: string
     secrets:
       GEMINI_API_KEY:
@@ -43,6 +54,27 @@ permissions:
   actions: read
 
 jobs:
+  verify-dependencies:
+    name: Verify Dependencies via Dynamic Path
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v7
+
+      - name: Setup Workspace
+        uses: arii/boomtick/.github/actions/setup-workspace@main
+        with:
+          setup-python: 'false'
+
+      - name: Install Dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run Dependency Cruiser via Dynamic Path
+        run: pnpm exec depcruise --config .dependency-cruiser.config.mjs src
+
+      - name: Run TSX Script via Dynamic Path
+        run: pnpm exec tsx scripts/check-runtime-files.mjs
+
   scope-check:
     name: Scope Constraint Validation
     runs-on: ubuntu-latest
@@ -200,6 +232,7 @@ jobs:
           gemini_api_key: ${{ secrets.GEMINI_API_KEY }}
           openai_api_key: ${{ secrets.OPENAI_API_KEY }}
           jules_api_key: ${{ secrets.JULES_API_KEY }}
+          pr-number: ${{ inputs.pr-number }}
           container_image: ghcr.io/arii/boomtick:${{ github.sha }}
 
   validate-and-analyze:
@@ -252,4 +285,5 @@ jobs:
           gemini_api_key: ${{ secrets.GEMINI_API_KEY }}
           openai_api_key: ${{ secrets.OPENAI_API_KEY }}
           jules_api_key: ${{ secrets.JULES_API_KEY }}
+          pr-number: ${{ inputs.pr-number }}
           container_image: ghcr.io/arii/boomtick:${{ github.sha }}

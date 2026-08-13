@@ -3,7 +3,7 @@ import * as path from 'path';
 import { IMPACT_CONFIG } from '../scripts/impact-analysis.config';
 import { ARTIFACTS_DIR } from './visualReviewConstants';
 import { postPRComment, countExistingReviews, getJulesSessionIdFromPR, sendJulesMessage, getPreviousReviewState } from './visualReviewUtils';
-import { runWithConcurrencyLimit, checkReviewQuota, writeVerdictJson } from './sharedUtils';
+import { runWithConcurrencyLimit, checkReviewQuota, writeVerdictJson, writeGracefulExitVerdict } from './sharedUtils';
 import { calculateEstimatedTokens, cleanupFeedback, batchFiles, calculateReviewHash, pruneCache, filterLowImpactFiles } from './codeReviewUtils';
 import type { CodeReviewSummary, CodeReviewResult, CodeReviewState, CodeReviewRole } from './codeReviewTypes';
 import { execFile as execFileCb, spawn } from 'child_process';
@@ -610,8 +610,7 @@ export async function orchestrateCodeReview(
   if (!initialSummary.diffContext) {
     console.log(`✅ No code changes detected — skipping agent review.`);
     await fs.promises.writeFile(agentReportPath, `## ${client.reportTitle}\n\nNo code changes detected.\n`);
-    const safeReportFileName = path.basename(client.reportFileName);
-    await writeVerdictJson(path.join(ARTIFACTS_DIR, `${safeReportFileName.replace('.md', '')}-verdict.json`), { passed: true, highCount: 0, routes: [], llmVerdict: 'pass', state: { findings: [] } });
+    await writeGracefulExitVerdict(client.reportFileName, ARTIFACTS_DIR, null);
     return;
   }
 
@@ -625,14 +624,7 @@ export async function orchestrateCodeReview(
   if (changedFiles.length === 0) {
     console.log(`✅ No reviewable code changes detected after filtering (${rawChangedFiles.length} files filtered) — skipping agent review.`);
     await fs.promises.writeFile(agentReportPath, `## ${client.reportTitle}\n\nNo reviewable code changes detected.\n`);
-    const safeReportFileName = path.basename(client.reportFileName);
-    await writeVerdictJson(path.join(ARTIFACTS_DIR, `${safeReportFileName.replace('.md', '')}-verdict.json`), {
-      passed: true,
-      highCount: 0,
-      routes: [],
-      llmVerdict: 'pass',
-      state: prevState || { findings: [] }
-    });
+    await writeGracefulExitVerdict(client.reportFileName, ARTIFACTS_DIR, prevState);
     return;
   }
 
@@ -685,17 +677,7 @@ export async function orchestrateCodeReview(
   const findings = finalResult.state?.findings || [];
   if (findings.length === 0) {
     console.log("No actionable findings or architectural/design violations found. Gracefully exiting without posting PR comment or notifying Jules.");
-    const safeReportFileName = path.basename(client.reportFileName);
-    const verdictPath = path.join(ARTIFACTS_DIR, `${safeReportFileName.replace('.md', '')}-verdict.json`);
-    await writeVerdictJson(verdictPath, {
-      passed: true,
-      highCount: 0,
-      routes: [],
-      llmVerdict: 'pass',
-      isTruncated: isTruncated,
-      skipReason: finalSkipReason,
-      state: finalResult.state || { findings: [] }
-    });
+    await writeGracefulExitVerdict(client.reportFileName, ARTIFACTS_DIR, finalResult.state, isTruncated, finalSkipReason);
     return;
   }
 
