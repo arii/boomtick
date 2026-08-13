@@ -45,7 +45,8 @@ runs:
 
     - name: Install PyGithub and dependencies
       run: |
-        pip install PyGithub requests click --break-system-packages || pip install PyGithub requests click
+        pip install uv --break-system-packages || pip install uv
+        uv pip install --system --break-system-packages PyGithub requests click
       shell: bash
 
     - name: Setup Workspace

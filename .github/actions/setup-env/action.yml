@@ -45,6 +45,7 @@ runs:
     - name: Install Python dependencies
       if: inputs.setup-python == 'true'
       run: |
-        pip install -r cli/requirements.txt
-        pip install build twine pytest
+        pip install uv --break-system-packages || pip install uv
+        uv pip install --system --break-system-packages -r cli/requirements.txt
+        uv pip install --system --break-system-packages build twine pytest
       shell: bash

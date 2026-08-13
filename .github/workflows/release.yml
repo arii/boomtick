@@ -116,7 +116,7 @@ jobs:
         if: steps.determine_target.outputs.target == 'cli' || steps.determine_target.outputs.target == 'all'
         run: |
           cd cli
-          pip install -e .
+          uv pip install --system --break-system-packages -e .
           pytest tests/
 
       - name: Build MCP Tool

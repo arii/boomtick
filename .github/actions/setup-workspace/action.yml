@@ -144,15 +144,15 @@ runs:
         echo "::group::Install dev-tools"
         pip install uv --break-system-packages
         if [ -f "requirements-dev.txt" ]; then
-          uv pip install --system -r requirements-dev.txt
+          uv pip install --system --break-system-packages -r requirements-dev.txt
         fi
         if [ -f "$CLI_DIR/requirements-dev.txt" ]; then
-          uv pip install --system -r "$CLI_DIR/requirements-dev.txt"
+          uv pip install --system --break-system-packages -r "$CLI_DIR/requirements-dev.txt"
         fi
         if [ -f "$CLI_DIR/requirements-ai.txt" ]; then
-          uv pip install --system -r "$CLI_DIR/requirements-ai.txt"
+          uv pip install --system --break-system-packages -r "$CLI_DIR/requirements-ai.txt"
         fi
-        uv pip install --system -e "$CLI_DIR"
+        uv pip install --system --break-system-packages -e "$CLI_DIR"
 
         echo "::endgroup::"
       shell: bash
