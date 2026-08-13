@@ -1,4 +1,4 @@
-# pylint: disable=f-string-without-interpolation,import-outside-toplevel,invalid-name,line-too-long,missing-docstring,redefined-outer-name,reimported,subprocess-run-check,too-many-arguments,too-many-branches,too-many-locals,too-many-positional-arguments,too-many-public-methods,too-many-statements,try-except-raise,too-many-instance-attributes,too-many-lines
+# pylint: disable=f-string-without-interpolation,import-outside-toplevel,invalid-name,line-too-long,missing-docstring,redefined-outer-name,reimported,subprocess-run-check,too-many-arguments,too-many-branches,too-many-locals,too-many-positional-arguments,too-many-public-methods,too-many-statements,try-except-raise,too-many-instance-attributes
 import json
 import os
 import re
