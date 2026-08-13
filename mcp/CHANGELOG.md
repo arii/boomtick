@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.3.6](https://github.com/arii/boomtick/compare/mcp-v0.3.5...mcp-v0.3.6) (2026-08-13)
+
+
+### Bug Fixes
+
+* **ai:** add gemini fallback logic to AIClient ([5cc87cc](https://github.com/arii/boomtick/commit/5cc87cc79e65df79db98bc27e679d14ffdd2d18d))
+* **ai:** add gemini fallback logic to AIClient ([3ba37ec](https://github.com/arii/boomtick/commit/3ba37ec50a7447a9517e9f0029ff05ee01adf4d8))
+* resolve td-cli not found in impact-analysis CI action ([#508](https://github.com/arii/boomtick/issues/508)) ([702643f](https://github.com/arii/boomtick/commit/702643f9d0d2447ae7baf20d22d553a7dfbae777))
+
 ## [0.3.5](https://github.com/arii/boomtick/compare/mcp-v0.3.4...mcp-v0.3.5) (2026-08-05)
 
 
