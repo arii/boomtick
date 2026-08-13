@@ -61,6 +61,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
+# Allow git to operate on mounted repos owned by different users (e.g. GitHub Actions runner)
+RUN git config --global --add safe.directory '*'
+
 # security-safe: Copying entire directories from builder is required to preserve Node.js symlinks; contents are generated locally and trusted.
 # Copy Node binaries and libs
 COPY --from=builder /usr/local/bin /usr/local/bin
