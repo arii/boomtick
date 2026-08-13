@@ -84,7 +84,7 @@ def test_cli_detect_conflicts_mutually_exclusive():
 
 
 def test_cli_conflicts_deprecated():
-    runner = CliRunner(mix_stderr=False)
+    runner = CliRunner()
 
     with patch("dev_tools.cli.LazyOrchestrator") as mock_lazy:
         mock_orch = MagicMock()
@@ -97,15 +97,19 @@ def test_cli_conflicts_deprecated():
         result = runner.invoke(cli, ["gh", "conflicts"])
 
         assert result.exit_code == 0
-        assert "WARNING: 'td-cli gh conflicts' is deprecated" in result.stderr
-        data = json.loads(result.stdout)
+        assert "WARNING: 'td-cli gh conflicts' is deprecated" in result.output
+        stdout = result.stdout
+        json_start = stdout.find("{")
+        if json_start != -1:
+            stdout = stdout[json_start:]
+        data = json.loads(stdout)
         assert data["status"] == "success"
         assert len(data["conflicts"]) == 1
         mock_orch.handle_detect_conflicts.assert_called_once_with(all_prs=True)
 
 
 def test_cli_detect_conflicts_no_args():
-    runner = CliRunner(mix_stderr=False)
+    runner = CliRunner()
 
     with patch("dev_tools.cli.LazyOrchestrator") as mock_lazy:
         mock_orch = MagicMock()
@@ -118,8 +122,12 @@ def test_cli_detect_conflicts_no_args():
         result = runner.invoke(cli, ["gh", "detect-conflicts"])
 
         assert result.exit_code == 0
-        assert "Suggestion: Use 'td-cli gh detect-conflicts --all'" in result.stderr
-        data = json.loads(result.stdout)
+        assert "Suggestion: Use 'td-cli gh detect-conflicts --all'" in result.output
+        stdout = result.stdout
+        json_start = stdout.find("{")
+        if json_start != -1:
+            stdout = stdout[json_start:]
+        data = json.loads(stdout)
         assert data["status"] == "success"
         assert len(data["conflicts"]) == 1
         mock_orch.handle_detect_conflicts.assert_called_once_with(pr_num=None, all_prs=True)

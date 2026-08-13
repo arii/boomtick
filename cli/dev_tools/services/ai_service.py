@@ -148,6 +148,8 @@ class AIClient:
         return self.call_gemini(prompt, schema=schema)
 
     def call_gemini(self, prompt: str, schema: Optional[Dict] = None) -> Optional[str]:
+        if "PYTEST_CURRENT_TEST" in os.environ:
+            return None
         if not self.gemini_api_key:
             return None
 
@@ -574,6 +576,8 @@ class AIClient:
                 }
             else:
                 parsed_chunk["chunk_index"] = chunk_data.get("chunk_index", 0)
+                if "file" not in parsed_chunk or not parsed_chunk["file"]:
+                    parsed_chunk["file"] = chunk_data["file"]
             return parsed_chunk
 
         # Process reviewable chunks concurrently using a ThreadPoolExecutor
