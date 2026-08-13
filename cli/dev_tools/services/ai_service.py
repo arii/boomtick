@@ -273,7 +273,8 @@ class AIClient:
             safe_write_file(file_path, resolved)
 
             return True
-        except Exception:
+        except Exception as e:
+            log_warn(f"Fatal error trying to apply resolution to {file_path}: {e}")
             return False
 
     # ── Single-pass review pipeline ───────────────────────────────────────────

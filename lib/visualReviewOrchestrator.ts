@@ -2,7 +2,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { ARTIFACTS_DIR, VISUAL_SUMMARY_PATH, MAX_ROUTES_TO_REVIEW } from './visualReviewConstants';
 import { generateMarkdownReport, postPRComment, countExistingReviews, getJulesSessionIdFromPR, sendJulesMessage, getPreviousReviewState } from './visualReviewUtils';
-import { runWithConcurrencyLimit, checkReviewQuota, writeVerdictJson } from './sharedUtils';
+import { runWithConcurrencyLimit, checkReviewQuota, writeVerdictJson, writeGracefulExitVerdict } from './sharedUtils';
 import type { RouteReview, VisualRouteSummary, VisualSummary, VisualReviewState } from './visualReviewTypes';
 import { logReviewExecution } from './aiLogger';
 export type AgentRole = 'CODE_REVIEW' | 'ACCESSIBILITY' | 'UX' | 'VISUAL_REGRESSION' | 'RESPONSIVE_LAYOUT';
@@ -40,14 +40,7 @@ export async function orchestrateVisualReview(
     console.warn('⚠️  Skipping agent review — missing visual summary. Run pnpm impact:visual-diff first.');
     await fs.promises.writeFile(agentReportPath, `## ${client.reportTitle}\n\nSkipped: Missing visual summary.\n`);
     const prevState = await getPreviousReviewState<VisualReviewState>(client.reportTitle);
-    const safeReportFileName = path.basename(client.reportFileName);
-    await writeVerdictJson(path.join(ARTIFACTS_DIR, `${safeReportFileName.replace('.md', '')}-verdict.json`), {
-      passed: true,
-      highCount: 0,
-      routes: [],
-      llmVerdict: 'pass',
-      state: prevState || { findings: [] }
-    });
+    await writeGracefulExitVerdict(client.reportFileName, ARTIFACTS_DIR, prevState);
     return;
   }
 
@@ -89,8 +82,7 @@ export async function orchestrateVisualReview(
   if (routesToReview.length === 0) {
     console.log(`✅ No visual changes detected — skipping agent review.`);
     await fs.promises.writeFile(agentReportPath, `## ${client.reportTitle}\n\nNo visual changes detected.\n`);
-    const safeReportFileName = path.basename(client.reportFileName);
-    await writeVerdictJson(path.join(ARTIFACTS_DIR, `${safeReportFileName.replace('.md', '')}-verdict.json`), { passed: true, highCount: 0, routes: [], llmVerdict: 'pass', state: { findings: [] } });
+    await writeGracefulExitVerdict(client.reportFileName, ARTIFACTS_DIR, null);
     return;
   }
 
@@ -156,17 +148,7 @@ export async function orchestrateVisualReview(
   // If there are no findings, gracefully exit without posting comment or notifying Jules
   if (state.findings.length === 0) {
     console.log("No visual findings found. Gracefully exiting without posting PR comment or notifying Jules.");
-    const safeReportFileName = path.basename(client.reportFileName);
-    const verdictPath = path.join(ARTIFACTS_DIR, `${safeReportFileName.replace('.md', '')}-verdict.json`);
-    await writeVerdictJson(verdictPath, {
-      passed: true,
-      highCount: 0,
-      medCount: 0,
-      lowCount: 0,
-      routes: reviews.map(r => r.route),
-      llmVerdict: 'pass',
-      state: state
-    });
+    await writeGracefulExitVerdict(client.reportFileName, ARTIFACTS_DIR, state);
     return;
   }
 

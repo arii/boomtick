@@ -265,8 +265,8 @@ class GitHubClient:
                     code=e.response.status_code,
                     data=error_data,
                 ) from e
-        except (ValueError, AttributeError):
-            pass
+        except (ValueError, AttributeError) as inner_e:
+            log_warn(f"Failed to parse error response: {inner_e}")
 
     def fetch_pr_files(self, number: int) -> List[Dict[str, Any]]:
         """Fetches the list of files changed in a PR."""
@@ -998,8 +998,8 @@ class GitHubClient:
                         if error_data is None and isinstance(e, requests.exceptions.HTTPError) and e.response is not None:
                             try:
                                 error_data = e.response.json()
-                            except Exception:
-                                pass
+                            except Exception as inner_e:
+                                log_warn(f"Failed to parse error response JSON: {inner_e}")
 
                         error_msg = json.dumps(error_data) if error_data else (e.response.text if hasattr(e, "response") and e.response else str(e))
 
