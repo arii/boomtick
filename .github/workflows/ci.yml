@@ -92,8 +92,8 @@ jobs:
         uses: arii/boomtick/.github/actions/setup-workspace@main
         with:
           setup-node: ${{ matrix.target == 'typescript' && 'true' || 'false' }}
-          setup-python: ${{ matrix.target == 'python' && 'true' || 'false' }}
-          init-schema: 'false'
+          setup-python: 'true'
+          init-schema: ${{ matrix.target == 'typescript' && 'true' || 'false' }}
 
       - name: Run Lint & Typecheck (TypeScript)
         if: matrix.target == 'typescript'
