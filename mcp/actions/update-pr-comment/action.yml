@@ -16,7 +16,7 @@ inputs:
 runs:
   using: 'composite'
   steps:
-    - uses: actions/github-script@v8 # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
+    - uses: actions/github-script@v9 # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
       env:
         INPUT_STATUS_LINE: ${{ inputs.status_line }}
         INPUT_IMPACT_BODY: ${{ inputs.impact_body }}
