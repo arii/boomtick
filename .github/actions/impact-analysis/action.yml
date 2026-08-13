@@ -34,6 +34,9 @@ runs:
         fi
         if [ -z "$PR_NUM" ]; then
           PR_NUM=$(gh pr list --head "${{ github.ref_name }}" --json number --jq '.[0].number' 2>/dev/null || echo "")
+          if [ "$PR_NUM" = "null" ]; then
+            PR_NUM=""
+          fi
         fi
         echo "pr_number=${PR_NUM}" >> $GITHUB_OUTPUT
         echo "Resolved PR Number: ${PR_NUM}"
@@ -67,6 +70,7 @@ runs:
             --entrypoint /workspace/node_modules/.bin/tsx \
             -e GITHUB_TOKEN="${GITHUB_TOKEN}" \
             -e GEMINI_API_KEY="${GEMINI_API_KEY}" \
+            -e JULES_API_KEY="${JULES_API_KEY}" \
             -e PR_NUMBER="${PR_NUMBER}" \
             -e GITHUB_REPOSITORY="${GITHUB_REPOSITORY}" \
             -v "${{ github.workspace }}":/github/workspace \
@@ -81,6 +85,7 @@ runs:
             --entrypoint /workspace/node_modules/.bin/tsx \
             -e GITHUB_TOKEN="${GITHUB_TOKEN}" \
             -e OPENAI_API_KEY="${OPENAI_API_KEY}" \
+            -e JULES_API_KEY="${JULES_API_KEY}" \
             -e PR_NUMBER="${PR_NUMBER}" \
             -e GITHUB_REPOSITORY="${GITHUB_REPOSITORY}" \
             -v "${{ github.workspace }}":/github/workspace \
