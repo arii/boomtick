@@ -34,9 +34,11 @@ RUN /opt/venv/bin/pip install -r /workspace/cli/requirements.txt -r /workspace/c
 COPY cli /workspace/cli
 RUN /opt/venv/bin/pip install -e /workspace/cli --no-deps
 
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .node-version ./
-COPY scripts/check-runtime-files.mjs ./scripts/
-COPY mcp/package.json ./mcp/
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml tsconfig.app.json .node-version ./
+COPY scripts /workspace/scripts
+COPY lib /workspace/lib
+COPY src /workspace/src
+COPY mcp /workspace/mcp
 RUN pnpm install --frozen-lockfile
 
 # Stage 2: Final Image
@@ -58,6 +60,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     python3-venv \
     ca-certificates \
     && rm -rf /var/lib/apt/lists/*
+
+# Allow git to operate on mounted repos owned by different users (e.g. GitHub Actions runner)
+RUN git config --global --add safe.directory '*'
 
 # security-safe: Copying entire directories from builder is required to preserve Node.js symlinks; contents are generated locally and trusted.
 # Copy Node binaries and libs

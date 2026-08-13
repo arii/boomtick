@@ -29,43 +29,43 @@ runs:
       run: |
         # 1. Run Impact Analysis
         docker run --rm \
-          --entrypoint pnpm \
+          --entrypoint /workspace/node_modules/.bin/tsx \
           -e GITHUB_TOKEN="${GITHUB_TOKEN}" \
           -e GEMINI_API_KEY="${GEMINI_API_KEY}" \
           -e JULES_API_KEY="${JULES_API_KEY}" \
           -e OPENAI_API_KEY="${OPENAI_API_KEY}" \
           -e PR_NUMBER="${PR_NUMBER}" \
           -e GITHUB_REPOSITORY="${GITHUB_REPOSITORY}" \
-          -v "${{ github.workspace }}":/workspace \
-          -w /workspace \
+          -v "${{ github.workspace }}":/github/workspace \
+          -w /github/workspace \
           ghcr.io/arii/boomtick:latest \
-          run impact:analysis
+          /workspace/scripts/impact-analysis.ts
 
         # 2. Run Gemini Code Review
         if [ -n "${GEMINI_API_KEY}" ]; then
           docker run --rm \
-            --entrypoint pnpm \
+            --entrypoint /workspace/node_modules/.bin/tsx \
             -e GITHUB_TOKEN="${GITHUB_TOKEN}" \
             -e GEMINI_API_KEY="${GEMINI_API_KEY}" \
             -e PR_NUMBER="${PR_NUMBER}" \
             -e GITHUB_REPOSITORY="${GITHUB_REPOSITORY}" \
-            -v "${{ github.workspace }}":/workspace \
-            -w /workspace \
+            -v "${{ github.workspace }}":/github/workspace \
+            -w /github/workspace \
             ghcr.io/arii/boomtick:latest \
-            run impact:gemini-code-review
+            /workspace/scripts/impact-ai-code-review.ts gemini
         fi
 
         # 3. Run OpenAI Code Review
         if [ -n "${OPENAI_API_KEY}" ]; then
           docker run --rm \
-            --entrypoint pnpm \
+            --entrypoint /workspace/node_modules/.bin/tsx \
             -e GITHUB_TOKEN="${GITHUB_TOKEN}" \
             -e OPENAI_API_KEY="${OPENAI_API_KEY}" \
             -e PR_NUMBER="${PR_NUMBER}" \
             -e GITHUB_REPOSITORY="${GITHUB_REPOSITORY}" \
-            -v "${{ github.workspace }}":/workspace \
-            -w /workspace \
+            -v "${{ github.workspace }}":/github/workspace \
+            -w /github/workspace \
             ghcr.io/arii/boomtick:latest \
-            run impact:github-models-code-review
+            /workspace/scripts/impact-ai-code-review.ts github-models
         fi
 
