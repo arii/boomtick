@@ -33,14 +33,15 @@ def main():
     else:
         print("Virtual environment already exists. Upgrading dependencies...", flush=True)
 
-    # 2. Upgrade pip, setuptools, wheel
-    print("Upgrading pip, setuptools, and wheel...", flush=True)
-    subprocess.run([python_bin, "-m", "pip", "install", "--upgrade", "pip", "setuptools<81.0.0", "wheel"], check=True)
+    # 2. Upgrade pip, setuptools, wheel, and install uv
+    print("Upgrading pip and installing uv, setuptools, and wheel...", flush=True)
+    subprocess.run([python_bin, "-m", "pip", "install", "--upgrade", "pip", "uv"], check=True)
+    subprocess.run([python_bin, "-m", "uv", "pip", "install", "setuptools<81.0.0", "wheel"], check=True)
 
     # 4. Perform editable install of the CLI package
     cli_dir = os.path.join(repo_root, "cli")
     print(f"Installing CLI package in editable mode from {cli_dir}...", flush=True)
-    subprocess.run([python_bin, "-m", "pip", "install", "-e", cli_dir], check=True)
+    subprocess.run([python_bin, "-m", "uv", "pip", "install", "-e", cli_dir], check=True)
 
     # 5. Gather requirements files that exist to install them in a single resolution pass
     req_args = []
@@ -63,7 +64,7 @@ def main():
 
     if req_args:
         print("Installing dependencies in a single resolution pass...", flush=True)
-        subprocess.run([python_bin, "-m", "pip", "install"] + req_args, check=True)
+        subprocess.run([python_bin, "-m", "uv", "pip", "install"] + req_args, check=True)
 
     print("✅ Python toolchain bootstrapping completed successfully!", flush=True)
 

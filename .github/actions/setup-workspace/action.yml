@@ -142,16 +142,17 @@ runs:
         CLI_DIR: ${{ steps.resolve-paths.outputs.CLI_DIR }}
       run: |
         echo "::group::Install dev-tools"
+        pip install uv --break-system-packages
         if [ -f "requirements-dev.txt" ]; then
-          pip install -r requirements-dev.txt --break-system-packages
+          uv pip install --system -r requirements-dev.txt
         fi
         if [ -f "$CLI_DIR/requirements-dev.txt" ]; then
-          pip install -r "$CLI_DIR/requirements-dev.txt" --break-system-packages
+          uv pip install --system -r "$CLI_DIR/requirements-dev.txt"
         fi
         if [ -f "$CLI_DIR/requirements-ai.txt" ]; then
-          pip install -r "$CLI_DIR/requirements-ai.txt" --break-system-packages
+          uv pip install --system -r "$CLI_DIR/requirements-ai.txt"
         fi
-        pip install -e "$CLI_DIR" --break-system-packages
+        uv pip install --system -e "$CLI_DIR"
 
         echo "::endgroup::"
       shell: bash
