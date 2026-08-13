@@ -1,4 +1,4 @@
-# pylint: disable=missing-docstring,protected-access,redefined-outer-name,line-too-long
+# pylint: disable=missing-docstring,protected-access,redefined-outer-name
 from unittest.mock import patch, MagicMock
 import pytest
 from dev_tools.orchestrator import Orchestrator

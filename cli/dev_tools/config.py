@@ -155,9 +155,8 @@ def load_project_config(path: str | Path = "project_config.json") -> ProjectConf
     if p.exists():
         try:
             raw = json.loads(p.read_text(encoding="utf-8"))
-        except (json.JSONDecodeError, IOError) as e:
-            import sys
-            print(f"Warning: Failed to parse config file {p}: {e}", file=sys.stderr)
+        except (json.JSONDecodeError, IOError):
+            pass
     elif str(path) == "project_config.json":
         # Check parent directories for project_config.json if not in CWD
         # This helps when running from subdirectories
@@ -168,9 +167,8 @@ def load_project_config(path: str | Path = "project_config.json") -> ProjectConf
                 try:
                     raw = json.loads(check_path.read_text(encoding="utf-8"))
                     break
-                except (json.JSONDecodeError, IOError) as e:
-                    import sys
-                    print(f"Warning: Failed to parse candidate config file {check_path}: {e}", file=sys.stderr)
+                except (json.JSONDecodeError, IOError):
+                    pass
 
     def get_list(key: str) -> Optional[List[str]]:
         val = raw.get(key)

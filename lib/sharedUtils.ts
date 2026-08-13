@@ -28,26 +28,6 @@ export async function writeVerdictJson(verdictPath: string, data: any): Promise<
   await fs.promises.writeFile(resolvedPath, JSON.stringify(data, null, 2));
 }
 
-export async function writeGracefulExitVerdict(
-  reportFileName: string,
-  artifactsDir: string,
-  prevState: any,
-  isTruncated: boolean = false,
-  skipReason?: string
-): Promise<void> {
-  const safeReportFileName = path.basename(reportFileName);
-  const verdictPath = path.join(artifactsDir, `${safeReportFileName.replace('.md', '')}-verdict.json`);
-  await writeVerdictJson(verdictPath, {
-    passed: true,
-    highCount: 0,
-    routes: [],
-    llmVerdict: 'pass',
-    isTruncated,
-    skipReason,
-    state: prevState || { findings: [] }
-  });
-}
-
 export async function checkReviewQuota(
   existingCount: number,
   maxReviews: number,
