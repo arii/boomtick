@@ -41,3 +41,11 @@ Aligns the repository with the "Zero-Submodule Integration" pattern while ensuri
 * `pnpm` is explicitly pinned to `10.28.2`.
 * `.agent-context.json` exists or can be properly generated using `pnpm run agent:prime`.
 * Validate that GitHub Actions pass in the repository.
+
+---
+**Files modified in this issue:**
+.github/workflows/agent-orchestrator.yml
+.github/workflows/chatops-trigger.yml
+.github/workflows/ci.yml
+.github/workflows/release.yml
+.github/workflows/smoke-test-impact-analysis.yml
