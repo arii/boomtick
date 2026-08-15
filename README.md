@@ -31,6 +31,10 @@ The codebase is split into two primary operational layers:
 * **`mcp/` (Model Context Protocol Server):** Empowers AI agents with structured access to GitHub Pull Requests, repository state, CI logs, and validation tools. Facilitates conflict resolution, branch creation, and interaction with the Jules macro-agent.
 * **`cli/` (`td-cli`):** A terminal-based fallback and local automation toolkit. Integrates directly with the GitHub CLI (`gh`) to handle manual PR audits, conflict detection, and runtime consistency checks.
 
+### Zero-Submodule Integration
+
+BoomTick uses a direct GitHub Actions integration strategy. See [docs/onboarding.md](docs/onboarding.md) for how to use BoomTick tools in other repositories via our `@main` tracked composite actions.
+
 ---
 
 ## Advanced AI Integration
