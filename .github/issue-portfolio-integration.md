@@ -41,3 +41,10 @@ Enforces the recommended Zero-Submodule Integration pattern while explicitly sat
 * `project_config.json` contains valid configuration.
 * `pnpm` is explicitly pinned to `10.28.2`.
 * Validate that GitHub Actions pass in the repository.
+
+---
+**Files modified in this issue:**
+.github/workflows/agent-orchestrator.yml
+.github/workflows/chatops-trigger.yml
+.github/workflows/release.yml
+.github/workflows/smoke-test-impact-analysis.yml
