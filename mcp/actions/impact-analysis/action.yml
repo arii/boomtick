@@ -173,8 +173,13 @@ runs:
           echo "Executing check-visual-changes.ts at: $RESOLVED_PATH"
           pnpm exec tsx "$RESOLVED_PATH" >> "$GITHUB_OUTPUT"
         else
-          echo "⚠️ Skipping: check-visual-changes.ts script not found. Defaulting changed_routes=0"
-          echo "changed_routes=0" >> "$GITHUB_OUTPUT"
+          if [ -f "scripts/check-visual-changes.ts" ]; then
+            echo "Executing check-visual-changes.ts from current workspace."
+            pnpm exec tsx scripts/check-visual-changes.ts >> "$GITHUB_OUTPUT"
+          else
+            echo "⚠️ Skipping: check-visual-changes.ts script not found. Defaulting changed_routes=0"
+            echo "changed_routes=0" >> "$GITHUB_OUTPUT"
+          fi
         fi
       shell: bash
 
@@ -328,9 +333,18 @@ runs:
         if [ -f "$TARGET_PATH" ]; then
           RESOLVED_PATH=$(realpath "$TARGET_PATH")
           echo "Executing send-jules-impact.py at: $RESOLVED_PATH"
+          export PYTHONPATH="$(realpath "${{ github.action_path }}/../../../cli"):$PYTHONPATH"
           python3 "$RESOLVED_PATH"
         else
-          echo "⚠️ Skipping: send-jules-impact.py script not found."
+          # Fallback check for docker run execution or direct python script in checkout workspace
+          # Inside container execution, scripts/send-jules-impact.py should exist in workspace
+          if [ -f "scripts/send-jules-impact.py" ]; then
+            echo "Executing send-jules-impact.py from current workspace."
+            export PYTHONPATH="cli:$PYTHONPATH"
+            python3 scripts/send-jules-impact.py
+          else
+            echo "⚠️ Skipping: send-jules-impact.py script not found."
+          fi
         fi
       shell: bash
 
