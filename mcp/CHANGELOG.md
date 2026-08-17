@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.3.7](https://github.com/arii/boomtick/compare/mcp-v0.3.6...mcp-v0.3.7) (2026-08-17)
+
+
+### Bug Fixes
+
+* **ci:** remove submodule-pinned action refs from impact-analysis ([#723](https://github.com/arii/boomtick/issues/723)) ([d6e0494](https://github.com/arii/boomtick/commit/d6e0494fe8ac781777fb1546bb3c0f0102074a5c))
+* ensure impact analysis posts PR comments and sends Jules messages ([#724](https://github.com/arii/boomtick/issues/724)) ([a52cc8e](https://github.com/arii/boomtick/commit/a52cc8e220def8bf2057b4da1b596e80fc0eed1f))
+* resolve script fallback paths in mcp impact-analysis action ([#716](https://github.com/arii/boomtick/issues/716)) ([b29dd06](https://github.com/arii/boomtick/commit/b29dd067da2b45fc8410ca26e34a8c74626fe937))
+
 ## [0.3.6](https://github.com/arii/boomtick/compare/mcp-v0.3.5...mcp-v0.3.6) (2026-08-13)
 
 
