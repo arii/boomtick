@@ -87,6 +87,19 @@ def main():
             except IOError as e:
                 logger.error(f"Failed to read {filepath}: {e}")
 
+    # Also check Python CLI review files in .boomtick/logs/
+    for search_dir in [".boomtick/logs/reviews", ".boomtick/logs/logs/reviews"]:
+        if os.path.isdir(search_dir):
+            for filepath in glob.glob(os.path.join(search_dir, "pr-review-*.md")):
+                try:
+                    with open(filepath, "r", encoding="utf-8") as f:
+                        content = f.read()
+                        if not is_skipped_review(content):
+                            body += content + "\n\n"
+                            has_valid_reviews = True
+                except IOError as e:
+                    logger.error(f"Failed to read {filepath}: {e}")
+
     # Append verdict JSONs
     verdicts = []
     # Safe globbing within the artifacts directory to prevent traversal

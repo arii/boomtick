@@ -16,5 +16,5 @@ runs:
           echo "::error::Invalid PR_NUMBER: must be numeric."
           exit 1
         fi
-        td-cli gh audit-pr "$PR_NUMBER" --fetch --audit
+        td-cli gh audit-pr "$PR_NUMBER" --fetch --audit --submit --execute
       shell: bash
