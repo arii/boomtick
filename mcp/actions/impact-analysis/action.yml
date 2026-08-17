@@ -16,10 +16,8 @@ inputs:
 runs:
   using: composite
   steps:
-    - uses: arii/boomtick/mcp/actions/setup@main
-
-    - name: pnpm install
-      run: pnpm install --frozen-lockfile --prefer-offline
+    - name: Configure Git Safe Directory
+      run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
       shell: bash
 
     - name: Validate PR Number
@@ -350,11 +348,83 @@ runs:
 
     - name: Update Impact Analysis Feedback (Final Result)
       if: always()
-      uses: arii/boomtick/mcp/actions/update-pr-comment@main
+      uses: actions/github-script@v8 # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
+      env:
+        INPUT_STATUS_LINE: '✅ **Impact Analysis Complete**'
+        INPUT_IMPACT_BODY: ${{ env.IMPACT_BODY }}
       with:
-        github_token: ${{ inputs.github_token }}
-        status_line: '✅ **Impact Analysis Complete**'
-        impact_body: ${{ env.IMPACT_BODY }}
+        github-token: ${{ inputs.github_token }}
+        script: |
+          const owner = context.repo.owner;
+          const repo = context.repo.repo;
+          const branchName = context.ref.replace('refs/heads/', '');
+
+          const pstTime = new Date().toLocaleString('en-US', {
+            timeZone: 'America/Los_Angeles',
+            dateStyle: 'medium',
+            timeStyle: 'short'
+          });
+
+          if (branchName === 'main') return;
+
+          const pullRequests = await github.paginate(github.rest.pulls.list, {
+            owner,
+            repo,
+            state: 'open'
+          });
+          const matchingPRs = pullRequests.filter(pr => pr.head.ref === branchName);
+
+          const statusLine = process.env.INPUT_STATUS_LINE;
+          let impactBodyText = (process.env.INPUT_IMPACT_BODY || '')
+            .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '[REMOVED SCRIPT]');
+
+          for (const pr of matchingPRs) {
+            const commentTag = `<!-- impact-analysis-comment-${branchName} -->`;
+            let bodyParts = [
+              `🚀 **Impact Analysis Details** (Last updated: ${pstTime} PST)`,
+              '',
+              statusLine,
+              `- **Commit SHA:** \`${process.env.GITHUB_SHA.slice(0, 7)}\``,
+              `- [Link to artifacts](https://github.com/${owner}/${repo}/actions/runs/${context.runId})`,
+              ''
+            ];
+
+            if (impactBodyText) {
+              bodyParts.push(impactBodyText, '');
+            }
+
+            const MAX_LENGTH = 65536;
+            const truncationNotice = '\n\n... (truncated due to GitHub comment size limits)\n';
+            let currentContent = bodyParts.join('\n');
+            let projectedLength = currentContent.length + commentTag.length + 1;
+
+            if (projectedLength > MAX_LENGTH) {
+              const availableLength = MAX_LENGTH - commentTag.length - truncationNotice.length - 2;
+              let safeContent = currentContent.slice(0, availableLength);
+              let lastNewline = safeContent.lastIndexOf('\n');
+              if (lastNewline > availableLength * 0.9) {
+                safeContent = safeContent.slice(0, lastNewline);
+              }
+              bodyParts = [safeContent, truncationNotice];
+            }
+
+            bodyParts.push(commentTag);
+            const body = bodyParts.join('\n');
+
+            const comments = await github.paginate(github.rest.issues.listComments, {
+              owner,
+              repo,
+              issue_number: pr.number,
+            });
+
+            const existingComment = comments.find(c => c.body.includes(commentTag));
+
+            if (existingComment) {
+              await github.rest.issues.updateComment({ owner, repo, comment_id: existingComment.id, body });
+            } else {
+              await github.rest.issues.createComment({ issue_number: pr.number, owner, repo, body });
+            }
+          }
 
     - name: Merge AI Logs into Artifacts
       if: always()
