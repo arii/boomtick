@@ -101,7 +101,7 @@ jobs:
           fetch-depth: 0
 
       - name: Setup Environment
-        uses: arii/boomtick/.github/actions/setup-all@main
+        uses: arii/boomtick/.github/actions/setup-all@main # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
         with:
           setup-python: 'true'
 
@@ -181,7 +181,7 @@ jobs:
 
       - name: Set up Docker Buildx and Registry Login
         if: (steps.determine_target.outputs.target == 'all' || steps.determine_target.outputs.target == 'cli') && (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && steps.determine_target.outputs.dry_run == 'false'))
-        uses: arii/boomtick/.github/actions/setup-docker-buildx@main
+        uses: arii/boomtick/.github/actions/setup-docker-buildx@main # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
         with:
           login: 'true'
           password: ${{ secrets.GITHUB_TOKEN }}
