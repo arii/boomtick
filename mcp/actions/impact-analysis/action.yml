@@ -197,21 +197,6 @@ runs:
         fi
       shell: bash
 
-    - name: Visual review github models agent
-      if: always() && steps.check_visuals.outputs.changed_routes != '0' && steps.check_visuals.outputs.changed_routes != ''
-      env:
-        GITHUB_TOKEN: ${{ inputs.github_token }}
-        PR_NUMBER: ${{ inputs.pr_number }}
-        JULES_API_KEY: ${{ inputs.jules_api_key }}
-        GITHUB_REPOSITORY: ${{ github.repository }}
-      run: |
-        if node -e "const pkg = require('./package.json'); if (!pkg.scripts || !pkg.scripts['impact:github-models-review']) process.exit(1)" 2>/dev/null; then
-          pnpm run impact:github-models-review
-        else
-          echo "⚠️ Skipping: impact:github-models-review script not found"
-        fi
-      shell: bash
-
     - name: Report Summary
       if: always()
       run: |
@@ -244,26 +229,20 @@ runs:
         if [ -f artifacts/gemini-review.md ]; then
           { echo ""; cat artifacts/gemini-review.md; } >> "$GITHUB_STEP_SUMMARY"
         fi
-        if [ -f artifacts/github-models-review.md ]; then
-          { echo ""; cat artifacts/github-models-review.md; } >> "$GITHUB_STEP_SUMMARY"
-        fi
         if [ -f artifacts/gemini-code-review.md ]; then
           { echo ""; cat artifacts/gemini-code-review.md; } >> "$GITHUB_STEP_SUMMARY"
         fi
-        if [ -f artifacts/github-models-code-review.md ]; then
-          { echo ""; cat artifacts/github-models-code-review.md; } >> "$GITHUB_STEP_SUMMARY"
-        fi
 
         FAILED=0
-        # Expected verdicts: gemini-code-review, github-models-code-review
+        # Expected verdicts: gemini-code-review
         # Visual reviews are expected only if visual changes exist
         EXPECTED_REVIEWS=""
         if [ "${{ steps.impact_analysis.outputs.has_impact }}" == "true" ]; then
           if [ "${{ github.event_name }}" == "pull_request" ]; then
-            EXPECTED_REVIEWS="gemini-code-review github-models-code-review"
+            EXPECTED_REVIEWS="gemini-code-review"
           fi
           if [ "${{ steps.check_visuals.outputs.changed_routes }}" != "0" ] && [ "${{ steps.check_visuals.outputs.changed_routes }}" != "" ]; then
-            EXPECTED_REVIEWS="$EXPECTED_REVIEWS gemini-review github-models-review"
+            EXPECTED_REVIEWS="$EXPECTED_REVIEWS gemini-review"
           fi
         fi
 
