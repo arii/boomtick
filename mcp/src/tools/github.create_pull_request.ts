@@ -4,7 +4,7 @@ import { CreatePullRequestInputSchema } from "./contract.js";
 
 export { CreatePullRequestInputSchema };
 
-export async function createPullRequestHandler(args: z.infer<typeof CreatePullRequestInputSchema>) {
+export async function createPullRequestHandler(args: z.input<typeof CreatePullRequestInputSchema>) {
   const params = CreatePullRequestInputSchema.parse(args);
 
   const tdArgs = [
