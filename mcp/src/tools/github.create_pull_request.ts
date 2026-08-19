@@ -1,26 +1,27 @@
 import { z } from "zod";
 import { runCommand } from "../lib/shell.js";
+import { CreatePullRequestInputSchema } from "./contract.js";
 
-export const CreatePullRequestInputSchema = z.object({
-  title: z.string(),
-  body: z.string(),
-  head: z.string(),
-  base: z.string().optional().default("main"),
-  draft: z.boolean().optional().default(false),
-});
+export { CreatePullRequestInputSchema };
 
 export async function createPullRequestHandler(args: z.infer<typeof CreatePullRequestInputSchema>) {
+  const params = CreatePullRequestInputSchema.parse(args);
+
   const tdArgs = [
     "gh",
     "create-pr",
-    "--title", args.title,
-    "--body", args.body,
-    "--head", args.head,
-    "--base", args.base
+    "--title", params.title,
+    "--body", params.body,
+    "--head", params.head,
+    "--base", params.base
   ];
 
-  if (args.draft) {
+  if (params.draft) {
     tdArgs.push("--draft");
+  }
+
+  if (params.repo) {
+    tdArgs.push("--repo", params.repo);
   }
 
   const result = await runCommand("td-cli", tdArgs);

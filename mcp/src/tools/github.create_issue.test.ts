@@ -32,6 +32,46 @@ describe("github.create_issue", () => {
     expect(result.issue?.title).toBe("Test Issue");
   });
 
+  it("should append --repo flag when repo parameter is provided", async () => {
+    const mockResponse = {
+      status: "success",
+      issue: {
+        number: 456,
+        title: "Cross Repo Issue",
+        html_url: "https://github.com/org/other-repo/issues/456",
+        state: "open"
+      }
+    };
+
+    vi.mocked(shell.runCommand).mockResolvedValue({
+      stdout: JSON.stringify(mockResponse),
+      stderr: "",
+      exitCode: 0,
+      durationMs: 10,
+      command: "td-cli gh create-issue --title 'Cross Repo Issue' --body 'Body' --repo 'org/other-repo'"
+    });
+
+    const result = await createIssueHandler({
+      title: "Cross Repo Issue",
+      body: "Body",
+      file: null,
+      repo: "org/other-repo"
+    });
+
+    expect(shell.runCommand).toHaveBeenCalledWith("td-cli", [
+      "gh",
+      "create-issue",
+      "--title",
+      "Cross Repo Issue",
+      "--body",
+      "Body",
+      "--repo",
+      "org/other-repo"
+    ]);
+    expect(result.status).toBe("success");
+    expect(result.issue?.number).toBe(456);
+  });
+
   it("should throw error on command failure", async () => {
     vi.mocked(shell.runCommand).mockResolvedValue({
       stdout: "",

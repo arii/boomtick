@@ -11,6 +11,7 @@ export async function createIssueHandler(args: z.infer<typeof CreateIssueInputSc
   const cmdArgs = ["gh", "create-issue", "--title", params.title];
   if (params.body) cmdArgs.push("--body", params.body);
   if (params.file) cmdArgs.push("--file", params.file);
+  if (params.repo) cmdArgs.push("--repo", params.repo);
 
   const result = await runCommand("td-cli", cmdArgs);
 

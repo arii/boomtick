@@ -150,6 +150,47 @@ def test_fetch_pr_info_graphql():
             assert result["files"] == [{"filename": "file1.py"}, {"filename": "file2.py"}]
 
 
+def test_create_issue_repo_override():
+    with patch("dev_tools.utils.get_github_token", return_value="dummy_token"), patch(
+        "dev_tools.services.github.DiskCache"
+    ) as mock_cache:
+        mock_cache.return_value.get.return_value = None
+        client = GitHubClient(repo="owner/repo")
+
+        mock_ret = {"number": 42, "title": "Title", "html_url": "url", "state": "open"}
+        with patch.object(client, "_request", return_value=mock_ret) as mock_request:
+            res = client.create_issue("Title", "Body", repo="org/other-repo")
+            mock_request.assert_called_once_with(
+                "POST", "/repos/org/other-repo/issues", json_data={"title": "Title", "body": "Body"}
+            )
+            assert res["number"] == 42
+
+
+def test_create_pull_request_repo_override():
+    with patch("dev_tools.utils.get_github_token", return_value="dummy_token"), patch(
+        "dev_tools.services.github.DiskCache"
+    ) as mock_cache:
+        mock_cache.return_value.get.return_value = None
+        client = GitHubClient(repo="owner/repo")
+
+        with patch.object(client, "branch_exists", return_value=True) as mock_branch_exists, patch.object(
+            client, "_request", return_value={"number": 99, "html_url": "pr_url"}
+        ) as mock_request:
+            res = client.create_pull_request(
+                "PR Title", "PR Body", "feature", "main", draft=False, repo="org/other-repo"
+            )
+            mock_branch_exists.assert_called_once_with("feature", repo="org/other-repo")
+            expected_data = {
+                "title": "PR Title",
+                "body": "PR Body",
+                "head": "feature",
+                "base": "main",
+                "draft": False,
+            }
+            mock_request.assert_called_once_with("POST", "/repos/org/other-repo/pulls", json_data=expected_data)
+            assert res["number"] == 99
+
+
 class TestGitHubClientGraphQL(unittest.TestCase):
     def setUp(self):
         with patch("dev_tools.utils.get_github_token") as mock_token:
