@@ -29,6 +29,7 @@ class CreateIssueInput(CamelCaseModel):
     title: str = Field(..., min_length=1)
     body: Optional[str] = Field(None, min_length=1)
     file: Optional[str] = Field(None, min_length=1)
+    repo: Optional[str] = Field(None, description="The target repository override (e.g. org/repo).")
 
     @model_validator(mode="after")
     def check_body_or_file(self) -> "CreateIssueInput":
@@ -223,6 +224,7 @@ class CreatePullRequestInput(CamelCaseModel):
     head: str = Field(..., description="The branch containing changes to merge.")
     base: str = Field("main", description="The target branch to merge into.")
     draft: bool = Field(False, description="Whether to create the PR as a draft.")
+    repo: Optional[str] = Field(None, description="The target repository override (e.g. org/repo).")
 
 
 class CommentTriageSummaryInput(CamelCaseModel):

@@ -40,14 +40,16 @@ class GitHubClient:
         self.use_graphql = use_graphql and not disable_gql_env
         self._node_id_cache: Dict[str, str] = {}
 
-    def branch_exists(self, branch_name: str) -> bool:
+    def branch_exists(self, branch_name: str, repo: Optional[str] = None) -> bool:
         """Checks if a branch exists in the repository, with caching."""
-        if branch_name in self._branch_cache:
-            return self._branch_cache[branch_name]
+        target_repo = repo or self.repo
+        cache_key = f"{target_repo}:{branch_name}"
+        if cache_key in self._branch_cache:
+            return self._branch_cache[cache_key]
 
         try:
-            self._request("GET", f"/repos/{self.repo}/branches/{branch_name}")
-            self._branch_cache[branch_name] = True
+            self._request("GET", f"/repos/{target_repo}/branches/{branch_name}")
+            self._branch_cache[cache_key] = True
             return True
         except (requests.exceptions.RequestException, CLIError) as e:
             # Fallback to status_code if 'code' attribute is missing (e.g. RequestException)
@@ -56,12 +58,16 @@ class GitHubClient:
                 code = e.response.status_code
 
             if code == 404:
-                self._branch_cache[branch_name] = False
+                self._branch_cache[cache_key] = False
                 return False
             raise e
 
-    def invalidate_branch_cache(self, branch_name: str) -> None:
+    def invalidate_branch_cache(self, branch_name: str, repo: Optional[str] = None) -> None:
         """Invalidates the branch existence cache for a specific branch."""
+        target_repo = repo or self.repo
+        cache_key = f"{target_repo}:{branch_name}"
+        if cache_key in self._branch_cache:
+            del self._branch_cache[cache_key]
         if branch_name in self._branch_cache:
             del self._branch_cache[branch_name]
 
@@ -457,27 +463,30 @@ class GitHubClient:
 
         return prs
 
-    def create_pull_request(self, title: str, body: str, head: str, base: str, draft: bool = False) -> Dict[str, Any]:
+    def create_pull_request(
+        self, title: str, body: str, head: str, base: str, draft: bool = False, repo: Optional[str] = None
+    ) -> Dict[str, Any]:
         """Creates a PR, automatically pushing the head branch if it doesn't exist on remote."""
+        target_repo = repo or self.repo
         # Security: Validate branch name to prevent injection
         if not self.BRANCH_NAME_PATTERN.match(head):
             raise CLIError(f"Invalid branch name: {head}", code=400)
 
-        if not self.branch_exists(head):
+        if not self.branch_exists(head, repo=target_repo):
             log_warn(f"Branch '{head}' not found on remote. Checking for local branch and pushing...")
-            git_util = GitUtility(token=self.token, repo=self.repo)
+            git_util = GitUtility(token=self.token, repo=target_repo)
 
             # Style: Explicitly check for local branch existence before pushing
             if not git_util.branch_exists_locally(head):
                 log_warn(f"Local branch '{head}' also not found. PR creation will likely fail.")
             elif git_util.push_branch(head):
                 # Invalidate branch cache
-                self.invalidate_branch_cache(head)
+                self.invalidate_branch_cache(head, repo=target_repo)
             else:
                 log_warn(self.ERROR_AUTO_PUSH_FAILED.format(head=head))
 
         data = {"title": title, "body": body, "head": head, "base": base, "draft": draft}
-        return self._request("POST", f"/repos/{self.repo}/pulls", json_data=data)
+        return self._request("POST", f"/repos/{target_repo}/pulls", json_data=data)
 
     def _handle_missing_logs(self, identifier: Any, is_fallback: bool = False) -> str:
         """Helper to log warning and return a warning string for missing logs."""
@@ -541,9 +550,10 @@ class GitHubClient:
     def create_issue_comment(self, number: int, body: str) -> Dict[str, Any]:
         return self._request("POST", f"/repos/{self.repo}/issues/{number}/comments", json_data={"body": body})
 
-    def create_issue(self, title: str, body: str) -> Dict[str, Any]:
+    def create_issue(self, title: str, body: str, repo: Optional[str] = None) -> Dict[str, Any]:
         """Creates a new GitHub issue."""
-        res = self._request("POST", f"/repos/{self.repo}/issues", json_data={"title": title, "body": body})
+        target_repo = repo or self.repo
+        res = self._request("POST", f"/repos/{target_repo}/issues", json_data={"title": title, "body": body})
         return self._normalize_issue_response(res)
 
     @staticmethod
