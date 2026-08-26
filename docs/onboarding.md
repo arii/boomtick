@@ -1,20 +1,36 @@
 # Repository Onboarding, Workflows, and Integration Guide
 
-Welcome to the `arii/boomtick` repository! This document serves as the single source of truth for onboarding developers and integrating `boomtick` as a core dependency/submodule inside a new repository.
+Welcome to the `arii/boomtick` repository! This document serves as the single source of truth for onboarding developers and integrating `boomtick` using the **Zero-Submodule Strategy** into downstream consumer repositories (such as `arii/portfolio` or `arii/tech-dancer`).
+
+---
+
+## Onboarding Checklist
+
+Use this checklist to ensure all prerequisites and configuration steps are complete when setting up Boomtick in a new repository:
+
+- [ ] **Initialize Context Index**: Create `.agent-context.json` in your repository root to establish the workspace index.
+- [ ] **Create Repository Configuration**: Add `project_config.json` at your repository root with `github_repo` and AI review model chain configurations.
+- [ ] **Configure GitHub Secrets**: Set up required repository secrets:
+  - `JULES_API_KEY`: Required for automated self-repair sessions and orchestrator integration.
+  - `GEMINI_API_KEY`: Required for multi-modal code review and vision pipelines.
+  - `GITHUB_TOKEN` (or GitHub App Token `APP_ID` / `APP_PRIVATE_KEY`): For repository-scoped actions.
+- [ ] **Install Integration Paradigm**: Select and set up PyPI package (`pip install boomtick`), Docker container (`ghcr.io/arii/boomtick`), or npm MCP package (`@arii/boomtick-mcp`).
+- [ ] **Integrate GitHub Composite Actions**: Reference Boomtick composite actions (such as `setup-workspace`, `chatops`, `ai-review`, and `impact-analysis`) in your `.github/workflows/`.
+- [ ] **Verify Local Setup & Schemas**: Test CLI commands or MCP tools locally and run schema contract synchronization (`pnpm run verify:schemas` if developing locally).
 
 ---
 
 ## Problem Statement
 
-To enable rapid deployment of autonomous agent tooling, low-latency AI-driven PR reviews, and automated verification suites across multiple projects, developers need a streamlined way to integrate `boomtick` as a submodule or dependency.
-Without clear onboarding and integration guidelines, new repositories risk API/schema drift, incorrect setup configurations, and misconfigured CI/CD workflows.
+To enable rapid deployment of autonomous agent tooling, low-latency AI-driven PR reviews, and automated verification suites across multiple projects, developers need a streamlined way to integrate `boomtick`.
+Coupling downstream repositories via Git submodules introduces deep filesystem dependencies, complex tree synchronizations, and fragile CI builds. A decoupled, zero-submodule approach using standalone packages, Docker containers, and composite GitHub Actions is required.
 
 ## Goal
 
-- Provide a step-by-step blueprint for incorporating `boomtick` into a new parent repository.
+- Provide a step-by-step blueprint for incorporating `boomtick` into downstream repositories via package managers, Docker containers, and composite actions.
 - Document setup procedures, local run commands, and workspace contract synchronization patterns.
-- Outline automated workflow setup using the `td-cli` tool to avoid manual configuration errors.
-- Define branching, PR, and collaboration rules to maintain repository hygiene and coordinate submodule changes.
+- Outline workflow integration and secret configuration to maintain consistent operational automation.
+- Define branching, PR, and collaboration rules to maintain repository hygiene.
 
 ## Non-Goals
 
@@ -23,53 +39,124 @@ Without clear onboarding and integration guidelines, new repositories risk API/s
 
 ## Proposed Approach
 
-This guide details the integration lifecycle of `boomtick` in four operational stages: **Dependency & Submodule Integration**, **Automated Workflow Installation**, **Local Run/Verification Workflows**, and **Collaboration & Branching Strategy**.
+This guide details the integration lifecycle of `boomtick` in four operational stages: **Zero-Submodule Integration Paradigms**, **GitHub Actions Integration**, **Local Run & MCP Workflows**, and **Collaboration & Branching Strategy**.
 
 ---
 
-### Zero-Submodule Integration (Zero-Submodule Strategy)
+### Zero-Submodule Strategy
 
-Downstream consumer repositories can integrate BoomTick's powerful automation capabilities **without** initializing it as a git submodule. This decouples your workflows from direct filesystem dependency trees, speeding up CI pipelines and removing submodule overhead.
+Downstream consumer repositories integrate Boomtick's powerful automation capabilities **without** initializing it as a git submodule. Boomtick is consumed as a standalone PyPI package, a Docker container image, an npm MCP package, or via GitHub composite actions. This decouples your workflows from direct filesystem dependency trees, speeding up CI pipelines and eliminating submodule overhead.
 
-#### Direct Integration in GitHub Workflows
-Instead of using local workflow configurations pointing to submodule paths, reference BoomTick's composite actions directly:
+#### 1. PyPI Package (`boomtick`)
 
-```yaml
-      - name: Checkout repository
-        uses: actions/checkout@v7
-        with:
-          fetch-depth: 1
+The Python CLI developer tool (`td-cli`) and automation utilities are available directly via PyPI.
 
-      - name: BoomTick ChatOps Dispatcher
-        uses: arii/boomtick/.github/actions/chatops@main
-        with:
-          comment_body: ${{ github.event.comment.body }}
-          author_association: ${{ github.event.comment.author_association }}
-          issue_number: ${{ github.event.issue.number }}
-          github_token: ${{ secrets.GITHUB_TOKEN }}
+```bash
+# Standard pip installation
+pip install boomtick
+
+# Fast installation with uv
+uv pip install boomtick
 ```
 
+Verify installation:
+```bash
+td-cli --help
+```
+
+#### 2. Docker Container (`ghcr.io/arii/boomtick`)
+
+For containerized environments, CI runners, or isolated execution, Boomtick provides official OCI container images hosted on GitHub Container Registry.
+
+```bash
+# Pull the latest image
+docker pull ghcr.io/arii/boomtick:latest
+
+# Run interactive CLI command inside container
+docker run --rm -it -v $(pwd):/app -e GITHUB_TOKEN=$GITHUB_TOKEN ghcr.io/arii/boomtick:latest td-cli --help
+```
+
+Commit-tagged images are also available for reproducible builds (e.g. `ghcr.io/arii/boomtick:sha-<commit_sha>`).
+
+#### 3. MCP Server via npm (`@arii/boomtick-mcp`)
+
+The Model Context Protocol (MCP) server enables AI agent environments (such as Claude Desktop or IDE extensions) to interact with Boomtick capabilities.
+
+```bash
+# Global installation using npm or pnpm
+npm install -g @arii/boomtick-mcp
+# or
+pnpm add -g @arii/boomtick-mcp
+
+# Execute directly via npx / pnpm dlx
+npx @arii/boomtick-mcp
+```
+
+---
+
+### 1. Repository Configuration & Setup
+
+Every downstream repository consuming `boomtick` requires workspace configuration files at its root.
+
+#### Step 1: Create `project_config.json`
+Add `project_config.json` to declare base parameters for `td-cli` and AI review model routing:
+
+```json
+{
+  "github_repo": "your-org/your-repo",
+  "vite_base_path": "/",
+  "triage_chain": {
+    "primary": "gpt-4o-mini",
+    "fallbacks": ["gemini-1.5-flash"],
+    "max_retries": 2
+  },
+  "code_review_chain": {
+    "primary": "gpt-4o",
+    "fallbacks": ["deepseek-r1", "llama-3.3-70b-instruct"],
+    "max_retries": 3
+  }
+}
+```
+
+#### Step 2: Initialize `.agent-context.json`
+Create `.agent-context.json` to index repository metadata and scope definitions for agent operations.
+
+#### Step 3: Runtime Expectations
+Any host repository running `boomtick` tools locally or in CI should align with:
+- **Node.js**: `v24.x` (or `v20+`)
+- **pnpm**: `v10.x`
+- **Python**: `python 3.10+` (preferably with `uv` or standard venv)
+
+---
+
+### 2. GitHub Actions Integration
+
+Instead of local script paths or submodules, reference Boomtick's composite actions directly in your repository's `.github/workflows/`:
+
 #### Available Reusable Actions
-BoomTick exposes the following Composite Actions under `.github/actions/`:
-1. **`setup-workspace`**: Installs pnpm, Node, Python, and the `td-cli` developer tool natively onto the runner.
+Boomtick exposes the following Composite Actions under `arii/boomtick/.github/actions/` (or `mcp/actions/`):
+
+1. **`setup-workspace`**: Installs Node, Python, and the `td-cli` developer tool natively onto the runner.
    ```yaml
-   uses: arii/boomtick/.github/actions/setup-workspace@main
+   uses: arii/boomtick/.github/actions/setup-workspace@main # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
    with:
      setup-node: 'true'
      setup-python: 'true'
    ```
+
 2. **`chatops`**: Handles comment parsing and automatically dispatches appropriate workflow operations.
    ```yaml
-   uses: arii/boomtick/.github/actions/chatops@main
+   uses: arii/boomtick/.github/actions/chatops@main # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
    with:
-     comment_body: ${{ inputs.comment_body }}
-     author_association: ${{ inputs.author_association }}
-     issue_number: ${{ inputs.issue_number }}
+     comment_body: ${{ github.event.comment.body }}
+     author_association: ${{ github.event.comment.author_association }}
+     issue_number: ${{ github.event.issue.number }}
      github_token: ${{ secrets.GITHUB_TOKEN }}
    ```
-3. **`ci-repair`**: Coordinates Automated CI failure tracking and manual Jules fix sessions.
+
+3. **`ci-repair`**: Coordinates automated CI failure tracking and self-repair fix sessions.
    ```yaml
-   uses: arii/boomtick/.github/actions/ci-repair@main
+   uses: arii/boomtick/.github/actions/ci-repair@main # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
    with:
      run_id: ${{ github.event.workflow_run.id }}
      run_url: ${{ github.event.workflow_run.html_url }}
@@ -78,159 +165,63 @@ BoomTick exposes the following Composite Actions under `.github/actions/`:
      github_token: ${{ secrets.GITHUB_TOKEN }}
      jules_api_key: ${{ secrets.JULES_API_KEY }}
    ```
-4. **`issue-operations`**: Orchestrates issue validation, content creation, AI reviews, conflict resolution, and snapshot updates.
+
+4. **`ai-review`**: Runs AI review audits on pull requests.
    ```yaml
-   uses: arii/boomtick/.github/actions/issue-operations@main
-   with:
-     action: 'ai-review'
-     issue_number: ${{ github.event.inputs.issue_number }}
-     github_token: ${{ secrets.GITHUB_TOKEN }}
-     gemini_api_key: ${{ secrets.GEMINI_API_KEY }}
-   ```
-5. **`ai-review`**: Runs AI review audits on a given pull request.
-   ```yaml
-   uses: arii/boomtick/.github/actions/ai-review@main
+   uses: arii/boomtick/.github/actions/ai-review@main # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
    with:
      pr_number: ${{ inputs.pr_number }}
    ```
 
----
+5. **`impact-analysis`**: Performs blast-radius checks and posts review summaries.
+   ```yaml
+   uses: arii/boomtick/.github/actions/impact-analysis@main # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
+   with:
+     github_token: ${{ secrets.GITHUB_TOKEN }}
+     gemini_api_key: ${{ secrets.GEMINI_API_KEY }}
+   ```
 
-### 1. Dependency & Submodule Integration
-
-To include `boomtick` in a new repository (acting as the superproject), follow these initial integration steps:
-
-#### Step 1: Add Boomtick as a Submodule
-In your new repository's root, add `boomtick` as a Git submodule. We recommend placing it in a folder like `mcp/` or `boomtick/`:
-```bash
-git submodule add https://github.com/arii/boomtick.git mcp
-git submodule update --init --recursive
-```
-
-#### Step 2: Configure `project_config.json`
-Every repository consuming `boomtick` needs a `project_config.json` at its root. This file declares base parameters to satisfy the CLI parser and workspace dependencies:
-```json
-{
-  "github_repo": "your-org/your-new-repo",
-  "vite_base_path": "/your-base-path/",
-  "code-review-chain": {
-    "primary": "gpt-4o",
-    "fallbacks": ["deepseek-r1", "llama-3.3-70b-instruct"],
-    "max_retries": 3
-  }
-}
-```
-
-#### Step 3: Runtime Expectations
-Any host repository running `boomtick` must align with the following runtime standards:
-- **Node.js**: `v24.16.0` (or `24.x`)
-- **pnpm**: `v10.28.2` (configured via `pnpm-workspace.yaml` or workspace `package.json`)
-- **Python**: `python3` (typically managed inside a local virtual environment like `.venv`)
-
----
-
-### 2. Automated Workflow Setup
-
-`boomtick` includes an automated setup script to synchronize and copy the required AI/automation workflows from the submodule directly into your superproject's GitHub action workspace.
-
-#### Step 1: Run local bootstrap
-Navigate into your submodule and execute the setup script:
-```bash
-cd mcp # (or the directory where you added the submodule)
-./setup-agent.sh
-```
-
-#### Step 2: Automatically Install Workflows
-Run the `td-cli` workflow installation command. This command automatically copies the correct GitHub Actions workflows to your parent repository's `.github/workflows/` directory, while dynamically adjusting composite action paths to target the submodule folder name:
-```bash
-# Run with --execute to perform the installation (without it, it defaults to a dry-run)
-td-cli agent install-workflows --execute
-```
-
-This command installs the following three essential workflows:
-1. **`chatops-trigger.yml`**: Triggers autonomous agent reviews, feedback collection, and macro-agent operations on PR comments or events.
-2. **`ci-repair.yml`**: Coordinates automated test verification and triggers Jules-led self-repair branches on CI failures.
-3. **`issue-operations.yml`**: Executes issue specification parsing and manages downstream issue lifecycle hooks.
-
-#### Step 3: Superproject secrets and Environment Configuration
-To authorize the automation workflows, you must configure the following repository Secrets in your parent GitHub repository:
-- `GITHUB_TOKEN` / `GH_PAT_SUBMODULE_UPDATE`: A personal access token or installation token with repository-scoped read/write permissions.
-- `JULES_API_KEY`: Required to communicate with the Jules session orchestrator.
-- `GEMINI_API_KEY`: Required to enable deep vision-based review pipelines.
-
-#### GitHub App Authentication (Optional - Replaces GITHUB_TOKEN)
-If you require your workflows to trigger other workflows (to allow recursion) or need higher privileges without using Personal Access Tokens (PATs), we recommend using the **GitHub App Authentication Flow**.
-
-1. Create a GitHub App in your organization/account with read/write permissions for **Contents**, **Pull Requests**, **Issues**, and **Actions**.
-2. Configure `APP_ID` and `APP_PRIVATE_KEY` as repository Secrets.
-3. In your caller workflow, generate a dynamic installation token and pass it as the `github_token` input to BoomTick composite actions:
-
-```yaml
-      - name: Generate GitHub App Token
-        id: app-token
-        uses: actions/create-github-app-token@v1
-        with:
-          app-id: ${{ secrets.APP_ID }}
-          private-key: ${{ secrets.APP_PRIVATE_KEY }}
-
-      - name: BoomTick ChatOps Dispatcher
-        uses: arii/boomtick/.github/actions/chatops@main
-        with:
-          comment_body: ${{ github.event.comment.body }}
-          author_association: ${{ github.event.comment.author_association }}
-          issue_number: ${{ github.event.issue.number }}
-          github_token: ${{ steps.app-token.outputs.token }}
-```
+#### GitHub Secrets Configuration
+Configure the following Secrets in your repository settings:
+- `JULES_API_KEY`: Communicates with the Jules session orchestrator.
+- `GEMINI_API_KEY`: Enables multi-modal vision and code review pipelines.
+- `GITHUB_TOKEN` or GitHub App Token (`APP_ID` & `APP_PRIVATE_KEY`): Passed as `github_token` input to composite actions.
 
 ---
 
 ### 3. Local Run & Verification Workflows
 
-When working within a repository containing `boomtick`, follow these local workflows to verify code changes, synchronize contract models, and boot the local MCP server.
-
 #### Schema & Contract Synchronization
-To keep TypeScript tool schemas and Python CLI models in perfect parity without manual copy-pasting, `boomtick` features an automated validation pipeline. Run this command in the submodule directory:
+To keep TypeScript MCP schemas and Python CLI models in sync during local development, run:
 ```bash
 pnpm run verify:schemas
 ```
-This command triggers `scripts/verify-schemas.mjs`, which coordinates:
-1. Identifying the correct local Python interpreter (preferring `.venv/bin/python3`).
-2. Generating the CLI schema (`cli/dev_tools/cli-schema.json`) from the Python models via `cli/dev_tools/schema_gen.py`.
-3. Synchronizing TypeScript contracts inside the MCP package (`pnpm --filter @arii/boomtick-mcp sync-contracts`).
-4. Rebuilding and synchronizing the final MCP schemas (`pnpm --filter @arii/boomtick-mcp sync:mcp-schemas`).
+This triggers `scripts/verify-schemas.mjs`, which generates CLI schemas from Python models and updates TypeScript MCP contracts.
 
 #### Running Tests Locally
-To verify the TypeScript MCP codebase, run the test suite:
-```bash
-pnpm --filter @arii/boomtick-mcp run test
-```
-To run Python CLI unit tests, run:
-```bash
-PYTHONPATH=cli pytest cli/tests
-```
+- TypeScript / MCP unit tests:
+  ```bash
+  pnpm --filter @arii/boomtick-mcp run test
+  ```
+- Python CLI unit tests:
+  ```bash
+  pnpm run test:python
+  # or
+  PYTHONPATH=cli pytest cli/tests
+  ```
 
 #### Activating the MCP Server Locally
-You can activate and connect to the MCP server locally via standard I/O:
-```bash
-# Direct execution
-node mcp/dist/index.js
-
-# Or via the start script
-./mcp/start_browsermcp.sh
-```
-
-To configure Claude Desktop or another MCP client to run the server on demand, insert this snippet in your client configuration:
+To connect Claude Desktop or another client to the local MCP server:
 ```json
 {
   "mcpServers": {
     "boomtick": {
-      "command": "node",
-      "args": ["/absolute/path/to/your-repo/mcp/dist/index.js"],
+      "command": "npx",
+      "args": ["-y", "@arii/boomtick-mcp"],
       "env": {
         "GITHUB_TOKEN": "your_github_token",
         "GITHUB_OWNER": "your_org",
-        "GITHUB_REPO": "your-repo",
-        "BOOMTICK_REPO_PATH": "/absolute/path/to/your-repo"
+        "GITHUB_REPO": "your-repo"
       }
     }
   }
@@ -241,48 +232,33 @@ To configure Claude Desktop or another MCP client to run the server on demand, i
 
 ### 4. Collaboration & Branching Strategy
 
-To maintain a clean history and prevent breaking changes between host repositories and `boomtick`, adhere to the following collaboration standards.
+To maintain a clean history and prevent breaking changes across repositories, adhere to standard collaboration rules:
 
-#### Pull Request & Branching Rules
-- **No Direct Push to Main**: All development must occur on separate branch names. Directly committing to the `main` branch is blocked.
-- **Squash & Rebase Merges**: To preserve a linear history, Pull Requests must be merged using either Squash or Rebase merge strategies.
-- **Approvals & Reviews**: Merging a Pull Request requires at least one review approval.
-- **Conventional Commits**: Every commit message must strictly adhere to the [Conventional Commits](https://www.conventionalcommits.org/) specification (e.g., `feat:`, `fix:`, `docs:`, `chore:`). This is required because our automated release system (`release-please`) relies on this format to parse changes and bump versions. Non-compliant commits will break automated release PR generation.
-
-#### Coordinating Submodule Changes
-When a feature requires changes across both the `boomtick` submodule and its consuming parent (superproject) repository, follow this workflow to prevent broken dependencies and build failures:
-1. **Develop First in Submodule**: Open a branch inside the `boomtick` subdirectory. Complete your CLI, MCP, or contract updates.
-2. **Submit Submodule PR**: Open a Pull Request on the `arii/boomtick` repository. Complete reviews, ensure all tests pass, and merge the changes into `boomtick`'s `main` branch.
-3. **Update Superproject Submodule Pointer**: Navigate to the parent repository root, fetch the latest submodule reference, and commit the pointer update:
-   ```bash
-   # Pull latest submodule main
-   git submodule update --remote --recursive
-
-   # Add the updated pointer change to git
-   git add mcp # (or the submodule folder name)
-   git commit -m "chore: bump boomtick submodule pointer to main"
-   ```
-4. **Submit Superproject PR**: Open a corresponding Pull Request in the superproject repository. Verify downstream integration tests (such as end-to-end or visual regression tests) before merging.
+- **No Direct Push to Main**: All changes must be delivered via Pull Requests from feature branches.
+- **Squash & Rebase Merges**: Maintain a linear git history.
+- **Conventional Commits**: Commit messages must adhere to [Conventional Commits](https://www.conventionalcommits.org/) (e.g., `feat:`, `fix:`, `docs:`, `chore:`) to ensure release automation functions properly.
+- **Independent Package Updates**: Downstream repositories bump Boomtick PyPI/Docker/npm package tags independently, eliminating tightly-coupled git submodule pointer updates.
 
 ---
 
 ## Alternatives Considered
 
-- **Manual Workflow Copy-Pasting**: Requiring host repos to manually copy YAML workflows and change all paths by hand. *Rejected* because it is extremely error-prone and leads to configuration drift during updates.
-- **Publishing as a Private npm/pip Dependency Only**: Distributing components solely via package managers. *Rejected* because local repository actions require tight access to worktrees, local filesystems, and custom git hook integration which is best done via submodules.
+- **Maintaining Submodule Integration**: Keeping git submodules as a legacy integration mode. *Rejected* because submodules create deep filesystem dependencies, fragile CI checkouts, and pointer sync friction across downstream repositories.
+- **Separate Quickstart File**: Creating a `docs/quickstart.md` document. *Rejected* because centralizing documentation in `docs/onboarding.md` avoids duplication and documentation fragmentation.
 
 ## Architectural Impact
 
-- **Zero-Drift Contracts**: Ensures unified Python-to-TypeScript contract validation across any repository consuming `boomtick`.
-- **Streamlined Workflow Maintenance**: Superprojects can update workflow files instantly by fetching submodule updates and re-running `td-cli agent install-workflows --execute`.
-- **Low-overhead Integration**: Host projects need minimal setup, remaining focused on their own domain logic.
+- **Zero-Submodule Integration**: Repositories consume Boomtick as standard PyPI packages, Docker containers, npm packages, or GitHub composite actions.
+- **Zero-Drift Contracts**: Unified Python-to-TypeScript contract validation without filesystem coupling.
+- **Low-Overhead Maintenance**: Downstream consumer repositories stay clean and focused on their own application logic.
 
 ## Scope
 
-This onboarding and integration guide is applicable to any human developer, repository owner, or autonomous system integrating `boomtick` as a dependency.
+This onboarding and integration guide applies to all downstream consumer repositories, developers, and autonomous systems integrating `boomtick`.
 
 ## DEFINITION OF DONE
 
-1. **Integration Guide Created**: `docs/onboarding.md` is updated with generic, reusable instructions for host repository dependency integration and automated workflow installations.
-2. **References Synced**: `README.md` correctly points to the updated onboarding guide.
-3. **Validation Passes**: Schema synchronization pipeline and unit tests run successfully.
+1. `docs/onboarding.md` is updated to remove submodule instructions.
+2. `docs/onboarding.md` includes instructions for PyPI (`pip install boomtick`), Docker (`ghcr.io/arii/boomtick`), and MCP package usage (`@arii/boomtick-mcp`).
+3. A clear "Onboarding Checklist" is present in the guide.
+4. The issue successfully validates against `td-cli gh validate-issue`.
