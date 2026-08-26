@@ -33,7 +33,7 @@ The codebase is split into two primary operational layers:
 
 ### Zero-Submodule Integration
 
-BoomTick uses a direct GitHub Actions integration strategy. See [docs/onboarding.md](docs/onboarding.md) for how to use BoomTick tools in other repositories via our `@main` tracked composite actions.
+Boomtick uses a direct standalone package, container, and composite action integration strategy. See [docs/onboarding.md](docs/onboarding.md) for how to integrate Boomtick into downstream repositories via PyPI (`boomtick`), Docker (`ghcr.io/arii/boomtick`), npm (`@arii/boomtick-mcp`), or composite actions.
 
 ---
 
