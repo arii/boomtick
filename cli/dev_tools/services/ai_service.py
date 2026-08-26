@@ -99,6 +99,10 @@ def _get_review_prompt_constants() -> tuple[str, str, str]:
         json_rules = data.get("STRICT_JSON_VERIFICATION", "")
         snippet_rules = data.get("SNIPPET_AND_VERIFICATION_RULES", "")
         common_rules = data.get("COMMON_REVIEW_GUIDELINES", "")
+        content_rules = data.get("CONTENT_VALIDATION_RULE", "")
+
+        if content_rules and content_rules not in common_rules:
+            common_rules = f"{common_rules}\n\n{content_rules}"
 
         _REVIEW_CONSTANTS_CACHE = (json_rules, snippet_rules, common_rules)
         return _REVIEW_CONSTANTS_CACHE

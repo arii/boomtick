@@ -2,7 +2,7 @@
 import json
 
 from dev_tools.models import AIFullReview, AIReviewIssue, AISynthesisReview
-from dev_tools.services.ai_service import validate_with_model
+from dev_tools.services.ai_service import _get_review_prompt_constants, validate_with_model
 
 
 def test_validate_ai_review_issue_success():
@@ -102,3 +102,12 @@ def test_validate_with_model_detailed_errors():
     # Check that error message contains the path to the error
     assert "file_reviews -> 0 -> issues -> 0 -> severity" in err
     assert "file_reviews -> 0 -> issues -> 0" in err
+
+
+def test_get_review_prompt_constants_content_validation():
+    json_rules, snippet_rules, common_rules = _get_review_prompt_constants()
+    assert "Strict JSON Verification" in json_rules
+    assert "STRICT SNIPPET RULE" in snippet_rules
+    assert "CONTENT VALIDATION RULE" in common_rules
+    assert "DEFAULT SKEPTICAL STANCE" in common_rules
+    assert "BLOCK" in common_rules
