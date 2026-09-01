@@ -1,6 +1,10 @@
+import fs from 'fs';
+import path from 'path';
+import os from 'os';
 import { describe, it, expect } from 'vitest';
 import {
   buildReverseMap,
+  findMarkdownFiles,
   isLayoutFile,
   sanitizeFilePath,
   traceLayoutHierarchyUpward,
@@ -229,5 +233,33 @@ describe('impact-analysis-utils tests', () => {
 
         expect(reverseMap['src/styles/tokens.css']).toEqual([{ source: 'src/components/Button.tsx', dynamic: false }]);
         expect(reverseMap['src/styles/colors.css']).toEqual([{ source: 'src/styles/tokens.css', dynamic: false }]);
+    });
+
+    describe('findMarkdownFiles', () => {
+        it('should recursively locate all markdown files in nested directories without shell execution', () => {
+            const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'boomtick-test-md-'));
+            try {
+                const subDir = path.join(tmpDir, 'sub');
+                fs.mkdirSync(subDir, { recursive: true });
+
+                const file1 = path.join(tmpDir, 'root.md');
+                const file2 = path.join(subDir, 'nested.md');
+                const ignoredFile = path.join(subDir, 'ignored.txt');
+
+                fs.writeFileSync(file1, '# Root');
+                fs.writeFileSync(file2, '# Nested');
+                fs.writeFileSync(ignoredFile, 'Not markdown');
+
+                const found = findMarkdownFiles(tmpDir);
+                expect(found.sort()).toEqual([file1, file2].sort());
+            } finally {
+                fs.rmSync(tmpDir, { recursive: true, force: true });
+            }
+        });
+
+        it('should return empty array gracefully if directory does not exist', () => {
+            const nonExistentDir = path.join(os.tmpdir(), 'non-existent-boomtick-dir-12345');
+            expect(findMarkdownFiles(nonExistentDir)).toEqual([]);
+        });
     });
 });

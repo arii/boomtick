@@ -458,6 +458,29 @@ function getContentAffectedUrls(changedFiles: string[]): string[] {
 }
 
 /**
+ * Recursively traverses a directory to find all markdown (.md) files using safe Node.js filesystem APIs.
+ *
+ * @param dir Directory path to search.
+ * @returns Array of file paths ending in .md.
+ */
+export function findMarkdownFiles(dir: string): string[] {
+  if (!fs.existsSync(dir)) return [];
+  const results: string[] = [];
+  const entries = fs.readdirSync(dir, { withFileTypes: true });
+
+  for (const entry of entries) {
+    const fullPath = path.join(dir, entry.name);
+    if (entry.isDirectory()) {
+      results.push(...findMarkdownFiles(fullPath));
+    } else if (entry.isFile() && entry.name.endsWith('.md')) {
+      results.push(fullPath);
+    }
+  }
+
+  return results;
+}
+
+/**
  * Find affected markdown files when public static files (e.g. images) are changed.
  */
 function getAffectedUrlsByPublicFiles(changedFiles: string[]): string[] {
@@ -468,7 +491,7 @@ function getAffectedUrlsByPublicFiles(changedFiles: string[]): string[] {
   const searchStrings = publicFiles.map(f => f.replace(/^public/, ''));
 
   for (const [dir, prefix] of Object.entries(IMPACT_CONFIG.CONTENT_MAP)) {
-    const mdFiles = exec(`find ${dir} -name "*.md"`).split('\n').filter(Boolean);
+    const mdFiles = findMarkdownFiles(dir);
     for (const mdFile of mdFiles) {
       const content = fs.readFileSync(mdFile, 'utf-8');
       for (const searchStr of searchStrings) {
