@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.9.2](https://github.com/arii/boomtick/compare/cli-v0.9.1...cli-v0.9.2) (2026-09-01)
+
+
+### Performance Improvements
+
+* **pr-overlap:** parallelize PR file fetching to eliminate N+1 API calls ([#750](https://github.com/arii/boomtick/issues/750)) ([5281b0d](https://github.com/arii/boomtick/commit/5281b0d2eed6b9a26b471ea03a58c77c55cabc4e))
+
 ## [0.9.1](https://github.com/arii/boomtick/compare/cli-v0.9.0...cli-v0.9.1) (2026-08-13)
 
 
