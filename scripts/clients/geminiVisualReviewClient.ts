@@ -1,4 +1,4 @@
-import { buildVisualReviewPayload, parseLLMVerdict, parseVisualReviewFindings } from '../../lib/visualReviewUtils';
+import { buildVisualReviewPayload, enrichVisualReviewPayload, parseLLMVerdict, parseVisualReviewFindings } from '../../lib/visualReviewUtils';
 import { extractFeedbackText } from '../../lib/codeReviewUtils';
 import { pickGeminiModel, getGeminiPricing } from '../../lib/geminiModelPicker';
 import { invokeGeminiWithBudgetRetry } from '../../lib/geminiUtils';
@@ -39,46 +39,7 @@ export const geminiVisualReviewClient: LLMClientStrategy = {
       text: `YOUR SPECIFIC ROLE FOR THIS REVIEW: ${role}\n${ROLE_PROMPTS[role]}`
     });
 
-    if (summary.previousFindings && summary.previousFindings.length > 0) {
-      const findingsStr = summary.previousFindings
-        .map(f => {
-          let line = `- [${f.id}] ${f.issue} (Status: ${f.status})`;
-          if (f.fixSummary) {
-            line += `\n   → ${f.fixSummary}`;
-          }
-          return line;
-        })
-        .join('\n');
-
-      baseContent.push({
-        type: 'text',
-        text: `PREVIOUS REVIEW ROUND FINDINGS FOR THIS ROUTE:
-${findingsStr}
-
-Your job:
-- Confirm THIS issue is resolved before raising anything new.
-- Only raise a NEW issue if it is unrelated to anything already addressed, or if the fix for a previous issue introduced a new problem.
-- Do not re-open a resolved issue under a different framing.`
-      });
-    }
-
-    baseContent.push({
-      type: 'text',
-      text: `You MUST also provide a structured JSON summary of the findings (both old and new) for this route at the end of your response, inside a <findings> tag:
-<findings>
-{
-  "findings": [
-    {
-      "id": "finding-1",
-      "route": "${summary.route}",
-      "issue": "Brief description of the issue",
-      "status": "resolved",
-      "fixSummary": "Brief summary of how it was addressed"
-    }
-  ]
-}
-</findings>`
-    });
+    enrichVisualReviewPayload(baseContent, summary);
 
     const message = { content: baseContent };
 

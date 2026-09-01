@@ -129,9 +129,9 @@ def check_override():
     if os.environ.get("SCOPE_OVERRIDE") == "true":
         return True
 
-    # Check git commit message for bypass tags
+    # Check git commit message for bypass tags (check last 10 commits to handle synthetic PR merge commits)
     try:
-        res = subprocess.run(["git", "log", "-1", "--pretty=%B"], capture_output=True, text=True, check=False)
+        res = subprocess.run(["git", "log", "-n", "10", "--pretty=%B"], capture_output=True, text=True, check=False)
         if res.returncode == 0:
             msg = res.stdout.lower()
             if "[skip-scope-check]" in msg or "[scope-override]" in msg or "skip-scope" in msg:

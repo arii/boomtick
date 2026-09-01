@@ -30,6 +30,12 @@ describe("repo.get_package_scripts", () => {
     await expect(getPackageScriptsHandler({})).rejects.toThrow("Failed to read package.json: File not found");
   });
 
+  it("should throw error when package.json is malformed", async () => {
+    vi.mocked(fs.readFile).mockResolvedValue("{ invalid json ");
+
+    await expect(getPackageScriptsHandler({})).rejects.toThrow(/Failed to read package.json: Malformed package.json:/);
+  });
+
   it("should filter scripts by pattern", async () => {
     const mockPkg = {
       scripts: {
