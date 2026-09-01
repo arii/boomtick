@@ -3074,7 +3074,7 @@ Run the validation suite to ensure the aggregated branch is stable.
 
     def run_workflow_graph(
         self,
-        graph: "WorkflowGraph",
+        graph: Any,
         initial_inputs: Optional[Dict[str, Any]] = None
     ) -> "WorkflowContext":
         """
