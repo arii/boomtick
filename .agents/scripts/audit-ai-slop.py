@@ -1,4 +1,4 @@
-# pylint: disable=invalid-name,line-too-long,missing-docstring,no-else-return,subprocess-run-check,too-many-nested-blocks,unused-import
+# pylint: disable=invalid-name,line-too-long,missing-docstring,no-else-return,subprocess-run-check,too-many-nested-blocks
 #!/usr/bin/env python3
 """
 AI Slop Audit Script
