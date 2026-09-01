@@ -3,7 +3,7 @@ import * as path from 'path';
 import { IMPACT_CONFIG } from '../scripts/impact-analysis.config';
 import { ARTIFACTS_DIR } from './visualReviewConstants';
 import { postPRComment, countExistingReviews, getJulesSessionIdFromPR, sendJulesMessage, getPreviousReviewState } from './visualReviewUtils';
-import { runWithConcurrencyLimit, checkReviewQuota, writeVerdictJson, writeGracefulExitVerdict } from './sharedUtils';
+import { runWithConcurrencyLimit, checkReviewQuota, writeVerdictJson, writeGracefulExitVerdict, createTaskErrorResult } from './sharedUtils';
 import { calculateEstimatedTokens, cleanupFeedback, batchFiles, calculateReviewHash, pruneCache, filterLowImpactFiles } from './codeReviewUtils';
 import type { CodeReviewSummary, CodeReviewResult, CodeReviewState, CodeReviewRole } from './codeReviewTypes';
 import { execFile as execFileCb, spawn } from 'child_process';
@@ -818,7 +818,6 @@ async function executeReviewTasks(
           newCache[hash] = result;
         } catch (err) {
           const errorMsg = err instanceof Error ? err.message : String(err);
-          console.error(`❌ Error in ${role} review task:`, err);
           const isRateLimit = errorMsg.includes('429') || errorMsg.toLowerCase().includes('rate limit');
           const isInvalidApiKey = errorMsg.includes('API_KEY_INVALID') || errorMsg.includes('401') || errorMsg.includes('400') ||
                                   errorMsg.toLowerCase().includes('unauthorized') || errorMsg.toLowerCase().includes('not valid') ||
@@ -826,19 +825,10 @@ async function executeReviewTasks(
 
           console.warn(`⚠️ [${role}] review failed: ${errorMsg} (isRateLimit: ${isRateLimit}, isInvalidApiKey: ${isInvalidApiKey})`);
 
-          allResults.push({
-            feedback: `Error: failed to execute ${role} review. Details: ${errorMsg}`,
-            role,
-            tokens: 0,
-            cost: 0,
-            inputTokens: 0,
-            outputTokens: 0,
-            cacheTokens: 0,
-            modelName: 'unknown',
+          allResults.push(createTaskErrorResult<CodeReviewResult>(role, err, 'review', {
             state: { findings: [] },
-            llmVerdict: 'warn',
             skipReason: isRateLimit ? 'RATE_LIMIT' : (isInvalidApiKey ? 'MISSING_API_KEY' : 'UNHANDLED_ERROR'),
-          });
+          }));
         }
       });
     }
