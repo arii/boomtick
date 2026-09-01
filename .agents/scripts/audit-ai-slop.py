@@ -7,12 +7,11 @@ Searches codebase for banned language per audit.config.yaml
 Generates actionable audit report with before/after fixes
 """
 
-import os
 import re
 import subprocess
 from datetime import datetime
 from pathlib import Path
-from typing import List, Dict, Tuple
+from typing import List, Dict
 import yaml
 
 class AISlopAuditor:
