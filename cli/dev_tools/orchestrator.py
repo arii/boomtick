@@ -837,12 +837,13 @@ class Orchestrator:
             context_lines.append("_No check runs found._")
 
         context_lines.extend(["\n## Files Changed"])
-        for f in pr.get_files():
+        pr_files = list(pr.get_files())
+        for f in pr_files:
             context_lines.append(
                 f"- {'🟢' if f.status == 'added' else '🔴' if f.status == 'removed' else '🟡'} `{f.filename}`"
             )
         context_lines.append("\n## Diffs")
-        for f in pr.get_files():
+        for f in pr_files:
             context_lines.append(f"\n### `{f.filename}` ({f.status})")
             patch = f.patch or "_No textual diff available._"
             annotated = []
