@@ -5,7 +5,7 @@ import re
 import sys
 import time
 from collections import defaultdict
-from typing import Any, Dict, List, Optional, Tuple, Type
+from typing import Any, Callable, Dict, List, Optional, Tuple, Type
 
 import requests
 from dev_tools.models import AIFullReview, AISynthesisReview, AIFileReview
@@ -117,9 +117,10 @@ def _get_review_prompt_constants() -> tuple[str, str, str]:
 
 
 class AIClient:
-    def __init__(self, ai_model: Optional[str] = None):
+    def __init__(self, ai_model: Optional[str] = None, sleep_fn: Optional[Callable[[float], None]] = None):
         self.ai_model = ai_model or get_ai_model()
         self.gemini_api_key = os.environ.get("GEMINI_API_KEY")
+        self.sleep_fn = sleep_fn or time.sleep
 
         self._dependency_graph: Optional[DependencyGraph] = None
         self._vector_store: Optional[VectorStore] = None
@@ -501,7 +502,7 @@ class AIClient:
                     break  # Success
             except Exception as e:
                 log_warn(f"AI review attempt {attempt+1} failed: {e}")
-                time.sleep(1)
+                self.sleep_fn(1)
 
         elapsed = time.time() - t0
 
@@ -569,7 +570,7 @@ class AIClient:
                     break  # Successfully parsed and validated
                 except Exception as e:
                     log_warn(f"Chunk review attempt {attempt+1} failed for {chunk_data['file']} chunk {chunk_data.get('chunk_index', 0)}: {e}")
-                    time.sleep(_RETRY_SLEEP_SECONDS)
+                    self.sleep_fn(_RETRY_SLEEP_SECONDS)
 
             if not parsed_chunk:
                 parsed_chunk = {
@@ -835,7 +836,7 @@ class AIClient:
                     break  # Success
             except Exception as e:
                 log_warn(f"Synthesis attempt {attempt+1} failed: {e}")
-                time.sleep(1)
+                self.sleep_fn(1)
 
         if not res:
             # Fallback: construct a minimal result from the structured data
