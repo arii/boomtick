@@ -746,187 +746,193 @@ class Orchestrator:
         rev_path = os.path.join(review_dir, f"pr-review-{prNumber}.md")
         res: Dict[str, Any] = {"pr": prNumber, "files": {}}
         if fetch:
-            repo = get_github_client().get_repo(get_repo_name())
-            pr = repo.get_pull(prNumber)
-            title = pr.title
-            author = pr.user.login
-            desc = pr.body or "_No description provided._"
-            context_lines = [
-                f"# PR Context: #{pr.number} — {title}",
-                f"**Author:** @{author}\n",
-                f"## Description\n{desc}\n",
-                "## CI Status",
-            ]
-
-            check_runs = self.github.fetch_check_runs(pr.head.sha)
-            failed_check_names = []
-            detected_errors = []
-
-            # Pre-fetch logs for failed runs in parallel to minimize sequential GHA latency
-            failed_runs = [run for run in check_runs if run.get("conclusion") == "failure"]
-            fetched_logs = {}
-            if failed_runs:
-                from dev_tools.utils.concurrency import run_concurrently
-                log_info(f"⚡ Pre-fetching logs for {len(failed_runs)} failed check runs in parallel...")
-                def fetch_logs_for_run(run_item):
-                    r_id = run_item.get("id")
-                    if isinstance(r_id, int):
-                        try:
-                            return r_id, self.github.fetch_check_run_logs(r_id, external_id=run_item.get("external_id"))
-                        except Exception as e:
-                            log_warn(f"Failed to fetch logs for run {r_id}: {e}")
-                    return r_id, ""
-
-                results = run_concurrently(fetch_logs_for_run, failed_runs, max_workers=4, ignore_exceptions=True)
-                for r_id, r_logs in results:
-                    if r_id is not None:
-                        fetched_logs[r_id] = r_logs
-
-            if check_runs:
-                for run in check_runs:
-                    status_icon = (
-                        "✅"
-                        if run.get("conclusion") == "success"
-                        else "❌" if run.get("conclusion") == "failure" else "⏳"
-                    )
-                    context_lines.append(
-                        f"- {status_icon} **{run.get('name')}**: {run.get('status')} ({run.get('conclusion') or 'in_progress'})"
-                    )
-                    if run.get("conclusion") == "failure":
-                        failed_check_names.append(run.get("name"))
-                        run_id = run.get("id")
-                        findings: List[Dict[str, Any]] = []
-                        if isinstance(run_id, int):
-                            # Retrieve pre-fetched logs with a fallback
-                            logs = fetched_logs.get(run_id, "")
-                            if not logs:
-                                logs = self.github.fetch_check_run_logs(run_id, external_id=run.get("external_id"))
-
-                            # Structured failure analysis
-                            findings = extract_failing_info(logs)
-                        if findings:
-                            context_lines.append("  **Failing Tests/Build Errors:**")
-                            for f in findings:
-                                error_msg = f"🔴 `{f['file']}:{f['line']}`: {f['message']} ({f['type']})"
-                                context_lines.append(f"  - {error_msg}")
-                                detected_errors.append(error_msg)
-
-                        # Extract a snippet of the logs (last 50 lines or search for 'error')
-                        cleaned_logs = clean_gha_logs(logs)
-                        log_lines = cleaned_logs.splitlines()
-                        error_lines = [
-                            l
-                            for l in log_lines
-                            if any(x in l.lower() for x in ["error", "fail", "ts", "vitest", "playwright", "🔴"])
-                        ]
-                        snippet = "\n".join(error_lines[-20:] if error_lines else log_lines[-30:])
-                        context_lines.append(
-                            f"  <details><summary>Failure Logs Snippet</summary>\n\n  ```\n  {snippet}\n  ```\n  </details>"
-                        )
-            else:
-                context_lines.append("_No check runs found._")
-
-            context_lines.extend(["\n## Files Changed"])
-            for f in pr.get_files():
-                context_lines.append(
-                    f"- {'🟢' if f.status == 'added' else '🔴' if f.status == 'removed' else '🟡'} `{f.filename}`"
-                )
-            context_lines.append("\n## Diffs")
-            for f in pr.get_files():
-                context_lines.append(f"\n### `{f.filename}` ({f.status})")
-                patch = f.patch or "_No textual diff available._"
-                annotated = []
-                line_num = 0
-                if patch != "_No textual diff available._":
-                    for line in patch.splitlines():
-                        if line.startswith("@@"):
-                            m = re.search(r"\+(\d+)", line)
-                            line_num = int(m.group(1)) if m else line_num
-                            annotated.append(line)
-                        elif line.startswith("+"):
-                            annotated.append(f"{line_num:4d} |{line}")
-                            line_num += 1
-                        elif line.startswith("-"):
-                            annotated.append(f"     |{line}")
-                        else:
-                            annotated.append(f"{line_num:4d} |{line}")
-                            line_num += 1
-                context_lines.append(f"```diff\n" + "\n".join(annotated) + "\n```")
-            with open(ctx_path, "w", encoding="utf-8") as context_file:
-                context_file.write("\n".join(context_lines))
-
-            failed_checks_str = (
-                "\n".join(f"- {name}" for name in failed_check_names) if failed_check_names else "_None_"
-            )
-            errors_str = (
-                "\n".join(f"- {err}" for err in detected_errors) if detected_errors else "_None detected by parser._"
-            )
-
-            template_path = resolve_resource_path("review_template.md")
-            with open(template_path, "r", encoding="utf-8") as template_file:
-                template = template_file.read().format(
-                    pr_num=prNumber,
-                    head_sha=pr.head.sha,
-                    failed_checks=failed_checks_str,
-                    detected_errors=errors_str,
-                )
-
-            with open(rev_path, "w", encoding="utf-8") as review_file:
-                review_file.write(template)
+            self._fetch_pr_context_files(prNumber, ctx_path, rev_path)
             res["files"]["context"] = ctx_path
             res["files"]["review"] = rev_path
         if audit:
-            if not os.path.exists(ctx_path):
-                raise CLIError(f"Context file missing: {ctx_path}")
-            with open(ctx_path, "r", encoding="utf-8") as context_file:
-                context = context_file.read()
-            changed_files = re.findall(r"### `([^`]+)`", context)
-            auto_findings = []
-            scope_warning = verify_pr_scope(changed_files)
-            if scope_warning:
-                auto_findings.append({"path": "PR SCOPE", "issue": scope_warning, "severity": "major"})
-            files_to_audit = [
-                f for f in changed_files if (f.endswith(".tsx") or f.endswith(".ts")) and os.path.exists(f)
-            ]
-            if files_to_audit:
-                script_path = self._resolve_antipatterns_script()
-                audit_res = run_command(
-                    ["node", script_path, "--json"] + files_to_audit,
-                    check=False,
-                )
-                output = audit_res.stdout if isinstance(audit_res, subprocess.CompletedProcess) else str(audit_res)
-                if output and "{" in output:
-                    json_start = output.find("{")
-                    json_end = output.rfind("}") + 1
-                    try:
-                        audit_data: Any = json.loads(output[json_start:json_end])
-                        # Ensure audit_data is a dictionary, and recursively parse if it's a stringified JSON
-                        if isinstance(audit_data, str):
-                            try:
-                                audit_data = json.loads(audit_data)
-                            except json.JSONDecodeError:
-                                audit_data = {}
-                    except json.JSONDecodeError:
-                        audit_data = {}
-
-                    if isinstance(audit_data, dict):
-                        violations_map = audit_data.get("violations", {})
-                        if isinstance(violations_map, dict):
-                            for filepath, violations in violations_map.items():
-                                if isinstance(violations, list):
-                                    for v in violations:
-                                        if isinstance(v, dict):
-                                            auto_findings.append(
-                                                {
-                                                    "path": str(filepath),
-                                                    "issue": f"{v.get('pattern', 'N/A')}: {v.get('message', 'No message')} (value: {v.get('value', 'N/A')})",
-                                                    "severity": str(v.get("severity", "minor")),
-                                                }
-                                            )
-            res["auto_findings"] = auto_findings
+            res["auto_findings"] = self._run_antipattern_audit(ctx_path)
         if submit:
             self.github.submit_pr_review(prNumber, rev_path, cleanup=cleanup, dry_run=dry_run, event_override=event)
         return res
+
+    def _fetch_pr_context_files(self, prNumber: int, ctx_path: str, rev_path: str) -> None:
+        repo = get_github_client().get_repo(get_repo_name())
+        pr = repo.get_pull(prNumber)
+        title = pr.title
+        author = pr.user.login
+        desc = pr.body or "_No description provided._"
+        context_lines = [
+            f"# PR Context: #{pr.number} — {title}",
+            f"**Author:** @{author}\n",
+            f"## Description\n{desc}\n",
+            "## CI Status",
+        ]
+
+        check_runs = self.github.fetch_check_runs(pr.head.sha)
+        failed_check_names = []
+        detected_errors = []
+
+        # Pre-fetch logs for failed runs in parallel to minimize sequential GHA latency
+        failed_runs = [run for run in check_runs if run.get("conclusion") == "failure"]
+        fetched_logs = {}
+        if failed_runs:
+            from dev_tools.utils.concurrency import run_concurrently
+            log_info(f"⚡ Pre-fetching logs for {len(failed_runs)} failed check runs in parallel...")
+            def fetch_logs_for_run(run_item):
+                r_id = run_item.get("id")
+                if isinstance(r_id, int):
+                    try:
+                        return r_id, self.github.fetch_check_run_logs(r_id, external_id=run_item.get("external_id"))
+                    except Exception as e:
+                        log_warn(f"Failed to fetch logs for run {r_id}: {e}")
+                return r_id, ""
+
+            results = run_concurrently(fetch_logs_for_run, failed_runs, max_workers=4, ignore_exceptions=True)
+            for r_id, r_logs in results:
+                if r_id is not None:
+                    fetched_logs[r_id] = r_logs
+
+        if check_runs:
+            for run in check_runs:
+                status_icon = (
+                    "✅"
+                    if run.get("conclusion") == "success"
+                    else "❌" if run.get("conclusion") == "failure" else "⏳"
+                )
+                context_lines.append(
+                    f"- {status_icon} **{run.get('name')}**: {run.get('status')} ({run.get('conclusion') or 'in_progress'})"
+                )
+                if run.get("conclusion") == "failure":
+                    failed_check_names.append(run.get("name"))
+                    run_id = run.get("id")
+                    findings: List[Dict[str, Any]] = []
+                    if isinstance(run_id, int):
+                        # Retrieve pre-fetched logs with a fallback
+                        logs = fetched_logs.get(run_id, "")
+                        if not logs:
+                            logs = self.github.fetch_check_run_logs(run_id, external_id=run.get("external_id"))
+
+                        # Structured failure analysis
+                        findings = extract_failing_info(logs)
+                    if findings:
+                        context_lines.append("  **Failing Tests/Build Errors:**")
+                        for f in findings:
+                            error_msg = f"🔴 `{f['file']}:{f['line']}`: {f['message']} ({f['type']})"
+                            context_lines.append(f"  - {error_msg}")
+                            detected_errors.append(error_msg)
+
+                    # Extract a snippet of the logs (last 50 lines or search for 'error')
+                    cleaned_logs = clean_gha_logs(logs)
+                    log_lines = cleaned_logs.splitlines()
+                    error_lines = [
+                        l
+                        for l in log_lines
+                        if any(x in l.lower() for x in ["error", "fail", "ts", "vitest", "playwright", "🔴"])
+                    ]
+                    snippet = "\n".join(error_lines[-20:] if error_lines else log_lines[-30:])
+                    context_lines.append(
+                        f"  <details><summary>Failure Logs Snippet</summary>\n\n  ```\n  {snippet}\n  ```\n  </details>"
+                    )
+        else:
+            context_lines.append("_No check runs found._")
+
+        context_lines.extend(["\n## Files Changed"])
+        for f in pr.get_files():
+            context_lines.append(
+                f"- {'🟢' if f.status == 'added' else '🔴' if f.status == 'removed' else '🟡'} `{f.filename}`"
+            )
+        context_lines.append("\n## Diffs")
+        for f in pr.get_files():
+            context_lines.append(f"\n### `{f.filename}` ({f.status})")
+            patch = f.patch or "_No textual diff available._"
+            annotated = []
+            line_num = 0
+            if patch != "_No textual diff available._":
+                for line in patch.splitlines():
+                    if line.startswith("@@"):
+                        m = re.search(r"\+(\d+)", line)
+                        line_num = int(m.group(1)) if m else line_num
+                        annotated.append(line)
+                    elif line.startswith("+"):
+                        annotated.append(f"{line_num:4d} |{line}")
+                        line_num += 1
+                    elif line.startswith("-"):
+                        annotated.append(f"     |{line}")
+                    else:
+                        annotated.append(f"{line_num:4d} |{line}")
+                        line_num += 1
+            context_lines.append(f"```diff\n" + "\n".join(annotated) + "\n```")
+        with open(ctx_path, "w", encoding="utf-8") as context_file:
+            context_file.write("\n".join(context_lines))
+
+        failed_checks_str = (
+            "\n".join(f"- {name}" for name in failed_check_names) if failed_check_names else "_None_"
+        )
+        errors_str = (
+            "\n".join(f"- {err}" for err in detected_errors) if detected_errors else "_None detected by parser._"
+        )
+
+        template_path = resolve_resource_path("review_template.md")
+        with open(template_path, "r", encoding="utf-8") as template_file:
+            template = template_file.read().format(
+                pr_num=prNumber,
+                head_sha=pr.head.sha,
+                failed_checks=failed_checks_str,
+                detected_errors=errors_str,
+            )
+
+        with open(rev_path, "w", encoding="utf-8") as review_file:
+            review_file.write(template)
+
+    def _run_antipattern_audit(self, ctx_path: str) -> List[Dict[str, Any]]:
+        if not os.path.exists(ctx_path):
+            raise CLIError(f"Context file missing: {ctx_path}")
+        with open(ctx_path, "r", encoding="utf-8") as context_file:
+            context = context_file.read()
+        changed_files = re.findall(r"### `([^`]+)`", context)
+        auto_findings = []
+        scope_warning = verify_pr_scope(changed_files)
+        if scope_warning:
+            auto_findings.append({"path": "PR SCOPE", "issue": scope_warning, "severity": "major"})
+        files_to_audit = [
+            f for f in changed_files if (f.endswith(".tsx") or f.endswith(".ts")) and os.path.exists(f)
+        ]
+        if files_to_audit:
+            script_path = self._resolve_antipatterns_script()
+            audit_res = run_command(
+                ["node", script_path, "--json"] + files_to_audit,
+                check=False,
+            )
+            output = audit_res.stdout if isinstance(audit_res, subprocess.CompletedProcess) else str(audit_res)
+            if output and "{" in output:
+                json_start = output.find("{")
+                json_end = output.rfind("}") + 1
+                try:
+                    audit_data: Any = json.loads(output[json_start:json_end])
+                    # Ensure audit_data is a dictionary, and recursively parse if it's a stringified JSON
+                    if isinstance(audit_data, str):
+                        try:
+                            audit_data = json.loads(audit_data)
+                        except json.JSONDecodeError:
+                            audit_data = {}
+                except json.JSONDecodeError:
+                    audit_data = {}
+
+                if isinstance(audit_data, dict):
+                    violations_map = audit_data.get("violations", {})
+                    if isinstance(violations_map, dict):
+                        for filepath, violations in violations_map.items():
+                            if isinstance(violations, list):
+                                for v in violations:
+                                    if isinstance(v, dict):
+                                        auto_findings.append(
+                                            {
+                                                "path": str(filepath),
+                                                "issue": f"{v.get('pattern', 'N/A')}: {v.get('message', 'No message')} (value: {v.get('value', 'N/A')})",
+                                                "severity": str(v.get("severity", "minor")),
+                                            }
+                                        )
+        return auto_findings
 
     def handle_comment_command(self, prNumber: int, command: str, comment_id: Optional[str] = None) -> Dict[str, Any]:
         """
@@ -2377,6 +2383,10 @@ Follow the "Audit comment template" in `docs/agent/issue-audit-rules.md` to post
         if "issue_number" in kwargs and issueNumber is None:
             issueNumber = kwargs["issue_number"]
         """Generates a deterministic review workflow plan for an agent."""
+        context_data = self._gather_review_workflow_context(prNumber, issueNumber)
+        return self._render_workflow_plan(prNumber, context_data)
+
+    def _gather_review_workflow_context(self, prNumber: int, issueNumber: Optional[int] = None) -> Dict[str, Any]:
         # 1. Environment Validation
         env_res = self.runtime_check()
         env_output = f"Runtime OK: node {env_res['node']}, pnpm {env_res['pnpm']}"
@@ -2457,7 +2467,20 @@ Follow the "Audit comment template" in `docs/agent/issue-audit-rules.md` to post
             with open("artifacts/github-models-code-review.md", "r", encoding="utf-8") as f:
                 github_models_review = f.read()
 
-        # Generate workflow plan
+        return {
+            "env_output": env_output,
+            "issue_output": issue_output,
+            "conflict_output": conflict_output,
+            "pr_context_file": pr_context_file,
+            "pr_summary": pr_summary,
+            "ci_status": ci_status,
+            "failure_logs": failure_logs,
+            "impact_output": impact_output,
+            "gemini_review": gemini_review,
+            "github_models_review": github_models_review,
+        }
+
+    def _render_workflow_plan(self, prNumber: int, context_data: Dict[str, Any]) -> Dict[str, Any]:
         plan_dir = get_or_create_log_dir("workflows")
         plan_path = os.path.join(plan_dir, f"workflow-plan-pr-{prNumber}.md")
 
@@ -2494,54 +2517,54 @@ Agent must not repeat these steps. Redundant fetching (`--fetch`) or auditing (`
 
 ### Validation Output
 ```text
-{env_output}
+{context_data['env_output']}
 ```
 
 ### Issue Validation Output
 ```text
-{issue_output}
+{context_data['issue_output']}
 ```
 
 ### Conflict Output
 ```text
-{conflict_output}
+{context_data['conflict_output']}
 ```
 
 ### PR Summary
 Relevant excerpts from:
-`{pr_context_file}`
+`{context_data['pr_context_file']}`
 
 ```text
-{pr_summary}
+{context_data['pr_summary']}
 ```
 
 ### CI Status
 Relevant excerpts:
 ```text
-{ci_status}
+{context_data['ci_status']}
 ```
 
 ### Failure Logs
 Relevant excerpts:
 ```text
-{failure_logs}
+{context_data['failure_logs']}
 ```
 
 ### Impact Analysis
 Relevant excerpts:
 ```text
-{impact_output}
+{context_data['impact_output']}
 ```
 
 ### Existing AI Reviews
 **Gemini:**
 ```markdown
-{gemini_review}
+{context_data['gemini_review']}
 ```
 
 **GitHub Models:**
 ```markdown
-{github_models_review}
+{context_data['github_models_review']}
 ```
 
 ---

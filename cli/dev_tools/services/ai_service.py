@@ -347,51 +347,7 @@ class AIClient:
                 break
             combined_diff += f"\n\n{chunk['diff_text']}"
 
-        # ── Triage routing step using the lighter rapid-response model (_SYNTHESIS_MODEL, e.g. gpt-4o-mini) ──
-        needs_specialist = True
-        fast_feedback_text = ""
-        triage_model_used = _SYNTHESIS_MODEL
-
-        if os.environ.get("TD_DISABLE_TRIAGE") == "true":
-            log_info("[AI Triage] Triage bypassed due to TD_DISABLE_TRIAGE environment variable.")
-            needs_specialist = True
-        else:
-            triage_system_prompt = (
-                "You are an expert AI Triage Agent. Your task is to perform a fast, initial validation on the Pull Request diff.\n"
-                "Determine if there are complex architectural issues, critical bugs, security vulnerabilities, or performance issues that require a deeper, specialized review.\n\n"
-                "You must respond strictly in JSON format matching this schema:\n"
-                "{\n"
-                '  "needsSpecialistReview": boolean,\n'
-                '  "reason": "string describing why a specialist is or is not needed",\n'
-                '  "fastFeedback": "string of initial review feedback if no specialist is needed"\n'
-                "}\n\n"
-                "Your output must be wrapped inside a single block of XML tags like this:\n"
-                "<triage_result>\n"
-                "{\n"
-                '  "needsSpecialistReview": ...\n'
-                "}\n"
-                "</triage_result>\n"
-            )
-
-            triage_prompt = (
-                f"Review the following changes and requirements:\n\n"
-                f"<diff>\n{combined_diff[:50000]}\n</diff>\n\n"
-                f"REQUIREMENTS/GOALS:\nPR Title: {pr_title}"
-            )
-
-            try:
-                log_info(f"[AI Triage] Invoking Triage Agent using fast/cheap model ({triage_model_used})...")
-                # Combine system prompt and user prompt
-                triage_raw = self.call_ai(f"{triage_system_prompt}\n\n{triage_prompt}", model=triage_model_used, max_retries=2)
-                if triage_raw:
-                    match = re.search(r"<triage_result>([\s\S]*?)</triage_result>", triage_raw)
-                    json_str = match.group(1).strip() if match else triage_raw.strip()
-                    triage_data = json.loads(json_str)
-                    needs_specialist = bool(triage_data.get("needsSpecialistReview", True))
-                    fast_feedback_text = triage_data.get("fastFeedback", "")
-                    log_info(f"[AI Triage Success] Triage complete. Needs specialist: {needs_specialist}. Model: {triage_model_used}")
-            except Exception as e:
-                log_warn(f"⚠️ Triage Agent failed, falling back to Specialist review: {e}")
+        needs_specialist, fast_feedback_text = self._run_triage_step(combined_diff, pr_title)
 
         if not needs_specialist and fast_feedback_text:
             log_info("[AI Triage] Fast triage review sufficient. Bypassing specialist review.")
@@ -425,13 +381,72 @@ class AIClient:
                 estimated_tokens,
             )
 
-        # Single-pass fallback
+        prompt = self._prepare_review_prompt(pr_title, checks_summary, is_truncated, combined_diff)
+        final, file_reviews = self._execute_single_pass_review(prompt, len(reviewable), pr_num)
+
+        # CI guard: never approve if checks are failing
+        if has_ci_failures and final.get("recommendation") == "Approved":
+            final["recommendation"] = "Not Approved"
+            final_comment = final.get("reviewComment") or ""
+            final["reviewComment"] = f"CI checks are failing ({failing_names}). Recommendation downgraded.\n\n{final_comment}"
+
+        self._write_review_file(pr_num, pr, final, chunks, file_reviews)
+        return final
+
+    def _run_triage_step(self, combined_diff: str, pr_title: str) -> Tuple[bool, str]:
+        needs_specialist = True
+        fast_feedback_text = ""
+        triage_model_used = _SYNTHESIS_MODEL
+
+        if os.environ.get("TD_DISABLE_TRIAGE") == "true":
+            log_info("[AI Triage] Triage bypassed due to TD_DISABLE_TRIAGE environment variable.")
+            return True, ""
+
+        triage_system_prompt = (
+            "You are an expert AI Triage Agent. Your task is to perform a fast, initial validation on the Pull Request diff.\n"
+            "Determine if there are complex architectural issues, critical bugs, security vulnerabilities, or performance issues that require a deeper, specialized review.\n\n"
+            "You must respond strictly in JSON format matching this schema:\n"
+            "{\n"
+            '  "needsSpecialistReview": boolean,\n'
+            '  "reason": "string describing why a specialist is or is not needed",\n'
+            '  "fastFeedback": "string of initial review feedback if no specialist is needed"\n'
+            "}\n\n"
+            "Your output must be wrapped inside a single block of XML tags like this:\n"
+            "<triage_result>\n"
+            "{\n"
+            '  "needsSpecialistReview": ...\n'
+            "}\n"
+            "</triage_result>\n"
+        )
+
+        triage_prompt = (
+            f"Review the following changes and requirements:\n\n"
+            f"<diff>\n{combined_diff[:50000]}\n</diff>\n\n"
+            f"REQUIREMENTS/GOALS:\nPR Title: {pr_title}"
+        )
+
+        try:
+            log_info(f"[AI Triage] Invoking Triage Agent using fast/cheap model ({triage_model_used})...")
+            triage_raw = self.call_ai(f"{triage_system_prompt}\n\n{triage_prompt}", model=triage_model_used, max_retries=2)
+            if triage_raw:
+                match = re.search(r"<triage_result>([\s\S]*?)</triage_result>", triage_raw)
+                json_str = match.group(1).strip() if match else triage_raw.strip()
+                triage_data = json.loads(json_str)
+                needs_specialist = bool(triage_data.get("needsSpecialistReview", True))
+                fast_feedback_text = triage_data.get("fastFeedback", "")
+                log_info(f"[AI Triage Success] Triage complete. Needs specialist: {needs_specialist}. Model: {triage_model_used}")
+        except Exception as e:
+            log_warn(f"⚠️ Triage Agent failed, falling back to Specialist review: {e}")
+
+        return needs_specialist, fast_feedback_text
+
+    def _prepare_review_prompt(self, pr_title: str, checks_summary: str, is_truncated: bool, combined_diff: str) -> str:
         truncation_note = ""
         json_rules, snippet_rules, _COMMON_REVIEW_GUIDELINES = _get_review_prompt_constants()
         if is_truncated:
             truncation_note = "\nNOTE: This diff is TRUNCATED. If you need more context to be certain of an issue, state what you are missing instead of speculating.\n"
 
-        prompt = (
+        return (
             f"Review PR: {pr_title}. CI: {checks_summary}\n\n"
             f"{_COMMON_REVIEW_GUIDELINES}\n\n"
             "ORDER: Correctness, Security (new input/auth only), Crashes, Data Integrity, Performance, Maintainability.\n"
@@ -450,9 +465,10 @@ class AIClient:
             f"{truncation_note}Diff:\n{combined_diff}"
         )
 
+    def _execute_single_pass_review(self, prompt: str, chunk_count: int, pr_num: Any) -> Tuple[Dict, List]:
         t0 = time.time()
         print(
-            f"🤖 Requesting AI review for {len(reviewable)} chunks ...",
+            f"🤖 Requesting AI review for {chunk_count} chunks ...",
             end="",
             flush=True,
             file=sys.stderr,
@@ -462,7 +478,6 @@ class AIClient:
         file_reviews = []
         parsed = None
 
-        # Retry loop for generation and parsing
         for attempt in range(_MAX_AI_RETRIES):
             try:
                 raw = self.call_ai(prompt, model=_REVIEW_MODEL, schema=_REVIEW_SCHEMA, max_retries=1)
@@ -471,7 +486,6 @@ class AIClient:
 
                 cleaned = clean_llm_output(raw)
 
-                # Robust extraction fallback for mixed/malformed model output
                 candidate = cleaned
                 first_brace = candidate.find("{")
                 first_bracket = candidate.find("[")
@@ -521,14 +535,7 @@ class AIClient:
             }
             print(f" ✅ done ({elapsed:.1f}s)", flush=True, file=sys.stderr)
 
-        # CI guard: never approve if checks are failing
-        if has_ci_failures and final.get("recommendation") == "Approved":
-            final["recommendation"] = "Not Approved"
-            final_comment = final.get("reviewComment") or ""
-            final["reviewComment"] = f"CI checks are failing ({failing_names}). Recommendation downgraded.\n\n{final_comment}"
-
-        self._write_review_file(pr_num, pr, final, chunks, file_reviews)
-        return final
+        return final, file_reviews
 
     def _process_piecemeal_review(  # pylint: disable=too-many-arguments,too-many-positional-arguments
         self,
