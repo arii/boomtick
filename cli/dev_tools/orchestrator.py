@@ -21,7 +21,6 @@ from dev_tools.ux_report import generate_report
 if TYPE_CHECKING:
     from dev_tools.services.ai_service import AIClient
     from dev_tools.services.vision_service import VisionService
-    from dev_tools.workflows.graph import WorkflowGraph
     from dev_tools.workflows.context import WorkflowContext
 
 from dev_tools.config import get_config
