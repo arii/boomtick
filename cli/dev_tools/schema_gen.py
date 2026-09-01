@@ -3,7 +3,7 @@ import inspect
 import json
 import os
 
-import dev_tools.models as models
+from dev_tools import models
 from pydantic import BaseModel
 
 
