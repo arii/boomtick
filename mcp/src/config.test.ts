@@ -12,6 +12,7 @@ describe("config", () => {
     vi.resetModules();
     process.env = { ...originalEnv };
     vi.mocked(execSync).mockReset();
+    vi.mocked(execSync).mockReturnValue("{}");
   });
 
   afterEach(() => {
