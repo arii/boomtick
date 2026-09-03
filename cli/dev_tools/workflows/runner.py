@@ -2,10 +2,12 @@
 import concurrent.futures
 import time
 from datetime import datetime, timezone
-from typing import Any, Dict, Optional
+from typing import Any, Callable, Dict, Optional
 
 from dev_tools.workflows.context import WorkflowContext
 from dev_tools.workflows.graph import WorkflowGraph
+
+
 
 
 class WorkflowRunner:
@@ -14,8 +16,13 @@ class WorkflowRunner:
     Manages retries with exponential backoff, timeouts via ThreadPoolExecutor, and execution logs.
     """
 
-    def __init__(self, halt_on_failure: bool = True) -> None:
+    def __init__(
+        self,
+        halt_on_failure: bool = True,
+        sleep_fn: Optional[Callable[[float], None]] = None,
+    ) -> None:
         self.halt_on_failure = halt_on_failure
+        self.sleep_fn = sleep_fn or time.sleep
         self._executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
 
     def _execute_with_timeout(self, node: Any, context: WorkflowContext) -> Any:
@@ -93,7 +100,7 @@ class WorkflowRunner:
                     retries_attempted += 1
                     if retries_attempted <= max_retries:
                         sleep_time = backoff_factor * (2 ** (retries_attempted - 1))
-                        time.sleep(sleep_time)
+                        self.sleep_fn(sleep_time)
 
             if not success:
                 if self.halt_on_failure:
