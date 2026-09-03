@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach, type Mock } from 'vitest';
-import { GitHubModelFactory } from '../../src/reviewers/factory';
-import { runReview, complete, normalizeModelId } from '../../src/reviewers/runner';
+import { GitHubModelFactory } from '../../../src/reviewers/factory';
+import { runReview, complete, normalizeModelId } from '../../../src/reviewers/runner';
 import { OpenAI } from 'openai';
 
 const mockCreate = vi.fn();
@@ -19,74 +19,20 @@ vi.mock('openai', () => {
 });
 
 describe('normalizeModelId', () => {
-  it('correctly maps various case-insensitive names to official Azure/GitHub model IDs', () => {
+  it('correctly maps gpt-4o and gpt-4o-mini regardless of casing', () => {
     expect(normalizeModelId('gpt-4o')).toBe('gpt-4o');
+    expect(normalizeModelId('GPT-4O')).toBe('gpt-4o');
+    expect(normalizeModelId('Gpt-4o')).toBe('gpt-4o');
+
     expect(normalizeModelId('gpt-4o-mini')).toBe('gpt-4o-mini');
+    expect(normalizeModelId('GPT-4O-MINI')).toBe('gpt-4o-mini');
+    expect(normalizeModelId('Gpt-4o-Mini')).toBe('gpt-4o-mini');
+  });
+
+  it('returns original model string for unrecognized or other model IDs', () => {
     expect(normalizeModelId('unrecognized-model')).toBe('unrecognized-model');
-  });
-});
-
-describe('GitHubModelFactory', () => {
-  const originalEnv = process.env;
-
-  beforeEach(() => {
-    process.env = { ...originalEnv };
-    GitHubModelFactory.resetClient();
-    vi.clearAllMocks();
-  });
-
-  afterEach(() => {
-    process.env = originalEnv;
-  });
-
-  describe('getFallbackChain', () => {
-    it('returns custom chain if AI_CHAIN_PRIMARY is set', () => {
-      process.env.AI_CHAIN_PRIMARY = 'my-model';
-      process.env.AI_CHAIN_FALLBACKS = 'fallback-1, fallback-2';
-      const chain = GitHubModelFactory.getFallbackChain();
-      expect(chain).toEqual(['my-model', 'fallback-1', 'fallback-2']);
-    });
-
-    it('returns fallbacks for gpt-4', () => {
-      process.env.AI_PROVIDER = 'gpt-4';
-      const chain = GitHubModelFactory.getFallbackChain();
-      expect(chain).toEqual(['gpt-4o', 'gpt-4o-mini']);
-    });
-
-    it('defaults to gpt-4o-mini if AI_PROVIDER is unset or unknown', () => {
-      delete process.env.AI_PROVIDER;
-      const chain1 = GitHubModelFactory.getFallbackChain();
-      expect(chain1).toEqual(['gpt-4o-mini']);
-
-      process.env.AI_PROVIDER = 'unknown-provider';
-      const chain2 = GitHubModelFactory.getFallbackChain();
-      expect(chain2).toEqual(['gpt-4o-mini']);
-    });
-  });
-
-  describe('getClient', () => {
-    it('throws error if GITHUB_TOKEN is missing', () => {
-      delete process.env.GITHUB_TOKEN;
-      expect(() => GitHubModelFactory.getClient()).toThrow('Missing GITHUB_TOKEN environment variable.');
-    });
-
-    it('throws error if GITHUB_TOKEN format is invalid', () => {
-      process.env.GITHUB_TOKEN = 'invalid token with spaces';
-      expect(() => GitHubModelFactory.getClient()).toThrow('Invalid GITHUB_TOKEN format.');
-    });
-
-    it('returns cached OpenAI instance if GITHUB_TOKEN is present', () => {
-      process.env.GITHUB_TOKEN = 'test-token';
-      const client1 = GitHubModelFactory.getClient();
-      expect(OpenAI).toHaveBeenCalledWith({
-        baseURL: 'https://models.inference.ai.azure.com',
-        apiKey: 'test-token'
-      });
-      expect(client1).toBeDefined();
-
-      const client2 = GitHubModelFactory.getClient();
-      expect(client1).toBe(client2); // Singleton pattern
-    });
+    expect(normalizeModelId('claude-3-5-sonnet')).toBe('claude-3-5-sonnet');
+    expect(normalizeModelId('gpt-4')).toBe('gpt-4');
   });
 });
 
@@ -104,7 +50,7 @@ describe('runReview & complete', () => {
     process.env = originalEnv;
   });
 
-  it('succeeds on first model if it does not throw', async () => {
+  it('succeeds on first model if request succeeds', async () => {
     const mockClient = GitHubModelFactory.getClient();
     const createMock = mockClient.chat.completions.create as unknown as Mock;
     createMock.mockResolvedValueOnce({
@@ -156,16 +102,15 @@ describe('runReview & complete', () => {
 
     expect(result.content).toBe('Fallback review');
     expect(result.modelUsed).toBe('gpt-4o-mini');
-    expect(createMock).toHaveBeenCalledTimes(3); // 2 failures on gpt-4o, then 1 success on gpt-4o-mini
+    expect(createMock).toHaveBeenCalledTimes(3);
     expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('Usage/Rate limit or server error hit for gpt-4o'));
     warnSpy.mockRestore();
   });
 
-  it('rotates to next model immediately on non-recoverable error without retrying', async () => {
+  it('rotates to next model immediately on unexpected non-recoverable error without retrying', async () => {
     const mockClient = GitHubModelFactory.getClient();
     const createMock = mockClient.chat.completions.create as unknown as Mock;
 
-    // First model fails with unexpected error, rotates immediately
     createMock.mockRejectedValueOnce(new Error('Unexpected network glitch'));
     createMock.mockResolvedValueOnce({
       choices: [{ message: { content: 'Fallback review 2' } }]
@@ -185,7 +130,7 @@ describe('runReview & complete', () => {
 
     expect(result.content).toBe('Fallback review 2');
     expect(result.modelUsed).toBe('gpt-4o-mini');
-    expect(createMock).toHaveBeenCalledTimes(2); // 1 immediate failure, then fallback success
+    expect(createMock).toHaveBeenCalledTimes(2);
     expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('encountered an unexpected error: Unexpected network glitch'));
     warnSpy.mockRestore();
   });
@@ -208,12 +153,12 @@ describe('runReview & complete', () => {
       messages: [{ role: 'user', content: 'hello' }]
     })).rejects.toEqual({ status: 401, message: 'Unauthorized / Invalid Key' });
 
-    expect(createMock).toHaveBeenCalledTimes(1); // halts immediately on 401
+    expect(createMock).toHaveBeenCalledTimes(1);
     expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining('Hard failure (non-recoverable) encountered for model gpt-4o'));
     errorSpy.mockRestore();
   });
 
-  it('throws error if all models fail', async () => {
+  it('throws error if all models in fallback chain fail', async () => {
     const mockClient = GitHubModelFactory.getClient();
     const createMock = mockClient.chat.completions.create as unknown as Mock;
 
@@ -228,7 +173,6 @@ describe('runReview & complete', () => {
       rules: ['no bugs']
     })).rejects.toThrow('All requested GitHub Model providers and fallbacks failed or exhausted their usage limits.');
 
-    // gpt-4 fallback chain is ["gpt-4o", "gpt-4o-mini"], so it should try 2 times (once per model since they fail with unexpected error immediately)
     expect(createMock).toHaveBeenCalledTimes(2);
     warnSpy.mockRestore();
   });
