@@ -29,6 +29,7 @@ class CreateIssueInput(CamelCaseModel):
     title: str = Field(..., min_length=1)
     body: Optional[str] = Field(None, min_length=1)
     file: Optional[str] = Field(None, min_length=1)
+    repo: Optional[str] = Field(None, description="The target repository override (e.g. org/repo).")
 
     @model_validator(mode="after")
     def check_body_or_file(self) -> "CreateIssueInput":

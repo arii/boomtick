@@ -17,9 +17,15 @@ export interface LLMClientStrategy {
 
 const MAX_REVIEWS_PER_PR = parseInt(process.env.MAX_AI_REVIEWS ?? '10', 10);
 
+export interface OrchestrateOptions {
+  targetRoute?: string;
+  force?: boolean;
+}
+
 export async function orchestrateVisualReview(
   client: LLMClientStrategy,
-  allReportTitles: string[] = []
+  allReportTitles: string[] = [],
+  options: OrchestrateOptions = {}
 ): Promise<void> {
   const agentReportPath = path.join(ARTIFACTS_DIR, client.reportFileName);
 
@@ -67,14 +73,23 @@ export async function orchestrateVisualReview(
     }
   }
 
-  // Only review routes with actual visual changes
-  // Limit to top N routes by difference percentage to manage costs
-  let routesToReview = summary.routes
-    .filter(r => r.differencePercent > 1.5)
-    .sort((a, b) => b.differencePercent - a.differencePercent);
+  const targetRoute = options.targetRoute ?? process.env.TARGET_ROUTE ?? process.env.IMPACT_ROUTE;
+  const force = options.force || Boolean(targetRoute) || process.env.FORCE_VISUAL_REVIEW === 'true';
+
+  let routesToReview = summary.routes;
+  if (targetRoute) {
+    routesToReview = routesToReview.filter(r => r.route === targetRoute || r.route.startsWith(targetRoute) || r.slug.includes(targetRoute.replace(/[^a-zA-Z0-9-]/g, '-').toLowerCase()));
+    console.log(`🎯 Targeting visual review for route: ${targetRoute} (${routesToReview.length} matching screen/viewport entries)`);
+  }
+
+  // Filter routes: if force or targetRoute is specified, review all matching viewports even if differencePercent <= 1.5
+  if (!force) {
+    routesToReview = routesToReview.filter(r => r.differencePercent > 1.5);
+  }
+  routesToReview.sort((a, b) => b.differencePercent - a.differencePercent);
 
   const totalRoutes = routesToReview.length;
-  if (routesToReview.length > MAX_ROUTES_TO_REVIEW) {
+  if (!targetRoute && routesToReview.length > MAX_ROUTES_TO_REVIEW) {
     console.log(`⚠️  Too many routes changed (${totalRoutes}). Limiting review to the top ${MAX_ROUTES_TO_REVIEW}.`);
     routesToReview = routesToReview.slice(0, MAX_ROUTES_TO_REVIEW);
   }

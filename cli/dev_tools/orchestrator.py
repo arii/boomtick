@@ -425,11 +425,11 @@ class Orchestrator:
         with open(abs_path, "r", encoding="utf-8") as f:
             return f.read()
 
-    def create_issue(self, title: str, body: str) -> Dict[str, Any]:
+    def create_issue(self, title: str, body: str, repo: Optional[str] = None) -> Dict[str, Any]:
         """
         Creates a new GitHub issue.
         """
-        res = self.github.create_issue(title, body)
+        res = self.github.create_issue(title, body, repo=repo)
         return {"status": "success", "issue": IssueSummary(**res).model_dump()}
 
     def get_issue_details(self, issueNumber: int) -> Dict[str, Any]:

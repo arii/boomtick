@@ -414,13 +414,14 @@ def audit_pr(ctx, pr_number, fetch, run_audit, submit, cleanup, dry_run, base, e
 @click.option("--title", required=True, help="Issue title")
 @click.option("--file", help="Path to file containing issue body")
 @click.option("--body", help="Literal body text")
+@click.option("--repo", help="Target GitHub repository (e.g. owner/repo)")
 @click.pass_context
-def create_issue(ctx, title, file, body):
+def create_issue(ctx, title, file, body, repo):
     """Create a new GitHub issue."""
     orch = ctx.obj["ORCHESTRATOR"]
 
     content = _get_body_content(ctx, orch, file, body)
-    res = orch.create_issue(title, content)
+    res = orch.create_issue(title, content, repo=repo)
     out(ctx, f"✅ Successfully created issue: {res['issue'].get('html_url')}", data=res)
 
 

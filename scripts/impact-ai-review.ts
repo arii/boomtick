@@ -10,6 +10,10 @@ const ALL_REVIEW_TITLES = [
 
 async function main(): Promise<void> {
   const provider = process.argv[2];
+  const routeArgIdx = process.argv.indexOf('--route');
+  const cliRoute = routeArgIdx !== -1 && process.argv[routeArgIdx + 1] ? process.argv[routeArgIdx + 1] : undefined;
+  const targetRoute = cliRoute ?? process.env.TARGET_ROUTE ?? process.env.IMPACT_ROUTE;
+  const force = process.argv.includes('--force') || Boolean(targetRoute) || process.env.FORCE_VISUAL_REVIEW === 'true';
 
   if (provider === 'gemini') {
     // security-safe: Environment variables are trusted in this workflow context.
@@ -26,7 +30,7 @@ async function main(): Promise<void> {
       }
       return;
     }
-    await orchestrateVisualReview(geminiVisualReviewClient, ALL_REVIEW_TITLES);
+    await orchestrateVisualReview(geminiVisualReviewClient, ALL_REVIEW_TITLES, { targetRoute, force });
   } else if (provider === 'github-models') {
     console.warn('⚠️  Skipping agent review — GitHub Models/OpenAI review is disabled. Only Gemini review is active.');
     try {

@@ -404,13 +404,7 @@ export function resolveAffectedUrls(
 ): string[] {
   const pageComponentFiles = Object.keys(dynamicRouteMapping);
   const authoritativeSitemapUrls = getAllRoutes().stubs || [];
-
   const hasGlobalImpact = staticAffected.some(f => IMPACT_CONFIG.GLOBAL_TRIGGERS.includes(f));
-
-  if (hasGlobalImpact) {
-    console.log('🌍 Global impact detected (App, Routes, or MainLayout affected).');
-    return IMPACT_CONFIG.DEFAULT_STATIC_PAGES;
-  }
 
   const affectedPages = allAffected.filter(f =>
     f.startsWith(IMPACT_CONFIG.PAGES_DIR) || pageComponentFiles.includes(f)
@@ -435,7 +429,13 @@ export function resolveAffectedUrls(
   const contentUrls = getContentAffectedUrls(changedFiles);
   const publicFileUrls = getAffectedUrlsByPublicFiles(changedFiles);
 
-  return Array.from(new Set([...pageUrls, ...contentUrls, ...publicFileUrls])).sort();
+  const baseUrls = hasGlobalImpact ? IMPACT_CONFIG.DEFAULT_STATIC_PAGES : [];
+
+  if (hasGlobalImpact) {
+    console.log('🌍 Global impact detected (App, Routes, or MainLayout affected). Including global routes and specific affected page routes.');
+  }
+
+  return Array.from(new Set([...baseUrls, ...pageUrls, ...contentUrls, ...publicFileUrls])).sort();
 }
 
 /**
