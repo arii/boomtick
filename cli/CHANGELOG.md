@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.9.3](https://github.com/arii/boomtick/compare/cli-v0.9.2...cli-v0.9.3) (2026-09-03)
+
+
+### Performance Improvements
+
+* **concurrency:** replace blocking time.sleep with configurable sleep callback ([#771](https://github.com/arii/boomtick/issues/771)) ([ec31958](https://github.com/arii/boomtick/commit/ec31958345affdc45e9810678b3233eec428acf2))
+
 ## [0.9.2](https://github.com/arii/boomtick/compare/cli-v0.9.1...cli-v0.9.2) (2026-09-01)
 
 
