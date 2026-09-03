@@ -1,8 +1,9 @@
 # pylint: disable=missing-docstring
 import json
 
+from unittest.mock import MagicMock
 from dev_tools.models import AIFullReview, AIReviewIssue, AISynthesisReview
-from dev_tools.services.ai_service import _get_review_prompt_constants, validate_with_model
+from dev_tools.services.ai_service import AIClient, _get_review_prompt_constants, validate_with_model
 
 
 def test_validate_ai_review_issue_success():
@@ -102,6 +103,17 @@ def test_validate_with_model_detailed_errors():
     # Check that error message contains the path to the error
     assert "file_reviews -> 0 -> issues -> 0 -> severity" in err
     assert "file_reviews -> 0 -> issues -> 0" in err
+
+
+def test_ai_client_custom_sleep_fn():
+    mock_sleep = MagicMock()
+    client = AIClient(sleep_fn=mock_sleep)
+    assert client.sleep_fn == mock_sleep
+
+    # Verify sleep_fn is invoked when a review attempt fails
+    client.call_ai = MagicMock(return_value="invalid json text")
+    client._execute_single_pass_review("test prompt", 1, 101)
+    assert mock_sleep.call_count > 0
 
 
 def test_get_review_prompt_constants_content_validation():
