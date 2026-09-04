@@ -1,7 +1,8 @@
 # pylint: disable=invalid-name,line-too-long,missing-docstring,no-value-for-parameter,too-many-locals
 import sys
 from collections import defaultdict
-from typing import Any, Dict, List, Set, Tuple
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from typing import Any, Dict, List, Optional, Set, Tuple
 
 import click
 from dev_tools.services.github import GitHubClient
@@ -35,22 +36,35 @@ def get_pr_overlaps(github: GitHubClient, limit: int) -> List[Dict[str, Any]]:
         log_info("No open PRs found.")
         return []
 
-    # 2. Map files to PRs
+    # 2. Map files to PRs concurrently
     file_to_prs = defaultdict(set)
     pr_metadata = {}
 
     for pr in prs:
         pr_num = pr["number"]
         pr_metadata[pr_num] = pr
+
+    def fetch_files_for_pr(pr_dict: Dict[str, Any]) -> Tuple[int, Optional[List[Dict[str, Any]]], Optional[Exception]]:
+        pr_num = pr_dict["number"]
         log_info(f"Fetching files for PR #{pr_num}...")
         try:
             files = github.fetch_pr_files(pr_num)
-            for f in files:
-                filename = f.get("filename")
-                if filename:
-                    file_to_prs[filename].add(pr_num)
+            return pr_num, files, None
         except Exception as e:
-            log_error(f"Failed to fetch files for PR #{pr_num}: {e}")
+            return pr_num, None, e
+
+    max_workers = min(10, len(prs)) if prs else 1
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        futures = [executor.submit(fetch_files_for_pr, pr) for pr in prs]
+        for future in as_completed(futures):
+            pr_num, files, error = future.result()
+            if error:
+                log_error(f"Failed to fetch files for PR #{pr_num}: {error}")
+            elif files:
+                for f in files:
+                    filename = f.get("filename")
+                    if filename:
+                        file_to_prs[filename].add(pr_num)
 
     # 3. Identify clusters
     # A cluster is a set of PRs that share at least one file.

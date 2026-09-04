@@ -61,5 +61,29 @@ class TestPrOverlap(unittest.TestCase):
         # Verify
         self.assertEqual(len(clusters), 0)
 
+    @patch("dev_tools.services.github.GitHubClient")
+    def test_fetch_pr_files_error_handling(self, mock_github_client):
+        # Setup mocks
+        github = mock_github_client.return_value
+        github.list_pull_requests.return_value = [
+            {"number": 1, "title": "PR 1", "author": {"login": "user1"}},
+            {"number": 2, "title": "PR 2", "author": {"login": "user2"}},
+        ]
+
+        def mock_fetch_pr_files(pr_num):
+            if pr_num == 1:
+                raise Exception("API error")
+            if pr_num == 2:
+                return [{"filename": "file2.py"}]
+            return []
+
+        github.fetch_pr_files.side_effect = mock_fetch_pr_files
+
+        # Execute
+        clusters = get_pr_overlaps(github, limit=5)
+
+        # Verify
+        self.assertEqual(len(clusters), 0)
+
 if __name__ == "__main__":
     unittest.main()

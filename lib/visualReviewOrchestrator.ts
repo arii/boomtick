@@ -2,7 +2,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { ARTIFACTS_DIR, VISUAL_SUMMARY_PATH, MAX_ROUTES_TO_REVIEW } from './visualReviewConstants';
 import { generateMarkdownReport, postPRComment, countExistingReviews, getJulesSessionIdFromPR, sendJulesMessage, getPreviousReviewState } from './visualReviewUtils';
-import { runWithConcurrencyLimit, checkReviewQuota, writeVerdictJson, writeGracefulExitVerdict } from './sharedUtils';
+import { runWithConcurrencyLimit, checkReviewQuota, writeVerdictJson, writeGracefulExitVerdict, createTaskErrorResult } from './sharedUtils';
 import type { RouteReview, VisualRouteSummary, VisualSummary, VisualReviewState } from './visualReviewTypes';
 import { logReviewExecution } from './aiLogger';
 export type AgentRole = 'CODE_REVIEW' | 'ACCESSIBILITY' | 'UX' | 'VISUAL_REGRESSION' | 'RESPONSIVE_LAYOUT';
@@ -124,16 +124,12 @@ export async function orchestrateVisualReview(
           logReviewExecution('visual-review', review, durationMs, { route: route.route });
           reviews[idx] = { ...review, role };
         } catch (err) {
-          const errorMsg = err instanceof Error ? err.message : String(err);
-          console.error(`❌ Error in ${role} visual review task:`, err);
-          reviews[idx] = {
+          reviews[idx] = createTaskErrorResult<RouteReview>(role, err, 'visual review', {
             route: route.route,
             severity: 'LOW',
             differencePercent: route.differencePercent,
-            feedback: `Error: failed to execute ${role} visual review. Details: ${errorMsg}`,
-            tokens: 0, cost: 0, inputTokens: 0, outputTokens: 0, cacheTokens: 0, modelName: 'unknown',
-            llmVerdict: 'warn', role, findings: []
-          } as RouteReview;
+            findings: [],
+          });
         }
       });
     }

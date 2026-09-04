@@ -237,10 +237,15 @@ class ContextBuilder:
 
         # 1. Step Specific Instruction Header
         markdown_lines.append("## Step Instructions & Focus Areas")
-        if step == "review":
+        if step in ("review", "impact_analysis"):
             markdown_lines.extend(
                 [
-                    "Focus: Perform a strict code review of the PR modifications.",
+                    "Focus: Perform a strict code and content review of the PR modifications.",
+                    (
+                        "- Enforce skeptical content validation: default to a skeptical stance, block unrequested"
+                        " new pages/case studies, demand verifiable sources/citations, and treat potential"
+                        " hallucinations or redundancies as blocking errors."
+                    ),
                     "- Assure design token compliance (no raw Tailwind layout primitives or inline styles).",
                     "- Identify dead abstractions, responsibility creep, or unnecessary indirection.",
                     "- Review ONLY changes in the diff. Assume unmodified code is working.",
@@ -251,7 +256,10 @@ class ContextBuilder:
                 [
                     "Focus: Perform a whole-repository compliance and integrity audit.",
                     "- Analyze directory structure and check file necessity.",
-                    "- Enforce repository rules and avoid temporary or stray artifacts in commits.",
+                    (
+                        "- Enforce repository rules, skeptical content validation, and avoid temporary"
+                        " or stray artifacts in commits."
+                    ),
                     "- Check overall compliance against design guidelines and issue specifications.",
                 ]
             )

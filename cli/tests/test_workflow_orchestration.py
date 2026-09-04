@@ -190,6 +190,34 @@ def test_runner_node_failure_halts():
         runner.run(graph)
 
 
+def test_runner_retries_with_custom_sleep_fn():
+    mock_sleep = MagicMock()
+    graph = WorkflowGraph()
+    attempts = 0
+
+    def retry_fn(ctx):
+        nonlocal attempts
+        attempts += 1
+        if attempts < 3:
+            raise ValueError(f"Fail attempt {attempts}")
+        ctx.set("success_on_attempt", attempts)
+        return "Success"
+
+    node = DummyNode("A", execution_fn=retry_fn, retry_policy={"max_retries": 3, "backoff_factor": 1.0})
+    graph.add_node(node)
+
+    runner = WorkflowRunner(sleep_fn=mock_sleep)
+    context = runner.run(graph)
+
+    assert context.get("success_on_attempt") == 3
+    assert attempts == 3
+
+    # Check backoff sleep times
+    assert mock_sleep.call_count == 2
+    mock_sleep.assert_any_call(1.0)  # 1.0 * (2 ** 0)
+    mock_sleep.assert_any_call(2.0)  # 1.0 * (2 ** 1)
+
+
 @patch("time.sleep", return_value=None)
 def test_runner_retries_with_exponential_backoff(mock_sleep):
     graph = WorkflowGraph()

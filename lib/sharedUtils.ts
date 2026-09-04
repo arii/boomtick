@@ -76,3 +76,26 @@ export async function checkReviewQuota(
   }
   return false; // Quota not met, continue review
 }
+
+export function createTaskErrorResult<T extends { role?: string; feedback: string; tokens: number; cost: number; inputTokens: number; outputTokens: number; cacheTokens: number; modelName: string; llmVerdict: 'warn' }>(
+  role: string,
+  err: unknown,
+  reviewType: string,
+  extraFields: Omit<T, 'role' | 'feedback' | 'tokens' | 'cost' | 'inputTokens' | 'outputTokens' | 'cacheTokens' | 'modelName' | 'llmVerdict'>
+): T {
+  const errorMsg = err instanceof Error ? err.message : String(err);
+  console.error(`❌ Error in ${role} ${reviewType} task:`, err);
+
+  return {
+    ...extraFields,
+    feedback: `Error: failed to execute ${role} ${reviewType}. Details: ${errorMsg}`,
+    role,
+    tokens: 0,
+    cost: 0,
+    inputTokens: 0,
+    outputTokens: 0,
+    cacheTokens: 0,
+    modelName: 'unknown',
+    llmVerdict: 'warn',
+  } as T;
+}

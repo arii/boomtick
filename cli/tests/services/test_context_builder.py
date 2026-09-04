@@ -169,7 +169,8 @@ class TestContextBuilder(unittest.TestCase):
         # 1. Review step context
         review_md = self.builder.build_markdown_context("review")
         self.assertIn("# Agent Task Execution Context — Step: REVIEW", review_md)
-        self.assertIn("Perform a strict code review", review_md)
+        self.assertIn("Perform a strict code and content review", review_md)
+        self.assertIn("Enforce skeptical content validation", review_md)
         self.assertIn("Pull Request #1: Example", review_md)
         self.assertIn("Repository File Layout Structure", review_md)
         self.assertIn("Agent Scratch Pad (Shared Multi-Role Thinking State)", review_md)
@@ -180,6 +181,7 @@ class TestContextBuilder(unittest.TestCase):
         audit_md = self.builder.build_markdown_context("audit")
         self.assertIn("# Agent Task Execution Context — Step: AUDIT", audit_md)
         self.assertIn("Perform a whole-repository compliance", audit_md)
+        self.assertIn("skeptical content validation", audit_md)
 
         # 3. Repair step context
         repair_md = self.builder.build_markdown_context("repair")

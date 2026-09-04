@@ -5,7 +5,7 @@ import { CreateIssueInputSchema, CreateIssueResponseSchema } from "./contract.js
 
 export { CreateIssueInputSchema };
 
-export async function createIssueHandler(args: z.infer<typeof CreateIssueInputSchema>) {
+export async function createIssueHandler(args: z.input<typeof CreateIssueInputSchema>) {
   const params = CreateIssueInputSchema.parse(args);
 
   const cmdArgs = ["gh", "create-issue", "--title", params.title];

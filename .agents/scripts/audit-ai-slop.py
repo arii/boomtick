@@ -1,4 +1,4 @@
-# pylint: disable=invalid-name,line-too-long,missing-docstring,no-else-return,subprocess-run-check,too-many-nested-blocks,unused-import
+# pylint: disable=invalid-name,line-too-long,missing-docstring,no-else-return,subprocess-run-check,too-many-nested-blocks
 #!/usr/bin/env python3
 """
 AI Slop Audit Script
@@ -7,12 +7,11 @@ Searches codebase for banned language per audit.config.yaml
 Generates actionable audit report with before/after fixes
 """
 
-import os
 import re
 import subprocess
 from datetime import datetime
 from pathlib import Path
-from typing import List, Dict, Tuple
+from typing import List, Dict
 import yaml
 
 class AISlopAuditor:

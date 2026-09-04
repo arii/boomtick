@@ -40,14 +40,16 @@ class GitHubClient:
         self.use_graphql = use_graphql and not disable_gql_env
         self._node_id_cache: Dict[str, str] = {}
 
-    def branch_exists(self, branch_name: str) -> bool:
+    def branch_exists(self, branch_name: str, repo: Optional[str] = None) -> bool:
         """Checks if a branch exists in the repository, with caching."""
-        if branch_name in self._branch_cache:
-            return self._branch_cache[branch_name]
+        target_repo = repo or self.repo
+        cache_key = f"{target_repo}:{branch_name}"
+        if cache_key in self._branch_cache:
+            return self._branch_cache[cache_key]
 
         try:
-            self._request("GET", f"/repos/{self.repo}/branches/{branch_name}")
-            self._branch_cache[branch_name] = True
+            self._request("GET", f"/repos/{target_repo}/branches/{branch_name}")
+            self._branch_cache[cache_key] = True
             return True
         except (requests.exceptions.RequestException, CLIError) as e:
             # Fallback to status_code if 'code' attribute is missing (e.g. RequestException)
@@ -56,12 +58,16 @@ class GitHubClient:
                 code = e.response.status_code
 
             if code == 404:
-                self._branch_cache[branch_name] = False
+                self._branch_cache[cache_key] = False
                 return False
             raise e
 
-    def invalidate_branch_cache(self, branch_name: str) -> None:
+    def invalidate_branch_cache(self, branch_name: str, repo: Optional[str] = None) -> None:
         """Invalidates the branch existence cache for a specific branch."""
+        target_repo = repo or self.repo
+        cache_key = f"{target_repo}:{branch_name}"
+        if cache_key in self._branch_cache:
+            del self._branch_cache[cache_key]
         if branch_name in self._branch_cache:
             del self._branch_cache[branch_name]
 
@@ -457,27 +463,30 @@ class GitHubClient:
 
         return prs
 
-    def create_pull_request(self, title: str, body: str, head: str, base: str, draft: bool = False) -> Dict[str, Any]:
+    def create_pull_request(
+        self, title: str, body: str, head: str, base: str, draft: bool = False, repo: Optional[str] = None
+    ) -> Dict[str, Any]:
         """Creates a PR, automatically pushing the head branch if it doesn't exist on remote."""
+        target_repo = repo or self.repo
         # Security: Validate branch name to prevent injection
         if not self.BRANCH_NAME_PATTERN.match(head):
             raise CLIError(f"Invalid branch name: {head}", code=400)
 
-        if not self.branch_exists(head):
+        if not self.branch_exists(head, repo=target_repo):
             log_warn(f"Branch '{head}' not found on remote. Checking for local branch and pushing...")
-            git_util = GitUtility(token=self.token, repo=self.repo)
+            git_util = GitUtility(token=self.token, repo=target_repo)
 
             # Style: Explicitly check for local branch existence before pushing
             if not git_util.branch_exists_locally(head):
                 log_warn(f"Local branch '{head}' also not found. PR creation will likely fail.")
             elif git_util.push_branch(head):
                 # Invalidate branch cache
-                self.invalidate_branch_cache(head)
+                self.invalidate_branch_cache(head, repo=target_repo)
             else:
                 log_warn(self.ERROR_AUTO_PUSH_FAILED.format(head=head))
 
         data = {"title": title, "body": body, "head": head, "base": base, "draft": draft}
-        return self._request("POST", f"/repos/{self.repo}/pulls", json_data=data)
+        return self._request("POST", f"/repos/{target_repo}/pulls", json_data=data)
 
     def _handle_missing_logs(self, identifier: Any, is_fallback: bool = False) -> str:
         """Helper to log warning and return a warning string for missing logs."""
@@ -858,9 +867,6 @@ class GitHubClient:
         Submits a PR review from a markdown file containing a JSON payload.
         The file should have standard Markdown at the top and a JSON block at the bottom for metadata.
         """
-        import json
-        import re
-
         from dev_tools.utils import CLIError, log_info, log_warn
 
         if not os.path.exists(filepath):
@@ -869,120 +875,16 @@ class GitHubClient:
         with open(filepath, "r", encoding="utf-8") as f:
             content = f.read()
 
-        # Find all JSON blocks and identify the metadata block (must contain 'recommendation', 'comments', or 'labels')
-        json_blocks = list(re.finditer(r"```json\n(.*?)\n```", content, re.DOTALL))
-        if not json_blocks:
-            raise CLIError("Could not find any JSON block in review document")
-
-        # Known keys used to distinguish the metadata block from other JSON blocks (like code samples)
-        METADATA_IDENTIFIER_KEYS = {"recommendation", "comments", "labels"}
-
-        payload = None
-        metadata_match = None
-        for match in reversed(json_blocks):
-            try:
-                candidate = json.loads(match.group(1))
-                if isinstance(candidate, dict) and any(k in candidate for k in METADATA_IDENTIFIER_KEYS):
-                    payload = candidate
-                    metadata_match = match
-                    break
-            except json.JSONDecodeError:
-                continue
-
-        if not payload:
-            raise CLIError(
-                f"Could not find a valid JSON metadata block (expected keys: {', '.join(METADATA_IDENTIFIER_KEYS)})"
-            )
-
-        # Extract Markdown body (everything above the metadata JSON block)
-        if not metadata_match:
-            raise CLIError("Could not determine the start of the JSON block")
-        body = content[: metadata_match.start()].strip()
-        # Clean up the trailing "Output JSON" instructions if present
-        body = re.split(r"##\s+Output JSON", body, flags=re.IGNORECASE)[0].strip()
-
-        # Robustly strip placeholders from the markdown body as well
-        for p in REVIEW_PLACEHOLDERS:
-            body = re.sub(p, "", body, flags=re.IGNORECASE | re.DOTALL).strip()
-
-        if not body:
-            raise CLIError("Review body (Markdown section) is empty. Provide findings before the JSON block.")
-
-        # Combine extracted body (Markdown section) and payload body (JSON section)
-        json_body = payload.get("body", "").strip()
-
-        if json_body:
-            # Check if JSON body contains only placeholders
-            stripped_body = json_body
-            for p in REVIEW_PLACEHOLDERS:
-                stripped_body = re.sub(p, "", stripped_body, flags=re.IGNORECASE | re.DOTALL).strip()
-
-            if not stripped_body:
-                raise CLIError(
-                    "Review rejected: JSON body contains only placeholders/boilerplate. "
-                    "Ensure you provide actual feedback in the 'body' field of the JSON block."
-                )
-
-            payload["body"] = f"{body}\n\n{stripped_body}"
-        else:
-            payload["body"] = body
-
-        # Validate payload before proceeding
+        payload = self._extract_review_payload(content)
         self.validate_review_payload(payload)
 
-        # Map comment lines to diff positions
-        try:
-            diff_mapping = self._get_diff_mapping(pr_number)
-            mapped_comments = []
-            unmapped_comments = []
-
-            for comment in payload.get("comments", []):
-                path = comment.get("path")
-                line = comment.get("line")
-
-                if path in diff_mapping and line in diff_mapping[path]:
-                    comment["position"] = diff_mapping[path][line]
-                    mapped_comments.append(comment)
-                else:
-                    unmapped_comments.append(comment)
-
-            payload["comments"] = mapped_comments
-
-            if unmapped_comments:
-                extra_body = "\n\n### Additional Feedback (Lines not found in diff)\n"
-                for c in unmapped_comments:
-                    extra_body += f"- **{c.get('path')}:{c.get('line')}**: {c.get('body')}\n"
-                payload["body"] = payload.get("body", "") + extra_body
-
-        except Exception as e:
-            log_warn(f"Failed to generate diff mapping for PR #{pr_number}: {e}")
+        self._map_review_comments(pr_number, payload)
 
         pr_details = self.fetch_pr_details(pr_number)
         check_runs = self.fetch_check_runs(pr_details.get("head", {}).get("sha"))
         failing_checks = [str(run.get("name")) for run in check_runs if run.get("conclusion") == "failure"]
 
-        # Determine event based on recommendation field, then fallback to body analysis
-        recommendation = payload.get("recommendation", "")
-        if event_override:
-            event = event_override
-        elif recommendation == "Approved":
-            event = "APPROVE"
-        elif recommendation == "Approved with Minor Changes":
-            # Per code review, minor changes shouldn't automatically approve
-            event = "COMMENT"
-        elif recommendation == "Not Approved":
-            event = "REQUEST_CHANGES"
-        else:
-            event = (
-                "REQUEST_CHANGES"
-                if "Not Approved" in payload.get("body", "")
-                else "APPROVE" if "Approved" in payload.get("body", "") else "COMMENT"
-            )
-
-        if failing_checks and event == "APPROVE":
-            event = "COMMENT"
-            warning = f"> ⚠️ **BLOCKING CI FAILURE**: Approval overridden to COMMENT because the following checks are failing: {', '.join(failing_checks)}. Please resolve CI issues before approval.\n\n"
-            payload["body"] = warning + payload.get("body", "")
+        event = self._determine_review_event(payload, failing_checks, event_override)
 
         if not dry_run:
 
@@ -1044,6 +946,115 @@ class GitHubClient:
                 log_info(f"[DRY-RUN] Would submit {event} for PR #{pr_number}")
 
         return {"status": "success", "event": event, "pr": pr_number}
+
+    def _extract_review_payload(self, content: str) -> Dict[str, Any]:
+        import json
+        import re
+        from dev_tools.utils import CLIError
+
+        json_blocks = list(re.finditer(r"```json\n(.*?)\n```", content, re.DOTALL))
+        if not json_blocks:
+            raise CLIError("Could not find any JSON block in review document")
+
+        METADATA_IDENTIFIER_KEYS = {"recommendation", "comments", "labels"}
+
+        payload = None
+        metadata_match = None
+        for match in reversed(json_blocks):
+            try:
+                candidate = json.loads(match.group(1))
+                if isinstance(candidate, dict) and any(k in candidate for k in METADATA_IDENTIFIER_KEYS):
+                    payload = candidate
+                    metadata_match = match
+                    break
+            except json.JSONDecodeError:
+                continue
+
+        if not payload or not metadata_match:
+            raise CLIError(
+                f"Could not find a valid JSON metadata block (expected keys: {', '.join(METADATA_IDENTIFIER_KEYS)})"
+            )
+
+        body = content[: metadata_match.start()].strip()
+        body = re.split(r"##\s+Output JSON", body, flags=re.IGNORECASE)[0].strip()
+
+        for p in REVIEW_PLACEHOLDERS:
+            body = re.sub(p, "", body, flags=re.IGNORECASE | re.DOTALL).strip()
+
+        if not body:
+            raise CLIError("Review body (Markdown section) is empty. Provide findings before the JSON block.")
+
+        json_body = payload.get("body", "").strip()
+
+        if json_body:
+            stripped_body = json_body
+            for p in REVIEW_PLACEHOLDERS:
+                stripped_body = re.sub(p, "", stripped_body, flags=re.IGNORECASE | re.DOTALL).strip()
+
+            if not stripped_body:
+                raise CLIError(
+                    "Review rejected: JSON body contains only placeholders/boilerplate. "
+                    "Ensure you provide actual feedback in the 'body' field of the JSON block."
+                )
+
+            payload["body"] = f"{body}\n\n{stripped_body}"
+        else:
+            payload["body"] = body
+
+        return payload
+
+    def _map_review_comments(self, pr_number: int, payload: Dict[str, Any]) -> None:
+        from dev_tools.utils import log_warn
+
+        try:
+            diff_mapping = self._get_diff_mapping(pr_number)
+            mapped_comments = []
+            unmapped_comments = []
+
+            for comment in payload.get("comments", []):
+                path = comment.get("path")
+                line = comment.get("line")
+
+                if path in diff_mapping and line in diff_mapping[path]:
+                    comment["position"] = diff_mapping[path][line]
+                    mapped_comments.append(comment)
+                else:
+                    unmapped_comments.append(comment)
+
+            payload["comments"] = mapped_comments
+
+            if unmapped_comments:
+                extra_body = "\n\n### Additional Feedback (Lines not found in diff)\n"
+                for c in unmapped_comments:
+                    extra_body += f"- **{c.get('path')}:{c.get('line')}**: {c.get('body')}\n"
+                payload["body"] = payload.get("body", "") + extra_body
+
+        except Exception as e:
+            log_warn(f"Failed to generate diff mapping for PR #{pr_number}: {e}")
+
+    def _determine_review_event(self, payload: Dict[str, Any], failing_checks: List[str], event_override: Optional[str] = None) -> str:
+        recommendation = payload.get("recommendation", "")
+        if event_override:
+            event = event_override
+        elif recommendation == "Approved":
+            event = "APPROVE"
+        elif recommendation == "Approved with Minor Changes":
+            event = "COMMENT"
+        elif recommendation == "Not Approved":
+            event = "REQUEST_CHANGES"
+        else:
+            event = (
+                "REQUEST_CHANGES"
+                if "Not Approved" in payload.get("body", "")
+                else "APPROVE" if "Approved" in payload.get("body", "") else "COMMENT"
+            )
+
+        if failing_checks and event == "APPROVE":
+            event = "COMMENT"
+            warning = f"> ⚠️ **BLOCKING CI FAILURE**: Approval overridden to COMMENT because the following checks are failing: {', '.join(failing_checks)}. Please resolve CI issues before approval.\n\n"
+            payload["body"] = warning + payload.get("body", "")
+
+        return event
 
     def download_zipball(self, ref: str, dest: str = "repo.zip") -> None:
         """A stateless download helper for the Orchestrator"""

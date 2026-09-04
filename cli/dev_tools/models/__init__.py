@@ -224,6 +224,7 @@ class CreatePullRequestInput(CamelCaseModel):
     head: str = Field(..., description="The branch containing changes to merge.")
     base: str = Field("main", description="The target branch to merge into.")
     draft: bool = Field(False, description="Whether to create the PR as a draft.")
+    repo: Optional[str] = Field(None, description="The target repository override (e.g. org/repo).")
 
 
 class CommentTriageSummaryInput(CamelCaseModel):

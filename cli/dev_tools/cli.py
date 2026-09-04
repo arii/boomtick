@@ -561,11 +561,12 @@ def scaffold_issue(ctx, file):
 @click.option("--head", required=True)
 @click.option("--base", default=PROJECT_CONFIG.base_branch_name)
 @click.option("--draft", is_flag=True)
+@click.option("--repo", help="Target repository override")
 @click.pass_context
-def create_pr(ctx, title, body, head, base, draft):
+def create_pr(ctx, title, body, head, base, draft, repo):
     """Create a new pull request."""
     orch = ctx.obj["ORCHESTRATOR"]
-    res = orch.github.create_pull_request(title, body, head, base, draft=draft)
+    res = orch.create_pull_request(title, body, head, base, draft=draft, repo=repo)
     out(ctx, f"✅ Created PR: {res.get('html_url')}", data={"pr": res})
 
 
