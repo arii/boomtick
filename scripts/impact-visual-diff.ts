@@ -133,6 +133,35 @@ async function captureRoute(
         // Small pause to let any client-side layout stable/animations settle
         await page.waitForTimeout(500);
 
+        // Ensure all images are fully loaded and decoded (handling loading="lazy" below fold)
+        await page.evaluate(async () => {
+          const images = Array.from(document.querySelectorAll('img'));
+          const imgPromises = images.map(img => {
+            if (img.complete) return Promise.resolve();
+            return new Promise(resolve => {
+              const timer = setTimeout(resolve, 3000);
+              const done = () => {
+                clearTimeout(timer);
+                resolve(undefined);
+              };
+              img.addEventListener('load', done, { once: true });
+              img.addEventListener('error', done, { once: true });
+            });
+          });
+          await Promise.race([
+            Promise.all(imgPromises),
+            new Promise(resolve => setTimeout(resolve, 4000))
+          ]);
+        }).catch(() => {});
+
+        // Scroll page down and up if lazy images are present to trigger viewport intersections
+        await page.evaluate(async () => {
+          window.scrollTo(0, document.body.scrollHeight);
+          await new Promise(r => setTimeout(r, 100));
+          window.scrollTo(0, 0);
+        }).catch(() => {});
+        await page.waitForTimeout(200);
+
         const metrics = await page.evaluate((vpWidth: number) => {
           const main = document.querySelector('main');
           return {
@@ -300,15 +329,24 @@ async function main(): Promise<void> {
     console.warn('⚠️  Could not load custom viewports, using defaults:', (err as Error).message);
   }
 
-  let impact;
-  try {
-    impact = readImpactAnalysis();
-  } catch (err) {
-    console.warn(`⚠️ Skipping visual diff: ${(err as Error).message}`);
-    return;
-  }
+  const routeArgIdx = process.argv.indexOf('--route');
+  const cliRoute = routeArgIdx !== -1 && process.argv[routeArgIdx + 1] ? process.argv[routeArgIdx + 1] : undefined;
+  const targetRoute = cliRoute ?? process.env.TARGET_ROUTE ?? process.env.IMPACT_ROUTE;
 
-  const routes = impact.routes.filter(route => !route.includes(':'));
+  let routes: string[] = [];
+  if (targetRoute) {
+    routes = [targetRoute];
+    console.log(`🎯 Targeted visual diff for specific route: ${targetRoute}`);
+  } else {
+    let impact;
+    try {
+      impact = readImpactAnalysis();
+    } catch (err) {
+      console.warn(`⚠️ Skipping visual diff: ${(err as Error).message}`);
+      return;
+    }
+    routes = impact.routes.filter(route => !route.includes(':'));
+  }
 
   ensureDirectory(ARTIFACTS_DIR);
   ensureDirectory(VISUAL_REVIEW_DIR);

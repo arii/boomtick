@@ -92,9 +92,15 @@ export function buildVisualReviewPayload(summary: VisualRouteSummary): Array<{ t
 
   // 1. Grab the DOM diff for ground truth
   const routeDomDir = path.join(DOM_REVIEW_DIR, summary.slug);
-  const domDiffPath = path.join(routeDomDir, 'diff.txt');
+  const domDiffCandidates = [
+    path.join(routeDomDir, `diff${summary.suffix || ''}.txt`),
+    path.join(routeDomDir, 'diff.txt'),
+    path.join(DOM_REVIEW_DIR, summary.slug.split('-')[0] ?? summary.slug, `diff${summary.suffix || ''}.txt`),
+    path.join(DOM_REVIEW_DIR, summary.slug.split('-')[0] ?? summary.slug, 'diff.txt')
+  ];
+  const domDiffPath = domDiffCandidates.find(p => fs.existsSync(p));
   let domDiffContext = 'No DOM diff available.';
-  if (fs.existsSync(domDiffPath)) {
+  if (domDiffPath && fs.existsSync(domDiffPath)) {
     const diffContent = fs.readFileSync(domDiffPath, 'utf8');
     domDiffContext = diffContent.length > 3000
       ? diffContent.slice(0, 3000) + '\n...[TRUNCATED]'
@@ -102,9 +108,15 @@ export function buildVisualReviewPayload(summary: VisualRouteSummary): Array<{ t
   }
 
   // 2. Grab the DOM structure diff
-  const structureDiffPath = path.join(routeDomDir, 'structure-diff.txt');
+  const structureDiffCandidates = [
+    path.join(routeDomDir, `structure-diff${summary.suffix || ''}.txt`),
+    path.join(routeDomDir, 'structure-diff.txt'),
+    path.join(DOM_REVIEW_DIR, summary.slug.split('-')[0] ?? summary.slug, `structure-diff${summary.suffix || ''}.txt`),
+    path.join(DOM_REVIEW_DIR, summary.slug.split('-')[0] ?? summary.slug, 'structure-diff.txt')
+  ];
+  const structureDiffPath = structureDiffCandidates.find(p => fs.existsSync(p));
   let structureDiffContext = 'No DOM structure diff available.';
-  if (fs.existsSync(structureDiffPath)) {
+  if (structureDiffPath && fs.existsSync(structureDiffPath)) {
     const diffContent = fs.readFileSync(structureDiffPath, 'utf8');
     structureDiffContext = diffContent.length > 2000
       ? diffContent.slice(0, 2000) + '\n...[TRUNCATED]'
