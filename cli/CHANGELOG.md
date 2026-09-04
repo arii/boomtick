@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.10.0](https://github.com/arii/boomtick/compare/cli-v0.9.2...cli-v0.10.0) (2026-09-04)
+
+
+### Features
+
+* **impact:** add targeted route and viewport options for visual diff… ([#775](https://github.com/arii/boomtick/issues/775)) ([c767fd4](https://github.com/arii/boomtick/commit/c767fd47063ce6a1078a728c3af79bcf18e2c5c5))
+
+
+### Performance Improvements
+
+* **concurrency:** replace blocking time.sleep with configurable sleep callback ([#771](https://github.com/arii/boomtick/issues/771)) ([ec31958](https://github.com/arii/boomtick/commit/ec31958345affdc45e9810678b3233eec428acf2))
+
 ## [0.9.2](https://github.com/arii/boomtick/compare/cli-v0.9.1...cli-v0.9.2) (2026-09-01)
 
 
