@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.0](https://github.com/arii/boomtick/compare/mcp-v0.3.7...mcp-v0.4.0) (2026-09-04)
+
+
+### Features
+
+* **impact:** add targeted route and viewport options for visual diff… ([#775](https://github.com/arii/boomtick/issues/775)) ([c767fd4](https://github.com/arii/boomtick/commit/c767fd47063ce6a1078a728c3af79bcf18e2c5c5))
+
 ## [0.3.7](https://github.com/arii/boomtick/compare/mcp-v0.3.6...mcp-v0.3.7) (2026-08-17)
 
 

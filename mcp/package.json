@@ -1,6 +1,6 @@
 {
   "name": "@arii/boomtick-mcp",
-  "version": "0.3.7",
+  "version": "0.4.0",
   "description": "Boomtick MCP Guide: PR Rescue + Merge Conflict Agent",
   "repository": {
     "type": "git",
