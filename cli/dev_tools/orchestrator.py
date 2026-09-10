@@ -95,7 +95,7 @@ class Orchestrator:
     @property
     def github(self) -> GitHubClient:
         if self._github is None:
-            self._github = GitHubClient(repo=PROJECT_CONFIG.github_repo, no_cache=self.no_cache)
+            self._github = GitHubClient(no_cache=self.no_cache)
         return self._github
 
     @property

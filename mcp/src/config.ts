@@ -37,10 +37,8 @@ export function initializeConfig() {
 
   try {
     // Attempt to load core properties from the Python CLI to avoid duplication
-    const cwd = process.env.BOOMTICK_REPO_PATH || process.cwd();
     const cmd = `td-cli config view`;
     const output = execSync(cmd, {
-      cwd,
       encoding: "utf-8",
       stdio: ["ignore", "pipe", "ignore"]
     });
@@ -66,27 +64,10 @@ function findRepoRoot() {
     return process.env.BOOMTICK_REPO_PATH;
   }
 
-  // Traverse up from process.cwd() to find project_config.json, workspace.json, or .git
-  let current = process.cwd();
+  // Traverse up to find workspace.json or .git
+  let current = __dirname;
   while (current !== path.parse(current).root) {
-    if (
-      fs.existsSync(path.join(current, "project_config.json")) ||
-      fs.existsSync(path.join(current, "workspace.json")) ||
-      fs.existsSync(path.join(current, ".git"))
-    ) {
-      return current;
-    }
-    current = path.dirname(current);
-  }
-
-  // Fallback to __dirname search if discovery from cwd fails
-  current = __dirname;
-  while (current !== path.parse(current).root) {
-    if (
-      fs.existsSync(path.join(current, "project_config.json")) ||
-      fs.existsSync(path.join(current, "workspace.json")) ||
-      fs.existsSync(path.join(current, ".git"))
-    ) {
+    if (fs.existsSync(path.join(current, "workspace.json")) || fs.existsSync(path.join(current, ".git"))) {
       return current;
     }
     current = path.dirname(current);
@@ -98,28 +79,20 @@ function findRepoRoot() {
 export const config = {
   get githubToken() { return getGithubToken(); },
   get githubOwner() {
-    const repoString = cachedDynamicConfig?.github_repo;
-    if (typeof repoString === "string" && repoString.includes("/")) {
-      return repoString.split("/")[0];
-    }
     if (process.env.GITHUB_OWNER) return process.env.GITHUB_OWNER;
-    const envRepo = process.env.GITHUB_REPOSITORY || process.env.GH_REPO;
-    if (envRepo && envRepo.includes("/")) {
-      return envRepo.split("/")[0];
+    const repoString = cachedDynamicConfig?.github_repo;
+    if (typeof repoString !== "string" || !repoString.includes("/")) {
+      throw new Error("GITHUB_OWNER must be set via environment variable or project_config.json");
     }
-    throw new Error("GITHUB_OWNER must be set via environment variable or project_config.json");
+    return repoString.split("/")[0];
   },
   get githubRepo() {
-    const repoString = cachedDynamicConfig?.github_repo;
-    if (typeof repoString === "string" && repoString.includes("/")) {
-      return repoString.split("/")[1];
-    }
     if (process.env.GITHUB_REPO) return process.env.GITHUB_REPO;
-    const envRepo = process.env.GITHUB_REPOSITORY || process.env.GH_REPO;
-    if (envRepo && envRepo.includes("/")) {
-      return envRepo.split("/")[1];
+    const repoString = cachedDynamicConfig?.github_repo;
+    if (typeof repoString !== "string" || !repoString.includes("/")) {
+      throw new Error("GITHUB_REPO must be set via environment variable or project_config.json");
     }
-    throw new Error("GITHUB_REPO must be set via environment variable or project_config.json");
+    return repoString.split("/")[1];
   },
   get repoPath() {
     return findRepoRoot();

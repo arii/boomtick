@@ -20,16 +20,14 @@ describe("config", () => {
   });
 
   describe("initializeConfig", () => {
-    it("should load dynamic config from td-cli config view using active cwd", async () => {
+    it("should load dynamic config from td-cli config view", async () => {
       const mockConfig = { github_repo: "owner/repo", base_branch: "origin/main", vite_base_path: "/app/" };
       vi.mocked(execSync).mockReturnValue(JSON.stringify(mockConfig));
 
       const { initializeConfig } = await import("./config.js");
       const result = initializeConfig();
 
-      expect(execSync).toHaveBeenCalledWith("td-cli config view", expect.objectContaining({
-        cwd: process.cwd()
-      }));
+      expect(execSync).toHaveBeenCalledWith("td-cli config view", expect.anything());
       expect(result).toEqual(mockConfig);
     });
 
@@ -89,22 +87,7 @@ describe("config", () => {
       expect(config.githubToken).toBeUndefined();
     });
 
-    it("should prioritize cachedDynamicConfig over environment variables for githubOwner and githubRepo", async () => {
-      process.env.GITHUB_OWNER = "env-owner";
-      process.env.GITHUB_REPO = "env-repo";
-      process.env.GITHUB_REPOSITORY = "env-owner/env-repo";
-
-      const mockConfig = { github_repo: "workspace-owner/workspace-repo" };
-      vi.mocked(execSync).mockReturnValue(JSON.stringify(mockConfig));
-
-      const { config, initializeConfig } = await import("./config.js");
-      initializeConfig();
-
-      expect(config.githubOwner).toBe("workspace-owner");
-      expect(config.githubRepo).toBe("workspace-repo");
-    });
-
-    it("should fallback to environment variables when cachedDynamicConfig is empty", async () => {
+    it("should resolve githubOwner and githubRepo from env or cached config", async () => {
       process.env.GITHUB_OWNER = "custom-owner";
       process.env.GITHUB_REPO = "custom-repo";
       const { config } = await import("./config.js");
@@ -116,8 +99,6 @@ describe("config", () => {
     it("should throw when githubOwner / githubRepo cannot be determined", async () => {
       delete process.env.GITHUB_OWNER;
       delete process.env.GITHUB_REPO;
-      delete process.env.GITHUB_REPOSITORY;
-      delete process.env.GH_REPO;
       vi.mocked(execSync).mockImplementation(() => {
         throw new Error("td-cli failed");
       });
