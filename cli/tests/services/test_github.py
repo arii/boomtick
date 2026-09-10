@@ -191,6 +191,20 @@ def test_create_pull_request_repo_override():
             assert res["number"] == 99
 
 
+def test_github_client_repo_resolution_priority(monkeypatch):
+    monkeypatch.setenv("GITHUB_REPOSITORY", "stale-org/stale-repo")
+    monkeypatch.setenv("GH_REPO", "stale-org/stale-repo")
+    with patch("dev_tools.utils.get_github_token", return_value="dummy_token"), patch(
+        "dev_tools.services.github.DiskCache"
+    ), patch("dev_tools.config.get_config") as mock_get_config:
+        mock_cfg = MagicMock()
+        mock_cfg.github_repo = "workspace-org/workspace-repo"
+        mock_get_config.return_value = mock_cfg
+
+        client = GitHubClient()
+        assert client.repo == "workspace-org/workspace-repo"
+
+
 class TestGitHubClientGraphQL(unittest.TestCase):
     def setUp(self):
         with patch("dev_tools.utils.get_github_token") as mock_token:

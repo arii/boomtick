@@ -18,14 +18,22 @@ class GitHubClient:
     BRANCH_NAME_PATTERN = re.compile(r"^[a-zA-Z0-9._/-]+$")
 
     def __init__(self, token: Optional[str] = None, repo: Optional[str] = None, no_cache: bool = False, use_graphql: bool = True):
+        from dev_tools.config import get_config
         from dev_tools.utils import get_github_token
 
         self.token = token or get_github_token()
         if not self.token:
             raise ValueError("Missing GITHUB_TOKEN environment variable.")
-        self.repo = repo or os.environ.get("GITHUB_REPOSITORY") or os.environ.get("GH_REPO")
-        if not self.repo:
-            self.repo = self._detect_repo()
+        if repo:
+            self.repo = repo
+        else:
+            cfg_repo = None
+            try:
+                cfg_repo = get_config().github_repo
+            except Exception:
+                pass
+            detected_repo = cfg_repo or self._detect_repo() or os.environ.get("GITHUB_REPOSITORY") or os.environ.get("GH_REPO") or ""
+            self.repo = detected_repo
         self.base_url = "https://api.github.com"
         self._session = requests.Session()
         self._session.headers.update(
