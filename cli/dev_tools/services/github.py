@@ -32,7 +32,8 @@ class GitHubClient:
                 cfg_repo = get_config().github_repo
             except Exception:
                 pass
-            self.repo = cfg_repo or self._detect_repo() or os.environ.get("GITHUB_REPOSITORY") or os.environ.get("GH_REPO")
+            detected_repo = cfg_repo or self._detect_repo() or os.environ.get("GITHUB_REPOSITORY") or os.environ.get("GH_REPO") or ""
+            self.repo = detected_repo
         self.base_url = "https://api.github.com"
         self._session = requests.Session()
         self._session.headers.update(
