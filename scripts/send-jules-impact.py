@@ -4,7 +4,6 @@ import glob
 import json
 import logging
 import os
-import re
 import sys
 
 logging.basicConfig(level=logging.INFO)
@@ -13,25 +12,7 @@ logger = logging.getLogger(__name__)
 
 def is_skipped_review(content: str) -> bool:
     lines = [line.strip() for line in content.splitlines() if line.strip()]
-    if len(lines) == 2 and lines[1].startswith("Skipped:"):
-        return True
-
-    if "_No files reviewed._" in content:
-        return True
-
-    # Parse JSON block in pr-review-*.md artifacts
-    json_match = re.search(r"```json\s*(\{.*?\})\s*```", content, re.DOTALL)
-    if json_match:
-        try:
-            data = json.loads(json_match.group(1))
-            recommendation = str(data.get("recommendation", "")).strip().lower()
-            comments = data.get("comments", [])
-            if recommendation == "approved" and isinstance(comments, list) and len(comments) == 0:
-                return True
-        except Exception as e:
-            logger.debug(f"Failed to parse embedded review JSON: {e}")
-
-    return False
+    return len(lines) == 2 and lines[1].startswith("Skipped:")
 
 
 def is_skipped_verdict(data: dict) -> bool:
