@@ -2319,7 +2319,7 @@ Follow the "Audit comment template" in `docs/agent/issue-audit-rules.md` to post
             # and switch back to target branch.
             run_git_commands(
                 [
-                    ["git", "fetch", "origin", f"pull/{pr_num}/head:{head_ref}"],
+                    ["git", "fetch", "origin", f"+pull/{pr_num}/head:{head_ref}"],
                     ["git", "checkout", target_branch],
                 ]
             )
