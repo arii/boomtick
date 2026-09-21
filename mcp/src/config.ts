@@ -1,4 +1,3 @@
-import dotenv from "dotenv";
 import path from "path";
 import fs from "fs";
 import { fileURLToPath } from "url";
@@ -6,10 +5,14 @@ import { execSync } from "child_process";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-dotenv.config({
-  path: path.resolve(__dirname, "../.env"),
-  quiet: true
-});
+const envPath = path.resolve(__dirname, "../.env");
+if (fs.existsSync(envPath) && typeof process.loadEnvFile === "function") {
+  try {
+    process.loadEnvFile(envPath);
+  } catch {
+    // Ignore if already loaded or invalid
+  }
+}
 
 function getGithubToken(): string | undefined {
   if (process.env.GITHUB_TOKEN) {
@@ -36,7 +39,7 @@ export function initializeConfig() {
   }
 
   try {
-    // Attempt to load core properties from the Python CLI to avoid duplication
+    // Attempt to load core properties from the Python CLI in the active workspace
     const cwd = process.env.BOOMTICK_REPO_PATH || process.cwd();
     const cmd = `td-cli config view`;
     const output = execSync(cmd, {
