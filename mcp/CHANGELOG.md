@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.1](https://github.com/arii/boomtick/compare/mcp-v0.4.0...mcp-v0.4.1) (2026-09-22)
+
+
+### Bug Fixes
+
+* **cli,mcp:** improve workspace config resolution and github repo detection ([#787](https://github.com/arii/boomtick/issues/787)) ([0103e90](https://github.com/arii/boomtick/commit/0103e904d30213cc336a1ce9567ad59257494236))
+
 ## [0.4.0](https://github.com/arii/boomtick/compare/mcp-v0.3.7...mcp-v0.4.0) (2026-09-04)
 
 

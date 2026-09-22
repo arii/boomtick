@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.10.1](https://github.com/arii/boomtick/compare/cli-v0.10.0...cli-v0.10.1) (2026-09-22)
+
+
+### Bug Fixes
+
+* **cli,mcp:** improve workspace config resolution and github repo detection ([#787](https://github.com/arii/boomtick/issues/787)) ([0103e90](https://github.com/arii/boomtick/commit/0103e904d30213cc336a1ce9567ad59257494236))
+
+
+### Documentation
+
+* update boomtick-cli package description to showcase projects built with tool ([#791](https://github.com/arii/boomtick/issues/791)) ([a8875cd](https://github.com/arii/boomtick/commit/a8875cdf8d49080e31263aa63e22e3a827df4859))
+
 ## [0.10.0](https://github.com/arii/boomtick/compare/cli-v0.9.2...cli-v0.10.0) (2026-09-04)
 
 
