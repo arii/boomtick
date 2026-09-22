@@ -31,6 +31,8 @@ dependencies = [
 [project.urls]
 Homepage = "https://github.com/arii/boomtick"
 Repository = "https://github.com/arii/boomtick"
+"Showcase: boomtick.blog" = "https://boomtick.blog"
+"Showcase: Portfolio" = "https://arii.github.io"
 
 [project.optional-dependencies]
 ai = [
