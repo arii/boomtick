@@ -65,6 +65,13 @@ Boomtick uses a direct standalone package, container, and composite action integ
 
 ---
 
+## Showcase / Live Projects
+
+* **boomtick.blog**: [https://boomtick.blog](https://boomtick.blog) (Dance tech platform, event scheduling & digital business systems)
+* **arii.github.io**: [https://arii.github.io](https://arii.github.io) (Personal portfolio & developer projects)
+
+---
+
 ## Author
 
 Created by **[Ariel Anders](https://arii.github.io)**, creator of **[Boomtick Blog](https://boomtick.blog)**.
