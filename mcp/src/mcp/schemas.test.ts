@@ -1,10 +1,14 @@
 import { describe, it, expect } from "vitest";
 import * as fs from "fs";
 import * as path from "path";
+import { execSync } from "child_process";
 
 describe("MCP tool schemas export", () => {
   it("should generate valid schema files with non-null parameters object", () => {
     const schemasDir = path.resolve(process.cwd(), ".mcp/schemas");
+    if (!fs.existsSync(schemasDir)) {
+      execSync("npx tsx scripts/sync-mcp-schemas.ts", { cwd: process.cwd() });
+    }
     expect(fs.existsSync(schemasDir)).toBe(true);
 
     const files = fs.readdirSync(schemasDir).filter((f) => f.endsWith(".json"));
