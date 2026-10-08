@@ -45,20 +45,22 @@ def test_generate_aggregation_workflow_logic(orchestrator):
         res = orchestrator.generate_aggregation_workflow([3281, 3282], "feat/test-aggregation")
 
         assert res["status"] == "success"
-        # Verify sanitized target in filenames
+        # Verify single consolidated plan path
         assert "workflow-plan-aggregation-feat-test-aggregation.md" in res["plan_path"]
-        assert "aggregation-context-feat-test-aggregation.md" in res["context_path"]
-        assert "aggregation-plan-feat-test-aggregation.md" in res["skeleton_path"]
+        assert res["context_path"] == res["plan_path"]
+        assert res["skeleton_path"] == res["plan_path"]
 
         # Verify Github API calls
         assert orchestrator.github.fetch_pr_info_graphql.call_count == 2
         assert orchestrator.github.fetch_pr_diff.call_count == 2
 
-        # Verify content was written (at least once for each of the 3 files)
-        assert mocked_file.call_count >= 3
+        # Verify content was written to single file
+        assert mocked_file.call_count >= 1
 
-        # Capture all written content to verify escaping
+        # Capture all written content to verify escaping and single unified structure
         written_content = "".join(call.args[0] for call in mocked_file().write.call_args_list)
         assert "PR 3281 \\[with brackets\\]" in written_content
         assert "overlapping_file.py" in written_content
         assert "overlap at lines 10-14" in written_content
+        assert "## Sequential Execution Plan" in written_content
+        assert "## Verification & Completion Checklist" in written_content
