@@ -318,7 +318,7 @@ class Orchestrator:
             return [f.strip() for f in res.stdout.splitlines() if f.strip()]
         return []
 
-    def dispatch_jules_review(self, branch: str, prompt: str) -> Optional[Dict[str, Any]]:
+    def dispatch_jules_review(self, branch: str, prompt: str, title: Optional[str] = None) -> Optional[Dict[str, Any]]:
         """
         Automates the creation of Jules sessions.
         """
@@ -336,7 +336,7 @@ class Orchestrator:
         if not source_id:
             raise CLIError(f"Could not find a Jules source mapping for repository: {repo_name}")
 
-        session = self.jules.create_session_from_source(source_id, branch, prompt)
+        session = self.jules.create_session_from_source(source_id, branch, prompt, title=title)
         return session
 
     # --- Helper methods ported from td-cli ---
