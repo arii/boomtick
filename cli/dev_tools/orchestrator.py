@@ -2941,118 +2941,91 @@ Overlapping functionality identified and resolved.
                                     }
                                 )
 
-        # 4. Generate Markdown Files
-        # Strict sanitization: allow only alphanumeric, underscores, and hyphens
+        # 4. Generate Single Consolidated Markdown Plan
         sanitized_target = sanitize_metadata(target_branch)
         workflow_plan_path = os.path.join(
             get_or_create_log_dir("workflows"), f"workflow-plan-aggregation-{sanitized_target}.md"
         )
-        context_details_path = os.path.join(
-            get_or_create_log_dir("reviews"), f"aggregation-context-{sanitized_target}.md"
-        )
-        plan_skeleton_path = os.path.join(get_or_create_log_dir("reviews"), f"aggregation-plan-{sanitized_target}.md")
 
-        # --- Workflow Plan Template ---
+        plan_lines = []
+        plan_lines.append(f"# Aggregation Workflow Plan: {escape_md(target_branch)}\n")
+        plan_lines.append("## Agent Instructions")
+        plan_lines.append(f"- **Environment Check**: Ensure Python dependencies and pnpm {PROJECT_CONFIG.pnpm_version} are available.")
+        plan_lines.append("- setup complete")
+        plan_lines.append("- validation complete")
+        plan_lines.append("- context collected")
+        plan_lines.append("- overlaps identified")
+        plan_lines.append("Agent must not repeat these steps.\n")
+        plan_lines.append("---")
+
+        plan_lines.append("\n## Workflow State")
+        plan_lines.append("[x] Environment Validation")
+        plan_lines.append("[x] PR Context Collection")
+        plan_lines.append("[x] Overlap Identification")
+        plan_lines.append("[ ] Conflict Resolution")
+        plan_lines.append("[ ] Integration Verification")
+        plan_lines.append("[ ] Final Aggregation\n")
+        plan_lines.append("---")
+
+        plan_lines.append("\n## Targeted PRs & Metadata")
+        for pr_num in prNumbers:
+            details = pr_details.get(pr_num, {})
+            title = escape_md(details.get("title", ""))
+            login = escape_md(details.get("user", {}).get("login", "") or details.get("author", {}).get("login", ""))
+            head_ref = details.get("head", {}).get("ref", "")
+            plan_lines.append(f"- **PR #{pr_num}**: {title} (@{login}) [branch: `{head_ref}`]")
+
+        plan_lines.append("\n## Conflict & Overlap Analysis")
+        plan_lines.append("### Overlapping Files")
+        if not overlapping_files:
+            plan_lines.append("No overlapping files detected.")
+        else:
+            for filename, prs in sorted(overlapping_files.items()):
+                plan_lines.append(f"- `{filename}`: Changed in PRs {', '.join(f'#{p}' for p in prs)}")
+
+        plan_lines.append("\n### Structural Conflicts (Line Overlaps)")
+        if not conflicts:
+            plan_lines.append("No direct line-level conflicts detected.")
+        else:
+            for c in conflicts:
+                c_file = str(c.get("file", "unknown"))
+                c_prs = c.get("prs", [])
+                c_range = c.get("range", [0, 0])
+                if len(c_prs) >= 2 and len(c_range) >= 2:
+                    plan_lines.append(
+                        f"- `{c_file}`: PR #{c_prs[0]} and PR #{c_prs[1]} overlap at lines {c_range[0]}-{c_range[1]}"
+                    )
+
+        plan_lines.append("\n## Sequential Execution Plan")
+        plan_lines.append("### Base Branch Setup")
+        plan_lines.append(f"1. Checkout base branch (`{PROJECT_CONFIG.base_branch_name}`) and pull latest changes.")
+        plan_lines.append(f"2. Create and checkout target aggregation branch: `git checkout -b {escape_md(target_branch)}`.")
+
+        plan_lines.append("\n### Step-by-Step Merge Sequence")
+        step_idx = 1
+        for pr_num in prNumbers:
+            details = pr_details.get(pr_num, {})
+            head_ref = details.get("head", {}).get("ref", f"PR #{pr_num}")
+            plan_lines.append(f"{step_idx}. **Merge PR #{pr_num}** (`{head_ref}`): `git merge {head_ref}`")
+            step_idx += 1
+
+        plan_lines.append("\n### Conflict Resolution & Fallbacks")
+        plan_lines.append("- **Unrelated Histories Fallback**: If git fails with `fatal: refusing to merge unrelated histories`, retry with `--allow-unrelated-histories`.")
+        plan_lines.append("- **Heavy Conflicts Fallback**: If standard merging creates excessive noise or fails, generate a patch (`git diff target...head > pr_patch.patch`) and apply manually (`git apply pr_patch.patch`).")
+
+        plan_lines.append("\n## Verification & Completion Checklist")
+        plan_lines.append("- [ ] **Local Validation**: Run `pnpm run lint`, `pnpm run type-check`, and relevant test suites.")
+        plan_lines.append("- [ ] **Merge Marker Check**: Ensure no remaining git conflict markers (`grep -rn \"^<<<<<<<\" .`).")
+        plan_lines.append("- [ ] **Final Status Sign-off**: Verify overall stability of the aggregated branch.")
+
         with open(workflow_plan_path, "w", encoding="utf-8") as f:
-            f.write(f"""# Reviewing Aggregation Planning Guide: {escape_md(target_branch)}
-
-## Agent Instructions
-- **Environment Check**: Ensure Python dependencies and pnpm {PROJECT_CONFIG.pnpm_version} are available.
-- setup complete
-- validation complete
-- context collected
-- overlaps identified
-
-Agent must not repeat these steps.
-
----
-
-## Workflow State
-[x] Environment Validation
-[x] PR Context Collection
-[x] Overlap Identification
-[ ] Conflict Resolution
-[ ] Integration Verification
-[ ] Final Aggregation
-
----
-
-## Collected Context
-### Validation Output
-```text
-{env_output}
-```
-
-### Overlap Summary
-Found {len(overlapping_files)} overlapping files and {len(conflicts)} structural conflicts across {len(prNumbers)} PRs.
-
----
-
-## Remaining Tasks
-### Step 1: Review Overlaps
-Examine the files listed in `aggregation-context-{sanitized_target}.md`.
-
-### Step 2: Resolve Conflicts
-Perform the merge and resolve any structural or semantic conflicts.
-
-- **Edge Case: Unrelated Histories**: If you encounter `fatal: refusing to merge unrelated histories`, retry with `--allow-unrelated-histories`.
-- **Heavy Conflicts Fallback**: If standard merging creates excessive noise, use `git diff target...head > patch` to generate a clean patch and apply it manually.
-
-### Step 3: Verify
-Run the validation suite to ensure the aggregated branch is stable.
-""")
-
-        # --- Context Details Template ---
-        with open(context_details_path, "w", encoding="utf-8") as f:
-            f.write(f"# Aggregation Context Details: {escape_md(target_branch)}\n\n")
-            f.write("## Targeted PRs\n")
-            for pr_num in prNumbers:
-                details = pr_details.get(pr_num, {})
-                title = escape_md(details.get("title", ""))
-                login = escape_md(details.get("user", {}).get("login", ""))
-                f.write(f"- **PR #{pr_num}**: {title} (@{login})\n")
-
-            f.write("\n## Overlapping Files\n")
-            if not overlapping_files:
-                f.write("No overlapping files detected.\n")
-            else:
-                for filename, prs in sorted(overlapping_files.items()):
-                    f.write(f"- `{filename}`: Changed in PRs {', '.join(f'#{p}' for p in prs)}\n")
-
-            f.write("\n## Structural Conflicts (Line Overlaps)\n")
-            if not conflicts:
-                f.write("No direct line-level conflicts detected.\n")
-            else:
-                for c in conflicts:
-                    c_file = str(c.get("file", "unknown"))
-                    c_prs = c.get("prs", [])
-                    c_range = c.get("range", [0, 0])
-                    if len(c_prs) >= 2 and len(c_range) >= 2:
-                        f.write(
-                            f"- `{c_file}`: PR #{c_prs[0]} and PR #{c_prs[1]} overlap at lines {c_range[0]}-{c_range[1]}\n"
-                        )
-
-        # --- Plan Skeleton Template ---
-        with open(plan_skeleton_path, "w", encoding="utf-8") as f:
-            f.write(f"""# Aggregation Plan Skeleton: {escape_md(target_branch)}
-
-## Integration Steps
-1. **Prepare Base**: Checkout the latest base branch.
-2. **Sequential Merge**: Merge each PR branch into the target branch.
-3. **Manual Resolution**: For each overlapping file, ensure logical consistency.
-4. **Validation**: Run `pnpm run ci:local` or equivalent.
-
-## Completion Criteria
-- All PRs successfully integrated.
-- No merge markers remain in the codebase.
-- All tests pass in the aggregated branch.
-""")
+            f.write("\n".join(plan_lines) + "\n")
 
         return {
             "status": "success",
             "plan_path": workflow_plan_path,
-            "context_path": context_details_path,
-            "skeleton_path": plan_skeleton_path,
+            "context_path": workflow_plan_path,
+            "skeleton_path": workflow_plan_path,
         }
 
     def build_context(
