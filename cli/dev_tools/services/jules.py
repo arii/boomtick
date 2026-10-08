@@ -1,5 +1,6 @@
 # pylint: disable=invalid-name,line-too-long,missing-docstring,missing-timeout,raise-missing-from
 import os
+import re
 from concurrent.futures import ThreadPoolExecutor
 from typing import Any, Dict, List, Optional, Union
 
@@ -51,11 +52,38 @@ class JulesClient:
                 return self._get_clean_id(s.get("name") or "", "sources")
         return None
 
-    def create_session_from_source(self, source_id: str, branch: str, prompt: str) -> Optional[Dict[str, Any]]:
+    def extract_title_from_prompt(self, prompt: str) -> str:
+        """Extracts a concise session title from prompt text."""
+        if not prompt or not prompt.strip():
+            return "Jules Agent Task"
+        for line in prompt.splitlines():
+            stripped = line.strip()
+            if stripped:
+                clean_line = re.sub(r"^\s*#+\s*", "", stripped).strip()
+                if len(clean_line) > 100:
+                    return clean_line[:100]
+                return clean_line or "Jules Agent Task"
+        return "Jules Agent Task"
+
+    def create_session_from_source(
+        self, source_id: str, branch: str, prompt: str, title: Optional[str] = None
+    ) -> Optional[Dict[str, Any]]:
         url = f"{self.base_url}/sessions"
         clean_source_id = self._get_clean_id(source_id, "sources")
+
+        resolved_title = title if title else self.extract_title_from_prompt(prompt)
+
+        first_non_empty = next((line.strip() for line in prompt.splitlines() if line.strip()), "")
+        if first_non_empty == f"# {resolved_title}":
+            formatted_prompt = prompt
+        elif not title and first_non_empty.startswith("#"):
+            formatted_prompt = prompt
+        else:
+            formatted_prompt = f"# {resolved_title}\n\n{prompt}"
+
         payload = {
-            "prompt": prompt,
+            "title": resolved_title,
+            "prompt": formatted_prompt,
             "sourceContext": {
                 "source": f"sources/{clean_source_id}",
                 "githubRepoContext": {"startingBranch": branch},

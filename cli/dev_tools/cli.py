@@ -1268,14 +1268,15 @@ def agent_group():
 @agent_group.command()
 @click.argument("branch")
 @click.argument("task")
+@click.option("--title", "-t", help="Custom session title")
 @click.pass_context
-def dispatch(ctx, branch, task):
+def dispatch(ctx, branch, task, title):
     """
     Initialize a Jules session for a specific branch and task.
     Note: Use 'main' branch for PR consolidation tasks to avoid rebasing issues.
     """
     orch = ctx.obj["ORCHESTRATOR"]
-    res = orch.dispatch_jules_review(branch, task)
+    res = orch.dispatch_jules_review(branch, task, title=title)
 
     if not ctx.obj.get("JSON", False):
         click.echo("\n" * 2)
@@ -1284,6 +1285,8 @@ def dispatch(ctx, branch, task):
         click.echo("=" * 60)
         click.echo("\n")
         click.echo(f"  Branch : {branch}")
+        display_title = title or (res.get("title") if isinstance(res, dict) else None) or task[:60]
+        click.echo(f"  Title  : {display_title}")
         click.echo(f"  Task   : {task[:60]}{'...' if len(task) > 60 else ''}")
         click.echo("\n" * 2)
 
