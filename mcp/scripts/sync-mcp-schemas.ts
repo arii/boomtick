@@ -69,7 +69,12 @@ async function syncSchemas() {
   }
 
   mcpTools.forEach((tool) => {
-    const schemaContent = JSON.stringify(tool.inputSchema, null, 2);
+    const exportedSchema = {
+      name: tool.name,
+      description: tool.description,
+      parameters: tool.inputSchema,
+    };
+    const schemaContent = JSON.stringify(exportedSchema, null, 2);
     const fileName = `${tool.name}.json`;
 
     validTargets.forEach(targetDir => {
