@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.2](https://github.com/arii/boomtick/compare/mcp-v0.4.1...mcp-v0.4.2) (2026-10-08)
+
+
+### Bug Fixes
+
+* **mcp:** map tool JSON Schema to parameters object in sync-mcp-schemas ([#802](https://github.com/arii/boomtick/issues/802)) ([a57a9ae](https://github.com/arii/boomtick/commit/a57a9aef32109242882d682fcbd1a9ff0a81cffe))
+
 ## [0.4.1](https://github.com/arii/boomtick/compare/mcp-v0.4.0...mcp-v0.4.1) (2026-09-22)
 
 

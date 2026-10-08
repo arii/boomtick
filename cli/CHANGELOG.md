@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.11.0](https://github.com/arii/boomtick/compare/cli-v0.10.1...cli-v0.11.0) (2026-10-08)
+
+
+### Features
+
+* **cli:** consolidate 'td agent plan-aggregation' into single unified plan artifact ([#803](https://github.com/arii/boomtick/issues/803)) ([05addc2](https://github.com/arii/boomtick/commit/05addc2be8e84bf4dedc9b794472eb8b2f2389dc))
+
+
+### Bug Fixes
+
+* **cli:** support session title in agent dispatch ([#801](https://github.com/arii/boomtick/issues/801)) ([e358cc5](https://github.com/arii/boomtick/commit/e358cc51e2c9cc9c3295a8265835d8d05ff26d4a))
+
 ## [0.10.1](https://github.com/arii/boomtick/compare/cli-v0.10.0...cli-v0.10.1) (2026-09-22)
 
 
