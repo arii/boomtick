@@ -464,7 +464,6 @@ class Orchestrator:
         Updates an issue's body, labels, and/or state.
         """
         res: Any = None
-        extra_kwargs = {"repo": repo} if repo else {}
         # Shim for backward compatibility with old snake_case names from tests or older callers
         if "add_labels" in kwargs and addLabels is None:
             addLabels = kwargs["add_labels"]
@@ -472,7 +471,10 @@ class Orchestrator:
             removeLabels = kwargs["remove_labels"]
         # Handle full label replacement first as it is mutually exclusive with incremental changes
         if labels is not None:
-            res = self.github.update_issue(issueNumber, body=body, labels=labels, state=state, **extra_kwargs)
+            if repo:
+                res = self.github.update_issue(issueNumber, body=body, labels=labels, state=state, repo=repo)
+            else:
+                res = self.github.update_issue(issueNumber, body=body, labels=labels, state=state)
         else:
             # Handle incremental label changes (can happen together)
             if addLabels:
@@ -484,7 +486,10 @@ class Orchestrator:
 
             # Handle body/state update if not already done via 'labels' PATCH
             if body is not None or state is not None:
-                res = self.github.update_issue(issueNumber, body=body, state=state, **extra_kwargs)
+                if repo:
+                    res = self.github.update_issue(issueNumber, body=body, state=state, repo=repo)
+                else:
+                    res = self.github.update_issue(issueNumber, body=body, state=state)
 
         if res is None:
             raise CLIError("Nothing to update. Provide body, labels, or state.")
