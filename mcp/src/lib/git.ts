@@ -4,12 +4,18 @@ import path from "path";
 import fs from "fs/promises";
 import { execSync } from "child_process";
 
+const repoCache = new Map<string, string>();
+
 export function resolveRepo(explicitRepo?: string | null, cwd?: string): string {
   if (explicitRepo && explicitRepo.trim().length > 0) {
     return explicitRepo.trim();
   }
 
   const targetCwd = cwd || process.cwd();
+  if (repoCache.has(targetCwd)) {
+    return repoCache.get(targetCwd)!;
+  }
+
   try {
     const url = execSync("git remote get-url origin", {
       cwd: targetCwd,
@@ -19,13 +25,16 @@ export function resolveRepo(explicitRepo?: string | null, cwd?: string): string 
 
     const match = url.match(/[:/]([^/]+\/[^/.]+)(\.git)?$/);
     if (match) {
+      repoCache.set(targetCwd, match[1]);
       return match[1];
     }
   } catch (e) {
     // Ignore error and fall back to static config
   }
 
-  return `${config.githubOwner}/${config.githubRepo}`;
+  const fallback = `${config.githubOwner}/${config.githubRepo}`;
+  repoCache.set(targetCwd, fallback);
+  return fallback;
 }
 
 function validatePrNumber(value: unknown): number {
