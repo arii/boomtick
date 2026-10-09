@@ -326,10 +326,16 @@ class AIClient:
                     log_warn(f"AI hunk resolution failed for {file_path}: {e}")
                     hunk_res = None
 
-                # Fallback to 'ours' if AI fails for this hunk
+                # Fallback to strategy (or 'ours') if AI fails for this hunk
                 if hunk_res is None:
-                    log_warn(f"Falling back to 'ours' for unresolved conflict hunk in {file_path}")
-                    hunk_res = ours
+                    fallback_strat = strategy if strategy in ("ours", "theirs", "union") else "ours"
+                    log_warn(f"Falling back to '{fallback_strat}' for unresolved conflict hunk in {file_path}")
+                    if fallback_strat == "theirs":
+                        hunk_res = theirs
+                    elif fallback_strat == "union":
+                        hunk_res = "\n".join(p for p in (ours, theirs) if p)
+                    else:
+                        hunk_res = ours
 
                 if hunk_res and not hunk_res.endswith("\n") and (ours or theirs):
                     hunk_res += "\n"
