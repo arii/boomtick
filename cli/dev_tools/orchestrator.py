@@ -478,11 +478,17 @@ class Orchestrator:
         else:
             # Handle incremental label changes (can happen together)
             if addLabels:
-                res = self.github.add_labels(issueNumber, addLabels)
+                if repo:
+                    res = self.github.add_labels(issueNumber, addLabels, repo=repo)
+                else:
+                    res = self.github.add_labels(issueNumber, addLabels)
 
             if removeLabels:
                 for label in removeLabels:
-                    res = self.github.remove_label(issueNumber, label)
+                    if repo:
+                        res = self.github.remove_label(issueNumber, label, repo=repo)
+                    else:
+                        res = self.github.remove_label(issueNumber, label)
 
             # Handle body/state update if not already done via 'labels' PATCH
             if body is not None or state is not None:

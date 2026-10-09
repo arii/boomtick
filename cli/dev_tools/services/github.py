@@ -706,8 +706,9 @@ class GitHubClient:
         data = {"body": body, "event": event, "comments": comments}
         return self._request("POST", f"/repos/{self.repo}/pulls/{number}/reviews", json_data=data)
 
-    def add_labels(self, number: int, labels: List[str]) -> Dict[str, Any]:
+    def add_labels(self, number: int, labels: List[str], repo: Optional[str] = None) -> Dict[str, Any]:
         """Adds labels to an issue or pull request and returns the normalized issue dictionary."""
+        target_repo = repo or self.repo
         if self.use_graphql:
             try:
                 issue_node_id, resolved_labels = self._resolve_node_ids(number, labels)
@@ -754,12 +755,13 @@ class GitHubClient:
                 log_warn(f"GraphQL add_labels failed: {e}. Falling back to REST.")
 
         # Fallback to REST
-        self._request("POST", f"/repos/{self.repo}/issues/{number}/labels", json_data={"labels": labels})
-        issue_data = self.fetch_issue_details(number)
+        self._request("POST", f"/repos/{target_repo}/issues/{number}/labels", json_data={"labels": labels})
+        issue_data = self.fetch_issue_details(number, repo=target_repo)
         return self._normalize_issue_response(issue_data)
 
-    def remove_label(self, number: int, label_name: str) -> Dict[str, Any]:
+    def remove_label(self, number: int, label_name: str, repo: Optional[str] = None) -> Dict[str, Any]:
         """Removes a label from an issue or pull request and returns the normalized issue dictionary."""
+        target_repo = repo or self.repo
         if self.use_graphql:
             try:
                 issue_node_id, resolved_labels = self._resolve_node_ids(number, [label_name])
@@ -807,8 +809,8 @@ class GitHubClient:
 
         # Fallback to REST
         encoded_label = quote(label_name)
-        self._request("DELETE", f"/repos/{self.repo}/issues/{number}/labels/{encoded_label}")
-        issue_data = self.fetch_issue_details(number)
+        self._request("DELETE", f"/repos/{target_repo}/issues/{number}/labels/{encoded_label}")
+        issue_data = self.fetch_issue_details(number, repo=target_repo)
         return self._normalize_issue_response(issue_data)
 
     @staticmethod
