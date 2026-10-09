@@ -27,6 +27,16 @@ describe("github.create_issue", () => {
     });
 
     const result = await createIssueHandler({ title: "Test Issue", body: "Test Body", file: null, repo: null });
+    expect(shell.runCommand).toHaveBeenCalledWith("td-cli", [
+      "gh",
+      "create-issue",
+      "--title",
+      "Test Issue",
+      "--body",
+      "Test Body",
+      "--repo",
+      expect.any(String)
+    ]);
     expect(result.status).toBe("success");
     expect(result.issue?.number).toBe(123);
     expect(result.issue?.title).toBe("Test Issue");

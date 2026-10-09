@@ -2,6 +2,31 @@ import { runCommand } from "./shell.js";
 import { config } from "../config.js";
 import path from "path";
 import fs from "fs/promises";
+import { execSync } from "child_process";
+
+export function resolveRepo(explicitRepo?: string | null, cwd?: string): string {
+  if (explicitRepo && explicitRepo.trim().length > 0) {
+    return explicitRepo.trim();
+  }
+
+  const targetCwd = cwd || process.cwd();
+  try {
+    const url = execSync("git remote get-url origin", {
+      cwd: targetCwd,
+      encoding: "utf-8",
+      stdio: ["ignore", "pipe", "ignore"],
+    }).trim();
+
+    const match = url.match(/[:/]([^/]+\/[^/.]+)(\.git)?$/);
+    if (match) {
+      return match[1];
+    }
+  } catch (e) {
+    // Ignore error and fall back to static config
+  }
+
+  return `${config.githubOwner}/${config.githubRepo}`;
+}
 
 function validatePrNumber(value: unknown): number {
   const prNumber = Number(value);
