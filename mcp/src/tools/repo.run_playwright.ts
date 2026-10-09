@@ -7,7 +7,8 @@ export const RunPlaywrightInputSchema = z.object({
   timeoutSeconds: z.number().optional().default(180),
 });
 
-export async function runPlaywrightHandler(args: z.infer<typeof RunPlaywrightInputSchema>) {
+export async function runPlaywrightHandler(input: z.input<typeof RunPlaywrightInputSchema>) {
+  const args = RunPlaywrightInputSchema.parse(input || {});
   const tdArgs = ["repo", "run-playwright"];
   if (args.grep) {
     tdArgs.push("--grep", args.grep);

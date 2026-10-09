@@ -49,7 +49,8 @@ export function parseCommandString(fullCmd: string): [string, ...string[]] {
   return [tokens[0], ...tokens.slice(1)] as [string, ...string[]];
 }
 
-export async function runTestsHandler(args: z.infer<typeof RunTestsInputSchema>) {
+export async function runTestsHandler(input: z.input<typeof RunTestsInputSchema>) {
+  const args = RunTestsInputSchema.parse(input || {});
   const commands = args.commands || [
     "pnpm test"
   ];
