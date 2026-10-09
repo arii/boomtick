@@ -282,16 +282,19 @@ class GitHubClient:
         except (ValueError, AttributeError) as inner_e:
             log_warn(f"Failed to parse error response: {inner_e}")
 
-    def fetch_pr_files(self, number: int) -> List[Dict[str, Any]]:
+    def fetch_pr_files(self, number: int, repo: Optional[str] = None) -> List[Dict[str, Any]]:
         """Fetches the list of files changed in a PR."""
+        target_repo = repo or self.repo
         # PR files usually don't change once a commit is pushed, but we'll use a shorter TTL
-        return self._request("GET", f"/repos/{self.repo}/pulls/{number}/files", ttl=600)
+        return self._request("GET", f"/repos/{target_repo}/pulls/{number}/files", ttl=600)
 
-    def fetch_pr_details(self, number: int) -> Dict[str, Any]:
-        return self._request("GET", f"/repos/{self.repo}/pulls/{number}")
+    def fetch_pr_details(self, number: int, repo: Optional[str] = None) -> Dict[str, Any]:
+        target_repo = repo or self.repo
+        return self._request("GET", f"/repos/{target_repo}/pulls/{number}")
 
-    def fetch_pr_diff(self, number: int) -> str:
-        return self._request("GET", f"/repos/{self.repo}/pulls/{number}", is_text=True)
+    def fetch_pr_diff(self, number: int, repo: Optional[str] = None) -> str:
+        target_repo = repo or self.repo
+        return self._request("GET", f"/repos/{target_repo}/pulls/{number}", is_text=True)
 
     def fetch_pr_info_graphql(self, number: int) -> Dict[str, Any]:
         """
@@ -393,9 +396,10 @@ class GitHubClient:
         data = self._request("GET", f"/repos/{self.repo}/check-suites/{suite_id}/check-runs")
         return data.get("check_runs", [])
 
-    def search_pull_requests(self, query: str, limit: int = 10) -> List[Dict[str, Any]]:
+    def search_pull_requests(self, query: str, limit: int = 10, repo: Optional[str] = None) -> List[Dict[str, Any]]:
         """General search for pull requests using the Search API."""
-        full_query = f"repo:{self.repo} is:pr {query}"
+        target_repo = repo or self.repo
+        full_query = f"repo:{target_repo} is:pr {query}"
         data = self._request("GET", "/search/issues", params={"q": full_query, "per_page": limit})
         items = data.get("items", []) if isinstance(data, dict) else []
 
@@ -413,9 +417,10 @@ class GitHubClient:
         ]
 
     def list_pull_requests(
-        self, state: str = "open", limit: int = 100, labels: Optional[List[str]] = None
+        self, state: str = "open", limit: int = 100, labels: Optional[List[str]] = None, repo: Optional[str] = None
     ) -> List[Dict[str, Any]]:
         """Lists pull requests with optional server-side label filtering or standard Pulls API."""
+        target_repo = repo or self.repo
         if labels:
             # Use Search API for efficient server-side label filtering
             parts = []
@@ -424,7 +429,7 @@ class GitHubClient:
             for label in labels:
                 parts.append(f'label:"{label}"')
             query = " ".join(parts)
-            return self.search_pull_requests(query, limit=limit)
+            return self.search_pull_requests(query, limit=limit, repo=target_repo)
 
         # Fallback to standard Pulls API if no labels, using internal pagination
         prs: List[Dict[str, Any]] = []
@@ -433,7 +438,7 @@ class GitHubClient:
 
         while len(prs) < limit:
             params = {"state": state, "per_page": per_page, "page": page}
-            data = self._request("GET", f"/repos/{self.repo}/pulls", params=params)
+            data = self._request("GET", f"/repos/{target_repo}/pulls", params=params)
 
             if not data:
                 break
@@ -555,8 +560,9 @@ class GitHubClient:
                     return self._handle_missing_logs(job_id)
             raise
 
-    def create_issue_comment(self, number: int, body: str) -> Dict[str, Any]:
-        return self._request("POST", f"/repos/{self.repo}/issues/{number}/comments", json_data={"body": body})
+    def create_issue_comment(self, number: int, body: str, repo: Optional[str] = None) -> Dict[str, Any]:
+        target_repo = repo or self.repo
+        return self._request("POST", f"/repos/{target_repo}/issues/{number}/comments", json_data={"body": body})
 
     def create_issue(self, title: str, body: str, repo: Optional[str] = None) -> Dict[str, Any]:
         """Creates a new GitHub issue."""
@@ -588,15 +594,17 @@ class GitHubClient:
             "state": raw_data.get("state"),
         }
 
-    def fetch_issue_details(self, number: int) -> Dict[str, Any]:
+    def fetch_issue_details(self, number: int, repo: Optional[str] = None) -> Dict[str, Any]:
         """Fetches the details of a GitHub issue."""
-        return self._request("GET", f"/repos/{self.repo}/issues/{number}")
+        target_repo = repo or self.repo
+        return self._request("GET", f"/repos/{target_repo}/issues/{number}")
 
     def list_issues(
-        self, state: str = "open", limit: int = 100, labels: Optional[List[str]] = None
+        self, state: str = "open", limit: int = 100, labels: Optional[List[str]] = None, repo: Optional[str] = None
     ) -> List[Dict[str, Any]]:
         """Lists issues (excluding pull requests) with optional filters."""
-        query = f"repo:{self.repo} is:issue"
+        target_repo = repo or self.repo
+        query = f"repo:{target_repo} is:issue"
         if state != "all":
             query += f" state:{state}"
         if labels:
@@ -608,13 +616,15 @@ class GitHubClient:
 
         return [self.normalize_issue(issue) for issue in items[:limit]]
 
-    def fetch_issue_comments(self, number: int) -> List[Dict[str, Any]]:
+    def fetch_issue_comments(self, number: int, repo: Optional[str] = None) -> List[Dict[str, Any]]:
         """Fetches the comments on an issue or pull request."""
-        return self._request("GET", f"/repos/{self.repo}/issues/{number}/comments")
+        target_repo = repo or self.repo
+        return self._request("GET", f"/repos/{target_repo}/issues/{number}/comments")
 
-    def fetch_review_comments(self, number: int) -> List[Dict[str, Any]]:
+    def fetch_review_comments(self, number: int, repo: Optional[str] = None) -> List[Dict[str, Any]]:
         """Fetches the review comments on a pull request."""
-        return self._request("GET", f"/repos/{self.repo}/pulls/{number}/comments")
+        target_repo = repo or self.repo
+        return self._request("GET", f"/repos/{target_repo}/pulls/{number}/comments")
 
     def _get_diff_mapping(self, pr_number: int) -> Dict[str, Dict[int, int]]:
         """
@@ -678,8 +688,10 @@ class GitHubClient:
         body: Optional[str] = None,
         labels: Optional[List[str]] = None,
         state: Optional[str] = None,
+        repo: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Updates a GitHub issue's body, labels, and/or state."""
+        target_repo = repo or self.repo
         data: Dict[str, Any] = {}
         if body is not None:
             data["body"] = body
@@ -687,15 +699,16 @@ class GitHubClient:
             data["labels"] = labels
         if state is not None:
             data["state"] = state
-        res = self._request("PATCH", f"/repos/{self.repo}/issues/{number}", json_data=data)
+        res = self._request("PATCH", f"/repos/{target_repo}/issues/{number}", json_data=data)
         return self._normalize_issue_response(res)
 
     def create_review(self, number: int, body: str, comments: List[Dict[str, Any]], event: str) -> Dict[str, Any]:
         data = {"body": body, "event": event, "comments": comments}
         return self._request("POST", f"/repos/{self.repo}/pulls/{number}/reviews", json_data=data)
 
-    def add_labels(self, number: int, labels: List[str]) -> Dict[str, Any]:
+    def add_labels(self, number: int, labels: List[str], repo: Optional[str] = None) -> Dict[str, Any]:
         """Adds labels to an issue or pull request and returns the normalized issue dictionary."""
+        target_repo = repo or self.repo
         if self.use_graphql:
             try:
                 issue_node_id, resolved_labels = self._resolve_node_ids(number, labels)
@@ -742,12 +755,13 @@ class GitHubClient:
                 log_warn(f"GraphQL add_labels failed: {e}. Falling back to REST.")
 
         # Fallback to REST
-        self._request("POST", f"/repos/{self.repo}/issues/{number}/labels", json_data={"labels": labels})
-        issue_data = self.fetch_issue_details(number)
+        self._request("POST", f"/repos/{target_repo}/issues/{number}/labels", json_data={"labels": labels})
+        issue_data = self.fetch_issue_details(number, repo=target_repo)
         return self._normalize_issue_response(issue_data)
 
-    def remove_label(self, number: int, label_name: str) -> Dict[str, Any]:
+    def remove_label(self, number: int, label_name: str, repo: Optional[str] = None) -> Dict[str, Any]:
         """Removes a label from an issue or pull request and returns the normalized issue dictionary."""
+        target_repo = repo or self.repo
         if self.use_graphql:
             try:
                 issue_node_id, resolved_labels = self._resolve_node_ids(number, [label_name])
@@ -795,8 +809,8 @@ class GitHubClient:
 
         # Fallback to REST
         encoded_label = quote(label_name)
-        self._request("DELETE", f"/repos/{self.repo}/issues/{number}/labels/{encoded_label}")
-        issue_data = self.fetch_issue_details(number)
+        self._request("DELETE", f"/repos/{target_repo}/issues/{number}/labels/{encoded_label}")
+        issue_data = self.fetch_issue_details(number, repo=target_repo)
         return self._normalize_issue_response(issue_data)
 
     @staticmethod

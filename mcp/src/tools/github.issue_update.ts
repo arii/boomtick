@@ -1,12 +1,14 @@
 import { z } from "zod";
 import { runCommand } from "../lib/shell.js";
+import { resolveRepo } from "../lib/git.js";
 import { sanitizeError } from "../lib/error_utils.js";
 import { IssueUpdateInputSchema, IssueUpdateResponseSchema } from "./contract.js";
 
 export { IssueUpdateInputSchema };
 
-export async function issueUpdateHandler(args: any) {
+export async function issueUpdateHandler(args: z.infer<typeof IssueUpdateInputSchema>) {
   const params = IssueUpdateInputSchema.parse(args);
+  const targetRepo = resolveRepo(params.repo);
 
   const cmdArgs = ["gh", "issue-update", params.issueNumber.toString()];
   if (params.body) cmdArgs.push("--body", params.body);
@@ -15,6 +17,7 @@ export async function issueUpdateHandler(args: any) {
   if (params.addLabels && params.addLabels.length > 0) cmdArgs.push("--add-labels", params.addLabels.join(","));
   if (params.removeLabels && params.removeLabels.length > 0) cmdArgs.push("--remove-labels", params.removeLabels.join(","));
   if (params.state) cmdArgs.push("--state", params.state);
+  cmdArgs.push("--repo", targetRepo);
 
   const result = await runCommand("td-cli", cmdArgs);
 

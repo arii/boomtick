@@ -1,10 +1,12 @@
 import { z } from "zod";
 import { runCommand } from "../lib/shell.js";
+import { resolveRepo } from "../lib/git.js";
 import { sanitizeError } from "../lib/error_utils.js";
 
 export const IssueCommentInputSchema = z.object({
   issueNumber: z.number().describe("The number of the issue to comment on."),
   body: z.string().min(1, "Comment body cannot be empty").describe("The content of the comment."),
+  repo: z.string().optional().describe("The target repository override (e.g. org/repo)."),
 });
 
 const IssueCommentOutputSchema = z.object({
@@ -15,8 +17,13 @@ const IssueCommentOutputSchema = z.object({
 
 export async function issueCommentHandler(args: z.infer<typeof IssueCommentInputSchema>) {
   const params = IssueCommentInputSchema.parse(args);
+  const targetRepo = resolveRepo(params.repo);
 
-  const result = await runCommand("td-cli", ["gh", "issue-comment", params.issueNumber.toString(), "--body", params.body]);
+  const result = await runCommand("td-cli", [
+    "gh", "issue-comment", params.issueNumber.toString(),
+    "--body", params.body,
+    "--repo", targetRepo
+  ]);
 
   if (result.exitCode !== 0) {
     throw new Error(`Failed to post comment: ${sanitizeError(result.stderr)}`);

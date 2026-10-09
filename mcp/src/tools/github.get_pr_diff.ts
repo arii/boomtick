@@ -1,13 +1,18 @@
 import { z } from "zod";
 import { runCommand } from "../lib/shell.js";
+import { resolveRepo } from "../lib/git.js";
 
 export const GetPrDiffInputSchema = z.object({
-  prNumber: z.number(),
+  prNumber: z.number().describe("The number of the pull request to get the diff for."),
+  repo: z.string().optional().describe("The target repository override (e.g. org/repo)."),
 });
 
 export async function getPrDiffHandler(args: z.infer<typeof GetPrDiffInputSchema>) {
+  const params = GetPrDiffInputSchema.parse(args);
+  const targetRepo = resolveRepo(params.repo);
+
   const result = await runCommand("td-cli", [
-    "gh", "pr-diff", args.prNumber.toString()
+    "gh", "pr-diff", params.prNumber.toString(), "--repo", targetRepo
   ]);
 
   if (result.exitCode !== 0) {
