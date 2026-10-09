@@ -279,11 +279,11 @@ class Orchestrator:
             json.dump(review_result, review_file)
         return review_result
 
-    def resolve_conflict(self, file_path: str) -> bool:
+    def resolve_conflict(self, file_path: str, strategy: Optional[str] = None) -> bool:
         """
         Detects merge conflicts via GitHubClient (implicit local git), analyzes logic with AI.
         """
-        return self.ai.resolve_file_conflicts(file_path)
+        return self.ai.resolve_file_conflicts(file_path, strategy=strategy)
 
     def analyze_file(self, file_path: str) -> str:
         if not os.path.exists(file_path):
@@ -1466,11 +1466,11 @@ Respond only after the PR is created or updated:
             safe_write_file(tracking_file, "\n".join(new_lines) + "\n")
         return {"pr": pr_num, "status": status, "updated": not dry_run}
 
-    def resolve_conflicts_headless(self) -> List[str]:
+    def resolve_conflicts_headless(self, strategy: Optional[str] = None) -> List[str]:
         files = self.find_conflict_files()
         resolved, failed = [], []
         for f in files:
-            if self.resolve_conflict(f):
+            if self.resolve_conflict(f, strategy=strategy):
                 resolved.append(f)
             else:
                 failed.append(f)

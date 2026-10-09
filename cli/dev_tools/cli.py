@@ -358,16 +358,21 @@ def view(ctx, pr_number):
 @gh.command()
 @click.argument("file", required=False)
 @click.option("--base")
+@click.option(
+    "--strategy",
+    type=click.Choice(["ours", "theirs", "union"]),
+    help="Deterministic resolution strategy (ours, theirs, or union).",
+)
 @click.pass_context
-def resolve(ctx, file, base):
+def resolve(ctx, file, base, strategy):
     orch = ctx.obj["ORCHESTRATOR"]
     if file:
-        if orch.resolve_conflict(file):
+        if orch.resolve_conflict(file, strategy=strategy):
             out(ctx, f"✅ Resolved conflicts in {file}", data={"resolved_file": file})
         else:
             err(ctx, f"Failed to resolve conflicts in {file}")
     else:
-        resolved = orch.resolve_conflicts_headless()
+        resolved = orch.resolve_conflicts_headless(strategy=strategy)
         out(ctx, f"✅ Resolved {len(resolved)} files.", data={"resolved": resolved})
 
 

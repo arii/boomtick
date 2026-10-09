@@ -191,8 +191,18 @@ class AIClient:
             }
 
         try:
-            response = requests.post(url, headers=headers, json=payload, timeout=30)
-            response.raise_for_status()
+            from dev_tools.utils import _call_api_with_retry
+
+            timeout = int(os.environ.get("AI_TIMEOUT_SECONDS", "60"))
+            response = _call_api_with_retry(
+                "POST",
+                url,
+                headers=headers,
+                json=payload,
+                timeout=timeout,
+                max_retries=_MAX_AI_RETRIES,
+                retry_status_codes=[429, 500, 502, 503, 504],
+            )
             res_data = response.json()
             if "candidates" in res_data and len(res_data["candidates"]) > 0:
                 content = res_data["candidates"][0]["content"]["parts"][0]["text"]
@@ -207,7 +217,7 @@ class AIClient:
         if res:
             return res
 
-        raise EnvironmentError("No AI service available (GitHub Models, and Gemini failed or are unavailable).")
+        raise EnvironmentError("No AI service available (OpenAI and Gemini failed or are unavailable).")
 
     def clean_llm_output(self, text: str) -> str:
         return clean_llm_output(text)
@@ -221,7 +231,7 @@ class AIClient:
             return 0
         return (len(text) + 3) // 4
 
-    def resolve_file_conflicts(self, file_path: str) -> bool:
+    def resolve_file_conflicts(self, file_path: str, strategy: Optional[str] = None) -> bool:
         if not os.path.exists(file_path):
             return False
 
@@ -236,43 +246,116 @@ class AIClient:
             if os.environ.get("AI_RESOLVE_MOCK", "false").lower() == "true":
                 mock_pattern = r"<<<<<<<.*?\n(.*?)\n=======.*?\n>>>>>>>.*?\n"
                 resolved = re.sub(mock_pattern, r"\1\n", content, flags=re.DOTALL)
-                with open(file_path, "w", encoding="utf-8") as f:
-                    f.write(resolved)
+                from dev_tools.utils import safe_write_file
+                safe_write_file(file_path, resolved)
                 return True
 
-            prompt = f"Resolve the Git merge conflicts in this code. Output ONLY the clean, merged code without markers or explanation.\n\nFILE CONTENT:\n{content}\n\nREPAIRED CONTENT:\n"
+            conflict_pattern = re.compile(
+                r"^[ \t]*<<<<<<<[^\n]*\r?\n([\s\S]*?)\r?\n[ \t]*=======\r?\n([\s\S]*?)\r?\n[ \t]*>>>>>>>[^\n]*\r?\n?",
+                re.MULTILINE,
+            )
+            matches = list(conflict_pattern.finditer(content))
 
-            raw_response = self.generate(prompt)
-            if not raw_response:
-                return False
+            # Helper for deterministic strategy fallback
+            def apply_deterministic_resolution(strat: str) -> str:
+                new_parts = []
+                last_idx = 0
+                for m in matches:
+                    new_parts.append(content[last_idx : m.start()])
+                    ours = m.group(1)
+                    theirs = m.group(2)
+                    if strat == "ours":
+                        res = ours
+                    elif strat == "theirs":
+                        res = theirs
+                    elif strat == "union":
+                        res = "\n".join(p for p in (ours, theirs) if p)
+                    else:
+                        res = ours
 
-            resolved = self.clean_llm_output(raw_response)
+                    if res and not res.endswith("\n"):
+                        res += "\n"
+                    new_parts.append(res)
+                    last_idx = m.end()
+                new_parts.append(content[last_idx:])
+                return "".join(new_parts)
 
-            if "<<<<<<<" in resolved:
-                return False
+            # If a deterministic strategy was explicitly requested, apply it directly without calling AI
+            if strategy in ("ours", "theirs", "union"):
+                resolved = apply_deterministic_resolution(strategy)
+                from dev_tools.utils import safe_write_file
+                safe_write_file(file_path, resolved)
+                return True
+
+            # Hunk-scoped AI resolution
+            lines = content.splitlines(keepends=True)
+            new_parts = []
+            last_idx = 0
+
+            for m in matches:
+                new_parts.append(content[last_idx : m.start()])
+                ours = m.group(1)
+                theirs = m.group(2)
+
+                # Extract ~20 lines of surrounding context
+                line_idx = content[: m.start()].count("\n")
+                end_line_idx = content[: m.end()].count("\n")
+                ctx_start = max(0, line_idx - 20)
+                ctx_end = min(len(lines), end_line_idx + 20)
+
+                pre_ctx = "".join(lines[ctx_start:line_idx])
+                post_ctx = "".join(lines[end_line_idx:ctx_end])
+
+                prompt = (
+                    f"Resolve this specific Git merge conflict hunk in `{os.path.basename(file_path)}`.\n"
+                    f"Output ONLY the resolved text block without conflict markers (`<<<<<<<`, `=======`, `>>>>>>>`) or markdown explanation.\n\n"
+                    f"SURROUNDING PRE-CONTEXT:\n{pre_ctx}\n\n"
+                    f"CONFLICT HUNK:\n<<<<<<< OURS\n{ours}\n=======\n{theirs}\n>>>>>>> THEIRS\n\n"
+                    f"SURROUNDING POST-CONTEXT:\n{post_ctx}\n\n"
+                    f"RESOLVED HUNK:\n"
+                )
+
+                hunk_res = None
+                try:
+                    raw_hunk = self.generate(prompt)
+                    if raw_hunk:
+                        hunk_res = self.clean_llm_output(raw_hunk)
+                        if "<<<<<<<" in hunk_res:
+                            hunk_res = None
+                except Exception as e:
+                    log_warn(f"AI hunk resolution failed for {file_path}: {e}")
+                    hunk_res = None
+
+                # Fallback to 'ours' if AI fails for this hunk
+                if hunk_res is None:
+                    log_warn(f"Falling back to 'ours' for unresolved conflict hunk in {file_path}")
+                    hunk_res = ours
+
+                if hunk_res and not hunk_res.endswith("\n") and (ours or theirs):
+                    hunk_res += "\n"
+
+                new_parts.append(hunk_res)
+                last_idx = m.end()
+
+            new_parts.append(content[last_idx:])
+            resolved = "".join(new_parts)
 
             try:
                 # Files that define runtime/dependency versions
                 sensitive_files = [".nvmrc", ".node-version", "package.json", ".github/workflows/"]
                 if any(sf in file_path for sf in sensitive_files):
-                    # Synthesize a diff representing the new content to validate it against HEAD versions.
-                    # We treat lines in the new file as additions to ensure the validator
-                    # catches any version mentioned in the file that might be a downgrade from HEAD.
                     diff_lines = [f"+++ b/{file_path}"]
                     for line in resolved.splitlines():
                         line = line.strip()
-                        # We only care about lines that look like version assignments/usage
                         if any(kw in line for kw in ["node", "pnpm", "uses:", "@v", "packageManager"]):
                             diff_lines.append(f"+{line}")
 
                     if len(diff_lines) > 1:
-                        # Re-use the validation logic on the synthesized diff
                         findings = verify_changes(parse_diff("\n".join(diff_lines)))
                         if any(f["severity"] == "error" for f in findings):
                             log_error(
                                 f"AI-generated resolution for {file_path} contains version violations: {findings}"
                             )
-                            # Re-try or block to prevent regression
                             return False
             except Exception as e:
                 log_warn(f"Failed to post-process AI resolution for {file_path}: {e}")
