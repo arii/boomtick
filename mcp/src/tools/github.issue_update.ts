@@ -6,7 +6,7 @@ import { IssueUpdateInputSchema, IssueUpdateResponseSchema } from "./contract.js
 
 export { IssueUpdateInputSchema };
 
-export async function issueUpdateHandler(args: any) {
+export async function issueUpdateHandler(args: z.infer<typeof IssueUpdateInputSchema>) {
   const params = IssueUpdateInputSchema.parse(args);
   const targetRepo = resolveRepo(params.repo);
 
