@@ -1,20 +1,24 @@
 import { z } from "zod";
 import { runCommand } from "../lib/shell.js";
+import { resolveRepo } from "../lib/git.js";
 
 export const SearchOpenPrsInputSchema = z.object({
   state: z.enum(["open", "closed", "all"]).optional().default("open"),
   includeDrafts: z.boolean().optional().default(true),
   limit: z.number().min(1).max(100).optional().default(100),
   labels: z.array(z.string()).optional(),
+  repo: z.string().optional().describe("The target repository override (e.g. org/repo)."),
 });
 
 export async function searchOpenPrsHandler(args: z.infer<typeof SearchOpenPrsInputSchema>) {
   const params = SearchOpenPrsInputSchema.parse(args);
+  const targetRepo = resolveRepo(params.repo);
 
   const tdArgs = [
     "gh", "search-prs",
     "--state", params.state,
     "--limit", params.limit.toString(),
+    "--repo", targetRepo,
   ];
 
   if (!params.includeDrafts) {

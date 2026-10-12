@@ -439,10 +439,12 @@ class Orchestrator:
         """
         return self.github.create_pull_request(title, body, head, base, draft=draft, repo=repo)
 
-    def get_issue_details(self, issueNumber: int) -> Dict[str, Any]:
+    def get_issue_details(self, issueNumber: int, repo: Optional[str] = None) -> Dict[str, Any]:
         """
         Fetches details of a GitHub issue.
         """
+        if repo:
+            return self.github.fetch_issue_details(issueNumber, repo=repo)
         return self.github.fetch_issue_details(issueNumber)
 
     def update_issue(
@@ -453,6 +455,7 @@ class Orchestrator:
         addLabels: Optional[List[str]] = None,
         removeLabels: Optional[List[str]] = None,
         state: Optional[str] = None,
+        repo: Optional[str] = None,
         **kwargs,
     ) -> Dict[str, Any]:
         if "issue_number" in kwargs and issueNumber is None:
@@ -468,31 +471,45 @@ class Orchestrator:
             removeLabels = kwargs["remove_labels"]
         # Handle full label replacement first as it is mutually exclusive with incremental changes
         if labels is not None:
-            res = self.github.update_issue(issueNumber, body=body, labels=labels, state=state)
+            if repo:
+                res = self.github.update_issue(issueNumber, body=body, labels=labels, state=state, repo=repo)
+            else:
+                res = self.github.update_issue(issueNumber, body=body, labels=labels, state=state)
         else:
             # Handle incremental label changes (can happen together)
             if addLabels:
-                res = self.github.add_labels(issueNumber, addLabels)
+                if repo:
+                    res = self.github.add_labels(issueNumber, addLabels, repo=repo)
+                else:
+                    res = self.github.add_labels(issueNumber, addLabels)
 
             if removeLabels:
                 for label in removeLabels:
-                    res = self.github.remove_label(issueNumber, label)
+                    if repo:
+                        res = self.github.remove_label(issueNumber, label, repo=repo)
+                    else:
+                        res = self.github.remove_label(issueNumber, label)
 
             # Handle body/state update if not already done via 'labels' PATCH
             if body is not None or state is not None:
-                res = self.github.update_issue(issueNumber, body=body, state=state)
+                if repo:
+                    res = self.github.update_issue(issueNumber, body=body, state=state, repo=repo)
+                else:
+                    res = self.github.update_issue(issueNumber, body=body, state=state)
 
         if res is None:
             raise CLIError("Nothing to update. Provide body, labels, or state.")
 
         return {"status": "success", "issue": IssueSummary(**res).model_dump()}
 
-    def post_comment(self, entity_number: int, body: Optional[str]) -> Dict[str, Any]:
+    def post_comment(self, entity_number: int, body: Optional[str], repo: Optional[str] = None) -> Dict[str, Any]:
         """
         Posts a comment to a Pull Request or Issue.
         """
         if body is None or not body.strip():
             raise CLIError("Comment body cannot be empty.")
+        if repo:
+            return self.github.create_issue_comment(entity_number, body, repo=repo)
         return self.github.create_issue_comment(entity_number, body)
 
     def validate_content(self, title: str, body: str, config: Optional[Dict[str, Any]] = None) -> Dict[str, List[str]]:
@@ -2074,13 +2091,14 @@ Follow the "Audit comment template" in `docs/agent/issue-audit-rules.md` to post
             "commandLog": command_log,
         }
 
-    def get_pr_diff_shapen(self, prNumber: int) -> Dict[str, Any]:
+    def get_pr_diff_shapen(self, prNumber: int, repo: Optional[str] = None) -> Dict[str, Any]:
         """Fetches PR diff, applies truncation and shapes file info."""
+        extra_kwargs = {"repo": repo} if repo else {}
         # Get files list
-        files = self.github.fetch_pr_files(prNumber)
+        files = self.github.fetch_pr_files(prNumber, **extra_kwargs)
 
         # Get diff text
-        diff_text = self.github.fetch_pr_diff(prNumber)
+        diff_text = self.github.fetch_pr_diff(prNumber, **extra_kwargs)
 
         MAX_DIFF_SIZE = 50000
         truncated = False
@@ -2110,6 +2128,7 @@ Follow the "Audit comment template" in `docs/agent/issue-audit-rules.md` to post
         limit: int = 100,
         includeDrafts: bool = True,
         labels: Optional[List[str]] = None,
+        repo: Optional[str] = None,
         **kwargs,
     ) -> Dict[str, Any]:
         """Lists PRs with optional filtering."""
@@ -2117,7 +2136,8 @@ Follow the "Audit comment template" in `docs/agent/issue-audit-rules.md` to post
             includeDrafts = kwargs["include_drafts"]
         if "labels" in kwargs and labels is None:
             labels = kwargs["labels"]
-        prs = self.github.list_pull_requests(state=state, limit=limit, labels=labels)
+        extra_kwargs = {"repo": repo} if repo else {}
+        prs = self.github.list_pull_requests(state=state, limit=limit, labels=labels, **extra_kwargs)
 
         if not includeDrafts:
             prs = [pr for pr in prs if not pr.get("isDraft")]

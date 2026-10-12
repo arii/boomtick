@@ -1,11 +1,13 @@
 import { z } from "zod";
 import { runCommand } from "../lib/shell.js";
+import { resolveRepo } from "../lib/git.js";
 import { CreatePullRequestInputSchema } from "./contract.js";
 
 export { CreatePullRequestInputSchema };
 
 export async function createPullRequestHandler(args: z.input<typeof CreatePullRequestInputSchema>) {
   const params = CreatePullRequestInputSchema.parse(args);
+  const targetRepo = resolveRepo(params.repo);
 
   const tdArgs = [
     "gh",
@@ -13,15 +15,12 @@ export async function createPullRequestHandler(args: z.input<typeof CreatePullRe
     "--title", params.title,
     "--body", params.body,
     "--head", params.head,
-    "--base", params.base
+    "--base", params.base,
+    "--repo", targetRepo
   ];
 
   if (params.draft) {
     tdArgs.push("--draft");
-  }
-
-  if (params.repo) {
-    tdArgs.push("--repo", params.repo);
   }
 
   const result = await runCommand("td-cli", tdArgs);

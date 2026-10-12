@@ -280,12 +280,14 @@ def gh():
 @limit_option(help_text="Limit the number of PRs to process")
 @click.option("--include-drafts/--no-include-drafts", default=True)
 @click.option("--labels")
+@click.option("--repo", help="Target repository override (e.g. owner/repo)")
 @click.pass_context
-def search_prs(ctx, state, limit, include_drafts, labels):
+def search_prs(ctx, state, limit, include_drafts, labels, repo):
     orch = ctx.obj["ORCHESTRATOR"]
     label_list = [l.strip() for l in labels.split(",")] if labels else None
+    extra_kwargs = {"repo": repo} if repo else {}
 
-    res = orch.list_prs(state=state, limit=limit, includeDrafts=include_drafts, labels=label_list)
+    res = orch.list_prs(state=state, limit=limit, includeDrafts=include_drafts, labels=label_list, **extra_kwargs)
     out(ctx, f"Found {len(res['prs'])} PRs.", data=res)
 
 
@@ -326,19 +328,23 @@ def sync_pr(ctx, pr_number):
 
 @gh.command()
 @click.argument("pr_number", type=int)
+@click.option("--repo", help="Target repository override (e.g. owner/repo)")
 @click.pass_context
-def pr_diff(ctx, pr_number):
+def pr_diff(ctx, pr_number, repo):
     orch = ctx.obj["ORCHESTRATOR"]
-    res = orch.get_pr_diff_shapen(pr_number)
+    extra_kwargs = {"repo": repo} if repo else {}
+    res = orch.get_pr_diff_shapen(pr_number, **extra_kwargs)
     out(ctx, f"Fetched diff for PR #{pr_number}", data=res)
 
 
 @gh.command()
 @click.argument("pr_number", type=int)
+@click.option("--repo", help="Target repository override (e.g. owner/repo)")
 @click.pass_context
-def view(ctx, pr_number):
+def view(ctx, pr_number, repo):
     orch = ctx.obj["ORCHESTRATOR"]
-    pr = orch.github.fetch_pr_details(pr_number)
+    extra_kwargs = {"repo": repo} if repo else {}
+    pr = orch.github.fetch_pr_details(pr_number, **extra_kwargs)
     # Normalize for tool consumption
     normalized_pr = {
         "number": pr.get("number"),
@@ -428,15 +434,17 @@ def create_issue(ctx, title, file, body, repo):
 @gh.command()
 @click.argument("issue_number_arg", required=False, type=int)
 @click.option("--issue-number", "issue_number_opt", type=int, help="The GitHub issue number to view")
+@click.option("--repo", help="Target repository override (e.g. owner/repo)")
 @click.pass_context
-def issue_view(ctx, issue_number_arg, issue_number_opt):
+def issue_view(ctx, issue_number_arg, issue_number_opt, repo):
     """View details of a GitHub issue."""
     issue_number = issue_number_arg if issue_number_arg is not None else issue_number_opt
     if issue_number is None:
         err(ctx, "Provide --issue-number or a positional issue number")
 
     orch = ctx.obj["ORCHESTRATOR"]
-    issue = orch.get_issue_details(issue_number)
+    extra_kwargs = {"repo": repo} if repo else {}
+    issue = orch.get_issue_details(issue_number, **extra_kwargs)
     msg = f"Issue #{issue.get('number')}: {issue.get('title')}\nState: {issue.get('state')}\n\n{issue.get('body')}"
     out(ctx, msg, data={"issue": issue})
 
@@ -449,8 +457,9 @@ def issue_view(ctx, issue_number_arg, issue_number_opt):
 @click.option("--add-labels", help="Comma-separated list of labels to add")
 @click.option("--remove-labels", help="Comma-separated list of labels to remove")
 @click.option("--state", type=click.Choice(["open", "closed"]))
+@click.option("--repo", help="Target repository override (e.g. owner/repo)")
 @click.pass_context
-def issue_update(ctx, issue_number, file, body, labels, add_labels, remove_labels, state):
+def issue_update(ctx, issue_number, file, body, labels, add_labels, remove_labels, state, repo):
     """Update a GitHub issue's body, labels, and/or state."""
     orch = ctx.obj["ORCHESTRATOR"]
 
@@ -462,6 +471,7 @@ def issue_update(ctx, issue_number, file, body, labels, add_labels, remove_label
     if file or body:
         content = _get_body_content(ctx, orch, file, body)
 
+    extra_kwargs = {"repo": repo} if repo else {}
     res = orch.update_issue(
         issueNumber=issue_number,
         body=content,
@@ -469,6 +479,7 @@ def issue_update(ctx, issue_number, file, body, labels, add_labels, remove_label
         addLabels=add_label_list,
         removeLabels=remove_label_list,
         state=state,
+        **extra_kwargs,
     )
     out(ctx, f"✅ Successfully updated issue #{issue_number}", data=res)
 
@@ -477,12 +488,14 @@ def issue_update(ctx, issue_number, file, body, labels, add_labels, remove_label
 @click.argument("issue_number", type=int)
 @click.option("--file", help="Path to file containing comment body")
 @click.option("--body", help="Literal body text")
+@click.option("--repo", help="Target repository override (e.g. owner/repo)")
 @click.pass_context
-def issue_comment(ctx, issue_number, file, body):
+def issue_comment(ctx, issue_number, file, body, repo):
     """Post a comment to a GitHub issue."""
     orch = ctx.obj["ORCHESTRATOR"]
     content = _get_body_content(ctx, orch, file, body)
-    res = orch.post_comment(issue_number, content)
+    extra_kwargs = {"repo": repo} if repo else {}
+    res = orch.post_comment(issue_number, content, **extra_kwargs)
     out(ctx, f"✅ Successfully posted comment to issue #{issue_number}", data={"comment": res})
 
 

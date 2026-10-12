@@ -29,7 +29,9 @@ class CreateIssueInput(CamelCaseModel):
     title: str = Field(..., min_length=1)
     body: Optional[str] = Field(None, min_length=1)
     file: Optional[str] = Field(None, min_length=1)
-    repo: Optional[str] = Field(None, description="The target repository override (e.g. org/repo).")
+    repo: Optional[str] = Field(
+        None, pattern=r"^[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+$", description="The target repository override (e.g. org/repo)."
+    )
 
     @model_validator(mode="after")
     def check_body_or_file(self) -> "CreateIssueInput":
@@ -49,6 +51,9 @@ class SearchPRsInput(CamelCaseModel):
     )
     include_drafts: bool = Field(True, description="Whether to include draft PRs in the results.")
     labels: Optional[List[str]] = Field(None, description="Filter PRs by labels.")
+    repo: Optional[str] = Field(
+        None, pattern=r"^[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+$", description="The target repository override (e.g. org/repo)."
+    )
 
 
 class IssueUpdateInput(CamelCaseModel):
@@ -63,6 +68,9 @@ class IssueUpdateInput(CamelCaseModel):
         None, description="Comma-separated list of labels to remove."
     )
     state: Optional[Literal["open", "closed"]] = Field(None, description="The state to set the issue to.")
+    repo: Optional[str] = Field(
+        None, pattern=r"^[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+$", description="The target repository override (e.g. org/repo)."
+    )
 
     @model_validator(mode="after")
     def check_updates(self) -> "IssueUpdateInput":
@@ -129,6 +137,9 @@ class HealthCheckInput(CamelCaseModel):
 
 class GetPrDiffInput(CamelCaseModel):
     pr_number: int = Field(..., description="The number of the pull request to get the diff for.")
+    repo: Optional[str] = Field(
+        None, pattern=r"^[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+$", description="The target repository override (e.g. org/repo)."
+    )
 
 
 class CheckoutBranchInput(CamelCaseModel):
@@ -224,7 +235,9 @@ class CreatePullRequestInput(CamelCaseModel):
     head: str = Field(..., description="The branch containing changes to merge.")
     base: str = Field("main", description="The target branch to merge into.")
     draft: bool = Field(False, description="Whether to create the PR as a draft.")
-    repo: Optional[str] = Field(None, description="The target repository override (e.g. org/repo).")
+    repo: Optional[str] = Field(
+        None, pattern=r"^[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+$", description="The target repository override (e.g. org/repo)."
+    )
 
 
 class CommentTriageSummaryInput(CamelCaseModel):
@@ -234,15 +247,24 @@ class CommentTriageSummaryInput(CamelCaseModel):
 
 class GetPrInput(CamelCaseModel):
     pr_number: int = Field(..., description="The number of the PR to view.")
+    repo: Optional[str] = Field(
+        None, pattern=r"^[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+$", description="The target repository override (e.g. org/repo)."
+    )
 
 
 class IssueViewInput(CamelCaseModel):
     issue_number: int = Field(..., description="The number of the issue to view.")
+    repo: Optional[str] = Field(
+        None, pattern=r"^[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+$", description="The target repository override (e.g. org/repo)."
+    )
 
 
 class IssueCommentInput(CamelCaseModel):
     issue_number: int = Field(..., description="The number of the issue to comment on.")
     body: str = Field(..., description="The content of the comment.")
+    repo: Optional[str] = Field(
+        None, pattern=r"^[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+$", description="The target repository override (e.g. org/repo)."
+    )
 
 
 class CreateJulesSessionInput(CamelCaseModel):

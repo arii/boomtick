@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { runCommand } from "../lib/shell.js";
+import { resolveRepo } from "../lib/git.js";
 import { sanitizeError } from "../lib/error_utils.js";
 import { CreateIssueInputSchema, CreateIssueResponseSchema } from "./contract.js";
 
@@ -7,11 +8,12 @@ export { CreateIssueInputSchema };
 
 export async function createIssueHandler(args: z.input<typeof CreateIssueInputSchema>) {
   const params = CreateIssueInputSchema.parse(args);
+  const targetRepo = resolveRepo(params.repo);
 
   const cmdArgs = ["gh", "create-issue", "--title", params.title];
   if (params.body) cmdArgs.push("--body", params.body);
   if (params.file) cmdArgs.push("--file", params.file);
-  if (params.repo) cmdArgs.push("--repo", params.repo);
+  cmdArgs.push("--repo", targetRepo);
 
   const result = await runCommand("td-cli", cmdArgs);
 
