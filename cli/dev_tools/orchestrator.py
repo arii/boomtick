@@ -473,16 +473,18 @@ class Orchestrator:
             # Handle incremental label changes (can happen together)
             if addLabels:
                 if repo:
-                    res = self.github.add_labels(issueNumber, addLabels, repo=repo)
+                    self.github.add_labels(issueNumber, addLabels, repo=repo)
                 else:
-                    res = self.github.add_labels(issueNumber, addLabels)
+                    self.github.add_labels(issueNumber, addLabels)
+                res = {"status": "success", "message": f"Added labels {addLabels} to #{issueNumber}"}
 
             if removeLabels:
                 for label in removeLabels:
                     if repo:
-                        res = self.github.remove_label(issueNumber, label, repo=repo)
+                        self.github.remove_label(issueNumber, label, repo=repo)
                     else:
-                        res = self.github.remove_label(issueNumber, label)
+                        self.github.remove_label(issueNumber, label)
+                res = {"status": "success", "message": f"Removed labels {removeLabels} from #{issueNumber}"}
 
             # Handle body/state update if not already done via 'labels' PATCH
             if body is not None or state is not None:
@@ -493,6 +495,9 @@ class Orchestrator:
 
         if res is None:
             raise CLIError("Nothing to update. Provide body, labels, or state.")
+
+        if "issue" not in res and res.get("status") == "success":
+            return res
 
         return {"status": "success", "issue": IssueSummary(**res).model_dump()}
 
