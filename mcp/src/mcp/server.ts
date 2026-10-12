@@ -11,6 +11,7 @@ import {
 import { config } from "../config.js";
 import { createSuccessResult, createErrorResult } from "../lib/result.js";
 import { MCP_TOOLS, MCP_PROMPTS, MCP_RESOURCES } from "./definitions.js";
+import { normalizeArguments } from "../lib/param_utils.js";
 import { healthHandler, HealthCheckInputSchema } from "./tools.js";
 import { searchOpenPrsHandler, SearchOpenPrsInputSchema } from "../tools/github.search_open_prs.js";
 import { getPrDiffHandler, GetPrDiffInputSchema } from "../tools/github.get_pr_diff.js";
@@ -182,80 +183,114 @@ export class BoomtickMCPServer {
 
     this.server.setRequestHandler(CallToolRequestSchema, async (request) => {
       try {
-        switch (request.params.name) {
+        const normalizedToolName = request.params.name.replace(/_/g, ".");
+        const normArgs = normalizeArguments(request.params.arguments as Record<string, unknown>);
+
+        switch (normalizedToolName) {
           case "boomtick.health":
-            return createSuccessResult(await healthHandler(HealthCheckInputSchema.parse(request.params.arguments || {})));
+            return createSuccessResult(await healthHandler(HealthCheckInputSchema.parse(normArgs)));
+          case "github.search.open.prs":
           case "github.search_open_prs":
-            return createSuccessResult(await searchOpenPrsHandler(SearchOpenPrsInputSchema.parse(request.params.arguments || {})));
+            return createSuccessResult(await searchOpenPrsHandler(SearchOpenPrsInputSchema.parse(normArgs)));
+          case "repo.read.agent.context":
           case "repo.read_agent_context":
-            return createSuccessResult(await readAgentContextHandler(ReadAgentContextInputSchema.parse(request.params.arguments || {})));
+            return createSuccessResult(await readAgentContextHandler(ReadAgentContextInputSchema.parse(normArgs)));
+          case "github.get.pr.diff":
           case "github.get_pr_diff":
-            return createSuccessResult(await getPrDiffHandler(GetPrDiffInputSchema.parse(request.params.arguments)));
+            return createSuccessResult(await getPrDiffHandler(GetPrDiffInputSchema.parse(normArgs)));
+          case "github.get.merge.conflict.files":
           case "github.get_merge_conflict_files":
-            return createSuccessResult(await getMergeConflictFilesHandler(GetMergeConflictFilesInputSchema.parse(request.params.arguments)));
+            return createSuccessResult(await getMergeConflictFilesHandler(GetMergeConflictFilesInputSchema.parse(normArgs)));
+          case "github.checkout.branch":
           case "github.checkout_branch":
-            return createSuccessResult(await checkoutBranchHandler(CheckoutBranchInputSchema.parse(request.params.arguments)));
+            return createSuccessResult(await checkoutBranchHandler(CheckoutBranchInputSchema.parse(normArgs)));
+          case "repo.get.changed.files":
           case "repo.get_changed_files":
-            return createSuccessResult(await getChangedFilesHandler(GetChangedFilesInputSchema.parse(request.params.arguments || {})));
+            return createSuccessResult(await getChangedFilesHandler(GetChangedFilesInputSchema.parse(normArgs)));
+          case "repo.get.command.schema":
           case "repo.get_command_schema":
-            return createSuccessResult(await getCommandSchemaHandler(GetCommandSchemaInputSchema.parse(request.params.arguments)));
+            return createSuccessResult(await getCommandSchemaHandler(GetCommandSchemaInputSchema.parse(normArgs)));
+          case "repo.get.package.scripts":
           case "repo.get_package_scripts":
-            return createSuccessResult(await getPackageScriptsHandler(GetPackageScriptsInputSchema.parse(request.params.arguments || {})));
+            return createSuccessResult(await getPackageScriptsHandler(GetPackageScriptsInputSchema.parse(normArgs)));
+          case "repo.get.route.map":
           case "repo.get_route_map":
-            return createSuccessResult(await getRouteMapHandler(GetRouteMapInputSchema.parse(request.params.arguments || {})));
+            return createSuccessResult(await getRouteMapHandler(GetRouteMapInputSchema.parse(normArgs)));
+          case "repo.read.ci.logs":
           case "repo.read_ci_logs":
-            return createSuccessResult(await readCiLogsHandler(ReadCiLogsInputSchema.parse(request.params.arguments)));
+            return createSuccessResult(await readCiLogsHandler(ReadCiLogsInputSchema.parse(normArgs)));
           case "repo.logs":
-            return createSuccessResult(await repoLogsHandler(RepoLogsInputSchema.parse(request.params.arguments)));
+            return createSuccessResult(await repoLogsHandler(RepoLogsInputSchema.parse(normArgs)));
+          case "repo.create.branch":
           case "repo.create_branch":
-            return createSuccessResult(await createBranchHandler(CreateBranchInputSchema.parse(request.params.arguments)));
+            return createSuccessResult(await createBranchHandler(CreateBranchInputSchema.parse(normArgs)));
+          case "repo.create.repair.branch":
           case "repo.create_repair_branch":
-            return createSuccessResult(await createRepairBranchHandler(CreateRepairBranchInputSchema.parse(request.params.arguments)));
+            return createSuccessResult(await createRepairBranchHandler(CreateRepairBranchInputSchema.parse(normArgs)));
+          case "repo.run.tests":
           case "repo.run_tests":
-            return createSuccessResult(await runTestsHandler(RunTestsInputSchema.parse(request.params.arguments || {})));
+            return createSuccessResult(await runTestsHandler(RunTestsInputSchema.parse(normArgs)));
+          case "repo.run.lighthouse":
           case "repo.run_lighthouse":
-            return createSuccessResult(await runLighthouseHandler(RunLighthouseInputSchema.parse(request.params.arguments || {})));
+            return createSuccessResult(await runLighthouseHandler(RunLighthouseInputSchema.parse(normArgs)));
+          case "repo.run.playwright":
           case "repo.run_playwright":
-            return createSuccessResult(await runPlaywrightHandler(RunPlaywrightInputSchema.parse(request.params.arguments || {})));
+            return createSuccessResult(await runPlaywrightHandler(RunPlaywrightInputSchema.parse(normArgs)));
+          case "repo.commit.patch":
           case "repo.commit_patch":
-            return createSuccessResult(await commitPatchHandler(CommitPatchInputSchema.parse(request.params.arguments)));
+            return createSuccessResult(await commitPatchHandler(CommitPatchInputSchema.parse(normArgs)));
+          case "github.open.replacement.pr":
           case "github.open_replacement_pr":
-            return createSuccessResult(await openReplacementPrHandler(OpenReplacementPrInputSchema.parse(request.params.arguments)));
+            return createSuccessResult(await openReplacementPrHandler(OpenReplacementPrInputSchema.parse(normArgs)));
+          case "github.comment.triage.summary":
           case "github.comment_triage_summary":
-            return createSuccessResult(await commentTriageSummaryHandler(CommentTriageSummaryInputSchema.parse(request.params.arguments)));
+            return createSuccessResult(await commentTriageSummaryHandler(CommentTriageSummaryInputSchema.parse(normArgs)));
+          case "github.create.pull.request":
           case "github.create_pull_request":
-            return createSuccessResult(await createPullRequestHandler(CreatePullRequestInputSchema.parse(request.params.arguments)));
+            return createSuccessResult(await createPullRequestHandler(CreatePullRequestInputSchema.parse(normArgs)));
+          case "github.get.pr":
           case "github.get_pr":
-            return createSuccessResult(await getPrHandler(GetPrInputSchema.parse(request.params.arguments)));
+            return createSuccessResult(await getPrHandler(GetPrInputSchema.parse(normArgs)));
+          case "github.issue.view":
           case "github.issue_view":
-            return createSuccessResult(await issueViewHandler(IssueViewInputSchema.parse(request.params.arguments)));
+            return createSuccessResult(await issueViewHandler(IssueViewInputSchema.parse(normArgs)));
+          case "github.issue.update":
           case "github.issue_update":
-            return createSuccessResult(await issueUpdateHandler(IssueUpdateInputSchema.parse(request.params.arguments)));
+            return createSuccessResult(await issueUpdateHandler(IssueUpdateInputSchema.parse(normArgs)));
+          case "github.issue.comment":
           case "github.issue_comment":
-            return createSuccessResult(await issueCommentHandler(IssueCommentInputSchema.parse(request.params.arguments)));
+            return createSuccessResult(await issueCommentHandler(IssueCommentInputSchema.parse(normArgs)));
+          case "github.create.issue":
           case "github.create_issue":
-            return createSuccessResult(await createIssueHandler(CreateIssueInputSchema.parse(request.params.arguments)));
+            return createSuccessResult(await createIssueHandler(CreateIssueInputSchema.parse(normArgs)));
 
-
-
+          case "jules.create.session":
           case "jules.create_session":
-            return createSuccessResult(await createJulesSessionHandler(CreateJulesSessionInputSchema.parse(request.params.arguments)));
+            return createSuccessResult(await createJulesSessionHandler(CreateJulesSessionInputSchema.parse(normArgs)));
+          case "jules.get.session":
           case "jules.get_session":
-            return createSuccessResult(await getJulesSessionHandler(GetJulesSessionInputSchema.parse(request.params.arguments)));
+            return createSuccessResult(await getJulesSessionHandler(GetJulesSessionInputSchema.parse(normArgs)));
+          case "jules.send.message":
           case "jules.send_message":
-            return createSuccessResult(await sendJulesMessageHandler(SendJulesMessageInputSchema.parse(request.params.arguments)));
+            return createSuccessResult(await sendJulesMessageHandler(SendJulesMessageInputSchema.parse(normArgs)));
+          case "jules.get.messages":
           case "jules.get_messages":
-            return createSuccessResult(await getJulesMessagesHandler(GetJulesMessagesInputSchema.parse(request.params.arguments)));
+            return createSuccessResult(await getJulesMessagesHandler(GetJulesMessagesInputSchema.parse(normArgs)));
+          case "jules.list.sessions":
           case "jules.list_sessions":
-            return createSuccessResult(await listJulesSessionsHandler(ListJulesSessionsInputSchema.parse(request.params.arguments || {})));
+            return createSuccessResult(await listJulesSessionsHandler(ListJulesSessionsInputSchema.parse(normArgs)));
+          case "jules.cancel.session":
           case "jules.cancel_session":
-            return createSuccessResult(await cancelJulesSessionHandler(CancelJulesSessionInputSchema.parse(request.params.arguments)));
+            return createSuccessResult(await cancelJulesSessionHandler(CancelJulesSessionInputSchema.parse(normArgs)));
+          case "jules.get.pr":
           case "jules.get_pr":
-            return createSuccessResult(await getJulesPullRequestHandler(GetJulesPullRequestInputSchema.parse(request.params.arguments)));
+            return createSuccessResult(await getJulesPullRequestHandler(GetJulesPullRequestInputSchema.parse(normArgs)));
+          case "jules.trigger.feedback":
           case "jules.trigger_feedback":
-            return createSuccessResult(await triggerJulesFeedbackHandler(TriggerJulesFeedbackInputSchema.parse(request.params.arguments)));
+            return createSuccessResult(await triggerJulesFeedbackHandler(TriggerJulesFeedbackInputSchema.parse(normArgs)));
+          case "agent.search.ddgs":
           case "agent.search_ddgs":
-            return createSuccessResult(await ddgsSearchHandler(DdgsSearchInputSchema.parse(request.params.arguments)));
+            return createSuccessResult(await ddgsSearchHandler(DdgsSearchInputSchema.parse(normArgs)));
           default:
             return createErrorResult(`Tool not found: ${request.params.name}`);
         }
