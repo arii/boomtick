@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.11.0](https://github.com/arii/boomtick/compare/cli-v0.10.1...cli-v0.11.0) (2026-10-12)
+
+
+### Features
+
+* **cli:** consolidate 'td agent plan-aggregation' into single unified plan artifact ([#803](https://github.com/arii/boomtick/issues/803)) ([05addc2](https://github.com/arii/boomtick/commit/05addc2be8e84bf4dedc9b794472eb8b2f2389dc))
+
+
+### Bug Fixes
+
+* **cli:** implement hunk-scoped AI conflict resolution and deterministic strategy fallback ([#810](https://github.com/arii/boomtick/issues/810)) ([9977c5d](https://github.com/arii/boomtick/commit/9977c5d449ce8de54bd4c7a1908a064d3d372b7c))
+* **cli:** support session title in agent dispatch ([#801](https://github.com/arii/boomtick/issues/801)) ([e358cc5](https://github.com/arii/boomtick/commit/e358cc51e2c9cc9c3295a8265835d8d05ff26d4a))
+* **mcp:** support dynamic repo context resolution and --repo forwarding across workspaces ([#811](https://github.com/arii/boomtick/issues/811)) ([f7e1665](https://github.com/arii/boomtick/commit/f7e166594f170843b7f2e267fab119c631bf3c83))
+
 ## [0.10.1](https://github.com/arii/boomtick/compare/cli-v0.10.0...cli-v0.10.1) (2026-09-22)
 
 
