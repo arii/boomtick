@@ -496,7 +496,7 @@ class Orchestrator:
         if res is None:
             raise CLIError("Nothing to update. Provide body, labels, or state.")
 
-        if "issue" not in res and res.get("status") == "success":
+        if res.get("status") == "success":
             return res
 
         return {"status": "success", "issue": IssueSummary(**res).model_dump()}
