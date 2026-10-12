@@ -46,22 +46,6 @@ describe('GitHubModelFactory', () => {
       const chain = GitHubModelFactory.getFallbackChain();
       expect(chain).toEqual(['my-model', 'fallback-1', 'fallback-2']);
     });
-
-    it('returns fallbacks for gpt-4', () => {
-      process.env.AI_PROVIDER = 'gpt-4';
-      const chain = GitHubModelFactory.getFallbackChain();
-      expect(chain).toEqual(['gpt-4o', 'gpt-4o-mini']);
-    });
-
-    it('defaults to gpt-4o-mini if AI_PROVIDER is unset or unknown', () => {
-      delete process.env.AI_PROVIDER;
-      const chain1 = GitHubModelFactory.getFallbackChain();
-      expect(chain1).toEqual(['gpt-4o-mini']);
-
-      process.env.AI_PROVIDER = 'unknown-provider';
-      const chain2 = GitHubModelFactory.getFallbackChain();
-      expect(chain2).toEqual(['gpt-4o-mini']);
-    });
   });
 
   describe('getClient', () => {
@@ -110,8 +94,6 @@ describe('runReview & complete', () => {
     createMock.mockResolvedValueOnce({
       choices: [{ message: { content: 'Good review' } }]
     });
-
-    process.env.AI_PROVIDER = 'gpt-4o-mini';
 
     const result = await runReview({
       prContent: 'some changes',
@@ -219,7 +201,8 @@ describe('runReview & complete', () => {
 
     createMock.mockRejectedValue(new Error('Persistent error'));
 
-    process.env.AI_PROVIDER = 'gpt-4';
+    process.env.AI_CHAIN_PRIMARY = 'gpt-4o';
+    process.env.AI_CHAIN_FALLBACKS = 'gpt-4o-mini';
 
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
@@ -228,7 +211,7 @@ describe('runReview & complete', () => {
       rules: ['no bugs']
     })).rejects.toThrow('All requested GitHub Model providers and fallbacks failed or exhausted their usage limits.');
 
-    // gpt-4 fallback chain is ["gpt-4o", "gpt-4o-mini"], so it should try 2 times (once per model since they fail with unexpected error immediately)
+    // fallback chain is ["gpt-4o", "gpt-4o-mini"], so it should try 2 times (once per model since they fail with unexpected error immediately)
     expect(createMock).toHaveBeenCalledTimes(2);
     warnSpy.mockRestore();
   });

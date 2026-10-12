@@ -90,11 +90,11 @@ class TestLabels(unittest.TestCase):
         self.assertEqual(res, {"number": 123, "title": "T", "html_url": "U", "state": "S"})
 
     def test_orchestrator_update_issue_add_labels(self):
-        self.orch.update_issue(123, add_labels=["new-label"])
+        self.orch.update_issue(123, addLabels=["new-label"])
         self.orch.github.add_labels.assert_called_once_with(123, ["new-label"])
 
     def test_orchestrator_update_issue_remove_labels(self):
-        self.orch.update_issue(123, remove_labels=["old-label"])
+        self.orch.update_issue(123, removeLabels=["old-label"])
         self.orch.github.remove_label.assert_called_once_with(123, "old-label")
 
     def test_orchestrator_update_issue_full_labels(self):
@@ -102,7 +102,7 @@ class TestLabels(unittest.TestCase):
         self.orch.github.update_issue.assert_called_once_with(123, body=None, labels=["l1", "l2"], state=None)
 
     def test_orchestrator_update_issue_simultaneous_add_remove(self):
-        self.orch.update_issue(123, add_labels=["new"], remove_labels=["old"])
+        self.orch.update_issue(123, addLabels=["new"], removeLabels=["old"])
         self.orch.github.add_labels.assert_called_once_with(123, ["new"])
         self.orch.github.remove_label.assert_called_once_with(123, "old")
 
@@ -112,18 +112,18 @@ class TestLabels(unittest.TestCase):
         pass
 
     def test_orchestrator_update_issue_body_and_add_labels(self):
-        self.orch.update_issue(123, body="new body", add_labels=["l1"])
+        self.orch.update_issue(123, body="new body", addLabels=["l1"])
         self.orch.github.add_labels.assert_called_once_with(123, ["l1"])
         self.orch.github.update_issue.assert_called_once_with(123, body="new body", state=None)
 
     def test_orchestrator_update_issue_add_labels_no_fallback(self):
         # We ensure fetch_issue_details is NOT called during update_issue
         self.orch.github.fetch_issue_details.reset_mock()
-        res = self.orch.update_issue(123, add_labels=["l1"])
+        res = self.orch.update_issue(123, addLabels=["l1"])
         self.orch.github.add_labels.assert_called_once_with(123, ["l1"])
         self.orch.github.fetch_issue_details.assert_not_called()
         self.assertEqual(res["status"], "success")
-        self.assertEqual(res["issue"]["number"], 123)
+        self.assertEqual(res["message"], "Added labels ['l1'] to #123")
 
 
 if __name__ == "__main__":

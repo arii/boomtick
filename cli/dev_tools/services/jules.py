@@ -98,29 +98,6 @@ class JulesClient:
         response.raise_for_status()
         return response.json()
 
-    def create_session(self, prompt: str, branch: str, title: str, owner: str, repo_name: str) -> str:
-        """Creates a new Jules session via the legacy API."""
-        headers = {"Authorization": f"Bearer {self.api_key}", "Content-Type": "application/json"}
-        payload = {
-            "prompt": prompt,
-            "branch": branch,
-            "title": title,
-            "owner": owner,
-            "repo_name": repo_name,
-        }
-        try:
-            response = requests.post(self.legacy_url, headers=headers, json=payload)
-            response.raise_for_status()
-            session_id = response.json().get("id")
-            if not session_id:
-                raise RuntimeError("Could not find session ID in API response.")
-            return session_id
-        except requests.exceptions.RequestException as e:
-            error_msg = f"Error creating Jules session: {e}"
-            if e.response is not None:
-                error_msg += f"\nResponse: {e.response.text}"
-            raise RuntimeError(error_msg)
-
     def _extract_activity_content(self, act: Dict[str, Any]) -> str:
         if act.get("userMessaged"):
             um = act["userMessaged"]

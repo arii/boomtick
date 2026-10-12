@@ -458,17 +458,11 @@ class Orchestrator:
         repo: Optional[str] = None,
         **kwargs,
     ) -> Dict[str, Any]:
-        if "issue_number" in kwargs and issueNumber is None:
-            issueNumber = kwargs["issue_number"]
         """
         Updates an issue's body, labels, and/or state.
         """
         res: Any = None
-        # Shim for backward compatibility with old snake_case names from tests or older callers
-        if "add_labels" in kwargs and addLabels is None:
-            addLabels = kwargs["add_labels"]
-        if "remove_labels" in kwargs and removeLabels is None:
-            removeLabels = kwargs["remove_labels"]
+
         # Handle full label replacement first as it is mutually exclusive with incremental changes
         if labels is not None:
             if repo:
