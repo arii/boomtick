@@ -99,7 +99,7 @@ export const MCP_RESOURCES: Resource[] = [
   },
 ];
 
-export const MCP_TOOLS: Tool[] = [
+const BASE_MCP_TOOLS: Tool[] = [
   {
     name: "boomtick.health",
     description: "Check the health and configuration of the MCP server.",
@@ -276,3 +276,14 @@ export const MCP_TOOLS: Tool[] = [
     inputSchema: SearchDdgsInputJsonSchema as any,
   },
 ];
+
+export const MCP_TOOLS: Tool[] = BASE_MCP_TOOLS.flatMap((tool) => {
+  const underscoreName = tool.name.replace(/\./g, "_");
+  if (underscoreName !== tool.name) {
+    return [
+      { ...tool, name: underscoreName },
+      tool,
+    ];
+  }
+  return [tool];
+});

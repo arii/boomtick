@@ -7,8 +7,31 @@ export const RunTestsInputSchema = z.object({
   worktreePath: z.string().optional(),
 });
 
-export async function runTestsHandler(args: z.infer<typeof RunTestsInputSchema>) {
-  const commands = args.commands || [
+export type RunTestsInput = z.input<typeof RunTestsInputSchema>;
+
+export function parseCommandArguments(fullCmd: string): [string, string[]] {
+  const tokens: string[] = [];
+  const regex = /"([^"\\]*(?:\\.[^"\\]*)*)"|'([^'\\]*(?:\\.[^'\\]*)*)'|(\S+)/g;
+  let match: RegExpExecArray | null;
+  while ((match = regex.exec(fullCmd)) !== null) {
+    if (match[1] !== undefined) {
+      tokens.push(match[1].replace(/\\"/g, '"'));
+    } else if (match[2] !== undefined) {
+      tokens.push(match[2].replace(/\\'/g, "'"));
+    } else {
+      tokens.push(match[3]);
+    }
+  }
+  if (tokens.length === 0) {
+    return ["", []];
+  }
+  const [cmd, ...args] = tokens;
+  return [cmd, args];
+}
+
+export async function runTestsHandler(args: RunTestsInput) {
+  const parsed = RunTestsInputSchema.parse(args || {});
+  const commands = parsed.commands || [
     "pnpm install --frozen-lockfile",
     "pnpm lint",
     "pnpm test",
@@ -19,11 +42,11 @@ export async function runTestsHandler(args: z.infer<typeof RunTestsInputSchema>)
   let success = true;
 
   for (const fullCmd of commands) {
-    const [cmd, ...cmdArgs] = fullCmd.split(" ");
+    const [cmd, cmdArgs] = parseCommandArguments(fullCmd);
     try {
       const res = await runCommand(cmd, cmdArgs, {
-        cwd: args.worktreePath,
-        timeout: args.timeoutSeconds * 1000
+        cwd: parsed.worktreePath,
+        timeout: parsed.timeoutSeconds * 1000
       });
       results.push(res);
       if (res.exitCode !== 0) {

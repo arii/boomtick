@@ -4,18 +4,25 @@ import { runCommand } from "../lib/shell.js";
 export const RunPlaywrightInputSchema = z.object({
   grep: z.string().optional(),
   worktreePath: z.string().optional(),
+  timeoutSeconds: z.number().optional().default(180),
 });
 
-export async function runPlaywrightHandler(args: z.infer<typeof RunPlaywrightInputSchema>) {
+export type RunPlaywrightInput = z.input<typeof RunPlaywrightInputSchema>;
+
+export async function runPlaywrightHandler(args: RunPlaywrightInput) {
+  const parsed = RunPlaywrightInputSchema.parse(args || {});
   const tdArgs = ["repo", "run-playwright"];
-  if (args.grep) {
-    tdArgs.push("--grep", args.grep);
+  if (parsed.grep) {
+    tdArgs.push("--grep", parsed.grep);
   }
-  if (args.worktreePath) {
-    tdArgs.push("--worktree", args.worktreePath);
+  if (parsed.worktreePath) {
+    tdArgs.push("--worktree", parsed.worktreePath);
   }
 
-  const result = await runCommand("td-cli", tdArgs);
+  const result = await runCommand("td-cli", tdArgs, {
+    cwd: parsed.worktreePath,
+    timeout: parsed.timeoutSeconds * 1000,
+  });
 
   if (result.exitCode !== 0) {
     // Playwright might exit with non-zero if tests fail, but our td-cli should ideally handle it
