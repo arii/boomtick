@@ -84,7 +84,7 @@ jobs:
         uses: actions/checkout@v7
         with:
           fetch-depth: 0
-          ref: ${{ inputs.ref || github.ref }}
+          ref: ${{ inputs.ref }}
 
       - name: Run Scope Verification Check
         run: |
@@ -98,7 +98,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v7
         with:
-          ref: ${{ inputs.ref || github.ref }}
+          ref: ${{ inputs.ref }}
 
       - name: Check workflow files with actionlint
         run: |
@@ -118,7 +118,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v7
         with:
-          ref: ${{ inputs.ref || github.ref }}
+          ref: ${{ inputs.ref }}
 
       - name: Setup Workspace
         uses: arii/boomtick/.github/actions/setup-workspace@main # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
@@ -145,7 +145,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v7
         with:
-          ref: ${{ inputs.ref || github.ref }}
+          ref: ${{ inputs.ref }}
 
       - name: Setup Workspace
         uses: arii/boomtick/.github/actions/setup-workspace@main # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
@@ -164,7 +164,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v7
         with:
-          ref: ${{ inputs.ref || github.ref }}
+          ref: ${{ inputs.ref }}
 
       - name: Setup Workspace
         uses: arii/boomtick/.github/actions/setup-workspace@main # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
@@ -190,7 +190,7 @@ jobs:
         uses: actions/checkout@v7
         with:
           fetch-depth: 0
-          ref: ${{ inputs.ref || github.ref }}
+          ref: ${{ inputs.ref }}
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
