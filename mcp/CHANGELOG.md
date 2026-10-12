@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.4.2](https://github.com/arii/boomtick/compare/mcp-v0.4.1...mcp-v0.4.2) (2026-10-12)
+
+
+### Bug Fixes
+
+* **mcp:** map tool JSON Schema to parameters object in sync-mcp-schemas ([#802](https://github.com/arii/boomtick/issues/802)) ([a57a9ae](https://github.com/arii/boomtick/commit/a57a9aef32109242882d682fcbd1a9ff0a81cffe))
+* **mcp:** resolve identifier regex, commit patch, timeout, and parameter casing bugs ([#815](https://github.com/arii/boomtick/issues/815)) ([1f3b232](https://github.com/arii/boomtick/commit/1f3b232d8550fa87eac2dd974bfd67252a8f4da1))
+* **mcp:** support dynamic repo context resolution and --repo forwarding across workspaces ([#811](https://github.com/arii/boomtick/issues/811)) ([f7e1665](https://github.com/arii/boomtick/commit/f7e166594f170843b7f2e267fab119c631bf3c83))
+
 ## [0.4.1](https://github.com/arii/boomtick/compare/mcp-v0.4.0...mcp-v0.4.1) (2026-09-22)
 
 
