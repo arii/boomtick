@@ -383,10 +383,6 @@ def get_ai_review_model() -> str:
 
 def get_ai_model() -> str:
     """Dynamic getter for the primary AI model."""
-    # Special case for legacy/variant env key
-    variant = os.environ.get("GITHUB_MODELS_MODEL")
-    if variant and not os.environ.get("AI_MODEL"):
-        return variant
     return _get_model_config("AI_MODEL", "ai_synthesis_model", "gpt-4o-mini")
 
 

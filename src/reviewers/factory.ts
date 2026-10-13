@@ -57,20 +57,7 @@ export class GitHubModelFactory {
       return [primaryEnv, ...fallbacks];
     }
 
-    // 2. Check AI_PROVIDER environment variable first for testing / legacy compatibility
-    const target = (process.env.AI_PROVIDER || '').toLowerCase();
-    if (target) {
-      const defaultRegistry: Record<string, string[]> = {
-        "gpt-4o-mini": ["gpt-4o-mini", "gpt-4o"],
-        "gpt-4": ["gpt-4o", "gpt-4o-mini"]
-      };
-
-      if (Object.prototype.hasOwnProperty.call(defaultRegistry, target)) {
-        return defaultRegistry[target];
-      }
-    }
-
-    // 3. Check project config (only if not running in vitest tests to prevent local config from interfering with unit tests)
+    // 2. Check project config (only if not running in vitest tests to prevent local config from interfering with unit tests)
     if (!process.env.VITEST) {
       try {
         const projConfig = loadProjectConfig();

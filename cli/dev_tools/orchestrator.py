@@ -458,17 +458,11 @@ class Orchestrator:
         repo: Optional[str] = None,
         **kwargs,
     ) -> Dict[str, Any]:
-        if "issue_number" in kwargs and issueNumber is None:
-            issueNumber = kwargs["issue_number"]
         """
         Updates an issue's body, labels, and/or state.
         """
         res: Any = None
-        # Shim for backward compatibility with old snake_case names from tests or older callers
-        if "add_labels" in kwargs and addLabels is None:
-            addLabels = kwargs["add_labels"]
-        if "remove_labels" in kwargs and removeLabels is None:
-            removeLabels = kwargs["remove_labels"]
+
         # Handle full label replacement first as it is mutually exclusive with incremental changes
         if labels is not None:
             if repo:
@@ -479,16 +473,18 @@ class Orchestrator:
             # Handle incremental label changes (can happen together)
             if addLabels:
                 if repo:
-                    res = self.github.add_labels(issueNumber, addLabels, repo=repo)
+                    self.github.add_labels(issueNumber, addLabels, repo=repo)
                 else:
-                    res = self.github.add_labels(issueNumber, addLabels)
+                    self.github.add_labels(issueNumber, addLabels)
+                res = {"status": "success", "message": f"Added labels {addLabels} to #{issueNumber}"}
 
             if removeLabels:
                 for label in removeLabels:
                     if repo:
-                        res = self.github.remove_label(issueNumber, label, repo=repo)
+                        self.github.remove_label(issueNumber, label, repo=repo)
                     else:
-                        res = self.github.remove_label(issueNumber, label)
+                        self.github.remove_label(issueNumber, label)
+                res = {"status": "success", "message": f"Removed labels {removeLabels} from #{issueNumber}"}
 
             # Handle body/state update if not already done via 'labels' PATCH
             if body is not None or state is not None:
@@ -499,6 +495,9 @@ class Orchestrator:
 
         if res is None:
             raise CLIError("Nothing to update. Provide body, labels, or state.")
+
+        if res.get("status") == "success":
+            return res
 
         return {"status": "success", "issue": IssueSummary(**res).model_dump()}
 
