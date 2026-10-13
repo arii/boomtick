@@ -46,12 +46,12 @@ def test_out_of_scope_file_blocked():
 
 def test_exempt_configuration_files():
     issue_text = "Fix a bug in .github/workflows/release.yml."
-    changed_files = ["package.json", "project_config.json", "ci.yml", "README.md"]
+    changed_files = ["package.json", "project_config.json", "ci.yml", "README.md", "cli/pyproject.toml"]
 
     success, allowed, disallowed = verify_scope.check_scope(changed_files, issue_text)
 
     assert success is True
-    assert len(allowed) == 4
+    assert len(allowed) == 5
     assert len(disallowed) == 0
 
 
