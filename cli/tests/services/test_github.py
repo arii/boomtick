@@ -379,5 +379,49 @@ class TestGitHubClientGraphQL(unittest.TestCase):
         self.assertIn("/issues/123/labels/bug", calls[0][0][1])
 
 
+def test_fetch_reviews():
+    with patch("dev_tools.utils.get_github_token", return_value="dummy_token"), patch(
+        "dev_tools.services.github.DiskCache"
+    ) as mock_cache:
+        mock_cache.return_value.get.return_value = None
+        client = GitHubClient(repo="owner/repo")
+
+        mock_reviews = [{"id": 1, "state": "APPROVED", "body": "Looks good"}]
+        with patch.object(client, "_request", return_value=mock_reviews) as mock_request:
+            res = client.fetch_reviews(819, repo="arii/boomtick")
+            mock_request.assert_called_once_with("GET", "/repos/arii/boomtick/pulls/819/reviews")
+            assert res == mock_reviews
+
+
+def test_fetch_pr_commits():
+    with patch("dev_tools.utils.get_github_token", return_value="dummy_token"), patch(
+        "dev_tools.services.github.DiskCache"
+    ) as mock_cache:
+        mock_cache.return_value.get.return_value = None
+        client = GitHubClient(repo="owner/repo")
+
+        mock_commits = [{"sha": "abc1234", "commit": {"message": "feat: test"}}]
+        with patch.object(client, "_request", return_value=mock_commits) as mock_request:
+            res = client.fetch_pr_commits(819, repo="arii/boomtick")
+            mock_request.assert_called_once_with("GET", "/repos/arii/boomtick/pulls/819/commits")
+            assert res == mock_commits
+
+
+def test_fetch_workflow_runs():
+    with patch("dev_tools.utils.get_github_token", return_value="dummy_token"), patch(
+        "dev_tools.services.github.DiskCache"
+    ) as mock_cache:
+        mock_cache.return_value.get.return_value = None
+        client = GitHubClient(repo="owner/repo")
+
+        mock_runs_resp = {"workflow_runs": [{"id": 10, "name": "CI"}]}
+        with patch.object(client, "_request", return_value=mock_runs_resp) as mock_request:
+            res = client.fetch_workflow_runs(branch="main", event="push", repo="arii/boomtick")
+            mock_request.assert_called_once_with(
+                "GET", "/repos/arii/boomtick/actions/runs", params={"branch": "main", "event": "push"}
+            )
+            assert res == [{"id": 10, "name": "CI"}]
+
+
 if __name__ == "__main__":
     unittest.main()

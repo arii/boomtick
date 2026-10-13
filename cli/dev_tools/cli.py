@@ -201,21 +201,38 @@ def run_playwright(ctx, grep, worktree):
 @repo.command()
 @click.argument("pr_number", type=int)
 @click.option("--all", "include_all", is_flag=True, help="Include logs for successful runs")
+@click.option("--repo", help="Target repository override (e.g. owner/repo)")
 @click.pass_context
-def ci_logs(ctx, pr_number, include_all):
+def ci_logs(ctx, pr_number, include_all, repo):
     orch = ctx.obj["ORCHESTRATOR"]
-    res = orch.get_ci_logs(pr_number, include_all=include_all)
+    extra_kwargs = {"repo": repo} if repo else {}
+    res = orch.get_ci_logs(pr_number, include_all=include_all, **extra_kwargs)
     out(ctx, f"Fetched CI logs for PR #{pr_number}", data=res)
 
 
 @repo.command()
 @click.argument("pr_number", type=int)
 @click.option("--grep", help="Filter logs by pattern")
+@click.option("--repo", help="Target repository override (e.g. owner/repo)")
 @click.pass_context
-def logs(ctx, pr_number, grep):
+def logs(ctx, pr_number, grep, repo):
     orch = ctx.obj["ORCHESTRATOR"]
-    logs_content = orch.stream_ci_logs(pr_number, grep=grep)
+    extra_kwargs = {"repo": repo} if repo else {}
+    logs_content = orch.stream_ci_logs(pr_number, grep=grep, **extra_kwargs)
     out(ctx, f"Fetched logs for PR #{pr_number}", data={"logs": logs_content})
+
+
+@repo.command(name="workflow-runs")
+@click.option("--branch", help="Filter by branch")
+@click.option("--event", help="Filter by event (e.g. push, pull_request)")
+@click.option("--repo", help="Target repository override (e.g. owner/repo)")
+@click.pass_context
+def workflow_runs(ctx, branch, event, repo):
+    """List recent GitHub Actions workflow runs."""
+    orch = ctx.obj["ORCHESTRATOR"]
+    extra_kwargs = {"repo": repo} if repo else {}
+    runs = orch.github.fetch_workflow_runs(branch=branch, event=event, **extra_kwargs)
+    out(ctx, f"Fetched {len(runs)} workflow runs.", data={"workflow_runs": runs})
 
 
 @repo.command()
@@ -762,6 +779,43 @@ def post_comment(ctx, pr, file, body):
     content = _get_body_content(ctx, orch, file, body)
     res = orch.post_comment(pr, content)
     out(ctx, f"✅ Successfully posted comment to PR #{pr}", data=res)
+
+
+@gh.command(name="read-pr-reviews")
+@click.option("--pr-number", required=True, type=int, help="The PR number to fetch top-level reviews for.")
+@click.option("--repo", help="Target repository override (e.g. owner/repo)")
+@click.pass_context
+def read_pr_reviews(ctx, pr_number, repo):
+    """Fetch top-level reviews for a PR."""
+    if pr_number <= 0:
+        err(ctx, "PR number must be a positive integer.")
+    orch = ctx.obj["ORCHESTRATOR"]
+    extra_kwargs = {"repo": repo} if repo else {}
+    reviews = orch.github.fetch_reviews(pr_number, **extra_kwargs)
+    out(ctx, f"Fetched {len(reviews)} reviews for PR #{pr_number}", data={"reviews": reviews, "review_count": len(reviews)})
+
+
+@gh.command(name="list-pr-commits")
+@click.option("--pr-number", required=True, type=int, help="The PR number to list commits for.")
+@click.option("--repo", help="Target repository override (e.g. owner/repo)")
+@click.pass_context
+def list_pr_commits(ctx, pr_number, repo):
+    """List commits for a PR."""
+    if pr_number <= 0:
+        err(ctx, "PR number must be a positive integer.")
+    orch = ctx.obj["ORCHESTRATOR"]
+    extra_kwargs = {"repo": repo} if repo else {}
+    raw_commits = orch.github.fetch_pr_commits(pr_number, **extra_kwargs)
+    commits = [
+        {
+            "sha": c.get("sha"),
+            "author": c.get("commit", {}).get("author", {}).get("name") or c.get("author", {}).get("login"),
+            "date": c.get("commit", {}).get("author", {}).get("date"),
+            "message": c.get("commit", {}).get("message"),
+        }
+        for c in raw_commits
+    ] if isinstance(raw_commits, list) else []
+    out(ctx, f"Fetched {len(commits)} commits for PR #{pr_number}", data={"commits": commits})
 
 
 @gh.command(name="read-pr-comments")

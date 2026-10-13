@@ -374,8 +374,9 @@ class GitHubClient:
     def fetch_prs_for_commit(self, commit_sha: str) -> List[Dict[str, Any]]:
         return self._request("GET", f"/repos/{self.repo}/commits/{commit_sha}/pulls")
 
-    def fetch_check_runs(self, ref: str) -> List[Dict[str, Any]]:
-        data = self._request("GET", f"/repos/{self.repo}/commits/{ref}/check-runs")
+    def fetch_check_runs(self, ref: str, repo: Optional[str] = None) -> List[Dict[str, Any]]:
+        target_repo = repo or self.repo
+        data = self._request("GET", f"/repos/{target_repo}/commits/{ref}/check-runs")
         return [
             {
                 "id": run.get("id"),
@@ -388,13 +389,38 @@ class GitHubClient:
             for run in data.get("check_runs", [])
         ]
 
-    def fetch_check_suites(self, ref: str) -> List[Dict[str, Any]]:
-        data = self._request("GET", f"/repos/{self.repo}/commits/{ref}/check-suites")
+    def fetch_check_suites(self, ref: str, repo: Optional[str] = None) -> List[Dict[str, Any]]:
+        target_repo = repo or self.repo
+        data = self._request("GET", f"/repos/{target_repo}/commits/{ref}/check-suites")
         return data.get("check_suites", [])
 
-    def fetch_check_runs_for_suite(self, suite_id: int) -> List[Dict[str, Any]]:
-        data = self._request("GET", f"/repos/{self.repo}/check-suites/{suite_id}/check-runs")
+    def fetch_check_runs_for_suite(self, suite_id: int, repo: Optional[str] = None) -> List[Dict[str, Any]]:
+        target_repo = repo or self.repo
+        data = self._request("GET", f"/repos/{target_repo}/check-suites/{suite_id}/check-runs")
         return data.get("check_runs", [])
+
+    def fetch_reviews(self, number: int, repo: Optional[str] = None) -> List[Dict[str, Any]]:
+        """Fetches top-level PR reviews for a pull request."""
+        target_repo = repo or self.repo
+        return self._request("GET", f"/repos/{target_repo}/pulls/{number}/reviews")
+
+    def fetch_pr_commits(self, number: int, repo: Optional[str] = None) -> List[Dict[str, Any]]:
+        """Fetches commits for a pull request."""
+        target_repo = repo or self.repo
+        return self._request("GET", f"/repos/{target_repo}/pulls/{number}/commits")
+
+    def fetch_workflow_runs(
+        self, branch: Optional[str] = None, event: Optional[str] = None, repo: Optional[str] = None
+    ) -> List[Dict[str, Any]]:
+        """Fetches workflow runs for the repository with optional branch/event filtering."""
+        target_repo = repo or self.repo
+        params: Dict[str, Any] = {}
+        if branch:
+            params["branch"] = branch
+        if event:
+            params["event"] = event
+        data = self._request("GET", f"/repos/{target_repo}/actions/runs", params=params if params else None)
+        return data.get("workflow_runs", []) if isinstance(data, dict) else []
 
     def search_pull_requests(self, query: str, limit: int = 10, repo: Optional[str] = None) -> List[Dict[str, Any]]:
         """General search for pull requests using the Search API."""
@@ -507,8 +533,9 @@ class GitHubClient:
         log_warn(f"Logs for {label} {identifier} {'also ' if is_fallback else ''}not found (404).")
         return f"WARNING: Logs not available for {identifier} (GitHub returned 404). They may have expired or the job is still pending."
 
-    def fetch_check_run_logs(self, check_run_id: int, external_id: Optional[str] = None) -> str:
+    def fetch_check_run_logs(self, check_run_id: int, external_id: Optional[str] = None, repo: Optional[str] = None) -> str:
         """Fetches logs for a specific check run, using external_id (job_id) if available. Gracefully fallback to check_run_id if external_id 404s."""
+        target_repo = repo or self.repo
         # Ensure we have a valid ID and it's a string for the URL path
         job_id = str(external_id) if external_id is not None else str(check_run_id)
 
@@ -518,7 +545,7 @@ class GitHubClient:
         try:
             return self._request(
                 "GET",
-                f"/repos/{self.repo}/actions/jobs/{job_id}/logs",
+                f"/repos/{target_repo}/actions/jobs/{job_id}/logs",
                 is_text=True,
                 accept="application/vnd.github.v3.raw",
                 allow_redirects=True,
@@ -539,7 +566,7 @@ class GitHubClient:
                     try:
                         return self._request(
                             "GET",
-                            f"/repos/{self.repo}/actions/jobs/{check_run_id}/logs",
+                            f"/repos/{target_repo}/actions/jobs/{check_run_id}/logs",
                             is_text=True,
                             accept="application/vnd.github.v3.raw",
                             timeout=300,

@@ -4,6 +4,7 @@ import { runTDCli } from "../lib/td-cli.js";
 export const RepoLogsInputSchema = z.object({
   prNumber: z.number(),
   grep: z.string().optional(),
+  repo: z.string().optional(),
 });
 
 export async function repoLogsHandler(args: z.infer<typeof RepoLogsInputSchema>) {
@@ -11,6 +12,9 @@ export async function repoLogsHandler(args: z.infer<typeof RepoLogsInputSchema>)
 
   if (args.grep) {
     params.push("--grep", args.grep);
+  }
+  if (args.repo) {
+    params.push("--repo", args.repo);
   }
 
   const output = await runTDCli(params);
