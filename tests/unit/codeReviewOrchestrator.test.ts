@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { reconcileVerdict, fetchPRGoal, clearCachedPRGoal, formatLinkedIssues } from '../../lib/codeReviewOrchestrator';
+import { reconcileVerdict, fetchPRGoal, clearCachedPRGoal, formatLinkedIssues, generateCodeReviewMarkdown } from '../../lib/codeReviewOrchestrator';
 
 import { IMPACT_CONFIG } from '../../scripts/impact-analysis.config';
 import { filterLowImpactFiles } from '../../lib/codeReviewUtils';
@@ -265,5 +265,81 @@ describe('fetchPRGoal', () => {
       'Description:\n' +
       'Details about crash'
     );
+  });
+});
+
+describe('generateCodeReviewMarkdown formatting', () => {
+  const mockClient = {
+    botName: 'TestBot',
+    reportTitle: 'Test Review',
+    botTagline: 'Automated Code Review',
+    reportFileName: 'test-review.md',
+    invokeReview: vi.fn(),
+  };
+
+  it('renders APPROVED verdict banner, review iteration line, and findings summary when llmVerdict is pass', () => {
+    const markdown = generateCodeReviewMarkdown(
+      {
+        feedback: 'Great job!',
+        tokens: 100,
+        cost: 0.001,
+        modelName: 'gpt-4o',
+        llmVerdict: 'pass',
+        state: { findings: [] },
+      },
+      mockClient,
+      2
+    );
+
+    expect(markdown).toContain('## Test Review');
+    expect(markdown).toContain('### 🟢 Verdict: APPROVED');
+    expect(markdown).toContain('**Review Iteration:** #2 of 10');
+    expect(markdown).toContain('**Findings:** 0 blocking · 0 warning(s) · 4 clean.');
+  });
+
+  it('renders CHANGES REQUESTED banner when llmVerdict is fail', () => {
+    const markdown = generateCodeReviewMarkdown(
+      {
+        feedback: 'Found errors',
+        tokens: 100,
+        cost: 0.001,
+        modelName: 'gpt-4o',
+        llmVerdict: 'fail',
+        state: {
+          findings: [
+            { id: '1', file: 'a.ts', issue: 'Bug', status: 'open', severity: 'HIGH', confidence: 'high' }
+          ]
+        },
+      },
+      mockClient,
+      1
+    );
+
+    expect(markdown).toContain('### 🔴 Verdict: CHANGES REQUESTED');
+    expect(markdown).toContain('**Review Iteration:** #1 of 10');
+    expect(markdown).toContain('**Findings:** 1 blocking · 0 warning(s) · 0 clean.');
+  });
+
+  it('renders WARNINGS FOUND banner when llmVerdict is warn', () => {
+    const markdown = generateCodeReviewMarkdown(
+      {
+        feedback: 'Minor items',
+        tokens: 100,
+        cost: 0.001,
+        modelName: 'gpt-4o',
+        llmVerdict: 'warn',
+        state: {
+          findings: [
+            { id: '1', file: 'a.ts', issue: 'Nit', status: 'open', severity: 'LOW', confidence: 'low' }
+          ]
+        },
+      },
+      mockClient,
+      3
+    );
+
+    expect(markdown).toContain('### 🟡 Verdict: WARNINGS FOUND');
+    expect(markdown).toContain('**Review Iteration:** #3 of 10');
+    expect(markdown).toContain('**Findings:** 0 blocking · 1 warning(s) · 0 clean.');
   });
 });

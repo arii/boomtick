@@ -30,6 +30,7 @@ export async function orchestrateVisualReview(
   const agentReportPath = path.join(ARTIFACTS_DIR, client.reportFileName);
 
   const existing = await countExistingReviews(allReportTitles);
+  const iteration = existing + 1;
   const isQuotaMet = await checkReviewQuota(
     existing,
     MAX_REVIEWS_PER_PR,
@@ -137,7 +138,7 @@ export async function orchestrateVisualReview(
 
   await runWithConcurrencyLimit(taskQueue, CONCURRENCY_LIMIT);
 
-  const report = generateMarkdownReport(reviews, client.botName, client.reportTitle, client.botTagline);
+  const report = generateMarkdownReport(reviews, client.botName, client.reportTitle, client.botTagline, iteration);
 
   // Write local report
   await fs.promises.writeFile(agentReportPath, report);

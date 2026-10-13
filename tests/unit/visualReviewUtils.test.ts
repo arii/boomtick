@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { countExistingReviews, getPreviousReviewState } from '../../lib/visualReviewUtils';
+import { countExistingReviews, getPreviousReviewState, generateMarkdownReport } from '../../lib/visualReviewUtils';
 
 describe('visualReviewUtils - countExistingReviews and getPreviousReviewState', () => {
   const originalEnv = process.env;
@@ -140,6 +140,32 @@ describe('visualReviewUtils - countExistingReviews and getPreviousReviewState', 
 
       const state = await getPreviousReviewState('Code Review');
       expect(state).toBeUndefined();
+    });
+  });
+
+  describe('generateMarkdownReport', () => {
+    it('renders Review Iteration when iteration parameter is passed', () => {
+      const report = generateMarkdownReport(
+        [
+          {
+            route: '/home',
+            severity: 'LOW',
+            differencePercent: 0.5,
+            feedback: 'Looks good',
+            tokens: 100,
+            cost: 0.001,
+            modelName: 'gpt-4o',
+          },
+        ],
+        'VisualBot',
+        'Visual Review',
+        'Visual Tagline',
+        2
+      );
+
+      expect(report).toContain('## Visual Review');
+      expect(report).toContain('**Review Iteration:** #2 of 10');
+      expect(report).toContain('**Summary:** 🔴 0 high · 🟡 0 medium · 🟢 1 low');
     });
   });
 });
