@@ -298,17 +298,40 @@ export async function countExistingReviews(reportTitles: string[]): Promise<numb
 
   if (!token || !repo || !prNumber) return 0;
 
-  const url = `https://api.github.com/repos/${repo}/issues/${prNumber}/comments`;
-  const response = await fetch(url, {
-    headers: { Authorization: `Bearer ${token}`, Accept: 'application/vnd.github+json' },
-  });
+  const fetchComments = async (url: string) => {
+    let currentUrl: string | null = url;
+    let allComments: Array<{ body: string; user: { type: string } }> = [];
 
-  if (!response.ok) return 0;
+    while (currentUrl) {
+      const response = await fetch(currentUrl, {
+        headers: { Authorization: `Bearer ${token}`, Accept: 'application/vnd.github+json' },
+      });
 
-  const comments = await response.json() as Array<{ body: string; user: { type: string } }>;
+      if (!response.ok) break;
+
+      const comments = await response.json() as Array<{ body: string; user: { type: string } }>;
+      allComments = allComments.concat(comments);
+
+      const linkHeader = response.headers.get('Link');
+      const nextMatch = linkHeader?.match(/<([^>]+)>;\s*rel="next"/);
+      currentUrl = nextMatch ? nextMatch[1] : null;
+    }
+    return allComments;
+  };
+
+  const issueCommentsUrl = `https://api.github.com/repos/${repo}/issues/${prNumber}/comments?per_page=100`;
+  const prReviewsUrl = `https://api.github.com/repos/${repo}/pulls/${prNumber}/reviews?per_page=100`;
+
+  const [issueComments, prReviews] = await Promise.all([
+    fetchComments(issueCommentsUrl),
+    fetchComments(prReviewsUrl)
+  ]);
+
+  const allComments = [...issueComments, ...prReviews];
+
   let totalReviews = 0;
-  for (const c of comments) {
-    if (c.user.type === 'Bot' && reportTitles.some(title => c.body.includes(`## ${title}`))) {
+  for (const c of allComments) {
+    if (c.user && c.user.type === 'Bot' && c.body && reportTitles.some(title => c.body.includes(`## ${title}`))) {
       const match = c.body.match(/<!-- ai-review-count: (\d+) -->/);
       if (match) {
         totalReviews += parseInt(match[1], 10);
@@ -327,27 +350,40 @@ export async function getPreviousReviewState<T>(reportTitle: string): Promise<T 
 
   if (!token || !repo || !prNumber) return undefined;
 
-  let url: string | null = `https://api.github.com/repos/${repo}/issues/${prNumber}/comments?per_page=100`;
   let existingComment: { body: string; user: { type: string } } | undefined;
 
-  while (url) {
-    const response = await fetch(url, {
-      headers: { Authorization: `Bearer ${token}`, Accept: 'application/vnd.github+json' },
-    });
+  const fetchComments = async (url: string) => {
+    let currentUrl: string | null = url;
 
-    if (!response.ok) return undefined;
+    while (currentUrl) {
+      const response = await fetch(currentUrl, {
+        headers: { Authorization: `Bearer ${token}`, Accept: 'application/vnd.github+json' },
+      });
 
-    const comments = await response.json() as Array<{ body: string; user: { type: string } }>;
-    existingComment = comments.find(c =>
-      c.user.type === 'Bot' && c.body.includes(`## ${reportTitle}`)
-    );
+      if (!response.ok) break;
 
-    if (existingComment) break;
+      const comments = await response.json() as Array<{ body: string; user: { type: string } }>;
+      const found = comments.find(c =>
+        c.user && c.user.type === 'Bot' && c.body && c.body.includes(`## ${reportTitle}`)
+      );
+      if (found) {
+        existingComment = found;
+        return true;
+      }
 
-    // Handle pagination
-    const linkHeader = response.headers.get('Link');
-    const nextMatch = linkHeader?.match(/<([^>]+)>;\s*rel="next"/);
-    url = nextMatch ? nextMatch[1] : null;
+      const linkHeader = response.headers.get('Link');
+      const nextMatch = linkHeader?.match(/<([^>]+)>;\s*rel="next"/);
+      currentUrl = nextMatch ? nextMatch[1] : null;
+    }
+    return false;
+  };
+
+  const issueCommentsUrl = `https://api.github.com/repos/${repo}/issues/${prNumber}/comments?per_page=100`;
+  const prReviewsUrl = `https://api.github.com/repos/${repo}/pulls/${prNumber}/reviews?per_page=100`;
+
+  await fetchComments(issueCommentsUrl);
+  if (!existingComment) {
+    await fetchComments(prReviewsUrl);
   }
 
   if (!existingComment) return undefined;

@@ -49,10 +49,30 @@ runs:
 
           for (const pr of matchingPRs) {
             const commentTag = `<!-- impact-analysis-comment-${branchName} -->`;
-            const bodyParts = [
+
+            const comments = await github.paginate(github.rest.issues.listComments, {
+              owner,
+              repo,
+              issue_number: pr.number,
+            });
+
+            const existingComment = comments.find(c => c.body.includes(commentTag));
+
+            const ITERATION_REGEX = /<!-- review-iteration: (\d+) -->/;
+            const match = existingComment ? existingComment.body.match(ITERATION_REGEX) : null;
+            const currentIteration = match ? parseInt(match[1], 10) : 0;
+            const nextIteration = currentIteration + 1;
+            const MAX_ITERATIONS = 5;
+
+            let finalStatusLine = statusLine;
+            if (nextIteration > MAX_ITERATIONS) {
+              finalStatusLine = `⚠️ **Max review limit reached (${currentIteration}/${MAX_ITERATIONS}). Halting review cycle.**\n\n` + finalStatusLine;
+            }
+
+            let bodyParts = [
               `🚀 **Impact Analysis Details** (Last updated: ${pstTime} PST)`,
               '',
-              statusLine,
+              finalStatusLine,
               `- **Commit SHA:** \`${process.env.GITHUB_SHA.slice(0, 7)}\``,
               `- [Link to artifacts](https://github.com/${owner}/${repo}/actions/runs/${context.runId})`,
               ''
@@ -64,17 +84,12 @@ runs:
 
             const MAX_LENGTH = 65536;
             const truncationNotice = '\n\n... (truncated due to GitHub comment size limits)\n';
-            // Determine length of string we are about to join
             let currentContent = bodyParts.join('\n');
-            // Adding 1 because joining `bodyParts` with `\n` and `commentTag` will add a newline
             let projectedLength = currentContent.length + commentTag.length + 1;
 
             if (projectedLength > MAX_LENGTH) {
-               // subtracting 2 to account for the newlines joining bodyParts
                const availableLength = MAX_LENGTH - commentTag.length - truncationNotice.length - 2;
-               // Truncate safely, avoiding cutting midway through a unicode character or making things weird
                let safeContent = currentContent.slice(0, availableLength);
-               // Simple attempt to cut at last newline if possible
                let lastNewline = safeContent.lastIndexOf('\n');
                if (lastNewline > availableLength * 0.9) {
                    safeContent = safeContent.slice(0, lastNewline);
@@ -82,16 +97,9 @@ runs:
                bodyParts = [safeContent, truncationNotice];
             }
 
+            bodyParts.push(`<!-- review-iteration: ${nextIteration > MAX_ITERATIONS ? currentIteration : nextIteration} -->`);
             bodyParts.push(commentTag);
             const body = bodyParts.join('\n');
-
-            const comments = await github.paginate(github.rest.issues.listComments, {
-              owner,
-              repo,
-              issue_number: pr.number,
-            });
-
-            const existingComment = comments.find(c => c.body.includes(commentTag));
 
             if (existingComment) {
               await github.rest.issues.updateComment({ owner, repo, comment_id: existingComment.id, body });
