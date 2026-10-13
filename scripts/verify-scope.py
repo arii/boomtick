@@ -12,7 +12,7 @@ import subprocess
 import json
 
 EXEMPT_FILES = {
-    "package.json", "pnpm-lock.yaml", "pnpm-workspace.yaml", "project_config.json",
+    "Dockerfile", "package.json", "pnpm-lock.yaml", "pnpm-workspace.yaml", "project_config.json",
     "tsconfig.json", "workspace.json", ".gitignore", ".dockerignore", ".pylintrc",
     "eslint.config.mjs", "oxlint.json", "tsconfig.app.json", ".release-please-manifest.json",
     "release-please-config.json", "changelog.md", "readme.md", "agents.md", "ci.yml",
