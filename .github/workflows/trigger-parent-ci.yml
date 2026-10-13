@@ -29,7 +29,7 @@ jobs:
         if: ${{ env.APP_ID != '' && env.APP_PRIVATE_KEY != '' }}
         uses: actions/create-github-app-token@v3
         with:
-          app-id: ${{ env.APP_ID }}
+          client-id: ${{ env.APP_ID }}
           private-key: ${{ env.APP_PRIVATE_KEY }}
           owner: ${{ github.repository_owner }}
 
@@ -91,6 +91,7 @@ jobs:
           PR_NUMBER: ${{ github.event.pull_request.number }}
           BRANCH_NAME: ${{ steps.get-branch.outputs.branch }}
         with:
+          retries: 3
           script: |
             const owner = context.repo.owner;
             const repo = context.repo.repo;
