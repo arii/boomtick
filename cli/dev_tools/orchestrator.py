@@ -1944,31 +1944,33 @@ Follow the "Audit comment template" in `docs/agent/issue-audit-rules.md` to post
             "branch": head_ref,
         }
 
-    def get_ci_logs(self, prNumber: int, include_all: bool = False, **kwargs) -> Dict[str, Any]:
+    def get_ci_logs(self, prNumber: int, include_all: bool = False, repo: Optional[str] = None, **kwargs) -> Dict[str, Any]:
         if "pr_number" in kwargs:
             prNumber = kwargs["pr_number"]
+        if "repo" in kwargs and repo is None:
+            repo = kwargs["repo"]
         """Fetches CI logs for failing (or all) check runs in a PR."""
         # Get PR head SHA
-        pr_data = self.github.fetch_pr_details(prNumber)
+        pr_data = self.github.fetch_pr_details(prNumber, repo=repo)
         head_sha = pr_data.get("head", {}).get("sha")
 
         if not head_sha:
             raise CLIError(f"Could not determine head SHA for PR #{prNumber}")
 
         # Get check runs
-        checks = self.github.fetch_check_runs(head_sha)
+        checks = self.github.fetch_check_runs(head_sha, repo=repo)
         failed_checks = [c for c in checks if c.get("conclusion") == "failure"]
 
         logs: dict[str, str] = {}
         # Get check suites to find workflow runs
-        check_suites = self.github.fetch_check_suites(head_sha)
+        check_suites = self.github.fetch_check_suites(head_sha, repo=repo)
 
         all_runs = []
         from dev_tools.utils.concurrency import run_concurrently
         if check_suites:
             def fetch_suite_runs(suite):
                 try:
-                    return self.github.fetch_check_runs_for_suite(suite["id"])
+                    return self.github.fetch_check_runs_for_suite(suite["id"], repo=repo)
                 except Exception as e:
                     log_warn(f"Failed to fetch runs for suite {suite.get('id')}: {e}")
                     return []
@@ -1983,7 +1985,7 @@ Follow the "Audit comment template" in `docs/agent/issue-audit-rules.md` to post
             try:
                 run_id = run.get("id")
                 if isinstance(run_id, int):
-                    return run["name"], self.github.fetch_check_run_logs(run_id, external_id=run.get("external_id"))
+                    return run["name"], self.github.fetch_check_run_logs(run_id, external_id=run.get("external_id"), repo=repo)
             except Exception as e:
                 log_warn(f"Failed to fetch log for run {run.get('id')}: {e}")
             return None, None
@@ -1996,17 +1998,17 @@ Follow the "Audit comment template" in `docs/agent/issue-audit-rules.md` to post
 
         return {"checks": checks, "failedChecks": failed_checks, "logs": logs}
 
-    def stream_ci_logs(self, prNumber: int, grep: Optional[str] = None) -> str:
+    def stream_ci_logs(self, prNumber: int, grep: Optional[str] = None, repo: Optional[str] = None) -> str:
         """Fetches and combines all CI logs for the latest workflow run of a PR."""
         # Get PR head SHA
-        pr_data = self.github.fetch_pr_details(prNumber)
+        pr_data = self.github.fetch_pr_details(prNumber, repo=repo)
         head_sha = pr_data.get("head", {}).get("sha")
 
         if not head_sha:
             raise CLIError(f"Could not determine head SHA for PR #{prNumber}")
 
         # Get all check runs for this SHA
-        check_runs = self.github.fetch_check_runs(head_sha)
+        check_runs = self.github.fetch_check_runs(head_sha, repo=repo)
 
         all_logs = []
         # Limit to latest 20 jobs to avoid extreme memory usage
@@ -2015,7 +2017,7 @@ Follow the "Audit comment template" in `docs/agent/issue-audit-rules.md` to post
             run_id = run.get("id")
             if not isinstance(run_id, int):
                 continue
-            log_content = self.github.fetch_check_run_logs(run_id, external_id=run.get("external_id"))
+            log_content = self.github.fetch_check_run_logs(run_id, external_id=run.get("external_id"), repo=repo)
             header = f"--- LOGS FOR JOB: {run['name']} (ID: {run_id}) ---"
             all_logs.append(header)
             # Truncate each log to 20k chars to balance detail vs memory

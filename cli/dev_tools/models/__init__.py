@@ -168,11 +168,39 @@ class GetRouteMapInput(CamelCaseModel):
 class ReadCiLogsInput(CamelCaseModel):
     pr_number: int = Field(..., description="The number of the pull request to read logs for.")
     all: bool = Field(False, description="Include logs for successful runs (default: false).")
+    repo: Optional[str] = Field(
+        None, pattern=r"^[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+$", description="The target repository override (e.g. org/repo)."
+    )
 
 
 class RepoLogsInput(CamelCaseModel):
     pr_number: int = Field(..., description="The number of the pull request to stream logs for.")
     grep: Optional[str] = Field(None, description="Optional pattern to filter log lines.")
+    repo: Optional[str] = Field(
+        None, pattern=r"^[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+$", description="The target repository override (e.g. org/repo)."
+    )
+
+
+class GetPrReviewsInput(CamelCaseModel):
+    pr_number: int = Field(..., description="The number of the PR to view reviews for.")
+    repo: Optional[str] = Field(
+        None, pattern=r"^[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+$", description="The target repository override (e.g. org/repo)."
+    )
+
+
+class GetPrCommitsInput(CamelCaseModel):
+    pr_number: int = Field(..., description="The number of the PR to list commits for.")
+    repo: Optional[str] = Field(
+        None, pattern=r"^[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+$", description="The target repository override (e.g. org/repo)."
+    )
+
+
+class GetWorkflowRunsInput(CamelCaseModel):
+    branch: Optional[str] = Field(None, description="Filter workflow runs by branch name.")
+    event: Optional[str] = Field(None, description="Filter workflow runs by event (e.g. push, pull_request).")
+    repo: Optional[str] = Field(
+        None, pattern=r"^[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+$", description="The target repository override (e.g. org/repo)."
+    )
 
 
 class CreateBranchInput(CamelCaseModel):

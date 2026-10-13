@@ -31,6 +31,9 @@ import {
   JulesSendMessageInputJsonSchema,
   JulesListSessionsInputJsonSchema,
   SearchDdgsInputJsonSchema,
+  GetPrReviewsInputJsonSchema,
+  GetPrCommitsInputJsonSchema,
+  GetWorkflowRunsInputJsonSchema,
 } from "../tools/contract.js";
 
 export const MCP_PROMPTS: Prompt[] = [
@@ -209,6 +212,21 @@ const BASE_MCP_TOOLS: Tool[] = [
     name: "github.get_pr",
     description: "Get details of a GitHub PR including title, state, and URLs.",
     inputSchema: GetPrInputJsonSchema as any,
+  },
+  {
+    name: "github.get_pr_reviews",
+    description: "Get top-level reviews, verdicts, states, and bodies for a GitHub PR.",
+    inputSchema: GetPrReviewsInputJsonSchema as any,
+  },
+  {
+    name: "github.get_pr_commits",
+    description: "List commits and commit metadata (SHAs, authors, messages) for a GitHub PR.",
+    inputSchema: GetPrCommitsInputJsonSchema as any,
+  },
+  {
+    name: "repo.get_workflow_runs",
+    description: "List recent GitHub Actions workflow runs for the repository.",
+    inputSchema: GetWorkflowRunsInputJsonSchema as any,
   },
   {
     name: "github.issue_view",
