@@ -298,25 +298,50 @@ export async function countExistingReviews(reportTitles: string[]): Promise<numb
 
   if (!token || !repo || !prNumber) return 0;
 
-  const url = `https://api.github.com/repos/${repo}/issues/${prNumber}/comments`;
-  const response = await fetch(url, {
-    headers: { Authorization: `Bearer ${token}`, Accept: 'application/vnd.github+json' },
-  });
-
-  if (!response.ok) return 0;
-
-  const comments = await response.json() as Array<{ body: string; user: { type: string } }>;
   let totalReviews = 0;
-  for (const c of comments) {
-    if (c.user.type === 'Bot' && reportTitles.some(title => c.body.includes(`## ${title}`))) {
-      const match = c.body.match(/<!-- ai-review-count: (\d+) -->/);
-      if (match) {
-        totalReviews += parseInt(match[1], 10);
-      } else {
-        totalReviews += 1;
+
+  // Check Issue Comments Endpoint
+  let url: string | null = `https://api.github.com/repos/${repo}/issues/${prNumber}/comments?per_page=100`;
+  while (url) {
+    const response = await fetch(url, {
+      headers: { Authorization: `Bearer ${token}`, Accept: 'application/vnd.github+json' },
+    });
+    if (!response.ok) break;
+
+    const comments = await response.json() as Array<{ body: string; user: { type: string } }>;
+    for (const c of comments) {
+      if (c.user && c.user.type === 'Bot' && c.body && reportTitles.some(title => c.body.includes(`## ${title}`))) {
+        const match = c.body.match(/<!-- ai-review-count: (\d+) -->/);
+        if (match) totalReviews += parseInt(match[1], 10);
+        else totalReviews += 1;
       }
     }
+    const linkHeader = response.headers.get('Link');
+    const nextMatch = linkHeader?.match(/<([^>]+)>;\s*rel="next"/);
+    url = nextMatch ? nextMatch[1] : null;
   }
+
+  // Check Pull Request Reviews Endpoint
+  url = `https://api.github.com/repos/${repo}/pulls/${prNumber}/reviews?per_page=100`;
+  while (url) {
+    const response = await fetch(url, {
+      headers: { Authorization: `Bearer ${token}`, Accept: 'application/vnd.github+json' },
+    });
+    if (!response.ok) break;
+
+    const reviews = await response.json() as Array<{ body: string; user: { type: string } }>;
+    for (const r of reviews) {
+      if (r.user && r.user.type === 'Bot' && r.body && reportTitles.some(title => r.body.includes(`## ${title}`))) {
+        const match = r.body.match(/<!-- ai-review-count: (\d+) -->/);
+        if (match) totalReviews += parseInt(match[1], 10);
+        else totalReviews += 1;
+      }
+    }
+    const linkHeader = response.headers.get('Link');
+    const nextMatch = linkHeader?.match(/<([^>]+)>;\s*rel="next"/);
+    url = nextMatch ? nextMatch[1] : null;
+  }
+
   return totalReviews;
 }
 
@@ -327,27 +352,48 @@ export async function getPreviousReviewState<T>(reportTitle: string): Promise<T 
 
   if (!token || !repo || !prNumber) return undefined;
 
-  let url: string | null = `https://api.github.com/repos/${repo}/issues/${prNumber}/comments?per_page=100`;
   let existingComment: { body: string; user: { type: string } } | undefined;
 
+  // Check Pull Request Reviews Endpoint
+  let url: string | null = `https://api.github.com/repos/${repo}/pulls/${prNumber}/reviews?per_page=100`;
   while (url) {
     const response = await fetch(url, {
       headers: { Authorization: `Bearer ${token}`, Accept: 'application/vnd.github+json' },
     });
+    if (!response.ok) break;
 
-    if (!response.ok) return undefined;
-
-    const comments = await response.json() as Array<{ body: string; user: { type: string } }>;
-    existingComment = comments.find(c =>
-      c.user.type === 'Bot' && c.body.includes(`## ${reportTitle}`)
+    const reviews = await response.json() as Array<{ body: string; user: { type: string } }>;
+    existingComment = reviews.find(r =>
+      r.user && r.user.type === 'Bot' && r.body && r.body.includes(`## ${reportTitle}`)
     );
 
     if (existingComment) break;
 
-    // Handle pagination
     const linkHeader = response.headers.get('Link');
     const nextMatch = linkHeader?.match(/<([^>]+)>;\s*rel="next"/);
     url = nextMatch ? nextMatch[1] : null;
+  }
+
+  // Check Issue Comments Endpoint if not found in reviews
+  if (!existingComment) {
+    url = `https://api.github.com/repos/${repo}/issues/${prNumber}/comments?per_page=100`;
+    while (url) {
+      const response = await fetch(url, {
+        headers: { Authorization: `Bearer ${token}`, Accept: 'application/vnd.github+json' },
+      });
+      if (!response.ok) break;
+
+      const comments = await response.json() as Array<{ body: string; user: { type: string } }>;
+      existingComment = comments.find(c =>
+        c.user && c.user.type === 'Bot' && c.body && c.body.includes(`## ${reportTitle}`)
+      );
+
+      if (existingComment) break;
+
+      const linkHeader = response.headers.get('Link');
+      const nextMatch = linkHeader?.match(/<([^>]+)>;\s*rel="next"/);
+      url = nextMatch ? nextMatch[1] : null;
+    }
   }
 
   if (!existingComment) return undefined;
