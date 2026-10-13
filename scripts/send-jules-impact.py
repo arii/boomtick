@@ -73,7 +73,7 @@ def main():
         "github-models-code-review.md",
     ]
 
-    has_valid_reviews = False
+    has_actionable_reviews = False
 
     for filename in review_files:
         filepath = os.path.join(artifacts_dir, filename)
@@ -83,7 +83,6 @@ def main():
                     content = f.read()
                     if not is_skipped_review(content):
                         body += content + "\n\n"
-                        has_valid_reviews = True
             except IOError as e:
                 logger.error(f"Failed to read {filepath}: {e}")
 
@@ -96,11 +95,10 @@ def main():
                         content = f.read()
                         if not is_skipped_review(content):
                             body += content + "\n\n"
-                            has_valid_reviews = True
                 except IOError as e:
                     logger.error(f"Failed to read {filepath}: {e}")
 
-    # Append verdict JSONs
+    # Append verdict JSONs and verify if there are any actionable issues needing Jules intervention
     verdicts = []
     # Safe globbing within the artifacts directory to prevent traversal
     json_pattern = os.path.join(artifacts_dir, "*-verdict.json")
@@ -112,15 +110,20 @@ def main():
                     data = json.loads(content)
                     if not is_skipped_verdict(data):
                         verdicts.append((os.path.basename(filepath), content))
-                        has_valid_reviews = True
+                        # Only consider reviews actionable if verdict is fail/warn or highCount > 0
+                        llm_verdict = data.get("llmVerdict")
+                        high_count = data.get("highCount", 0)
+                        passed = data.get("passed", True)
+                        if llm_verdict in ["fail", "warn"] or high_count > 0 or not passed:
+                            has_actionable_reviews = True
                 except Exception as e:
                     logger.error(f"Invalid JSON in verdict file {filepath}: {e}")
                     continue
         except IOError as e:
             logger.error(f"Failed to read JSON verdict {filepath}: {e}")
 
-    if not has_valid_reviews:
-        logger.info("No valid reviews found. Skipping sending impact analysis.")
+    if not has_actionable_reviews:
+        logger.info("No actionable issues/failures found in reviews. Skipping sending message to Jules.")
         sys.exit(0)
 
     if verdicts:

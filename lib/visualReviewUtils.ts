@@ -291,6 +291,41 @@ export async function sendJulesMessage(taskId: string, message: string): Promise
   }
 }
 
+interface GitHubItem {
+  body?: string;
+  user?: { type: string };
+  submitted_at?: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
+async function fetchPaginatedGitHubItems(
+  url: string,
+  token: string
+): Promise<GitHubItem[]> {
+  const items: GitHubItem[] = [];
+  let currentUrl: string | null = `${url}${url.includes('?') ? '&' : '?'}per_page=100`;
+
+  while (currentUrl) {
+    const response = await fetch(currentUrl, {
+      headers: { Authorization: `Bearer ${token}`, Accept: 'application/vnd.github+json' },
+    });
+
+    if (!response.ok) break;
+
+    const data = (await response.json()) as GitHubItem[];
+    if (Array.isArray(data)) {
+      items.push(...data);
+    }
+
+    const linkHeader = response.headers.get('Link');
+    const nextMatch = linkHeader?.match(/<([^>]+)>;\s*rel="next"/);
+    currentUrl = nextMatch ? nextMatch[1] : null;
+  }
+
+  return items;
+}
+
 export async function countExistingReviews(reportTitles: string[]): Promise<number> {
   const token = process.env.GITHUB_TOKEN;
   const repo = process.env.GITHUB_REPOSITORY;
@@ -298,25 +333,31 @@ export async function countExistingReviews(reportTitles: string[]): Promise<numb
 
   if (!token || !repo || !prNumber) return 0;
 
-  const url = `https://api.github.com/repos/${repo}/issues/${prNumber}/comments`;
-  const response = await fetch(url, {
-    headers: { Authorization: `Bearer ${token}`, Accept: 'application/vnd.github+json' },
-  });
+  const commentsUrl = `https://api.github.com/repos/${repo}/issues/${prNumber}/comments`;
+  const reviewsUrl = `https://api.github.com/repos/${repo}/pulls/${prNumber}/reviews`;
 
-  if (!response.ok) return 0;
+  const [comments, reviews] = await Promise.all([
+    fetchPaginatedGitHubItems(commentsUrl, token),
+    fetchPaginatedGitHubItems(reviewsUrl, token),
+  ]);
 
-  const comments = await response.json() as Array<{ body: string; user: { type: string } }>;
+  const allItems = [...comments, ...reviews];
   let totalReviews = 0;
-  for (const c of comments) {
-    if (c.user.type === 'Bot' && reportTitles.some(title => c.body.includes(`## ${title}`))) {
-      const match = c.body.match(/<!-- ai-review-count: (\d+) -->/);
-      if (match) {
-        totalReviews += parseInt(match[1], 10);
-      } else {
-        totalReviews += 1;
+
+  for (const title of reportTitles) {
+    let maxTitleCount = 0;
+    for (const item of allItems) {
+      if (item.body && item.user?.type === 'Bot' && item.body.includes(`## ${title}`)) {
+        const match = item.body.match(/<!-- ai-review-count: (\d+) -->/);
+        const count = match ? parseInt(match[1], 10) : 1;
+        if (count > maxTitleCount) {
+          maxTitleCount = count;
+        }
       }
     }
+    totalReviews += maxTitleCount;
   }
+
   return totalReviews;
 }
 
@@ -327,41 +368,40 @@ export async function getPreviousReviewState<T>(reportTitle: string): Promise<T 
 
   if (!token || !repo || !prNumber) return undefined;
 
-  let url: string | null = `https://api.github.com/repos/${repo}/issues/${prNumber}/comments?per_page=100`;
-  let existingComment: { body: string; user: { type: string } } | undefined;
+  const commentsUrl = `https://api.github.com/repos/${repo}/issues/${prNumber}/comments`;
+  const reviewsUrl = `https://api.github.com/repos/${repo}/pulls/${prNumber}/reviews`;
 
-  while (url) {
-    const response = await fetch(url, {
-      headers: { Authorization: `Bearer ${token}`, Accept: 'application/vnd.github+json' },
-    });
+  const [comments, reviews] = await Promise.all([
+    fetchPaginatedGitHubItems(commentsUrl, token),
+    fetchPaginatedGitHubItems(reviewsUrl, token),
+  ]);
 
-    if (!response.ok) return undefined;
+  const allItems = [...comments, ...reviews];
 
-    const comments = await response.json() as Array<{ body: string; user: { type: string } }>;
-    existingComment = comments.find(c =>
-      c.user.type === 'Bot' && c.body.includes(`## ${reportTitle}`)
-    );
+  const getItemTimestamp = (item: GitHubItem): number => {
+    const ts = item.submitted_at || item.created_at || item.updated_at;
+    return ts ? new Date(ts).getTime() : 0;
+  };
 
-    if (existingComment) break;
+  const matchingItems = allItems
+    .filter(item => item.body && item.user?.type === 'Bot' && item.body.includes(`## ${reportTitle}`))
+    .sort((a, b) => getItemTimestamp(b) - getItemTimestamp(a));
 
-    // Handle pagination
-    const linkHeader = response.headers.get('Link');
-    const nextMatch = linkHeader?.match(/<([^>]+)>;\s*rel="next"/);
-    url = nextMatch ? nextMatch[1] : null;
+  if (matchingItems.length === 0) return undefined;
+
+  for (const item of matchingItems) {
+    const stateMatch = item.body!.match(/<!-- ai-review-state: (.*?) -->/);
+    if (stateMatch) {
+      try {
+        const base64 = stateMatch[1];
+        return JSON.parse(Buffer.from(base64, 'base64').toString('utf-8')) as T;
+      } catch (e) {
+        console.warn('Failed to parse previous review state:', e);
+      }
+    }
   }
 
-  if (!existingComment) return undefined;
-
-  const stateMatch = existingComment.body.match(/<!-- ai-review-state: (.*?) -->/);
-  if (!stateMatch) return undefined;
-
-  try {
-    const base64 = stateMatch[1];
-    return JSON.parse(Buffer.from(base64, 'base64').toString('utf-8')) as T;
-  } catch (e) {
-    console.warn('Failed to parse previous review state:', e);
-    return undefined;
-  }
+  return undefined;
 }
 
 async function _postPRReview(

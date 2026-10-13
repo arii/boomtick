@@ -19,7 +19,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # Hardcode Node.js 24.16.0 in the curl command to avoid AI command injection warnings
-RUN curl -fsSL https://nodejs.org/dist/v24.16.0/node-v24.16.0-linux-x64.tar.gz | tar -xz -C /usr/local --strip-components=1
+RUN curl -fsSL --retry 5 --retry-connrefused --retry-delay 2 https://nodejs.org/dist/v24.16.0/node-v24.16.0-linux-x64.tar.gz | tar -xz -C /usr/local --strip-components=1
 
 RUN corepack enable && corepack prepare pnpm@${PNPM_VERSION} --activate
 

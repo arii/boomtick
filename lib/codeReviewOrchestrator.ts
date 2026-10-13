@@ -684,16 +684,17 @@ export async function orchestrateCodeReview(
   // Post to GitHub PR
   await postPRComment(report, client.reportTitle, finalResult.state, finalResult.llmVerdict);
 
-  // Also alert Jules if this PR is from a Jules session
+  const openHighFindings = finalResult.state?.findings?.filter(f => f.status === 'open' && (f.severity === 'HIGH' || f.severity === 'error')) || [];
+
+  // Also alert Jules if this PR is from a Jules session and requires fixes (FAIL verdict or open HIGH findings)
   const julesSessionId = await getJulesSessionIdFromPR();
   const isFail = finalResult.llmVerdict === 'fail';
-  if (julesSessionId) {
-    const passFailMsg = isFail ? "FAIL ❌" : ((finalResult.llmVerdict === 'warn' || allResults.length === 0) ? "NEUTRAL ⚪" : "PASS ✅");
+
+  if (julesSessionId && (isFail || openHighFindings.length > 0)) {
+    const passFailMsg = isFail ? "FAIL ❌" : "WARN ⚠️";
     const julesMessage = `[${client.reportTitle}] posted an aggregated code review (${passFailMsg}). Please read the review comments on the PR, analyze the diff context provided, and fix any failed or warned areas.\n\n<details><summary>Overview</summary>\n\n${report}\n</details>`;
     await sendJulesMessage(julesSessionId, julesMessage);
   }
-
-  const openHighFindings = finalResult.state?.findings?.filter(f => f.status === 'open' && (f.severity === 'HIGH' || f.severity === 'error')) || [];
   const safeReportFileName = path.basename(client.reportFileName);
   const verdictPath = path.join(ARTIFACTS_DIR, `${safeReportFileName.replace('.md', '')}-verdict.json`);
   await writeVerdictJson(verdictPath, {
