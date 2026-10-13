@@ -517,7 +517,8 @@ export async function getCodeDiffSummary(targetFiles?: string[]): Promise<CodeRe
 
 export function generateTruncatedReviewMarkdown(
   summary: CodeReviewSummary,
-  client: CodeReviewClientStrategy
+  client: CodeReviewClientStrategy,
+  iteration: number = 1
 ): string {
   console.warn(`⚠️  Diff is too large (${summary.fullDiff?.length} chars) — skipping AI review and requesting human review.`);
   const prNumber = process.env.PR_NUMBER;
@@ -529,6 +530,9 @@ export function generateTruncatedReviewMarkdown(
 
 > ${client.botTagline}
 
+### 🟡 Verdict: WARNINGS FOUND
+
+**Review Iteration:** #${iteration} of ${MAX_REVIEWS_PER_PR}
 **Reviewing:** ${prLink}
 
 ### ⚠️ Review Skipped: Large Diff Detected
@@ -544,12 +548,25 @@ ${statSummary}
 
 export function generateCodeReviewMarkdown(
   result: CodeReviewResult,
-  client: CodeReviewClientStrategy
+  client: CodeReviewClientStrategy,
+  iteration: number = 1
 ): string {
   const prNumber = process.env.PR_NUMBER;
   const prLink = prNumber ? `[PR #${prNumber}](https://github.com/${process.env.GITHUB_REPOSITORY}/pull/${prNumber})` : 'this PR';
 
-  // AFTER
+  let verdictHeader = '### 🟢 Verdict: APPROVED';
+  if (result.llmVerdict === 'fail') {
+    verdictHeader = '### 🔴 Verdict: CHANGES REQUESTED';
+  } else if (result.llmVerdict === 'warn') {
+    verdictHeader = '### 🟡 Verdict: WARNINGS FOUND';
+  }
+
+  const findings = result.state?.findings || [];
+  const openFindings = findings.filter(f => f.status === 'open');
+  const highCount = openFindings.filter(f => f.severity === 'HIGH' || f.severity === 'error').length;
+  const warnCount = openFindings.filter(f => f.severity === 'MEDIUM' || f.severity === 'LOW' || f.severity === 'warn').length;
+  const cleanCount = findings.filter(f => f.status === 'resolved').length;
+
   let costLine = '';
   if (result.cost > 0) {
     costLine = `**Cost:** ~$${result.cost.toFixed(5)} (${result.tokens} tokens)\n`;
@@ -562,10 +579,12 @@ export function generateCodeReviewMarkdown(
 
 > ${client.botTagline}
 
-**Reviewing:** ${prLink}
-${costLine}
-${modelLine}
+${verdictHeader}
 
+**Review Iteration:** #${iteration} of ${MAX_REVIEWS_PER_PR}
+**Findings:** ${highCount} blocking · ${warnCount} warning(s) · ${cleanCount} clean.
+**Reviewing:** ${prLink}
+${costLine}${modelLine}
 ### Code Review Feedback
 <details><summary>Review Details</summary>
 
@@ -593,6 +612,7 @@ export async function orchestrateCodeReview(
   }
 
   const existing = await countExistingReviews(allReportTitles);
+  const iteration = existing + 1;
   const isQuotaMet = await checkReviewQuota(
     existing,
     MAX_REVIEWS_PER_PR,
@@ -632,7 +652,7 @@ export async function orchestrateCodeReview(
   const filteredSummary = await getCodeDiffSummary(changedFiles);
 
   if (filteredSummary.isTruncated) {
-    const report = generateTruncatedReviewMarkdown(filteredSummary, client);
+    const report = generateTruncatedReviewMarkdown(filteredSummary, client, iteration);
     await fs.promises.writeFile(agentReportPath, report);
     await postPRComment(report, client.reportTitle, prevState, 'warn');
 
@@ -668,18 +688,11 @@ export async function orchestrateCodeReview(
   const finalResult = aggregateReviewResults(allResults, prevState, newCache, initialSummary, orchestratorDurationMs);
   const isTruncated = finalResult.isTruncated || false;
   const finalSkipReason = finalResult.skipReason;
-  const report = generateCodeReviewMarkdown(finalResult, client);
+  const report = generateCodeReviewMarkdown(finalResult, client, iteration);
 
   // Write local report
   await fs.promises.writeFile(agentReportPath, report);
   console.log(`✅ Local report written to ${agentReportPath}`);
-
-  const findings = finalResult.state?.findings || [];
-  if (findings.length === 0) {
-    console.log("No actionable findings or architectural/design violations found. Gracefully exiting without posting PR comment or notifying Jules.");
-    await writeGracefulExitVerdict(client.reportFileName, ARTIFACTS_DIR, finalResult.state, isTruncated, finalSkipReason);
-    return;
-  }
 
   // Post to GitHub PR
   await postPRComment(report, client.reportTitle, finalResult.state, finalResult.llmVerdict);
