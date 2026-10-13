@@ -291,11 +291,19 @@ export async function sendJulesMessage(taskId: string, message: string): Promise
   }
 }
 
+interface GitHubItem {
+  body?: string;
+  user?: { type: string };
+  submitted_at?: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
 async function fetchPaginatedGitHubItems(
   url: string,
   token: string
-): Promise<Array<{ body?: string; user?: { type: string } }>> {
-  const items: Array<{ body?: string; user?: { type: string } }> = [];
+): Promise<GitHubItem[]> {
+  const items: GitHubItem[] = [];
   let currentUrl: string | null = `${url}${url.includes('?') ? '&' : '?'}per_page=100`;
 
   while (currentUrl) {
@@ -305,7 +313,7 @@ async function fetchPaginatedGitHubItems(
 
     if (!response.ok) break;
 
-    const data = (await response.json()) as Array<{ body?: string; user?: { type: string } }>;
+    const data = (await response.json()) as GitHubItem[];
     if (Array.isArray(data)) {
       items.push(...data);
     }
@@ -336,15 +344,18 @@ export async function countExistingReviews(reportTitles: string[]): Promise<numb
   const allItems = [...comments, ...reviews];
   let totalReviews = 0;
 
-  for (const item of allItems) {
-    if (item.body && item.user?.type === 'Bot' && reportTitles.some(title => item.body!.includes(`## ${title}`))) {
-      const match = item.body.match(/<!-- ai-review-count: (\d+) -->/);
-      if (match) {
-        totalReviews += parseInt(match[1], 10);
-      } else {
-        totalReviews += 1;
+  for (const title of reportTitles) {
+    let maxTitleCount = 0;
+    for (const item of allItems) {
+      if (item.body && item.user?.type === 'Bot' && item.body.includes(`## ${title}`)) {
+        const match = item.body.match(/<!-- ai-review-count: (\d+) -->/);
+        const count = match ? parseInt(match[1], 10) : 1;
+        if (count > maxTitleCount) {
+          maxTitleCount = count;
+        }
       }
     }
+    totalReviews += maxTitleCount;
   }
 
   return totalReviews;
@@ -367,14 +378,18 @@ export async function getPreviousReviewState<T>(reportTitle: string): Promise<T 
 
   const allItems = [...comments, ...reviews];
 
-  const matchingItems = allItems.filter(
-    item => item.body && item.user?.type === 'Bot' && item.body.includes(`## ${reportTitle}`)
-  );
+  const getItemTimestamp = (item: GitHubItem): number => {
+    const ts = item.submitted_at || item.created_at || item.updated_at;
+    return ts ? new Date(ts).getTime() : 0;
+  };
+
+  const matchingItems = allItems
+    .filter(item => item.body && item.user?.type === 'Bot' && item.body.includes(`## ${reportTitle}`))
+    .sort((a, b) => getItemTimestamp(b) - getItemTimestamp(a));
 
   if (matchingItems.length === 0) return undefined;
 
-  for (let i = matchingItems.length - 1; i >= 0; i--) {
-    const item = matchingItems[i];
+  for (const item of matchingItems) {
     const stateMatch = item.body!.match(/<!-- ai-review-state: (.*?) -->/);
     if (stateMatch) {
       try {
