@@ -544,7 +544,8 @@ ${statSummary}
 
 export function generateCodeReviewMarkdown(
   result: CodeReviewResult,
-  client: CodeReviewClientStrategy
+  client: CodeReviewClientStrategy,
+  reviewIteration?: number
 ): string {
   const prNumber = process.env.PR_NUMBER;
   const prLink = prNumber ? `[PR #${prNumber}](https://github.com/${process.env.GITHUB_REPOSITORY}/pull/${prNumber})` : 'this PR';
@@ -555,6 +556,7 @@ export function generateCodeReviewMarkdown(
     costLine = `**Cost:** ~$${result.cost.toFixed(5)} (${result.tokens} tokens)\n`;
   }
   const modelLine = result.modelName ? `**Model:** ${result.modelName}\n` : '';
+  const iterationLine = reviewIteration !== undefined ? `**Review Iteration:** ${reviewIteration}\n` : '';
 
   const displayFeedback = cleanupFeedback(result.feedback);
 
@@ -563,7 +565,7 @@ export function generateCodeReviewMarkdown(
 > ${client.botTagline}
 
 **Reviewing:** ${prLink}
-${costLine}
+${iterationLine}${costLine}
 ${modelLine}
 
 ### Code Review Feedback
@@ -668,7 +670,7 @@ export async function orchestrateCodeReview(
   const finalResult = aggregateReviewResults(allResults, prevState, newCache, initialSummary, orchestratorDurationMs);
   const isTruncated = finalResult.isTruncated || false;
   const finalSkipReason = finalResult.skipReason;
-  const report = generateCodeReviewMarkdown(finalResult, client);
+  const report = generateCodeReviewMarkdown(finalResult, client, existing + 1);
 
   // Write local report
   await fs.promises.writeFile(agentReportPath, report);
@@ -687,13 +689,14 @@ export async function orchestrateCodeReview(
   // Also alert Jules if this PR is from a Jules session
   const julesSessionId = await getJulesSessionIdFromPR();
   const isFail = finalResult.llmVerdict === 'fail';
-  if (julesSessionId) {
+  const openHighFindings = finalResult.state?.findings?.filter(f => f.status === 'open' && (f.severity === 'HIGH' || f.severity === 'error')) || [];
+
+  if (julesSessionId && (isFail || openHighFindings.length > 0)) {
     const passFailMsg = isFail ? "FAIL ❌" : ((finalResult.llmVerdict === 'warn' || allResults.length === 0) ? "NEUTRAL ⚪" : "PASS ✅");
     const julesMessage = `[${client.reportTitle}] posted an aggregated code review (${passFailMsg}). Please read the review comments on the PR, analyze the diff context provided, and fix any failed or warned areas.\n\n<details><summary>Overview</summary>\n\n${report}\n</details>`;
     await sendJulesMessage(julesSessionId, julesMessage);
   }
 
-  const openHighFindings = finalResult.state?.findings?.filter(f => f.status === 'open' && (f.severity === 'HIGH' || f.severity === 'error')) || [];
   const safeReportFileName = path.basename(client.reportFileName);
   const verdictPath = path.join(ARTIFACTS_DIR, `${safeReportFileName.replace('.md', '')}-verdict.json`);
   await writeVerdictJson(verdictPath, {

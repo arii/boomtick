@@ -137,7 +137,7 @@ export async function orchestrateVisualReview(
 
   await runWithConcurrencyLimit(taskQueue, CONCURRENCY_LIMIT);
 
-  const report = generateMarkdownReport(reviews, client.botName, client.reportTitle, client.botTagline);
+  const report = generateMarkdownReport(reviews, client.botName, client.reportTitle, client.botTagline, existing + 1);
 
   // Write local report
   await fs.promises.writeFile(agentReportPath, report);

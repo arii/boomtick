@@ -198,7 +198,8 @@ export function generateMarkdownReport(
   reviews: RouteReview[],
   botName: string,
   reportTitle: string,
-  botTagline: string
+  botTagline: string,
+  reviewIteration?: number
 ): string {
   const highCount = reviews.filter(r => r.severity === 'HIGH').length;
   const medCount = reviews.filter(r => r.severity === 'MEDIUM').length;
@@ -224,6 +225,7 @@ ${r.feedback}
   }
 
   const modelLine = reviews[0]?.modelName ? `**Model:** ${reviews[0].modelName}\n` : '';
+  const iterationLine = reviewIteration !== undefined ? `**Review Iteration:** ${reviewIteration}\n` : '';
 
   return `## ${reportTitle}
 
@@ -231,7 +233,7 @@ ${r.feedback}
 
 **Summary:** 🔴 ${highCount} high · 🟡 ${medCount} medium · 🟢 ${lowCount} low
 **Reviewing:** ${prLink}
-${costLine}
+${iterationLine}${costLine}
 ${modelLine}
 ${sections}
 
@@ -350,10 +352,9 @@ export async function getPreviousReviewState<T>(reportTitle: string): Promise<T 
 
   if (!token || !repo || !prNumber) return undefined;
 
-  let existingComment: { body: string; user: { type: string } } | undefined;
-
   const fetchComments = async (url: string) => {
     let currentUrl: string | null = url;
+    let allMatches: Array<any> = [];
 
     while (currentUrl) {
       const response = await fetch(currentUrl, {
@@ -362,29 +363,38 @@ export async function getPreviousReviewState<T>(reportTitle: string): Promise<T 
 
       if (!response.ok) break;
 
-      const comments = await response.json() as Array<{ body: string; user: { type: string } }>;
-      const found = comments.find(c =>
+      const comments = await response.json() as Array<any>;
+      const matches = comments.filter(c =>
         c.user && c.user.type === 'Bot' && c.body && c.body.includes(`## ${reportTitle}`)
       );
-      if (found) {
-        existingComment = found;
-        return true;
-      }
+      allMatches = allMatches.concat(matches);
 
       const linkHeader = response.headers.get('Link');
       const nextMatch = linkHeader?.match(/<([^>]+)>;\s*rel="next"/);
       currentUrl = nextMatch ? nextMatch[1] : null;
     }
-    return false;
+    return allMatches;
   };
 
   const issueCommentsUrl = `https://api.github.com/repos/${repo}/issues/${prNumber}/comments?per_page=100`;
   const prReviewsUrl = `https://api.github.com/repos/${repo}/pulls/${prNumber}/reviews?per_page=100`;
 
-  await fetchComments(issueCommentsUrl);
-  if (!existingComment) {
-    await fetchComments(prReviewsUrl);
-  }
+  const [issueMatches, prMatches] = await Promise.all([
+    fetchComments(issueCommentsUrl),
+    fetchComments(prReviewsUrl)
+  ]);
+
+  const allMatches = [...issueMatches, ...prMatches];
+
+  if (allMatches.length === 0) return undefined;
+
+  allMatches.sort((a, b) => {
+    const timeA = new Date(a.submitted_at || a.created_at || a.updated_at || 0).getTime();
+    const timeB = new Date(b.submitted_at || b.created_at || b.updated_at || 0).getTime();
+    return timeB - timeA;
+  });
+
+  const existingComment = allMatches.find(c => c.body && c.body.match(/<!-- ai-review-state: (.*?) -->/));
 
   if (!existingComment) return undefined;
 
