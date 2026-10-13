@@ -752,6 +752,7 @@ class Orchestrator:
         cleanup: bool = False,
         dry_run: bool = True,
         event: Optional[str] = None,
+        diff_file: Optional[str] = None,
         **kwargs,
     ) -> Dict[str, Any]:
         if "pr_number" in kwargs:
@@ -761,7 +762,7 @@ class Orchestrator:
         rev_path = os.path.join(review_dir, f"pr-review-{prNumber}.md")
         res: Dict[str, Any] = {"pr": prNumber, "files": {}}
         if fetch:
-            self._fetch_pr_context_files(prNumber, ctx_path, rev_path)
+            self._fetch_pr_context_files(prNumber, ctx_path, rev_path, diff_file=diff_file)
             res["files"]["context"] = ctx_path
             res["files"]["review"] = rev_path
         if audit:
@@ -770,7 +771,7 @@ class Orchestrator:
             self.github.submit_pr_review(prNumber, rev_path, cleanup=cleanup, dry_run=dry_run, event_override=event)
         return res
 
-    def _fetch_pr_context_files(self, prNumber: int, ctx_path: str, rev_path: str) -> None:
+    def _fetch_pr_context_files(self, prNumber: int, ctx_path: str, rev_path: str, diff_file: Optional[str] = None) -> None:
         repo = get_github_client().get_repo(get_repo_name())
         pr = repo.get_pull(prNumber)
         title = pr.title
@@ -858,26 +859,34 @@ class Orchestrator:
                 f"- {'🟢' if f.status == 'added' else '🔴' if f.status == 'removed' else '🟡'} `{f.filename}`"
             )
         context_lines.append("\n## Diffs")
-        for f in pr_files:
-            context_lines.append(f"\n### `{f.filename}` ({f.status})")
-            patch = f.patch or "_No textual diff available._"
-            annotated = []
-            line_num = 0
-            if patch != "_No textual diff available._":
-                for line in patch.splitlines():
-                    if line.startswith("@@"):
-                        m = re.search(r"\+(\d+)", line)
-                        line_num = int(m.group(1)) if m else line_num
-                        annotated.append(line)
-                    elif line.startswith("+"):
-                        annotated.append(f"{line_num:4d} |{line}")
-                        line_num += 1
-                    elif line.startswith("-"):
-                        annotated.append(f"     |{line}")
-                    else:
-                        annotated.append(f"{line_num:4d} |{line}")
-                        line_num += 1
-            context_lines.append(f"```diff\n" + "\n".join(annotated) + "\n```")
+
+        if diff_file and os.path.exists(diff_file):
+            with open(diff_file, "r", encoding="utf-8") as df:
+                incremental_diff = df.read()
+            context_lines.append("\n### Incremental Changes")
+            context_lines.append(f"```diff\n{incremental_diff}\n```")
+        else:
+            for f in pr_files:
+                context_lines.append(f"\n### `{f.filename}` ({f.status})")
+                patch = f.patch or "_No textual diff available._"
+                annotated = []
+                line_num = 0
+                if patch != "_No textual diff available._":
+                    for line in patch.splitlines():
+                        if line.startswith("@@"):
+                            m = re.search(r"\+(\d+)", line)
+                            line_num = int(m.group(1)) if m else line_num
+                            annotated.append(line)
+                        elif line.startswith("+"):
+                            annotated.append(f"{line_num:4d} |{line}")
+                            line_num += 1
+                        elif line.startswith("-"):
+                            annotated.append(f"     |{line}")
+                        else:
+                            annotated.append(f"{line_num:4d} |{line}")
+                            line_num += 1
+                context_lines.append(f"```diff\n" + "\n".join(annotated) + "\n```")
+
         with open(ctx_path, "w", encoding="utf-8") as context_file:
             context_file.write("\n".join(context_lines))
 
@@ -2808,7 +2817,7 @@ Overlapping functionality identified and resolved.
                 # Check if there is anything to commit
                 status_res = run_command(["git", "status", "--porcelain"], check=False)
                 if status_res.stdout.strip():
-                    commit_msg = f"Merge {base_branch} into PR #{prNumber}"
+                    commit_msg = f"Merge {base_branch} into PR #{prNumber} [skip ci]"
                     run_command(["git", "commit", "-m", commit_msg], check=True)
 
                 # We reuse the push logic below
@@ -2834,7 +2843,7 @@ Overlapping functionality identified and resolved.
                     "merge",
                     f"origin/{base_branch}",
                     "-m",
-                    f"Merge {base_branch} into PR #{prNumber}",
+                    f"Merge {base_branch} into PR #{prNumber} [skip ci]",
                 ]
                 if allow_unrelated:
                     merge_cmd.append("--allow-unrelated-histories")

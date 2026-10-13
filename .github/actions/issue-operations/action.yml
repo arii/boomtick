@@ -174,7 +174,7 @@ runs:
       if: inputs.operation == 'resolve-conflicts'
       uses: stefanzweifel/git-auto-commit-action@v7 # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
       with:
-        commit_message: "chore: auto-resolved merge conflicts using AI"
+        commit_message: "chore: auto-resolved merge conflicts using AI [skip ci]"
         file_pattern: '.'
 
     # --- UPDATE SNAPSHOTS ---
@@ -212,5 +212,5 @@ runs:
       if: inputs.operation == 'update-snapshots' && steps.status.outputs.changed == 'true'
       uses: stefanzweifel/git-auto-commit-action@v7 # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
       with:
-        commit_message: "chore: update playwright snapshots"
+        commit_message: "chore: update playwright snapshots [skip ci]"
         file_pattern: '**/snapshots/*'

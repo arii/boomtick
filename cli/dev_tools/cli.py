@@ -406,8 +406,9 @@ def audit(ctx, check_dirs):
 @click.option("--dry-run/--execute", default=True)
 @click.option("--base")
 @click.option("--event")
+@click.option("--diff-file")
 @click.pass_context
-def audit_pr(ctx, pr_number, fetch, run_audit, submit, cleanup, dry_run, base, event):
+def audit_pr(ctx, pr_number, fetch, run_audit, submit, cleanup, dry_run, base, event, diff_file):
     orch = ctx.obj["ORCHESTRATOR"]
     res = orch.audit_pr(
         pr_number,
@@ -417,6 +418,7 @@ def audit_pr(ctx, pr_number, fetch, run_audit, submit, cleanup, dry_run, base, e
         cleanup=cleanup,
         dry_run=dry_run,
         event=event,
+        diff_file=diff_file,
     )
     out(ctx, f"✅ Audit PR #{pr_number} action complete.", data=res)
 

@@ -19,7 +19,57 @@ runs:
 
     - name: Setup Workspace
       uses: arii/boomtick/.github/actions/setup-workspace@main
-    - name: AI review
+
+    - name: Determine Incremental Commit Range
+      id: diff-range
+      run: |
+        BEFORE="${{ github.event.before }}"
+        AFTER="${{ github.event.after }}"
+
+        if [ -z "$BEFORE" ] || [ "$BEFORE" = "0000000000000000000000000000000000000000" ]; then
+          BEFORE="${{ github.event.pull_request.base.sha }}"
+          AFTER="${{ github.event.pull_request.head.sha }}"
+        fi
+
+        echo "Comparing $BEFORE to $AFTER"
+
+        DIFF_COUNT=$(gh api \
+          -H "Accept: application/vnd.github.v3+json" \
+          "/repos/${{ github.repository }}/compare/${BEFORE}...${AFTER}" \
+          --jq '.files | length')
+
+        if [ "$DIFF_COUNT" -eq 0 ]; then
+          echo "No incremental file changes between $BEFORE and $AFTER. Skipping review."
+          echo "has_changes=false" >> $GITHUB_OUTPUT
+        else
+          echo "has_changes=true" >> $GITHUB_OUTPUT
+          echo "before_sha=$BEFORE" >> $GITHUB_OUTPUT
+          echo "after_sha=$AFTER" >> $GITHUB_OUTPUT
+        fi
+      env:
+        GH_TOKEN: ${{ github.token }}
+      shell: bash
+
+    - name: Execute Incremental AI Review
+      if: steps.diff-range.outputs.has_changes == 'true'
+      env:
+        PR_NUMBER: ${{ inputs.pr_number }}
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        gh api \
+          -H "Accept: application/vnd.github.v3.diff" \
+          "/repos/${{ github.repository }}/compare/${{ steps.diff-range.outputs.before_sha }}...${{ steps.diff-range.outputs.after_sha }}" \
+          > /tmp/incremental_review.diff
+
+        if [[ ! "$PR_NUMBER" =~ ^[0-9]+$ ]]; then
+          echo "::error::Invalid PR_NUMBER: must be numeric."
+          exit 1
+        fi
+        td-cli gh audit-pr "$PR_NUMBER" --fetch --audit --submit --execute --diff-file /tmp/incremental_review.diff
+      shell: bash
+
+    - name: Execute Full AI Review
+      if: github.event_name != 'pull_request'
       env:
         PR_NUMBER: ${{ inputs.pr_number }}
       run: |

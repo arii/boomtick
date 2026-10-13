@@ -107,7 +107,7 @@ The agent must initialize its sandbox environment exactly as follows:
 - Once local validation passes, stage and commit the targeted changes using standard Conventional Commit messages:
   ```bash
   git add <modified_files>
-  git commit -m "fix(ci): resolve CI pipeline failure in <component_or_test>"
+  git commit -m "fix(ci): resolve CI pipeline failure in <component_or_test> [skip ci]"
   ```
 - Push the commit back to the head branch:
   ```bash
