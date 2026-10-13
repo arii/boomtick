@@ -294,7 +294,7 @@ describe('generateCodeReviewMarkdown formatting', () => {
     expect(markdown).toContain('## Test Review');
     expect(markdown).toContain('### 🟢 Verdict: APPROVED');
     expect(markdown).toContain('**Review Iteration:** #2 of 10');
-    expect(markdown).toContain('**Findings:** 0 blocking · 0 warning(s) · 4 clean.');
+    expect(markdown).toContain('**Findings:** 0 blocking · 0 warning(s) · 0 clean.');
   });
 
   it('renders CHANGES REQUESTED banner when llmVerdict is fail', () => {

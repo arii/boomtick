@@ -4,6 +4,8 @@ import { Buffer } from 'node:buffer';
 import type { RouteReview, VisualRouteSummary, VisualReviewFinding, VisualReviewState } from './visualReviewTypes';
 import { DOM_REVIEW_DIR, REVIEW_PROMPT } from './visualReviewConstants';
 
+const MAX_REVIEWS_PER_PR = parseInt(process.env.MAX_AI_REVIEWS ?? '10', 10);
+
 export function parseVisualReviewFindings(feedback: string): VisualReviewFinding[] {
   const openTag = '<findings>';
   const closeTag = '</findings>';
@@ -201,7 +203,6 @@ export function generateMarkdownReport(
   botTagline: string,
   iteration?: number
 ): string {
-  const MAX_REVIEWS_PER_PR = parseInt(process.env.MAX_AI_REVIEWS ?? '10', 10);
   const highCount = reviews.filter(r => r.severity === 'HIGH').length;
   const medCount = reviews.filter(r => r.severity === 'MEDIUM').length;
   const lowCount = reviews.filter(r => r.severity === 'LOW').length;

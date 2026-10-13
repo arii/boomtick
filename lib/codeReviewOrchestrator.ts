@@ -565,7 +565,7 @@ export function generateCodeReviewMarkdown(
   const openFindings = findings.filter(f => f.status === 'open');
   const highCount = openFindings.filter(f => f.severity === 'HIGH' || f.severity === 'error').length;
   const warnCount = openFindings.filter(f => f.severity === 'MEDIUM' || f.severity === 'LOW' || f.severity === 'warn').length;
-  const cleanCount = findings.length > 0 ? findings.filter(f => f.status === 'resolved').length : 4;
+  const cleanCount = findings.filter(f => f.status === 'resolved').length;
 
   let costLine = '';
   if (result.cost > 0) {
