@@ -23,6 +23,8 @@ describe("MCP GitHub tools", () => {
         }),
         stderr: "",
         exitCode: 0,
+        durationMs: 10,
+        command: "td-cli gh read-pr-reviews",
       });
 
       const res = await getPrReviewsHandler({ prNumber: 819, repo: "arii/boomtick" });
@@ -51,6 +53,8 @@ describe("MCP GitHub tools", () => {
         }),
         stderr: "",
         exitCode: 0,
+        durationMs: 10,
+        command: "td-cli gh list-pr-commits",
       });
 
       const res = await getPrCommitsHandler({ prNumber: 819, repo: "arii/boomtick" });
@@ -78,6 +82,8 @@ describe("MCP GitHub tools", () => {
         }),
         stderr: "",
         exitCode: 0,
+        durationMs: 10,
+        command: "td-cli repo workflow-runs",
       });
 
       const res = await getWorkflowRunsHandler({
