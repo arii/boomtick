@@ -18,6 +18,8 @@ RUN pnpm run build:review
 # Stage 2: Minimal Node.js standalone execution image
 FROM node:24-alpine
 
+ENV PATH="/workspace/node_modules/.bin:$PATH"
+
 RUN apk add --no-cache git jq ca-certificates
 
 WORKDIR /workspace
