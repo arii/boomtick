@@ -25,7 +25,7 @@ RUN apk add --no-cache \
 
 WORKDIR /workspace
 
-COPY --from=builder /workspace/dist/runner.cjs /workspace/dist/runner.cjs
+COPY --from=builder /workspace/dist /workspace/dist
 COPY docker-entrypoint.sh /docker-entrypoint.sh
 RUN chmod +x /docker-entrypoint.sh
 
