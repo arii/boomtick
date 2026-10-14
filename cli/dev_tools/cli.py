@@ -640,16 +640,6 @@ def _render_conflicts(ctx, conflicts):
     out(ctx, f"Found {len(conflicts)} potential conflicts.", data={"conflicts": conflicts})
 
 
-@gh.command(deprecated=True)
-@click.pass_context
-def conflicts(ctx):
-    click.echo("⚠️ WARNING: 'td-cli gh conflicts' is deprecated and will be removed in a future release.", err=True)
-    click.echo("Please use 'td-cli gh detect-conflicts' instead.\n", err=True)
-    orch = ctx.obj["ORCHESTRATOR"]
-    conflicts: List[Dict[str, Any]] = orch.handle_detect_conflicts(all_prs=True)
-    _render_conflicts(ctx, conflicts)
-
-
 @gh.command()
 @click.option("--pr", required=True, type=int, help="The PR number to resolve conflicts for.")
 @click.option("--allow-unrelated", is_flag=True, help="Allow merging unrelated histories.")
