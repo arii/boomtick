@@ -257,8 +257,18 @@ const splitAndFilter = (output: string): string[] => (output ? output.split('\n'
  */
 export function getChangedFiles(): string[] {
   // Check for staged and unstaged changes first
-  const staged = exec('git diff --name-only --cached');
-  const unstaged = exec('git diff --name-only');
+  let staged = '';
+  let unstaged = '';
+  try {
+    staged = exec('git diff --name-only --cached');
+  } catch {
+    staged = '';
+  }
+  try {
+    unstaged = exec('git diff --name-only');
+  } catch {
+    unstaged = '';
+  }
   const workingChanges = new Set([...splitAndFilter(staged), ...splitAndFilter(unstaged)]);
 
   const config = loadProjectConfig();
