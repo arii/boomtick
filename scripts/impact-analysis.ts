@@ -75,7 +75,11 @@ async function main() {
       return;
     }
 
-    graphJson = exec(`depcruise src --config ${depCruiseConfig} --ts-config ${tsConfig} --output-type json`);
+    const depCruiseBin = fs.existsSync('./node_modules/.bin/depcruise')
+      ? './node_modules/.bin/depcruise'
+      : 'npx depcruise';
+
+    graphJson = exec(`${depCruiseBin} src --config ${depCruiseConfig} --ts-config ${tsConfig} --output-type json`);
 
     const graph: DependencyGraph = JSON.parse(graphJson);
 
