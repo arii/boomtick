@@ -8,6 +8,7 @@ COPY scripts /workspace/scripts
 COPY lib /workspace/lib
 COPY src /workspace/src
 COPY mcp /workspace/mcp
+COPY cli /workspace/cli
 
 RUN corepack enable && corepack prepare pnpm@10.28.2 --activate
 RUN pnpm install --frozen-lockfile
