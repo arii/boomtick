@@ -1,6 +1,5 @@
 import { z } from "zod";
-import { runTDCli } from "../../lib/td-cli.js";
-import { parseJulesSession } from "./shared.js";
+import { runTDCli, parseJulesSession } from "./shared.js";
 
 export const GetJulesSessionInputSchema = z.object({
   sessionId: z.string(),

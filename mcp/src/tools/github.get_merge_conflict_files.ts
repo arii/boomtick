@@ -1,31 +1,21 @@
 import { z } from "zod";
-import { runCommand } from "../lib/shell.js";
+import { getMergeConflictFiles } from "../lib/git.js";
 
 export const GetMergeConflictFilesInputSchema = z.object({
-  prNumber: z.number(),
+  prNumber: z.number().optional(),
   baseBranch: z.string().optional().default("main"),
+  headRef: z.string().optional().default("HEAD"),
 });
 
 export async function getMergeConflictFilesHandler(args: z.infer<typeof GetMergeConflictFilesInputSchema>) {
-  const result = await runCommand("td-cli", [
-    "gh", "merge-conflicts", args.prNumber.toString(),
-    "--base", args.baseBranch || "main"
-  ]);
-
-  if (result.exitCode !== 0) {
-    throw new Error(`Failed to get merge conflicts: ${result.stderr}`);
-  }
-
-  const output = JSON.parse(result.stdout);
-  if (output.status === "error") {
-    throw new Error(`Failed to get merge conflicts: ${output.message}`);
-  }
+  const baseBranch = args.baseBranch || "main";
+  const headRef = args.headRef || "HEAD";
+  const conflictFiles = await getMergeConflictFiles(baseBranch, headRef);
 
   return {
-    prNumber: output.prNumber,
-    baseBranch: output.baseBranch,
-    headRef: output.headRef,
-    conflictFiles: output.conflictFiles,
-    commandLog: output.commandLog
+    prNumber: args.prNumber,
+    baseBranch,
+    headRef,
+    conflictFiles,
   };
 }
