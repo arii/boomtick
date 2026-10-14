@@ -75,9 +75,11 @@ async function main() {
       return;
     }
 
-    const depCruiseBin = fs.existsSync('./node_modules/.bin/depcruise')
-      ? './node_modules/.bin/depcruise'
-      : 'npx depcruise';
+    const depCruiseBin = [
+      '/workspace/node_modules/.bin/depcruise',
+      './node_modules/.bin/depcruise',
+      'depcruise'
+    ].find(p => fs.existsSync(p)) || 'npx --yes dependency-cruiser';
 
     graphJson = exec(`${depCruiseBin} src --config ${depCruiseConfig} --ts-config ${tsConfig} --output-type json`);
 
