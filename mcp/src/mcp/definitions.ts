@@ -7,14 +7,11 @@ import {
   GetMergeConflictFilesInputJsonSchema,
   GetChangedFilesInputJsonSchema,
   GetPackageScriptsInputJsonSchema,
-  GetRouteMapInputJsonSchema,
   ReadCiLogsInputJsonSchema,
   RepoLogsInputJsonSchema,
   CreateBranchInputJsonSchema,
   CreateRepairBranchInputJsonSchema,
   RunTestsInputJsonSchema,
-  RunLighthouseInputJsonSchema,
-  RunPlaywrightInputJsonSchema,
   CommitPatchInputJsonSchema,
   OpenReplacementPrInputJsonSchema,
   CreatePullRequestInputJsonSchema,
@@ -30,7 +27,6 @@ import {
   JulesSessionIdInputJsonSchema,
   JulesSendMessageInputJsonSchema,
   JulesListSessionsInputJsonSchema,
-  SearchDdgsInputJsonSchema,
   GetPrReviewsInputJsonSchema,
   GetPrCommitsInputJsonSchema,
   GetWorkflowRunsInputJsonSchema,
@@ -71,12 +67,6 @@ export const MCP_RESOURCES: Resource[] = [
     description: "The root package.json file of the repository.",
   },
   {
-    uri: "repo://routes",
-    name: "Route Map",
-    mimeType: "application/json",
-    description: "The mapping of application routes to content files.",
-  },
-  {
     uri: "repo://design-tokens",
     name: "Design Tokens",
     mimeType: "application/json",
@@ -87,18 +77,6 @@ export const MCP_RESOURCES: Resource[] = [
     name: "Repair Report",
     mimeType: "application/json",
     description: "The validation report for a specific repair branch.",
-  },
-  {
-    uri: "repo://lighthouse/{branch}",
-    name: "Lighthouse Report",
-    mimeType: "application/json",
-    description: "Lighthouse CI report for a specific branch.",
-  },
-  {
-    uri: "repo://playwright/{branch}",
-    name: "Playwright Report",
-    mimeType: "application/json",
-    description: "Playwright test report for a specific branch.",
   },
 ];
 
@@ -149,11 +127,6 @@ const BASE_MCP_TOOLS: Tool[] = [
     inputSchema: GetPackageScriptsInputJsonSchema as any,
   },
   {
-    name: "repo.get_route_map",
-    description: "Get the mapping of routes to content files.",
-    inputSchema: GetRouteMapInputJsonSchema as any,
-  },
-  {
     name: "repo.read_ci_logs",
     description: "Read CI logs for a given pull request.",
     inputSchema: ReadCiLogsInputJsonSchema as any,
@@ -177,16 +150,6 @@ const BASE_MCP_TOOLS: Tool[] = [
     name: "repo.run_tests",
     description: "Run repository tests and checks.",
     inputSchema: RunTestsInputJsonSchema as any,
-  },
-  {
-    name: "repo.run_lighthouse",
-    description: "Run Lighthouse CI audits.",
-    inputSchema: RunLighthouseInputJsonSchema as any,
-  },
-  {
-    name: "repo.run_playwright",
-    description: "Run Playwright E2E tests.",
-    inputSchema: RunPlaywrightInputJsonSchema as any,
   },
   {
     name: "repo.commit_patch",
@@ -287,11 +250,6 @@ const BASE_MCP_TOOLS: Tool[] = [
     name: "jules.trigger_feedback",
     description: "Automatically collect CI status/logs for the PR associated with a Jules session and send them back as feedback.",
     inputSchema: JulesSessionIdInputJsonSchema as any,
-  },
-  {
-    name: "agent.search_ddgs",
-    description: "Search the web using DuckDuckGo (via ddgs python library).",
-    inputSchema: SearchDdgsInputJsonSchema as any,
   },
 ];
 
