@@ -79,7 +79,7 @@
 
 ### Bug Fixes
 
-* td-cli gh issue-view --issue-number fails to parse argument ([#420](https://github.com/arii/boomtick/issues/420)) ([c916796](https://github.com/arii/boomtick/commit/c9167968bb0b1d9b19ed36961a9ba4834ff2ec9c))
+* td gh issue-view --issue-number fails to parse argument ([#420](https://github.com/arii/boomtick/issues/420)) ([c916796](https://github.com/arii/boomtick/commit/c9167968bb0b1d9b19ed36961a9ba4834ff2ec9c))
 
 
 ### Documentation
@@ -91,7 +91,7 @@
 
 ### Features
 
-* implement td-cli gh search-issues command ([#411](https://github.com/arii/boomtick/issues/411)) ([d5537df](https://github.com/arii/boomtick/commit/d5537df8b8a3792b652fc0269ec51655b72d5fea))
+* implement td gh search-issues command ([#411](https://github.com/arii/boomtick/issues/411)) ([d5537df](https://github.com/arii/boomtick/commit/d5537df8b8a3792b652fc0269ec51655b72d5fea))
 
 
 ### Documentation
@@ -161,7 +161,7 @@
 * **ci:** pass --ignore-scripts to impact build main ([#53](https://github.com/arii/boomtick/issues/53)) ([7160e49](https://github.com/arii/boomtick/commit/7160e494992764d9d95f0dadd0c5c5d23f199428))
 * **ci:** pass --ignore-scripts to impact build main ([#55](https://github.com/arii/boomtick/issues/55)) ([4a5d1d9](https://github.com/arii/boomtick/commit/4a5d1d989f21fd62627e28027624b1bb4982127b))
 * **cli:** implement lazy orchestrator to reduce startup time ([#3278](https://github.com/arii/boomtick/issues/3278)) ([4966ade](https://github.com/arii/boomtick/commit/4966ade6f067ea3a8269851d45c3635839957b97))
-* **cli:** resolve td-cli UX, aliases, and crashes ([#3392](https://github.com/arii/boomtick/issues/3392)) ([d4e12d6](https://github.com/arii/boomtick/commit/d4e12d6b7aeb9bb955274629a4cc67343bc1a6e3))
+* **cli:** resolve td UX, aliases, and crashes ([#3392](https://github.com/arii/boomtick/issues/3392)) ([d4e12d6](https://github.com/arii/boomtick/commit/d4e12d6b7aeb9bb955274629a4cc67343bc1a6e3))
 * **cli:** retain review findings in PR comments ([#3450](https://github.com/arii/boomtick/issues/3450)) ([64aa1bd](https://github.com/arii/boomtick/commit/64aa1bdd1c62cb0c5afc01f5d27cededf04e964e))
 * detect-antipatterns.mjs path resolution and impact-analysis-utils eslint errors ([#52](https://github.com/arii/boomtick/issues/52)) ([797475e](https://github.com/arii/boomtick/commit/797475ef8b93c5d74627d329e7bf842852a374c8))
 * path resolution and linting issues in impact analysis ([#49](https://github.com/arii/boomtick/issues/49)) ([2b23a39](https://github.com/arii/boomtick/commit/2b23a39848e4c012d7c94b633c0627cad85619f6))

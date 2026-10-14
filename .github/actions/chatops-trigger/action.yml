@@ -27,12 +27,12 @@ runs:
     - name: Pre-flight Validations
       id: validate
       env:
-        GH_TOKEN: ${{ inputs.github_token }}
+        GITHUB_TOKEN: ${{ inputs.github_token }}
         COMMENT_BODY: ${{ inputs.comment_body }}
         AUTHOR_ASSOC: ${{ inputs.author_association }}
         ISSUE_NUMBER: ${{ inputs.issue_number }}
       run: |
-        if [ -z "$GH_TOKEN" ]; then
+        if [ -z "$GITHUB_TOKEN" ]; then
           echo "::error::github_token is missing."
           exit 1
         fi
@@ -58,7 +58,7 @@ runs:
         COMMENT_BODY: ${{ inputs.comment_body }}
       run: |
         # security-safe: COMMENT_BODY is mapped safely via env block and wrapped in quotes
-        RESULT=$(td-cli gh parse-comment --author-association "$AUTHOR_ASSOC" --body "$COMMENT_BODY")
+        RESULT=$(td gh parse-comment --author-association "$AUTHOR_ASSOC" --body "$COMMENT_BODY")
         {
           echo "conflict_resolve=$(echo "$RESULT" | jq -r '.actions.conflict_resolve')"
           echo "update_snapshots=$(echo "$RESULT" | jq -r '.actions.update_snapshots')"
@@ -91,7 +91,7 @@ runs:
         JULES_FIX_CI: ${{ steps.check.outputs.jules_fix_ci }}
         ISSUE_NUMBER: ${{ inputs.issue_number }}
         COMMENT_BODY: ${{ inputs.comment_body }}
-        GH_TOKEN: ${{ inputs.github_token }}
+        GITHUB_TOKEN: ${{ inputs.github_token }}
       run: |
         ERRORS=0
         OPS_WORKFLOW="issue-operations.yml"

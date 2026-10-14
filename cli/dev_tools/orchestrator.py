@@ -188,7 +188,7 @@ class Orchestrator:
 
         if is_python:
             feedback += "- **Python Scripting:** Python changes detected.\n"
-            feedback += "  - *Fix:* Ensure `python3 -m pytest tests/` passes. Update `test_td-cli` or equivalent test files if extending `dev-tools`.\n"
+            feedback += "  - *Fix:* Ensure `python3 -m pytest tests/` passes. Update `test_td` or equivalent test files if extending `dev-tools`.\n"
 
         if is_infra:
             feedback += PROJECT_CONFIG.infra_feedback
@@ -346,7 +346,7 @@ class Orchestrator:
         session = self.jules.create_session_from_source(source_id, branch, prompt, title=title)
         return session
 
-    # --- Helper methods ported from td-cli ---
+    # --- Helper methods ported from td ---
 
     def get_env_or_gha(self, env_var: str) -> Optional[str]:
         if env_var in os.environ:
@@ -724,18 +724,9 @@ class Orchestrator:
     def update_issues(self, dry_run: bool = True) -> List[Dict[str, Any]]:
         repo = get_github_client().get_repo(get_repo_name())
         updates = []
-        audit_base = self.get_audit_results(content="")
-        config = audit_base.get("config", {})
-        deprecated = config.get("deprecated", {})
         for issue in repo.get_issues(state="open"):
             body = issue.body or ""
             findings = []
-            for old, new in deprecated.get("assets", {}).items():
-                if old in body:
-                    findings.append(f"References deprecated name `{old}`. Use `{new}` instead.")
-            for old, new in deprecated.get("paths", {}).items():
-                if old in body:
-                    findings.append(f"References deprecated path `{old}`. New location: `{new}`")
             res = self.get_audit_results(content=body)
             violations = res.get("violations", {}).get("stdin", [])
             for v in violations:

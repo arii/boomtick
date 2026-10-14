@@ -8,7 +8,7 @@ export const ListJulesSessionsInputSchema = z.object({
 });
 
 export async function listJulesSessionsHandler(input: z.infer<typeof ListJulesSessionsInputSchema>): Promise<JulesSession[]> {
-  const result = await runCommand("td-cli", ["agent", "sync"]);
+  const result = await runCommand("td", ["agent", "sync"]);
 
   if (result.exitCode !== 0) {
     throw new Error(`Failed to list sessions: ${result.stderr}`);

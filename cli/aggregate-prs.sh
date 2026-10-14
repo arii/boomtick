@@ -48,7 +48,7 @@ for pr in "${PRs[@]}"; do
             exit 1
         fi
 
-        if ! td-cli gh resolve; then
+        if ! td gh resolve; then
             echo "CRITICAL: Conflict resolution failed in PR #$pr"
             git merge --abort
             exit 1

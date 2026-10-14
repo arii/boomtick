@@ -17,7 +17,7 @@ describe("getJulesPullRequestHandler", () => {
     vi.clearAllMocks();
   });
 
-  it("should get PR from td-cli", async () => {
+  it("should get PR from td", async () => {
     vi.mocked(shell.runCommand).mockResolvedValue({
       stdout: JSON.stringify({
         status: "success",
@@ -29,14 +29,14 @@ describe("getJulesPullRequestHandler", () => {
       stderr: "",
       exitCode: 0,
       durationMs: 0,
-      command: "td-cli agent get-session"
+      command: "td agent get-session"
     });
 
     const result = await getJulesPullRequestHandler({ sessionId: "123" });
     expect(result.id).toBe("123");
     expect(result.pullRequestUrl).toBe("https://github.com/pr/1");
 
-    expect(shell.runCommand).toHaveBeenCalledWith("td-cli", [
+    expect(shell.runCommand).toHaveBeenCalledWith("td", [
       "agent", "get-session", "123"
     ]);
   });

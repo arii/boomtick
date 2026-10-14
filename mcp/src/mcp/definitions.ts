@@ -118,7 +118,7 @@ const BASE_MCP_TOOLS: Tool[] = [
   },
   {
     name: "repo.get_command_schema",
-    description: "Retrieve a lightweight, targeted schema for a specific td-cli subcommand. Use this instead of reading the entire cli-schema.json to save tokens.",
+    description: "Retrieve a lightweight, targeted schema for a specific td subcommand. Use this instead of reading the entire cli-schema.json to save tokens.",
     inputSchema: GetCommandSchemaInputJsonSchema as any,
   },
   {

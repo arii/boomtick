@@ -21,7 +21,7 @@ describe("github.create_pull_request", () => {
       stderr: "",
       exitCode: 0,
       durationMs: 10,
-      command: "td-cli gh create-pr --title 'PR' --body 'Body' --head 'feature' --base 'main'"
+      command: "td gh create-pr --title 'PR' --body 'Body' --head 'feature' --base 'main'"
     });
 
     const result = await createPullRequestHandler({
@@ -50,7 +50,7 @@ describe("github.create_pull_request", () => {
       stderr: "",
       exitCode: 0,
       durationMs: 10,
-      command: "td-cli gh create-pr --title 'PR' --body 'Body' --head 'feature' --base 'main' --repo 'org/other-repo'"
+      command: "td gh create-pr --title 'PR' --body 'Body' --head 'feature' --base 'main' --repo 'org/other-repo'"
     });
 
     const result = await createPullRequestHandler({
@@ -62,7 +62,7 @@ describe("github.create_pull_request", () => {
       repo: "org/other-repo"
     });
 
-    expect(shell.runCommand).toHaveBeenCalledWith("td-cli", [
+    expect(shell.runCommand).toHaveBeenCalledWith("td", [
       "gh",
       "create-pr",
       "--title",
@@ -91,7 +91,7 @@ describe("github.create_pull_request", () => {
       stderr: "",
       exitCode: 0,
       durationMs: 10,
-      command: "td-cli gh create-pr"
+      command: "td gh create-pr"
     });
 
     await expect(createPullRequestHandler({

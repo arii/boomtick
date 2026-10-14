@@ -17,7 +17,7 @@ describe("getJulesMessagesHandler", () => {
     vi.clearAllMocks();
   });
 
-  it("should return messages from td-cli", async () => {
+  it("should return messages from td", async () => {
     const mockMessages = [
       {
         role: "user",
@@ -36,7 +36,7 @@ describe("getJulesMessagesHandler", () => {
       stderr: "",
       exitCode: 0,
       durationMs: 0,
-      command: "td-cli agent messages"
+      command: "td agent messages"
     });
 
     const result = await getJulesMessagesHandler({ sessionId: "123" });
@@ -45,7 +45,7 @@ describe("getJulesMessagesHandler", () => {
     expect(result.messages[0].role).toBe("user");
     expect(result.messages[0].content).toBe("Hello Jules");
 
-    expect(shell.runCommand).toHaveBeenCalledWith("td-cli", [
+    expect(shell.runCommand).toHaveBeenCalledWith("td", [
       "agent", "messages", "123"
     ]);
   });

@@ -41,7 +41,7 @@ export function initializeConfig() {
   try {
     // Attempt to load core properties from the Python CLI in the active workspace
     const cwd = process.env.BOOMTICK_REPO_PATH || process.cwd();
-    const cmd = `td-cli config view`;
+    const cmd = `td config view`;
     const output = execSync(cmd, {
       cwd,
       encoding: "utf-8",

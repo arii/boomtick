@@ -23,7 +23,7 @@ export async function issueViewHandler(args: z.infer<typeof IssueViewInputSchema
   const params = IssueViewInputSchema.parse(args);
   const targetRepo = resolveRepo(params.repo);
 
-  const result = await runCommand("td-cli", ["gh", "issue-view", params.issueNumber.toString(), "--repo", targetRepo]);
+  const result = await runCommand("td", ["gh", "issue-view", params.issueNumber.toString(), "--repo", targetRepo]);
 
   if (result.exitCode !== 0) {
     throw new Error(`Failed to view issue: ${sanitizeError(result.stderr)}`);

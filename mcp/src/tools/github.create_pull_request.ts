@@ -23,7 +23,7 @@ export async function createPullRequestHandler(args: z.input<typeof CreatePullRe
     tdArgs.push("--draft");
   }
 
-  const result = await runCommand("td-cli", tdArgs);
+  const result = await runCommand("td", tdArgs);
 
   if (result.exitCode !== 0) {
     // Attempt to parse stdout as JSON to see if there's a structured error message

@@ -37,7 +37,7 @@ def test_collect_commands_flat():
     schema = collect_commands(mock_test_cmd, prefix="test")
     assert "test" in schema
     cmd = schema["test"]
-    assert cmd["exact_usage"].startswith("td-cli test")
+    assert cmd["exact_usage"].startswith("td test")
     assert any(f["flag"] == "--flag" for f in cmd["optional_flags"])
     assert any(a["name"] == "arg" for a in cmd["required_arguments"])
 

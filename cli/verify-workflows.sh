@@ -46,16 +46,16 @@ repair_origin
 
 run_check "shared" "python3 --version"
 run_check "shared" "pnpm --version"
-run_check "shared" "PYTHONPATH=\"cli:cli/dev_tools\" td-cli gh --help"
-run_check "shared" "PYTHONPATH=\"cli:cli/dev_tools\" td-cli jules --help"
+run_check "shared" "PYTHONPATH=\"cli:cli/dev_tools\" td gh --help"
+run_check "shared" "PYTHONPATH=\"cli:cli/dev_tools\" td jules --help"
 
 run_check "ai-slop-audit.md" "python3 .agents/scripts/audit-ai-slop.py"
 
-run_check "dev-tools-cli-guide.md" "PYTHONPATH=\"cli:cli/dev_tools\" td-cli gh pre-submit --help"
-run_check "dev-tools-cli-guide.md" "PYTHONPATH=\"cli:cli/dev_tools\" td-cli gh audit-pr --help"
-run_check "dev-tools-cli-guide.md" "PYTHONPATH=\"cli:cli/dev_tools\" td-cli gh validate-issue --help"
+run_check "dev-tools-cli-guide.md" "PYTHONPATH=\"cli:cli/dev_tools\" td gh pre-submit --help"
+run_check "dev-tools-cli-guide.md" "PYTHONPATH=\"cli:cli/dev_tools\" td gh audit-pr --help"
+run_check "dev-tools-cli-guide.md" "PYTHONPATH=\"cli:cli/dev_tools\" td gh validate-issue --help"
 
-run_check "review-pr.md" "PYTHONPATH=\"cli:cli/dev_tools\" td-cli agent plan-review --pr 2821"
+run_check "review-pr.md" "PYTHONPATH=\"cli:cli/dev_tools\" td agent plan-review --pr 2821"
 
 run_check "review-ux.md" "npx playwright --version"
 run_check "review-ux.md" "node scripts/detect-antipatterns.mjs --help"

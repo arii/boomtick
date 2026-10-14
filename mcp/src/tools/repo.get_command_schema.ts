@@ -8,12 +8,12 @@ export const GetCommandSchemaInputSchema = z.object({
 export async function getCommandSchemaHandler(args: z.infer<typeof GetCommandSchemaInputSchema>) {
   // Sanitize input to prevent command injection (allow only alphanumeric, spaces, hyphens, and underscores)
   const sanitizedPath = args.commandPath.replace(/[^a-zA-Z0-9-_ ]/g, "");
-  const result = await runCommand("td-cli", ["schema", sanitizedPath]);
+  const result = await runCommand("td", ["schema", sanitizedPath]);
 
   if (result.exitCode !== 0) {
     // Log stderr for debugging but don't expose it to the user
     // Using comma-separated arguments to satisfy semgrep unsafe-formatstring
-    console.error("td-cli schema failed for", sanitizedPath, ":", result.stderr);
+    console.error("td schema failed for", sanitizedPath, ":", result.stderr);
     throw new Error(`Failed to get command schema for '${sanitizedPath}'`);
   }
 

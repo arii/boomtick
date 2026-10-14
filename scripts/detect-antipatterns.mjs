@@ -164,10 +164,6 @@ const CONFIG = {
       filePattern: /\.npmrc$/
     }
   ],
-  deprecated: {
-    assets: { 'accent-brand': 'accent', 'useSearch': 'useSearchParam' },
-    paths: { 'src/components/common/': 'src/components/ui/' }
-  },
   existingComponents: {
     'Box': 'src/layouts/Box.tsx', 'Stack': 'src/layouts/Stack.tsx', 'Grid': 'src/layouts/Grid.tsx',
     'Text': 'src/layouts/Text.tsx', 'Button': 'src/layouts/Button.tsx', 'ContentCard': 'src/components/ui/ContentCard.tsx',
@@ -416,7 +412,6 @@ async function runAudit() {
     process.stdout.write(JSON.stringify({
       violations: allViolations,
       config: {
-        deprecated: CONFIG.deprecated,
         existingComponents: CONFIG.existingComponents,
         requiredContentFields: CONFIG.requiredContentFields
       }

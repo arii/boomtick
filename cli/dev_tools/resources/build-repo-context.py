@@ -108,10 +108,10 @@ def build_repo_context():
 
     # 4. CLI Schema (Package Internal)
     cli_schema = {
-        "tool_name": "td-cli",
-        "schema_authority": "Use 'repo.get_command_schema' or 'td-cli schema <path>' for granular discovery. This file remains for legacy fallback.",
+        "tool_name": "td",
+        "schema_authority": "Use 'repo.get_command_schema' or 'td schema <path>' for granular discovery. This file remains for legacy fallback.",
         "description": "Custom developer CLI for BoomTick repository management.",
-        "base_command": "td-cli",
+        "base_command": "td",
     }
     try:
         from dev_tools.cli import cli
