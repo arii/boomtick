@@ -40,8 +40,7 @@ def main():
             tool_cmd = [python_bin, "-m", tool_module]
         else:
             print(f"Error: {tool_module} not found in current environment or .venv.", file=sys.stderr)
-            print("Please run the bootstrap script first to configure your local environment:", file=sys.stderr)
-            print("    pnpm run bootstrap:python", file=sys.stderr)
+            print("Please configure your local Python environment first.", file=sys.stderr)
             sys.exit(1)
 
     # Some defaults for tools if args are not passed
