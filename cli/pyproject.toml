@@ -51,7 +51,6 @@ include = ["dev_tools*"]
     "dist/mcp/*.js",
     "dist/tools/*.js",
     "dist/tools/jules/*.js",
-    "dist/tools/ddgs_search.py",
     "dist/lib/*.js",
     "resources/*",
     "pr_overlap.py"

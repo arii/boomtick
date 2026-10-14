@@ -21,14 +21,11 @@ import { getChangedFilesHandler, GetChangedFilesInputSchema } from "../tools/rep
 import { readAgentContextHandler, ReadAgentContextInputSchema } from "../tools/repo.read_agent_context.js";
 import { getCommandSchemaHandler, GetCommandSchemaInputSchema } from "../tools/repo.get_command_schema.js";
 import { getPackageScriptsHandler, GetPackageScriptsInputSchema } from "../tools/repo.get_package_scripts.js";
-import { getRouteMapHandler, GetRouteMapInputSchema } from "../tools/repo.get_route_map.js";
 import { readCiLogsHandler, ReadCiLogsInputSchema } from "../tools/repo.read_ci_logs.js";
 import { repoLogsHandler, RepoLogsInputSchema } from "../tools/repo.logs.js";
 import { createRepairBranchHandler, CreateRepairBranchInputSchema } from "../tools/repo.create_repair_branch.js";
 import { createBranchHandler, CreateBranchInputSchema } from "../tools/repo.create_branch.js";
 import { runTestsHandler, RunTestsInputSchema } from "../tools/repo.run_tests.js";
-import { runLighthouseHandler, RunLighthouseInputSchema } from "../tools/repo.run_lighthouse.js";
-import { runPlaywrightHandler, RunPlaywrightInputSchema } from "../tools/repo.run_playwright.js";
 import { commitPatchHandler, CommitPatchInputSchema } from "../tools/repo.commit_patch.js";
 import { openReplacementPrHandler, OpenReplacementPrInputSchema } from "../tools/github.open_replacement_pr.js";
 import { commentTriageSummaryHandler, CommentTriageSummaryInputSchema } from "../tools/github.comment_triage_summary.js";
@@ -48,7 +45,6 @@ import { listJulesSessionsHandler, ListJulesSessionsInputSchema } from "../tools
 import { cancelJulesSessionHandler, CancelJulesSessionInputSchema } from "../tools/jules/cancel-session.js";
 import { getJulesPullRequestHandler, GetJulesPullRequestInputSchema } from "../tools/jules/get-pr.js";
 import { triggerJulesFeedbackHandler, TriggerJulesFeedbackInputSchema } from "../tools/jules/trigger-feedback.js";
-import { ddgsSearchHandler, DdgsSearchInputSchema } from "../tools/ddgs.search.js";
 
 import fs from "fs/promises";
 import { existsSync, readFileSync } from "fs";
@@ -129,12 +125,6 @@ export class BoomtickMCPServer {
           contents: [{ uri, mimeType: "application/json", text: content }],
         };
       }
-      if (uri === "repo://routes") {
-        const routeMap = await getRouteMapHandler({});
-        return {
-          contents: [{ uri, mimeType: "application/json", text: JSON.stringify(routeMap, null, 2) }],
-        };
-      }
       if (uri === "repo://design-tokens") {
         const tokensPath = path.join(config.repoPath, "src/styles/design-tokens.ts");
         const content = await fs.readFile(tokensPath, "utf-8");
@@ -154,20 +144,6 @@ export class BoomtickMCPServer {
         const logs = await readCiLogsHandler({ prNumber });
         return {
           contents: [{ uri, mimeType: "application/json", text: JSON.stringify(logs, null, 2) }],
-        };
-      }
-      if (uri.startsWith("repo://lighthouse/")) {
-        const branch = uri.split("/").pop() || "";
-        const report = await runLighthouseHandler({ route: "/", worktreePath: `../boomtick-mcp-rescue-${branch}` });
-        return {
-          contents: [{ uri, mimeType: "application/json", text: JSON.stringify(report, null, 2) }],
-        };
-      }
-      if (uri.startsWith("repo://playwright/")) {
-        const branch = uri.split("/").pop() || "";
-        const report = await runPlaywrightHandler({ worktreePath: `../boomtick-mcp-rescue-${branch}` });
-        return {
-          contents: [{ uri, mimeType: "application/json", text: JSON.stringify(report, null, 2) }],
         };
       }
       throw new Error(`Resource not found: ${uri}`);
@@ -213,9 +189,6 @@ export class BoomtickMCPServer {
           case "repo.get.package.scripts":
           case "repo.get_package_scripts":
             return createSuccessResult(await getPackageScriptsHandler(GetPackageScriptsInputSchema.parse(normArgs)));
-          case "repo.get.route.map":
-          case "repo.get_route_map":
-            return createSuccessResult(await getRouteMapHandler(GetRouteMapInputSchema.parse(normArgs)));
           case "repo.read.ci.logs":
           case "repo.read_ci_logs":
             return createSuccessResult(await readCiLogsHandler(ReadCiLogsInputSchema.parse(normArgs)));
@@ -230,12 +203,6 @@ export class BoomtickMCPServer {
           case "repo.run.tests":
           case "repo.run_tests":
             return createSuccessResult(await runTestsHandler(RunTestsInputSchema.parse(normArgs)));
-          case "repo.run.lighthouse":
-          case "repo.run_lighthouse":
-            return createSuccessResult(await runLighthouseHandler(RunLighthouseInputSchema.parse(normArgs)));
-          case "repo.run.playwright":
-          case "repo.run_playwright":
-            return createSuccessResult(await runPlaywrightHandler(RunPlaywrightInputSchema.parse(normArgs)));
           case "repo.commit.patch":
           case "repo.commit_patch":
             return createSuccessResult(await commitPatchHandler(CommitPatchInputSchema.parse(normArgs)));
@@ -288,9 +255,6 @@ export class BoomtickMCPServer {
           case "jules.trigger.feedback":
           case "jules.trigger_feedback":
             return createSuccessResult(await triggerJulesFeedbackHandler(TriggerJulesFeedbackInputSchema.parse(normArgs)));
-          case "agent.search.ddgs":
-          case "agent.search_ddgs":
-            return createSuccessResult(await ddgsSearchHandler(DdgsSearchInputSchema.parse(normArgs)));
           default:
             return createErrorResult(`Tool not found: ${request.params.name}`);
         }
@@ -375,15 +339,6 @@ export class BoomtickMCPServer {
       console.error("❌ Fatal: td-cli is not resolvable on PATH. MCP tools will fail.");
       console.error("Please ensure the project is installed: pip install -e .");
       console.error("❌ Fatal: td-cli pre-flight check failed:", error instanceof Error ? error.message : String(error));
-      process.exit(1);
-    }
-
-    const __dirname = path.dirname(fileURLToPath(import.meta.url));
-    const ddgsScriptPath = path.join(__dirname, "..", "tools", "ddgs_search.py");
-    try {
-      await fs.access(ddgsScriptPath);
-    } catch (err) {
-      console.error(`❌ Fatal: ddgs_search.py not found at ${ddgsScriptPath}`);
       process.exit(1);
     }
 

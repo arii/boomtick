@@ -3,11 +3,8 @@ import { BoomtickMCPServer } from "./server.js";
 import { config } from "../config.js";
 import fs from "fs/promises";
 import * as healthModule from "./tools.js";
-import * as routeMapModule from "../tools/repo.get_route_map.js";
 import * as prDiffModule from "../tools/github.get_pr_diff.js";
 import * as ciLogsModule from "../tools/repo.read_ci_logs.js";
-import * as lighthouseModule from "../tools/repo.run_lighthouse.js";
-import * as playwrightModule from "../tools/repo.run_playwright.js";
 
 vi.mock("fs/promises");
 vi.mock("../config.js", () => ({
@@ -124,19 +121,6 @@ describe("BoomtickMCPServer", () => {
       });
     });
 
-    it("should handle repo://routes", async () => {
-      const handler = requestHandlers.get("resources/read");
-      vi.spyOn(routeMapModule, "getRouteMapHandler").mockResolvedValue({ routes: ["/"] } as any);
-
-      const result = await handler!({
-        method: "resources/read",
-        params: { uri: "repo://routes" },
-      });
-
-      expect(result.contents[0].uri).toBe("repo://routes");
-      expect(JSON.parse(result.contents[0].text)).toEqual({ routes: ["/"] });
-    });
-
     it("should handle repo://design-tokens", async () => {
       const handler = requestHandlers.get("resources/read");
       vi.mocked(fs.readFile).mockResolvedValue("export const tokens = {};");
@@ -176,32 +160,6 @@ describe("BoomtickMCPServer", () => {
 
       expect(result.contents[0].uri).toBe("repo://ci/42");
       expect(JSON.parse(result.contents[0].text)).toEqual({ status: "success" });
-    });
-
-    it("should handle repo://lighthouse/:branch", async () => {
-      const handler = requestHandlers.get("resources/read");
-      vi.spyOn(lighthouseModule, "runLighthouseHandler").mockResolvedValue({ score: 100 } as any);
-
-      const result = await handler!({
-        method: "resources/read",
-        params: { uri: "repo://lighthouse/feature-x" },
-      });
-
-      expect(result.contents[0].uri).toBe("repo://lighthouse/feature-x");
-      expect(JSON.parse(result.contents[0].text)).toEqual({ score: 100 });
-    });
-
-    it("should handle repo://playwright/:branch", async () => {
-      const handler = requestHandlers.get("resources/read");
-      vi.spyOn(playwrightModule, "runPlaywrightHandler").mockResolvedValue({ passed: true } as any);
-
-      const result = await handler!({
-        method: "resources/read",
-        params: { uri: "repo://playwright/feature-x" },
-      });
-
-      expect(result.contents[0].uri).toBe("repo://playwright/feature-x");
-      expect(JSON.parse(result.contents[0].text)).toEqual({ passed: true });
     });
 
     it("should throw when resource is unknown", async () => {

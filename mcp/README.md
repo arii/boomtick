@@ -12,7 +12,6 @@ A Model Context Protocol (MCP) server designed to empower AI agents with structu
 
 ### 📄 Resources
 - `repo://package-json`: Access root package manifest.
-- `repo://routes`: Access application route-to-content mapping.
 - `repo://design-tokens`: Access UI design tokens.
 - `repo://diff/{prNumber}`: Access full PR diff text.
 - `repo://ci/{prNumber}`: Access detailed CI check results and logs.
