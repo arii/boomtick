@@ -36,7 +36,6 @@ Repository = "https://github.com/arii/boomtick"
 
 [project.scripts]
 td = "dev_tools.cli:main"
-td-cli = "dev_tools.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["."]

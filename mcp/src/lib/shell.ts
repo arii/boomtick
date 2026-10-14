@@ -63,7 +63,6 @@ export async function runCommand(
   const env = {
     ...process.env,
     ...options.env,
-    GH_TOKEN: config.githubToken,
     GITHUB_TOKEN: config.githubToken
   };
 
