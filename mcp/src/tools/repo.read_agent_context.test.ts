@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { loadStandaloneAgentContext } from "../lib/td-cli.js";
+import { loadStandaloneAgentContext } from "./repo.read_agent_context.js";
 
 describe("Standalone Agent Context Loader", () => {
   it("should load agent context without submodule references", () => {
