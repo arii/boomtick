@@ -131,7 +131,7 @@ class DeploymentImpactCheckNode(WorkflowNode):
 
 class FinalSynthesisNode(WorkflowNode):
     """
-    Mandatory terminal node that builds the final markdown context and generates the AI synthesis.
+    Mandatory terminal node that builds the final markdown context.
     Assumes the role 'synthesizer'.
     """
 
@@ -146,17 +146,9 @@ class FinalSynthesisNode(WorkflowNode):
         super().__init__(name, role, description, retry_policy, timeout)
 
     def execute(self, context: WorkflowContext) -> str:
-        from dev_tools.services.ai_service import AIClient
-
-        # Build the unified markdown string. This is the ONLY input to the AI.
+        # Build the unified markdown string.
         markdown_context = context.builder.build_markdown_context("generic")
-
-        # We don't call anything that spawns sub-agents or threads.
-        ai_client = AIClient()
-        try:
-            response = ai_client.generate(markdown_context)
-        except Exception as e:
-            response = f"AI Mock Response (Service Unavailable): {e}"
+        response = f"Synthesis Complete:\n\n{markdown_context}"
 
         context.set("final_synthesis_report", response)
         context.write_scratchpad("synthesis_complete", "Final report generated successfully.", role=self.role)

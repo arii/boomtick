@@ -1,11 +1,7 @@
-import { writeMissingApiKeyVerdict, writeDeprecatedVerdict } from './verdict';
+import { writeMissingApiKeyVerdict } from './verdict';
 
 export interface ReviewScriptOptions {
   geminiClient: {
-    reportFileName: string;
-    reportTitle: string;
-  };
-  githubModelsClient: {
     reportFileName: string;
     reportTitle: string;
   };
@@ -14,7 +10,7 @@ export interface ReviewScriptOptions {
 }
 
 export async function runReviewScript(options: ReviewScriptOptions): Promise<void> {
-  const provider = process.argv[2];
+  const provider = process.argv[2] || 'gemini';
 
   if (provider === 'gemini') {
     // security-safe: Environment variables are trusted in this workflow context.
@@ -32,20 +28,8 @@ export async function runReviewScript(options: ReviewScriptOptions): Promise<voi
       return;
     }
     await options.orchestrateGemini();
-  } else if (provider === 'github-models') {
-    console.warn(`⚠️  Skipping agent ${options.scriptName} — GitHub Models/OpenAI review is disabled. Only Gemini review is active.`);
-    try {
-      await writeDeprecatedVerdict(
-        options.githubModelsClient.reportFileName,
-        options.githubModelsClient.reportTitle,
-        'GitHub Models'
-      );
-    } catch (err) {
-      console.error('Failed to write deprecated verdict', err);
-    }
-    return;
   } else {
-    console.error('❌ Unknown provider specified.');
+    console.error('❌ Unknown or unsupported provider specified. Standardized directly on Gemini.');
     process.exit(1);
   }
 }

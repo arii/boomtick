@@ -19,8 +19,6 @@ from dev_tools.services.jules import JulesClient
 from dev_tools.ux_report import generate_report
 
 if TYPE_CHECKING:
-    from dev_tools.services.ai_service import AIClient
-    from dev_tools.services.vision_service import VisionService
     from dev_tools.workflows.context import WorkflowContext
 
 from dev_tools.config import get_config
@@ -88,7 +86,6 @@ class Orchestrator:
 
     def __init__(self, no_cache: bool = False) -> None:
         self._github: Optional[GitHubClient] = None
-        self._ai: Optional[AIClient] = None
         self._jules: Optional[JulesClient] = None
         self.no_cache = no_cache
 
@@ -99,14 +96,6 @@ class Orchestrator:
         return self._github
 
     @property
-    def ai(self) -> "AIClient":
-        if self._ai is None:
-            from dev_tools.services.ai_service import AIClient
-
-            self._ai = AIClient()
-        return self._ai
-
-    @property
     def jules(self) -> JulesClient:
         if self._jules is None:
             self._jules = JulesClient()
@@ -114,12 +103,6 @@ class Orchestrator:
 
     def initialize_jules(self, client: JulesClient) -> None:
         self._jules = client
-
-    @property
-    def vision(self) -> "VisionService":
-        from dev_tools.services.vision_service import VisionService
-
-        return VisionService()
 
     def _resolve_antipatterns_script(self) -> str:
         """Resolves the path to detect-antipatterns.mjs."""
@@ -234,56 +217,81 @@ class Orchestrator:
         if "pr_number" in kwargs:
             prNumber = kwargs["pr_number"]
         """
-        Fetches a PR, its diff, and generates a code review using LocalAI/Gemini.
+        Fetches a PR and evaluates AST and heuristic compliance rules locally.
         """
         pr_details = self.github.fetch_pr_details(prNumber)
         sha = pr_details.get("head", {}).get("sha")
         check_runs = self.github.fetch_check_runs(sha)
-        pr_details["checkResults"] = check_runs
-
-        # Fetch logs for failing checks
-        failing_logs: Dict[str, str] = {}
-        structured_failures = []
-        for run in check_runs:
-            if run.get("conclusion") == "failure":
-                run_id = run.get("id")
-                findings: List[Dict[str, Any]] = []
-                if isinstance(run_id, int):
-                    logs = self.github.fetch_check_run_logs(run_id, external_id=run.get("external_id"))
-                    failing_logs[str(run.get("name", "unknown"))] = logs[-5000:]  # Keep last 5k chars
-                    findings = extract_failing_info(logs)
-                for f in findings:
-                    structured_failures.append(
-                        {
-                            "check": run.get("name"),
-                            "file": f["file"],
-                            "line": f["line"],
-                            "message": f["message"],
-                            "type": f["type"],
-                        }
-                    )
-
-        pr_details["failingLogs"] = failing_logs
-        pr_details["structuredFailures"] = structured_failures
-
         pr_diff = self.github.fetch_pr_diff(prNumber)
-        diff_hash = self._hash_content(pr_diff)
-        # Store cache in local logs directory to avoid /tmp Security Error
-        review_dir = get_or_create_log_dir("reviews")
-        cache_file = os.path.join(review_dir, f"review_cache_{prNumber}_{diff_hash}.json")
-        if os.path.exists(cache_file):
-            with open(cache_file, "r", encoding="utf-8") as review_file:
-                return json.load(review_file)
-        review_result = self.ai.generate_code_review(pr_details, pr_diff)
-        with open(cache_file, "w", encoding="utf-8") as review_file:
-            json.dump(review_result, review_file)
-        return review_result
+
+        feedback = self.evaluate_pr_heuristics(pr_details, pr_diff, {"check_runs": check_runs})
+        fails = [c["name"] for c in check_runs if c.get("conclusion") == "failure"]
+        verdict = "Not Approved" if fails else "Approved"
+
+        return {
+            "prNumber": prNumber,
+            "recommendation": verdict,
+            "reviewComment": feedback,
+            "findings": [],
+        }
 
     def resolve_conflict(self, file_path: str, strategy: Optional[str] = None) -> bool:
         """
-        Detects merge conflicts via GitHubClient (implicit local git), analyzes logic with AI.
+        Resolves git conflict markers in a file using a deterministic strategy (ours, theirs, union).
         """
-        return self.ai.resolve_file_conflicts(file_path, strategy=strategy)
+        if not os.path.exists(file_path):
+            raise CLIError(f"File not found: {file_path}")
+
+        try:
+            with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
+                content = f.read()
+
+            if "<<<<<<<" not in content:
+                return True
+
+            strat = (strategy or "ours").lower()
+            lines = content.splitlines(keepends=True)
+            new_lines = []
+            in_ours = False
+            in_theirs = False
+            ours_block: List[str] = []
+            theirs_block: List[str] = []
+
+            for line in lines:
+                if line.startswith("<<<<<<<"):
+                    in_ours = True
+                    in_theirs = False
+                    ours_block = []
+                    theirs_block = []
+                elif line.startswith("======="):
+                    in_ours = False
+                    in_theirs = True
+                elif line.startswith(">>>>>>>"):
+                    in_ours = False
+                    in_theirs = False
+                    if strat == "ours":
+                        new_lines.extend(ours_block)
+                    elif strat == "theirs":
+                        new_lines.extend(theirs_block)
+                    elif strat == "union":
+                        new_lines.extend(ours_block)
+                        new_lines.extend(theirs_block)
+                    else:
+                        new_lines.extend(ours_block)
+                elif in_ours:
+                    ours_block.append(line)
+                elif in_theirs:
+                    theirs_block.append(line)
+                else:
+                    new_lines.append(line)
+
+            with open(file_path, "w", encoding="utf-8") as f:
+                f.writelines(new_lines)
+
+            return True
+        except Exception as e:
+            log_warn(f"Failed to resolve conflicts in {file_path}: {e}")
+            return False
 
     def analyze_file(self, file_path: str) -> str:
         if not os.path.exists(file_path):
@@ -291,8 +299,7 @@ class Orchestrator:
 
         with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
             content = f.read()
-        prompt = f"Analyze this file for bugs, style issues, and potential improvements:\n\n{content[:20000]}"
-        return self.ai.generate(prompt)
+        return f"Deterministic Analysis for {file_path}:\nLength: {len(content)} characters, {len(content.splitlines())} lines."
 
     def find_conflict_files(self) -> List[str]:
         """

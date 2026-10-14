@@ -225,7 +225,6 @@ install_python_deps() {
   if [ -f "cli/pyproject.toml" ]; then
     log "Performing editable install of cli package..."
     local pkg_spec="cli/"
-    [ "$INSTALL_AI_DEPS" = "1" ] && pkg_spec="cli/[ai]"
     pip_install --root-user-action=ignore -e "$pkg_spec"
     export PATH="$HOME/.local/bin:$PATH"
     if ! have td-cli && ! have td; then
@@ -234,14 +233,7 @@ install_python_deps() {
     STATUS_PYTHON="INSTALLED (td-cli)"
   else
     pip_install --root-user-action=ignore requests python-dotenv pydantic click PyGithub
-    if [ "$INSTALL_AI_DEPS" = "1" ] && [ -f "cli/requirements-ai.txt" ]; then
-      pip_install --root-user-action=ignore -r cli/requirements-ai.txt
-    fi
     STATUS_PYTHON="INSTALLED (minimal)"
-  fi
-
-  if [ "$INSTALL_AI_DEPS" = "1" ]; then
-    STATUS_PYTHON="${STATUS_PYTHON} + AI"
   fi
 
   if [ -f "cli/requirements-dev.txt" ]; then

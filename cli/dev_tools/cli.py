@@ -1269,34 +1269,23 @@ def ai_get_context(ctx):
         click.echo(json.dumps([]))
         return
 
-    orch = ctx.obj["ORCHESTRATOR"]
     results = []
 
-    ai_client = orch.ai
-    graph = ai_client.dependency_graph
-    store = ai_client.vector_store
+    from dev_tools.services.dependency_graph import DependencyGraph
+
+    graph = DependencyGraph()
 
     for item in files_data:
         filepath = item.get("path")
-        diff_text = item.get("diff")
         if not filepath:
             continue
 
         context = {
             "path": filepath,
-            "dependencies": graph.get_dependencies(filepath),
-            "dependents": graph.get_dependents(filepath),
+            "dependencies": list(graph.get_dependencies(filepath)),
+            "dependents": list(graph.get_dependents(filepath)),
             "semantic": [],
         }
-
-        if diff_text and store.is_available():
-            try:
-                semantic_results = store.query(diff_text, n_results=3)
-                for res in semantic_results:
-                    if res["metadata"].get("path") != filepath:
-                        context["semantic"].append({"path": res["metadata"].get("path"), "document": res["document"]})
-            except Exception as e:
-                log_warn(f"Error querying vector store for {filepath}: {e}")
 
         results.append(context)
 
