@@ -53,10 +53,6 @@ def main():
     if os.path.exists(dev_reqs_path):
         req_args.extend(["-r", dev_reqs_path])
 
-    ai_reqs_path = os.path.join(cli_dir, "requirements-ai.txt")
-    if os.path.exists(ai_reqs_path):
-        req_args.extend(["-r", ai_reqs_path])
-
     pinned_reqs_path = os.path.join(cli_dir, "requirements-pinned.txt")
     if os.path.exists(pinned_reqs_path):
         req_args.extend(["-r", pinned_reqs_path])

@@ -453,46 +453,8 @@ def call_ai(
     max_retries: int = 3,
     schema: Optional[Dict[str, Any]] = None,
 ) -> Optional[str]:
-    """Unified helper to call AI API using LangChain ChatOpenAI with retries."""
-
-    openai_key = os.getenv("OPENAI_API_KEY") or os.getenv("OPEN_API_KEY")
-    github_token = get_github_token()
-
-    if openai_key:
-        token = openai_key
-        url_target = "https://api.openai.com/v1/chat/completions"
-    elif github_token:
-        # GitHub Models is deprecated/disabled. Do not call models.inference.ai.azure.com.
-        return None
-    else:
-        return None
-
-    model = model or get_ai_model()
-    headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
-    payload = {
-        "model": model,
-        "messages": [{"role": "user", "content": prompt}],
-        "temperature": 0.7,
-        "max_tokens": 2048,
-    }
-    if schema:
-        payload["response_format"] = {"type": "json_object"}
-
-    try:
-        response = _call_api_with_retry(
-            "POST",
-            url_target,
-            headers=headers,
-            json=payload,
-            max_retries=max_retries,
-            retry_status_codes=[429, 500, 502, 503, 504],
-        )
-        if not response:
-            return None
-        return response.json()["choices"][0]["message"]["content"]
-    except Exception as e:
-        log_error(f"AI Call failed: {e}")
-        return None
+    """Offline stub for call_ai."""
+    return None
 
 
 def log_ai_run(entry: dict):
@@ -511,74 +473,8 @@ def log_ai_run(entry: dict):
 def call_github_models(
     prompt: str, model: Optional[str] = None, max_retries: int = 3, schema: Optional[Dict[str, Any]] = None
 ) -> Optional[str]:
-    """Unified helper to call GitHub Models API (OpenAI-compatible)."""
-    openai_key = os.getenv("OPENAI_API_KEY") or os.getenv("OPEN_API_KEY")
-    github_token = get_github_token()
-
-    if openai_key:
-        token = openai_key
-        base_url = os.environ.get("GITHUB_MODELS_BASE_URL", "https://api.openai.com/v1")
-    elif github_token:
-        # GitHub Models is deprecated/disabled. Do not call models.inference.ai.azure.com.
-        return None
-    else:
-        return None
-    if not base_url.endswith("/"):
-        base_url += "/"
-    target_url = urllib.parse.urljoin(base_url, "chat/completions")
-
-    data: Dict[str, Any] = {
-        "model": model or get_ai_model(),
-        "messages": [{"role": "user", "content": prompt}],
-        "stream": False,
-    }
-    if schema:
-        # OpenAI style: prompt injection + json_object mode
-        norm_schema = to_standard_schema(schema)
-        data["response_format"] = {"type": "json_object"}
-        messages = data.get("messages")
-        if isinstance(messages, list):
-            messages.insert(
-                0,
-                {
-                    "role": "system",
-                    "content": f"Output MUST be valid JSON matching this schema: {json.dumps(norm_schema)}",
-                },
-            )
-
-    start_time = time.time()
-    try:
-        response = _call_api_with_retry(
-            "POST",
-            target_url,
-            json=data,
-            headers={"Authorization": f"Bearer {token}"},
-            max_retries=max_retries,
-        )
-        res = response.json()
-    except Exception as e:
-        log_error(f"GitHub Models call failed: {e}")
-        return None
-
-    duration_ms = int((time.time() - start_time) * 1000)
-
-    if res and "usage" in res:
-        usage = res["usage"]
-        log_ai_run(
-            {
-                "type": "python-tool",
-                "model": model or get_ai_model(),
-                "inputTokens": usage.get("prompt_tokens", 0),
-                "outputTokens": usage.get("completion_tokens", 0),
-                "cacheTokens": usage.get("prompt_tokens_details", {}).get("cached_tokens", 0),
-                "totalTokens": usage.get("total_tokens", 0),
-                "durationMs": duration_ms,
-                "cost": 0,
-                "verdict": "unknown",
-            }
-        )
-
-    return res["choices"][0]["message"]["content"] if res and "choices" in res else None
+    """Offline stub for call_github_models."""
+    return None
 
 
 def verify_ci_metrics(
@@ -671,56 +567,14 @@ def verify_ci_metrics(
 def call_gemini(
     prompt: str, model: Optional[str] = None, max_retries: int = 3, schema: Optional[Dict[str, Any]] = None
 ) -> Optional[str]:
-    """Unified helper to call Gemini API using LangChain."""
-
-    api_key = os.environ.get("GEMINI_API_KEY")
-    if not api_key:
-        return None
-
-    if schema:
-        # Note: structured output handling varies by LangChain version/provider
-        # For simplicity in this shim, we'll rely on prompt engineering if bind_tools isn't used
-        prompt += f"\n\nOutput MUST be valid JSON matching this schema: {json.dumps(schema)}"
-
-    url_target = f"https://generativelanguage.googleapis.com/v1beta/models/{model or get_gemini_model()}:generateContent?key={api_key}"
-    headers = {"Content-Type": "application/json"}
-    payload = {
-        "contents": [{"parts": [{"text": prompt}]}],
-        "generationConfig": {
-            "temperature": 0.7,
-        },
-    }
-
-    try:
-        response = _call_api_with_retry("POST", url_target, headers=headers, json=payload, max_retries=max_retries)
-        if not response:
-            return None
-        data = response.json()
-        if "candidates" in data and len(data["candidates"]) > 0:
-            return data["candidates"][0]["content"]["parts"][0]["text"]
-        return None
-    except Exception as e:
-        log_error(f"Gemini Call failed: {e}")
-        return None
+    """Offline stub for call_gemini."""
+    return None
 
 
 def call_ai_service(
     prompt: str, model: Optional[str] = None, schema: Optional[Dict[str, Any]] = None
 ) -> Optional[str]:
-    """
-    Orchestrates AI calls: GitHub Models -> Gemini.
-    """
-    # 1. Try GitHub Models
-    res = call_github_models(prompt, model=model, schema=schema)
-    if res:
-        return res
-
-    # 2. Try Gemini
-    # Gemini model naming is different, let it use default for now
-    res = call_gemini(prompt, schema=schema)
-    if res:
-        return res
-
+    """Offline stub for call_ai_service."""
     return None
 
 

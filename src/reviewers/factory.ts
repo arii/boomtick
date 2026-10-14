@@ -10,8 +10,6 @@ export interface ModelConfiguration {
   fallbacks: string[]; // Ordered list of backups if this model hits limits
 }
 
-import { loadProjectConfig } from "../../lib/projectConfig";
-
 export class GitHubModelFactory {
   private static clientInstance: OpenAI | null = null;
 
@@ -55,18 +53,6 @@ export class GitHubModelFactory {
     if (primaryEnv) {
       const fallbacks = fallbacksEnv ? fallbacksEnv.split(',').map(s => s.trim()) : [];
       return [primaryEnv, ...fallbacks];
-    }
-
-    // 2. Check project config (only if not running in vitest tests to prevent local config from interfering with unit tests)
-    if (!process.env.VITEST) {
-      try {
-        const projConfig = loadProjectConfig();
-        if (projConfig.code_review_chain) {
-          return [projConfig.code_review_chain.primary, ...projConfig.code_review_chain.fallbacks];
-        }
-      } catch {
-        // ignore
-      }
     }
 
     return ["gpt-4o-mini"];

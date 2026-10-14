@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "boomtick-cli"
 version = "0.11.0"
-description = "BoomTick CLI — agentic dev-tools for GitHub + AI workflows"
+description = "BoomTick CLI — agentic dev-tools for GitHub workflows"
 authors = [{name = "Ariel Anders"}]
 readme = "README.md"
 classifiers = [
@@ -33,15 +33,6 @@ Homepage = "https://github.com/arii/boomtick"
 Repository = "https://github.com/arii/boomtick"
 "Showcase: boomtick.blog" = "https://boomtick.blog"
 "Showcase: Portfolio" = "https://arii.github.io"
-
-[project.optional-dependencies]
-ai = [
-    "google-genai",
-    "chromadb>=1.5.9",
-    "sentence-transformers>=5.6.0",
-    "langchain-google-genai",
-    "langchain-openai"
-]
 
 [project.scripts]
 td = "dev_tools.cli:main"
