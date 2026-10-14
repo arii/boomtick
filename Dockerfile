@@ -3,7 +3,7 @@ FROM node:24-alpine AS builder
 
 WORKDIR /workspace
 
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml tsconfig.app.json .node-version ./
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml tsconfig.app.json tsup.config.ts .node-version ./
 RUN corepack enable && corepack prepare pnpm@10.28.2 --activate
 
 COPY cli /workspace/cli
@@ -20,7 +20,8 @@ FROM node:24-alpine
 
 ENV PATH="/workspace/node_modules/.bin:$PATH"
 
-RUN apk add --no-cache git jq ca-certificates
+RUN apk add --no-cache git jq ca-certificates && \
+    git config --global --add safe.directory '*'
 
 WORKDIR /workspace
 
