@@ -3,7 +3,7 @@ FROM node:24-alpine AS builder
 
 WORKDIR /workspace
 
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml tsconfig.app.json tsup.config.ts ./
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml tsconfig.app.json tsup.config.ts .node-version ./
 COPY scripts /workspace/scripts
 COPY lib /workspace/lib
 COPY src /workspace/src
