@@ -45,6 +45,10 @@ runs:
           echo "::error::Invalid issue_number: must be numeric."
           exit 1
         fi
+
+        {
+          echo "GITHUB_TOKEN=$GITHUB_TOKEN"
+        } >> "$GITHUB_ENV"
       shell: bash
 
     # --- VALIDATE QUALITY ---

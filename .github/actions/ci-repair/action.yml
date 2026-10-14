@@ -31,6 +31,10 @@ runs:
           echo "::error::github_token is missing."
           exit 1
         fi
+
+        {
+          echo "GITHUB_TOKEN=$GITHUB_TOKEN"
+        } >> "$GITHUB_ENV"
       shell: bash
 
     - name: Set up Python
