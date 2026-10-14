@@ -7,13 +7,11 @@ import {
   GetMergeConflictFilesInputJsonSchema,
   GetChangedFilesInputJsonSchema,
   GetPackageScriptsInputJsonSchema,
-  GetRouteMapInputJsonSchema,
   ReadCiLogsInputJsonSchema,
   RepoLogsInputJsonSchema,
   CreateBranchInputJsonSchema,
   CreateRepairBranchInputJsonSchema,
   RunTestsInputJsonSchema,
-  RunLighthouseInputJsonSchema,
   RunPlaywrightInputJsonSchema,
   CommitPatchInputJsonSchema,
   OpenReplacementPrInputJsonSchema,
@@ -30,7 +28,6 @@ import {
   JulesSessionIdInputJsonSchema,
   JulesSendMessageInputJsonSchema,
   JulesListSessionsInputJsonSchema,
-  SearchDdgsInputJsonSchema,
   GetPrReviewsInputJsonSchema,
   GetPrCommitsInputJsonSchema,
   GetWorkflowRunsInputJsonSchema,
@@ -149,11 +146,6 @@ const BASE_MCP_TOOLS: Tool[] = [
     inputSchema: GetPackageScriptsInputJsonSchema as any,
   },
   {
-    name: "repo.get_route_map",
-    description: "Get the mapping of routes to content files.",
-    inputSchema: GetRouteMapInputJsonSchema as any,
-  },
-  {
     name: "repo.read_ci_logs",
     description: "Read CI logs for a given pull request.",
     inputSchema: ReadCiLogsInputJsonSchema as any,
@@ -177,11 +169,6 @@ const BASE_MCP_TOOLS: Tool[] = [
     name: "repo.run_tests",
     description: "Run repository tests and checks.",
     inputSchema: RunTestsInputJsonSchema as any,
-  },
-  {
-    name: "repo.run_lighthouse",
-    description: "Run Lighthouse CI audits.",
-    inputSchema: RunLighthouseInputJsonSchema as any,
   },
   {
     name: "repo.run_playwright",
@@ -287,11 +274,6 @@ const BASE_MCP_TOOLS: Tool[] = [
     name: "jules.trigger_feedback",
     description: "Automatically collect CI status/logs for the PR associated with a Jules session and send them back as feedback.",
     inputSchema: JulesSessionIdInputJsonSchema as any,
-  },
-  {
-    name: "agent.search_ddgs",
-    description: "Search the web using DuckDuckGo (via ddgs python library).",
-    inputSchema: SearchDdgsInputJsonSchema as any,
   },
 ];
 

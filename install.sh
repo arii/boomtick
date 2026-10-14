@@ -71,14 +71,12 @@ validate_env
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 cd "$DIR"
 
-# Try to find resolve-cli.sh in standard locations
-if [ -f "scripts/resolve-cli.sh" ]; then
-    CLI_ROOT="$(bash scripts/resolve-cli.sh)"
-elif [ -f "../scripts/resolve-cli.sh" ]; then
-    CLI_ROOT="$(bash ../scripts/resolve-cli.sh)"
+if [ -d "cli" ]; then
+    CLI_ROOT="$(pwd)/cli"
+elif [ -d "../cli" ]; then
+    CLI_ROOT="$(pwd)/../cli"
 else
-    # Fallback if scripts are missing
-    if [ -d "cli" ]; then CLI_ROOT="$(pwd)/cli"; else CLI_ROOT="$(pwd)"; fi
+    CLI_ROOT="$(pwd)"
 fi
 export CLI_ROOT
 

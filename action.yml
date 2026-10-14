@@ -1,0 +1,16 @@
+name: 'BoomTick AI Code Review'
+description: 'Autonomous AI Code Review Action'
+inputs:
+  github-token:
+    description: 'GitHub token for PR comments and review status updates'
+    required: true
+  gemini-api-key:
+    description: 'Gemini API key for code review synthesis'
+    required: true
+
+runs:
+  using: 'docker'
+  image: 'Dockerfile'
+  env:
+    GITHUB_TOKEN: ${{ inputs.github-token }}
+    GEMINI_API_KEY: ${{ inputs.gemini-api-key }}
