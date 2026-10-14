@@ -22,6 +22,8 @@ describe("Git Helpers", () => {
         exitCode: 0,
         stdout: mockStdout,
         stderr: "",
+        durationMs: 10,
+        command: "git diff --name-status -z main...HEAD",
       });
 
       const result = await getChangedFiles("main", "HEAD");
@@ -43,6 +45,8 @@ describe("Git Helpers", () => {
         exitCode: 1,
         stdout: "",
         stderr: "fatal: bad revision",
+        durationMs: 10,
+        command: "git diff --name-status -z invalid...HEAD",
       });
 
       await expect(getChangedFiles("invalid", "HEAD")).rejects.toThrow(
@@ -60,6 +64,8 @@ describe("Git Helpers", () => {
         exitCode: 1, // merge-tree exits 1 on conflicts
         stdout: mockStdout,
         stderr: "",
+        durationMs: 10,
+        command: "git merge-tree --write-tree --name-only main feature",
       });
 
       const conflicts = await getMergeConflictFiles("main", "feature");
@@ -78,6 +84,8 @@ describe("Git Helpers", () => {
         exitCode: 0,
         stdout: mockStdout,
         stderr: "",
+        durationMs: 10,
+        command: "git merge-tree --write-tree --name-only main feature",
       });
 
       const conflicts = await getMergeConflictFiles("main", "feature");
@@ -90,6 +98,8 @@ describe("Git Helpers", () => {
         exitCode: 128,
         stdout: "",
         stderr: "fatal: not a valid object name",
+        durationMs: 10,
+        command: "git merge-tree --write-tree --name-only invalid feature",
       });
 
       await expect(getMergeConflictFiles("invalid", "feature")).rejects.toThrow(
