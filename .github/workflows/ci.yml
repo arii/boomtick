@@ -133,7 +133,6 @@ jobs:
       - name: Run Lint & Typecheck (Python)
         if: matrix.target == 'python'
         run: |
-          pnpm run bootstrap:python
           pnpm run lint:python
           pnpm run type-check:python
 
@@ -177,7 +176,6 @@ jobs:
 
       - name: Run Python CLI Tests (pytest)
         run: |
-          pnpm run bootstrap:python
           pnpm run test:python
 
   impact-analysis:

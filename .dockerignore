@@ -6,6 +6,7 @@ cli/.venv
 artifacts
 dist
 **/dist
+!dist/runner.cjs
 *.log
 .DS_Store
 .env
