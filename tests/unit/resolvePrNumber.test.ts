@@ -20,7 +20,7 @@ describe('resolvePrNumber', () => {
     expect(resolvePrNumber('', 202, 303)).toBe('202');
   });
 
-  it('falls back to head branch PR lookup when event and input are missing', () => {
+  it('falls back to branch PR lookup when event and input are missing', () => {
     expect(resolvePrNumber('', '', 303)).toBe('303');
   });
 
