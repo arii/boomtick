@@ -3,7 +3,7 @@ FROM node:24-alpine AS builder
 
 WORKDIR /workspace
 
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml tsconfig.app.json ./
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml tsconfig.app.json .node-version ./
 RUN corepack enable && corepack prepare pnpm@10.28.2 --activate
 
 COPY scripts /workspace/scripts
@@ -21,8 +21,9 @@ RUN apk add --no-cache git jq ca-certificates
 
 WORKDIR /workspace
 
-COPY package.json ./
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY --from=builder /workspace/dist /workspace/dist
+COPY --from=builder /workspace/node_modules /workspace/node_modules
 
 COPY docker-entrypoint.sh /docker-entrypoint.sh
 RUN chmod +x /docker-entrypoint.sh

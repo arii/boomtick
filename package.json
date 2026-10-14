@@ -23,7 +23,7 @@
     "preinstall": "node scripts/check-runtime-files.mjs",
     "impact:analysis": "tsx scripts/impact-analysis.ts",
     "impact:build-main": "tsx scripts/impact-build-main.ts",
-    "build:review": "tsup --entry.runner scripts/impact-ai-code-review.ts --entry.impact scripts/impact-analysis.ts --format cjs --out-dir dist --clean --no-splitting",
+    "build:review": "tsup scripts/impact-ai-code-review.ts scripts/impact-analysis.ts --format cjs --out-dir dist --clean --no-splitting && node -e \"fs.renameSync('dist/impact-ai-code-review.js', 'dist/runner.cjs'); fs.renameSync('dist/impact-analysis.js', 'dist/impact.cjs');\"",
     "impact:gemini-code-review": "tsx scripts/impact-ai-code-review.ts gemini",
     "impact:github-models-code-review": "tsx scripts/impact-ai-code-review.ts github-models",
     "impact:visual-diff": "tsx scripts/impact-visual-diff.ts",
