@@ -1,0 +1,15 @@
+name: 'BoomTick AI Code Review'
+description: 'Runs standalone AI code review in Docker container'
+inputs:
+  github-token:
+    description: 'GitHub Token'
+    required: true
+  gemini-api-key:
+    description: 'Gemini API Key'
+    required: false
+runs:
+  using: 'docker'
+  image: 'Dockerfile'
+  env:
+    GITHUB_TOKEN: ${{ inputs.github-token }}
+    GEMINI_API_KEY: ${{ inputs.gemini-api-key }}

@@ -62,7 +62,7 @@ jobs:
         uses: actions/checkout@v7
 
       - name: Setup Workspace
-        uses: arii/boomtick/.github/actions/setup-workspace@main # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
+        uses: ./.github/actions/setup-workspace
         with:
           setup-python: 'false'
 
@@ -121,7 +121,7 @@ jobs:
           ref: ${{ inputs.ref || github.ref }}
 
       - name: Setup Workspace
-        uses: arii/boomtick/.github/actions/setup-workspace@main # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
+        uses: ./.github/actions/setup-workspace
 
       - name: Run Lint & Typecheck (TypeScript)
         if: matrix.target == 'typescript'
@@ -133,7 +133,6 @@ jobs:
       - name: Run Lint & Typecheck (Python)
         if: matrix.target == 'python'
         run: |
-          pnpm run bootstrap:python
           pnpm run lint:python
           pnpm run type-check:python
 
@@ -148,7 +147,7 @@ jobs:
           ref: ${{ inputs.ref || github.ref }}
 
       - name: Setup Workspace
-        uses: arii/boomtick/.github/actions/setup-workspace@main # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
+        uses: ./.github/actions/setup-workspace
 
       - name: Install Dependencies
         run: pnpm install --frozen-lockfile
@@ -167,7 +166,7 @@ jobs:
           ref: ${{ inputs.ref || github.ref }}
 
       - name: Setup Workspace
-        uses: arii/boomtick/.github/actions/setup-workspace@main # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
+        uses: ./.github/actions/setup-workspace
 
       - name: Install Dependencies
         run: pnpm install --frozen-lockfile
@@ -177,7 +176,6 @@ jobs:
 
       - name: Run Python CLI Tests (pytest)
         run: |
-          pnpm run bootstrap:python
           pnpm run test:python
 
   impact-analysis:
@@ -226,7 +224,7 @@ jobs:
           cache-to: type=gha,mode=max
 
       - name: Run Deployment Impact Analysis
-        uses: arii/boomtick/.github/actions/impact-analysis@main # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
+        uses: ./.github/actions/impact-analysis
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           gemini_api_key: ${{ secrets.GEMINI_API_KEY }}
@@ -279,7 +277,7 @@ jobs:
           cache-to: type=gha,mode=max
 
       - name: Run Standalone Impact Analysis
-        uses: arii/boomtick/.github/actions/impact-analysis@main # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
+        uses: ./.github/actions/impact-analysis
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           gemini_api_key: ${{ secrets.GEMINI_API_KEY }}

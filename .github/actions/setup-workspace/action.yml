@@ -65,22 +65,14 @@ runs:
       id: resolve-paths
       shell: bash
       run: |
-        # Use centralized script for CLI path resolution
-        # We assume the script is at the expected location or fallback to manual check
-        if [ -f "scripts/resolve-cli.sh" ]; then
-          CLI_DIR=$(bash scripts/resolve-cli.sh | sed "s|$(pwd)/||")
-        elif [ -f "boomtick-pkg/scripts/resolve-cli.sh" ]; then
-          CLI_DIR=$(bash boomtick-pkg/scripts/resolve-cli.sh | sed "s|$(pwd)/||")
-        elif [ -f "boomtick/scripts/resolve-cli.sh" ]; then
-          CLI_DIR=$(bash boomtick/scripts/resolve-cli.sh | sed "s|$(pwd)/||")
-        elif [ -f "${{ github.action_path }}/../../../scripts/resolve-cli.sh" ]; then
-          CLI_DIR=$(REPO_ROOT="${{ github.action_path }}/../../../" bash "${{ github.action_path }}/../../../scripts/resolve-cli.sh" | sed "s|$(pwd)/||")
-        elif [ -d "cli" ]; then
+        if [ -d "cli" ]; then
           CLI_DIR="cli"
         elif [ -d "boomtick-pkg/cli" ]; then
           CLI_DIR="boomtick-pkg/cli"
         elif [ -d "boomtick/cli" ]; then
           CLI_DIR="boomtick/cli"
+        elif [ -d "${{ github.action_path }}/../../../cli" ]; then
+          CLI_DIR="${{ github.action_path }}/../../../cli"
         else
           CLI_DIR="cli"
         fi
