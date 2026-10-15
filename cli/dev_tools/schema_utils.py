@@ -79,7 +79,7 @@ def collect_commands(root_cmd, prefix="", max_depth=10):
                         opt_flags.append(option_dict)
 
             # Build a cleaner exact_usage string
-            usage = f"td-cli {cmd_name}"
+            usage = f"td {cmd_name}"
             if req_flags:
                 usage += " " + " ".join([f"{f['flag']} <{f['flag'].lstrip('-').upper()}>" for f in req_flags])
 

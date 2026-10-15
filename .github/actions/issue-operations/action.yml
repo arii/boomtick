@@ -31,10 +31,10 @@ runs:
     - name: Pre-flight Validations
       id: validate
       env:
-        GH_TOKEN: ${{ inputs.github_token }}
+        GITHUB_TOKEN: ${{ inputs.github_token }}
         ISSUE_NUMBER: ${{ inputs.issue_number }}
       run: |
-        if [ -z "$GH_TOKEN" ]; then
+        if [ -z "$GITHUB_TOKEN" ]; then
           echo "::error::github_token is missing."
           exit 1
         fi
@@ -47,8 +47,7 @@ runs:
         fi
 
         {
-          echo "GH_TOKEN=$GH_TOKEN"
-          echo "GITHUB_TOKEN=$GH_TOKEN"
+          echo "GITHUB_TOKEN=$GITHUB_TOKEN"
         } >> "$GITHUB_ENV"
       shell: bash
 
@@ -69,7 +68,7 @@ runs:
       env:
         ISSUE_NUM: ${{ inputs.issue_number }}
       run: |
-        td-cli gh validate-issue --issue-number "$ISSUE_NUM" --post-comments --execute
+        td gh validate-issue --issue-number "$ISSUE_NUM" --post-comments --execute
       shell: bash
 
     # --- CREATE PR ---
@@ -159,7 +158,7 @@ runs:
     - name: Find and Resolve Conflicts
       if: inputs.operation == 'resolve-conflicts'
       run: |
-        td-cli gh resolve
+        td gh resolve
       shell: bash
 
     - name: Validate Resolution

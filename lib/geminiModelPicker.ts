@@ -44,15 +44,6 @@ export const GEMINI_MODELS_METADATA: GeminiModel[] = [
   }
 ];
 
-export const DEPRECATED_MODELS = [
-  'gemini-1.5-flash',
-  'gemini-1.5-pro',
-  'gemini-pro',
-  'gemini-2.0-flash',
-  'gemini-2.0-pro',
-  'gemini-2.0-flash-thinking'
-];
-
 let cachedModels: string[] | null = null;
 
 /**
@@ -107,7 +98,7 @@ export async function pickGeminiModel(
 
   const availableIds = await resolveAvailableGeminiModels();
   const activeModels = GEMINI_MODELS_METADATA.filter(m =>
-    availableIds.includes(m.id) && !DEPRECATED_MODELS.includes(m.id)
+    availableIds.includes(m.id)
   );
 
   if (activeModels.length === 0) {

@@ -60,10 +60,10 @@ jobs:
       - name: Trigger update-submodule workflow in tech-dancer
         id: trigger_workflow
         env:
-          GH_TOKEN: ${{ steps.generate_token.outputs.token }}
+          GITHUB_TOKEN: ${{ steps.generate_token.outputs.token }}
           BRANCH_NAME: ${{ steps.get-branch.outputs.branch }}
         run: |
-          if [ -z "$GH_TOKEN" ]; then
+          if [ -z "$GITHUB_TOKEN" ]; then
             echo "::warning::GitHub App Token could not be generated. Cannot trigger downstream CI."
             echo "triggered=false" >> "$GITHUB_OUTPUT"
             exit 0

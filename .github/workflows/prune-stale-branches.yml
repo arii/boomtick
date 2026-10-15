@@ -28,7 +28,7 @@ jobs:
       - name: Identify and Prune
         env:
           # security-safe: This token is a standard GitHub Actions token used to authenticate the gh CLI.
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           # Specify the list of protected branches to keep (comma-separated).
           PROTECTED_BRANCHES: "main,master,develop,gh-pages"
         run: |

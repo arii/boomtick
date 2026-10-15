@@ -6,7 +6,7 @@ export const TriggerJulesFeedbackInputSchema = z.object({
 });
 
 export async function triggerJulesFeedbackHandler(input: z.infer<typeof TriggerJulesFeedbackInputSchema>) {
-  const result = await runCommand("td-cli", ["agent", "trigger-feedback", input.sessionId]);
+  const result = await runCommand("td", ["agent", "trigger-feedback", input.sessionId]);
 
   if (result.exitCode !== 0) {
     throw new Error(`Failed to trigger feedback: ${result.stderr}`);

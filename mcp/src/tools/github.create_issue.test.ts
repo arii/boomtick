@@ -23,11 +23,11 @@ describe("github.create_issue", () => {
       stderr: "",
       exitCode: 0,
       durationMs: 10,
-      command: "td-cli gh create-issue --title 'Test Issue' --body 'Test Body'"
+      command: "td gh create-issue --title 'Test Issue' --body 'Test Body'"
     });
 
     const result = await createIssueHandler({ title: "Test Issue", body: "Test Body", file: null, repo: null });
-    expect(shell.runCommand).toHaveBeenCalledWith("td-cli", [
+    expect(shell.runCommand).toHaveBeenCalledWith("td", [
       "gh",
       "create-issue",
       "--title",
@@ -58,7 +58,7 @@ describe("github.create_issue", () => {
       stderr: "",
       exitCode: 0,
       durationMs: 10,
-      command: "td-cli gh create-issue --title 'Cross Repo Issue' --body 'Body' --repo 'org/other-repo'"
+      command: "td gh create-issue --title 'Cross Repo Issue' --body 'Body' --repo 'org/other-repo'"
     });
 
     const result = await createIssueHandler({
@@ -68,7 +68,7 @@ describe("github.create_issue", () => {
       repo: "org/other-repo"
     });
 
-    expect(shell.runCommand).toHaveBeenCalledWith("td-cli", [
+    expect(shell.runCommand).toHaveBeenCalledWith("td", [
       "gh",
       "create-issue",
       "--title",
@@ -88,7 +88,7 @@ describe("github.create_issue", () => {
       stderr: "Auth failed",
       exitCode: 1,
       durationMs: 10,
-      command: "td-cli gh create-issue"
+      command: "td gh create-issue"
     });
 
     await expect(createIssueHandler({ title: "Test Issue", body: "Test Body", file: null, repo: null })).rejects.toThrow("Failed to create issue: Auth failed");
@@ -105,7 +105,7 @@ describe("github.create_issue", () => {
       stderr: "",
       exitCode: 0,
       durationMs: 10,
-      command: "td-cli gh create-issue"
+      command: "td gh create-issue"
     });
 
     await expect(createIssueHandler({ title: "Test Issue", body: "Test Body", file: null, repo: null })).rejects.toThrow("Failed to create issue: Repo not found");

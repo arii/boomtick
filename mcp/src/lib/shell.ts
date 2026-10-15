@@ -6,7 +6,7 @@ import fs from "fs";
 export const ALLOWED_COMMANDS = {
   git: "git",
   gh: "gh",
-  "td-cli": "td-cli",
+  td: "td",
   pnpm: "pnpm",
   ls: "ls",
   rm: "rm",
@@ -39,15 +39,15 @@ export async function runCommand(
   const start = Date.now();
   const timeout = options.timeout || 60000;
 
-  // Resolve path for 'gh' or 'td-cli' if specified
+  // Resolve path for 'gh' or 'td' if specified
   let finalCmd = ALLOWED_COMMANDS[safeCmd] as string;
   if (safeCmd === "gh") {
     finalCmd = config.ghPath;
-  } else if (safeCmd === "td-cli") {
+  } else if (safeCmd === "td") {
     // If we have a repo-relative .venv, prioritize it
-    const venvBin = path.join(config.repoPath, ".venv", "bin", "td-cli");
-    const localVenvBin = path.join(process.cwd(), ".venv", "bin", "td-cli");
-    const parentVenvBin = path.join(config.repoPath, "..", ".venv", "bin", "td-cli");
+    const venvBin = path.join(config.repoPath, ".venv", "bin", "td");
+    const localVenvBin = path.join(process.cwd(), ".venv", "bin", "td");
+    const parentVenvBin = path.join(config.repoPath, "..", ".venv", "bin", "td");
 
     // In standalone mode, config.repoPath is the boomtick-pkg root.
     // We check common venv locations to ensure we call the isolated binary.
@@ -63,7 +63,6 @@ export async function runCommand(
   const env = {
     ...process.env,
     ...options.env,
-    GH_TOKEN: config.githubToken,
     GITHUB_TOKEN: config.githubToken
   };
 

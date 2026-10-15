@@ -25,16 +25,15 @@ runs:
     - name: Pre-flight Validations
       id: validate
       env:
-        GH_TOKEN: ${{ inputs.github_token }}
+        GITHUB_TOKEN: ${{ inputs.github_token }}
       run: |
-        if [ -z "$GH_TOKEN" ]; then
+        if [ -z "$GITHUB_TOKEN" ]; then
           echo "::error::github_token is missing."
           exit 1
         fi
 
         {
-          echo "GH_TOKEN=$GH_TOKEN"
-          echo "GITHUB_TOKEN=$GH_TOKEN"
+          echo "GITHUB_TOKEN=$GITHUB_TOKEN"
         } >> "$GITHUB_ENV"
       shell: bash
 
@@ -228,8 +227,8 @@ runs:
           exit 0
         fi
 
-        # Use td-cli to dispatch Jules
-        td-cli jules fix-ci --issue-number "$ISSUE_NUMBER" --execute
+        # Use td to dispatch Jules
+        td jules fix-ci --issue-number "$ISSUE_NUMBER" --execute
       shell: bash
 
     # --- MANUAL REPAIR MODE ---
@@ -239,7 +238,7 @@ runs:
         JULES_API_KEY_INPUT: ${{ inputs.jules_api_key }}
       run: |
         MISSING=()
-        if [ -z "$GH_TOKEN" ]; then MISSING+=("GITHUB_TOKEN"); fi
+        if [ -z "$GITHUB_TOKEN" ]; then MISSING+=("GITHUB_TOKEN"); fi
         if [ -z "$JULES_API_KEY_INPUT" ]; then MISSING+=("JULES_API_KEY"); fi
 
         if [ ${#MISSING[@]} -ne 0 ]; then
@@ -260,5 +259,5 @@ runs:
           echo "::error::Invalid issue_number: must be numeric."
           exit 1
         fi
-        td-cli jules fix-ci --pr-number "$ISSUE_NUMBER" --execute
+        td jules fix-ci --pr-number "$ISSUE_NUMBER" --execute
       shell: bash

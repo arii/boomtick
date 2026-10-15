@@ -14,7 +14,7 @@ describe("MCP GitHub tools", () => {
   });
 
   describe("getPrReviewsHandler", () => {
-    it("should fetch PR reviews via td-cli gh read-pr-reviews", async () => {
+    it("should fetch PR reviews via td gh read-pr-reviews", async () => {
       vi.mocked(shell.runCommand).mockResolvedValueOnce({
         stdout: JSON.stringify({
           status: "success",
@@ -24,12 +24,12 @@ describe("MCP GitHub tools", () => {
         stderr: "",
         exitCode: 0,
         durationMs: 10,
-        command: "td-cli gh read-pr-reviews",
+        command: "td gh read-pr-reviews",
       });
 
       const res = await getPrReviewsHandler({ prNumber: 819, repo: "arii/boomtick" });
 
-      expect(shell.runCommand).toHaveBeenCalledWith("td-cli", [
+      expect(shell.runCommand).toHaveBeenCalledWith("td", [
         "gh",
         "read-pr-reviews",
         "--pr-number",
@@ -45,7 +45,7 @@ describe("MCP GitHub tools", () => {
   });
 
   describe("getPrCommitsHandler", () => {
-    it("should list PR commits via td-cli gh list-pr-commits", async () => {
+    it("should list PR commits via td gh list-pr-commits", async () => {
       vi.mocked(shell.runCommand).mockResolvedValueOnce({
         stdout: JSON.stringify({
           status: "success",
@@ -54,12 +54,12 @@ describe("MCP GitHub tools", () => {
         stderr: "",
         exitCode: 0,
         durationMs: 10,
-        command: "td-cli gh list-pr-commits",
+        command: "td gh list-pr-commits",
       });
 
       const res = await getPrCommitsHandler({ prNumber: 819, repo: "arii/boomtick" });
 
-      expect(shell.runCommand).toHaveBeenCalledWith("td-cli", [
+      expect(shell.runCommand).toHaveBeenCalledWith("td", [
         "gh",
         "list-pr-commits",
         "--pr-number",
@@ -74,7 +74,7 @@ describe("MCP GitHub tools", () => {
   });
 
   describe("getWorkflowRunsHandler", () => {
-    it("should fetch workflow runs via td-cli repo workflow-runs", async () => {
+    it("should fetch workflow runs via td repo workflow-runs", async () => {
       vi.mocked(shell.runCommand).mockResolvedValueOnce({
         stdout: JSON.stringify({
           status: "success",
@@ -83,7 +83,7 @@ describe("MCP GitHub tools", () => {
         stderr: "",
         exitCode: 0,
         durationMs: 10,
-        command: "td-cli repo workflow-runs",
+        command: "td repo workflow-runs",
       });
 
       const res = await getWorkflowRunsHandler({
@@ -92,7 +92,7 @@ describe("MCP GitHub tools", () => {
         repo: "arii/boomtick",
       });
 
-      expect(shell.runCommand).toHaveBeenCalledWith("td-cli", [
+      expect(shell.runCommand).toHaveBeenCalledWith("td", [
         "repo",
         "workflow-runs",
         "--repo",
