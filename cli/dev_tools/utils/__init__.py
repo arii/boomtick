@@ -51,7 +51,7 @@ def sanitize_path(path: str, max_length: int = 255) -> str:
 
 
 def escape_md(text: Any) -> str:
-    """Escapes markdown special characters using a single regex pass."""
+    """Escapes markdown special characters using a single regex ."""
     # Escape \, *, _, `, #, [, ], (, )
     return re.sub(r"([\\*_\`#\[\]\(\)])", r"\\\1", str(text))
 
@@ -87,7 +87,7 @@ def mask_sensitive_data(msg: str) -> str:
     msg = re.sub(r"github_pat_[a-zA-Z0-9]{22}_[a-zA-Z0-9]{59,}", "github_pat_***", msg)
     # Generic token redaction for URLs or assignments (e.g., token=ABC123xyz)
     msg = re.sub(
-        r"(?i)(token|auth|key|secret|password|access_token)([:=])[a-zA-Z0-9._-]{10,}",
+        r"(?i)(token|auth|key|secret|word|access_token)([:=])[a-zA-Z0-9._-]{10,}",
         r"\1\2***",
         msg,
     )
@@ -294,7 +294,7 @@ class DiskCache:
 
     def __init__(self, subdir: str = "cache", no_cache: bool = False):
         self.cache_dir = get_or_create_log_dir(subdir)
-        # Use explicit parameter or TD_NO_CACHE to bypass the cache
+        # Use explicit parameter or TD_NO_CACHE to by the cache
         self.no_cache = no_cache or os.environ.get("TD_NO_CACHE") == "true"
 
     def _get_path(self, key: str) -> Path:
@@ -685,7 +685,7 @@ def set_gha_variable(name: str, value: str) -> bool:
     try:
         proc = run_command(["gh", "variable", "set", name, "--body", str(value)], check=False, log_on_error=False)
         if isinstance(proc, subprocess.CompletedProcess) and proc.returncode == 0:
-            _gha_var_cache[name] = str(value)
+
             return True
         elif isinstance(proc, subprocess.CompletedProcess):
             log_warn(f"Failed to set GHA variable {name}. stderr: {proc.stderr}")
