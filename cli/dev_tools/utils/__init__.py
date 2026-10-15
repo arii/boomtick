@@ -680,30 +680,11 @@ def get_repo_name() -> Optional[str]:
         return None
 
 
-_gha_var_cache: Dict[str, str] = {}
-
-
-def get_gha_variable(name: str) -> Optional[str]:
-    """Helper function to retrieve a GHA variable via the native gh cli with lightweight memory cache."""
-    if name in _gha_var_cache:
-        return _gha_var_cache[name]
-    try:
-        proc = run_command(["gh", "variable", "get", name], check=False, log_on_error=False)
-        if isinstance(proc, subprocess.CompletedProcess) and proc.returncode == 0:
-            val = proc.stdout.strip()
-            _gha_var_cache[name] = val
-            return val
-    except Exception as e:
-        log_warn(f"Failed to get GHA variable {name}: {e}")
-    return None
-
-
 def set_gha_variable(name: str, value: str) -> bool:
     """Helper function to set a GHA variable via the native gh cli."""
     try:
         proc = run_command(["gh", "variable", "set", name, "--body", str(value)], check=False, log_on_error=False)
         if isinstance(proc, subprocess.CompletedProcess) and proc.returncode == 0:
-            _gha_var_cache[name] = str(value)
             return True
         elif isinstance(proc, subprocess.CompletedProcess):
             log_warn(f"Failed to set GHA variable {name}. stderr: {proc.stderr}")

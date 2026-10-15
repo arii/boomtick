@@ -24,7 +24,6 @@ and git hook registration.
 | Variable | Required | Purpose |
 | :--- | :--- | :--- |
 | `GITHUB_TOKEN` (string) | **Required** | Auth for `gh` and `td gh ...` commands (PR audits, comments, variables, status checks). Standard for GH Actions. |
-| `GITHUB_TOKEN` (string) | Optional fallback | Legacy authentication variable, deprecated in favor of `GITHUB_TOKEN`. |
 | `GITHUB_REPOSITORY` (`owner/repo`) | Recommended | Ensures deterministic `origin` remote auto-configuration. |
 | `JULES_API_KEY` | Optional | Enables `td agent ...` / `td jules ...` cloud workflows. |
 | `GEMINI_API_KEY` | Optional | Enables Gemini-backed review/audit workflows. |

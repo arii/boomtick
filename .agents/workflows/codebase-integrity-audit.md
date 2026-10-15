@@ -100,8 +100,8 @@ After refactoring any file (under either Part 1 or Part 2), you must run the ver
 # 1. Ensure environment is loaded
 source .venv/bin/activate
 
-# 2. Verify pinned runtime dependencies and configuration via td-cli
-td-cli doctor
+# 2. Verify pinned runtime dependencies and configuration via td
+td doctor
 
 # 3. Verify validation schemas pipeline
 pnpm run verify:schemas

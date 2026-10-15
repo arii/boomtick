@@ -2,7 +2,7 @@
 
 # Problem Statement
 
-Developers and automated agents currently spend significant manual effort investigating and resolving CI pipeline failures. While localized repair tools like the `td-cli agent repair` command exist for local developer usage, there is no standardized, comprehensive agentic workflow documented in `.agents/workflows/` that formally defines how an autonomous agent should handle CI failure triage, root-cause analysis, and automated remediation within the Boomtick architecture. Without a clear workflow, agents lack a structured protocol to autonomously setup their environment, fetch logs, isolate root causes, execute targeted remediation, validate their changes, and push resolutions.
+Developers and automated agents currently spend significant manual effort investigating and resolving CI pipeline failures. While localized repair tools like the `td agent repair` command exist for local developer usage, there is no standardized, comprehensive agentic workflow documented in `.agents/workflows/` that formally defines how an autonomous agent should handle CI failure triage, root-cause analysis, and automated remediation within the Boomtick architecture. Without a clear workflow, agents lack a structured protocol to autonomously setup their environment, fetch logs, isolate root causes, execute targeted remediation, validate their changes, and push resolutions.
 
 # Goal
 
@@ -10,7 +10,7 @@ Define and specify a fully standardized agentic workflow document at `.agents/wo
 
 # Non-Goals
 
-- Modifying existing `td-cli` Python source code or adding new `td-cli` agent commands.
+- Modifying existing `td` Python source code or adding new `td` agent commands.
 - Implementing or modifying the core agent execution engine itself.
 - Covering generic bug fixes or feature requests unrelated to CI failures.
 
@@ -28,7 +28,7 @@ The autonomous agent must follow a highly structured, multi-phase execution loop
 # Alternatives Considered
 
 - **Expanding `review-pr.md`**: Considered expanding the existing PR review workflow to cover CI remediation. This was rejected because CI remediation is a distinct, highly complex operation that requires dedicated isolation, specific local testing environments, and retry-loop tracking. Combining them would bloat the context window of the review agent.
-- **Using raw bash commands only**: Considered relying solely on raw bash commands instead of `td-cli` tools. This was rejected because the `td-cli` toolset (e.g. `td-cli doctor`) enforces critical environment, version, and dependency invariants that protect repository integrity.
+- **Using raw bash commands only**: Considered relying solely on raw bash commands instead of `td` tools. This was rejected because the `td` toolset (e.g. `td doctor`) enforces critical environment, version, and dependency invariants that protect repository integrity.
 
 # Architectural Impact
 
@@ -60,7 +60,7 @@ The agent must initialize its sandbox environment exactly as follows:
   ```
 - Run the doctor tool to verify that the CLI, Node, and pnpm versions are properly pinned and healthy:
   ```bash
-  td-cli doctor
+  td doctor
   ```
 
 ## Step 2: Log Retrieval
@@ -68,9 +68,9 @@ The agent must initialize its sandbox environment exactly as follows:
   ```bash
   gh run view <RUN_ID> --log
   ```
-- Alternatively, if running under a PR or commit context, fetch the latest check run logs using `td-cli` or `gh`:
+- Alternatively, if running under a PR or commit context, fetch the latest check run logs using `td` or `gh`:
   ```bash
-  td-cli gh audit-pr <PR_NUMBER> --fetch
+  td gh audit-pr <PR_NUMBER> --fetch
   ```
 - Extract the failing lines or test traces. If the log is too large, the agent should search for keywords like `ERROR`, `FAIL`, `Vitest`, or `pytest`.
 
@@ -128,19 +128,19 @@ The CI Remediation Agent Workflow is considered complete and successful when all
 
 ### Acceptance Criteria
 - [ ] **Verification**: The file `.agents/workflows/ci-remediation.md` exists and contains all required spec-driven sections.
-- [ ] **Setup Instructions**: The workflow explicitly mandates environment setup with `source .venv/bin/activate` and `td-cli doctor`.
-- [ ] **Log Triage**: Detailed instructions are provided to retrieve CI logs using `gh` or `td-cli`.
+- [ ] **Setup Instructions**: The workflow explicitly mandates environment setup with `source .venv/bin/activate` and `td doctor`.
+- [ ] **Log Triage**: Detailed instructions are provided to retrieve CI logs using `gh` or `td`.
 - [ ] **Validation Protocol**: The workflow requires local validation using `pnpm run lint`, `pnpm run type-check`, `pnpm run test`, and `pytest cli/tests`.
 - [ ] **Attempt Limit**: An explicit maximum limit of 3 tries is defined to prevent infinite agent loops.
 - [ ] **No Regressions**: All existing CLI and workspace tests continue to pass perfectly.
-- [ ] **Zero Findings**: Running `td-cli gh validate-issue --file .agents/workflows/ci-remediation.md` returns zero findings and zero warnings.
+- [ ] **Zero Findings**: Running `td gh validate-issue --file .agents/workflows/ci-remediation.md` returns zero findings and zero warnings.
 
 ### Validation Steps
 1. Verify that the `.agents/workflows/ci-remediation.md` file is present in the repository.
 2. Run the validation tool to ensure the markdown structure conforms to the specifications:
    ```bash
    source .venv/bin/activate
-   td-cli gh validate-issue --file .agents/workflows/ci-remediation.md
+   td gh validate-issue --file .agents/workflows/ci-remediation.md
    ```
 3. Run the complete workspace linting, type-checking, and testing suites to verify system integrity:
    ```bash

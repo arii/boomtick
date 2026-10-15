@@ -33,7 +33,6 @@ from dev_tools.utils import (
     find_patterns_in_file,
     get_any_count,
     get_bundle_size,
-    get_gha_variable,
     get_github_client,
     get_or_create_log_dir,
     get_repo_name,
@@ -351,7 +350,7 @@ class Orchestrator:
     def get_env_or_gha(self, env_var: str) -> Optional[str]:
         if env_var in os.environ:
             return os.environ[env_var]
-        return get_gha_variable(env_var)
+        return None
 
     def resolve_baseline(self, file_path: Optional[str], env_var: str, fallback_value: int) -> int:
         if file_path and os.path.exists(file_path):
@@ -1102,7 +1101,7 @@ class Orchestrator:
                 results["steps"].append({"name": name, "status": "failure", "error": str(e)})
                 raise e
         missing_vars = [
-            v for v in ["BUNDLE_BASELINE_KB", "ANY_COUNT_BASELINE"] if not (os.environ.get(v) or get_gha_variable(v))
+            v for v in ["BUNDLE_BASELINE_KB", "ANY_COUNT_BASELINE"] if not os.environ.get(v)
         ]
         if missing_vars:
             results["steps"].append(

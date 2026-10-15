@@ -83,4 +83,4 @@ RUN npx --yes playwright@${PLAYWRIGHT_VERSION} install chromium
 
 WORKDIR /github/workspace
 
-ENTRYPOINT ["td-cli"]
+ENTRYPOINT ["td"]
