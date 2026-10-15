@@ -12,7 +12,7 @@ export async function getPrReviewsHandler(args: z.infer<typeof GetPrReviewsInput
   const params = GetPrReviewsInputSchema.parse(args);
   const targetRepo = resolveRepo(params.repo);
 
-  const result = await runCommand("td-cli", ["gh", "read-pr-reviews", "--pr-number", params.prNumber.toString(), "--repo", targetRepo]);
+  const result = await runCommand("td", ["gh", "read-pr-reviews", "--pr-number", params.prNumber.toString(), "--repo", targetRepo]);
 
   if (result.exitCode !== 0) {
     throw new Error(`Failed to read PR reviews: ${sanitizeError(result.stderr)}`);

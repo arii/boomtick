@@ -19,13 +19,13 @@ export async function runPlaywrightHandler(args: RunPlaywrightInput) {
     tdArgs.push("--worktree", parsed.worktreePath);
   }
 
-  const result = await runCommand("td-cli", tdArgs, {
+  const result = await runCommand("td", tdArgs, {
     cwd: parsed.worktreePath,
     timeout: parsed.timeoutSeconds * 1000,
   });
 
   if (result.exitCode !== 0) {
-    // Playwright might exit with non-zero if tests fail, but our td-cli should ideally handle it
+    // Playwright might exit with non-zero if tests fail, but our td should ideally handle it
     // and return a JSON with success: false.
   }
 

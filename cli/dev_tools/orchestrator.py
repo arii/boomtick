@@ -188,7 +188,7 @@ class Orchestrator:
 
         if is_python:
             feedback += "- **Python Scripting:** Python changes detected.\n"
-            feedback += "  - *Fix:* Ensure `python3 -m pytest tests/` passes. Update `test_td-cli` or equivalent test files if extending `dev-tools`.\n"
+            feedback += "  - *Fix:* Ensure `python3 -m pytest tests/` passes. Update `test_td` or equivalent test files if extending `dev-tools`.\n"
 
         if is_infra:
             feedback += PROJECT_CONFIG.infra_feedback
@@ -346,7 +346,7 @@ class Orchestrator:
         session = self.jules.create_session_from_source(source_id, branch, prompt, title=title)
         return session
 
-    # --- Helper methods ported from td-cli ---
+    # --- Helper methods ported from td ---
 
     def get_env_or_gha(self, env_var: str) -> Optional[str]:
         if env_var in os.environ:

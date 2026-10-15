@@ -116,4 +116,4 @@ In scenarios involving branch orchestration or PR consolidation, agents may enco
 
 ## 11. Tooling Guidelines
 
-Agents must not directly use git or gh commands but reuse existing tooling (`td-cli`).
+Agents must not directly use git or gh commands but reuse existing tooling (`td`).

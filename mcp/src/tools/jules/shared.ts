@@ -16,20 +16,20 @@ function tryParseJson(text: string): TDCliResponse | null {
 }
 
 export async function runTDCli(args: string[]): Promise<TDCliResponse> {
-  const result = await runCommand("td-cli", args);
+  const result = await runCommand("td", args);
   const stdout = result.stdout.trim();
   const output = stdout.startsWith("{") ? tryParseJson(stdout) : null;
 
   if (output?.status === "error") {
-    throw new Error(`td-cli returned error: ${output.message ?? "Unknown error"}`);
+    throw new Error(`td returned error: ${output.message ?? "Unknown error"}`);
   }
 
   if (result.exitCode !== 0) {
-    throw new Error(`td-cli command failed (${args.join(" ")}): ${result.stderr || stdout}`);
+    throw new Error(`td command failed (${args.join(" ")}): ${result.stderr || stdout}`);
   }
 
   if (!output) {
-    throw new Error(`td-cli returned non-JSON output with exit code 0: ${stdout}`);
+    throw new Error(`td returned non-JSON output with exit code 0: ${stdout}`);
   }
 
   return output;

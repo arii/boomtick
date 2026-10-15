@@ -31,10 +31,10 @@ runs:
     - name: Pre-flight Validations
       id: validate
       env:
-        GH_TOKEN: ${{ inputs.github_token }}
+        GITHUB_TOKEN: ${{ inputs.github_token }}
         ISSUE_NUMBER: ${{ inputs.issue_number }}
       run: |
-        if [ -z "$GH_TOKEN" ]; then
+        if [ -z "$GITHUB_TOKEN" ]; then
           echo "::error::github_token is missing."
           exit 1
         fi
@@ -47,8 +47,7 @@ runs:
         fi
 
         {
-          echo "GH_TOKEN=$GH_TOKEN"
-          echo "GITHUB_TOKEN=$GH_TOKEN"
+          echo "GITHUB_TOKEN=$GITHUB_TOKEN"
         } >> "$GITHUB_ENV"
       shell: bash
 

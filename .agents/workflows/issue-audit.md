@@ -2,21 +2,21 @@
 
 Audit every currently open GitHub issue in this repository and create a persistent `issue-audit-status.md` document that tracks the full process with checkboxes.
 
-You must continue working until every open issue has been reviewed. Do not stop to ask questions, request verification, or wait for confirmation. Make reasonable decisions based on the repository, agent docs, current codebase, roadmap docs, existing conventions, closed issues, linked PRs, and the available `td-cli` commands.
+You must continue working until every open issue has been reviewed. Do not stop to ask questions, request verification, or wait for confirmation. Make reasonable decisions based on the repository, agent docs, current codebase, roadmap docs, existing conventions, closed issues, linked PRs, and the available `td` commands.
 
 ---
 
 ## Required Setup
 
 1. Read the repository agent docs first (`.agents/workflows/`).
-2. **CRITICAL:** Activate the Python virtual environment before running any `td-cli` commands:
+2. **CRITICAL:** Activate the Python virtual environment before running any `td` commands:
    ```bash
    source .venv/bin/activate
    ```
 3. Verify environment and remote setup:
    ```bash
-   td-cli doctor
-   td-cli gh detect-conflicts
+   td doctor
+   td gh detect-conflicts
    ```
 4. Create or update an `issue-audit-status.md` file before beginning detailed audit work.
 5. Keep `issue-audit-status.md` updated as you complete each issue review.
@@ -25,20 +25,20 @@ Use the dev-tools CLI wherever it helps inspect issues, labels, linked PRs, bran
 
 ```bash
 # Search for issues (state defaults to open)
-td-cli gh search-issues --state open --limit 10
+td gh search-issues --state open --limit 10
 
 # Validate a single issue or all open issues
-td-cli gh validate-issue --issue-number <N>
-td-cli gh validate-issue --all-open
+td gh validate-issue --issue-number <N>
+td gh validate-issue --all-open
 
 # View PR status board to cross-reference active work
-td-cli gh status-board
+td gh status-board
 
 # Check for overlapping / duplicate PR work
-td-cli gh overlaps
+td gh overlaps
 
 # Post a comment to an issue (dry-run by default, requires --execute to actually post)
-td-cli gh validate-issue --all-open --post-comments --execute
+td gh validate-issue --all-open --post-comments --execute
 ```
 
 ---
@@ -162,7 +162,7 @@ If repository permissions and tooling allow it, update issues directly after wri
 
 ```bash
 # Post audit comments and apply label updates
-td-cli gh validate-issue --all-open --post-comments --execute
+td gh validate-issue --all-open --post-comments --execute
 ```
 
 ---

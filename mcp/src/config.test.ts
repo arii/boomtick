@@ -20,14 +20,14 @@ describe("config", () => {
   });
 
   describe("initializeConfig", () => {
-    it("should load dynamic config from td-cli config view using active cwd", async () => {
+    it("should load dynamic config from td config view using active cwd", async () => {
       const mockConfig = { github_repo: "owner/repo", base_branch: "origin/main", vite_base_path: "/app/" };
       vi.mocked(execSync).mockReturnValue(JSON.stringify(mockConfig));
 
       const { initializeConfig } = await import("./config.js");
       const result = initializeConfig();
 
-      expect(execSync).toHaveBeenCalledWith("td-cli config view", expect.objectContaining({
+      expect(execSync).toHaveBeenCalledWith("td config view", expect.objectContaining({
         cwd: process.cwd()
       }));
       expect(result).toEqual(mockConfig);
@@ -119,7 +119,7 @@ describe("config", () => {
       delete process.env.GITHUB_REPOSITORY;
       delete process.env.GH_REPO;
       vi.mocked(execSync).mockImplementation(() => {
-        throw new Error("td-cli failed");
+        throw new Error("td failed");
       });
 
       process.env.NODE_ENV = "production";

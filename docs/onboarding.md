@@ -49,7 +49,7 @@ Downstream consumer repositories integrate Boomtick's powerful automation capabi
 
 #### 1. PyPI Package (`boomtick`)
 
-The Python CLI developer tool (`td-cli`) and automation utilities are available directly via PyPI.
+The Python CLI developer tool (`td`) and automation utilities are available directly via PyPI.
 
 ```bash
 # Standard pip installation
@@ -61,7 +61,7 @@ uv pip install boomtick
 
 Verify installation:
 ```bash
-td-cli --help
+td --help
 ```
 
 #### 2. Docker Container (`ghcr.io/arii/boomtick`)
@@ -73,7 +73,7 @@ For containerized environments, CI runners, or isolated execution, Boomtick prov
 docker pull ghcr.io/arii/boomtick:latest
 
 # Run interactive CLI command inside container
-docker run --rm -it -v $(pwd):/app -e GITHUB_TOKEN=$GITHUB_TOKEN ghcr.io/arii/boomtick:latest td-cli --help
+docker run --rm -it -v $(pwd):/app -e GITHUB_TOKEN=$GITHUB_TOKEN ghcr.io/arii/boomtick:latest td --help
 ```
 
 Commit-tagged images are also available for reproducible builds (e.g. `ghcr.io/arii/boomtick:sha-<commit_sha>`).
@@ -99,7 +99,7 @@ npx @arii/boomtick-mcp
 Every downstream repository consuming `boomtick` requires workspace configuration files at its root.
 
 #### Step 1: Create `project_config.json`
-Add `project_config.json` to declare base parameters for `td-cli` and AI review model routing:
+Add `project_config.json` to declare base parameters for `td` and AI review model routing:
 
 ```json
 {
@@ -136,7 +136,7 @@ Instead of local script paths or submodules, reference Boomtick's composite acti
 #### Available Reusable Actions
 Boomtick exposes the following Composite Actions under `arii/boomtick/.github/actions/` (or `mcp/actions/`):
 
-1. **`setup-workspace`**: Installs Node, Python, and the `td-cli` developer tool natively onto the runner.
+1. **`setup-workspace`**: Installs Node, Python, and the `td` developer tool natively onto the runner.
    ```yaml
    uses: arii/boomtick/.github/actions/setup-workspace@main # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
    with:
@@ -261,4 +261,4 @@ This onboarding and integration guide applies to all downstream consumer reposit
 1. `docs/onboarding.md` is updated to remove submodule instructions.
 2. `docs/onboarding.md` includes instructions for PyPI (`pip install boomtick`), Docker (`ghcr.io/arii/boomtick`), and MCP package usage (`@arii/boomtick-mcp`).
 3. A clear "Onboarding Checklist" is present in the guide.
-4. The issue successfully validates against `td-cli gh validate-issue`.
+4. The issue successfully validates against `td gh validate-issue`.

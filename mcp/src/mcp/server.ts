@@ -353,7 +353,7 @@ export class BoomtickMCPServer {
 
     // 4. SECURE, UNIX-ONLY PRE-FLIGHT CHECK FOR TD-CLI
     try {
-      const result = spawnSync("td-cli", ["doctor"], { 
+      const result = spawnSync("td", ["doctor"], {
         encoding: "utf-8", 
         cwd: repoPath,
         shell: false // Explicitly disabled to clear Semgrep rules
@@ -367,14 +367,14 @@ export class BoomtickMCPServer {
         console.error("status:", result.status);
         console.error("stdout:", result.stdout);
         console.error("stderr:", result.stderr);
-        throw new Error(`td-cli doctor returned exit code: ${result.status}`);
+        throw new Error(`td doctor returned exit code: ${result.status}`);
       }
 
-      console.error("✅ td-cli verified on PATH securely");
+      console.error("✅ td verified on PATH securely");
     } catch (error) {
-      console.error("❌ Fatal: td-cli is not resolvable on PATH. MCP tools will fail.");
+      console.error("❌ Fatal: td is not resolvable on PATH. MCP tools will fail.");
       console.error("Please ensure the project is installed: pip install -e .");
-      console.error("❌ Fatal: td-cli pre-flight check failed:", error instanceof Error ? error.message : String(error));
+      console.error("❌ Fatal: td pre-flight check failed:", error instanceof Error ? error.message : String(error));
       process.exit(1);
     }
 

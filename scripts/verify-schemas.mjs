@@ -22,18 +22,18 @@ async function verifySchemas() {
       ? `${existingPythonPath}${delimiter}${cliDir}`
       : cliDir;
 
-    let hasTdCli = existsSync('.venv/bin/td-cli');
+    let hasTdCli = existsSync('.venv/bin/td');
     if (!hasTdCli) {
       try {
-        execSync('command -v td-cli', { stdio: 'ignore' });
+        execSync('command -v td', { stdio: 'ignore' });
         hasTdCli = true;
       } catch (_) {}
     }
 
     if (hasTdCli) {
-      const tdCliPath = existsSync('.venv/bin/td-cli') ? '.venv/bin/td-cli' : 'td-cli';
+      const tdCliPath = existsSync('.venv/bin/td') ? '.venv/bin/td' : 'td';
       if (!/^[a-zA-Z0-9/._-]+$/.test(tdCliPath)) {
-        throw new Error("Invalid td-cli path detected.");
+        throw new Error("Invalid td path detected.");
       }
       execFileSync(tdCliPath, ['schema', '--generate'], {
         stdio: 'inherit',

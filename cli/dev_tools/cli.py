@@ -735,7 +735,7 @@ def detect_conflicts(ctx, pr, all_prs):
     if pr is not None and all_prs:
         err(ctx, "Provide either --pr or --all, not both")
     if pr is None and not all_prs:
-        click.echo("💡 Suggestion: Use 'td-cli gh detect-conflicts --all' to explicitly scan all open PRs.", err=True)
+        click.echo("💡 Suggestion: Use 'td gh detect-conflicts --all' to explicitly scan all open PRs.", err=True)
         all_prs = True
     orch = ctx.obj["ORCHESTRATOR"]
     conflicts = orch.handle_detect_conflicts(pr_num=pr, all_prs=all_prs)
@@ -969,7 +969,7 @@ def schema_cmd(ctx, command_path, generate):
         if command_path and " " not in command_path:
             # Provide a small hint for common top-level groups
             if command_path in ["gh", "repo", "config", "ux", "agent", "jules"]:
-                msg += f" Did you mean 'td-cli schema {command_path}' to see subcommands?"
+                msg += f" Did you mean 'td schema {command_path}' to see subcommands?"
         err(ctx, msg)
         return
 
