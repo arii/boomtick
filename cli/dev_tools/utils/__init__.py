@@ -685,6 +685,7 @@ def set_gha_variable(name: str, value: str) -> bool:
     try:
         proc = run_command(["gh", "variable", "set", name, "--body", str(value)], check=False, log_on_error=False)
         if isinstance(proc, subprocess.CompletedProcess) and proc.returncode == 0:
+            _gha_var_cache[name] = str(value)
             return True
         elif isinstance(proc, subprocess.CompletedProcess):
             log_warn(f"Failed to set GHA variable {name}. stderr: {proc.stderr}")
