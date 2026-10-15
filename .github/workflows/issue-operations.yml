@@ -34,6 +34,11 @@ jobs:
     if: github.event_name == 'issues'
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout Code
+        uses: actions/checkout@v7 # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
+        with:
+          fetch-depth: 1
+
       - name: Generate App Token
         id: app-token
         uses: ./.github/actions/generate-token
@@ -41,11 +46,6 @@ jobs:
           app_id: ${{ secrets.APP_ID }}
           app_private_key: ${{ secrets.APP_PRIVATE_KEY }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Checkout Code
-        uses: actions/checkout@v7 # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
-        with:
-          fetch-depth: 1
 
       - name: Run Issue Operations - Validate Quality
         uses: arii/boomtick/.github/actions/issue-operations@main # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
@@ -65,6 +65,11 @@ jobs:
        github.event.issue.author_association == 'COLLABORATOR')
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v7 # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
+        with:
+          fetch-depth: 1
+
       - name: Generate App Token
         id: app-token
         uses: ./.github/actions/generate-token
@@ -72,11 +77,6 @@ jobs:
           app_id: ${{ secrets.APP_ID }}
           app_private_key: ${{ secrets.APP_PRIVATE_KEY }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Checkout code
-        uses: actions/checkout@v7 # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
-        with:
-          fetch-depth: 1
 
       - name: Run Issue Operations - Create PR
         uses: arii/boomtick/.github/actions/issue-operations@main # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
@@ -90,6 +90,11 @@ jobs:
     if: github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'ai-review'
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout Code
+        uses: actions/checkout@v7 # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
+        with:
+          fetch-depth: 1
+
       - name: Generate App Token
         id: app-token
         uses: ./.github/actions/generate-token
@@ -97,11 +102,6 @@ jobs:
           app_id: ${{ secrets.APP_ID }}
           app_private_key: ${{ secrets.APP_PRIVATE_KEY }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Checkout Code
-        uses: actions/checkout@v7 # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
-        with:
-          fetch-depth: 1
 
       - name: Run Issue Operations - AI Review
         uses: arii/boomtick/.github/actions/issue-operations@main # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
@@ -119,6 +119,11 @@ jobs:
     if: github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'resolve-conflicts'
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout Code
+        uses: actions/checkout@v7 # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
+        with:
+          fetch-depth: 0
+
       - name: Generate App Token
         id: app-token
         uses: ./.github/actions/generate-token
@@ -126,11 +131,6 @@ jobs:
           app_id: ${{ secrets.APP_ID }}
           app_private_key: ${{ secrets.APP_PRIVATE_KEY }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Checkout Code
-        uses: actions/checkout@v7 # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
-        with:
-          fetch-depth: 0
 
       - name: Run Issue Operations - Resolve Conflicts
         uses: arii/boomtick/.github/actions/issue-operations@main # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
@@ -145,6 +145,11 @@ jobs:
     if: github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'update-snapshots'
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout Code
+        uses: actions/checkout@v7 # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
+        with:
+          fetch-depth: 1
+
       - name: Generate App Token
         id: app-token
         uses: ./.github/actions/generate-token
@@ -152,11 +157,6 @@ jobs:
           app_id: ${{ secrets.APP_ID }}
           app_private_key: ${{ secrets.APP_PRIVATE_KEY }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Checkout Code
-        uses: actions/checkout@v7 # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
-        with:
-          fetch-depth: 1
 
       - name: Run Issue Operations - Update Snapshots
         uses: arii/boomtick/.github/actions/issue-operations@main # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag

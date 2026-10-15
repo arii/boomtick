@@ -15,6 +15,11 @@ jobs:
     if: github.event.issue.pull_request
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 1
+
       - name: Generate App Token
         id: app-token
         uses: ./.github/actions/generate-token
@@ -22,11 +27,6 @@ jobs:
           app_id: ${{ secrets.APP_ID }}
           app_private_key: ${{ secrets.APP_PRIVATE_KEY }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Checkout repository
-        uses: actions/checkout@v7
-        with:
-          fetch-depth: 1
 
       - name: BoomTick ChatOps Dispatcher
         uses: arii/boomtick/.github/actions/chatops-trigger@main # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
