@@ -20,10 +20,18 @@ jobs:
         with:
           fetch-depth: 1
 
+      - name: Generate App Token
+        id: app-token
+        uses: ./.github/actions/generate-token
+        with:
+          app_id: ${{ secrets.APP_ID }}
+          app_private_key: ${{ secrets.APP_PRIVATE_KEY }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+
       - name: BoomTick ChatOps Dispatcher
         uses: arii/boomtick/.github/actions/chatops-trigger@main # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
         with:
           comment_body: '${{ github.event.comment.body }}'
           author_association: '${{ github.event.comment.author_association }}'
           issue_number: '${{ github.event.issue.number }}'
-          github_token: '${{ secrets.GITHUB_TOKEN }}'
+          github_token: '${{ steps.app-token.outputs.token }}'

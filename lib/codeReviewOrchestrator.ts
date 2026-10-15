@@ -688,7 +688,16 @@ export async function orchestrateCodeReview(
   const finalResult = aggregateReviewResults(allResults, prevState, newCache, initialSummary, orchestratorDurationMs);
   const isTruncated = finalResult.isTruncated || false;
   const finalSkipReason = finalResult.skipReason;
-  const report = generateCodeReviewMarkdown(finalResult, client, iteration);
+  let report = generateCodeReviewMarkdown(finalResult, client, iteration);
+
+  // Also alert Jules if this PR is from a Jules session and requires fixes (FAIL verdict or open HIGH findings)
+  const julesSessionId = await getJulesSessionIdFromPR();
+
+  if (julesSessionId) {
+    const taskIdMatch = julesSessionId.match(/sessions\/([a-zA-Z0-9-]+)/);
+    const taskId = taskIdMatch ? taskIdMatch[1] : julesSessionId.replace('sessions/', '');
+    report += `\n\n---\n🤖 **Jules Automated Remediation:** Session created. [View tracking link](https://jules.google.com/task/${taskId})\n`;
+  }
 
   // Write local report
   await fs.promises.writeFile(agentReportPath, report);
@@ -698,9 +707,6 @@ export async function orchestrateCodeReview(
   await postPRComment(report, client.reportTitle, finalResult.state, finalResult.llmVerdict);
 
   const openHighFindings = finalResult.state?.findings?.filter(f => f.status === 'open' && (f.severity === 'HIGH' || f.severity === 'error')) || [];
-
-  // Also alert Jules if this PR is from a Jules session and requires fixes (FAIL verdict or open HIGH findings)
-  const julesSessionId = await getJulesSessionIdFromPR();
   const isFail = finalResult.llmVerdict === 'fail';
 
   if (julesSessionId && (isFail || openHighFindings.length > 0)) {
