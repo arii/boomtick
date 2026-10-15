@@ -640,16 +640,6 @@ def _render_conflicts(ctx, conflicts):
     out(ctx, f"Found {len(conflicts)} potential conflicts.", data={"conflicts": conflicts})
 
 
-@gh.command(deprecated=True)
-@click.pass_context
-def conflicts(ctx):
-    click.echo("⚠️ WARNING: 'td-cli gh conflicts' is deprecated and will be removed in a future release.", err=True)
-    click.echo("Please use 'td-cli gh detect-conflicts' instead.\n", err=True)
-    orch = ctx.obj["ORCHESTRATOR"]
-    conflicts: List[Dict[str, Any]] = orch.handle_detect_conflicts(all_prs=True)
-    _render_conflicts(ctx, conflicts)
-
-
 @gh.command()
 @click.option("--pr", required=True, type=int, help="The PR number to resolve conflicts for.")
 @click.option("--allow-unrelated", is_flag=True, help="Allow merging unrelated histories.")
@@ -875,15 +865,6 @@ def migrate_tokens(ctx, find, migrate, dry_run):
     orch = ctx.obj["ORCHESTRATOR"]
     matches = orch.migrate_tokens(find=find, migrate=migrate, dry_run=dry_run)
     out(ctx, f"Found {len(matches)} matches.", data={"matches": matches})
-
-
-@gh.command()
-@click.option("--dry-run/--execute", default=True)
-@click.pass_context
-def update_issues(ctx, dry_run):
-    orch = ctx.obj["ORCHESTRATOR"]
-    updates = orch.update_issues(dry_run=dry_run)
-    out(ctx, f"Found {len(updates)} updates.", data={"updates": updates})
 
 
 @gh.command()
@@ -1719,30 +1700,7 @@ def context_warm(ctx, force):
         out(ctx, "✅ Context is up-to-date.", data={"path": context_file})
 
 
-# Register aliases for backwards compatibility
-
-
-@cli.group(name="jules")
-def jules_group():
-    """Agent Operations (alias for agent)"""
-
-
-for group in [jules_group]:
-    group.add_command(dispatch)
-    group.add_command(sync)
-    group.add_command(fix_ci)
-    group.add_command(repair_context)
-    group.add_command(repair)
-    group.add_command(cancel)
-    group.add_command(get_session)
-    group.add_command(trigger_feedback)
-    group.add_command(messages)
-    group.add_command(send)
-    group.add_command(plan_review)
-    group.add_command(plan_aggregation)
-    group.add_command(install_workflows)
-
-for group in [agent_group, jules_group]:
+for group in [agent_group]:
     group.add_command(get_session, name="session")
     group.add_command(sync, name="list")
     group.add_command(sync, name="list-sessions")

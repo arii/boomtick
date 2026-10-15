@@ -83,31 +83,6 @@ def test_cli_detect_conflicts_mutually_exclusive():
     assert "Provide either --pr or --all, not both" in result.output
 
 
-def test_cli_conflicts_deprecated():
-    runner = CliRunner()
-
-    with patch("dev_tools.cli.LazyOrchestrator") as mock_lazy:
-        mock_orch = MagicMock()
-        mock_lazy.return_value = mock_orch
-
-        mock_orch.handle_detect_conflicts.return_value = [
-            {"prs": [1, 2], "files": ["shared.py"]}
-        ]
-
-        result = runner.invoke(cli, ["gh", "conflicts"])
-
-        assert result.exit_code == 0
-        assert "WARNING: 'td-cli gh conflicts' is deprecated" in result.output
-        stdout = result.stdout
-        json_start = stdout.find("{")
-        if json_start != -1:
-            stdout = stdout[json_start:]
-        data = json.loads(stdout)
-        assert data["status"] == "success"
-        assert len(data["conflicts"]) == 1
-        mock_orch.handle_detect_conflicts.assert_called_once_with(all_prs=True)
-
-
 def test_cli_detect_conflicts_no_args():
     runner = CliRunner()
 
