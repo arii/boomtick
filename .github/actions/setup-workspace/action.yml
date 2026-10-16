@@ -145,7 +145,7 @@ runs:
         echo "::endgroup::"
       shell: bash
 
-    - name: Verify td-cli on PATH
+    - name: Verify td on PATH
       if: inputs.setup-python == 'true'
       env:
         PYTHON_SCRIPTS_PATH: ${{ steps.resolve-paths.outputs.PYTHON_SCRIPTS_PATH }}
@@ -154,17 +154,17 @@ runs:
         # though GITHUB_PATH updates usually apply to subsequent steps.
         export PATH="$PYTHON_SCRIPTS_PATH:$HOME/.local/bin:/github/home/.local/bin:$PATH"
 
-        if ! command -v td-cli >/dev/null 2>&1; then
+        if ! command -v td >/dev/null 2>&1; then
           # Fallback check if it is in the known local bin but not on path yet
-          if [ -x "$PYTHON_SCRIPTS_PATH/td-cli" ] || [ -x "$HOME/.local/bin/td-cli" ] || [ -x "/github/home/.local/bin/td-cli" ]; then
-            echo "::warning::td-cli found in local bin but not yet on PATH. PATH updates will apply in next step."
+          if [ -x "$PYTHON_SCRIPTS_PATH/td" ] || [ -x "$HOME/.local/bin/td" ] || [ -x "/github/home/.local/bin/td" ]; then
+            echo "::warning::td found in local bin but not yet on PATH. PATH updates will apply in next step."
           else
-            echo "::error::td-cli not found on PATH or in known local bin directories after installation."
+            echo "::error::td not found on PATH or in known local bin directories after installation."
             echo "Current PATH: $PATH"
             exit 1
           fi
         fi
-        echo "✅ td-cli is resolvable on PATH (or confirmed available in local bin)."
+        echo "✅ td is resolvable on PATH (or confirmed available in local bin)."
       shell: bash
 
     - name: Export Environment Variables
@@ -204,9 +204,9 @@ runs:
           exit 1
         fi
         export PYTHONPATH="$CLI_DIR_ABS:$PYTHONPATH"
-        if command -v td-cli >/dev/null 2>&1; then
-          if ! td-cli schema --generate; then
-            echo "::error::td-cli schema generation failed!"
+        if command -v td >/dev/null 2>&1; then
+          if ! td schema --generate; then
+            echo "::error::td schema generation failed!"
             exit 1
           fi
         else

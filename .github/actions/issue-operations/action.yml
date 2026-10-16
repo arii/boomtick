@@ -69,7 +69,7 @@ runs:
       env:
         ISSUE_NUM: ${{ inputs.issue_number }}
       run: |
-        td-cli gh validate-issue --issue-number "$ISSUE_NUM" --post-comments --execute
+        td gh validate-issue --issue-number "$ISSUE_NUM" --post-comments --execute
       shell: bash
 
     # --- CREATE PR ---
@@ -159,7 +159,7 @@ runs:
     - name: Find and Resolve Conflicts
       if: inputs.operation == 'resolve-conflicts'
       run: |
-        td-cli gh resolve
+        td gh resolve
       shell: bash
 
     - name: Validate Resolution

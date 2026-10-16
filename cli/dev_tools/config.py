@@ -51,7 +51,7 @@ class ProjectConfig:
             "src/App.tsx",
         ]
     )
-    cli_alias: str = "td-cli"
+    cli_alias: str = "td"
     default_limit: int = 10
     allowed_bots: List[str] = field(default_factory=lambda: ["github-actions[bot]"])
     worktree_prefix: str = "bt-repair-"

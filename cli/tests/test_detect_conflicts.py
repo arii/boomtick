@@ -97,7 +97,7 @@ def test_cli_detect_conflicts_no_args():
         result = runner.invoke(cli, ["gh", "detect-conflicts"])
 
         assert result.exit_code == 0
-        assert "Suggestion: Use 'td-cli gh detect-conflicts --all'" in result.output
+        assert "Suggestion: Use 'td gh detect-conflicts --all'" in result.output
         stdout = result.stdout
         json_start = stdout.find("{")
         if json_start != -1:

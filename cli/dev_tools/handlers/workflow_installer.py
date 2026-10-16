@@ -22,7 +22,7 @@ jobs:
       - name: Install BoomTick CLI
         run: pip install boomtick-cli
       - name: Run Impact Review
-        run: td-cli ai review ${{ github.event.pull_request.number }}
+        run: td ai review ${{ github.event.pull_request.number }}
 """,
     "agent-audit.yml": """name: Agent Audit
 
@@ -39,7 +39,7 @@ jobs:
       - name: Install BoomTick CLI
         run: pip install boomtick-cli
       - name: Execute Audit Gate
-        run: td-cli gh audit-gate
+        run: td gh audit-gate
 """
 }
 
