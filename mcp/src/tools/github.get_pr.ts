@@ -12,7 +12,7 @@ export async function getPrHandler(args: z.infer<typeof GetPrInputSchema>) {
   const params = GetPrInputSchema.parse(args);
   const targetRepo = resolveRepo(params.repo);
 
-  const result = await runCommand("td-cli", ["gh", "view", params.prNumber.toString(), "--repo", targetRepo]);
+  const result = await runCommand("td", ["gh", "view", params.prNumber.toString(), "--repo", targetRepo]);
 
   if (result.exitCode !== 0) {
     throw new Error(`Failed to get PR details: ${sanitizeError(result.stderr)}`);

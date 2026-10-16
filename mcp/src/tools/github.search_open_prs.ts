@@ -29,7 +29,7 @@ export async function searchOpenPrsHandler(args: z.infer<typeof SearchOpenPrsInp
     tdArgs.push("--labels", params.labels.join(","));
   }
 
-  const result = await runCommand("td-cli", tdArgs);
+  const result = await runCommand("td", tdArgs);
 
   if (result.exitCode !== 0) {
     throw new Error(`Failed to list PRs: ${result.stderr}`);

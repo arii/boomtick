@@ -11,7 +11,7 @@ export async function getPrDiffHandler(args: z.infer<typeof GetPrDiffInputSchema
   const params = GetPrDiffInputSchema.parse(args);
   const targetRepo = resolveRepo(params.repo);
 
-  const result = await runCommand("td-cli", [
+  const result = await runCommand("td", [
     "gh", "pr-diff", params.prNumber.toString(), "--repo", targetRepo
   ]);
 
