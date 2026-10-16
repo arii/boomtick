@@ -228,8 +228,8 @@ runs:
           exit 0
         fi
 
-        # Use td-cli to dispatch Jules
-        td-cli jules fix-ci --issue-number "$ISSUE_NUMBER" --execute
+        # Use td to dispatch Jules
+        td jules fix-ci --issue-number "$ISSUE_NUMBER" --execute
       shell: bash
 
     # --- MANUAL REPAIR MODE ---
@@ -260,5 +260,5 @@ runs:
           echo "::error::Invalid issue_number: must be numeric."
           exit 1
         fi
-        td-cli jules fix-ci --pr-number "$ISSUE_NUMBER" --execute
+        td jules fix-ci --pr-number "$ISSUE_NUMBER" --execute
       shell: bash

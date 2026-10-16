@@ -111,7 +111,7 @@ else
 fi
 
 # Idempotency for CLI
-if [ "$FORCE" -eq 1 ] || ! command -v td-cli >/dev/null 2>&1 || [ -n "$VENV_PATH" ]; then
+if [ "$FORCE" -eq 1 ] || ! command -v td >/dev/null 2>&1 || [ -n "$VENV_PATH" ]; then
     echo "Installing BoomTick CLI..."
     timeout 600 $PIP_CMD install -e "${CLI_ROOT}" $PIP_OPTS
     if [ -f "${CLI_ROOT}/requirements-dev.txt" ]; then
@@ -147,7 +147,7 @@ echo "BoomTick installation complete!"
 
 echo "Running post-installation diagnostics..."
 if [ -n "$VENV_PATH" ]; then
-    "$VENV_PATH/bin/td-cli" doctor
+    "$VENV_PATH/bin/td" doctor
 else
-    td-cli doctor
+    td doctor
 fi

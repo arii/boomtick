@@ -1,5 +1,5 @@
 name: BoomTick AI Review
-description: Runs AI code review via td-cli CLI
+description: Runs AI code review via td CLI
 inputs:
   pr_number:
     description: PR number to review
@@ -27,5 +27,5 @@ runs:
           echo "::error::Invalid PR_NUMBER: must be numeric."
           exit 1
         fi
-        td-cli gh audit-pr "$PR_NUMBER" --fetch --audit --submit --execute
+        td gh audit-pr "$PR_NUMBER" --fetch --audit --submit --execute
       shell: bash
