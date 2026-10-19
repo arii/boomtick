@@ -306,22 +306,12 @@ runs:
         PR_NUMBER: ${{ inputs.pr_number }}
         GITHUB_REPOSITORY: ${{ github.repository }}
       run: |
-        TARGET_PATH="${{ github.action_path }}/../../../scripts/send-jules-impact.py"
-        if [ -f "$TARGET_PATH" ]; then
-          RESOLVED_PATH=$(realpath "$TARGET_PATH")
-          echo "Executing send-jules-impact.py at: $RESOLVED_PATH"
-          export PYTHONPATH="$(realpath "${{ github.action_path }}/../../../cli"):$PYTHONPATH"
-          python3 "$RESOLVED_PATH"
+        if command -v pnpm &> /dev/null; then
+          pnpm exec tsx -e "import { sendJulesImpactReport } from './lib/julesReviewClient'; sendJulesImpactReport(process.env.TASK_ID);"
+        elif [ -f "./node_modules/.bin/tsx" ]; then
+          ./node_modules/.bin/tsx -e "import { sendJulesImpactReport } from './lib/julesReviewClient'; sendJulesImpactReport(process.env.TASK_ID);"
         else
-          # Fallback check for docker run execution or direct python script in checkout workspace
-          # Inside container execution, scripts/send-jules-impact.py should exist in workspace
-          if [ -f "scripts/send-jules-impact.py" ]; then
-            echo "Executing send-jules-impact.py from current workspace."
-            export PYTHONPATH="cli:$PYTHONPATH"
-            python3 scripts/send-jules-impact.py
-          else
-            echo "⚠️ Skipping: send-jules-impact.py script not found."
-          fi
+          npx tsx -e "import { sendJulesImpactReport } from './lib/julesReviewClient'; sendJulesImpactReport(process.env.TASK_ID);"
         fi
       shell: bash
 

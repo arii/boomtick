@@ -1,13 +1,19 @@
 import * as fs from 'fs';
 import * as path from 'path';
+import { getJulesSessionIdFromPR } from './visualReviewUtils';
 
-export async function sendJulesImpactReport(taskId: string): Promise<void> {
-  if (!taskId) {
-    console.log("No TASK_ID provided. Exiting.");
+export async function sendJulesImpactReport(taskId?: string): Promise<void> {
+  let resolvedTaskId = taskId || process.env.TASK_ID;
+  if (!resolvedTaskId) {
+    resolvedTaskId = (await getJulesSessionIdFromPR()) || undefined;
+  }
+
+  if (!resolvedTaskId) {
+    console.log("No TASK_ID provided or found in PR description. Exiting.");
     return;
   }
 
-  const sessionId = `sessions/${taskId}`;
+  const sessionId = resolvedTaskId.startsWith('sessions/') ? resolvedTaskId : `sessions/${resolvedTaskId}`;
   console.log(`Targeting session: ${sessionId}`);
 
   const apiKey = process.env.JULES_API_KEY;

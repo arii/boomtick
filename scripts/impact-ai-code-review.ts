@@ -18,7 +18,7 @@ async function main(): Promise<void> {
   });
 
   const sendToJules = process.env.SEND_TO_JULES !== 'false';
-  if (sendToJules && process.env.JULES_API_KEY && process.env.TASK_ID) {
+  if (sendToJules && process.env.JULES_API_KEY) {
     await sendJulesImpactReport(process.env.TASK_ID);
   }
 }
