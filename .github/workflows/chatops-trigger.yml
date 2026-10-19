@@ -29,7 +29,7 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: BoomTick ChatOps Dispatcher
-        uses: arii/boomtick/.github/actions/chatops-trigger@main # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
+        uses: ./.github/actions/chatops-trigger
         with:
           comment_body: '${{ github.event.comment.body }}'
           author_association: '${{ github.event.comment.author_association }}'

@@ -99,7 +99,7 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Setup Workspace
-        uses: arii/boomtick/.github/actions/setup-workspace@main # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
+        uses: ./.github/actions/setup-workspace
 
       - name: Resolve Environment
         id: resolve_env
@@ -227,7 +227,7 @@ jobs:
         shell: bash
 
       - name: Run CI Repair
-        uses: arii/boomtick/.github/actions/ci-repair@main # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
+        uses: ./.github/actions/ci-repair
         with:
           mode: ${{ steps.determine_mode.outputs.mode }}
           issue_number: ${{ github.event.inputs.issue_number || github.event.client_payload.issue_number }}
@@ -287,7 +287,7 @@ jobs:
         shell: bash
 
       - name: Setup Workspace
-        uses: arii/boomtick/.github/actions/setup-workspace@main # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
+        uses: ./.github/actions/setup-workspace
         with:
           setup-python: 'true'
 
