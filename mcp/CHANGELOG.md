@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.0](https://github.com/arii/boomtick/compare/mcp-v0.4.2...mcp-v0.5.0) (2026-10-19)
+
+
+### Features
+
+* **tooling:** add PR reviews, PR commits, workflow runs inspection, and repo overrides ([#834](https://github.com/arii/boomtick/issues/834)) ([42a8638](https://github.com/arii/boomtick/commit/42a8638add4ce8278dedacd6d8d14acc9e0a3bb9))
+
 ## [0.4.2](https://github.com/arii/boomtick/compare/mcp-v0.4.1...mcp-v0.4.2) (2026-10-12)
 
 
