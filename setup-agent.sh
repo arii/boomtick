@@ -374,6 +374,7 @@ run_validation() {
   node --version || true
   npm --version || true
   pnpm --version || true
+  pnpm exec fallow --version 2>/dev/null || true
   python3 --version || true
   have gh && gh --version | head -n 1 || true
   if have pnpm; then
