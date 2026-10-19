@@ -20,18 +20,17 @@ jobs:
   trigger-parent-ci:
     name: Trigger Tech-Dancer CI
     runs-on: ubuntu-latest
-    env:
-      APP_ID: ${{ secrets.APP_ID }}
-      APP_PRIVATE_KEY: ${{ secrets.APP_PRIVATE_KEY }}
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
       - name: Generate Token
         id: generate_token
-        if: ${{ env.APP_ID != '' && env.APP_PRIVATE_KEY != '' }}
-        uses: actions/create-github-app-token@v3
+        uses: ./.github/actions/generate-token
         with:
-          app-id: ${{ env.APP_ID }}
-          private-key: ${{ env.APP_PRIVATE_KEY }}
-          owner: ${{ github.repository_owner }}
+          app_id: ${{ secrets.APP_ID }}
+          app_private_key: ${{ secrets.APP_PRIVATE_KEY }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Determine branch name
         id: get-branch
