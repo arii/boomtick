@@ -37,4 +37,4 @@ The action will check for the existence of these scripts in your root `package.j
 
 - `GITHUB_TOKEN`: Standard GitHub token for PR comments and API access.
 - `GEMINI_API_KEY`: Required for Gemini-based AI reviews.
-- `JULES_API_KEY`: Required for session integration with Jules.
+- `JULES_API_KEY`: Required for session integration with Jules (dispatched natively via `lib/julesReviewClient.ts` without Python runtime dependencies).

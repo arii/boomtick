@@ -118,12 +118,5 @@ runs:
         GITHUB_TOKEN: ${{ inputs.github_token }}
         PR_NUMBER: ${{ steps.resolve-pr.outputs.pr_number }}
         GITHUB_REPOSITORY: ${{ github.repository }}
-      run: |
-        if command -v pnpm &> /dev/null; then
-          pnpm exec tsx -e "import { sendJulesImpactReport } from './lib/julesReviewClient'; sendJulesImpactReport(process.env.TASK_ID);"
-        elif [ -f "./node_modules/.bin/tsx" ]; then
-          ./node_modules/.bin/tsx -e "import { sendJulesImpactReport } from './lib/julesReviewClient'; sendJulesImpactReport(process.env.TASK_ID);"
-        else
-          npx tsx -e "import { sendJulesImpactReport } from './lib/julesReviewClient'; sendJulesImpactReport(process.env.TASK_ID);"
-        fi
+      run: pnpm exec tsx -e "import { sendJulesImpactReport } from './lib/julesReviewClient'; await sendJulesImpactReport(process.env.TASK_ID);"
       shell: bash
