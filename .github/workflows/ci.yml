@@ -155,6 +155,9 @@ jobs:
       - name: Run Duplication Detection (jscpd)
         run: pnpm exec jscpd .
 
+      - name: Run Dead Code Audit (fallow)
+        run: pnpm run audit:fallow || true
+
   test-build:
     name: Unit & Integration Tests
     runs-on: ubuntu-latest

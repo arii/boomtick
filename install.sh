@@ -151,3 +151,8 @@ if [ -n "$VENV_PATH" ]; then
 else
     td doctor
 fi
+
+if command -v pnpm >/dev/null 2>&1; then
+    echo "Verifying fallow installation..."
+    pnpm exec fallow --version || echo "Warning: fallow binary check failed."
+fi
