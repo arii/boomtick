@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.12.0](https://github.com/arii/boomtick/compare/cli-v0.11.0...cli-v0.12.0) (2026-10-19)
+
+
+### Features
+
+* **tooling:** add PR reviews, PR commits, workflow runs inspection, and repo overrides ([#834](https://github.com/arii/boomtick/issues/834)) ([42a8638](https://github.com/arii/boomtick/commit/42a8638add4ce8278dedacd6d8d14acc9e0a3bb9))
+
+
+### Bug Fixes
+
+* **ci:** fix release-please scope constraint validation and checkout ref failures ([#819](https://github.com/arii/boomtick/issues/819)) ([76c4c62](https://github.com/arii/boomtick/commit/76c4c62d9ca1e17b3611d0d91c96103b7e46e906))
+
 ## [0.11.0](https://github.com/arii/boomtick/compare/cli-v0.10.1...cli-v0.11.0) (2026-10-12)
 
 
