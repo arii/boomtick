@@ -305,7 +305,12 @@ runs:
         GITHUB_TOKEN: ${{ inputs.github_token }}
         PR_NUMBER: ${{ inputs.pr_number }}
         GITHUB_REPOSITORY: ${{ github.repository }}
-      run: pnpm exec tsx -e "import { sendJulesImpactReport } from './lib/julesReviewClient'; await sendJulesImpactReport(process.env.TASK_ID);"
+      run: |
+        if command -v pnpm &> /dev/null; then
+          pnpm exec tsx -e "import { sendJulesImpactReport } from './lib/julesReviewClient'; await sendJulesImpactReport(process.env.TASK_ID);"
+        elif command -v npx &> /dev/null; then
+          npx tsx -e "import { sendJulesImpactReport } from './lib/julesReviewClient'; await sendJulesImpactReport(process.env.TASK_ID);"
+        fi
       shell: bash
 
     - name: Update Impact Analysis Feedback (Final Result)

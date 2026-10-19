@@ -118,5 +118,21 @@ runs:
         GITHUB_TOKEN: ${{ inputs.github_token }}
         PR_NUMBER: ${{ steps.resolve-pr.outputs.pr_number }}
         GITHUB_REPOSITORY: ${{ github.repository }}
-      run: pnpm exec tsx -e "import { sendJulesImpactReport } from './lib/julesReviewClient'; await sendJulesImpactReport(process.env.TASK_ID);"
+      run: |
+        if command -v pnpm &> /dev/null; then
+          pnpm exec tsx -e "import { sendJulesImpactReport } from './lib/julesReviewClient'; await sendJulesImpactReport(process.env.TASK_ID);"
+        elif command -v npx &> /dev/null; then
+          npx tsx -e "import { sendJulesImpactReport } from './lib/julesReviewClient'; await sendJulesImpactReport(process.env.TASK_ID);"
+        elif [ -n "${{ inputs.container_image }}" ]; then
+          docker run --rm \
+            -e GITHUB_TOKEN="${GITHUB_TOKEN}" \
+            -e JULES_API_KEY="${JULES_API_KEY}" \
+            -e PR_NUMBER="${PR_NUMBER}" \
+            -e TASK_ID="${TASK_ID}" \
+            -e GITHUB_REPOSITORY="${GITHUB_REPOSITORY}" \
+            -v "${{ github.workspace }}":/github/workspace \
+            -w /github/workspace \
+            ${{ inputs.container_image }} \
+            node /workspace/dist/runner.cjs jules
+        fi
       shell: bash
