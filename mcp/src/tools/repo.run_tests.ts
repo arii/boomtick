@@ -9,7 +9,7 @@ export const RunTestsInputSchema = z.object({
 
 export type RunTestsInput = z.input<typeof RunTestsInputSchema>;
 
-export function parseCommandArguments(fullCmd: string): [string, string[]] {
+function parseCommandArguments(fullCmd: string): [string, string[]] {
   const tokens: string[] = [];
   const regex = /"([^"\\]*(?:\\.[^"\\]*)*)"|'([^'\\]*(?:\\.[^'\\]*)*)'|(\S+)/g;
   let match: RegExpExecArray | null;

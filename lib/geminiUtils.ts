@@ -10,7 +10,7 @@ export function extractFinishReason(res: Record<string, any>): string {
   return 'UNKNOWN';
 }
 
-export class DirectGeminiModel {
+class DirectGeminiModel {
   model: string;
   maxOutputTokens: number;
   thinkingBudget: number;

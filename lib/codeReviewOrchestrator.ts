@@ -515,7 +515,7 @@ export async function getCodeDiffSummary(targetFiles?: string[]): Promise<CodeRe
   }
 }
 
-export function generateTruncatedReviewMarkdown(
+function generateTruncatedReviewMarkdown(
   summary: CodeReviewSummary,
   client: CodeReviewClientStrategy,
   iteration: number = 1

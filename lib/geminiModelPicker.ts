@@ -1,4 +1,4 @@
-export interface GeminiModel {
+interface GeminiModel {
   id: string;
   name: string;
   tier: 'pro' | 'flash' | 'lite';
@@ -6,7 +6,7 @@ export interface GeminiModel {
   maxOutputTokens: number;
 }
 
-export const GEMINI_MODELS_METADATA: GeminiModel[] = [
+const GEMINI_MODELS_METADATA: GeminiModel[] = [
   {
     id: 'gemini-3.1-pro-preview',
     name: 'Gemini 3.1 Pro (Preview)',
@@ -44,7 +44,7 @@ export const GEMINI_MODELS_METADATA: GeminiModel[] = [
   }
 ];
 
-export const DEPRECATED_MODELS = [
+const DEPRECATED_MODELS = [
   'gemini-1.5-flash',
   'gemini-1.5-pro',
   'gemini-pro',
@@ -58,7 +58,7 @@ let cachedModels: string[] | null = null;
 /**
  * Fetches available Gemini models from the API.
  */
-export async function resolveAvailableGeminiModels(): Promise<string[]> {
+async function resolveAvailableGeminiModels(): Promise<string[]> {
   if (cachedModels) return cachedModels;
 
   const apiKey = process.env.GEMINI_API_KEY || process.env.JULES_API_KEY;

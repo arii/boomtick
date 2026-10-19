@@ -24,7 +24,7 @@ export const PROMPT_CATEGORIES: PromptCategory[] = [
     id: 'llm-integration',
     name: 'LLM Client Integrations',
     matcher: (files) => files.some(f =>
-      f.includes('clients/') || f.endsWith('CodeReviewClient.ts') || f.endsWith('VisualReviewClient.ts') || f.includes('modelPicker.ts')
+      f.includes('clients/') || f.endsWith('CodeReviewClient.ts') || f.endsWith('VisualReviewClient.ts')
     ),
     guidance: `LLM Clients:
 - \`ChatOpenAI\` + \`baseURL\` override == GitHub Models.

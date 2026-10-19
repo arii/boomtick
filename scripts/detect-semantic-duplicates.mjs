@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+// fallow-ignore-file unused-file
 import fs from 'node:fs';
 import path from 'node:path';
 import ts from 'typescript';

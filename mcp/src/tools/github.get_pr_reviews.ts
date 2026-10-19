@@ -3,7 +3,7 @@ import { runCommand } from "../lib/shell.js";
 import { resolveRepo } from "../lib/git.js";
 import { sanitizeError } from "../lib/error_utils.js";
 
-export const GetPrReviewsInputSchema = z.object({
+const GetPrReviewsInputSchema = z.object({
   prNumber: z.number().describe("The number of the PR to view reviews for."),
   repo: z.string().optional().describe("The target repository override (e.g. org/repo)."),
 });

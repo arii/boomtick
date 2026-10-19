@@ -88,23 +88,6 @@ def build_repo_context():
 
     # 3. MCP Schema (Package Internal)
     mcp_schema = {"tools": [], "prompts": [], "resources": []}
-    try:
-        import subprocess
-
-        mcp_dir = package_root / "mcp"
-        if mcp_dir.exists():
-            # Use npx tsx to run the export script without needing to compile it
-            # We run it from the mcp_dir to ensure it finds its own local config
-            result = subprocess.run(
-                ["npx", "tsx", "scripts/export-mcp-schema.ts"],
-                cwd=str(mcp_dir),
-                capture_output=True,
-                text=True,
-                check=True,
-            )
-            mcp_schema = json.loads(result.stdout)
-    except Exception as e:
-        print(f"Error gathering MCP schema: {e}", file=sys.stderr)
 
     # 4. CLI Schema (Package Internal)
     cli_schema = {
@@ -176,18 +159,9 @@ def build_repo_context():
     # 6. Design Tokens (Package Internal/Repo Root)
     design_tokens = {}
     try:
-        layout_maps_path = repo_root / "src" / "layouts" / "layout-maps.ts"
-        if not layout_maps_path.exists():
-            layout_maps_path = package_root / "src" / "layouts" / "layout-maps.ts"
-
         index_css_path = repo_root / "src" / "index.css"
         if not index_css_path.exists():
             index_css_path = package_root / "src" / "index.css"
-
-        # Secure read and minify each design token file
-        minified_layout_maps = safe_read_and_minify(layout_maps_path, repo_root)
-        if minified_layout_maps:
-            design_tokens["layout_maps"] = minified_layout_maps
 
         minified_index_css = safe_read_and_minify(index_css_path, repo_root)
         if minified_index_css:
