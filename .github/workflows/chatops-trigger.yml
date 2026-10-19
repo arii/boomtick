@@ -20,6 +20,7 @@ jobs:
         with:
           fetch-depth: 1
 
+      # Standardized to use generate-token for App token authentication
       - name: Generate App Token
         id: app-token
         uses: ./.github/actions/generate-token

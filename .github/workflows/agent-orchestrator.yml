@@ -90,6 +90,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v7
 
+      # Standardized to use generate-token for App token authentication
       - name: Generate App Token
         id: app-token
         uses: ./.github/actions/generate-token

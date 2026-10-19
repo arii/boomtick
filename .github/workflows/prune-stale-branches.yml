@@ -25,10 +25,17 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v7
 
+      - name: Generate App Token
+        id: app-token
+        uses: ./.github/actions/generate-token
+        with:
+          app_id: ${{ secrets.APP_ID }}
+          app_private_key: ${{ secrets.APP_PRIVATE_KEY }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Identify and Prune
         env:
-          # security-safe: This token is a standard GitHub Actions token used to authenticate the gh CLI.
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
           # Specify the list of protected branches to keep (comma-separated).
           PROTECTED_BRANCHES: "main,master,develop,gh-pages"
         run: |
