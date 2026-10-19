@@ -310,10 +310,10 @@ runs:
         if [ -f "$TARGET_PATH" ]; then
           RESOLVED_PATH=$(realpath "$TARGET_PATH")
           echo "Executing send-jules-impact.ts at: $RESOLVED_PATH"
-          pnpm exec tsx "$RESOLVED_PATH"
+          npx tsx "$RESOLVED_PATH"
         elif [ -f "scripts/send-jules-impact.ts" ]; then
           echo "Executing send-jules-impact.ts from current workspace."
-          pnpm exec tsx scripts/send-jules-impact.ts
+          npx tsx scripts/send-jules-impact.ts
         else
           echo "⚠️ Skipping: send-jules-impact.ts script not found."
         fi

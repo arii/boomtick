@@ -37,6 +37,10 @@ on:
         required: false
       JULES_API_KEY:
         required: false
+      APP_ID:
+        required: false
+      APP_PRIVATE_KEY:
+        required: false
 
 concurrency:
   # Safe concurrency group targeting the current branch.
