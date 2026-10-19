@@ -1,15 +1,32 @@
 name: 'BoomTick AI Code Review'
 description: 'Runs standalone AI code review in Docker container'
 inputs:
-  github-token:
-    description: 'GitHub Token'
-    required: true
-  gemini-api-key:
-    description: 'Gemini API Key'
+  github-app-id:
+    description: "GitHub App ID"
     required: false
+  github-app-private-key:
+    description: "GitHub App private key (PEM string)"
+    required: false
+  github-token:
+    description: "Fallback pre-minted installation token or GITHUB_TOKEN"
+    required: false
+  gemini-api-key:
+    description: "Gemini API key for synthesis"
+    required: true
+  jules-api-key:
+    description: "Jules API key for automated remediation"
+    required: false
+  send-to-jules:
+    description: "Whether to dispatch review output to Jules"
+    required: false
+    default: "true"
 runs:
   using: 'docker'
   image: 'Dockerfile'
   env:
+    GITHUB_APP_ID: ${{ inputs.github-app-id }}
+    GITHUB_APP_PRIVATE_KEY: ${{ inputs.github-app-private-key }}
     GITHUB_TOKEN: ${{ inputs.github-token }}
     GEMINI_API_KEY: ${{ inputs.gemini-api-key }}
+    JULES_API_KEY: ${{ inputs.jules-api-key }}
+    SEND_TO_JULES: ${{ inputs.send-to-jules }}
