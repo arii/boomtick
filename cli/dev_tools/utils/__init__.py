@@ -656,7 +656,7 @@ def get_github_token() -> Optional[str]:
 
 def get_repo_name() -> Optional[str]:
     """Auto-detect repo from environment variables or git remote."""
-    repo = os.getenv("GITHUB_REPOSITORY") or os.getenv("GH_REPO")
+    repo = os.getenv("GITHUB_REPOSITORY")
     if repo:
         return repo
 
@@ -664,13 +664,13 @@ def get_repo_name() -> Optional[str]:
         # Using check=False here to avoid noisy logs for a common discovery step
         res = run_command(["git", "config", "--get", "remote.origin.url"], check=False, log_on_error=False)
         if not isinstance(res, subprocess.CompletedProcess):
-            return os.getenv("GH_REPO")
+            return None
 
         if res.returncode != 0:
-            return os.getenv("GH_REPO")
+            return None
         url = res.stdout.strip()
         if not url:
-            return os.getenv("GH_REPO")
+            return None
         import re
 
         match = re.search(r"[:/]([^/]+/[^/.]+)(\.git)?$", url)

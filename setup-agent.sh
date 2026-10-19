@@ -61,7 +61,7 @@ if [ "$(id -u)" -ne 0 ] && ! command -v sudo >/dev/null 2>&1; then
   mkdir -p "$NPM_CONFIG_PREFIX/bin"
 fi
 
-# Ensure local python bin is on path for td-cli
+# Ensure local python bin is on path for td
 for bin_dir in "$HOME/.local/bin" "/github/home/.local/bin"; do
   case ":$PATH:" in
     *":$bin_dir:"*) ;;
@@ -227,10 +227,10 @@ install_python_deps() {
     local pkg_spec="cli/"
     pip_install --root-user-action=ignore -e "$pkg_spec"
     export PATH="$HOME/.local/bin:$PATH"
-    if ! have td-cli && ! have td; then
-      warn "td/td-cli not found on PATH after editable install. Path: $PATH"
+    if ! have td && ! have td; then
+      warn "td/td not found on PATH after editable install. Path: $PATH"
     fi
-    STATUS_PYTHON="INSTALLED (td-cli)"
+    STATUS_PYTHON="INSTALLED (td)"
   else
     pip_install --root-user-action=ignore requests python-dotenv pydantic click PyGithub
     STATUS_PYTHON="INSTALLED (minimal)"
@@ -382,8 +382,8 @@ run_validation() {
       log "Generating CLI schemas and contracts..."
       (
         export PYTHONPATH="$CLI_ROOT:${PYTHONPATH:-}"
-        if command -v td-cli >/dev/null 2>&1; then
-          td-cli schema --generate
+        if command -v td >/dev/null 2>&1; then
+          td schema --generate
         else
           python3 "$CLI_ROOT/dev_tools/schema_gen.py"
         fi

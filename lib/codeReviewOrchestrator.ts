@@ -286,7 +286,7 @@ async function getGitArgs(): Promise<{ diffArgs: string[], nameOnlyArgs: string[
 
 async function getAIContext(inputData: string): Promise<Record<string, unknown>[]> {
   return new Promise((resolve, reject) => {
-    const child = spawn('td-cli', ['ai', 'get-context']);
+    const child = spawn('td', ['ai', 'get-context']);
     let stdout = '';
     let stderr = '';
 

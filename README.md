@@ -29,7 +29,7 @@ node dist/index.js
 
 The codebase is split into two primary operational layers:
 * **`mcp/` (Model Context Protocol Server):** Empowers AI agents with structured access to GitHub Pull Requests, repository state, CI logs, and validation tools. Facilitates conflict resolution, branch creation, and interaction with the Jules macro-agent.
-* **`cli/` (`td-cli`):** A terminal-based fallback and local automation toolkit. Integrates directly with the GitHub CLI (`gh`) to handle manual PR audits, conflict detection, and runtime consistency checks.
+* **`cli/` (`td`):** A terminal-based fallback and local automation toolkit. Integrates directly with the GitHub CLI (`gh`) to handle manual PR audits, conflict detection, and runtime consistency checks.
 
 ### Zero-Submodule Integration
 
@@ -56,8 +56,8 @@ Boomtick uses a direct standalone package, container, and composite action integ
 
 * [Developer Onboarding & Workflows](docs/onboarding.md) — Onboarding guide, codebase context, and collaboration workflows.
 * [Agent Contracts and Standards](.agents/AGENT_CONTRACT.md) — Invariant rules for autonomous agent behavior.
-* [Agent Workflows & MCP Protocol](.agents/README.md) — Tooling hierarchies (MCP → `td-cli` → Bash) and enforcement rules.
-* [CLI Developer Tooling](cli/README.md) — Guide to `td-cli`, the Tier 2 local developer fallback.
+* [Agent Workflows & MCP Protocol](.agents/README.md) — Tooling hierarchies (MCP → `td` → Bash) and enforcement rules.
+* [CLI Developer Tooling](cli/README.md) — Guide to `td`, the Tier 2 local developer fallback.
 * [MCP Server Configuration](mcp/README.md) — Setup, capabilities, and tools for the Boomtick MCP.
 * [Release Process](docs/release-process.md) — Guidelines for deployment and release pipelines.
 * [Impact Analysis Integration](docs/impact-analysis-integration.md) — Running and integrating blast-radius checks.

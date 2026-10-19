@@ -11,7 +11,7 @@ import sys
 
 
 def main():
-    """Entry point for the td-cli shim."""
+    """Entry point for the td shim."""
     try:
         from dev_tools.cli import main as cli_main
 
