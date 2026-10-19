@@ -120,9 +120,9 @@ runs:
         GITHUB_REPOSITORY: ${{ github.repository }}
       run: |
         if command -v pnpm &> /dev/null; then
-          pnpm exec tsx -e "import { sendJulesImpactReport } from './lib/julesReviewClient'; await sendJulesImpactReport(process.env.TASK_ID);"
+          pnpm exec tsx -e "import { sendJulesImpactReport } from './lib/julesReviewClient'; (async () => { await sendJulesImpactReport(process.env.TASK_ID); })();"
         elif command -v npx &> /dev/null; then
-          npx tsx -e "import { sendJulesImpactReport } from './lib/julesReviewClient'; await sendJulesImpactReport(process.env.TASK_ID);"
+          npx tsx -e "import { sendJulesImpactReport } from './lib/julesReviewClient'; (async () => { await sendJulesImpactReport(process.env.TASK_ID); })();"
         elif [ -n "${{ inputs.container_image }}" ]; then
           docker run --rm \
             -e GITHUB_TOKEN="${GITHUB_TOKEN}" \
