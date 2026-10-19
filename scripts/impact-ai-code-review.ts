@@ -11,6 +11,14 @@ const ALL_REVIEW_TITLES = [
 async function main(): Promise<void> {
   await initializeGitHubAuth();
 
+  const arg = process.argv[2];
+  if (arg === 'jules') {
+    if (process.env.JULES_API_KEY) {
+      await sendJulesImpactReport(process.env.TASK_ID);
+    }
+    return;
+  }
+
   await runReviewScript({
     scriptName: 'code review',
     geminiClient: geminiCodeReviewClient,
@@ -18,7 +26,7 @@ async function main(): Promise<void> {
   });
 
   const sendToJules = process.env.SEND_TO_JULES !== 'false';
-  if (sendToJules && process.env.JULES_API_KEY && process.env.TASK_ID) {
+  if (sendToJules && process.env.JULES_API_KEY) {
     await sendJulesImpactReport(process.env.TASK_ID);
   }
 }

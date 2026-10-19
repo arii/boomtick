@@ -1,8 +1,8 @@
 # dev-tools
 
 Developer tooling for the BoomTick repository. The primary entry point is
-`td-cli`, but agents should always call `boomtick-mcp` Tier 1 tools first —
-`td-cli` is the Tier 2 fallback. See `.agents/AGENTS.md` for the full
+`td`, but agents should always call `boomtick-mcp` Tier 1 tools first —
+`td` is the Tier 2 fallback. See `.agents/AGENTS.md` for the full
 tool hierarchy.
 
 ---
@@ -23,10 +23,9 @@ and git hook registration.
 
 | Variable | Required | Purpose |
 | :--- | :--- | :--- |
-| `GITHUB_TOKEN` (string) | **Required** | Auth for `gh` and `td-cli gh ...` commands (PR audits, comments, variables, status checks). Standard for GH Actions. |
-| `GH_TOKEN` (string) | Optional fallback | Legacy authentication variable, deprecated in favor of `GITHUB_TOKEN`. |
+| `GITHUB_TOKEN` (string) | **Required** | Auth for `gh` and `td gh ...` commands (PR audits, comments, variables, status checks). Standard for GH Actions. |
 | `GITHUB_REPOSITORY` (`owner/repo`) | Recommended | Ensures deterministic `origin` remote auto-configuration. |
-| `JULES_API_KEY` | Optional | Enables `td-cli agent ...` / `td-cli jules ...` cloud workflows. |
+| `JULES_API_KEY` | Optional | Enables `td agent ...` / `td jules ...` cloud workflows. |
 | `GEMINI_API_KEY` | Optional | Enables Gemini-backed review/audit workflows. |
 
 **Secret handling guidance**
@@ -58,11 +57,11 @@ After `./setup-agent.sh`, use the following workflow-specific setup:
 #### 1) Standard PR / Review Workflows
 
 - Plan a review (fetches context and audits):
-  - `td-cli agent plan-review --pr <PR_NUMBER>`
+  - `td agent plan-review --pr <PR_NUMBER>`
 - Submit audit results (after authoring the review in `pr-review-<PR>.md`):
-  - `td-cli gh audit-pr <PR_NUMBER> --submit --execute`
+  - `td gh audit-pr <PR_NUMBER> --submit --execute`
 - Pre-submit quality gate before push/merge:
-  - `td-cli gh pre-submit`
+  - `td gh pre-submit`
 
 #### 2) Jules Workflows
 
@@ -70,14 +69,14 @@ After `./setup-agent.sh`, use the following workflow-specific setup:
 - Optional context env var: `JULES_SOURCE_ID` (if your environment already
   knows the source mapping).
 - Typical commands:
-  - `td-cli agent dispatch <BRANCH> "<TASK>"`
-  - `td-cli agent fix-ci --pr-number <PR> --execute`
-  - `td-cli agent sync`
+  - `td agent dispatch <BRANCH> "<TASK>"`
+  - `td agent fix-ci --pr-number <PR> --execute`
+  - `td agent sync`
 
 #### 3) Headless / Bot Auditing
 
 - For batch auditing open PRs:
-  - `td-cli gh audit-pr <PR_NUMBER> --fetch --audit --submit --execute`
+  - `td gh audit-pr <PR_NUMBER> --fetch --audit --submit --execute`
 - Ensure `jq`, `gh`, Python deps, and pnpm deps are installed (handled by
   setup script).
 
@@ -113,7 +112,7 @@ Always use `boomtick-mcp` Tier 1 tools first. `td-cli` is the fallback
 when MCP is unavailable — not the default. See `.agents/AGENTS.md` for the
 full tool mapping table.
 
-When `td-cli` must be called directly, read the CLI schema from
+When `td` must be called directly, read the CLI schema from
 `.agent-context.json` rather than guessing flags or running `--help`:
 
 ```bash
@@ -129,9 +128,9 @@ Prefer repository CLI commands over raw `gh`:
 
 ```bash
 # ✅ Preferred
-td-cli gh <repo-command>
+td gh <repo-command>
 
-# ⚠️ Only if td-cli does not expose the operation
+# ⚠️ Only if td does not expose the operation
 gh <command>
 ```
 
@@ -145,7 +144,7 @@ named `GITHUB_TOKEN`.
 ```bash
 node --version         # should match .node-version
 pnpm --version         # should be 10.28.2
-td-cli doctor
+td doctor
 pnpm run check:runtime-files
 gh auth status
 ```
@@ -180,9 +179,9 @@ explicitly instructed to update the runtime contract.
 
 ---
 
-## 🚀 Repository CLI (`td-cli`)
+## 🚀 Repository CLI (`td`)
 
-`dev-tools/td-cli` is the Tier 2 unified entry point for local repository
+`dev-tools/td` is the Tier 2 unified entry point for local repository
 automation. All available subcommands and flags are defined in
 `dev-tools/cli-schema.json` (also embedded in `.agent-context.json` under
 `cli_schema`). That file is the single source of truth — never use `--help`
