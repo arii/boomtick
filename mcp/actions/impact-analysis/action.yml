@@ -306,22 +306,16 @@ runs:
         PR_NUMBER: ${{ inputs.pr_number }}
         GITHUB_REPOSITORY: ${{ github.repository }}
       run: |
-        TARGET_PATH="${{ github.action_path }}/../../../scripts/send-jules-impact.py"
+        TARGET_PATH="${{ github.action_path }}/../../../scripts/send-jules-impact.ts"
         if [ -f "$TARGET_PATH" ]; then
           RESOLVED_PATH=$(realpath "$TARGET_PATH")
-          echo "Executing send-jules-impact.py at: $RESOLVED_PATH"
-          export PYTHONPATH="$(realpath "${{ github.action_path }}/../../../cli"):$PYTHONPATH"
-          python3 "$RESOLVED_PATH"
+          echo "Executing send-jules-impact.ts at: $RESOLVED_PATH"
+          pnpm exec tsx "$RESOLVED_PATH"
+        elif [ -f "scripts/send-jules-impact.ts" ]; then
+          echo "Executing send-jules-impact.ts from current workspace."
+          pnpm exec tsx scripts/send-jules-impact.ts
         else
-          # Fallback check for docker run execution or direct python script in checkout workspace
-          # Inside container execution, scripts/send-jules-impact.py should exist in workspace
-          if [ -f "scripts/send-jules-impact.py" ]; then
-            echo "Executing send-jules-impact.py from current workspace."
-            export PYTHONPATH="cli:$PYTHONPATH"
-            python3 scripts/send-jules-impact.py
-          else
-            echo "⚠️ Skipping: send-jules-impact.py script not found."
-          fi
+          echo "⚠️ Skipping: send-jules-impact.ts script not found."
         fi
       shell: bash
 

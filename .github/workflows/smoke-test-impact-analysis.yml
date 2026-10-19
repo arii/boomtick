@@ -53,10 +53,18 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
+      - name: Generate App Token
+        id: app-token
+        uses: ./.github/actions/generate-token
+        with:
+          app_id: ${{ secrets.APP_ID }}
+          app_private_key: ${{ secrets.APP_PRIVATE_KEY }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Smoke Test Impact Analysis Action
         uses: ./.github/actions/impact-analysis
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
+          github_token: ${{ steps.app-token.outputs.token }}
           gemini_api_key: "MOCK_KEY"
           jules_api_key: "MOCK_KEY"
           pr-number: ${{ inputs.pr-number }}

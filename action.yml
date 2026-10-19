@@ -30,3 +30,4 @@ runs:
     GEMINI_API_KEY: ${{ inputs.gemini-api-key }}
     JULES_API_KEY: ${{ inputs.jules-api-key }}
     SEND_TO_JULES: ${{ inputs.send-to-jules }}
+    GITHUB_REPOSITORY: ${{ github.repository }}

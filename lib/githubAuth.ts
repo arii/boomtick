@@ -6,9 +6,10 @@ export async function initializeGitHubAuth(): Promise<void> {
 
   if (appId && privateKey) {
     try {
+      const formattedPrivateKey = privateKey.replace(/\\n/g, '\n');
       const auth = createAppAuth({
         appId: appId,
-        privateKey: privateKey,
+        privateKey: formattedPrivateKey,
       });
 
       // We need to fetch the installation ID for the current repository
