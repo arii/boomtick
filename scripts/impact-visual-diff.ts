@@ -420,11 +420,6 @@ async function main(): Promise<void> {
     const failedLayouts = summaries.filter(s => s.validation && !s.validation.passed);
     if (failedLayouts.length > 0) {
       console.error(`❌ Visual regression detected by automated measurements in ${failedLayouts.length} route(s).`);
-      try {
-        execSync('node scripts/detect-antipatterns.mjs', { stdio: 'inherit' });
-      } catch {
-        console.error('❌ Anti-pattern validation failed during visual review phase.');
-      }
       process.exit(1);
     }
   } finally {

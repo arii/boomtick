@@ -31,7 +31,7 @@ const LOG_FILE = path.join(LOG_DIR, 'review-run.jsonl');
 
 
 
-export function logAIRun(entry: Omit<AIRunLogEntry, 'timestamp'>): void {
+function logAIRun(entry: Omit<AIRunLogEntry, 'timestamp'>): void {
   try {
     if (!fs.existsSync(LOG_DIR)) {
       fs.mkdirSync(LOG_DIR, { recursive: true });

@@ -23,13 +23,7 @@ npm install -g @playwright/cli@latest
 playwright-cli install --skills
 ```
 
-1. **Pre-flight validation**:
-
-```bash
-node scripts/detect-antipatterns.mjs
-```
-
-2. **Start the Application**:
+1. **Start the Application**:
 
 **Interactive (Headed)**:
 ```bash

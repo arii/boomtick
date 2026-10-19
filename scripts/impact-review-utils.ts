@@ -69,7 +69,7 @@ export interface DomRouteSummary {
 export const ARTIFACTS_DIR = path.join(process.cwd(), 'artifacts');
 export const VISUAL_REVIEW_DIR = path.join(ARTIFACTS_DIR, 'visual-review');
 export const DOM_REVIEW_DIR = path.join(ARTIFACTS_DIR, 'dom-review');
-export const IMPACT_ANALYSIS_PATH = path.join(ARTIFACTS_DIR, 'impact-analysis.json');
+const IMPACT_ANALYSIS_PATH = path.join(ARTIFACTS_DIR, 'impact-analysis.json');
 export const VISUAL_SUMMARY_PATH = path.join(VISUAL_REVIEW_DIR, 'summary.json');
 export const DOM_SUMMARY_PATH = path.join(DOM_REVIEW_DIR, 'summary.json');
 

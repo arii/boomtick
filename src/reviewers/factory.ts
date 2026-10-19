@@ -5,10 +5,6 @@ export interface ReviewOptions {
   rules: string[];
 }
 
-export interface ModelConfiguration {
-  modelId: string;
-  fallbacks: string[]; // Ordered list of backups if this model hits limits
-}
 
 export class GitHubModelFactory {
   private static clientInstance: OpenAI | null = null;

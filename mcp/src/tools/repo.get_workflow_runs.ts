@@ -3,7 +3,7 @@ import { runCommand } from "../lib/shell.js";
 import { resolveRepo } from "../lib/git.js";
 import { sanitizeError } from "../lib/error_utils.js";
 
-export const GetWorkflowRunsInputSchema = z.object({
+const GetWorkflowRunsInputSchema = z.object({
   branch: z.string().optional().describe("Filter workflow runs by branch name."),
   event: z.string().optional().describe("Filter workflow runs by event (e.g. push, pull_request)."),
   repo: z.string().optional().describe("The target repository override (e.g. org/repo)."),

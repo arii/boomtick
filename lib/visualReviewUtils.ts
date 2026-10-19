@@ -48,7 +48,7 @@ export function parseVisualReviewFindings(feedback: string): VisualReviewFinding
   }
 }
 
-export function imageToBase64(filePath: string): string {
+function imageToBase64(filePath: string): string {
   return fs.readFileSync(filePath).toString('base64');
 }
 
@@ -81,7 +81,7 @@ export function parseLLMVerdict(feedback: string): 'pass' | 'fail' | 'warn' {
   return 'pass';
 }
 
-export function severityEmoji(severity: 'LOW' | 'MEDIUM' | 'HIGH'): string {
+function severityEmoji(severity: 'LOW' | 'MEDIUM' | 'HIGH'): string {
   if (severity === 'HIGH') return '🔴';
   if (severity === 'MEDIUM') return '🟡';
   return '🟢';

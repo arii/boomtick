@@ -32,12 +32,7 @@ export interface CodeReviewSummary {
   previousState?: CodeReviewState;
 }
 
-export interface ModelChain {
-  primary: string;
-  fallbacks: string[];
-  max_retries: number;
-}
-
+// fallow-ignore-next-line unused-type
 export interface IssueSummary {
   number: number;
   title: string;
