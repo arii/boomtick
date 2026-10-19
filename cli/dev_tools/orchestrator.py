@@ -104,6 +104,22 @@ class Orchestrator:
     def initialize_jules(self, client: JulesClient) -> None:
         self._jules = client
 
+    def _resolve_antipatterns_script(self) -> str:
+        """Resolves the path to detect-antipatterns.mjs."""
+        # 1. Try standard root location
+        script_path = "scripts/detect-antipatterns.mjs"
+        if os.path.exists(script_path):
+            return script_path
+
+        # 2. Fallback to absolute path relative to this file (robust for package-style execution)
+        # Location: cli/dev_tools/orchestrator.py -> ../../scripts/detect-antipatterns.mjs
+        abs_path = os.path.abspath(
+            os.path.join(os.path.dirname(__file__), "..", "..", "scripts", "detect-antipatterns.mjs")
+        )
+        if os.path.exists(abs_path):
+            return abs_path
+
+        return script_path
 
     def _hash_content(self, content: str) -> str:
         return hashlib.md5(content.encode("utf-8")).hexdigest()
@@ -347,7 +363,18 @@ class Orchestrator:
         return fallback_value
 
     def get_audit_results(self, content: Optional[str] = None, targets: Optional[List[str]] = None) -> Dict[str, Any]:
-        return {"violations": {}, "config": {}}
+        script_path = self._resolve_antipatterns_script()
+        cmd = ["node", script_path, "--json"]
+        if targets:
+            cmd.extend(targets)
+        elif content is not None:
+            cmd.append("-")
+        res = run_command(cmd, check=False, input_str=content)
+        try:
+            stdout = res.stdout if isinstance(res, subprocess.CompletedProcess) else str(res)
+            return json.loads(stdout)
+        except json.JSONDecodeError:
+            return {"violations": {}, "config": {}}
 
     def extract_code_blocks(self, text: str) -> List[str]:
         return re.findall(r"```(?:tsx?|jsx?|html)?\n(.*?)```", text, re.DOTALL)
@@ -861,6 +888,44 @@ class Orchestrator:
         scope_warning = verify_pr_scope(changed_files)
         if scope_warning:
             auto_findings.append({"path": "PR SCOPE", "issue": scope_warning, "severity": "major"})
+        files_to_audit = [
+            f for f in changed_files if (f.endswith(".tsx") or f.endswith(".ts")) and os.path.exists(f)
+        ]
+        if files_to_audit:
+            script_path = self._resolve_antipatterns_script()
+            audit_res = run_command(
+                ["node", script_path, "--json"] + files_to_audit,
+                check=False,
+            )
+            output = audit_res.stdout if isinstance(audit_res, subprocess.CompletedProcess) else str(audit_res)
+            if output and "{" in output:
+                json_start = output.find("{")
+                json_end = output.rfind("}") + 1
+                try:
+                    audit_data: Any = json.loads(output[json_start:json_end])
+                    # Ensure audit_data is a dictionary, and recursively parse if it's a stringified JSON
+                    if isinstance(audit_data, str):
+                        try:
+                            audit_data = json.loads(audit_data)
+                        except json.JSONDecodeError:
+                            audit_data = {}
+                except json.JSONDecodeError:
+                    audit_data = {}
+
+                if isinstance(audit_data, dict):
+                    violations_map = audit_data.get("violations", {})
+                    if isinstance(violations_map, dict):
+                        for filepath, violations in violations_map.items():
+                            if isinstance(violations, list):
+                                for v in violations:
+                                    if isinstance(v, dict):
+                                        auto_findings.append(
+                                            {
+                                                "path": str(filepath),
+                                                "issue": f"{v.get('pattern', 'N/A')}: {v.get('message', 'No message')} (value: {v.get('value', 'N/A')})",
+                                                "severity": str(v.get("severity", "minor")),
+                                            }
+                                        )
         return auto_findings
 
     def handle_comment_command(self, prNumber: int, command: str, comment_id: Optional[str] = None) -> Dict[str, Any]:
@@ -1000,7 +1065,9 @@ class Orchestrator:
             raise e
 
         # 2. Automated Validation Steps
+        script_path = self._resolve_antipatterns_script()
         steps = [
+            ("Anti-Pattern Audit", ["node", script_path]),
             ("Version Downgrade Check", [PROJECT_CONFIG.cli_alias, "gh", "verify-versions"]),
             ("TypeScript", ["pnpm", "run", "type-check"]),
             ("Lint", ["pnpm", "run", "lint"]),
@@ -1090,10 +1157,78 @@ class Orchestrator:
             os.chdir(original_cwd)
 
     def handle_audit_gate(self) -> Dict[str, Any]:
+        script_path = self._resolve_antipatterns_script()
+        current_count = int(run_command(["node", script_path, "--count-only"]) or 0)
+        baseline_count = self.resolve_baseline(None, "AUDIT_BASELINE", -1)
+
+        is_shallow = run_command(["git", "rev-parse", "--is-shallow-repository"], check=False).stdout.strip() == "true"
+
+        if baseline_count == -1 or is_shallow:
+            val = self.get_env_or_gha("AUDIT_BASELINE")
+            if val:
+                return {
+                    "current": current_count,
+                    "baseline": int(val),
+                    "status": "success" if current_count <= int(val) else "error",
+                }
+
+            if is_shallow:
+                # In a shallow clone, git ls-tree/show on base branch will fail or be incomplete.
+                log_warn("Shallow repository detected and no AUDIT_BASELINE variable found. Falling back to 0.")
+                return {
+                    "current": current_count,
+                    "baseline": 0,
+                    "status": "success" if current_count <= 0 else "error",
+                }
+
+            baseline_count = 0
+            # Robust base branch discovery: try config, then origin/main, then main
+            base_candidates = [PROJECT_CONFIG.base_branch, "origin/main", "main"]
+            base_ref = None
+            for cand in base_candidates:
+                if (
+                    cand
+                    and run_command(["git", "rev-parse", "--verify", cand], check=False, log_on_error=False).returncode
+                    == 0
+                ):
+                    base_ref = cand
+                    break
+
+            if not base_ref:
+                log_warn("Could not determine base branch for audit baseline. Falling back to 0.")
+                return {
+                    "current": current_count,
+                    "baseline": 0,
+                    "status": "success" if current_count <= 0 else "error",
+                }
+
+            base_files = run_command(["git", "ls-tree", "-r", base_ref, "--name-only"]).splitlines()
+            # Ensure AUDIT_CHECK_DIRS are handled as a list of prefixes
+            relevant = [
+                mf
+                for mf in base_files
+                if (mf.endswith(".tsx") or mf.endswith(".ts"))
+                and any(mf == d or mf.startswith(d + "/") for d in AUDIT_CHECK_DIRS)
+            ]
+            for mf in relevant:
+                res_show = run_command(["git", "show", f"{base_ref}:{mf}"], check=False, log_on_error=False)
+                if res_show.returncode == 0:
+                    baseline_count += int(
+                        run_command(
+                            [
+                                "node",
+                                script_path,
+                                "--count-only",
+                                "-",
+                            ],
+                            input_str=res_show.stdout,
+                        )
+                        or 0
+                    )
         return {
-            "current": 0,
-            "baseline": 0,
-            "status": "success",
+            "current": current_count,
+            "baseline": baseline_count,
+            "status": "success" if current_count <= baseline_count else "error",
         }
 
     def fix_ci(
