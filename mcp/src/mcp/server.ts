@@ -264,22 +264,25 @@ export class BoomtickMCPServer {
     });
   }
   async run() {
-    const projectRoot = config.repoPath || process.cwd();
+    const repoPath = config.repoPath || process.cwd();
     const homeDir = process.env.HOME || "";
-    const extraPaths = [];
+    const extraPaths: string[] = [];
 
     // 1. DYNAMIC PYTHON PATH (pip / virtualenv discovery)
+    const searchRoots = Array.from(new Set([repoPath, process.cwd()]));
     const venvDirs = [".venv", "venv", "env"];
-    for (const venvDir of venvDirs) {
-      const venvBin = path.join(projectRoot, venvDir, "bin");
-      if (existsSync(venvBin)) {
-        extraPaths.push(venvBin);
-        break;
+    for (const root of searchRoots) {
+      for (const venvDir of venvDirs) {
+        const venvBin = path.join(root, venvDir, "bin");
+        if (existsSync(venvBin)) {
+          extraPaths.push(venvBin);
+          break;
+        }
       }
     }
 
     // 2. DYNAMIC NODE PATH (.nvmrc parsing)
-    const nvmrcPath = path.join(projectRoot, ".nvmrc");
+    const nvmrcPath = path.join(repoPath, ".nvmrc");
     let targetNodeVersion = "";
 
     if (existsSync(nvmrcPath)) {
@@ -312,17 +315,24 @@ export class BoomtickMCPServer {
       .filter(Boolean)
       .join(path.delimiter);
 
-    // 3. SAFE REPOSITORY RESOLUTION
-    const repoPath = config.repoPath || projectRoot;
+    // 3. SECURE, UNIX-ONLY PRE-FLIGHT CHECK FOR TD-CLI / TD
+    let resolvedCmd = "td-cli";
+    let result = spawnSync(resolvedCmd, ["doctor"], {
+      encoding: "utf-8",
+      cwd: repoPath,
+      shell: false // Explicitly disabled to clear Semgrep rules
+    });
 
-    // 4. SECURE, UNIX-ONLY PRE-FLIGHT CHECK FOR TD-CLI
-    try {
-      const result = spawnSync("td-cli", ["doctor"], { 
-        encoding: "utf-8", 
+    if (result.error) {
+      resolvedCmd = "td";
+      result = spawnSync(resolvedCmd, ["doctor"], {
+        encoding: "utf-8",
         cwd: repoPath,
-        shell: false // Explicitly disabled to clear Semgrep rules
+        shell: false
       });
+    }
 
+    try {
       if (result.error) {
         throw result.error;
       }
@@ -331,14 +341,14 @@ export class BoomtickMCPServer {
         console.error("status:", result.status);
         console.error("stdout:", result.stdout);
         console.error("stderr:", result.stderr);
-        throw new Error(`td-cli doctor returned exit code: ${result.status}`);
+        throw new Error(`${resolvedCmd} doctor returned exit code: ${result.status}`);
       }
 
-      console.error("✅ td-cli verified on PATH securely");
+      console.error(`✅ ${resolvedCmd} verified on PATH securely`);
     } catch (error) {
-      console.error("❌ Fatal: td-cli is not resolvable on PATH. MCP tools will fail.");
+      console.error("❌ Fatal: td-cli or td is not resolvable on PATH. MCP tools will fail.");
       console.error("Please ensure the project is installed: pip install -e .");
-      console.error("❌ Fatal: td-cli pre-flight check failed:", error instanceof Error ? error.message : String(error));
+      console.error("❌ Fatal: CLI pre-flight check failed:", error instanceof Error ? error.message : String(error));
       process.exit(1);
     }
 

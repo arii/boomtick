@@ -185,6 +185,12 @@ jobs:
         run: |
           pnpm run test:python
 
+      - name: Build Python Package Wheel
+        run: |
+          cd cli
+          python3 -m pip install --upgrade build
+          python3 -m build
+
   impact-analysis:
     name: Deployment Impact Analysis
     runs-on: ubuntu-latest
