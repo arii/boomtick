@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.1](https://github.com/arii/boomtick/compare/cli-v0.12.0...cli-v0.12.1) (2026-10-20)
+
+
+### Bug Fixes
+
+* **ci:** install build module before python3 -m build in release workflow ([#880](https://github.com/arii/boomtick/issues/880)) ([082ea63](https://github.com/arii/boomtick/commit/082ea637b6fd449950cd56b43995d7e34177d077))
+
 ## [0.12.0](https://github.com/arii/boomtick/compare/cli-v0.11.0...cli-v0.12.0) (2026-10-19)
 
 
