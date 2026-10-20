@@ -40,6 +40,7 @@ td = "dev_tools.cli:main"
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["dev_tools*"]
+exclude = ["*__pycache__*"]
 
 [tool.setuptools.package-data]
 "dev_tools" = [
