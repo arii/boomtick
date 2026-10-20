@@ -15,7 +15,7 @@ EXEMPT_FILES = {
     "Dockerfile", "package.json", "pnpm-lock.yaml", "pnpm-workspace.yaml", "project_config.json",
     "tsconfig.json", "workspace.json", ".gitignore", ".dockerignore", ".pylintrc",
     "eslint.config.mjs", "oxlint.json", "tsconfig.app.json", ".release-please-manifest.json",
-    "release-please-config.json", "changelog.md", "readme.md", "agents.md", "ci.yml",
+    "release-please-config.json", "changelog.md", "readme.md", "agents.md", "ci.yml", "release.yml",
     "verify-scope.py", "test_verify_scope.py", "reviewpromptconstants.ts", "prompt_constants.json",
     "pyproject.toml"
 }
