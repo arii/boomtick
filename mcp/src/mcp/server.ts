@@ -320,6 +320,7 @@ export class BoomtickMCPServer {
     let result = spawnSync(resolvedCmd, ["doctor"], {
       encoding: "utf-8",
       cwd: repoPath,
+      env: process.env,
       shell: false // Explicitly disabled to clear Semgrep rules
     });
 
@@ -328,6 +329,7 @@ export class BoomtickMCPServer {
       result = spawnSync(resolvedCmd, ["doctor"], {
         encoding: "utf-8",
         cwd: repoPath,
+        env: process.env,
         shell: false
       });
     }
