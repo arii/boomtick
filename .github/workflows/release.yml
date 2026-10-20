@@ -135,6 +135,7 @@ jobs:
         if: steps.determine_target.outputs.target == 'cli' || steps.determine_target.outputs.target == 'all'
         run: |
           cd cli
+          python3 -m pip install --upgrade build
           python3 -m build
 
       - name: Publish MCP to npm
