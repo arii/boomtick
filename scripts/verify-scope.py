@@ -16,8 +16,8 @@ EXEMPT_FILES = {
     "tsconfig.json", "workspace.json", ".gitignore", ".dockerignore", ".pylintrc",
     "eslint.config.mjs", "oxlint.json", "tsconfig.app.json", ".release-please-manifest.json",
     "release-please-config.json", "changelog.md", "readme.md", "agents.md", "ci.yml", "release.yml",
-    "verify-scope.py", "test_verify_scope.py", "reviewpromptconstants.ts", "prompt_constants.json",
-    "pyproject.toml"
+    "trigger-parent-ci.yml", "verify-scope.py", "test_verify_scope.py", "reviewpromptconstants.ts",
+    "prompt_constants.json", "pyproject.toml"
 }
 
 def get_changed_files(base_branch=None):
