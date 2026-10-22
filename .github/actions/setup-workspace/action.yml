@@ -58,7 +58,10 @@ runs:
       if: inputs.setup-node == 'true'
       env:
         PNPM_VERSION: ${{ inputs.pnpm-version }}
-      run: corepack prepare pnpm@"$PNPM_VERSION" --activate
+      run: |
+        for i in 1 2 3 4 5; do
+          corepack prepare pnpm@"$PNPM_VERSION" --activate && break || sleep 3
+        done
       shell: bash
 
     - name: Resolve Paths
