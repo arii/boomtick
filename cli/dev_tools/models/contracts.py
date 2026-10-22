@@ -20,9 +20,12 @@ class ReviewFinding(CamelCaseModel):
     confidence: Literal['high', 'medium', 'low']
     severity: Optional[Literal['HIGH', 'MEDIUM', 'LOW']] = None
     line: Optional[int] = None
+    start_line: Optional[int] = None
+    end_line: Optional[int] = None
     snippet: Optional[str] = None
     fix_summary: Optional[str] = None
     counterexample: Optional[str] = None
+    suggestion: Optional[str] = None
 
 class CodeReviewState(CamelCaseModel):
     findings: List[ReviewFinding] = Field(default_factory=list)

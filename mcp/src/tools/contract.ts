@@ -847,6 +847,30 @@ export const CodeReviewResultJsonSchema = {
           "default": null,
           "title": "Line"
         },
+        "startLine": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Startline"
+        },
+        "endLine": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Endline"
+        },
         "snippet": {
           "anyOf": [
             {
@@ -882,6 +906,18 @@ export const CodeReviewResultJsonSchema = {
           ],
           "default": null,
           "title": "Counterexample"
+        },
+        "suggestion": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Suggestion"
         }
       },
       "required": [
@@ -1077,6 +1113,30 @@ export const CodeReviewStateJsonSchema = {
           "default": null,
           "title": "Line"
         },
+        "startLine": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Startline"
+        },
+        "endLine": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Endline"
+        },
         "snippet": {
           "anyOf": [
             {
@@ -1112,6 +1172,18 @@ export const CodeReviewStateJsonSchema = {
           ],
           "default": null,
           "title": "Counterexample"
+        },
+        "suggestion": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Suggestion"
         }
       },
       "required": [
@@ -2760,7 +2832,7 @@ export const ReviewCommentJsonSchema = {
   "type": "object"
 } as const;
 
-export const ReviewFindingSchema = z.object({ "id": z.string(), "file": z.string(), "issue": z.string(), "status": z.enum(["open","resolved"]), "confidence": z.enum(["high","medium","low"]), "severity": z.union([z.enum(["HIGH","MEDIUM","LOW"]), z.null()]).default(null), "line": z.union([z.number().int(), z.null()]).default(null), "snippet": z.union([z.string(), z.null()]).default(null), "fixSummary": z.union([z.string(), z.null()]).default(null), "counterexample": z.union([z.string(), z.null()]).default(null) });
+export const ReviewFindingSchema = z.object({ "id": z.string(), "file": z.string(), "issue": z.string(), "status": z.enum(["open","resolved"]), "confidence": z.enum(["high","medium","low"]), "severity": z.union([z.enum(["HIGH","MEDIUM","LOW"]), z.null()]).default(null), "line": z.union([z.number().int(), z.null()]).default(null), "startLine": z.union([z.number().int(), z.null()]).default(null), "endLine": z.union([z.number().int(), z.null()]).default(null), "snippet": z.union([z.string(), z.null()]).default(null), "fixSummary": z.union([z.string(), z.null()]).default(null), "counterexample": z.union([z.string(), z.null()]).default(null), "suggestion": z.union([z.string(), z.null()]).default(null) });
 
 export type ReviewFinding = z.infer<typeof ReviewFindingSchema>;
 
@@ -2824,6 +2896,30 @@ export const ReviewFindingJsonSchema = {
       "default": null,
       "title": "Line"
     },
+    "startLine": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Startline"
+    },
+    "endLine": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Endline"
+    },
     "snippet": {
       "anyOf": [
         {
@@ -2859,6 +2955,18 @@ export const ReviewFindingJsonSchema = {
       ],
       "default": null,
       "title": "Counterexample"
+    },
+    "suggestion": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Suggestion"
     }
   },
   "required": [

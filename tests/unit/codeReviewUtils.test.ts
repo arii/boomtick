@@ -10,6 +10,8 @@ import {
   buildReviewPayload,
   EXTERNAL_CONTEXT_TRUNCATED_MESSAGE,
   EXTERNAL_CONTEXT_MINIMUM_BUDGET,
+  filterLowImpactFiles,
+  truncateUnifiedDiff,
   withRetry
 } from '../../lib/codeReviewUtils';
 import { buildSystemPrompt } from '../../lib/buildCodeReviewPrompt';
@@ -120,6 +122,41 @@ describe('codeReviewUtils', () => {
     });
   });
 
+  describe('filterLowImpactFiles', () => {
+    it('filters default lockfiles, minified files, maps, and dist folders', () => {
+      const files = [
+        'src/index.ts',
+        'pnpm-lock.yaml',
+        'dist/bundle.js',
+        'src/vendor.min.js',
+        'src/styles.min.css',
+        'src/app.js.map'
+      ];
+      const filtered = filterLowImpactFiles(files);
+      expect(filtered).toEqual(['src/index.ts']);
+    });
+  });
+
+  describe('truncateUnifiedDiff', () => {
+    it('preserves git headers and hunk headers while truncating inner lines', () => {
+      const diff = [
+        'diff --git a/src/index.ts b/src/index.ts',
+        '--- a/src/index.ts',
+        '+++ b/src/index.ts',
+        '@@ -1,5 +1,5 @@',
+        ' line 1',
+        ' line 2',
+        ' line 3',
+        ' line 4'
+      ].join('\n');
+
+      const truncated = truncateUnifiedDiff(diff, 100);
+      expect(truncated).toContain('diff --git');
+      expect(truncated).toContain('@@ -1,5 +1,5 @@');
+      expect(truncated).toContain('...[DIFF TRUNCATED TO FIT TOKEN BUDGET]');
+    });
+  });
+
   describe('parseCodeReviewStateDetailed and parseCodeReviewState', () => {
     it('parses valid JSON findings including new fields', () => {
       const json = JSON.stringify({
@@ -129,6 +166,9 @@ describe('codeReviewUtils', () => {
           issue: 'test',
           status: 'open',
           confidence: 'high',
+          startLine: 10,
+          endLine: 12,
+          suggestion: '```suggestion\nconst a = 1;\n```',
           counterexample: 'Example'
         }]
       });
@@ -137,6 +177,9 @@ describe('codeReviewUtils', () => {
       expect(result.state?.findings.length).toBe(1);
       expect(result.state?.findings[0].id).toBe('1');
       expect(result.state?.findings[0].confidence).toBe('high');
+      expect(result.state?.findings[0].startLine).toBe(10);
+      expect(result.state?.findings[0].endLine).toBe(12);
+      expect(result.state?.findings[0].suggestion).toContain('```suggestion');
       expect(result.state?.findings[0].counterexample).toBe('Example');
       expect(result.parseError).toBeUndefined();
 
@@ -254,7 +297,7 @@ describe('codeReviewUtils', () => {
       const result = budgetInputContext(systemPrompt, { diffContext: diffText }, 16000);
 
       expect(result.diffText.length).toBeLessThan(16000 + 100);
-      expect(result.diffText).toContain('...[TRUNCATED TO FIT TOKEN LIMIT]');
+      expect(result.diffText).toContain('...[DIFF TRUNCATED TO FIT TOKEN BUDGET]');
     });
 
     it('allocates remaining budget to external text', () => {
@@ -270,7 +313,9 @@ describe('codeReviewUtils', () => {
         const systemPrompt = 'Prompt';
         const diffText = 'a'.repeat(16000);
         const externalText = 'External context that should be dropped';
-        const result = budgetInputContext(systemPrompt, { diffContext: diffText, externalContext: externalText }, 16000);
+        // maxInputChars = systemPrompt.length + 16000 + 10 -> remaining for external = 10 (which is <= 200)
+        const maxInputChars = systemPrompt.length + 16000 + 10;
+        const result = budgetInputContext(systemPrompt, { diffContext: diffText, externalContext: externalText }, maxInputChars);
 
         expect(result.externalText).toBe(EXTERNAL_CONTEXT_TRUNCATED_MESSAGE);
     });

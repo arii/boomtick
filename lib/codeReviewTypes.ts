@@ -6,9 +6,12 @@ export interface ReviewFinding {
   severity?: 'HIGH' | 'MEDIUM' | 'LOW';
   confidence: 'high' | 'medium' | 'low';
   line?: number;
+  startLine?: number;
+  endLine?: number;
   snippet?: string;
   fixSummary?: string;
   counterexample?: string;
+  suggestion?: string;
 }
 
 export interface CodeReviewState {

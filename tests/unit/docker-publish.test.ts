@@ -9,7 +9,7 @@ describe('Publish Runner Workflow Validation', () => {
     const content = fs.readFileSync(workflowPath, 'utf-8');
     const parsed = yaml.parse(content);
 
-    const steps = parsed.jobs['publish-docker'].steps;
+    const steps = (parsed.jobs['publish-docker'] || parsed.jobs['publish-artifacts']).steps;
     const metaStep = steps.find((s: { id?: string }) => s.id === 'meta');
 
     expect(metaStep).toBeDefined();

@@ -66,6 +66,16 @@ describe('buildCodeReviewPrompt', () => {
     expect(prompt).toContain('NEVER flag');
   });
 
+  it('includes github suggestion block guidelines and schema fields', () => {
+    const prompt = buildSystemPrompt({
+      diffContext: 'some diff'
+    });
+    expect(prompt).toContain('GITHUB SUGGESTIONS: When proposing concrete code fixes for specific lines, include an actionable GitHub suggestion block');
+    expect(prompt).toContain('"startLine": 10');
+    expect(prompt).toContain('"endLine": 12');
+    expect(prompt).toContain('"suggestion": "```suggestion\\nconst x = 2;\\n```"');
+  });
+
   it('contains the explicit evidentiary and non-speculative guidelines for HIGH/blocking severity', () => {
     const prompt = buildSystemPrompt({
       diffContext: 'some diff',
