@@ -75,15 +75,12 @@ jobs:
 
           echo "Triggering tech-dancer update-submodule workflow with boomtick branch: $BRANCH_NAME"
 
-          if gh workflow run update-submodule.yml \
+          gh workflow run update-submodule.yml \
             --repo arii/tech-dancer \
             --ref main \
-            -f ref="$BRANCH_NAME"; then
-            echo "triggered=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "::warning::Failed to trigger tech-dancer update-submodule workflow."
-            echo "triggered=false" >> "$GITHUB_OUTPUT"
-          fi
+            -f ref="$BRANCH_NAME"
+
+          echo "triggered=true" >> "$GITHUB_OUTPUT"
         shell: bash
 
       - name: Post PR Comment

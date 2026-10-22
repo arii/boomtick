@@ -87,16 +87,9 @@ if [ -d ".venv" ]; then
 elif [ -d "../.venv" ]; then
     VENV_PATH="../.venv"
 else
-    # Prefer a local venv to avoid polluting global environment
-    if [ -f "../package.json" ]; then
-        VENV_PATH="../.venv"
-    else
-        VENV_PATH=".venv"
-    fi
-    if [ ! -d "$VENV_PATH" ]; then
-        echo "Creating virtual environment in $VENV_PATH..."
-        python3 -m venv "$VENV_PATH"
-    fi
+    VENV_PATH=".venv"
+    echo "Creating virtual environment in $VENV_PATH..."
+    python3 -m venv "$VENV_PATH"
 fi
 
 PIP_OPTS=""
