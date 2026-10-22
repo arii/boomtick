@@ -41,12 +41,20 @@ export function initializeConfig() {
   try {
     // Attempt to load core properties from the Python CLI in the active workspace
     const cwd = process.env.BOOMTICK_REPO_PATH || process.cwd();
-    const cmd = `td-cli config view`;
-    const output = execSync(cmd, {
-      cwd,
-      encoding: "utf-8",
-      stdio: ["ignore", "pipe", "ignore"]
-    });
+    let output: string;
+    try {
+      output = execSync("td config view", {
+        cwd,
+        encoding: "utf-8",
+        stdio: ["ignore", "pipe", "ignore"]
+      });
+    } catch {
+      output = execSync("td-cli config view", {
+        cwd,
+        encoding: "utf-8",
+        stdio: ["ignore", "pipe", "ignore"]
+      });
+    }
     cachedDynamicConfig = JSON.parse(output);
     return cachedDynamicConfig;
   } catch (e) {

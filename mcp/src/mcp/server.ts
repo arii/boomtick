@@ -315,13 +315,22 @@ export class BoomtickMCPServer {
     // 3. SAFE REPOSITORY RESOLUTION
     const repoPath = config.repoPath || projectRoot;
 
-    // 4. SECURE, UNIX-ONLY PRE-FLIGHT CHECK FOR TD-CLI
+    // 4. SECURE, UNIX-ONLY PRE-FLIGHT CHECK FOR TD / TD-CLI
     try {
-      const result = spawnSync("td-cli", ["doctor"], { 
+      let result = spawnSync("td", ["doctor"], {
         encoding: "utf-8", 
         cwd: repoPath,
         shell: false // Explicitly disabled to clear Semgrep rules
       });
+
+      if (result.error || result.status !== 0) {
+        // Fallback to td-cli doctor
+        result = spawnSync("td-cli", ["doctor"], {
+          encoding: "utf-8",
+          cwd: repoPath,
+          shell: false
+        });
+      }
 
       if (result.error) {
         throw result.error;
@@ -331,14 +340,14 @@ export class BoomtickMCPServer {
         console.error("status:", result.status);
         console.error("stdout:", result.stdout);
         console.error("stderr:", result.stderr);
-        throw new Error(`td-cli doctor returned exit code: ${result.status}`);
+        throw new Error(`td / td-cli doctor returned exit code: ${result.status}`);
       }
 
-      console.error("✅ td-cli verified on PATH securely");
+      console.error("✅ td / td-cli verified on PATH securely");
     } catch (error) {
-      console.error("❌ Fatal: td-cli is not resolvable on PATH. MCP tools will fail.");
+      console.error("❌ Fatal: td or td-cli is not resolvable on PATH. MCP tools will fail.");
       console.error("Please ensure the project is installed: pip install -e .");
-      console.error("❌ Fatal: td-cli pre-flight check failed:", error instanceof Error ? error.message : String(error));
+      console.error("❌ Fatal: td / td-cli pre-flight check failed:", error instanceof Error ? error.message : String(error));
       process.exit(1);
     }
 

@@ -6,6 +6,7 @@ import fs from "fs";
 export const ALLOWED_COMMANDS = {
   git: "git",
   gh: "gh",
+  td: "td",
   "td-cli": "td-cli",
   pnpm: "pnpm",
   ls: "ls",
@@ -39,24 +40,33 @@ export async function runCommand(
   const start = Date.now();
   const timeout = options.timeout || 60000;
 
-  // Resolve path for 'gh' or 'td-cli' if specified
+  // Resolve path for 'gh', 'td', or 'td-cli' if specified
   let finalCmd = ALLOWED_COMMANDS[safeCmd] as string;
   if (safeCmd === "gh") {
     finalCmd = config.ghPath;
-  } else if (safeCmd === "td-cli") {
-    // If we have a repo-relative .venv, prioritize it
-    const venvBin = path.join(config.repoPath, ".venv", "bin", "td-cli");
-    const localVenvBin = path.join(process.cwd(), ".venv", "bin", "td-cli");
-    const parentVenvBin = path.join(config.repoPath, "..", ".venv", "bin", "td-cli");
+  } else if (safeCmd === "td" || safeCmd === "td-cli") {
+    // Check common venv locations for 'td' first, then 'td-cli'
+    const resolveCliPath = (binName: string): string | null => {
+      const venvBin = path.join(config.repoPath, ".venv", "bin", binName);
+      const localVenvBin = path.join(process.cwd(), ".venv", "bin", binName);
+      const parentVenvBin = path.join(config.repoPath, "..", ".venv", "bin", binName);
 
-    // In standalone mode, config.repoPath is the boomtick-pkg root.
-    // We check common venv locations to ensure we call the isolated binary.
-    if (fs.existsSync(venvBin)) {
-      finalCmd = venvBin;
-    } else if (fs.existsSync(localVenvBin)) {
-      finalCmd = localVenvBin;
-    } else if (fs.existsSync(parentVenvBin)) {
-      finalCmd = parentVenvBin;
+      if (fs.existsSync(venvBin)) return venvBin;
+      if (fs.existsSync(localVenvBin)) return localVenvBin;
+      if (fs.existsSync(parentVenvBin)) return parentVenvBin;
+      return null;
+    };
+
+    const resolvedTd = resolveCliPath("td");
+    const resolvedTdCli = resolveCliPath("td-cli");
+
+    if (resolvedTd) {
+      finalCmd = resolvedTd;
+    } else if (resolvedTdCli) {
+      finalCmd = resolvedTdCli;
+    } else {
+      // If safeCmd was 'td-cli' or 'td', default to requested command or fallback
+      finalCmd = safeCmd;
     }
   }
 

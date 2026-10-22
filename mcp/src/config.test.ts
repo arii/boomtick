@@ -20,14 +20,34 @@ describe("config", () => {
   });
 
   describe("initializeConfig", () => {
-    it("should load dynamic config from td-cli config view using active cwd", async () => {
+    it("should load dynamic config from td config view using active cwd", async () => {
       const mockConfig = { github_repo: "owner/repo", base_branch: "origin/main", vite_base_path: "/app/" };
       vi.mocked(execSync).mockReturnValue(JSON.stringify(mockConfig));
 
       const { initializeConfig } = await import("./config.js");
       const result = initializeConfig();
 
-      expect(execSync).toHaveBeenCalledWith("td-cli config view", expect.objectContaining({
+      expect(execSync).toHaveBeenCalledWith("td config view", expect.objectContaining({
+        cwd: process.cwd()
+      }));
+      expect(result).toEqual(mockConfig);
+    });
+
+    it("should fallback to td-cli config view if td config view fails", async () => {
+      const mockConfig = { github_repo: "owner/repo", base_branch: "origin/main", vite_base_path: "/app/" };
+      vi.mocked(execSync).mockImplementation((cmd: string) => {
+        if (cmd === "td config view") throw new Error("td not found");
+        if (cmd === "td-cli config view") return JSON.stringify(mockConfig);
+        return "{}";
+      });
+
+      const { initializeConfig } = await import("./config.js");
+      const result = initializeConfig();
+
+      expect(execSync).toHaveBeenNthCalledWith(1, "td config view", expect.objectContaining({
+        cwd: process.cwd()
+      }));
+      expect(execSync).toHaveBeenNthCalledWith(2, "td-cli config view", expect.objectContaining({
         cwd: process.cwd()
       }));
       expect(result).toEqual(mockConfig);
