@@ -4,13 +4,14 @@ import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
   ListResourcesRequestSchema,
+  ListResourceTemplatesRequestSchema,
   ReadResourceRequestSchema,
   ListPromptsRequestSchema,
   GetPromptRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
 import { config } from "../config.js";
 import { createSuccessResult, createErrorResult } from "../lib/result.js";
-import { MCP_TOOLS, MCP_PROMPTS, MCP_RESOURCES } from "./definitions.js";
+import { MCP_TOOLS, MCP_PROMPTS, MCP_RESOURCES, MCP_RESOURCE_TEMPLATES } from "./definitions.js";
 import { normalizeArguments } from "../lib/param_utils.js";
 import { healthHandler, HealthCheckInputSchema } from "./tools.js";
 import { searchOpenPrsHandler, SearchOpenPrsInputSchema } from "../tools/github.search_open_prs.js";
@@ -52,6 +53,7 @@ import path from "path";
 
 import { spawnSync } from "child_process";
 import { fileURLToPath } from "url";
+import { createMcpHttpServer } from "./http.js";
 
 export class BoomtickMCPServer {
   private server: Server;
@@ -117,29 +119,55 @@ export class BoomtickMCPServer {
       };
     });
 
+    this.server.setRequestHandler(ListResourceTemplatesRequestSchema, async () => {
+      return {
+        resourceTemplates: MCP_RESOURCE_TEMPLATES,
+      };
+    });
+
     this.server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
       const uri = request.params.uri;
-      if (uri === "repo://package-json") {
+      if (
+        uri === "mcp://workspace/agent-contract" ||
+        uri === "mcp://workspace/agent_contract" ||
+        uri === "repo://agent-contract"
+      ) {
+        const contractPath = path.join(config.repoPath, ".agents", "AGENT_CONTRACT.md");
+        const content = await fs.readFile(contractPath, "utf-8");
+        return {
+          contents: [{ uri, mimeType: "text/markdown", text: content }],
+        };
+      }
+      if (
+        uri === "mcp://git/changed-files" ||
+        uri === "repo://changed-files"
+      ) {
+        const changedFiles = await getChangedFilesHandler(GetChangedFilesInputSchema.parse({}));
+        return {
+          contents: [{ uri, mimeType: "application/json", text: JSON.stringify(changedFiles, null, 2) }],
+        };
+      }
+      if (uri === "repo://package-json" || uri === "mcp://workspace/package-json") {
         const content = await fs.readFile(path.join(config.repoPath, "package.json"), "utf-8");
         return {
           contents: [{ uri, mimeType: "application/json", text: content }],
         };
       }
-      if (uri === "repo://design-tokens") {
+      if (uri === "repo://design-tokens" || uri === "mcp://workspace/design-tokens") {
         const tokensPath = path.join(config.repoPath, "src/styles/design-tokens.ts");
         const content = await fs.readFile(tokensPath, "utf-8");
         return {
           contents: [{ uri, mimeType: "text/typescript", text: content }],
         };
       }
-      if (uri.startsWith("repo://diff/")) {
+      if (uri.startsWith("mcp://git/diff/") || uri.startsWith("repo://diff/")) {
         const prNumber = parseInt(uri.split("/").pop() || "");
         const diff = await getPrDiffHandler({ prNumber });
         return {
           contents: [{ uri, mimeType: "text/plain", text: diff.diffText }],
         };
       }
-      if (uri.startsWith("repo://ci/")) {
+      if (uri.startsWith("mcp://ci/logs/") || uri.startsWith("repo://ci/")) {
         const prNumber = parseInt(uri.split("/").pop() || "");
         const logs = await readCiLogsHandler({ prNumber });
         return {
@@ -263,7 +291,7 @@ export class BoomtickMCPServer {
       }
     });
   }
-  async run() {
+  private prepareEnvironmentAndPreflight() {
     const projectRoot = config.repoPath || process.cwd();
     const homeDir = process.env.HOME || "";
     const extraPaths = [];
@@ -340,6 +368,29 @@ export class BoomtickMCPServer {
       console.error("Please ensure the project is installed: pip install -e .");
       console.error("❌ Fatal: td pre-flight check failed:", error instanceof Error ? error.message : String(error));
       process.exit(1);
+    }
+  }
+
+  async startHttp(port = parseInt(process.env.PORT || process.env.HTTP_PORT || "3000", 10), bearerToken?: string) {
+    this.prepareEnvironmentAndPreflight();
+    const mcpHttp = createMcpHttpServer({ port, bearerToken, mcpServer: this.server });
+    return await mcpHttp.listen(port);
+  }
+
+  async run() {
+    this.prepareEnvironmentAndPreflight();
+
+    const isHttp =
+      process.env.MCP_TRANSPORT === "http" ||
+      process.argv.includes("--http") ||
+      (process.env.PORT !== undefined && !process.argv.includes("--stdio")) ||
+      (process.env.HTTP_PORT !== undefined && !process.argv.includes("--stdio"));
+
+    if (isHttp) {
+      const port = parseInt(process.env.PORT || process.env.HTTP_PORT || "3000", 10);
+      const mcpHttp = createMcpHttpServer({ port, mcpServer: this.server });
+      await mcpHttp.listen(port);
+      return;
     }
 
     const transport = new StdioServerTransport();

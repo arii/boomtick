@@ -3,7 +3,7 @@ import { createSuccessResult, createErrorResult } from "./result.js";
 
 describe("result utils", () => {
   describe("createSuccessResult", () => {
-    it("should format string data directly without JSON stringifying", () => {
+    it("should format string data directly without JSON stringifying and provide structuredContent", () => {
       const result = createSuccessResult("simple string message");
       expect(result).toEqual({
         content: [
@@ -12,11 +12,12 @@ describe("result utils", () => {
             text: "simple string message",
           },
         ],
+        structuredContent: { result: "simple string message" },
       });
       expect(result.isError).toBeUndefined();
     });
 
-    it("should format object data as pretty-printed JSON string", () => {
+    it("should format object data as pretty-printed JSON string and provide structuredContent", () => {
       const objData = { foo: "bar", count: 42 };
       const result = createSuccessResult(objData);
       expect(result).toEqual({
@@ -26,6 +27,7 @@ describe("result utils", () => {
             text: JSON.stringify(objData, null, 2),
           },
         ],
+        structuredContent: objData,
       });
       expect(result.isError).toBeUndefined();
     });

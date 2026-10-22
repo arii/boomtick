@@ -19,6 +19,7 @@ function isWritable(dir: string): boolean {
 interface ToolDefinition {
   name: string;
   inputSchema: Record<string, unknown>;
+  outputSchema?: Record<string, unknown>;
 }
 
 /**
@@ -73,6 +74,7 @@ async function syncSchemas() {
       name: tool.name,
       description: tool.description,
       parameters: tool.inputSchema,
+      outputSchema: tool.outputSchema,
     };
     const schemaContent = JSON.stringify(exportedSchema, null, 2);
     const fileName = `${tool.name}.json`;
