@@ -18,6 +18,8 @@ class VectorStore:
         self._bm25_corpus_docs: List[List[str]] = []
         self._cache: Dict[str, str] = self._load_cache()
 
+    # pylint: disable=too-many-instance-attributes
+
     def _load_cache(self) -> Dict[str, str]:
         if os.path.exists(self.cache_file):
             try:
@@ -137,16 +139,16 @@ class VectorStore:
                 visit(tree.root_node)
 
                 # Deduplicate overlapping nodes (prefer parent nodes)
-                selected_nodes = []
-                for n in nodes_to_chunk:
+                selected_nodes: List[Any] = []
+                for node_item in nodes_to_chunk:
                     # Check if node is inside another selected node
                     is_nested = any(
-                        parent.start_byte <= n.start_byte and parent.end_byte >= n.end_byte
+                        parent.start_byte <= node_item.start_byte and parent.end_byte >= node_item.end_byte
                         for parent in selected_nodes
-                        if parent != n
+                        if parent != node_item
                     )
                     if not is_nested:
-                        selected_nodes.append(n)
+                        selected_nodes.append(node_item)
 
                 for idx, node in enumerate(selected_nodes):
                     chunk_str = code_bytes[node.start_byte:node.end_byte].decode("utf-8", errors="ignore").strip()
@@ -275,11 +277,10 @@ class VectorStore:
             query_tokens = self.tokenize_text(query_text)
             if query_tokens:
                 bm25_scores = self._bm25_index.get_scores(query_tokens)
-                score_map = {doc_id: score for doc_id, score in zip(self._bm25_corpus_ids, bm25_scores)}
+                score_dict = dict(zip(self._bm25_corpus_ids, bm25_scores))
                 for item in formatted_results:
-                    item["bm25_score"] = score_map.get(item["id"], 0.0)
+                    item["bm25_score"] = score_dict.get(item["id"], 0.0)
 
-                # Sort hybrid results by combined vector distance and BM25 score
                 formatted_results.sort(
                     key=lambda x: (x["bm25_score"], -x["distance"] if x["distance"] is not None else 0),
                     reverse=True

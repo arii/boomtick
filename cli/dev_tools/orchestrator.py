@@ -382,22 +382,22 @@ class Orchestrator:
 
         ast_violations = node_results.get("violations", {})
         if targets:
-            for t in targets:
-                if os.path.isfile(t):
+            for target_path in targets:
+                if os.path.isfile(target_path):
                     try:
-                        with open(t, "r", encoding="utf-8") as f:
-                            code = f.read()
-                        findings = ast_auditor.audit_file(t, code)
+                        with open(target_path, "r", encoding="utf-8") as target_file:
+                            code = target_file.read()
+                        findings = ast_auditor.audit_file(target_path, code)
                         if findings:
-                            if t not in ast_violations:
-                                ast_violations[t] = []
-                            for f in findings:
-                                ast_violations[t].append({
-                                    "pattern": f["rule"],
-                                    "message": f["message"],
-                                    "value": f["value"],
-                                    "severity": f["severity"],
-                                    "line": f["line"],
+                            if target_path not in ast_violations:
+                                ast_violations[target_path] = []
+                            for finding in findings:
+                                ast_violations[target_path].append({
+                                    "pattern": finding["rule"],
+                                    "message": finding["message"],
+                                    "value": finding["value"],
+                                    "severity": finding["severity"],
+                                    "line": finding["line"],
                                 })
                     except Exception:
                         pass
@@ -406,13 +406,13 @@ class Orchestrator:
             if findings:
                 if "stdin" not in ast_violations:
                     ast_violations["stdin"] = []
-                for f in findings:
+                for finding in findings:
                     ast_violations["stdin"].append({
-                        "pattern": f["rule"],
-                        "message": f["message"],
-                        "value": f["value"],
-                        "severity": f["severity"],
-                        "line": f["line"],
+                        "pattern": finding["rule"],
+                        "message": finding["message"],
+                        "value": finding["value"],
+                        "severity": finding["severity"],
+                        "line": finding["line"],
                     })
 
         node_results["violations"] = ast_violations
