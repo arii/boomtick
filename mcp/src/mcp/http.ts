@@ -48,7 +48,13 @@ export function createMcpHttpServer(options: HttpServerOptions) {
     }
 
     // Bearer Token Validation for SSE & Messages endpoints
-    if (bearerToken) {
+    if (url.pathname === "/sse" || url.pathname === "/messages") {
+      if (!bearerToken) {
+        res.writeHead(500, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: "Server misconfiguration: bearerToken is required for HTTP transport" }));
+        return;
+      }
+
       const authHeader = req.headers.authorization;
       const expectedAuth = `Bearer ${bearerToken}`;
       const authBuffer = Buffer.from(authHeader || "");

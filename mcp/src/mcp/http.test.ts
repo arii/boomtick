@@ -59,4 +59,14 @@ describe("createMcpHttpServer", () => {
     const res = await fetch(`http://localhost:${port}/unknown-path`);
     expect(res.status).toBe(404);
   });
+
+  it("should return 500 if bearer token is not configured on server for protected endpoints", async () => {
+    httpServerObj = createMcpHttpServer({ port: 0, mcpServer });
+    port = await httpServerObj.listen(0);
+
+    const res = await fetch(`http://localhost:${port}/sse`);
+    expect(res.status).toBe(500);
+    const body = await res.json();
+    expect(body.error).toContain("Server misconfiguration");
+  });
 });
