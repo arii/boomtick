@@ -34,8 +34,7 @@ export function filterLowImpactFiles(files: string[], lowImpactPaths: string[] =
   if (!Array.isArray(files) || !Array.isArray(lowImpactPaths)) {
     throw new TypeError('Both files and lowImpactPaths must be arrays.');
   }
-  const patternsToUse = lowImpactPaths.length > 0 ? lowImpactPaths : DEFAULT_EXCLUDED_PATTERNS;
-  const combinedPatterns = Array.from(new Set(patternsToUse));
+  const combinedPatterns = Array.from(new Set(lowImpactPaths));
 
   // Pre-compile matchers outside the loop for O(M) transformation instead of O(N * M)
   const matchers: CompiledMatcher[] = combinedPatterns.map(p => {
