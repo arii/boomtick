@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.6.0](https://github.com/arii/boomtick/compare/mcp-v0.5.0...mcp-v0.6.0) (2026-10-22)
+
+
+### Features
+
+* aggregate PRs 908, 893, 895, 896, 897, 898 (canonical td migration, modern MCP, multi-target release, code intelligence, container suggestions) ([#910](https://github.com/arii/boomtick/issues/910)) ([3636191](https://github.com/arii/boomtick/commit/36361910cf0a2d9b8648a951e3338143520bb664))
+
 ## [0.5.0](https://github.com/arii/boomtick/compare/mcp-v0.4.2...mcp-v0.5.0) (2026-10-19)
 
 
