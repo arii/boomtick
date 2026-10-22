@@ -58,7 +58,14 @@ runs:
       if: inputs.setup-node == 'true'
       env:
         PNPM_VERSION: ${{ inputs.pnpm-version }}
-      run: corepack prepare pnpm@"$PNPM_VERSION" --activate
+      run: |
+        for i in {1..5}; do
+          if corepack prepare pnpm@"$PNPM_VERSION" --activate; then
+            break
+          fi
+          echo "corepack prepare failed, retrying in 3 seconds ($i/5)..."
+          sleep 3
+        done
       shell: bash
 
     - name: Resolve Paths
