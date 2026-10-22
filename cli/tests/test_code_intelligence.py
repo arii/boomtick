@@ -1,11 +1,19 @@
-import json
+"""Unit tests for AST chunking, BM25 vector store indexing, and code intelligence services."""
+import importlib.util
 import pytest
 from dev_tools.services.vector_store import VectorStore
 from dev_tools.services.ast_audit import ASTAuditor
 from dev_tools.orchestrator import Orchestrator
 
+HAS_TREE_SITTER = (
+    importlib.util.find_spec("tree_sitter") is not None
+    and importlib.util.find_spec("tree_sitter_typescript") is not None
+)
 
+
+@pytest.mark.skipif(not HAS_TREE_SITTER, reason="tree-sitter or tree-sitter-typescript not installed")
 def test_vector_store_ast_chunking_and_bm25(tmp_path):
+    """Test AST chunking of TSX code and incremental BM25 indexing."""
     db_dir = str(tmp_path / "chroma_db")
     vs = VectorStore(persist_directory=db_dir)
 
@@ -40,7 +48,9 @@ export const UserCard = ({ user }: { user: User }) => {
         assert len(results) > 0
 
 
+@pytest.mark.skipif(not HAS_TREE_SITTER, reason="tree-sitter or tree-sitter-typescript not installed")
 def test_ast_auditor_type_suppression_and_jsx_primitives(tmp_path):
+    """Test AST auditor detection of raw JSX primitives and type suppressions."""
     auditor = ASTAuditor(baseline_file=str(tmp_path / "audit-baseline.json"))
 
     bad_code = """
@@ -67,6 +77,7 @@ export function BadComponent() {
 
 
 def test_orchestrator_preflight(mocker):
+    """Test Orchestrator preflight command aggregation and status."""
     orch = Orchestrator()
     mocker.patch.object(orch, "get_audit_results", return_value={"violations": {}})
     mocker.patch.object(orch, "detect_conflicts", return_value={})

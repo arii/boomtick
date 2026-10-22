@@ -134,11 +134,20 @@ runs:
         CLI_DIR: ${{ steps.resolve-paths.outputs.CLI_DIR }}
       run: |
         echo "::group::Install dev-tools"
+        if [ -d ".venv" ]; then
+          if [ -f "requirements-dev.txt" ]; then
+            .venv/bin/pip install -r requirements-dev.txt || true
+          fi
+          if [ -f "$CLI_DIR/requirements-dev.txt" ]; then
+            .venv/bin/pip install -r "$CLI_DIR/requirements-dev.txt" || true
+          fi
+          .venv/bin/pip install -e "$CLI_DIR" || true
+        fi
         if [ -f "requirements-dev.txt" ]; then
-          pip install -r requirements-dev.txt --break-system-packages
+          pip install -r requirements-dev.txt --break-system-packages || true
         fi
         if [ -f "$CLI_DIR/requirements-dev.txt" ]; then
-          pip install -r "$CLI_DIR/requirements-dev.txt" --break-system-packages
+          pip install -r "$CLI_DIR/requirements-dev.txt" --break-system-packages || true
         fi
         pip install -e "$CLI_DIR" --break-system-packages
 

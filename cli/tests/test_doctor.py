@@ -1,3 +1,4 @@
+"""Unit tests for td doctor full-stack runtime and diagnostic checks."""
 import os
 from unittest.mock import patch
 from click.testing import CliRunner
@@ -7,6 +8,7 @@ from dev_tools.orchestrator import Orchestrator
 
 
 def test_doctor_check_all_configured():
+    """Test doctor check when all environment variables and tools are configured."""
     orch = Orchestrator()
     env = {
         "APP_ID": "123456",
@@ -25,6 +27,7 @@ def test_doctor_check_all_configured():
 
 
 def test_doctor_check_missing_env():
+    """Test doctor check when credentials environment variables are missing."""
     orch = Orchestrator()
     with patch.dict(os.environ, {}, clear=True):
         with patch.object(orch, "runtime_check", return_value={"node": "24.16.0", "pnpm": "10.28.2"}):
@@ -35,6 +38,7 @@ def test_doctor_check_missing_env():
 
 
 def test_doctor_check_invalid_app_id():
+    """Test doctor check when APP_ID is not a numeric string."""
     orch = Orchestrator()
     env = {
         "APP_ID": "not-a-number",
@@ -48,6 +52,7 @@ def test_doctor_check_invalid_app_id():
 
 
 def test_doctor_cli_command():
+    """Test running the td doctor CLI command via click runner."""
     runner = CliRunner()
     result = runner.invoke(cli, ["doctor"])
     assert result.exit_code == 0
