@@ -100,7 +100,7 @@ describe('julesReviewClient - sendJulesImpactReport', () => {
 
     vi.mocked(fs.promises.stat).mockResolvedValue({ isDirectory: () => true } as fs.Stats);
 
-    const bodyContent = '## Deployment Impact Analysis\n\n### Deployment Summary\nHigh impact\n\n## Verdict JSONs\n### gemini-code-review-verdict.json\n\`\`\`json\n{"passed":false,"highCount":1,"llmVerdict":"fail"}\n\`\`\`\n\n';
+    const bodyContent = '## Deployment Impact Analysis\n\n### Deployment Summary\nHigh impact\n\n## Verdict JSONs\n### gemini-code-review-verdict.json\n```json\n{"passed":false,"highCount":1,"llmVerdict":"fail"}\n```\n\n';
     const hash = calculateJulesRemediationHash('sha12345', bodyContent);
 
     vi.mocked(fs.existsSync).mockImplementation((p: unknown) => {
