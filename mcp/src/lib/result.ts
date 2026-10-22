@@ -5,6 +5,11 @@ export interface ToolResult extends CallToolResult {
 }
 
 export function createSuccessResult(data: any): ToolResult {
+  const structuredContent =
+    typeof data === "object" && data !== null
+      ? data
+      : { result: data };
+
   return {
     content: [
       {
@@ -12,6 +17,7 @@ export function createSuccessResult(data: any): ToolResult {
         text: typeof data === "string" ? data : JSON.stringify(data, null, 2),
       },
     ],
+    structuredContent,
   };
 }
 
