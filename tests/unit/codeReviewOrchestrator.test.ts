@@ -40,7 +40,7 @@ describe('filtering logic', () => {
   });
 
   it('handles empty or malformed low impact paths gracefully', () => {
-    const files = ['dist/index.js', 'src/App.tsx'];
+    const files = ['custom_build/index.js', 'src/App.tsx'];
     expect(filterLowImpactFiles(files, [])).toEqual(files);
 
     // Test validation

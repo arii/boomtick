@@ -1,6 +1,12 @@
 import * as fs from 'fs';
 import * as path from 'path';
+import * as crypto from 'crypto';
 import { getJulesSessionIdFromPR } from './visualReviewUtils';
+
+export function calculateJulesRemediationHash(commitSha: string, bodyContent: string): string {
+  const hash = crypto.createHash('sha256');
+  return hash.update(`${commitSha}:${bodyContent.trim()}`).digest('hex');
+}
 
 export async function sendJulesImpactReport(taskId?: string): Promise<void> {
   let resolvedTaskId = taskId || process.env.TASK_ID;
@@ -153,6 +159,22 @@ export async function sendJulesImpactReport(taskId?: string): Promise<void> {
     }
   }
 
+  const commitSha = process.env.GITHUB_SHA || process.env.COMMIT_SHA || 'unknown-sha';
+  const dispatchHash = calculateJulesRemediationHash(commitSha, body);
+  const hashTrackingFile = path.join(artifactsDir, `.jules-dispatch-${sessionId.replace(/[^a-zA-Z0-9_-]/g, '_')}.hash`);
+
+  if (fs.existsSync(hashTrackingFile)) {
+    try {
+      const existingHash = (await fs.promises.readFile(hashTrackingFile, 'utf8')).trim();
+      if (existingHash === dispatchHash) {
+        console.log(`✨ Duplicate Jules dispatch skipped for session ${sessionId} (commit ${commitSha.slice(0, 7)} hash match).`);
+        return;
+      }
+    } catch (e) {
+      console.warn('⚠️ Could not read previous Jules dispatch hash file:', e);
+    }
+  }
+
   const url = `https://jules.googleapis.com/v1alpha/${sessionId}:sendMessage`;
   try {
     const response = await fetch(url, {
@@ -171,6 +193,11 @@ export async function sendJulesImpactReport(taskId?: string): Promise<void> {
     }
 
     console.log(`✅ Sent impact analysis to ${sessionId}`);
+    try {
+      await fs.promises.writeFile(hashTrackingFile, dispatchHash, 'utf8');
+    } catch (e) {
+      console.warn('⚠️ Could not record Jules dispatch hash file:', e);
+    }
   } catch (error) {
     console.warn(`⚠️  Exception while sending message to Jules API (non-blocking):`, error);
   }

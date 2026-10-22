@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import * as fs from 'fs';
-import { sendJulesImpactReport } from '../../lib/julesReviewClient';
+import { sendJulesImpactReport, calculateJulesRemediationHash } from '../../lib/julesReviewClient';
 import * as visualReviewUtils from '../../lib/visualReviewUtils';
 
 vi.mock('fs', () => {
@@ -10,6 +10,7 @@ vi.mock('fs', () => {
       stat: vi.fn(),
       readdir: vi.fn(),
       readFile: vi.fn(),
+      writeFile: vi.fn().mockResolvedValue(undefined),
     },
   };
 });
@@ -88,6 +89,45 @@ describe('julesReviewClient - sendJulesImpactReport', () => {
 
     expect(consoleSpy).toHaveBeenCalledWith(
       "No actionable issues/failures found in reviews. Skipping sending message to Jules."
+    );
+    expect(global.fetch).not.toHaveBeenCalled();
+  });
+
+  it('skips sending report if duplicate dispatch hash exists for session', async () => {
+    process.env.TASK_ID = '12345';
+    process.env.JULES_API_KEY = 'test-key';
+    process.env.GITHUB_SHA = 'sha12345';
+
+    vi.mocked(fs.promises.stat).mockResolvedValue({ isDirectory: () => true } as fs.Stats);
+
+    const bodyContent = '## Deployment Impact Analysis\n\n### Deployment Summary\nHigh impact\n\n## Verdict JSONs\n### gemini-code-review-verdict.json\n\`\`\`json\n{"passed":false,"highCount":1,"llmVerdict":"fail"}\n\`\`\`\n\n';
+    const hash = calculateJulesRemediationHash('sha12345', bodyContent);
+
+    vi.mocked(fs.existsSync).mockImplementation((p: unknown) => {
+      const pStr = String(p);
+      if (pStr.includes('.jules-dispatch-')) return true;
+      if (pStr.endsWith('artifacts')) return true;
+      if (pStr.includes('deployment-review.md')) return true;
+      return false;
+    });
+
+    vi.mocked(fs.promises.readdir).mockResolvedValue(['gemini-code-review-verdict.json'] as any);
+    vi.mocked(fs.promises.readFile).mockImplementation(async (p: unknown) => {
+      const pStr = String(p);
+      if (pStr.includes('.jules-dispatch-')) return hash;
+      if (pStr.includes('deployment-review.md')) return '### Deployment Summary\nHigh impact';
+      if (pStr.includes('verdict.json')) {
+        return JSON.stringify({ passed: false, highCount: 1, llmVerdict: 'fail' });
+      }
+      return '';
+    });
+
+    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+    await sendJulesImpactReport('12345');
+
+    expect(consoleSpy).toHaveBeenCalledWith(
+      expect.stringContaining('Duplicate Jules dispatch skipped for session')
     );
     expect(global.fetch).not.toHaveBeenCalled();
   });

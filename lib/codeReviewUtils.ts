@@ -7,14 +7,41 @@ import type { CodeReviewSummary, CodeReviewState, ParsedFindingsResult, CodeRevi
  * Includes diff context, role, goal, and all relevant semantic/external context.
  * Explicitly handles undefined values to ensure stable serialization.
  */
-export function filterLowImpactFiles(files: string[], lowImpactPaths: string[]): string[] {
+export const DEFAULT_EXCLUDED_PATTERNS = [
+  'pnpm-lock.yaml',
+  'package-lock.json',
+  'yarn.lock',
+  'bun.lockb',
+  'dist/',
+  'build/',
+  'artifacts/',
+  '.tmp-main/',
+  '*.min.js',
+  '*.min.css',
+  '*.bundle.js',
+  '*.map'
+];
+
+export function filterLowImpactFiles(files: string[], lowImpactPaths: string[] = DEFAULT_EXCLUDED_PATTERNS): string[] {
   if (!Array.isArray(files) || !Array.isArray(lowImpactPaths)) {
     throw new TypeError('Both files and lowImpactPaths must be arrays.');
   }
+  const patternsToUse = lowImpactPaths.length > 0 ? lowImpactPaths : DEFAULT_EXCLUDED_PATTERNS;
+  const combinedPatterns = Array.from(new Set(patternsToUse));
+
   return files.filter(f => {
-    return !lowImpactPaths.some(p => {
-      // Normalize to handle mixed slashes and dot segments safely
-      const normalizedF = path.normalize(f);
+    const normalizedF = path.normalize(f);
+
+    return !combinedPatterns.some(p => {
+      // Handle wildcards (e.g., *.min.js, *.map)
+      if (p.includes('*')) {
+        const regexPattern = p
+          .replace(/[.+^${}()|[\]\\]/g, '\\$&')
+          .replace(/\*/g, '.*');
+        const regex = new RegExp(`(^|${path.sep === '\\' ? '\\\\' : path.sep})${regexPattern}$`, 'i');
+        return regex.test(normalizedF);
+      }
+
       let normalizedP = path.normalize(p);
 
       // Handle exact matches
@@ -26,16 +53,55 @@ export function filterLowImpactFiles(files: string[], lowImpactPaths: string[]):
         if (!normalizedP.endsWith(path.sep)) {
           normalizedP += path.sep;
         }
-        // It must start with the directory pattern, OR the directory pattern must be preceded by a path separator.
-        // And since normalizedP already ends with a path separator, we know it's matching a full directory.
         return normalizedF.startsWith(normalizedP) || normalizedF.includes(path.sep + normalizedP);
       }
 
       // Handle file matches (e.g., packages/web/pnpm-lock.yaml matching pnpm-lock.yaml)
-      // Must be an exact match or preceded by a path separator to avoid partial name matches
       return normalizedF === normalizedP || normalizedF.endsWith(path.sep + normalizedP);
     });
   });
+}
+
+/**
+ * Truncates an AST/unified diff chunk by preserving file headers and diff hunk headers
+ * (e.g. `diff --git`, `@@ -a,b +c,d @@`) while dropping middle lines if token/char limit is exceeded.
+ */
+export function truncateUnifiedDiff(diffText: string, maxChars: number = 16000): string {
+  if (!diffText || diffText.length <= maxChars) {
+    return diffText;
+  }
+
+  const lines = diffText.split('\n');
+  const resultLines: string[] = [];
+  let currentChars = 0;
+  let isDroppingLines = false;
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+
+    // Always preserve git diff headers and hunk headers
+    const isHeader = line.startsWith('diff --git') ||
+                     line.startsWith('--- ') ||
+                     line.startsWith('+++ ') ||
+                     line.startsWith('@@ ');
+
+    if (currentChars + line.length + 1 > maxChars && !isHeader) {
+      if (!isDroppingLines) {
+        resultLines.push('...[DIFF TRUNCATED TO FIT TOKEN BUDGET]');
+        isDroppingLines = true;
+      }
+      continue;
+    }
+
+    if (isHeader) {
+      isDroppingLines = false;
+    }
+
+    resultLines.push(line);
+    currentChars += line.length + 1;
+  }
+
+  return resultLines.join('\n');
 }
 
 export function calculateReviewHash(summary: CodeReviewSummary): string {
@@ -178,9 +244,12 @@ function normalizeFindings(findings: unknown[]): ReviewFinding[] {
     }
 
     const line = getSafeNumber(f, 'line');
+    const startLine = getSafeNumber(f, 'startLine');
+    const endLine = getSafeNumber(f, 'endLine');
     const snippet = getSafeString(f, 'snippet');
     const fixSummary = getSafeString(f, 'fixSummary');
     const counterexample = getSafeString(f, 'counterexample');
+    const suggestion = getSafeString(f, 'suggestion');
 
     return {
       id,
@@ -190,9 +259,12 @@ function normalizeFindings(findings: unknown[]): ReviewFinding[] {
       severity,
       confidence,
       line,
+      startLine,
+      endLine,
       snippet,
       fixSummary,
       counterexample,
+      suggestion,
     };
   });
 }
@@ -347,12 +419,12 @@ export function budgetInputContext(
     // Diff gets priority: up to 16,000 characters, capped at remaining budget.
     const maxDiffChars = Math.max(0, Math.min(rawDiffText.length, 16000, remainingBudgetForDiffAndContext));
     if (rawDiffText.length > maxDiffChars) {
-      rawDiffText = rawDiffText.slice(0, maxDiffChars) + '\n\n...[TRUNCATED TO FIT TOKEN LIMIT]';
+      rawDiffText = truncateUnifiedDiff(rawDiffText, maxDiffChars);
     }
 
     const remainingForExternal = remainingBudgetForDiffAndContext - rawDiffText.length;
     if (rawExternalText) {
-      if (remainingForExternal > EXTERNAL_CONTEXT_MINIMUM_BUDGET) {
+      if (remainingForExternal >= EXTERNAL_CONTEXT_MINIMUM_BUDGET) {
         if (rawExternalText.length > remainingForExternal) {
           rawExternalText = rawExternalText.slice(0, remainingForExternal - 50) + '\n\n...[TRUNCATED TO FIT TOKEN LIMIT]';
         }

@@ -808,6 +808,30 @@
               "default": null,
               "title": "Line"
             },
+            "startLine": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Startline"
+            },
+            "endLine": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Endline"
+            },
             "snippet": {
               "anyOf": [
                 {
@@ -843,6 +867,18 @@
               ],
               "default": null,
               "title": "Counterexample"
+            },
+            "suggestion": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Suggestion"
             }
           },
           "required": [
@@ -1033,6 +1069,30 @@
               "default": null,
               "title": "Line"
             },
+            "startLine": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Startline"
+            },
+            "endLine": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Endline"
+            },
             "snippet": {
               "anyOf": [
                 {
@@ -1068,6 +1128,18 @@
               ],
               "default": null,
               "title": "Counterexample"
+            },
+            "suggestion": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Suggestion"
             }
           },
           "required": [
@@ -2590,6 +2662,30 @@
           "default": null,
           "title": "Line"
         },
+        "startLine": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Startline"
+        },
+        "endLine": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Endline"
+        },
         "snippet": {
           "anyOf": [
             {
@@ -2625,6 +2721,18 @@
           ],
           "default": null,
           "title": "Counterexample"
+        },
+        "suggestion": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Suggestion"
         }
       },
       "required": [
