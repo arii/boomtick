@@ -12,7 +12,7 @@ export async function getPrCommitsHandler(args: z.infer<typeof GetPrCommitsInput
   const params = GetPrCommitsInputSchema.parse(args);
   const targetRepo = resolveRepo(params.repo);
 
-  const result = await runCommand("td-cli", ["gh", "list-pr-commits", "--pr-number", params.prNumber.toString(), "--repo", targetRepo]);
+  const result = await runCommand("td", ["gh", "list-pr-commits", "--pr-number", params.prNumber.toString(), "--repo", targetRepo]);
 
   if (result.exitCode !== 0) {
     throw new Error(`Failed to list PR commits: ${sanitizeError(result.stderr)}`);

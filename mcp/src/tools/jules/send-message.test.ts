@@ -17,20 +17,20 @@ describe("sendJulesMessageHandler", () => {
     vi.clearAllMocks();
   });
 
-  it("should send a message via td-cli", async () => {
+  it("should send a message via td", async () => {
     vi.mocked(shell.runCommand).mockResolvedValue({
       stdout: JSON.stringify({ status: "success", message: "Message sent successfully" }),
       stderr: "",
       exitCode: 0,
       durationMs: 0,
-      command: "td-cli agent send"
+      command: "td agent send"
     });
 
     const result = await sendJulesMessageHandler({ sessionId: "123", message: "hi" });
     expect(result.id).toBe("123");
     expect(result.status).toBe("success");
 
-    expect(shell.runCommand).toHaveBeenCalledWith("td-cli", [
+    expect(shell.runCommand).toHaveBeenCalledWith("td", [
       "agent", "send", "123", "hi"
     ]);
   });
@@ -48,7 +48,7 @@ describe("sendJulesMessageHandler", () => {
       stderr: "",
       exitCode: 0,
       durationMs: 0,
-      command: "td-cli agent send"
+      command: "td agent send"
     });
 
     const result = await sendJulesMessageHandler({
@@ -59,7 +59,7 @@ describe("sendJulesMessageHandler", () => {
     expect(result.id).toEqual(["s1", "s2"]);
     expect(result.status).toBe("success");
 
-    expect(shell.runCommand).toHaveBeenCalledWith("td-cli", [
+    expect(shell.runCommand).toHaveBeenCalledWith("td", [
       "agent", "send", "sessions/s1,sessions/s2", "hi batch"
     ]);
   });

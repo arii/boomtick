@@ -15,7 +15,7 @@ export async function createIssueHandler(args: z.input<typeof CreateIssueInputSc
   if (params.file) cmdArgs.push("--file", params.file);
   cmdArgs.push("--repo", targetRepo);
 
-  const result = await runCommand("td-cli", cmdArgs);
+  const result = await runCommand("td", cmdArgs);
 
   if (result.exitCode !== 0) {
     throw new Error(`Failed to create issue: ${sanitizeError(result.stderr)}`);

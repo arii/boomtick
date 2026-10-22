@@ -6,7 +6,7 @@ export const GetJulesMessagesInputSchema = z.object({
 });
 
 export async function getJulesMessagesHandler(input: z.infer<typeof GetJulesMessagesInputSchema>) {
-  const result = await runCommand("td-cli", ["agent", "messages", input.sessionId]);
+  const result = await runCommand("td", ["agent", "messages", input.sessionId]);
 
   if (result.exitCode !== 0) {
     throw new Error(`Failed to get messages: ${result.stderr}`);

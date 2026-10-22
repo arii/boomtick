@@ -20,7 +20,7 @@ describe("createJulesSessionHandler", () => {
       stderr: "",
       exitCode: 0,
       durationMs: 10,
-      command: "td-cli agent dispatch"
+      command: "td agent dispatch"
     });
   });
 
@@ -35,7 +35,7 @@ describe("createJulesSessionHandler", () => {
     expect(result.status).toBe("IN_PROGRESS");
     expect(result.createdAt).toBeInstanceOf(Date);
 
-    expect(shell.runCommand).toHaveBeenCalledWith("td-cli", [
+    expect(shell.runCommand).toHaveBeenCalledWith("td", [
       "agent", "dispatch", "main", "do work"
     ]);
   });
@@ -44,7 +44,7 @@ describe("createJulesSessionHandler", () => {
     const result = await createJulesSessionHandler({ task: "do work", branch: "feature-x" });
     expect(result.id).toBe("1234567890");
 
-    expect(shell.runCommand).toHaveBeenCalledWith("td-cli", [
+    expect(shell.runCommand).toHaveBeenCalledWith("td", [
       "agent", "dispatch", "feature-x", "do work"
     ]);
   });
@@ -57,7 +57,7 @@ describe("createJulesSessionHandler", () => {
           stderr: "",
           exitCode: 0,
           durationMs: 10,
-          command: "td-cli gh view"
+          command: "td gh view"
         };
       }
       return {
@@ -70,18 +70,18 @@ describe("createJulesSessionHandler", () => {
         stderr: "",
         exitCode: 0,
         durationMs: 10,
-        command: "td-cli agent dispatch"
+        command: "td agent dispatch"
       };
     });
 
     const result = await createJulesSessionHandler({ task: "do work", pr: 42 });
     expect(result.id).toBe("1234567890");
 
-    expect(shell.runCommand).toHaveBeenCalledWith("td-cli", [
+    expect(shell.runCommand).toHaveBeenCalledWith("td", [
       "gh", "view", "42"
     ]);
 
-    expect(shell.runCommand).toHaveBeenCalledWith("td-cli", [
+    expect(shell.runCommand).toHaveBeenCalledWith("td", [
       "agent", "dispatch", "pr-branch", "do work"
     ]);
   });
@@ -92,11 +92,11 @@ describe("createJulesSessionHandler", () => {
       stderr: "Original error",
       exitCode: 1,
       durationMs: 10,
-      command: "td-cli gh view"
+      command: "td gh view"
     });
 
     await expect(createJulesSessionHandler({ task: "do work", pr: 999 }))
-      .rejects.toThrow("td-cli returned error: PR not found");
+      .rejects.toThrow("td returned error: PR not found");
   });
 
   it("should throw descriptive error if PR JSON is invalid", async () => {
@@ -105,10 +105,10 @@ describe("createJulesSessionHandler", () => {
       stderr: "",
       exitCode: 0,
       durationMs: 10,
-      command: "td-cli gh view"
+      command: "td gh view"
     });
 
     await expect(createJulesSessionHandler({ task: "do work", pr: 42 }))
-      .rejects.toThrow("td-cli returned non-JSON output with exit code 0: invalid json");
+      .rejects.toThrow("td returned non-JSON output with exit code 0: invalid json");
   });
 });

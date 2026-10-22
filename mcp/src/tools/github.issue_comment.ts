@@ -19,7 +19,7 @@ export async function issueCommentHandler(args: z.infer<typeof IssueCommentInput
   const params = IssueCommentInputSchema.parse(args);
   const targetRepo = resolveRepo(params.repo);
 
-  const result = await runCommand("td-cli", [
+  const result = await runCommand("td", [
     "gh", "issue-comment", params.issueNumber.toString(),
     "--body", params.body,
     "--repo", targetRepo

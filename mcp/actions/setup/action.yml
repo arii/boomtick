@@ -11,5 +11,5 @@ runs:
       uses: arii/boomtick/.github/actions/setup-workspace@main
 
     - name: Verify setup
-      run: td-cli doctor
+      run: td doctor
       shell: bash

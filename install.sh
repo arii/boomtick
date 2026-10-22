@@ -82,10 +82,10 @@ export CLI_ROOT
 
 # Environment Isolation (venv)
 VENV_PATH=""
-if [ -d "../.venv" ]; then
-    VENV_PATH="../.venv"
-elif [ -d ".venv" ]; then
+if [ -d ".venv" ]; then
     VENV_PATH=".venv"
+elif [ -d "../.venv" ]; then
+    VENV_PATH="../.venv"
 else
     # Prefer a local venv to avoid polluting global environment
     if [ -f "../package.json" ]; then
