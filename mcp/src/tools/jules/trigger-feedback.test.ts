@@ -17,31 +17,31 @@ describe("triggerJulesFeedbackHandler", () => {
     vi.clearAllMocks();
   });
 
-  it("should return success output from td-cli", async () => {
+  it("should return success output from td", async () => {
     vi.mocked(shell.runCommand).mockResolvedValue({
       stdout: JSON.stringify({ status: "success", feedback: "All checks passed successfully. You may proceed." }),
       stderr: "",
       exitCode: 0,
       durationMs: 0,
-      command: "td-cli agent trigger-feedback"
+      command: "td agent trigger-feedback"
     });
 
     const result = await triggerJulesFeedbackHandler({ sessionId: "123" });
     expect(result.status).toBe("success");
     expect(result.feedback).toBe("All checks passed successfully. You may proceed.");
 
-    expect(shell.runCommand).toHaveBeenCalledWith("td-cli", [
+    expect(shell.runCommand).toHaveBeenCalledWith("td", [
       "agent", "trigger-feedback", "123"
     ]);
   });
 
-  it("should throw error if td-cli returns error", async () => {
+  it("should throw error if td returns error", async () => {
     vi.mocked(shell.runCommand).mockResolvedValue({
       stdout: JSON.stringify({ status: "error", message: "Session not found" }),
       stderr: "",
       exitCode: 0,
       durationMs: 0,
-      command: "td-cli agent trigger-feedback"
+      command: "td agent trigger-feedback"
     });
 
     await expect(triggerJulesFeedbackHandler({ sessionId: "123" }))

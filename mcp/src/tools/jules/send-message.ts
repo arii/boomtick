@@ -8,7 +8,7 @@ export const SendJulesMessageInputSchema = z.object({
 
 export async function sendJulesMessageHandler(input: z.infer<typeof SendJulesMessageInputSchema>) {
   const sessionIds = Array.isArray(input.sessionId) ? input.sessionId.join(",") : input.sessionId;
-  const result = await runCommand("td-cli", ["agent", "send", sessionIds, input.message]);
+  const result = await runCommand("td", ["agent", "send", sessionIds, input.message]);
 
   if (result.exitCode !== 0) {
     throw new Error(`Failed to send message: ${result.stderr}`);

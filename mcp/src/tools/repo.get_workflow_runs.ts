@@ -21,7 +21,7 @@ export async function getWorkflowRunsHandler(args: z.infer<typeof GetWorkflowRun
     cliArgs.push("--event", params.event);
   }
 
-  const result = await runCommand("td-cli", cliArgs);
+  const result = await runCommand("td", cliArgs);
 
   if (result.exitCode !== 0) {
     throw new Error(`Failed to fetch workflow runs: ${sanitizeError(result.stderr)}`);

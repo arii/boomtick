@@ -1,9 +1,9 @@
 name: BoomTick CI Validate
-description: Runs pre-submit checks via td-cli CLI
+description: Runs pre-submit checks via td CLI
 runs:
   using: composite
   steps:
     - uses: arii/boomtick/mcp/actions/setup@main
     - name: Pre-submit gate
-      run: td-cli gh pre-submit
+      run: td gh pre-submit
       shell: bash

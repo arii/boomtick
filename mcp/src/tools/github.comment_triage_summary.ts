@@ -7,7 +7,7 @@ export const CommentTriageSummaryInputSchema = z.object({
 });
 
 export async function commentTriageSummaryHandler(args: z.infer<typeof CommentTriageSummaryInputSchema>) {
-  const result = await runCommand("td-cli", [
+  const result = await runCommand("td", [
     "gh",
     "post-comment",
     "--pr", args.prNumber.toString(),

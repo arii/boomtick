@@ -7,7 +7,7 @@ export const CancelJulesSessionInputSchema = z.object({
 });
 
 export async function cancelJulesSessionHandler(input: z.infer<typeof CancelJulesSessionInputSchema>): Promise<JulesSession> {
-  const result = await runCommand("td-cli", ["agent", "cancel", input.sessionId]);
+  const result = await runCommand("td", ["agent", "cancel", input.sessionId]);
 
   if (result.exitCode !== 0) {
     throw new Error(`Failed to cancel session: ${result.stderr}`);
