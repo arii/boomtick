@@ -4,7 +4,7 @@ FROM node:24-alpine AS builder
 WORKDIR /workspace
 
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml tsconfig.app.json tsup.config.ts .node-version ./
-RUN corepack enable && corepack prepare pnpm@10.28.2 --activate
+RUN for i in 1 2 3 4 5; do corepack enable && corepack prepare pnpm@10.28.2 --activate && break || sleep 3; done
 
 COPY cli /workspace/cli
 COPY scripts /workspace/scripts
