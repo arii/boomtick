@@ -1,21 +1,82 @@
-name: Publish Runner Docker Image
+name: Synchronized Multi-Target Release Pipeline
 
 on:
   push:
-    branches: [ "**" ]
+    branches:
+      - main
+    tags:
+      - 'v*'
+      - 'cli-v*'
+      - 'mcp-v*'
+      - 'action-v*'
   workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Dry run publish'
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+  id-token: write
+  packages: write
 
 jobs:
-  publish-docker:
-    name: Build & Push Docker Image
+  publish-artifacts:
+    name: Build & Publish Synchronized Artifacts
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
-
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install Node Dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Test & Build MCP Server
+        run: |
+          pnpm --filter @arii/boomtick-mcp test
+          pnpm --filter @arii/boomtick-mcp build
+
+      - name: Sync Schemas and Contracts
+        run: pnpm run verify:schemas
+
+      - name: Publish MCP to npm
+        if: (startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch') && inputs.dry_run != true
+        run: pnpm --filter @arii/boomtick-mcp publish --no-git-checks --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        continue-on-error: true
+
+      - name: Bundle MCP into CLI & Build Python Wheel
+        run: |
+          mkdir -p cli/dev_tools/dist
+          cp -r mcp/dist/* cli/dev_tools/dist/
+          cd cli
+          python3 -m pip install --upgrade build
+          python3 -m build
+
+      - name: Publish CLI to PyPI
+        if: (startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch') && inputs.dry_run != true
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: cli/dist/
+        continue-on-error: true
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
@@ -27,21 +88,28 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Docker Meta
+      - name: Extract Docker Metadata
         id: meta
         uses: docker/metadata-action@v6
         with:
-          images: ghcr.io/arii/boomtick
+          images: |
+            ghcr.io/arii/boomtick-review
+            ghcr.io/arii/boomtick
           tags: |
+            type=match,pattern=v(.*),group=1
+            type=match,pattern=cli-v(.*),group=1
+            type=match,pattern=mcp-v(.*),group=1
+            type=match,pattern=action-v(.*),group=1
+            type=ref,event=branch
             type=sha,prefix=sha-
             type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
 
-      - name: Build and Push Image
+      - name: Build and Push Docker Image
         uses: docker/build-push-action@v7
         with:
           context: .
           file: ./Dockerfile
-          push: true
+          push: ${{ (startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch') && inputs.dry_run != true }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha

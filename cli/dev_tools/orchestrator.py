@@ -1026,6 +1026,85 @@ class Orchestrator:
 
         return {"node": actual_node, "pnpm": actual_pnpm}
 
+    def doctor_check(self) -> Dict[str, Any]:
+        """Comprehensive full-stack diagnostic check covering Node/pnpm, credentials, API keys, and Git configuration."""
+        results: Dict[str, Any] = {
+            "node": "unknown",
+            "pnpm": "unknown",
+            "app_id": "unconfigured",
+            "app_private_key": "unconfigured",
+            "gemini_api_key": "unconfigured",
+            "git_safe_directory": "unconfigured",
+            "status": "success",
+            "checks": {}
+        }
+
+        # 1. Node & pnpm checks
+        try:
+            rt = self.runtime_check()
+            results["node"] = rt.get("node", "unknown")
+            results["pnpm"] = rt.get("pnpm", "unknown")
+            results["checks"]["runtime"] = {"status": "ok", "node": results["node"], "pnpm": results["pnpm"]}
+        except Exception as e:
+            results["status"] = "error"
+            results["checks"]["runtime"] = {"status": "error", "message": str(e)}
+
+        # 2. GitHub App Credentials
+        app_id = os.environ.get("APP_ID") or os.environ.get("GITHUB_APP_ID")
+        if app_id and app_id.strip():
+            if app_id.strip().isdigit():
+                results["app_id"] = "configured"
+                results["checks"]["app_id"] = {"status": "ok", "value": app_id.strip()}
+            else:
+                results["app_id"] = "invalid"
+                results["checks"]["app_id"] = {"status": "warning", "message": "APP_ID must be a numeric string"}
+        else:
+            results["app_id"] = "missing"
+            results["checks"]["app_id"] = {"status": "warning", "message": "APP_ID / GITHUB_APP_ID not set"}
+
+        app_key = os.environ.get("APP_PRIVATE_KEY") or os.environ.get("GITHUB_APP_PRIVATE_KEY")
+        if app_key and app_key.strip():
+            if "BEGIN" in app_key or len(app_key.strip()) > 20:
+                results["app_private_key"] = "configured"
+                results["checks"]["app_private_key"] = {"status": "ok"}
+            else:
+                results["app_private_key"] = "invalid"
+                results["checks"]["app_private_key"] = {"status": "warning", "message": "APP_PRIVATE_KEY format invalid"}
+        else:
+            results["app_private_key"] = "missing"
+            results["checks"]["app_private_key"] = {"status": "warning", "message": "APP_PRIVATE_KEY / GITHUB_APP_PRIVATE_KEY not set"}
+
+        # 3. Gemini API Key
+        gemini_key = os.environ.get("GEMINI_API_KEY") or os.environ.get("GEMINI_KEY")
+        if gemini_key and gemini_key.strip():
+            results["gemini_api_key"] = "configured"
+            results["checks"]["gemini_api_key"] = {"status": "ok"}
+        else:
+            results["gemini_api_key"] = "missing"
+            results["checks"]["gemini_api_key"] = {"status": "warning", "message": "GEMINI_API_KEY not set"}
+
+        # 4. Git Safe Directory Configuration
+        try:
+            cwd = os.getcwd()
+            safe_dirs_res = run_command(["git", "config", "--get-all", "safe.directory"], check=False, log_on_error=False)
+            safe_dirs_out = safe_dirs_res.stdout if hasattr(safe_dirs_res, "stdout") else str(safe_dirs_res)
+            safe_dirs = [d.strip() for d in safe_dirs_out.splitlines() if d.strip()]
+
+            status_res = run_command(["git", "status", "--porcelain"], check=False, log_on_error=False)
+            status_err = status_res.stderr if hasattr(status_res, "stderr") else ""
+
+            if "*" in safe_dirs or cwd in safe_dirs or any(d in cwd for d in safe_dirs) or "fatal" not in status_err.lower():
+                results["git_safe_directory"] = "configured"
+                results["checks"]["git_safe_directory"] = {"status": "ok", "configured_directories": safe_dirs}
+            else:
+                results["git_safe_directory"] = "unconfigured"
+                results["checks"]["git_safe_directory"] = {"status": "warning", "message": "Git dubious ownership or safe.directory missing"}
+        except Exception as e:
+            results["git_safe_directory"] = "error"
+            results["checks"]["git_safe_directory"] = {"status": "warning", "message": str(e)}
+
+        return results
+
     def generate_ci_summary_report(self) -> str:
         """Generates a markdown summary of CI metrics."""
         metrics_res = verify_ci_metrics()

@@ -1003,10 +1003,20 @@ def bundle_size(ctx, baseline_file, threshold, update, dry_run):
 @cli.command()
 @click.pass_context
 def doctor(ctx):
-    """Runtime Consistency Check"""
+    """Full-stack Runtime & Environment Diagnostic Check"""
     orch = ctx.obj["ORCHESTRATOR"]
-    res = orch.runtime_check()
-    out(ctx, f"✅ Runtime OK: node {res['node']}, pnpm {res['pnpm']}", data=res)
+    res = orch.doctor_check()
+
+    if not ctx.obj.get("JSON"):
+        click.echo("🩺 BoomTick Doctor Diagnostic Report:")
+        click.echo(f"  • Node.js:            v{res.get('node')}")
+        click.echo(f"  • pnpm:               {res.get('pnpm')}")
+        click.echo(f"  • App ID:             {res.get('app_id')}")
+        click.echo(f"  • App Private Key:    {res.get('app_private_key')}")
+        click.echo(f"  • Gemini API Key:     {res.get('gemini_api_key')}")
+        click.echo(f"  • Git Safe Directory: {res.get('git_safe_directory')}")
+
+    out(ctx, f"✅ Doctor checks complete (Status: {res.get('status', 'success')})", data=res)
 
 
 @gh.command()
