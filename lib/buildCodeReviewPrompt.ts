@@ -112,7 +112,8 @@ Severity rules:
   const outputContract = `## 5. Output
 - STRICT SNIPPET: Quote entire line from diff.
 - COUNTEREXAMPLES: Required for errors (Why it fails, Example input, Expected vs Actual).
-- JSON: End with <findings> JSON block (id, file, line, snippet, issue, status, confidence, counterexample), followed immediately by </findings>. No truncation.
+- GITHUB SUGGESTIONS: When proposing concrete code fixes for specific lines, include an actionable GitHub suggestion block (\`\`\`suggestion\\n<replacement code>\\n\`\`\`) in the "suggestion" or "fixSummary" field or feedback text.
+- JSON: End with <findings> JSON block (id, file, line, startLine, endLine, snippet, issue, status, confidence, counterexample, fixSummary, suggestion), followed immediately by </findings>. No truncation.
 
 ${SNIPPET_AND_VERIFICATION_RULES}
 
@@ -131,12 +132,15 @@ The JSON must follow this schema:
       "id": "finding-1",
       "file": "src/App.tsx",
       "line": 10,
+      "startLine": 10,
+      "endLine": 12,
       "snippet": "const x = 1;",
       "issue": "Brief description of the issue",
       "status": "open",
       "confidence": "high",
       "counterexample": "why it fails...",
-      "fixSummary": "Brief summary of how it was addressed"
+      "fixSummary": "Brief summary of how it was addressed",
+      "suggestion": "\`\`\`suggestion\\nconst x = 2;\\n\`\`\`"
     }
   ]
 }

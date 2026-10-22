@@ -31,6 +31,8 @@ describe('GitHubModelFactory', () => {
 
   beforeEach(() => {
     process.env = { ...originalEnv };
+    delete process.env.OPENAI_API_KEY;
+    delete process.env.OPEN_API_KEY;
     GitHubModelFactory.resetClient();
     vi.clearAllMocks();
   });

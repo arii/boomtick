@@ -104,9 +104,32 @@ describe("BoomtickMCPServer", () => {
       expect(result.resources).toBeDefined();
       expect(Array.isArray(result.resources)).toBe(true);
     });
+
+    it("should return resource templates list", async () => {
+      const handler = requestHandlers.get("resources/templates/list");
+      expect(handler).toBeDefined();
+      const result = await handler!({ method: "resources/templates/list" });
+      expect(result.resourceTemplates).toBeDefined();
+      expect(Array.isArray(result.resourceTemplates)).toBe(true);
+    });
   });
 
   describe("ReadResource", () => {
+    it("should handle mcp://workspace/agent-contract", async () => {
+      const handler = requestHandlers.get("resources/read");
+      vi.mocked(fs.readFile).mockResolvedValue("# Agent Contract\nRule 1");
+
+      const result = await handler!({
+        method: "resources/read",
+        params: { uri: "mcp://workspace/agent-contract" },
+      });
+
+      expect(fs.readFile).toHaveBeenCalledWith("/mock/repo/.agents/AGENT_CONTRACT.md", "utf-8");
+      expect(result).toEqual({
+        contents: [{ uri: "mcp://workspace/agent-contract", mimeType: "text/markdown", text: "# Agent Contract\nRule 1" }],
+      });
+    });
+
     it("should handle repo://package-json", async () => {
       const handler = requestHandlers.get("resources/read");
       vi.mocked(fs.readFile).mockResolvedValue('{"name": "test"}');
@@ -196,6 +219,7 @@ describe("BoomtickMCPServer", () => {
 
       expect(result).toEqual({
         content: [{ type: "text", text: JSON.stringify({ status: "ok" }, null, 2) }],
+        structuredContent: { status: "ok" },
       });
     });
 

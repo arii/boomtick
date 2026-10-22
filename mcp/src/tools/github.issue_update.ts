@@ -19,7 +19,7 @@ export async function issueUpdateHandler(args: z.infer<typeof IssueUpdateInputSc
   if (params.state) cmdArgs.push("--state", params.state);
   cmdArgs.push("--repo", targetRepo);
 
-  const result = await runCommand("td-cli", cmdArgs);
+  const result = await runCommand("td", cmdArgs);
 
   if (result.exitCode !== 0) {
     throw new Error(`Failed to update issue: ${sanitizeError(result.stderr)}`);

@@ -372,9 +372,51 @@ class Orchestrator:
         res = run_command(cmd, check=False, input_str=content)
         try:
             stdout = res.stdout if isinstance(res, subprocess.CompletedProcess) else str(res)
-            return json.loads(stdout)
+            node_results = json.loads(stdout)
         except json.JSONDecodeError:
-            return {"violations": {}, "config": {}}
+            node_results = {"violations": {}, "config": {}}
+
+        # Integrate Python ASTAuditor deterministic checks
+        from dev_tools.services.ast_audit import ASTAuditor
+        ast_auditor = ASTAuditor()
+
+        ast_violations = node_results.get("violations", {})
+        if targets:
+            for target_path in targets:
+                if os.path.isfile(target_path):
+                    try:
+                        with open(target_path, "r", encoding="utf-8") as target_file:
+                            code = target_file.read()
+                        findings = ast_auditor.audit_file(target_path, code)
+                        if findings:
+                            if target_path not in ast_violations:
+                                ast_violations[target_path] = []
+                            for finding in findings:
+                                ast_violations[target_path].append({
+                                    "pattern": finding["rule"],
+                                    "message": finding["message"],
+                                    "value": finding["value"],
+                                    "severity": finding["severity"],
+                                    "line": finding["line"],
+                                })
+                    except Exception:
+                        pass
+        elif content is not None:
+            findings = ast_auditor.audit_file("stdin.tsx", content)
+            if findings:
+                if "stdin" not in ast_violations:
+                    ast_violations["stdin"] = []
+                for finding in findings:
+                    ast_violations["stdin"].append({
+                        "pattern": finding["rule"],
+                        "message": finding["message"],
+                        "value": finding["value"],
+                        "severity": finding["severity"],
+                        "line": finding["line"],
+                    })
+
+        node_results["violations"] = ast_violations
+        return node_results
 
     def extract_code_blocks(self, text: str) -> List[str]:
         return re.findall(r"```(?:tsx?|jsx?|html)?\n(.*?)```", text, re.DOTALL)
@@ -1026,6 +1068,85 @@ class Orchestrator:
 
         return {"node": actual_node, "pnpm": actual_pnpm}
 
+    def doctor_check(self) -> Dict[str, Any]:
+        """Comprehensive full-stack diagnostic check covering Node/pnpm, credentials, API keys, and Git configuration."""
+        results: Dict[str, Any] = {
+            "node": "unknown",
+            "pnpm": "unknown",
+            "app_id": "unconfigured",
+            "app_private_key": "unconfigured",
+            "gemini_api_key": "unconfigured",
+            "git_safe_directory": "unconfigured",
+            "status": "success",
+            "checks": {}
+        }
+
+        # 1. Node & pnpm checks
+        try:
+            rt = self.runtime_check()
+            results["node"] = rt.get("node", "unknown")
+            results["pnpm"] = rt.get("pnpm", "unknown")
+            results["checks"]["runtime"] = {"status": "ok", "node": results["node"], "pnpm": results["pnpm"]}
+        except Exception as e:
+            results["status"] = "error"
+            results["checks"]["runtime"] = {"status": "error", "message": str(e)}
+
+        # 2. GitHub App Credentials
+        app_id = os.environ.get("APP_ID") or os.environ.get("GITHUB_APP_ID")
+        if app_id and app_id.strip():
+            if app_id.strip().isdigit():
+                results["app_id"] = "configured"
+                results["checks"]["app_id"] = {"status": "ok", "value": app_id.strip()}
+            else:
+                results["app_id"] = "invalid"
+                results["checks"]["app_id"] = {"status": "warning", "message": "APP_ID must be a numeric string"}
+        else:
+            results["app_id"] = "missing"
+            results["checks"]["app_id"] = {"status": "warning", "message": "APP_ID / GITHUB_APP_ID not set"}
+
+        app_key = os.environ.get("APP_PRIVATE_KEY") or os.environ.get("GITHUB_APP_PRIVATE_KEY")
+        if app_key and app_key.strip():
+            if "BEGIN" in app_key or len(app_key.strip()) > 20:
+                results["app_private_key"] = "configured"
+                results["checks"]["app_private_key"] = {"status": "ok"}
+            else:
+                results["app_private_key"] = "invalid"
+                results["checks"]["app_private_key"] = {"status": "warning", "message": "APP_PRIVATE_KEY format invalid"}
+        else:
+            results["app_private_key"] = "missing"
+            results["checks"]["app_private_key"] = {"status": "warning", "message": "APP_PRIVATE_KEY / GITHUB_APP_PRIVATE_KEY not set"}
+
+        # 3. Gemini API Key
+        gemini_key = os.environ.get("GEMINI_API_KEY") or os.environ.get("GEMINI_KEY")
+        if gemini_key and gemini_key.strip():
+            results["gemini_api_key"] = "configured"
+            results["checks"]["gemini_api_key"] = {"status": "ok"}
+        else:
+            results["gemini_api_key"] = "missing"
+            results["checks"]["gemini_api_key"] = {"status": "warning", "message": "GEMINI_API_KEY not set"}
+
+        # 4. Git Safe Directory Configuration
+        try:
+            cwd = os.getcwd()
+            safe_dirs_res = run_command(["git", "config", "--get-all", "safe.directory"], check=False, log_on_error=False)
+            safe_dirs_out = safe_dirs_res.stdout if hasattr(safe_dirs_res, "stdout") else str(safe_dirs_res)
+            safe_dirs = [d.strip() for d in safe_dirs_out.splitlines() if d.strip()]
+
+            status_res = run_command(["git", "status", "--porcelain"], check=False, log_on_error=False)
+            status_err = status_res.stderr if hasattr(status_res, "stderr") else ""
+
+            if "*" in safe_dirs or cwd in safe_dirs or any(d in cwd for d in safe_dirs) or "fatal" not in status_err.lower():
+                results["git_safe_directory"] = "configured"
+                results["checks"]["git_safe_directory"] = {"status": "ok", "configured_directories": safe_dirs}
+            else:
+                results["git_safe_directory"] = "unconfigured"
+                results["checks"]["git_safe_directory"] = {"status": "warning", "message": "Git dubious ownership or safe.directory missing"}
+        except Exception as e:
+            results["git_safe_directory"] = "error"
+            results["checks"]["git_safe_directory"] = {"status": "warning", "message": str(e)}
+
+        return results
+
     def generate_ci_summary_report(self) -> str:
         """Generates a markdown summary of CI metrics."""
         metrics_res = verify_ci_metrics()
@@ -1052,6 +1173,67 @@ class Orchestrator:
             report.append("```\n</details>")
 
         return "\n".join(report)
+
+    def run_preflight(self, limit: int = 10, base_branch: Optional[str] = None) -> Dict[str, Any]:
+        """
+        Orchestrates td audit, local linting, overlap detection, and merge simulation into a unified preflight report.
+        """
+        results: Dict[str, Any] = {
+            "status": "success",
+            "audit": {},
+            "lint": {},
+            "overlaps": [],
+            "merge_simulation": {},
+        }
+
+        # 1. Deterministic AST Audit
+        try:
+            audit_res = self.get_audit_results(targets=AUDIT_CHECK_DIRS)
+            results["audit"] = audit_res
+            if audit_res.get("violations"):
+                # Mark warning or error if violations exist
+                results["audit_status"] = "violations_found"
+        except Exception as e:
+            results["audit"] = {"error": str(e)}
+
+        # 2. Local Linting Check
+        try:
+            lint_res = run_command(["pnpm", "run", "lint"], check=False)
+            results["lint"] = {
+                "exit_code": lint_res.returncode,
+                "status": "success" if lint_res.returncode == 0 else "error",
+                "output": (lint_res.stdout or "")[-2000:],
+            }
+        except Exception as e:
+            results["lint"] = {"status": "error", "message": str(e)}
+
+        # 3. Overlap Detection
+        try:
+            conflicts = self.detect_conflicts()
+            formatted_overlaps = []
+            for pr_pair, files in conflicts.items():
+                formatted_overlaps.append({"prs": list(pr_pair), "files": files})
+            results["overlaps"] = formatted_overlaps
+        except Exception as e:
+            results["overlaps"] = [{"error": str(e)}]
+
+        # 4. Merge Simulation via git merge-tree or merge_conflicts
+        try:
+            base = base_branch or PROJECT_CONFIG.base_branch_name
+            curr_branch = run_command(["git", "branch", "--show-current"]).strip()
+            if curr_branch:
+                merge_tree_res = run_command(["git", "merge-tree", base, curr_branch], check=False)
+                has_conflicts = "<<<<<<<" in (merge_tree_res.stdout or "")
+                results["merge_simulation"] = {
+                    "base": base,
+                    "head": curr_branch,
+                    "has_conflicts": has_conflicts,
+                    "status": "clean" if not has_conflicts else "conflicts_detected",
+                }
+        except Exception as e:
+            results["merge_simulation"] = {"error": str(e)}
+
+        return results
 
     def pre_submit_checks(self) -> Dict[str, Any]:
         results: Dict[str, Any] = {"steps": []}

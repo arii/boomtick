@@ -14,7 +14,10 @@ describe('Workflow Installer Command', () => {
   afterEach(() => { fs.rmSync(tmpDir, { recursive: true, force: true }); });
 
   it('should generate workflow templates in dry-run mode', () => {
-    const output = execFileSync('td-cli', ['agent', 'install-workflows', '--target', tmpDir, '--dry-run'], { encoding: 'utf-8' });
+    const tdBin = fs.existsSync(path.join(__dirname, '../.venv/bin/td'))
+      ? path.join(__dirname, '../.venv/bin/td')
+      : 'td';
+    const output = execFileSync(tdBin, ['agent', 'install-workflows', '--target', tmpDir, '--dry-run'], { encoding: 'utf-8' });
     expect(output).toContain('DRY-RUN');
     expect(output).toContain('impact-analysis.yml');
   });

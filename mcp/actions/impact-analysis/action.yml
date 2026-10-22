@@ -426,7 +426,7 @@ runs:
       env:
         GITHUB_TOKEN: ${{ inputs.github_token }}
       run: |
-        # Inject custom CLI path for td-cli resolution
+        # Inject custom CLI path for td resolution
         PYTHON_SCRIPTS_PATH=$(python3 -c "import sysconfig; print(sysconfig.get_path('scripts'))")
         export PATH="$PYTHON_SCRIPTS_PATH:$HOME/.local/bin:/github/home/.local/bin:$PATH"
 
@@ -436,8 +436,8 @@ runs:
         fi
 
         mkdir -p .boomtick/logs/ai
-        td-cli gh summary-report >> "$GITHUB_STEP_SUMMARY"
-        if ! td-cli gh verify-metrics; then
+        td gh summary-report >> "$GITHUB_STEP_SUMMARY"
+        if ! td gh verify-metrics; then
           echo "CI Metrics verification failed."
           exit 1
         fi

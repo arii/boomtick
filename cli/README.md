@@ -108,7 +108,7 @@ dispatching Jules sessions.
 
 ## 🤖 Agent / Jules GitHub Command Pattern
 
-Always use `boomtick-mcp` Tier 1 tools first. `td-cli` is the fallback
+Always use `boomtick-mcp` Tier 1 tools first. `td` is the fallback
 when MCP is unavailable — not the default. See `.agents/AGENTS.md` for the
 full tool mapping table.
 

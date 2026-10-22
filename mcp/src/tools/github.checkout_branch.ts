@@ -7,7 +7,7 @@ export const CheckoutBranchInputSchema = z.object({
 });
 
 export async function checkoutBranchHandler(args: z.infer<typeof CheckoutBranchInputSchema>) {
-  const result = await runCommand("td-cli", ["gh", "checkout", args.branch], { cwd: args.worktreePath });
+  const result = await runCommand("td", ["gh", "checkout", args.branch], { cwd: args.worktreePath });
 
   if (result.exitCode !== 0) {
     throw new Error(`Failed to checkout branch ${args.branch}: ${result.stderr}`);

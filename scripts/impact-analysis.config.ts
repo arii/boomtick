@@ -14,8 +14,17 @@ export const IMPACT_CONFIG = {
 
   LOW_IMPACT_PATHS: [
     'pnpm-lock.yaml',
+    'package-lock.json',
+    'yarn.lock',
+    'bun.lockb',
     'dist/',
+    'build/',
+    'artifacts/',
     '.tmp-main/',
+    '*.min.js',
+    '*.min.css',
+    '*.bundle.js',
+    '*.map',
     'tests/visual.spec.ts-snapshots/'
   ],
 
