@@ -168,8 +168,9 @@ class ASTAuditor:
 
             visit(tree.root_node)
 
-        except Exception as e:
+        except Exception:
             # Regexp fallback if tree-sitter fails
+            raw_tags_re = r"<(?:" + "|".join(sorted(RAW_HTML_TAGS)) + r")\b"
             lines = code.splitlines()
             for idx, line in enumerate(lines):
                 if "// @ts-ignore" in line or "// @ts-expect-error" in line or "/* @ts-ignore" in line:
@@ -181,7 +182,7 @@ class ASTAuditor:
                         "message": f"Unvetted type suppression found: `{line.strip()}`",
                         "value": line.strip(),
                     })
-                if re.search(r"<div|<span|<button", line) and ("style=" in line or "className=" in line):
+                if re.search(raw_tags_re, line) and ("style=" in line or "className=" in line):
                     findings.append({
                         "type": "jsx_primitive",
                         "severity": "warning",

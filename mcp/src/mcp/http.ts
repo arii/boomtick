@@ -1,4 +1,5 @@
 import http from "node:http";
+import crypto from "node:crypto";
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { SSEServerTransport } from "@modelcontextprotocol/sdk/server/sse.js";
 
@@ -50,7 +51,14 @@ export function createMcpHttpServer(options: HttpServerOptions) {
     if (bearerToken) {
       const authHeader = req.headers.authorization;
       const expectedAuth = `Bearer ${bearerToken}`;
-      if (!authHeader || authHeader !== expectedAuth) {
+      const authBuffer = Buffer.from(authHeader || "");
+      const expectedBuffer = Buffer.from(expectedAuth);
+      const isMatch =
+        Boolean(authHeader) &&
+        authBuffer.length === expectedBuffer.length &&
+        crypto.timingSafeEqual(authBuffer, expectedBuffer);
+
+      if (!isMatch) {
         res.writeHead(401, {
           "Content-Type": "application/json",
           "WWW-Authenticate": 'Bearer realm="boomtick-mcp", error="invalid_token"',
