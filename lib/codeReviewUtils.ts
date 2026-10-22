@@ -22,6 +22,14 @@ export const DEFAULT_EXCLUDED_PATTERNS = [
   '*.map'
 ];
 
+type CompiledMatcher = {
+  isWildcard: boolean;
+  regex?: RegExp;
+  pattern: string;
+  normalizedPattern: string;
+  isDirPattern: boolean;
+};
+
 export function filterLowImpactFiles(files: string[], lowImpactPaths: string[] = DEFAULT_EXCLUDED_PATTERNS): string[] {
   if (!Array.isArray(files) || !Array.isArray(lowImpactPaths)) {
     throw new TypeError('Both files and lowImpactPaths must be arrays.');
@@ -29,35 +37,45 @@ export function filterLowImpactFiles(files: string[], lowImpactPaths: string[] =
   const patternsToUse = lowImpactPaths.length > 0 ? lowImpactPaths : DEFAULT_EXCLUDED_PATTERNS;
   const combinedPatterns = Array.from(new Set(patternsToUse));
 
+  // Pre-compile matchers outside the loop for O(M) transformation instead of O(N * M)
+  const matchers: CompiledMatcher[] = combinedPatterns.map(p => {
+    if (p.includes('*')) {
+      const regexPattern = p
+        .replace(/[.+^${}()|[\]\\]/g, '\\$&')
+        .replace(/\*/g, '.*');
+      const regex = new RegExp(`(^|${path.sep === '\\' ? '\\\\' : path.sep})${regexPattern}$`, 'i');
+      return { isWildcard: true, regex, pattern: p, normalizedPattern: '', isDirPattern: false };
+    }
+
+    let normalizedP = path.normalize(p);
+    const isDirPattern = p.endsWith('/') || p.endsWith(path.sep);
+    if (isDirPattern && !normalizedP.endsWith(path.sep)) {
+      normalizedP += path.sep;
+    }
+
+    return { isWildcard: false, pattern: p, normalizedPattern: normalizedP, isDirPattern };
+  });
+
   return files.filter(f => {
     const normalizedF = path.normalize(f);
 
-    return !combinedPatterns.some(p => {
-      // Handle wildcards (e.g., *.min.js, *.map)
-      if (p.includes('*')) {
-        const regexPattern = p
-          .replace(/[.+^${}()|[\]\\]/g, '\\$&')
-          .replace(/\*/g, '.*');
-        const regex = new RegExp(`(^|${path.sep === '\\' ? '\\\\' : path.sep})${regexPattern}$`, 'i');
-        return regex.test(normalizedF);
+    return !matchers.some(m => {
+      if (m.isWildcard && m.regex) {
+        return m.regex.test(normalizedF);
       }
 
-      let normalizedP = path.normalize(p);
+      const { normalizedPattern, isDirPattern } = m;
 
       // Handle exact matches
-      if (normalizedF === normalizedP) return true;
+      if (normalizedF === normalizedPattern) return true;
 
       // Ensure directory patterns check correctly
-      const isDirPattern = p.endsWith('/') || p.endsWith(path.sep);
       if (isDirPattern) {
-        if (!normalizedP.endsWith(path.sep)) {
-          normalizedP += path.sep;
-        }
-        return normalizedF.startsWith(normalizedP) || normalizedF.includes(path.sep + normalizedP);
+        return normalizedF.startsWith(normalizedPattern) || normalizedF.includes(path.sep + normalizedPattern);
       }
 
       // Handle file matches (e.g., packages/web/pnpm-lock.yaml matching pnpm-lock.yaml)
-      return normalizedF === normalizedP || normalizedF.endsWith(path.sep + normalizedP);
+      return normalizedF === normalizedPattern || normalizedF.endsWith(path.sep + normalizedPattern);
     });
   });
 }
