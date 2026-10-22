@@ -372,9 +372,51 @@ class Orchestrator:
         res = run_command(cmd, check=False, input_str=content)
         try:
             stdout = res.stdout if isinstance(res, subprocess.CompletedProcess) else str(res)
-            return json.loads(stdout)
+            node_results = json.loads(stdout)
         except json.JSONDecodeError:
-            return {"violations": {}, "config": {}}
+            node_results = {"violations": {}, "config": {}}
+
+        # Integrate Python ASTAuditor deterministic checks
+        from dev_tools.services.ast_audit import ASTAuditor
+        ast_auditor = ASTAuditor()
+
+        ast_violations = node_results.get("violations", {})
+        if targets:
+            for target_path in targets:
+                if os.path.isfile(target_path):
+                    try:
+                        with open(target_path, "r", encoding="utf-8") as target_file:
+                            code = target_file.read()
+                        findings = ast_auditor.audit_file(target_path, code)
+                        if findings:
+                            if target_path not in ast_violations:
+                                ast_violations[target_path] = []
+                            for finding in findings:
+                                ast_violations[target_path].append({
+                                    "pattern": finding["rule"],
+                                    "message": finding["message"],
+                                    "value": finding["value"],
+                                    "severity": finding["severity"],
+                                    "line": finding["line"],
+                                })
+                    except Exception:
+                        pass
+        elif content is not None:
+            findings = ast_auditor.audit_file("stdin.tsx", content)
+            if findings:
+                if "stdin" not in ast_violations:
+                    ast_violations["stdin"] = []
+                for finding in findings:
+                    ast_violations["stdin"].append({
+                        "pattern": finding["rule"],
+                        "message": finding["message"],
+                        "value": finding["value"],
+                        "severity": finding["severity"],
+                        "line": finding["line"],
+                    })
+
+        node_results["violations"] = ast_violations
+        return node_results
 
     def extract_code_blocks(self, text: str) -> List[str]:
         return re.findall(r"```(?:tsx?|jsx?|html)?\n(.*?)```", text, re.DOTALL)
@@ -1131,6 +1173,67 @@ class Orchestrator:
             report.append("```\n</details>")
 
         return "\n".join(report)
+
+    def run_preflight(self, limit: int = 10, base_branch: Optional[str] = None) -> Dict[str, Any]:
+        """
+        Orchestrates td audit, local linting, overlap detection, and merge simulation into a unified preflight report.
+        """
+        results: Dict[str, Any] = {
+            "status": "success",
+            "audit": {},
+            "lint": {},
+            "overlaps": [],
+            "merge_simulation": {},
+        }
+
+        # 1. Deterministic AST Audit
+        try:
+            audit_res = self.get_audit_results(targets=AUDIT_CHECK_DIRS)
+            results["audit"] = audit_res
+            if audit_res.get("violations"):
+                # Mark warning or error if violations exist
+                results["audit_status"] = "violations_found"
+        except Exception as e:
+            results["audit"] = {"error": str(e)}
+
+        # 2. Local Linting Check
+        try:
+            lint_res = run_command(["pnpm", "run", "lint"], check=False)
+            results["lint"] = {
+                "exit_code": lint_res.returncode,
+                "status": "success" if lint_res.returncode == 0 else "error",
+                "output": (lint_res.stdout or "")[-2000:],
+            }
+        except Exception as e:
+            results["lint"] = {"status": "error", "message": str(e)}
+
+        # 3. Overlap Detection
+        try:
+            conflicts = self.detect_conflicts()
+            formatted_overlaps = []
+            for pr_pair, files in conflicts.items():
+                formatted_overlaps.append({"prs": list(pr_pair), "files": files})
+            results["overlaps"] = formatted_overlaps
+        except Exception as e:
+            results["overlaps"] = [{"error": str(e)}]
+
+        # 4. Merge Simulation via git merge-tree or merge_conflicts
+        try:
+            base = base_branch or PROJECT_CONFIG.base_branch_name
+            curr_branch = run_command(["git", "branch", "--show-current"]).strip()
+            if curr_branch:
+                merge_tree_res = run_command(["git", "merge-tree", base, curr_branch], check=False)
+                has_conflicts = "<<<<<<<" in (merge_tree_res.stdout or "")
+                results["merge_simulation"] = {
+                    "base": base,
+                    "head": curr_branch,
+                    "has_conflicts": has_conflicts,
+                    "status": "clean" if not has_conflicts else "conflicts_detected",
+                }
+        except Exception as e:
+            results["merge_simulation"] = {"error": str(e)}
+
+        return results
 
     def pre_submit_checks(self) -> Dict[str, Any]:
         results: Dict[str, Any] = {"steps": []}

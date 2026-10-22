@@ -25,7 +25,10 @@ dependencies = [
     "opentelemetry-sdk==1.37.0",
     "duckduckgo-search>=6.0.0",
     "setuptools<81.0.0",
-    "importlib-resources"
+    "importlib-resources",
+    "tree-sitter>=0.22.0",
+    "tree-sitter-typescript>=0.23.0",
+    "rank-bm25>=0.2.2"
 ]
 
 [project.urls]
