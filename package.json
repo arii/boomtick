@@ -9,7 +9,7 @@
   },
   "scripts": {
     "type-check": "pnpm --filter @arii/boomtick-mcp run type-check",
-    "lint": "run-p lint:*",
+    "lint": "run-p lint:* audit:fallow",
     "lint:eslint": "eslint . --max-warnings 0",
     "lint:ox": "oxlint --deny-warnings -c oxlint.json mcp/src/ mcp/tests/ lib/ tests/ scripts/",
     "lint:python": "python3 scripts/run-python-tool.py pylint",
@@ -18,7 +18,7 @@
     "test:python": "python3 scripts/run-python-tool.py pytest",
     "test": "pnpm --filter @arii/boomtick-mcp run test",
     "verify:schemas": "node scripts/verify-schemas.mjs",
-    "audit:fallow": "fallow dead-code",
+    "audit:fallow": "fallow",
     "check:runtime-files": "node scripts/check-runtime-files.mjs",
     "doctor": "td doctor",
     "preinstall": "node scripts/check-runtime-files.mjs",
