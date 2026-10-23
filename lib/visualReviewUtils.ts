@@ -406,6 +406,72 @@ export async function getPreviousReviewState<T>(reportTitle: string): Promise<T 
   return undefined;
 }
 
+export interface ReviewInlineComment {
+  path: string;
+  line: number;
+  start_line?: number;
+  start_side?: 'RIGHT' | 'LEFT';
+  side?: 'RIGHT' | 'LEFT';
+  body: string;
+}
+
+export function buildReviewComments(state: unknown): ReviewInlineComment[] {
+  if (!state || typeof state !== 'object') return [];
+  const findings = (state as { findings?: any[] }).findings;
+  if (!Array.isArray(findings)) return [];
+
+  const comments: ReviewInlineComment[] = [];
+
+  for (const f of findings) {
+    if (!f || typeof f !== 'object') continue;
+    if (f.status && f.status !== 'open') continue;
+
+    const filePath = f.file || f.path;
+    const lineNum = f.line || f.endLine;
+
+    if (!filePath || typeof filePath !== 'string' || !lineNum || typeof lineNum !== 'number') {
+      continue;
+    }
+
+    let commentBody = f.issue ? `**[${f.severity || 'Finding'}]** ${f.issue}` : '';
+
+    if (f.counterexample) {
+      commentBody += `\n\n*Why it fails:* ${f.counterexample}`;
+    }
+
+    if (f.suggestion && typeof f.suggestion === 'string' && f.suggestion.trim()) {
+      const trimmed = f.suggestion.trim();
+      const suggestionBlock = trimmed.startsWith('```suggestion')
+        ? trimmed
+        : `\`\`\`suggestion\n${trimmed}\n\`\`\``;
+      commentBody += `\n\n${suggestionBlock}`;
+    } else if (f.fixSummary && typeof f.fixSummary === 'string' && f.fixSummary.trim()) {
+      const trimmedFix = f.fixSummary.trim();
+      if (trimmedFix.startsWith('```suggestion')) {
+        commentBody += `\n\n${trimmedFix}`;
+      } else {
+        commentBody += `\n\n**Suggested Fix:** ${trimmedFix}`;
+      }
+    }
+
+    const comment: ReviewInlineComment = {
+      path: filePath,
+      line: lineNum,
+      side: 'RIGHT',
+      body: commentBody.trim(),
+    };
+
+    if (f.startLine && typeof f.startLine === 'number' && f.startLine < lineNum) {
+      comment.start_line = f.startLine;
+      comment.start_side = 'RIGHT';
+    }
+
+    comments.push(comment);
+  }
+
+  return comments;
+}
+
 async function _postPRReview(
   token: string,
   repo: string,
@@ -413,7 +479,8 @@ async function _postPRReview(
   body: string,
   reportTitle: string,
   stateTag: string,
-  verdict: 'pass' | 'fail' | 'warn'
+  verdict: 'pass' | 'fail' | 'warn',
+  state?: unknown
 ): Promise<void> {
   const reviewUrl = `https://api.github.com/repos/${repo}/pulls/${prNumber}/reviews`;
   let event = 'COMMENT';
@@ -490,7 +557,14 @@ async function _postPRReview(
     reviewBody = `<!-- ai-review-count: 1 -->\n${reviewBody}`;
   }
 
+  const inlineComments = buildReviewComments(state);
+
   const submitReview = async (submitEvent: string) => {
+    const payload: Record<string, any> = { body: reviewBody, event: submitEvent };
+    if (inlineComments.length > 0 && !existingReview) {
+      payload.comments = inlineComments;
+    }
+
     const response = await fetch(reviewUrl, {
       method: 'POST',
       headers: {
@@ -498,13 +572,14 @@ async function _postPRReview(
         Accept: 'application/vnd.github+json',
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ body: reviewBody, event: submitEvent }),
+      body: JSON.stringify(payload),
     });
 
     if (!response.ok) {
       const text = await response.text();
       if (response.status === 422 && text.includes('Can not approve your own pull request')) {
         console.warn('⚠️  Cannot approve own PR. Retrying as COMMENT...');
+        const retryPayload = { ...payload, event: 'COMMENT' };
         return await fetch(reviewUrl, {
           method: 'POST',
           headers: {
@@ -512,7 +587,21 @@ async function _postPRReview(
             Accept: 'application/vnd.github+json',
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ body: reviewBody, event: 'COMMENT' }),
+          body: JSON.stringify(retryPayload),
+        });
+      }
+      if (response.status === 422 && payload.comments && payload.comments.length > 0) {
+        console.warn('⚠️ Failed to post inline review comments. Retrying review without inline comments...');
+        const retryPayload = { ...payload };
+        delete retryPayload.comments;
+        return await fetch(reviewUrl, {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${token}`,
+            Accept: 'application/vnd.github+json',
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(retryPayload),
         });
       }
       throw new Error(`GitHub API error ${response.status}: ${text}`);
@@ -637,7 +726,7 @@ export async function postPRComment(
   }
 
   if (verdict) {
-    return _postPRReview(token, repo, prNumber, body, reportTitle, stateTag, verdict);
+    return _postPRReview(token, repo, prNumber, body, reportTitle, stateTag, verdict, state);
   }
 
   return _postPRIssueComment(token, repo, prNumber, body, reportTitle, stateTag);

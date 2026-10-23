@@ -112,7 +112,7 @@ Severity rules:
   const outputContract = `## 5. Output
 - STRICT SNIPPET: Quote entire line from diff.
 - COUNTEREXAMPLES: Required for errors (Why it fails, Example input, Expected vs Actual).
-- GITHUB SUGGESTIONS: When proposing concrete code fixes for specific lines, include an actionable GitHub suggestion block (\`\`\`suggestion\\n<replacement code>\\n\`\`\`) in the "suggestion" or "fixSummary" field or feedback text.
+- GITHUB SUGGESTIONS: When proposing concrete code fixes for specific lines or line ranges, output actionable GitHub suggestion blocks (\`\`\`suggestion\\n<replacement code>\\n\`\`\`) in the "suggestion" or "fixSummary" field or feedback text so maintainers can apply fixes with one click directly in GitHub's PR UI.
 - JSON: End with <findings> JSON block (id, file, line, startLine, endLine, snippet, issue, status, confidence, counterexample, fixSummary, suggestion), followed immediately by </findings>. No truncation.
 
 ${SNIPPET_AND_VERIFICATION_RULES}
