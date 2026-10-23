@@ -30,7 +30,9 @@ class CreateIssueInput(CamelCaseModel):
     body: Optional[str] = Field(None, min_length=1)
     file: Optional[str] = Field(None, min_length=1)
     repo: Optional[str] = Field(
-        None, pattern=r"^[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+$", description="The target repository override (e.g. org/repo)."
+        None,
+        pattern=r"^[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+$",
+        description="The target repository override (e.g. org/repo).",
     )
 
     @model_validator(mode="after")
@@ -52,7 +54,9 @@ class SearchPRsInput(CamelCaseModel):
     include_drafts: bool = Field(True, description="Whether to include draft PRs in the results.")
     labels: Optional[List[str]] = Field(None, description="Filter PRs by labels.")
     repo: Optional[str] = Field(
-        None, pattern=r"^[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+$", description="The target repository override (e.g. org/repo)."
+        None,
+        pattern=r"^[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+$",
+        description="The target repository override (e.g. org/repo).",
     )
 
 
@@ -69,7 +73,9 @@ class IssueUpdateInput(CamelCaseModel):
     )
     state: Optional[Literal["open", "closed"]] = Field(None, description="The state to set the issue to.")
     repo: Optional[str] = Field(
-        None, pattern=r"^[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+$", description="The target repository override (e.g. org/repo)."
+        None,
+        pattern=r"^[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+$",
+        description="The target repository override (e.g. org/repo).",
     )
 
     @model_validator(mode="after")
@@ -138,7 +144,9 @@ class HealthCheckInput(CamelCaseModel):
 class GetPrDiffInput(CamelCaseModel):
     pr_number: int = Field(..., description="The number of the pull request to get the diff for.")
     repo: Optional[str] = Field(
-        None, pattern=r"^[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+$", description="The target repository override (e.g. org/repo)."
+        None,
+        pattern=r"^[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+$",
+        description="The target repository override (e.g. org/repo).",
     )
 
 
@@ -177,7 +185,9 @@ class ReadCiLogsInput(CamelCaseModel):
     pr_number: int = Field(..., description="The number of the pull request to read logs for.")
     all: bool = Field(False, description="Include logs for successful runs (default: false).")
     repo: Optional[str] = Field(
-        None, pattern=r"^[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+$", description="The target repository override (e.g. org/repo)."
+        None,
+        pattern=r"^[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+$",
+        description="The target repository override (e.g. org/repo).",
     )
 
 
@@ -185,21 +195,27 @@ class RepoLogsInput(CamelCaseModel):
     pr_number: int = Field(..., description="The number of the pull request to stream logs for.")
     grep: Optional[str] = Field(None, description="Optional pattern to filter log lines.")
     repo: Optional[str] = Field(
-        None, pattern=r"^[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+$", description="The target repository override (e.g. org/repo)."
+        None,
+        pattern=r"^[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+$",
+        description="The target repository override (e.g. org/repo).",
     )
 
 
 class GetPrReviewsInput(CamelCaseModel):
     pr_number: int = Field(..., description="The number of the PR to view reviews for.")
     repo: Optional[str] = Field(
-        None, pattern=r"^[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+$", description="The target repository override (e.g. org/repo)."
+        None,
+        pattern=r"^[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+$",
+        description="The target repository override (e.g. org/repo).",
     )
 
 
 class GetPrCommitsInput(CamelCaseModel):
     pr_number: int = Field(..., description="The number of the PR to list commits for.")
     repo: Optional[str] = Field(
-        None, pattern=r"^[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+$", description="The target repository override (e.g. org/repo)."
+        None,
+        pattern=r"^[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+$",
+        description="The target repository override (e.g. org/repo).",
     )
 
 
@@ -207,7 +223,9 @@ class GetWorkflowRunsInput(CamelCaseModel):
     branch: Optional[str] = Field(None, description="Filter workflow runs by branch name.")
     event: Optional[str] = Field(None, description="Filter workflow runs by event (e.g. push, pull_request).")
     repo: Optional[str] = Field(
-        None, pattern=r"^[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+$", description="The target repository override (e.g. org/repo)."
+        None,
+        pattern=r"^[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+$",
+        description="The target repository override (e.g. org/repo).",
     )
 
 
@@ -279,7 +297,9 @@ class CreatePullRequestInput(CamelCaseModel):
     base: str = Field("main", description="The target branch to merge into.")
     draft: bool = Field(False, description="Whether to create the PR as a draft.")
     repo: Optional[str] = Field(
-        None, pattern=r"^[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+$", description="The target repository override (e.g. org/repo)."
+        None,
+        pattern=r"^[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+$",
+        description="The target repository override (e.g. org/repo).",
     )
 
 
@@ -291,14 +311,18 @@ class CommentTriageSummaryInput(CamelCaseModel):
 class GetPrInput(CamelCaseModel):
     pr_number: int = Field(..., description="The number of the PR to view.")
     repo: Optional[str] = Field(
-        None, pattern=r"^[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+$", description="The target repository override (e.g. org/repo)."
+        None,
+        pattern=r"^[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+$",
+        description="The target repository override (e.g. org/repo).",
     )
 
 
 class IssueViewInput(CamelCaseModel):
     issue_number: int = Field(..., description="The number of the issue to view.")
     repo: Optional[str] = Field(
-        None, pattern=r"^[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+$", description="The target repository override (e.g. org/repo)."
+        None,
+        pattern=r"^[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+$",
+        description="The target repository override (e.g. org/repo).",
     )
 
 
@@ -306,7 +330,9 @@ class IssueCommentInput(CamelCaseModel):
     issue_number: int = Field(..., description="The number of the issue to comment on.")
     body: str = Field(..., description="The content of the comment.")
     repo: Optional[str] = Field(
-        None, pattern=r"^[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+$", description="The target repository override (e.g. org/repo)."
+        None,
+        pattern=r"^[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+$",
+        description="The target repository override (e.g. org/repo).",
     )
 
 
@@ -370,7 +396,9 @@ class ReadAgentContextInput(CamelCaseModel):
 
 
 class GetCommandSchemaInput(CamelCaseModel):
-    command_path: str = Field(..., description="The CLI command path to retrieve the schema for (e.g. 'gh audit-pr')")
+    command_path: str = Field(
+        ..., description="The CLI command path to retrieve the schema for (e.g. 'gh audit-pr')"
+    )
 
 
 # AI Review Models

@@ -8,6 +8,7 @@ prompt contexts based on graph node execution steps.
 import json
 import os
 import re
+import sys
 from typing import Any, Dict, List, Optional, Set
 from dev_tools.services.github import GitHubClient
 from dev_tools.config import get_config
@@ -91,7 +92,6 @@ class ContextBuilder:
                         self.file_tree = context_data["file_tree"]
                         return self
             except Exception as e:
-                import sys
                 print(f"Warning: Failed to load cached file tree from {context_file}: {e}", file=sys.stderr)
 
         self.file_tree = self._get_dir_structure(root_dir, max_depth, root_dir_abs=os.path.realpath(root_dir))

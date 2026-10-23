@@ -1,4 +1,4 @@
-# pylint: disable=consider-using-from-import,import-outside-toplevel,missing-docstring
+# pylint: disable=consider-using-from-import,import-outside-toplevel,missing-docstring,invalid-name,wrong-import-position
 import inspect
 import json
 import os
@@ -6,9 +6,9 @@ import sys
 from pathlib import Path
 
 # Ensure the parent directory of dev_tools (cli/) is in sys.path
-_cli_dir = str(Path(__file__).resolve().parent.parent)
-if _cli_dir not in sys.path:
-    sys.path.insert(0, _cli_dir)
+CLI_DIR = str(Path(__file__).resolve().parent.parent)
+if CLI_DIR not in sys.path:
+    sys.path.insert(0, CLI_DIR)
 
 from dev_tools import models
 from pydantic import BaseModel
@@ -49,8 +49,6 @@ def generate_schema():
     with open(output_path, "w", encoding="utf-8") as f:
         json.dump(existing, f, indent=2)
         f.write("\n")
-
-    import sys
 
     print(
         f"Updated cli-schema.json with {len(schemas['models'])} models at {output_path}",

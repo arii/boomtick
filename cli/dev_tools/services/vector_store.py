@@ -3,22 +3,30 @@ import hashlib
 import json
 import os
 import re
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional
+
+from dataclasses import dataclass, field
+
+@dataclass
+class BM25State:  # pylint: disable=too-few-public-methods
+    index: Any = None
+    corpus_ids: List[str] = field(default_factory=list)
+    corpus_docs: List[List[str]] = field(default_factory=list)
+
 
 class VectorStore:
     def __init__(self, persist_directory: str = "artifacts/chroma_db", collection_name: str = "codebase"):
         self.persist_directory = persist_directory
         self.collection_name = collection_name
-        self.cache_file = os.path.join(persist_directory, "ast_hash_cache.json")
         self._client = None
         self._collection = None
         self._embedding_fn = None
-        self._bm25_index = None
-        self._bm25_corpus_ids: List[str] = []
-        self._bm25_corpus_docs: List[List[str]] = []
+        self._bm25 = BM25State()
         self._cache: Dict[str, str] = self._load_cache()
 
-    # pylint: disable=too-many-instance-attributes
+    @property
+    def cache_file(self) -> str:
+        return os.path.join(self.persist_directory, "ast_hash_cache.json")
 
     def _load_cache(self) -> Dict[str, str]:
         if os.path.exists(self.cache_file):
@@ -81,14 +89,105 @@ class VectorStore:
         try:
             from rank_bm25 import BM25Okapi  # pylint: disable=import-error
             tokenized_corpus = [self.tokenize_text(doc) for doc in documents]
-            self._bm25_corpus_docs = tokenized_corpus
-            self._bm25_corpus_ids = ids
+            self._bm25.corpus_docs = tokenized_corpus
+            self._bm25.corpus_ids = ids
             if tokenized_corpus:
-                self._bm25_index = BM25Okapi(tokenized_corpus)
+                self._bm25.index = BM25Okapi(tokenized_corpus)
             else:
-                self._bm25_index = None
+                self._bm25.index = None
         except ImportError:
-            self._bm25_index = None
+            self._bm25.index = None
+
+    def _collect_ast_nodes(self, tree, code_bytes: bytes) -> List[Any]:
+        nodes_to_chunk = []
+
+        def visit(node):
+            ntype = node.type
+            if ntype in (
+                "interface_declaration",
+                "function_declaration",
+                "class_declaration",
+                "type_alias_declaration",
+                "enum_declaration",
+                "method_definition",
+            ):
+                nodes_to_chunk.append(node)
+            elif ntype in ("export_statement", "lexical_declaration"):
+                code_snippet = code_bytes[node.start_byte:node.end_byte].decode("utf-8", errors="ignore")
+                has_decl = any(kw in code_snippet for kw in ("function", "=>", "class", "interface"))
+                if has_decl:
+                    nodes_to_chunk.append(node)
+                else:
+                    for child in node.children:
+                        visit(child)
+            else:
+                for child in node.children:
+                    visit(child)
+
+        visit(tree.root_node)
+
+        selected_nodes: List[Any] = []
+        for node_item in nodes_to_chunk:
+            is_nested = any(
+                parent.start_byte <= node_item.start_byte and parent.end_byte >= node_item.end_byte
+                for parent in selected_nodes
+                if parent != node_item
+            )
+            if not is_nested:
+                selected_nodes.append(node_item)
+
+        return selected_nodes
+
+    def _chunk_ts_ast(self, code: str, filepath: str) -> List[Dict[str, Any]]:
+        chunks: List[Dict[str, Any]] = []
+        try:
+            import tree_sitter  # pylint: disable=import-error
+            import tree_sitter_typescript as tsts  # pylint: disable=import-error
+
+            ts_lang = tsts.language_tsx() if filepath.endswith("x") else tsts.language_typescript()
+            lang = tree_sitter.Language(ts_lang)
+            parser = tree_sitter.Parser(lang)
+            code_bytes = code.encode("utf-8")
+            tree = parser.parse(code_bytes)
+
+            selected_nodes = self._collect_ast_nodes(tree, code_bytes)
+
+            for idx, node in enumerate(selected_nodes):
+                chunk_str = code_bytes[node.start_byte:node.end_byte].decode("utf-8", errors="ignore").strip()
+                if chunk_str:
+                    chunks.append({
+                        "content": chunk_str,
+                        "metadata": {
+                            "filepath": filepath,
+                            "start_line": node.start_point[0] + 1,
+                            "end_line": node.end_point[0] + 1,
+                            "node_type": node.type,
+                            "chunk_index": idx,
+                        },
+                    })
+        except Exception:
+            return []
+        return chunks
+
+    def _chunk_lines(self, code: str, filepath: str) -> List[Dict[str, Any]]:
+        chunks: List[Dict[str, Any]] = []
+        lines = code.splitlines()
+        chunk_size = 50
+        for i in range(0, len(lines), chunk_size):
+            chunk_lines = lines[i:i + chunk_size]
+            chunk_str = "\n".join(chunk_lines).strip()
+            if chunk_str:
+                chunks.append({
+                    "content": chunk_str,
+                    "metadata": {
+                        "filepath": filepath,
+                        "start_line": i + 1,
+                        "end_line": i + len(chunk_lines),
+                        "node_type": "line_block",
+                        "chunk_index": i // chunk_size,
+                    },
+                })
+        return chunks
 
     def chunk_code_ast(self, code: str, filepath: str) -> List[Dict[str, Any]]:
         """
@@ -96,99 +195,11 @@ class VectorStore:
         component, method, class, and export boundaries.
         Falls back to line chunking if tree-sitter is unavailable or fails.
         """
-        chunks: List[Dict[str, Any]] = []
-
-        is_ts_file = filepath.endswith(".ts") or filepath.endswith(".tsx") or filepath.endswith(".js") or filepath.endswith(".jsx")
-
-        if is_ts_file:
-            try:
-                import tree_sitter  # pylint: disable=import-error
-                import tree_sitter_typescript as tsts  # pylint: disable=import-error
-
-                lang = tree_sitter.Language(tsts.language_tsx() if filepath.endswith("x") else tsts.language_typescript())
-                parser = tree_sitter.Parser(lang)
-                code_bytes = code.encode("utf-8")
-                tree = parser.parse(code_bytes)
-
-                nodes_to_chunk = []
-
-                def visit(node):
-                    ntype = node.type
-                    # Capture top-level declarations, components, interfaces, classes, methods
-                    if ntype in (
-                        "interface_declaration",
-                        "function_declaration",
-                        "class_declaration",
-                        "type_alias_declaration",
-                        "enum_declaration",
-                        "method_definition",
-                    ):
-                        nodes_to_chunk.append(node)
-                    elif ntype in ("export_statement", "lexical_declaration"):
-                        # Check if export or lexical decl wraps a function/component
-                        code_snippet = code_bytes[node.start_byte:node.end_byte].decode("utf-8", errors="ignore")
-                        if "function" in code_snippet or "=>" in code_snippet or "class" in code_snippet or "interface" in code_snippet:
-                            nodes_to_chunk.append(node)
-                        else:
-                            for child in node.children:
-                                visit(child)
-                    else:
-                        for child in node.children:
-                            visit(child)
-
-                visit(tree.root_node)
-
-                # Deduplicate overlapping nodes (prefer parent nodes)
-                selected_nodes: List[Any] = []
-                for node_item in nodes_to_chunk:
-                    # Check if node is inside another selected node
-                    is_nested = any(
-                        parent.start_byte <= node_item.start_byte and parent.end_byte >= node_item.end_byte
-                        for parent in selected_nodes
-                        if parent != node_item
-                    )
-                    if not is_nested:
-                        selected_nodes.append(node_item)
-
-                for idx, node in enumerate(selected_nodes):
-                    chunk_str = code_bytes[node.start_byte:node.end_byte].decode("utf-8", errors="ignore").strip()
-                    if chunk_str:
-                        start_line = node.start_point[0] + 1
-                        end_line = node.end_point[0] + 1
-                        node_type = node.type
-                        chunks.append({
-                            "content": chunk_str,
-                            "metadata": {
-                                "filepath": filepath,
-                                "start_line": start_line,
-                                "end_line": end_line,
-                                "node_type": node_type,
-                                "chunk_index": idx
-                            }
-                        })
-            except Exception:
-                chunks = []
-
-        # Fallback line chunking if tree-sitter not used/failed or 0 chunks generated
-        if not chunks:
-            lines = code.splitlines()
-            chunk_size = 50
-            for i in range(0, len(lines), chunk_size):
-                chunk_lines = lines[i:i + chunk_size]
-                chunk_str = "\n".join(chunk_lines).strip()
-                if chunk_str:
-                    chunks.append({
-                        "content": chunk_str,
-                        "metadata": {
-                            "filepath": filepath,
-                            "start_line": i + 1,
-                            "end_line": i + len(chunk_lines),
-                            "node_type": "line_block",
-                            "chunk_index": i // chunk_size
-                        }
-                    })
-
-        return chunks
+        if filepath.endswith((".ts", ".tsx", ".js", ".jsx")):
+            chunks = self._chunk_ts_ast(code, filepath)
+            if chunks:
+                return chunks
+        return self._chunk_lines(code, filepath)
 
     def add_file_incremental(self, filepath: str, code: str, force_reembed: bool = False) -> List[str]:
         """
@@ -273,11 +284,11 @@ class VectorStore:
                     }
                 )
 
-        if hybrid and self._bm25_index and self._bm25_corpus_ids:
+        if hybrid and self._bm25.index and self._bm25.corpus_ids:
             query_tokens = self.tokenize_text(query_text)
             if query_tokens:
-                bm25_scores = self._bm25_index.get_scores(query_tokens)
-                score_dict = dict(zip(self._bm25_corpus_ids, bm25_scores))
+                bm25_scores = self._bm25.index.get_scores(query_tokens)
+                score_dict = dict(zip(self._bm25.corpus_ids, bm25_scores))
                 for item in formatted_results:
                     item["bm25_score"] = score_dict.get(item["id"], 0.0)
 
@@ -300,6 +311,4 @@ class VectorStore:
         self._cache = {}
         if os.path.exists(self.cache_file):
             os.remove(self.cache_file)
-        self._bm25_index = None
-        self._bm25_corpus_ids = []
-        self._bm25_corpus_docs = []
+        self._bm25 = BM25State()
