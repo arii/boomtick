@@ -21,7 +21,7 @@ export function createMcpHttpServer(options: HttpServerOptions) {
   const server = http.createServer(async (req, res) => {
     // CORS Headers
     res.setHeader("Access-Control-Allow-Origin", "*");
-    res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+    res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS, HEAD");
     res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
 
     if (req.method === "OPTIONS") {
@@ -32,22 +32,28 @@ export function createMcpHttpServer(options: HttpServerOptions) {
 
     const url = new URL(req.url || "/", `http://${req.headers.host || "localhost"}`);
 
-    // Endpoint 1: OAuth Protected Resource metadata
-    if (url.pathname === "/.well-known/oauth-protected-resource" && req.method === "GET") {
+    // Endpoint 1: RFC 9728 OAuth Protected Resource Metadata Discovery
+    if (url.pathname === "/.well-known/oauth-protected-resource" && (req.method === "GET" || req.method === "HEAD")) {
+      const metadata = {
+        resource: process.env.MCP_RESOURCE_URI || process.env.BOOMTICK_RESOURCE_URI || "mcp://boomtick-mcp",
+        authorization_servers: [
+          process.env.MCP_OAUTH_AUTH_SERVER || "https://auth.boomtick.dev",
+        ],
+        scopes_supported: ["mcp:read", "mcp:write"],
+        bearer_methods_supported: ["header"],
+        resource_documentation: process.env.MCP_RESOURCE_DOCS || "https://github.com/arii/boomtick",
+      };
+
       res.writeHead(200, { "Content-Type": "application/json" });
-      res.end(
-        JSON.stringify({
-          resource: "mcp://boomtick-mcp",
-          "authorization_servers": [
-            process.env.MCP_OAUTH_AUTH_SERVER || "https://auth.boomtick.dev",
-          ],
-          scopes_supported: ["mcp:read", "mcp:write"],
-        })
-      );
+      if (req.method === "HEAD") {
+        res.end();
+      } else {
+        res.end(JSON.stringify(metadata, null, 2));
+      }
       return;
     }
 
-    // Bearer Token Validation for SSE & Messages endpoints
+    // Bearer Token / OAuth 2.1 Validation for Protected Routes (/sse & /messages)
     if (url.pathname === "/sse" || url.pathname === "/messages") {
       if (!bearerToken) {
         res.writeHead(500, { "Content-Type": "application/json" });
@@ -67,7 +73,7 @@ export function createMcpHttpServer(options: HttpServerOptions) {
       if (!isMatch) {
         res.writeHead(401, {
           "Content-Type": "application/json",
-          "WWW-Authenticate": 'Bearer realm="boomtick-mcp", error="invalid_token"',
+          "WWW-Authenticate": 'Bearer realm="boomtick-mcp", error="invalid_token", error_description="Invalid or missing Bearer token"',
         });
         res.end(JSON.stringify({ error: "unauthorized", message: "Invalid or missing Bearer token" }));
         return;

@@ -392,15 +392,32 @@ export class BoomtickMCPServer {
   async run() {
     this.prepareEnvironmentAndPreflight();
 
+    const args = process.argv.slice(2);
+    let port = parseInt(process.env.PORT || process.env.HTTP_PORT || "3000", 10);
+    let bearerToken = process.env.BOOMTICK_MCP_BEARER_TOKEN || process.env.MCP_BEARER_TOKEN || process.env.AUTH_TOKEN;
+
+    for (let i = 0; i < args.length; i++) {
+      if (args[i] === "--port" && i + 1 < args.length) {
+        port = parseInt(args[i + 1], 10);
+        i++;
+      } else if (args[i].startsWith("--port=")) {
+        port = parseInt(args[i].split("=")[1], 10);
+      } else if (args[i] === "--bearer-token" && i + 1 < args.length) {
+        bearerToken = args[i + 1];
+        i++;
+      } else if (args[i].startsWith("--bearer-token=")) {
+        bearerToken = args[i].split("=")[1];
+      }
+    }
+
     const isHttp =
       process.env.MCP_TRANSPORT === "http" ||
-      process.argv.includes("--http") ||
-      (process.env.PORT !== undefined && !process.argv.includes("--stdio")) ||
-      (process.env.HTTP_PORT !== undefined && !process.argv.includes("--stdio"));
+      args.includes("--http") ||
+      (process.env.PORT !== undefined && !args.includes("--stdio")) ||
+      (process.env.HTTP_PORT !== undefined && !args.includes("--stdio"));
 
     if (isHttp) {
-      const port = parseInt(process.env.PORT || process.env.HTTP_PORT || "3000", 10);
-      const mcpHttp = createMcpHttpServer({ port, mcpServer: this.server });
+      const mcpHttp = createMcpHttpServer({ port, bearerToken, mcpServer: this.server });
       await mcpHttp.listen(port);
       return;
     }
