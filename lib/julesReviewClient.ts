@@ -177,38 +177,7 @@ export async function checkJulesStatus(options: CheckJulesStatusOptions = {}): P
   }
 }
 
-export async function sendJulesImpactReport(taskId?: string): Promise<void> {
-  let resolvedTaskId = taskId || process.env.TASK_ID;
-  if (!resolvedTaskId) {
-    resolvedTaskId = (await getJulesSessionIdFromPR()) || undefined;
-  }
-
-  if (!resolvedTaskId) {
-    console.log("No TASK_ID provided or found in PR description. Exiting.");
-    return;
-  }
-
-  const sessionId = resolvedTaskId.startsWith('sessions/') ? resolvedTaskId : `sessions/${resolvedTaskId}`;
-  console.log(`Targeting session: ${sessionId}`);
-
-  const apiKey = process.env.JULES_API_KEY;
-  if (!apiKey) {
-    console.warn('⚠️  Skipping sending message to Jules session — JULES_API_KEY not set.');
-    return;
-  }
-
-  const artifactsDir = 'artifacts';
-  try {
-    const stats = await fs.promises.stat(artifactsDir);
-    if (!stats.isDirectory()) {
-      console.warn(`Artifacts directory '${artifactsDir}' is not a directory. Cannot send impact analysis.`);
-      return;
-    }
-  } catch (err) {
-    console.warn(`Artifacts directory '${artifactsDir}' not found. Cannot send impact analysis.`);
-    return;
-  }
-
+async function buildImpactReportBody(artifactsDir: string): Promise<string> {
   let body = '## Deployment Impact Analysis\n\n';
 
   const deploymentReviewPath = path.join(artifactsDir, 'deployment-review.md');
@@ -236,8 +205,6 @@ export async function sendJulesImpactReport(taskId?: string): Promise<void> {
     'gemini-code-review.md',
     'github-models-code-review.md',
   ];
-
-  let hasActionableReviews = false;
 
   const isSkippedReview = (content: string): boolean => {
     const lines = content.split('\n').map(l => l.trim()).filter(l => l.length > 0);
@@ -278,6 +245,13 @@ export async function sendJulesImpactReport(taskId?: string): Promise<void> {
     }
   }
 
+  return body;
+}
+
+async function collectActionableVerdicts(artifactsDir: string): Promise<{
+  verdicts: { fname: string; content: string }[];
+  hasActionableReviews: boolean;
+}> {
   const isSkippedVerdict = (data: any): boolean => {
     return (
       data?.llmVerdict === 'pass' &&
@@ -288,6 +262,7 @@ export async function sendJulesImpactReport(taskId?: string): Promise<void> {
   };
 
   const verdicts: { fname: string; content: string }[] = [];
+  let hasActionableReviews = false;
 
   try {
     const files = await fs.promises.readdir(artifactsDir);
@@ -315,6 +290,79 @@ export async function sendJulesImpactReport(taskId?: string): Promise<void> {
   } catch (e) {
     console.error(`Failed to read artifacts directory:`, e);
   }
+
+  return { verdicts, hasActionableReviews };
+}
+
+async function postJulesMessage(
+  sessionId: string,
+  apiKey: string,
+  body: string,
+  hashTrackingFile: string,
+  dispatchHash: string
+): Promise<void> {
+  const url = `https://jules.googleapis.com/v1alpha/${sessionId}:sendMessage`;
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-goog-api-key': apiKey,
+      },
+      body: JSON.stringify({ prompt: body }),
+    });
+
+    if (!response.ok) {
+      const text = await response.text();
+      console.warn(`⚠️  Failed to send message to Jules API (non-blocking) (${response.status}): ${text}`);
+      return;
+    }
+
+    console.log(`✅ Sent impact analysis to ${sessionId}`);
+    try {
+      await fs.promises.writeFile(hashTrackingFile, dispatchHash, 'utf8');
+    } catch (e) {
+      console.warn('⚠️ Could not record Jules dispatch hash file:', e);
+    }
+  } catch (error) {
+    console.warn(`⚠️  Exception while sending message to Jules API (non-blocking):`, error);
+  }
+}
+
+export async function sendJulesImpactReport(taskId?: string): Promise<void> {
+  let resolvedTaskId = taskId || process.env.TASK_ID;
+  if (!resolvedTaskId) {
+    resolvedTaskId = (await getJulesSessionIdFromPR()) || undefined;
+  }
+
+  if (!resolvedTaskId) {
+    console.log("No TASK_ID provided or found in PR description. Exiting.");
+    return;
+  }
+
+  const sessionId = resolvedTaskId.startsWith('sessions/') ? resolvedTaskId : `sessions/${resolvedTaskId}`;
+  console.log(`Targeting session: ${sessionId}`);
+
+  const apiKey = process.env.JULES_API_KEY;
+  if (!apiKey) {
+    console.warn('⚠️  Skipping sending message to Jules session — JULES_API_KEY not set.');
+    return;
+  }
+
+  const artifactsDir = 'artifacts';
+  try {
+    const stats = await fs.promises.stat(artifactsDir);
+    if (!stats.isDirectory()) {
+      console.warn(`Artifacts directory '${artifactsDir}' is not a directory. Cannot send impact analysis.`);
+      return;
+    }
+  } catch (err) {
+    console.warn(`Artifacts directory '${artifactsDir}' not found. Cannot send impact analysis.`);
+    return;
+  }
+
+  let body = await buildImpactReportBody(artifactsDir);
+  const { verdicts, hasActionableReviews } = await collectActionableVerdicts(artifactsDir);
 
   if (!hasActionableReviews) {
     console.log("No actionable issues/failures found in reviews. Skipping sending message to Jules.");
@@ -344,30 +392,5 @@ export async function sendJulesImpactReport(taskId?: string): Promise<void> {
     }
   }
 
-  const url = `https://jules.googleapis.com/v1alpha/${sessionId}:sendMessage`;
-  try {
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-goog-api-key': apiKey,
-      },
-      body: JSON.stringify({ prompt: body }),
-    });
-
-    if (!response.ok) {
-      const text = await response.text();
-      console.warn(`⚠️  Failed to send message to Jules API (non-blocking) (${response.status}): ${text}`);
-      return;
-    }
-
-    console.log(`✅ Sent impact analysis to ${sessionId}`);
-    try {
-      await fs.promises.writeFile(hashTrackingFile, dispatchHash, 'utf8');
-    } catch (e) {
-      console.warn('⚠️ Could not record Jules dispatch hash file:', e);
-    }
-  } catch (error) {
-    console.warn(`⚠️  Exception while sending message to Jules API (non-blocking):`, error);
-  }
+  await postJulesMessage(sessionId, apiKey, body, hashTrackingFile, dispatchHash);
 }

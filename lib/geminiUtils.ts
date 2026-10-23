@@ -10,6 +10,63 @@ export function extractFinishReason(res: Record<string, any>): string {
   return 'UNKNOWN';
 }
 
+function formatGeminiParts(content: any): any[] {
+  const parts: any[] = [];
+  if (typeof content === 'string') {
+    parts.push({ text: content });
+  } else if (Array.isArray(content)) {
+    for (const item of content) {
+      if (typeof item === 'string') {
+        parts.push({ text: item });
+      } else if (typeof item === 'object' && item !== null) {
+        if (item.type === 'text') {
+          parts.push({ text: item.text });
+        } else if (item.type === 'image_url' && item.image_url?.url) {
+          const url = item.image_url.url;
+          const match = url.match(/^data:([^;]+);base64,(.+)$/);
+          if (match) {
+            parts.push({
+              inlineData: {
+                mimeType: match[1],
+                data: match[2]
+              }
+            });
+          }
+        }
+      }
+    }
+  }
+  return parts;
+}
+
+function extractGeminiUsageMetadata(data: any): {
+  inputTokens: number;
+  outputTokens: number;
+  totalTokens: number;
+  thoughtsTokenCount: number;
+  cacheReadTokens: number;
+} {
+  const promptTokenCount = data.usageMetadata?.promptTokenCount ?? 0;
+  const candidatesTokenCount = data.usageMetadata?.candidatesTokenCount ?? 0;
+  const totalTokenCount = data.usageMetadata?.totalTokenCount ?? 0;
+
+  const cacheReadTokens = data.usageMetadata?.promptTokenCountDetails?.find(
+    (d: any) => d.modality === 'CACHED'
+  )?.tokenCount ?? 0;
+
+  const thoughtsTokenCount = data.usageMetadata?.candidatesTokenCountDetails?.find(
+    (d: any) => d.modality === 'THINKING'
+  )?.tokenCount ?? 0;
+
+  return {
+    inputTokens: promptTokenCount,
+    outputTokens: candidatesTokenCount,
+    totalTokens: totalTokenCount,
+    thoughtsTokenCount,
+    cacheReadTokens,
+  };
+}
+
 class DirectGeminiModel {
   model: string;
   maxOutputTokens: number;
@@ -30,31 +87,7 @@ class DirectGeminiModel {
     }
     const message = messages[0];
 
-    const parts: any[] = [];
-    if (typeof message.content === 'string') {
-      parts.push({ text: message.content });
-    } else if (Array.isArray(message.content)) {
-      for (const item of message.content) {
-        if (typeof item === 'string') {
-          parts.push({ text: item });
-        } else if (typeof item === 'object' && item !== null) {
-          if (item.type === 'text') {
-            parts.push({ text: item.text });
-          } else if (item.type === 'image_url' && item.image_url?.url) {
-            const url = item.image_url.url;
-            const match = url.match(/^data:([^;]+);base64,(.+)$/);
-            if (match) {
-              parts.push({
-                inlineData: {
-                  mimeType: match[1],
-                  data: match[2]
-                }
-              });
-            }
-          }
-        }
-      }
-    }
+    const parts = formatGeminiParts(message.content);
 
     const payload: any = {
       contents: [
@@ -97,26 +130,16 @@ class DirectGeminiModel {
     const generatedText = candidate?.content?.parts?.[0]?.text ?? '';
     const finishReason = candidate?.finishReason ?? 'STOP';
 
-    const promptTokenCount = data.usageMetadata?.promptTokenCount ?? 0;
-    const candidatesTokenCount = data.usageMetadata?.candidatesTokenCount ?? 0;
-    const totalTokenCount = data.usageMetadata?.totalTokenCount ?? 0;
-
-    const cacheReadTokens = data.usageMetadata?.promptTokenCountDetails?.find(
-      (d: any) => d.modality === 'CACHED'
-    )?.tokenCount ?? 0;
-
-    const thoughtsTokenCount = data.usageMetadata?.candidatesTokenCountDetails?.find(
-      (d: any) => d.modality === 'THINKING'
-    )?.tokenCount ?? 0;
+    const usage = extractGeminiUsageMetadata(data);
 
     return {
       content: generatedText,
       usage_metadata: {
-        input_tokens: promptTokenCount,
-        output_tokens: candidatesTokenCount,
-        total_tokens: totalTokenCount,
-        thoughts_token_count: thoughtsTokenCount,
-        cache_read_tokens: cacheReadTokens
+        input_tokens: usage.inputTokens,
+        output_tokens: usage.outputTokens,
+        total_tokens: usage.totalTokens,
+        thoughts_token_count: usage.thoughtsTokenCount,
+        cache_read_tokens: usage.cacheReadTokens
       },
       response_metadata: {
         finishReason,

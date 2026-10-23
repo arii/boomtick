@@ -181,7 +181,6 @@ function parseImports(content: string): Map<string, string> {
     let symbolsPart = match[1].trim();
     const importPath = match[2];
 
-    // Remove 'type ' prefix if it exists
     if (symbolsPart.startsWith('type ')) {
       symbolsPart = symbolsPart.slice(5).trim();
     }
@@ -227,7 +226,6 @@ function resolveImportPath(importPath: string, currentFile: string): string | un
   } else if (importPath.startsWith('.')) {
     resolvedPath = path.join(path.dirname(currentFile), importPath);
   } else {
-    // Likely a node module, skip for now as we want project-specific interfaces
     return undefined;
   }
 
@@ -315,50 +313,169 @@ async function getAIContext(inputData: string): Promise<Record<string, unknown>[
   });
 }
 
+async function fetchRawDiffAndStat(
+  diffArgs: string[],
+  targetFiles?: string[]
+): Promise<{ rawDiff: string; diffContext: string; diffStat?: string; isTruncated: boolean }> {
+  let rawDiff: string;
+  if (targetFiles && targetFiles.length > 0) {
+    const specificDiffArgs = [...diffArgs, '--', ...targetFiles];
+    const res = await execFile('git', specificDiffArgs, { encoding: 'utf-8', maxBuffer: 1024 * 1024 * 10 });
+    rawDiff = (res.stdout as string) || '';
+  } else {
+    const res = await execFile('git', diffArgs, { encoding: 'utf-8', maxBuffer: 1024 * 1024 * 10 });
+    rawDiff = (res.stdout as string) || '';
+  }
+
+  rawDiff = filterUnifiedDiffByAST(rawDiff);
+
+  let diffContext = rawDiff;
+  let isTruncated = false;
+  let diffStat: string | undefined = undefined;
+
+  if (rawDiff.length > MAX_DIFF_CHARS) {
+    isTruncated = true;
+    const statArgs = ['diff', '--stat', ...diffArgs.slice(1).filter(arg => arg !== '-U10')];
+
+    const specificStatArgs = (targetFiles && targetFiles.length > 0)
+      ? [...statArgs, '--', ...targetFiles]
+      : statArgs;
+
+    try {
+      const statRes = await execFile('git', specificStatArgs, {
+        encoding: 'utf-8',
+        maxBuffer: 1024 * 1024 * 10
+      });
+      diffStat = (statRes.stdout as string) || '';
+    } catch (err) {
+      console.warn('⚠️  Failed to fetch git diff --stat for large PR:', err);
+      diffStat = '[Error fetching diff stat summary]';
+    }
+
+    diffContext = rawDiff.slice(0, MAX_DIFF_CHARS) +
+      `\n\n...[TRUNCATED FOR LLM]\n\nDIFF STAT SUMMARY:\n${diffStat}\n\n[The diff was truncated at ${MAX_DIFF_CHARS} characters. AI analysis may be incomplete.]`;
+  }
+
+  return { rawDiff, diffContext, diffStat, isTruncated };
+}
+
+async function extractExternalContext(
+  accessibleFiles: string[],
+  contextBaseRef: string
+): Promise<string> {
+  const externalFilePaths = new Set<string>();
+  let localDefinitions = '';
+
+  for (const file of accessibleFiles) {
+    try {
+      if (fs.lstatSync(file).isDirectory()) {
+        continue;
+      }
+
+      const diffResult = await execFile('git', ['diff', contextBaseRef, '--', file], { encoding: 'utf-8' });
+      const fileDiff = diffResult.stdout || '';
+      const fileContent = await fs.promises.readFile(file, 'utf-8');
+      const imports = parseImports(fileContent);
+
+      const symbolsUsedInDiff = new Set<string>();
+      const wordRegex = /[a-zA-Z0-9_$]+/g;
+      let wordMatch;
+      while ((wordMatch = wordRegex.exec(fileDiff)) !== null) {
+        symbolsUsedInDiff.add(wordMatch[0]);
+      }
+
+      for (const [symbol, importPath] of imports.entries()) {
+        if (symbolsUsedInDiff.has(symbol)) {
+          const resolved = resolveImportPath(importPath, file);
+          if (resolved && resolved !== file) externalFilePaths.add(resolved);
+        }
+      }
+
+      const fileLines = fileContent.split('\n');
+      for (const symbol of symbolsUsedInDiff) {
+        if (!imports.has(symbol)) {
+          const defRegex = new RegExp(`(?:export\\s+)?(?:const|let|var|function|class|interface|type)\\s+${escapeRegExp(symbol)}\\b`);
+          const defLineIndex = fileLines.findIndex(line => defRegex.test(line));
+          if (defLineIndex !== -1) {
+            const start = Math.max(0, defLineIndex - 2);
+            const end = Math.min(fileLines.length, defLineIndex + 15);
+            const defSnippet = fileLines.slice(start, end).join('\n');
+            localDefinitions += `\n\n--- LOCAL DEF: ${file}:${defLineIndex + 1} (${symbol}) ---\n${defSnippet}`;
+          }
+        }
+      }
+    } catch (err) {
+      console.warn(`Could not gather context for ${file}:`, err);
+    }
+  }
+
+  let externalContext = localDefinitions;
+  const maxExternalChars = 30000;
+  for (const extPath of externalFilePaths) {
+    if (externalContext.length >= maxExternalChars) break;
+    if (fs.existsSync(extPath)) {
+      const content = await fs.promises.readFile(extPath, 'utf-8');
+      externalContext += `\n\n--- FILE: ${extPath} ---\n${content}`;
+    }
+  }
+
+  if (externalContext.length > maxExternalChars) {
+    externalContext = externalContext.slice(0, maxExternalChars) + '\n\n...[TRUNCATED EXTERNAL CONTEXT]';
+  }
+
+  return externalContext;
+}
+
+async function enrichAIContext(
+  accessibleFiles: string[],
+  contextBaseRef: string
+): Promise<string> {
+  let impactSemanticContext = '';
+  try {
+    const batchFiles = [];
+    for (const file of accessibleFiles) {
+      try {
+        const diffResult = await execFile('git', ['diff', contextBaseRef, '--', file], { encoding: 'utf-8' });
+        const fileDiff = (diffResult.stdout as string) || '';
+        if (fileDiff) {
+          batchFiles.push({ path: file, diff: fileDiff });
+        }
+      } catch (err) {
+        console.warn(`Could not gather diff context for ${file}:`, err);
+      }
+    }
+
+    if (batchFiles.length > 0) {
+      const inputData = JSON.stringify({ files: batchFiles });
+      const contextResults = await getAIContext(inputData);
+
+      if (contextResults) {
+        for (const ctx of contextResults) {
+          if (ctx.dependencies?.length || ctx.dependents?.length || ctx.semantic?.length) {
+            impactSemanticContext += `\n\n### Context for ${ctx.path}\n`;
+            if (ctx.dependencies?.length) impactSemanticContext += `- Dependencies: ${ctx.dependencies.join(', ')}\n`;
+            if (ctx.dependents?.length) impactSemanticContext += `- Impacted (dependents): ${ctx.dependents.join(', ')}\n`;
+            if (ctx.semantic?.length) {
+              impactSemanticContext += `- Semantically related snippets:\n`;
+              for (const s of ctx.semantic) {
+                impactSemanticContext += `  - From ${s.path}:\n    \`\`\`\n    ${s.document.slice(0, 300).replace(/\n/g, '\n    ')}\n    \`\`\`\n`;
+              }
+            }
+          }
+        }
+      }
+    }
+  } catch (err) {
+    console.warn('Could not gather impact/semantic context:', err);
+  }
+
+  return impactSemanticContext.trim();
+}
+
 export async function getCodeDiffSummary(targetFiles?: string[]): Promise<CodeReviewSummary> {
   try {
     const { diffArgs, nameOnlyArgs, contextBaseRef } = await getGitArgs();
-
-    let rawDiff: string;
-    if (targetFiles && targetFiles.length > 0) {
-      const specificDiffArgs = [...diffArgs, '--', ...targetFiles];
-      const res = await execFile('git', specificDiffArgs, { encoding: 'utf-8', maxBuffer: 1024 * 1024 * 10 });
-      rawDiff = (res.stdout as string) || '';
-    } else {
-      const res = await execFile('git', diffArgs, { encoding: 'utf-8', maxBuffer: 1024 * 1024 * 10 });
-      rawDiff = (res.stdout as string) || '';
-    }
-
-    rawDiff = filterUnifiedDiffByAST(rawDiff);
-
-    // basic sanity check - just take the first N chars if it's absurdly large to avoid blowing up context
-    let diffContext = rawDiff;
-    let isTruncated = false;
-    let diffStat: string | undefined = undefined;
-
-    if (rawDiff.length > MAX_DIFF_CHARS) {
-      isTruncated = true;
-      // Build robust stat arguments by replacing the diff mode with --stat
-      const statArgs = ['diff', '--stat', ...diffArgs.slice(1).filter(arg => arg !== '-U10')];
-
-      const specificStatArgs = (targetFiles && targetFiles.length > 0)
-        ? [...statArgs, '--', ...targetFiles]
-        : statArgs;
-
-      try {
-        const statRes = await execFile('git', specificStatArgs, {
-          encoding: 'utf-8',
-          maxBuffer: 1024 * 1024 * 10 // Use 10MB buffer for safety on large PRs
-        });
-        diffStat = (statRes.stdout as string) || '';
-      } catch (err) {
-        console.warn('⚠️  Failed to fetch git diff --stat for large PR:', err);
-        diffStat = '[Error fetching diff stat summary]';
-      }
-
-      diffContext = rawDiff.slice(0, MAX_DIFF_CHARS) +
-        `\n\n...[TRUNCATED FOR LLM]\n\nDIFF STAT SUMMARY:\n${diffStat}\n\n[The diff was truncated at ${MAX_DIFF_CHARS} characters. AI analysis may be incomplete.]`;
-    }
+    const { rawDiff, diffContext, diffStat, isTruncated } = await fetchRawDiffAndStat(diffArgs, targetFiles);
 
     const fullDiff = rawDiff;
     const prGoal = await fetchPRGoal();
@@ -370,7 +487,6 @@ export async function getCodeDiffSummary(targetFiles?: string[]): Promise<CodeRe
       files = (res.stdout as string || '').split('\n').filter(Boolean);
     }
 
-    // Filter and validate file paths to ensure existence and handle potential exceptions
     const accessibleFiles = files.filter(file => {
       if (typeof file !== 'string') return false;
       try {
@@ -381,119 +497,10 @@ export async function getCodeDiffSummary(targetFiles?: string[]): Promise<CodeRe
       }
     });
 
-    // Context gathering
-    const externalFilePaths = new Set<string>();
-    let localDefinitions = '';
-
-    for (const file of accessibleFiles) {
-      try {
-        if (fs.lstatSync(file).isDirectory()) {
-          continue;
-        }
-
-        const diffResult = await execFile('git', ['diff', contextBaseRef, '--', file], { encoding: 'utf-8' });
-        const fileDiff = diffResult.stdout || '';
-        const fileContent = await fs.promises.readFile(file, 'utf-8');
-        const imports = parseImports(fileContent);
-
-        // Identify which imported symbols are used in the diff
-        const symbolsUsedInDiff = new Set<string>();
-        const wordRegex = /[a-zA-Z0-9_$]+/g;
-        let wordMatch;
-        while ((wordMatch = wordRegex.exec(fileDiff)) !== null) {
-          symbolsUsedInDiff.add(wordMatch[0]);
-        }
-
-        for (const [symbol, importPath] of imports.entries()) {
-          if (symbolsUsedInDiff.has(symbol)) {
-            const resolved = resolveImportPath(importPath, file);
-            if (resolved && resolved !== file) externalFilePaths.add(resolved);
-          }
-        }
-
-        // Also look for definitions of symbols used in diff that are NOT imports
-        // (likely defined in the same file but outside the diff window)
-        const fileLines = fileContent.split('\n');
-        for (const symbol of symbolsUsedInDiff) {
-          if (!imports.has(symbol)) {
-            // Very basic heuristic: look for "const symbol", "function symbol", "class symbol", "interface symbol", "type symbol"
-            const defRegex = new RegExp(`(?:export\\s+)?(?:const|let|var|function|class|interface|type)\\s+${escapeRegExp(symbol)}\\b`);
-            const defLineIndex = fileLines.findIndex(line => defRegex.test(line));
-            if (defLineIndex !== -1) {
-              // Only include if it's NOT already in the diff (diff-U10 usually covers 10 lines)
-              // We'll just include a small window of the definition to external context
-              const start = Math.max(0, defLineIndex - 2);
-              const end = Math.min(fileLines.length, defLineIndex + 15);
-              const defSnippet = fileLines.slice(start, end).join('\n');
-
-              // We append this to externalContext later, for now we can just store it
-              // Or better, we can treat the same file as an "external" file if we want to reuse the mechanism
-              // but since externalFilePaths works with paths, let's just use a special handling or a pseudo-path
-              // For simplicity, let's just append it to a dedicated string for now
-              localDefinitions += `\n\n--- LOCAL DEF: ${file}:${defLineIndex + 1} (${symbol}) ---\n${defSnippet}`;
-            }
-          }
-        }
-      } catch (err) {
-        console.warn(`Could not gather context for ${file}:`, err);
-      }
-    }
-
-    let externalContext = localDefinitions;
-    const maxExternalChars = 30000;
-    for (const extPath of externalFilePaths) {
-      if (externalContext.length >= maxExternalChars) break;
-      if (fs.existsSync(extPath)) {
-        const content = await fs.promises.readFile(extPath, 'utf-8');
-        externalContext += `\n\n--- FILE: ${extPath} ---\n${content}`;
-      }
-    }
-
-    if (externalContext.length > maxExternalChars) {
-      externalContext = externalContext.slice(0, maxExternalChars) + '\n\n...[TRUNCATED EXTERNAL CONTEXT]';
-    }
-
+    const externalContext = await extractExternalContext(accessibleFiles, contextBaseRef);
     const hasRealContent = externalContext.replace(/\n\n\.\.\.\[TRUNCATED EXTERNAL CONTEXT\]/g, '').trim().length > 0;
 
-    // AI Context enrichment
-    let impactSemanticContext = '';
-    try {
-      const batchFiles = [];
-      for (const file of accessibleFiles) {
-        try {
-          const diffResult = await execFile('git', ['diff', contextBaseRef, '--', file], { encoding: 'utf-8' });
-          const fileDiff = (diffResult.stdout as string) || '';
-          if (fileDiff) {
-            batchFiles.push({ path: file, diff: fileDiff });
-          }
-        } catch (err) {
-          console.warn(`Could not gather diff context for ${file}:`, err);
-        }
-      }
-
-      if (batchFiles.length > 0) {
-        const inputData = JSON.stringify({ files: batchFiles });
-        const contextResults = await getAIContext(inputData);
-
-        if (contextResults) {
-          for (const ctx of contextResults) {
-            if (ctx.dependencies?.length || ctx.dependents?.length || ctx.semantic?.length) {
-              impactSemanticContext += `\n\n### Context for ${ctx.path}\n`;
-              if (ctx.dependencies?.length) impactSemanticContext += `- Dependencies: ${ctx.dependencies.join(', ')}\n`;
-              if (ctx.dependents?.length) impactSemanticContext += `- Impacted (dependents): ${ctx.dependents.join(', ')}\n`;
-              if (ctx.semantic?.length) {
-                impactSemanticContext += `- Semantically related snippets:\n`;
-                for (const s of ctx.semantic) {
-                  impactSemanticContext += `  - From ${s.path}:\n    \`\`\`\n    ${s.document.slice(0, 300).replace(/\n/g, '\n    ')}\n    \`\`\`\n`;
-                }
-              }
-            }
-          }
-        }
-      }
-    } catch (err) {
-      console.warn('Could not gather impact/semantic context:', err);
-    }
+    const impactSemanticContext = await enrichAIContext(accessibleFiles, contextBaseRef);
 
     const summary: CodeReviewSummary = {
       diffContext,
@@ -501,7 +508,7 @@ export async function getCodeDiffSummary(targetFiles?: string[]): Promise<CodeRe
       prGoal,
       changedFiles: files,
       externalContext: hasRealContent ? externalContext.trim() : undefined,
-      impactSemanticContext: impactSemanticContext.trim() || undefined,
+      impactSemanticContext: impactSemanticContext || undefined,
       isTruncated,
       diffStat,
     };
@@ -609,7 +616,6 @@ export async function orchestrateCodeReview(
 
   const agentReportPath = path.join(ARTIFACTS_DIR, client.reportFileName);
 
-  // Guarantee artifacts directory exists before any check or early return
   if (!fs.existsSync(ARTIFACTS_DIR)) {
     fs.mkdirSync(ARTIFACTS_DIR, { recursive: true });
   }
@@ -628,7 +634,6 @@ export async function orchestrateCodeReview(
   );
   if (isQuotaMet) return;
 
-  // Get initial summary to find changed files
   const initialSummary = await getCodeDiffSummary();
   if (!initialSummary.diffContext) {
     console.log(`✅ No code changes detected — skipping agent review.`);
@@ -640,8 +645,6 @@ export async function orchestrateCodeReview(
   const prevState = await getPreviousReviewState<CodeReviewState>(client.reportTitle);
   const rawChangedFiles = Array.isArray(initialSummary.changedFiles) ? initialSummary.changedFiles : [];
 
-  // Filter low-impact files (like pnpm-lock.yaml) BEFORE checking truncation.
-  // This prevents skipping AI review just because of a large lockfile update.
   const changedFiles = filterLowImpactFiles(rawChangedFiles, IMPACT_CONFIG.LOW_IMPACT_PATHS);
 
   if (changedFiles.length === 0) {
@@ -651,7 +654,6 @@ export async function orchestrateCodeReview(
     return;
   }
 
-  // RE-FETCH summary only for reviewable files to avoid large lockfile truncation
   const filteredSummary = await getCodeDiffSummary(changedFiles);
 
   if (filteredSummary.isTruncated) {
@@ -672,7 +674,6 @@ export async function orchestrateCodeReview(
     return;
   }
 
-  // Batch files (max 10 per batch)
   const fileBatches = batchFiles(changedFiles.sort(), 10);
   const roles: CodeReviewRole[] = ['SECURITY', 'PERFORMANCE', 'STYLE', 'ARCHITECTURE'];
 
@@ -680,10 +681,8 @@ export async function orchestrateCodeReview(
 
   const orchestratorStartTime = Date.now();
   const allResults: CodeReviewResult[] = [];
-  // Reduce concurrency to avoid rate limits (especially for GitHub Models)
   const CONCURRENCY_LIMIT = 2;
   const newCache: Record<string, CodeReviewResult> = {};
-
 
   await executeReviewTasks(client, fileBatches, roles, prevState, CONCURRENCY_LIMIT, allResults, newCache);
   const orchestratorDurationMs = Date.now() - orchestratorStartTime;
@@ -693,7 +692,6 @@ export async function orchestrateCodeReview(
   const finalSkipReason = finalResult.skipReason;
   let report = generateCodeReviewMarkdown(finalResult, client, iteration);
 
-  // Also alert Jules if this PR is from a Jules session and requires fixes (FAIL verdict or open HIGH findings)
   const julesSessionId = await getJulesSessionIdFromPR();
 
   if (julesSessionId) {
@@ -702,11 +700,9 @@ export async function orchestrateCodeReview(
     report += `\n\n---\n🤖 **Jules Automated Remediation:** Session created. [View tracking link](https://jules.google.com/task/${taskId})\n`;
   }
 
-  // Write local report
   await fs.promises.writeFile(agentReportPath, report);
   console.log(`✅ Local report written to ${agentReportPath}`);
 
-  // Post to GitHub PR
   await postPRComment(report, client.reportTitle, finalResult.state, finalResult.llmVerdict);
 
   const openHighFindings = finalResult.state?.findings?.filter(f => f.status === 'open' && (f.severity === 'HIGH' || f.severity === 'error')) || [];
@@ -731,15 +727,9 @@ export async function orchestrateCodeReview(
 
   if (isFail) {
     console.error(`❌ Code review returned FAIL — failing CI.`);
-    // We intentionally don't crash the script here to allow the review workflow to complete fully
   }
 }
 
-
-/**
- * Simple verdict reconciliation: ensures that a FAIL verdict is backed by at least one
- * open finding.
- */
 export function reconcileVerdict(
   result: CodeReviewResult,
   _diffForVerification: string
@@ -756,7 +746,6 @@ export function reconcileVerdict(
 
   return result;
 }
-
 
 async function executeReviewTasks(
   client: CodeReviewClientStrategy,
@@ -793,7 +782,6 @@ async function executeReviewTasks(
           const summary = { ...batchSummary, role, previousState: prevState };
           const hash = calculateReviewHash(summary);
 
-          // Semantic Cache Check
           if (prevState?.cache?.[hash]) {
             console.log(`✨ Cache hit for ${role} (hash: ${hash.slice(0, 8)}) on batch ${batch.join(', ')} — skipping API call.`);
             const cachedResult = prevState.cache[hash];
@@ -819,7 +807,6 @@ async function executeReviewTasks(
             result = await invokeWithTelemetry(8192);
           }
 
-          // HARD GATE: a truncated/malformed response must never silently resolve to PASS.
           const hasValidFindings = Array.isArray(result.findings);
           if (result.isTruncated || (result.parseError && !hasValidFindings)) {
             const reason = result.isTruncated
@@ -838,7 +825,6 @@ async function executeReviewTasks(
             console.warn(`⚠️ ${client.botName} had a parse error (${result.parseError}) but returned valid findings. Proceeding.`);
           }
 
-          // Final verification/reconciliation
           result = reconcileVerdict(result, summary.fullDiff || summary.diffContext);
           allResults.push(result);
           newCache[hash] = result;
@@ -860,21 +846,23 @@ async function executeReviewTasks(
     }
   }
 
-  // Execute with concurrency limit
   await runWithConcurrencyLimit(taskQueue, concurrencyLimit);
-
-  // Clear batch summary cache to free memory
   batchSummaryCache.clear();
 }
 
-function aggregateReviewResults(
-  allResults: CodeReviewResult[],
-  prevState: CodeReviewState | undefined,
-  newCache: Record<string, CodeReviewResult>,
-  initialSummary: CodeReviewSummary,
-  orchestratorDurationMs: number
-): CodeReviewResult & { isTruncated: boolean; skipReason?: string } {
-  // Aggregation logic - Sort results for deterministic output
+function combineReviewMetrics(allResults: CodeReviewResult[]): {
+  aggregatedFeedback: string;
+  aggregatedFindings: any[];
+  totalTokens: number;
+  totalInputTokens: number;
+  totalOutputTokens: number;
+  totalCacheTokens: number;
+  totalCost: number;
+  finalVerdict: 'pass' | 'fail' | 'warn';
+  isTruncated: boolean;
+  skipReasons: Set<string>;
+  modelNames: Set<string>;
+} {
   allResults.sort((a, b) => (a.role || '').localeCompare(b.role || ''));
 
   let aggregatedFeedback = '';
@@ -915,35 +903,78 @@ function aggregateReviewResults(
     if (res.modelName) modelNames.add(res.modelName);
   }
 
-  // Restore findings omitted by LLM if we have previous state
-  if (prevState?.findings) {
-    const currentIds = new Set(aggregatedFindings.map(f => f.id));
-    const missingFindings = prevState.findings.filter(f => !currentIds.has(f.id));
+  return {
+    aggregatedFeedback: aggregatedFeedback.trim(),
+    aggregatedFindings,
+    totalTokens,
+    totalInputTokens,
+    totalOutputTokens,
+    totalCacheTokens,
+    totalCost,
+    finalVerdict,
+    isTruncated,
+    skipReasons,
+    modelNames,
+  };
+}
 
-    if (missingFindings.length > 0) {
-      const diffToVerify = initialSummary.fullDiff || initialSummary.diffContext;
-      const restored = [];
+function restoreOmittedCodeFindings(
+  aggregatedFindings: any[],
+  prevState: CodeReviewState | undefined,
+  summary: CodeReviewSummary
+): void {
+  if (!prevState?.findings) return;
 
-      for (const finding of missingFindings) {
-        if (finding.status === 'open' && finding.snippet) {
-          if (!diffToVerify.includes(finding.snippet)) {
-            finding.status = 'resolved';
-            finding.fixSummary = 'Jules response: snippet no longer present in diff.';
-            console.log(`✅ Auto-resolved finding: ${finding.issue}`);
-          }
+  const currentIds = new Set(aggregatedFindings.map(f => f.id));
+  const missingFindings = prevState.findings.filter(f => !currentIds.has(f.id));
+
+  if (missingFindings.length > 0) {
+    const diffToVerify = summary.fullDiff || summary.diffContext;
+    const restored = [];
+
+    for (const finding of missingFindings) {
+      if (finding.status === 'open' && finding.snippet) {
+        if (!diffToVerify.includes(finding.snippet)) {
+          finding.status = 'resolved';
+          finding.fixSummary = 'Jules response: snippet no longer present in diff.';
+          console.log(`✅ Auto-resolved finding: ${finding.issue}`);
         }
-        restored.push(finding);
       }
+      restored.push(finding);
+    }
 
-      if (restored.length > 0) {
-        console.log(`♻️  Restoring ${restored.length} findings omitted by LLM agents.`);
-        aggregatedFindings.push(...restored);
-      }
+    if (restored.length > 0) {
+        console.log(`♻️ Restoring ${restored.length} findings omitted by LLM agents.`);
+      aggregatedFindings.push(...restored);
     }
   }
+}
+
+function aggregateReviewResults(
+  allResults: CodeReviewResult[],
+  prevState: CodeReviewState | undefined,
+  newCache: Record<string, CodeReviewResult>,
+  initialSummary: CodeReviewSummary,
+  orchestratorDurationMs: number
+): CodeReviewResult & { isTruncated: boolean; skipReason?: string } {
+  const {
+    aggregatedFeedback,
+    aggregatedFindings,
+    totalTokens,
+    totalInputTokens,
+    totalOutputTokens,
+    totalCacheTokens,
+    totalCost,
+    finalVerdict,
+    isTruncated,
+    skipReasons,
+    modelNames,
+  } = combineReviewMetrics(allResults);
+
+  restoreOmittedCodeFindings(aggregatedFindings, prevState, initialSummary);
 
   return {
-    feedback: aggregatedFeedback.trim(),
+    feedback: aggregatedFeedback,
     tokens: totalTokens,
     inputTokens: totalInputTokens,
     outputTokens: totalOutputTokens,
