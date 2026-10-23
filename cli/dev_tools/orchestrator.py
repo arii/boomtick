@@ -401,6 +401,23 @@ class Orchestrator:
                                 })
                     except Exception:
                         pass
+                elif os.path.isdir(target_path):
+                    try:
+                        dir_findings = ast_auditor.audit_directory(target_path)
+                        for filepath, findings in dir_findings.items():
+                            rel_path = os.path.relpath(filepath) if os.path.isabs(filepath) else filepath
+                            if rel_path not in ast_violations:
+                                ast_violations[rel_path] = []
+                            for finding in findings:
+                                ast_violations[rel_path].append({
+                                    "pattern": finding["rule"],
+                                    "message": finding["message"],
+                                    "value": finding["value"],
+                                    "severity": finding["severity"],
+                                    "line": finding["line"],
+                                })
+                    except Exception:
+                        pass
         elif content is not None:
             findings = ast_auditor.audit_file("stdin.tsx", content)
             if findings:

@@ -47,6 +47,16 @@ RAW_HTML_TAGS: Set[str] = {
     "li",
 }
 
+# Regex for placeholder comments
+PLACEHOLDER_COMMENT_RE = re.compile(
+    r"\b(TODO|FIXME|STUB|HACK|AI scaffolding)\b(?::|\s)", re.IGNORECASE
+)
+
+# Regex for AI scaffolding / mock stubs
+MOCK_STUB_NAME_RE = re.compile(
+    r"\b(mockData|mockStub|stubData|dummyData|tempStub|mockResponse|mockUser|mockList|dummyUser|stubResponse)\b"
+)
+
 
 class ASTAuditor:
     def __init__(self, baseline_file: str = "audit-baseline.json"):
@@ -69,8 +79,11 @@ class ASTAuditor:
     def audit_file(self, filepath: str, code: str) -> List[Dict[str, Any]]:
         """
         Parses TypeScript/TSX code using tree-sitter AST to audit:
-        1. Raw JSX elements without approved design primitives or using raw style/className.
-        2. Type suppressions (@ts-ignore, @ts-expect-error, unvetted any casts/annotations).
+        1. Design System / Token Bypasses: Flag raw JSX (<div style="...">, <div className="...">)
+           that bypasses shared layout primitives.
+        2. Type Bypasses: Flag // @ts-ignore, // @ts-expect-error, or any casts against an approved baseline inventory.
+        3. Dead Code / AI Scaffolding: Detect placeholder comments (// TODO: implement later)
+           or unused mock stubs left by autonomous agents.
         """
         findings: List[Dict[str, Any]] = []
 
@@ -93,20 +106,29 @@ class ASTAuditor:
             def visit(node):
                 ntype = node.type
 
-                # 1. Type suppressions in comments
+                # 1. Comment inspection: Type suppressions & Placeholder comments / AI scaffolding
                 if ntype == "comment":
-                    text = get_text(node)
+                    text = get_text(node).strip()
                     if "@ts-ignore" in text or "@ts-expect-error" in text:
                         findings.append({
                             "type": "type_suppression",
                             "severity": "error",
                             "line": node.start_point[0] + 1,
                             "rule": "no-ts-suppression",
-                            "message": f"Unvetted type suppression found: `{text.strip()}`",
-                            "value": text.strip(),
+                            "message": f"Unvetted type suppression found: `{text}`",
+                            "value": text,
+                        })
+                    elif PLACEHOLDER_COMMENT_RE.search(text):
+                        findings.append({
+                            "type": "dead_code",
+                            "severity": "warning",
+                            "line": node.start_point[0] + 1,
+                            "rule": "no-placeholder-comment",
+                            "message": f"Placeholder comment detected: `{text}`",
+                            "value": text,
                         })
 
-                # 2. 'any' type annotation or cast
+                # 2. Type annotation / cast checks ('any')
                 elif ntype == "type_annotation":
                     for child in node.children:
                         if child.type == "predefined_type" and get_text(child) == "any":
@@ -118,7 +140,7 @@ class ASTAuditor:
                                 "message": "Explicit `any` type annotation detected.",
                                 "value": get_text(node),
                             })
-                elif ntype == "as_expression":
+                elif ntype in ("as_expression", "type_assertion"):
                     for child in node.children:
                         if child.type == "predefined_type" and get_text(child) == "any":
                             findings.append({
@@ -126,11 +148,30 @@ class ASTAuditor:
                                 "severity": "warning",
                                 "line": node.start_point[0] + 1,
                                 "rule": "no-any-cast",
-                                "message": "Explicit `as any` type assertion detected.",
+                                "message": "Explicit `any` type assertion detected.",
                                 "value": get_text(node),
                             })
 
-                # 3. Raw JSX element auditing
+                # 3. AI Scaffolding / Unused Mock Stubs
+                elif ntype in ("variable_declarator", "function_declaration"):
+                    name_node = None
+                    for child in node.children:
+                        if child.type == "identifier":
+                            name_node = child
+                            break
+                    if name_node:
+                        ident_name = get_text(name_node)
+                        if MOCK_STUB_NAME_RE.search(ident_name):
+                            findings.append({
+                                "type": "ai_scaffolding",
+                                "severity": "warning",
+                                "line": name_node.start_point[0] + 1,
+                                "rule": "no-ai-scaffolding",
+                                "message": f"Unused mock stub or AI scaffolding detected: `{ident_name}`.",
+                                "value": ident_name,
+                            })
+
+                # 4. Raw JSX element auditing (Design System / Token Bypasses)
                 elif ntype in ("jsx_element", "jsx_self_closing_element"):
                     opening = None
                     if ntype == "jsx_element":
@@ -143,23 +184,40 @@ class ASTAuditor:
 
                     if opening:
                         tag_name = ""
+                        has_style_attr = False
+                        has_classname_attr = False
+
                         for child in opening.children:
                             if child.type == "identifier":
                                 tag_name = get_text(child)
-                                break
+                            elif child.type == "jsx_attribute":
+                                attr_name = ""
+                                for attr_child in child.children:
+                                    if attr_child.type == "property_identifier":
+                                        attr_name = get_text(attr_child)
+                                        break
+                                if attr_name == "style":
+                                    has_style_attr = True
+                                elif attr_name == "className":
+                                    has_classname_attr = True
 
                         if tag_name in RAW_HTML_TAGS:
-                            attrs_text = get_text(opening)
-                            has_style = "style=" in attrs_text
-                            has_raw_classes = bool(re.search(r'className=["\'].*?\b(flex|grid|p-\d|m-\d|w-|h-)\b', attrs_text))
-
-                            if has_style or has_raw_classes or tag_name in ("div", "span"):
+                            if has_style_attr:
                                 findings.append({
                                     "type": "jsx_primitive",
-                                    "severity": "error" if (has_style or has_raw_classes) else "warning",
+                                    "severity": "error",
                                     "line": node.start_point[0] + 1,
                                     "rule": "use-approved-primitives",
-                                    "message": f"Raw JSX `<{tag_name}>` used without approved layout primitives ({', '.join(sorted(APPROVED_DESIGN_PRIMITIVES)[:5])}...).",
+                                    "message": f"Raw JSX `<{tag_name}>` with inline `style` bypasses design primitives.",
+                                    "value": tag_name,
+                                })
+                            elif has_classname_attr:
+                                findings.append({
+                                    "type": "jsx_primitive",
+                                    "severity": "error" if tag_name in ("div", "span") else "warning",
+                                    "line": node.start_point[0] + 1,
+                                    "rule": "use-approved-primitives",
+                                    "message": f"Raw JSX `<{tag_name}>` with `className` bypasses shared layout primitives (<Box />, <Stack />, <Grid />, etc.).",
                                     "value": tag_name,
                                 })
 
@@ -169,18 +227,28 @@ class ASTAuditor:
             visit(tree.root_node)
 
         except Exception:
-            # Regexp fallback if tree-sitter fails
-            raw_tags_re = r"<(?:" + "|".join(sorted(RAW_HTML_TAGS)) + r")\b"
+            # Fallback regex scanner if tree-sitter fails
             lines = code.splitlines()
+            raw_tags_re = r"<(?:" + "|".join(sorted(RAW_HTML_TAGS)) + r")\b"
             for idx, line in enumerate(lines):
-                if "// @ts-ignore" in line or "// @ts-expect-error" in line or "/* @ts-ignore" in line:
+                line_str = line.strip()
+                if "// @ts-ignore" in line_str or "// @ts-expect-error" in line_str or "/* @ts-ignore" in line_str:
                     findings.append({
                         "type": "type_suppression",
                         "severity": "error",
                         "line": idx + 1,
                         "rule": "no-ts-suppression",
-                        "message": f"Unvetted type suppression found: `{line.strip()}`",
-                        "value": line.strip(),
+                        "message": f"Unvetted type suppression found: `{line_str}`",
+                        "value": line_str,
+                    })
+                elif PLACEHOLDER_COMMENT_RE.search(line_str):
+                    findings.append({
+                        "type": "dead_code",
+                        "severity": "warning",
+                        "line": idx + 1,
+                        "rule": "no-placeholder-comment",
+                        "message": f"Placeholder comment detected: `{line_str}`",
+                        "value": line_str,
                     })
                 if re.search(raw_tags_re, line) and ("style=" in line or "className=" in line):
                     findings.append({
@@ -188,11 +256,36 @@ class ASTAuditor:
                         "severity": "warning",
                         "line": idx + 1,
                         "rule": "use-approved-primitives",
-                        "message": f"Raw JSX element with styling found: `{line.strip()[:40]}`",
-                        "value": line.strip(),
+                        "message": f"Raw JSX element with styling found: `{line_str[:40]}`",
+                        "value": line_str,
                     })
 
         return findings
+
+    def audit_directory(self, dirpath: str) -> Dict[str, List[Dict[str, Any]]]:
+        """
+        Recursively audits a directory for TS/TSX files.
+        """
+        dir_findings: Dict[str, List[Dict[str, Any]]] = {}
+        if not os.path.isdir(dirpath):
+            return dir_findings
+
+        for root, dirs, files in os.walk(dirpath):
+            # Exclude node_modules, .git, dist, .venv
+            dirs[:] = [d for d in dirs if d not in ("node_modules", ".git", "dist", "build", ".venv", "__pycache__")]
+            for file in files:
+                if file.endswith((".ts", ".tsx", ".js", ".jsx")):
+                    filepath = os.path.join(root, file)
+                    try:
+                        with open(filepath, "r", encoding="utf-8") as f:
+                            code = f.read()
+                        f_findings = self.audit_file(filepath, code)
+                        if f_findings:
+                            dir_findings[filepath] = f_findings
+                    except Exception:
+                        pass
+
+        return dir_findings
 
     def audit_diff_against_baseline(self, files_data: Dict[str, str]) -> Dict[str, Any]:
         """
