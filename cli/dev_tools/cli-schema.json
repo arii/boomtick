@@ -20,12 +20,23 @@
       ]
     },
     "doctor": {
-      "description": "Runtime Consistency Check",
+      "description": "Full-stack Runtime & Environment Diagnostic Check",
       "exact_usage": "td doctor"
     },
     "lint": {
       "description": "Lint the project after runtime check",
       "exact_usage": "td lint"
+    },
+    "preflight": {
+      "description": "Run local preflight checks: td audit, linting, overlap detection, and merge simulation.",
+      "exact_usage": "td preflight [--base <BASE>]",
+      "optional_flags": [
+        {
+          "flag": "--base",
+          "type": "string",
+          "description": "Base branch for merge simulation"
+        }
+      ]
     },
     "schema": {
       "description": "Retrieve the schema for a specific subcommand or all commands.",
