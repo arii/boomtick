@@ -1082,6 +1082,43 @@ def overlaps(ctx, limit):
         err(ctx, f"pr_overlap.py failed with exit code {e.returncode}")
 
 
+# Top-level audit alias -> gh audit
+cli.add_command(audit, name="audit")
+
+
+# ==========================================
+# PR COMMAND GROUP (Alias group for PR commands)
+# ==========================================
+
+
+@cli.group(name="pr")
+def pr_group():
+    """Pull Request Operations (alias mapping for PR commands)"""
+
+
+pr_group.add_command(detect_conflicts, name="detect-conflicts")
+pr_group.add_command(read_pr_reviews, name="read-reviews")
+pr_group.add_command(read_pr_reviews, name="read-pr-reviews")
+pr_group.add_command(read_pr_comments, name="read-comments")
+pr_group.add_command(read_pr_comments, name="read-pr-comments")
+pr_group.add_command(list_pr_commits, name="list-commits")
+pr_group.add_command(list_pr_commits, name="list-pr-commits")
+pr_group.add_command(search_prs, name="search")
+pr_group.add_command(search_prs, name="search-prs")
+pr_group.add_command(merge_conflicts, name="merge-conflicts")
+pr_group.add_command(sync_pr, name="sync")
+pr_group.add_command(sync_pr, name="sync-pr")
+pr_group.add_command(pr_diff, name="diff")
+pr_group.add_command(pr_diff, name="pr-diff")
+pr_group.add_command(view, name="view")
+pr_group.add_command(create_pr, name="create")
+pr_group.add_command(create_pr, name="create-pr")
+pr_group.add_command(audit_pr, name="audit")
+pr_group.add_command(audit_pr, name="audit-pr")
+pr_group.add_command(resolve_conflicts, name="resolve-conflicts")
+pr_group.add_command(post_comment, name="post-comment")
+
+
 # ==========================================
 # UX COMMAND GROUP
 # ==========================================
@@ -1177,9 +1214,15 @@ def lint(ctx):
     out(ctx, "✅ Lint complete")
 
 
-@cli.group()
-def test():
+@cli.group(invoke_without_command=True)
+@click.pass_context
+def test(ctx):
     """Testing Operations"""
+    if ctx.invoked_subcommand is None:
+        orch = ctx.obj["ORCHESTRATOR"]
+        orch.runtime_check()
+        run_command(["pnpm", "run", "test"])
+        out(ctx, "✅ Tests complete")
 
 
 @test.command(name="cli")

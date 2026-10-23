@@ -16,6 +16,8 @@ describe('Workflow Installer Command', () => {
   it('should generate workflow templates in dry-run mode', () => {
     const tdBin = fs.existsSync(path.join(__dirname, '../.venv/bin/td'))
       ? path.join(__dirname, '../.venv/bin/td')
+      : fs.existsSync(path.join(__dirname, '../.venv/bin/td-cli'))
+      ? path.join(__dirname, '../.venv/bin/td-cli')
       : 'td';
     const output = execFileSync(tdBin, ['agent', 'install-workflows', '--target', tmpDir, '--dry-run'], { encoding: 'utf-8' });
     expect(output).toContain('DRY-RUN');
