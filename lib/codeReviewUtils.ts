@@ -7,7 +7,7 @@ import type { CodeReviewSummary, CodeReviewState, ParsedFindingsResult, CodeRevi
  * Includes diff context, role, goal, and all relevant semantic/external context.
  * Explicitly handles undefined values to ensure stable serialization.
  */
-export const DEFAULT_EXCLUDED_PATTERNS = [
+const DEFAULT_EXCLUDED_PATTERNS = [
   'pnpm-lock.yaml',
   'package-lock.json',
   'yarn.lock',
@@ -111,7 +111,6 @@ function isRelevantBusinessLogicOrContract(block: string, _filePath?: string): b
     return true;
   }
 
-  // Check if changed lines consist purely of embedded base64/data URI or single minified asset blob
   let isAssetBlob = false;
   for (const line of changedLines) {
     const content = line.slice(1).trim();
@@ -152,7 +151,6 @@ export function filterUnifiedDiffByAST(
   for (const block of blocks) {
     const filePath = extractFilePathFromDiffHeader(block);
 
-    // 1. Exclude low impact files by pattern (lockfiles, build outputs, SVG/binary assets)
     if (filePath) {
       const filtered = filterLowImpactFiles([filePath], lowImpactPaths);
       if (filtered.length === 0) {
@@ -160,12 +158,10 @@ export function filterUnifiedDiffByAST(
       }
     }
 
-    // 2. Exclude binary diff chunks
     if (isBinaryDiffChunk(block)) {
       continue;
     }
 
-    // 3. Exclude non-business logic / asset blob chunks
     if (!isRelevantBusinessLogicOrContract(block, filePath)) {
       continue;
     }
@@ -184,7 +180,6 @@ export function filterLowImpactFiles(files: string[], lowImpactPaths: string[] =
   }
   const combinedPatterns = Array.from(new Set(lowImpactPaths));
 
-  // Pre-compile matchers outside the loop for O(M) transformation instead of O(N * M)
   const matchers: CompiledMatcher[] = combinedPatterns.map(p => {
     if (p.includes('*')) {
       const regexPattern = p
@@ -213,15 +208,12 @@ export function filterLowImpactFiles(files: string[], lowImpactPaths: string[] =
 
       const { normalizedPattern, isDirPattern } = m;
 
-      // Handle exact matches
       if (normalizedF === normalizedPattern) return true;
 
-      // Ensure directory patterns check correctly
       if (isDirPattern) {
         return normalizedF.startsWith(normalizedPattern) || normalizedF.includes(path.sep + normalizedPattern);
       }
 
-      // Handle file matches (e.g., packages/web/pnpm-lock.yaml matching pnpm-lock.yaml)
       return normalizedF === normalizedPattern || normalizedF.endsWith(path.sep + normalizedPattern);
     });
   });
@@ -244,7 +236,6 @@ export function truncateUnifiedDiff(diffText: string, maxChars: number = 16000):
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
 
-    // Always preserve git diff headers and hunk headers
     const isHeader = line.startsWith('diff --git') ||
                      line.startsWith('--- ') ||
                      line.startsWith('+++ ') ||
@@ -281,11 +272,6 @@ export function calculateReviewHash(summary: CodeReviewSummary): string {
   return hash.update(data).digest('hex');
 }
 
-/**
- * Prunes a cache object to maintain a maximum number of entries.
- * Since GitHub comments have a 65,536 character limit, we must cap the state.
- * This implementation keeps the most recently added N entries (insertion order).
- */
 export function pruneCache(
   cache: Record<string, CodeReviewResult>,
   maxEntries: number = 15
@@ -296,8 +282,6 @@ export function pruneCache(
   if (keys.length <= safeMax) return cache;
 
   const newCache: Record<string, CodeReviewResult> = {};
-  // Keep the most recently added entries (the end of the keys array)
-  // String keys in JS objects follow insertion order for slice/iteration.
   keys.slice(-safeMax).forEach(key => {
     newCache[key] = cache[key];
   });
@@ -321,10 +305,6 @@ export function parseCodeReviewState(feedback: string): CodeReviewState | undefi
   return parseCodeReviewStateDetailed(feedback).state;
 }
 
-/**
- * Validates the findings schema to ensure all required fields are present.
- * Performs deep type checking to avoid runtime crashes on malformed LLM output.
- */
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
@@ -358,10 +338,6 @@ function validateFindingsSchema(state: CodeReviewState): boolean {
   });
 }
 
-/**
- * Normalizes a list of findings by injecting default values for missing or malformed fields.
- * Ensures the resulting objects adhere to the ReviewFinding interface.
- */
 function normalizeFindings(findings: unknown[]): ReviewFinding[] {
   if (!Array.isArray(findings)) return [];
   return findings.map((f, idx) => {
@@ -436,7 +412,7 @@ function normalizeFindings(findings: unknown[]): ReviewFinding[] {
 
 const JSON_PATTERN = /\{[\s\S]*\}|\[[\s\S]*\]/;
 
-export function parseCodeReviewStateDetailed(feedback: string): ParsedFindingsResult {
+function extractFindingsJsonText(feedback: string): { jsonText?: string; errors: CodeReviewParseError[] } {
   const openTag = '<findings>';
   const closeTag = '</findings>';
 
@@ -457,18 +433,20 @@ export function parseCodeReviewStateDetailed(feedback: string): ParsedFindingsRe
   } else {
     if (feedback.includes('{') || feedback.includes('[')) {
       jsonText = feedback.trim();
-      // Filter out non-JSON strings that just happen to include brackets
       if (!jsonText.startsWith('{') && !jsonText.startsWith('[')) {
         const extracted = jsonText.match(JSON_PATTERN);
         if (extracted) jsonText = extracted[0];
-        else return { state: undefined };
+        else return { errors };
       }
     } else {
-      return { state: undefined };
+      return { errors };
     }
   }
 
-  // Robust extraction: find the boundaries of the outermost JSON object or array
+  return { jsonText, errors };
+}
+
+function extractJsonBoundaries(jsonText: string): { boundedText: string; isTruncated: boolean } {
   const firstBrace = jsonText.indexOf('{');
   const firstBracket = jsonText.indexOf('[');
   const lastBrace = jsonText.lastIndexOf('}');
@@ -489,40 +467,58 @@ export function parseCodeReviewStateDetailed(feedback: string): ParsedFindingsRe
   }
 
   const isTruncated = startIdx !== -1 && endIdx === -1;
-  if (isTruncated) errors.push('truncated_json');
 
+  let boundedText: string;
   if (startIdx !== -1 && endIdx !== -1 && endIdx > startIdx) {
-    jsonText = jsonText.slice(startIdx, endIdx + 1);
+    boundedText = jsonText.slice(startIdx, endIdx + 1);
   } else if (isTruncated) {
-    jsonText = jsonText.slice(startIdx);
+    boundedText = jsonText.slice(startIdx);
   } else {
-    // Strip markdown code blocks if boundaries weren't found
-    jsonText = jsonText.replace(/^```[a-z]*\s*|\s*```$/gi, '').trim();
+    boundedText = jsonText.replace(/^```[a-z]*\s*|\s*```$/gi, '').trim();
   }
 
+  return { boundedText, isTruncated };
+}
+
+function parseAndSanitizeJson(jsonText: string): { parsedState: any; parseError?: CodeReviewParseError } {
+  const sanitizedJsonText = jsonText
+    .replace(/\\`/g, '`')
+    .replace(/\\(?!["\\/bfnrt]|u[0-9a-fA-F]{4})/g, '\\\\');
+
   try {
-    // Pre-process jsonText to fix any unescaped backslashes (e.g. \s, \d, \w, paths)
-    // by escaping them (replacing \ with \\ if not followed by valid JSON escape character)
-    // Additionally fix \` that might be incorrectly escaped by the model
-    let sanitizedJsonText = jsonText
-      .replace(/\\`/g, '`')
-      .replace(/\\(?!["\\/bfnrt]|u[0-9a-fA-F]{4})/g, '\\\\');
-    let state;
-    try {
-      state = JSON.parse(sanitizedJsonText);
-    } catch (e) {
-      // Attempt to salvage finding parsing from markdown wrap bugs or prefix bugs
-      const salvaged = sanitizedJsonText.match(JSON_PATTERN);
-      if (salvaged) {
-         try {
-           state = JSON.parse(salvaged[0]);
-         } catch (e2) {
-           return { state: undefined, parseError: 'invalid_json' };
-         }
+    const state = JSON.parse(sanitizedJsonText);
+    return { parsedState: state };
+  } catch (e) {
+    const salvaged = sanitizedJsonText.match(JSON_PATTERN);
+    if (salvaged) {
+      try {
+        const state = JSON.parse(salvaged[0]);
+        return { parsedState: state };
+      } catch (e2) {
+        return { parsedState: undefined, parseError: 'invalid_json' };
       }
-      else return { state: undefined, parseError: "invalid_json" };
+    }
+    return { parsedState: undefined, parseError: 'invalid_json' };
+  }
+}
+
+export function parseCodeReviewStateDetailed(feedback: string): ParsedFindingsResult {
+  const { jsonText, errors } = extractFindingsJsonText(feedback);
+
+  if (!jsonText) {
+    return { state: undefined };
+  }
+
+  const { boundedText, isTruncated } = extractJsonBoundaries(jsonText);
+  if (isTruncated) errors.push('truncated_json');
+
+  try {
+    const { parsedState, parseError } = parseAndSanitizeJson(boundedText);
+    if (parseError || !parsedState) {
+      return { state: undefined, parseError: parseError || 'invalid_json' };
     }
 
+    let state = parsedState;
     if (Array.isArray(state)) {
       state = { findings: state };
     }
@@ -554,12 +550,10 @@ export function estimateMaxOutputTokens(
   thinkingBudget: number = 2048,
   outputPadding: number = 256
 ): number {
-  // Thinking tokens consume the same budget as output tokens.
-  // Add padding for JSON findings block and verdict line.
   const diffTokens = Math.ceil(summary.diffContext.length / 4);
   const estimatedOutput = Math.min(
-    diffTokens * 0.4,  // heuristic: review output ~40% of diff size
-    2000,              // cap — reviews shouldn't exceed this
+    diffTokens * 0.4,
+    2000,
   );
 
   const priorFindingsCount = summary.previousState?.findings.length ?? 0;
@@ -567,7 +561,6 @@ export function estimateMaxOutputTokens(
 
   const totalBudget = Math.ceil(estimatedOutput + thinkingBudget + outputPadding + priorFindingsBudget);
 
-  // Hard ceiling — raised to match what the models actually support
   return Math.min(totalBudget, 8192);
 }
 
@@ -579,15 +572,12 @@ export function budgetInputContext(
   summary: CodeReviewSummary,
   maxInputChars: number = 24000
 ): { diffText: string; externalText: string } {
-  // System prompt is essential. Let's see how much budget is left.
   const remainingBudgetForDiffAndContext = Math.max(0, maxInputChars - systemPrompt.length);
 
   let rawDiffText = filterUnifiedDiffByAST(summary.diffContext);
   let rawExternalText = summary.externalContext || '';
 
   if (rawDiffText.length + rawExternalText.length > remainingBudgetForDiffAndContext) {
-    // Allocate the remaining budget between diff and external context.
-    // Diff gets priority: up to 16,000 characters, capped at remaining budget.
     const maxDiffChars = Math.max(0, Math.min(rawDiffText.length, 16000, remainingBudgetForDiffAndContext));
     if (rawDiffText.length > maxDiffChars) {
       rawDiffText = truncateUnifiedDiff(rawDiffText, maxDiffChars);
@@ -600,7 +590,6 @@ export function budgetInputContext(
           rawExternalText = rawExternalText.slice(0, remainingForExternal - 50) + '\n\n...[TRUNCATED TO FIT TOKEN LIMIT]';
         }
       } else {
-        // Harden: ensure we don't just drop the context entirely without notice
         rawExternalText = EXTERNAL_CONTEXT_TRUNCATED_MESSAGE;
       }
     }
@@ -609,9 +598,6 @@ export function budgetInputContext(
   return { diffText: rawDiffText, externalText: rawExternalText };
 }
 
-/**
- * Heuristic: 1 token is roughly 4 characters.
- */
 export function calculateEstimatedTokens(text: string | string[]): number {
   const combined = Array.isArray(text) ? text.join('') : text;
   return Math.ceil(combined.length / 4);
@@ -637,12 +623,12 @@ export function extractFeedbackText(content: unknown): string {
         }
         return '';
       })
-      .filter(p => p !== ''); // Only keep actual text parts
+      .filter(p => p !== '');
 
     if (textParts.length > 0) {
       feedback = textParts.join('');
     } else {
-      feedback = JSON.stringify(content); // Fallback to full JSON stringification if no text parts
+      feedback = JSON.stringify(content);
     }
   } else {
     feedback = JSON.stringify(content);
@@ -651,21 +637,13 @@ export function extractFeedbackText(content: unknown): string {
   return feedback;
 }
 
-/**
- * Strips machine-readable tags like <findings> and [VERDICT] from the feedback.
- */
 export function cleanupFeedback(feedback: string): string {
   let cleaned = feedback.replace(/<findings>[\s\S]*?<\/findings>/gi, '');
   cleaned = cleaned.replace(/\[VERDICT:\s*(PASS|WARN|FAIL)\]/gi, '');
-  // Remove empty markdown code blocks that might have been left over
   cleaned = cleaned.replace(/```(?:json|xml)?\s*\n\s*```/gi, '');
-  // Collapse multiple newlines into two and trim
   return cleaned.replace(/\n{3,}/g, '\n\n').trim();
 }
 
-/**
- * Split a list of files into batches of a certain size.
- */
 export function batchFiles(files: string[], maxBatchSize: number): string[][] {
   const batches: string[][] = [];
   for (let i = 0; i < files.length; i += maxBatchSize) {
@@ -681,9 +659,6 @@ export interface PayloadConfig {
   externalPrefix?: string;
 }
 
-/**
- * Builds the standard payload for code review models using direct REST API role structure.
- */
 export function buildReviewPayload(
   systemPrompt: string,
   diffText: string,
@@ -702,18 +677,12 @@ export function buildReviewPayload(
     const formattedExternal = externalText === EXTERNAL_CONTEXT_TRUNCATED_MESSAGE
       ? externalText
       : `${externalPrefix}${externalText}`;
-    // Using a separate system message for symbol resolution context ensures it's treated
-    // as context mapping rather than part of the user's diff input
     payload.push({ role: 'system', content: formattedExternal });
   }
 
   return payload;
 }
 
-/**
- * Reusable exponential backoff with jitter retry wrapper.
- * Targets rate limits (429 / resource exhausted) and transient server errors (500, 502, 503, 504).
- */
 export async function withRetry<T>(
   fn: () => Promise<T>,
   options: {

@@ -5,6 +5,7 @@ import { generateMarkdownReport, postPRComment, countExistingReviews, getJulesSe
 import { runWithConcurrencyLimit, checkReviewQuota, writeVerdictJson, writeGracefulExitVerdict, createTaskErrorResult } from './sharedUtils';
 import type { RouteReview, VisualRouteSummary, VisualSummary, VisualReviewState } from './visualReviewTypes';
 import { logReviewExecution } from './aiLogger';
+
 export type AgentRole = 'CODE_REVIEW' | 'ACCESSIBILITY' | 'UX' | 'VISUAL_REGRESSION' | 'RESPONSIVE_LAYOUT';
 
 export interface LLMClientStrategy {
@@ -20,6 +21,131 @@ const MAX_REVIEWS_PER_PR = parseInt(process.env.MAX_AI_REVIEWS ?? '10', 10);
 export interface OrchestrateOptions {
   targetRoute?: string;
   force?: boolean;
+}
+
+function autoResolvePreviousVisualFindings(
+  summary: VisualSummary,
+  prevState: VisualReviewState | undefined
+): void {
+  if (!prevState?.findings || !Array.isArray(prevState.findings)) {
+    return;
+  }
+
+  for (const routeSummary of summary.routes) {
+    const relevantFindings = prevState.findings.filter(f => f.route === routeSummary.route);
+
+    // Auto-resolution: if pixel diff is low, mark all previous findings for this route as resolved
+    if (routeSummary.differencePercent < 1.5) {
+      for (const finding of relevantFindings) {
+        if (finding.status === 'open') {
+          finding.status = 'resolved';
+          finding.fixSummary = 'Jules response: pixel difference is now below threshold (1.5%).';
+          console.log(`✅ Auto-resolved visual finding for ${routeSummary.route}: ${finding.issue}`);
+        }
+      }
+    }
+
+    routeSummary.previousFindings = relevantFindings;
+  }
+}
+
+function filterAndSortRoutesToReview(
+  summary: VisualSummary,
+  options: OrchestrateOptions = {}
+): { routesToReview: VisualRouteSummary[]; targetRoute?: string } {
+  const targetRoute = options.targetRoute ?? process.env.TARGET_ROUTE ?? process.env.IMPACT_ROUTE;
+  const force = options.force || Boolean(targetRoute) || process.env.FORCE_VISUAL_REVIEW === 'true';
+
+  let routesToReview = summary.routes;
+  if (targetRoute) {
+    routesToReview = routesToReview.filter(r =>
+      r.route === targetRoute ||
+      r.route.startsWith(targetRoute) ||
+      r.slug.includes(targetRoute.replace(/[^a-zA-Z0-9-]/g, '-').toLowerCase())
+    );
+    console.log(`🎯 Targeting visual review for route: ${targetRoute} (${routesToReview.length} matching screen/viewport entries)`);
+  }
+
+  // Filter routes: if force or targetRoute is specified, review all matching viewports even if differencePercent <= 1.5
+  if (!force) {
+    routesToReview = routesToReview.filter(r => r.differencePercent > 1.5);
+  }
+  routesToReview.sort((a, b) => b.differencePercent - a.differencePercent);
+
+  const totalRoutes = routesToReview.length;
+  if (!targetRoute && routesToReview.length > MAX_ROUTES_TO_REVIEW) {
+    console.log(`⚠️  Too many routes changed (${totalRoutes}). Limiting review to the top ${MAX_ROUTES_TO_REVIEW}.`);
+    routesToReview = routesToReview.slice(0, MAX_ROUTES_TO_REVIEW);
+  }
+
+  return { routesToReview, targetRoute };
+}
+
+async function executeVisualReviewTasks(
+  client: LLMClientStrategy,
+  routesToReview: VisualRouteSummary[],
+  roles: AgentRole[],
+  concurrencyLimit = 2
+): Promise<RouteReview[]> {
+  const reviews: RouteReview[] = [];
+  const taskQueue: (() => Promise<void>)[] = [];
+  let taskIndex = 0;
+
+  for (const route of routesToReview) {
+    console.log(`  → ${route.route} (${route.severity}, ${route.differencePercent.toFixed(2)}%)`);
+
+    for (const role of roles) {
+      const idx = taskIndex++;
+      taskQueue.push(async () => {
+        console.log(`    → Agent: ${role}`);
+        const start = Date.now();
+        try {
+          const review = await client.invokeReview(route, role);
+          const durationMs = Date.now() - start;
+          logReviewExecution('visual-review', review, durationMs, { route: route.route });
+          reviews[idx] = { ...review, role };
+        } catch (err) {
+          reviews[idx] = createTaskErrorResult<RouteReview>(role, err, 'visual review', {
+            route: route.route,
+            severity: 'LOW',
+            differencePercent: route.differencePercent,
+            findings: [],
+          });
+        }
+      });
+    }
+  }
+
+  await runWithConcurrencyLimit(taskQueue, concurrencyLimit);
+  return reviews;
+}
+
+async function notifyJulesAndSaveVerdict(
+  client: LLMClientStrategy,
+  reviews: RouteReview[],
+  report: string,
+  state: VisualReviewState,
+  hasBlockingIssues: boolean
+): Promise<void> {
+  const julesSessionId = await getJulesSessionIdFromPR();
+  if (julesSessionId) {
+    const hasWarnings = reviews.some(r => r.llmVerdict === 'warn');
+    const passFailMsg = hasBlockingIssues ? "FAIL ❌" : ((hasWarnings || reviews.length === 0) ? "NEUTRAL ⚪" : "PASS ✅");
+    const highCount = reviews.filter(r => r.severity === 'HIGH').length;
+    const medCount = reviews.filter(r => r.severity === 'MEDIUM').length;
+    const lowCount = reviews.filter(r => r.severity === 'LOW').length;
+    const julesMessage = `[${client.reportTitle}] posted a visual UI review (${passFailMsg}). Summary: 🔴 ${highCount} high · 🟡 ${medCount} medium · 🟢 ${lowCount} low. Please read the review comments on the PR, analyze the diff context provided, and fix any failed or warned areas.\n\n<details><summary>Overview</summary>\n\n${report}\n</details>`;
+    await sendJulesMessage(julesSessionId, julesMessage);
+  }
+
+  const safeReportFileName = path.basename(client.reportFileName);
+  const verdictPath = path.join(ARTIFACTS_DIR, `${safeReportFileName.replace('.md', '')}-verdict.json`);
+  await writeVerdictJson(verdictPath, {
+    passed: !hasBlockingIssues,
+    highCount: reviews.filter(r => r.severity === 'HIGH').length,
+    routes: reviews.map(r => ({ route: r.route, severity: r.severity, llmVerdict: r.llmVerdict })),
+    state: state || { findings: [] }
+  });
 }
 
 export async function orchestrateVisualReview(
@@ -55,45 +181,9 @@ export async function orchestrateVisualReview(
 
   // Load previous state and handle auto-resolution
   const prevState = await getPreviousReviewState<VisualReviewState>(client.reportTitle);
-  if (prevState?.findings && Array.isArray(prevState.findings)) {
-    for (const routeSummary of summary.routes) {
-      const relevantFindings = prevState.findings.filter(f => f.route === routeSummary.route);
+  autoResolvePreviousVisualFindings(summary, prevState);
 
-      // Auto-resolution: if pixel diff is low, mark all previous findings for this route as resolved
-      if (routeSummary.differencePercent < 1.5) {
-        for (const finding of relevantFindings) {
-          if (finding.status === 'open') {
-            finding.status = 'resolved';
-            finding.fixSummary = 'Jules response: pixel difference is now below threshold (1.5%).';
-            console.log(`✅ Auto-resolved visual finding for ${routeSummary.route}: ${finding.issue}`);
-          }
-        }
-      }
-
-      routeSummary.previousFindings = relevantFindings;
-    }
-  }
-
-  const targetRoute = options.targetRoute ?? process.env.TARGET_ROUTE ?? process.env.IMPACT_ROUTE;
-  const force = options.force || Boolean(targetRoute) || process.env.FORCE_VISUAL_REVIEW === 'true';
-
-  let routesToReview = summary.routes;
-  if (targetRoute) {
-    routesToReview = routesToReview.filter(r => r.route === targetRoute || r.route.startsWith(targetRoute) || r.slug.includes(targetRoute.replace(/[^a-zA-Z0-9-]/g, '-').toLowerCase()));
-    console.log(`🎯 Targeting visual review for route: ${targetRoute} (${routesToReview.length} matching screen/viewport entries)`);
-  }
-
-  // Filter routes: if force or targetRoute is specified, review all matching viewports even if differencePercent <= 1.5
-  if (!force) {
-    routesToReview = routesToReview.filter(r => r.differencePercent > 1.5);
-  }
-  routesToReview.sort((a, b) => b.differencePercent - a.differencePercent);
-
-  const totalRoutes = routesToReview.length;
-  if (!targetRoute && routesToReview.length > MAX_ROUTES_TO_REVIEW) {
-    console.log(`⚠️  Too many routes changed (${totalRoutes}). Limiting review to the top ${MAX_ROUTES_TO_REVIEW}.`);
-    routesToReview = routesToReview.slice(0, MAX_ROUTES_TO_REVIEW);
-  }
+  const { routesToReview } = filterAndSortRoutesToReview(summary, options);
 
   if (routesToReview.length === 0) {
     console.log(`✅ No visual changes detected — skipping agent review.`);
@@ -105,38 +195,9 @@ export async function orchestrateVisualReview(
   console.log(`🤖 Reviewing ${routesToReview.length} route(s) with ${client.botName}...`);
 
   const CONCURRENCY_LIMIT = 2;
-  const reviews: RouteReview[] = [];
   const roles: AgentRole[] = ['CODE_REVIEW', 'ACCESSIBILITY', 'UX', 'VISUAL_REGRESSION', 'RESPONSIVE_LAYOUT'];
 
-  const taskQueue: (() => Promise<void>)[] = [];
-  let taskIndex = 0;
-
-  for (const route of routesToReview) {
-    console.log(`  → ${route.route} (${route.severity}, ${route.differencePercent.toFixed(2)}%)`);
-
-    for (const role of roles) {
-      const idx = taskIndex++;
-      taskQueue.push(async () => {
-        console.log(`    → Agent: ${role}`);
-        const start = Date.now();
-        try {
-          const review = await client.invokeReview(route, role);
-          const durationMs = Date.now() - start;
-          logReviewExecution('visual-review', review, durationMs, { route: route.route });
-          reviews[idx] = { ...review, role };
-        } catch (err) {
-          reviews[idx] = createTaskErrorResult<RouteReview>(role, err, 'visual review', {
-            route: route.route,
-            severity: 'LOW',
-            differencePercent: route.differencePercent,
-            findings: [],
-          });
-        }
-      });
-    }
-  }
-
-  await runWithConcurrencyLimit(taskQueue, CONCURRENCY_LIMIT);
+  const reviews = await executeVisualReviewTasks(client, routesToReview, roles, CONCURRENCY_LIMIT);
 
   const report = generateMarkdownReport(reviews, client.botName, client.reportTitle, client.botTagline, iteration);
 
@@ -172,30 +233,9 @@ export async function orchestrateVisualReview(
     r.llmVerdict === 'fail' || (r.severity === 'HIGH' && r.llmVerdict !== 'pass')
   );
 
-  // Also alert Jules if this PR is from a Jules session
-  const julesSessionId = await getJulesSessionIdFromPR();
-  if (julesSessionId) {
-    const hasWarnings = reviews.some(r => r.llmVerdict === 'warn');
-    const passFailMsg = hasBlockingIssues ? "FAIL ❌" : ((hasWarnings || reviews.length === 0) ? "NEUTRAL ⚪" : "PASS ✅");
-    const highCount = reviews.filter(r => r.severity === 'HIGH').length;
-    const medCount = reviews.filter(r => r.severity === 'MEDIUM').length;
-    const lowCount = reviews.filter(r => r.severity === 'LOW').length;
-    const julesMessage = `[${client.reportTitle}] posted a visual UI review (${passFailMsg}). Summary: 🔴 ${highCount} high · 🟡 ${medCount} medium · 🟢 ${lowCount} low. Please read the review comments on the PR, analyze the diff context provided, and fix any failed or warned areas.\n\n<details><summary>Overview</summary>\n\n${report}\n</details>`;
-    await sendJulesMessage(julesSessionId, julesMessage);
-  }
-
-  const safeReportFileName = path.basename(client.reportFileName);
-  const verdictPath = path.join(ARTIFACTS_DIR, `${safeReportFileName.replace('.md', '')}-verdict.json`);
-  await writeVerdictJson(verdictPath, {
-    passed: !hasBlockingIssues,
-    highCount: reviews.filter(r => r.severity === 'HIGH').length,
-    routes: reviews.map(r => ({ route: r.route, severity: r.severity, llmVerdict: r.llmVerdict })),
-    state: state || { findings: [] }
-  });
+  await notifyJulesAndSaveVerdict(client, reviews, report, state, hasBlockingIssues);
 
   if (hasBlockingIssues) {
     console.error(`❌ Visual review found HIGH severity issues — failing CI.`);
-    // We intentionally don't crash the script here to allow the review workflow to complete fully
-    // process.exit(1);
   }
 }
