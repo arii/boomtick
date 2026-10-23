@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.14.0](https://github.com/arii/boomtick/compare/cli-v0.13.1...cli-v0.14.0) (2026-10-23)
+
+
+### Features
+
+* **cli:** provide unified td preflight command ([#932](https://github.com/arii/boomtick/issues/932)) ([08e3061](https://github.com/arii/boomtick/commit/08e30617efdb82acd321808dcc562385e748107c))
+* equip td audit with tree-sitter AST linting for anti-pattern detection ([#928](https://github.com/arii/boomtick/issues/928)) ([d9c461b](https://github.com/arii/boomtick/commit/d9c461b76bda8900d524f84555aef2c1537f11e6))
+
 ## [0.13.1](https://github.com/arii/boomtick/compare/cli-v0.13.0...cli-v0.13.1) (2026-10-23)
 
 
