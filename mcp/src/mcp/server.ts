@@ -24,6 +24,7 @@ import { getCommandSchemaHandler, GetCommandSchemaInputSchema } from "../tools/r
 import { getPackageScriptsHandler, GetPackageScriptsInputSchema } from "../tools/repo.get_package_scripts.js";
 import { readCiLogsHandler, ReadCiLogsInputSchema } from "../tools/repo.read_ci_logs.js";
 import { repoLogsHandler, RepoLogsInputSchema } from "../tools/repo.logs.js";
+import { getWorkflowRunsHandler, GetWorkflowRunsInputSchema } from "../tools/repo.get_workflow_runs.js";
 import { createRepairBranchHandler, CreateRepairBranchInputSchema } from "../tools/repo.create_repair_branch.js";
 import { createBranchHandler, CreateBranchInputSchema } from "../tools/repo.create_branch.js";
 import { runTestsHandler, RunTestsInputSchema } from "../tools/repo.run_tests.js";
@@ -32,6 +33,8 @@ import { openReplacementPrHandler, OpenReplacementPrInputSchema } from "../tools
 import { commentTriageSummaryHandler, CommentTriageSummaryInputSchema } from "../tools/github.comment_triage_summary.js";
 import { createPullRequestHandler, CreatePullRequestInputSchema } from "../tools/github.create_pull_request.js";
 import { getPrHandler, GetPrInputSchema } from "../tools/github.get_pr.js";
+import { getPrReviewsHandler, GetPrReviewsInputSchema } from "../tools/github.get_pr_reviews.js";
+import { getPrCommitsHandler, GetPrCommitsInputSchema } from "../tools/github.get_pr_commits.js";
 import { issueViewHandler, IssueViewInputSchema } from "../tools/github.issue_view.js";
 import { issueUpdateHandler, IssueUpdateInputSchema } from "../tools/github.issue_update.js";
 import { issueCommentHandler, IssueCommentInputSchema } from "../tools/github.issue_comment.js";
@@ -222,6 +225,9 @@ export class BoomtickMCPServer {
             return createSuccessResult(await readCiLogsHandler(ReadCiLogsInputSchema.parse(normArgs)));
           case "repo.logs":
             return createSuccessResult(await repoLogsHandler(RepoLogsInputSchema.parse(normArgs)));
+          case "repo.get.workflow.runs":
+          case "repo.get_workflow_runs":
+            return createSuccessResult(await getWorkflowRunsHandler(GetWorkflowRunsInputSchema.parse(normArgs)));
           case "repo.create.branch":
           case "repo.create_branch":
             return createSuccessResult(await createBranchHandler(CreateBranchInputSchema.parse(normArgs)));
@@ -246,6 +252,12 @@ export class BoomtickMCPServer {
           case "github.get.pr":
           case "github.get_pr":
             return createSuccessResult(await getPrHandler(GetPrInputSchema.parse(normArgs)));
+          case "github.get.pr.reviews":
+          case "github.get_pr_reviews":
+            return createSuccessResult(await getPrReviewsHandler(GetPrReviewsInputSchema.parse(normArgs)));
+          case "github.get.pr.commits":
+          case "github.get_pr_commits":
+            return createSuccessResult(await getPrCommitsHandler(GetPrCommitsInputSchema.parse(normArgs)));
           case "github.issue.view":
           case "github.issue_view":
             return createSuccessResult(await issueViewHandler(IssueViewInputSchema.parse(normArgs)));

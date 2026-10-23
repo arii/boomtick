@@ -5,6 +5,9 @@ import fs from "fs/promises";
 import * as healthModule from "./tools.js";
 import * as prDiffModule from "../tools/github.get_pr_diff.js";
 import * as ciLogsModule from "../tools/repo.read_ci_logs.js";
+import * as prReviewsModule from "../tools/github.get_pr_reviews.js";
+import * as prCommitsModule from "../tools/github.get_pr_commits.js";
+import * as workflowRunsModule from "../tools/repo.get_workflow_runs.js";
 
 vi.mock("fs/promises");
 vi.mock("../config.js", () => ({
@@ -221,6 +224,31 @@ describe("BoomtickMCPServer", () => {
         content: [{ type: "text", text: JSON.stringify({ status: "ok" }, null, 2) }],
         structuredContent: { status: "ok" },
       });
+    });
+
+    it("should execute github_get_pr_reviews and github_get_pr_commits via underscore or dot name", async () => {
+      const handler = requestHandlers.get("tools/call");
+      vi.spyOn(prReviewsModule, "getPrReviewsHandler").mockResolvedValue({ reviews: [] } as any);
+      vi.spyOn(prCommitsModule, "getPrCommitsHandler").mockResolvedValue({ commits: [] } as any);
+      vi.spyOn(workflowRunsModule, "getWorkflowRunsHandler").mockResolvedValue({ runs: [] } as any);
+
+      const resReviews = await handler!({
+        method: "tools/call",
+        params: { name: "github_get_pr_reviews", arguments: { prNumber: 123 } },
+      });
+      expect(resReviews.structuredContent).toEqual({ reviews: [] });
+
+      const resCommits = await handler!({
+        method: "tools/call",
+        params: { name: "github_get_pr_commits", arguments: { prNumber: 123 } },
+      });
+      expect(resCommits.structuredContent).toEqual({ commits: [] });
+
+      const resWorkflow = await handler!({
+        method: "tools/call",
+        params: { name: "repo_get_workflow_runs", arguments: {} },
+      });
+      expect(resWorkflow.structuredContent).toEqual({ runs: [] });
     });
 
     it("should return error result for unknown tool", async () => {
