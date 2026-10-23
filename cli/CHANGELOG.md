@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.14.1](https://github.com/arii/boomtick/compare/cli-v0.14.0...cli-v0.14.1) (2026-10-23)
+
+
+### Bug Fixes
+
+* **ci:** fix release pipeline schema generation and issue quality check on automated alerts [skip-scope-check] ([#956](https://github.com/arii/boomtick/issues/956)) ([a0e6114](https://github.com/arii/boomtick/commit/a0e6114e33dac799313f36f363de6008477cebfe))
+* **ci:** fix release-please scope constraint validation failure ([#947](https://github.com/arii/boomtick/issues/947)) ([2c0615d](https://github.com/arii/boomtick/commit/2c0615d8877591f2da203e766c917e022bde764e))
+
 ## [0.14.0](https://github.com/arii/boomtick/compare/cli-v0.13.1...cli-v0.14.0) (2026-10-23)
 
 
