@@ -2940,6 +2940,48 @@
       "title": "GetMergeConflictFilesInput",
       "type": "object"
     },
+    "GetMergeConflictFilesResponse": {
+      "properties": {
+        "hasConflicts": {
+          "title": "Hasconflicts",
+          "type": "boolean"
+        },
+        "conflictedFiles": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Conflictedfiles",
+          "type": "array"
+        },
+        "prNumber": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Prnumber"
+        },
+        "baseBranch": {
+          "title": "Basebranch",
+          "type": "string"
+        },
+        "headRef": {
+          "title": "Headref",
+          "type": "string"
+        }
+      },
+      "required": [
+        "hasConflicts",
+        "baseBranch",
+        "headRef"
+      ],
+      "title": "GetMergeConflictFilesResponse",
+      "type": "object"
+    },
     "GetPackageScriptsInput": {
       "properties": {
         "filter": {
@@ -4429,6 +4471,39 @@
         }
       },
       "title": "RunTestsInput",
+      "type": "object"
+    },
+    "RunTestsResponse": {
+      "properties": {
+        "passed": {
+          "title": "Passed",
+          "type": "boolean"
+        },
+        "exitCode": {
+          "title": "Exitcode",
+          "type": "integer"
+        },
+        "failedTests": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Failedtests",
+          "type": "array"
+        },
+        "results": {
+          "items": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "title": "Results",
+          "type": "array"
+        }
+      },
+      "required": [
+        "passed",
+        "exitCode"
+      ],
+      "title": "RunTestsResponse",
       "type": "object"
     },
     "SearchDdgsInput": {
