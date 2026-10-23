@@ -1,8 +1,0 @@
-
-> boomtick-root@0.2.1 type-check:python /app
-> python3 scripts/run-python-tool.py mypy
-
-Executing: /app/.venv/bin/python -m mypy cli --ignore-missing-imports
-cli/dev_tools/get_ai_context.py:43: note: By default the bodies of untyped functions are not checked, consider using --check-untyped-defs  [annotation-unchecked]
-cli/dev_tools/get_ai_context.py:52: note: By default the bodies of untyped functions are not checked, consider using --check-untyped-defs  [annotation-unchecked]
-Success: no issues found in 78 source files

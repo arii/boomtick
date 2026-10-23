@@ -2,5 +2,14 @@
   "$schema": "https://raw.githubusercontent.com/fallow-rs/fallow/main/schema.json",
   "ignorePatterns": [
     "cli"
-  ]
+  ],
+  "rules": {
+    "unused-export": "warn",
+    "unused-class-member": "warn",
+    "unused-dev-dependency": "warn",
+    "duplicate-export": "warn",
+    "complexity-cyclomatic": "warn",
+    "complexity-cognitive": "warn",
+    "complexity-crap": "warn"
+  }
 }

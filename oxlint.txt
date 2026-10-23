@@ -1,6 +1,0 @@
-
-> boomtick-root@0.2.1 lint:ox /app
-> oxlint --deny-warnings -c oxlint.json mcp/src/ mcp/tests/ lib/ tests/ scripts/
-
-Found 0 warnings and 0 errors.
-Finished in 57ms on 116 files with 93 rules using 4 threads.
