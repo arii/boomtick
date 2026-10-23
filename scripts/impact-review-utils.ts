@@ -66,9 +66,8 @@ export interface DomRouteSummary {
   severity: 'LOW' | 'MEDIUM' | 'HIGH';
 }
 
-import { ARTIFACTS_DIR, DOM_REVIEW_DIR, VISUAL_SUMMARY_PATH } from '../lib/visualReviewConstants';
+import { ARTIFACTS_DIR, DOM_REVIEW_DIR } from '../lib/visualReviewConstants';
 
-export { ARTIFACTS_DIR, DOM_REVIEW_DIR, VISUAL_SUMMARY_PATH };
 export const VISUAL_REVIEW_DIR = path.join(ARTIFACTS_DIR, 'visual-review');
 const IMPACT_ANALYSIS_PATH = path.join(ARTIFACTS_DIR, 'impact-analysis.json');
 export const DOM_SUMMARY_PATH = path.join(DOM_REVIEW_DIR, 'summary.json');
