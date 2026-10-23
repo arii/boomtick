@@ -211,6 +211,22 @@ const BASE_MCP_TOOLS: Tool[] = [
     outputSchema: DEFAULT_OUTPUT_SCHEMA as any,
   },
   {
+    name: "repo.check_jules_status",
+    description: "Check or poll the status of a Jules remediation session and verify its branch or PR status.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        sessionId: { type: "string", description: "The unique ID or task ID of the Jules session." },
+        commitSha: { type: "string", description: "Commit SHA for idempotency key verification." },
+        failureLog: { type: "string", description: "Failure log content for idempotency key calculation." },
+        poll: { type: "boolean", description: "Whether to poll until session completion or timeout." },
+        timeoutMs: { type: "integer", description: "Timeout in milliseconds when polling." },
+        intervalMs: { type: "integer", description: "Polling interval in milliseconds." },
+      },
+    } as any,
+    outputSchema: DEFAULT_OUTPUT_SCHEMA as any,
+  },
+  {
     name: "repo.run_tests",
     description: "Run repository tests and checks.",
     inputSchema: RunTestsInputJsonSchema as any,

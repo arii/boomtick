@@ -1,15 +1,15 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import * as fs from 'fs';
-import { sendJulesImpactReport, calculateJulesRemediationHash } from '../../lib/julesReviewClient';
+import { sendJulesImpactReport, calculateJulesRemediationHash, checkJulesStatus } from '../../lib/julesReviewClient';
 import * as visualReviewUtils from '../../lib/visualReviewUtils';
 
 vi.mock('fs', () => {
   return {
-    existsSync: vi.fn(),
+    existsSync: vi.fn().mockReturnValue(false),
     promises: {
-      stat: vi.fn(),
-      readdir: vi.fn(),
-      readFile: vi.fn(),
+      stat: vi.fn().mockResolvedValue({ isDirectory: () => true } as any),
+      readdir: vi.fn().mockResolvedValue([]),
+      readFile: vi.fn().mockResolvedValue(''),
       writeFile: vi.fn().mockResolvedValue(undefined),
     },
   };
@@ -61,7 +61,7 @@ describe('julesReviewClient - sendJulesImpactReport', () => {
     process.env.TASK_ID = '12345';
     process.env.JULES_API_KEY = 'test-key';
 
-    vi.mocked(fs.promises.stat).mockRejectedValue(new Error('ENOENT'));
+    vi.mocked(fs.promises.stat).mockRejectedValueOnce(new Error('ENOENT'));
     const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
     await sendJulesImpactReport();
@@ -111,7 +111,10 @@ describe('julesReviewClient - sendJulesImpactReport', () => {
       return false;
     });
 
-    vi.mocked(fs.promises.readdir).mockResolvedValue(['gemini-code-review-verdict.json'] as any);
+    vi.mocked(fs.promises.readdir).mockImplementation(async (p: unknown) => {
+      if (String(p).includes('artifacts')) return ['gemini-code-review-verdict.json'] as any;
+      return [];
+    });
     vi.mocked(fs.promises.readFile).mockImplementation(async (p: unknown) => {
       const pStr = String(p);
       if (pStr.includes('.jules-dispatch-')) return hash;
@@ -144,7 +147,10 @@ describe('julesReviewClient - sendJulesImpactReport', () => {
       return false;
     });
 
-    vi.mocked(fs.promises.readdir).mockResolvedValue(['gemini-code-review-verdict.json'] as any);
+    vi.mocked(fs.promises.readdir).mockImplementation(async (p: unknown) => {
+      if (String(p).includes('artifacts')) return ['gemini-code-review-verdict.json'] as any;
+      return [];
+    });
     vi.mocked(fs.promises.readFile).mockImplementation(async (p: unknown) => {
       const pStr = String(p);
       if (pStr.includes('deployment-review.md')) return '### Deployment Summary\nHigh impact';
@@ -185,7 +191,10 @@ describe('julesReviewClient - sendJulesImpactReport', () => {
 
     vi.mocked(fs.promises.stat).mockResolvedValue({ isDirectory: () => true } as fs.Stats);
     vi.mocked(fs.existsSync).mockReturnValue(false);
-    vi.mocked(fs.promises.readdir).mockResolvedValue(['gemini-code-review-verdict.json'] as any);
+    vi.mocked(fs.promises.readdir).mockImplementation(async (p: unknown) => {
+      if (String(p).includes('artifacts')) return ['gemini-code-review-verdict.json'] as any;
+      return [];
+    });
     vi.mocked(fs.promises.readFile).mockResolvedValue(
       JSON.stringify({ passed: false, highCount: 1, llmVerdict: 'fail' })
     );
@@ -201,5 +210,155 @@ describe('julesReviewClient - sendJulesImpactReport', () => {
       'https://jules.googleapis.com/v1alpha/sessions/pr-session-999:sendMessage',
       expect.anything()
     );
+  });
+});
+
+describe('julesReviewClient - checkJulesStatus', () => {
+  const originalEnv = process.env;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    process.env = { ...originalEnv };
+    delete process.env.TASK_ID;
+    delete process.env.JULES_API_KEY;
+    global.fetch = vi.fn();
+  });
+
+  afterEach(() => {
+    process.env = originalEnv;
+    vi.restoreAllMocks();
+  });
+
+  it('returns NOT_FOUND if no session ID provided or found', async () => {
+    vi.mocked(visualReviewUtils.getJulesSessionIdFromPR).mockResolvedValue(null);
+
+    const res = await checkJulesStatus();
+
+    expect(res.status).toBe('NOT_FOUND');
+    expect(res.completed).toBe(false);
+    expect(global.fetch).not.toHaveBeenCalled();
+  });
+
+  it('returns NOT_FOUND if JULES_API_KEY is missing', async () => {
+    const res = await checkJulesStatus({ sessionId: '12345' });
+
+    expect(res.status).toBe('NOT_FOUND');
+    expect(res.completed).toBe(false);
+    expect(res.message).toBe('JULES_API_KEY environment variable not set.');
+    expect(global.fetch).not.toHaveBeenCalled();
+  });
+
+  it('fetches session status and returns COMPLETED when state is SUCCEEDED', async () => {
+    process.env.JULES_API_KEY = 'test-key';
+
+    vi.mocked(global.fetch).mockResolvedValue({
+      ok: true,
+      json: vi.fn().mockResolvedValue({
+        name: 'sessions/12345',
+        state: 'SUCCEEDED',
+        sourceContext: {
+          githubRepoContext: {
+            startingBranch: 'jules-fix-branch',
+          },
+        },
+        outputs: [
+          {
+            pullRequest: {
+              url: 'https://github.com/org/repo/pull/42',
+              branch: 'jules-fix-branch',
+            },
+          },
+        ],
+      }),
+    } as any);
+
+    const res = await checkJulesStatus({ sessionId: '12345' });
+
+    expect(res.status).toBe('COMPLETED');
+    expect(res.completed).toBe(true);
+    expect(res.remediationBranch).toBe('jules-fix-branch');
+    expect(res.pullRequestUrl).toBe('https://github.com/org/repo/pull/42');
+  });
+
+  it('calculates idempotency key and detects duplicate when hash matches', async () => {
+    process.env.JULES_API_KEY = 'test-key';
+    const commitSha = 'sha12345';
+    const failureLog = 'Build failed at step 3';
+    const expectedHash = calculateJulesRemediationHash(commitSha, failureLog);
+
+    vi.mocked(fs.existsSync).mockImplementation((p: unknown) => String(p).includes('.jules-dispatch-'));
+    vi.mocked(fs.promises.readFile).mockImplementation(async (p: unknown) => {
+      if (String(p).includes('.jules-dispatch-')) {
+        return expectedHash;
+      }
+      return '';
+    });
+
+    vi.mocked(global.fetch).mockResolvedValue({
+      ok: true,
+      json: vi.fn().mockResolvedValue({
+        name: 'sessions/12345',
+        state: 'IN_PROGRESS',
+      }),
+    } as any);
+
+    const res = await checkJulesStatus({
+      sessionId: '12345',
+      commitSha,
+      failureLog,
+    });
+
+    expect(res.idempotencyHash).toBe(expectedHash);
+    expect(res.isDuplicate).toBe(true);
+    expect(res.status).toBe('IN_PROGRESS');
+  });
+
+  it('polls until completion when poll is true', async () => {
+    process.env.JULES_API_KEY = 'test-key';
+
+    let fetchCount = 0;
+    vi.mocked(global.fetch).mockImplementation(async () => {
+      fetchCount++;
+      return {
+        ok: true,
+        json: async () => ({
+          name: 'sessions/12345',
+          state: fetchCount === 1 ? 'IN_PROGRESS' : 'SUCCEEDED',
+        }),
+      } as any;
+    });
+
+    const res = await checkJulesStatus({
+      sessionId: '12345',
+      poll: true,
+      intervalMs: 10,
+      timeoutMs: 1000,
+    });
+
+    expect(res.status).toBe('COMPLETED');
+    expect(res.completed).toBe(true);
+    expect(fetchCount).toBe(2);
+  });
+
+  it('returns TIMED_OUT when polling times out before completion', async () => {
+    process.env.JULES_API_KEY = 'test-key';
+
+    vi.mocked(global.fetch).mockResolvedValue({
+      ok: true,
+      json: vi.fn().mockResolvedValue({
+        name: 'sessions/12345',
+        state: 'IN_PROGRESS',
+      }),
+    } as any);
+
+    const res = await checkJulesStatus({
+      sessionId: '12345',
+      poll: true,
+      intervalMs: 10,
+      timeoutMs: 30,
+    });
+
+    expect(res.status).toBe('TIMED_OUT');
+    expect(res.completed).toBe(false);
   });
 });

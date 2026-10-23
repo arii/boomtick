@@ -2507,6 +2507,12 @@ Follow the "Audit comment template" in `docs/agent/issue-audit-rules.md` to post
         self.jules.send_message(session_id, feedback)
         return {"status": "success", "feedback": feedback}
 
+    def check_jules_status(
+        self, session_id: str, commit_sha: Optional[str] = None, failure_log: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """Checks the status of a Jules session, including idempotency key verification and remediation branch details."""
+        return self.jules.check_session_status(session_id, commit_sha=commit_sha, failure_log=failure_log)
+
     def aggregate_prs(self, target_branch: str, prNumbers: List[int]) -> Dict[str, Any]:
         """
         Aggregates multiple PRs into a single target branch and creates a consolidated PR.

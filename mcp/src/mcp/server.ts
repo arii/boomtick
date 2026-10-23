@@ -28,6 +28,7 @@ import { getWorkflowRunsHandler, GetWorkflowRunsInputSchema } from "../tools/rep
 import { createRepairBranchHandler, CreateRepairBranchInputSchema } from "../tools/repo.create_repair_branch.js";
 import { createBranchHandler, CreateBranchInputSchema } from "../tools/repo.create_branch.js";
 import { runTestsHandler, RunTestsInputSchema } from "../tools/repo.run_tests.js";
+import { checkJulesStatusHandler, CheckJulesStatusInputSchema } from "../tools/repo.check_jules_status.js";
 import { commitPatchHandler, CommitPatchInputSchema } from "../tools/repo.commit_patch.js";
 import { openReplacementPrHandler, OpenReplacementPrInputSchema } from "../tools/github.open_replacement_pr.js";
 import { commentTriageSummaryHandler, CommentTriageSummaryInputSchema } from "../tools/github.comment_triage_summary.js";
@@ -244,6 +245,9 @@ export class BoomtickMCPServer {
           case "repo.create.repair.branch":
           case "repo.create_repair_branch":
             return createSuccessResult(await createRepairBranchHandler(CreateRepairBranchInputSchema.parse(normArgs)));
+          case "repo.check.jules.status":
+          case "repo.check_jules_status":
+            return createSuccessResult(await checkJulesStatusHandler(CheckJulesStatusInputSchema.parse(normArgs)));
           case "repo.run.tests":
           case "repo.run_tests":
             return createSuccessResult(await runTestsHandler(RunTestsInputSchema.parse(normArgs)));
