@@ -28,7 +28,7 @@
       "exact_usage": "td lint"
     },
     "preflight": {
-      "description": "Run local preflight checks: td audit, linting, overlap detection, and merge simulation.",
+      "description": "Run local preflight checks: td doctor, typecheck, linting, overlap detection, and merge simulation.",
       "exact_usage": "td preflight [--base <BASE>]",
       "optional_flags": [
         {

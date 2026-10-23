@@ -79,13 +79,44 @@ export function BadComponent() {
 def test_orchestrator_preflight(mocker):
     """Test Orchestrator preflight command aggregation and status."""
     orch = Orchestrator()
+    mocker.patch.object(orch, "doctor_check", return_value={"status": "success", "node": "24.16.0", "pnpm": "10.28.2"})
     mocker.patch.object(orch, "get_audit_results", return_value={"violations": {}})
     mocker.patch.object(orch, "detect_conflicts", return_value={})
     mocker.patch("dev_tools.orchestrator.run_command", return_value=mocker.MagicMock(returncode=0, stdout="clean"))
 
     res = orch.run_preflight(base_branch="main")
     assert res["status"] == "success"
-    assert "audit" in res
+    assert "doctor" in res
+    assert res["doctor"]["status"] == "success"
+    assert "typecheck" in res
+    assert res["typecheck"]["status"] == "success"
     assert "lint" in res
+    assert res["lint"]["status"] == "success"
+    assert "audit" in res
     assert "overlaps" in res
     assert "merge_simulation" in res
+    assert res["merge_simulation"]["status"] == "clean"
+
+
+def test_preflight_cli_command(mocker):
+    """Test running the td preflight CLI command via click runner."""
+    from click.testing import CliRunner
+    from dev_tools.cli import cli
+
+    mocker.patch(
+        "dev_tools.orchestrator.Orchestrator.run_preflight",
+        return_value={
+            "status": "success",
+            "doctor": {"status": "success"},
+            "typecheck": {"status": "success"},
+            "lint": {"status": "success"},
+            "audit": {"violations": {}},
+            "overlaps": [],
+            "merge_simulation": {"status": "clean", "base": "main"},
+        },
+    )
+
+    runner = CliRunner()
+    result = runner.invoke(cli, ["preflight"])
+    assert result.exit_code == 0
+    assert "success" in result.output or "Preflight" in result.output
