@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { countExistingReviews, getPreviousReviewState, generateMarkdownReport } from '../../lib/visualReviewUtils';
+import { countExistingReviews, getPreviousReviewState, generateMarkdownReport, buildReviewComments } from '../../lib/visualReviewUtils';
 
 describe('visualReviewUtils - countExistingReviews and getPreviousReviewState', () => {
   const originalEnv = process.env;
@@ -140,6 +140,67 @@ describe('visualReviewUtils - countExistingReviews and getPreviousReviewState', 
 
       const state = await getPreviousReviewState('Code Review');
       expect(state).toBeUndefined();
+    });
+  });
+
+  describe('buildReviewComments', () => {
+    it('constructs inline GitHub review comments with suggestion blocks for open findings', () => {
+      const state = {
+        findings: [
+          {
+            id: 'finding-1',
+            file: 'src/components/Button.tsx',
+            line: 15,
+            startLine: 12,
+            issue: 'Raw Tailwind class flex is banned',
+            severity: 'HIGH',
+            status: 'open',
+            counterexample: 'Raw flex violates design system primitive rule',
+            suggestion: '```suggestion\n<Stack direction="row">\n  <Box>Click</Box>\n</Stack>\n```',
+          },
+          {
+            id: 'finding-2',
+            file: 'src/utils.ts',
+            line: 42,
+            issue: 'Unused variable',
+            status: 'resolved',
+            suggestion: 'const clean = true;',
+          },
+          {
+            id: 'finding-3',
+            file: 'src/index.ts',
+            line: 10,
+            issue: 'Missing const keyword',
+            status: 'open',
+            fixSummary: 'const cleanPath = path.normalize(rawPath);',
+          },
+        ],
+      };
+
+      const comments = buildReviewComments(state);
+
+      expect(comments).toHaveLength(2);
+
+      // First comment (open, with suggestion block and multiline startLine)
+      expect(comments[0].path).toBe('src/components/Button.tsx');
+      expect(comments[0].line).toBe(15);
+      expect(comments[0].start_line).toBe(12);
+      expect(comments[0].start_side).toBe('RIGHT');
+      expect(comments[0].body).toContain('**[HIGH]** Raw Tailwind class flex is banned');
+      expect(comments[0].body).toContain('*Why it fails:* Raw flex violates design system primitive rule');
+      expect(comments[0].body).toContain('```suggestion\n<Stack direction="row">\n  <Box>Click</Box>\n</Stack>\n```');
+
+      // Second open comment with fixSummary auto-formatted into suggestion block or suggested fix
+      expect(comments[1].path).toBe('src/index.ts');
+      expect(comments[1].line).toBe(10);
+      expect(comments[1].body).toContain('**[Finding]** Missing const keyword');
+      expect(comments[1].body).toContain('**Suggested Fix:** const cleanPath = path.normalize(rawPath);');
+    });
+
+    it('returns empty array when no state or no findings are present', () => {
+      expect(buildReviewComments(null)).toEqual([]);
+      expect(buildReviewComments({})).toEqual([]);
+      expect(buildReviewComments({ findings: [] })).toEqual([]);
     });
   });
 
