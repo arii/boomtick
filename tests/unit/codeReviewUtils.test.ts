@@ -11,6 +11,9 @@ import {
   EXTERNAL_CONTEXT_TRUNCATED_MESSAGE,
   EXTERNAL_CONTEXT_MINIMUM_BUDGET,
   filterLowImpactFiles,
+  filterUnifiedDiffByAST,
+  filterUnifiedDiff,
+  extractFilePathFromDiffHeader,
   truncateUnifiedDiff,
   withRetry
 } from '../../lib/codeReviewUtils';
@@ -123,17 +126,112 @@ describe('codeReviewUtils', () => {
   });
 
   describe('filterLowImpactFiles', () => {
-    it('filters default lockfiles, minified files, maps, and dist folders', () => {
+    it('filters default lockfiles, minified files, maps, dist folders, and SVG/binary assets', () => {
       const files = [
         'src/index.ts',
         'pnpm-lock.yaml',
+        'package-lock.json',
         'dist/bundle.js',
+        'build/main.js',
+        'coverage/lcov.info',
         'src/vendor.min.js',
         'src/styles.min.css',
-        'src/app.js.map'
+        'src/app.js.map',
+        'public/logo.svg',
+        'src/assets/banner.png',
+        'src/assets/photo.jpg',
+        'src/fonts/inter.woff2',
+        'src/binary.wasm',
+        'src/archive.zip'
       ];
       const filtered = filterLowImpactFiles(files);
       expect(filtered).toEqual(['src/index.ts']);
+    });
+  });
+
+  describe('extractFilePathFromDiffHeader', () => {
+    it('extracts file path from git diff header', () => {
+      expect(extractFilePathFromDiffHeader('diff --git a/src/app.ts b/src/app.ts')).toBe('src/app.ts');
+      expect(extractFilePathFromDiffHeader('+++ b/lib/utils.ts')).toBe('lib/utils.ts');
+      expect(extractFilePathFromDiffHeader('--- a/scripts/test.ts')).toBe('scripts/test.ts');
+      expect(extractFilePathFromDiffHeader('no git header')).toBeUndefined();
+    });
+  });
+
+  describe('filterUnifiedDiffByAST', () => {
+    it('filters out lockfiles, build outputs, and SVG/binary assets from unified git diff', () => {
+      const mixedDiff = [
+        'diff --git a/pnpm-lock.yaml b/pnpm-lock.yaml',
+        'index 1111..2222 100644',
+        '--- a/pnpm-lock.yaml',
+        '+++ b/pnpm-lock.yaml',
+        '@@ -1,3 +1,3 @@',
+        '- lockfile content old',
+        '+ lockfile content new',
+        'diff --git a/src/businessLogic.ts b/src/businessLogic.ts',
+        'index 3333..4444 100644',
+        '--- a/src/businessLogic.ts',
+        '+++ b/src/businessLogic.ts',
+        '@@ -10,3 +10,4 @@',
+        ' export interface UserContract {',
+        '-  id: string;',
+        '+  id: string;',
+        '+  email: string;',
+        ' }',
+        'diff --git a/public/logo.svg b/public/logo.svg',
+        'index 5555..6666 100644',
+        '--- a/public/logo.svg',
+        '+++ b/public/logo.svg',
+        '@@ -1,1 +1,1 @@',
+        '-<svg><path d="M0 0"/></svg>',
+        '+<svg><path d="M0 1"/></svg>',
+        'diff --git a/dist/bundle.js b/dist/bundle.js',
+        'index 7777..8888 100644',
+        '--- a/dist/bundle.js',
+        '+++ b/dist/bundle.js',
+        '@@ -1,1 +1,1 @@',
+        '-var a=1;',
+        '+var a=2;'
+      ].join('\n');
+
+      const filtered = filterUnifiedDiffByAST(mixedDiff);
+
+      expect(filtered).toContain('diff --git a/src/businessLogic.ts b/src/businessLogic.ts');
+      expect(filtered).toContain('UserContract');
+      expect(filtered).not.toContain('pnpm-lock.yaml');
+      expect(filtered).not.toContain('public/logo.svg');
+      expect(filtered).not.toContain('dist/bundle.js');
+    });
+
+    it('filters out binary file diffs and asset blobs', () => {
+      const binaryDiff = [
+        'diff --git a/assets/image.png b/assets/image.png',
+        'Binary files a/assets/image.png and b/assets/image.png differ',
+        'diff --git a/src/contract.ts b/src/contract.ts',
+        '--- a/src/contract.ts',
+        '+++ b/src/contract.ts',
+        '@@ -1,2 +1,3 @@',
+        '+export type ApiContract = { status: number };'
+      ].join('\n');
+
+      const filtered = filterUnifiedDiff(binaryDiff);
+
+      expect(filtered).toContain('diff --git a/src/contract.ts b/src/contract.ts');
+      expect(filtered).not.toContain('assets/image.png');
+      expect(filtered).not.toContain('Binary files');
+    });
+
+    it('returns empty string if all diff chunks are low-impact or excluded', () => {
+      const lockfileDiff = [
+        'diff --git a/package-lock.json b/package-lock.json',
+        '--- a/package-lock.json',
+        '+++ b/package-lock.json',
+        '@@ -1,2 +1,2 @@',
+        '-{"name": "a"}',
+        '+{"name": "b"}'
+      ].join('\n');
+
+      expect(filterUnifiedDiffByAST(lockfileDiff)).toBe('');
     });
   });
 
