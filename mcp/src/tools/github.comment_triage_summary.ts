@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { runCommand } from "../lib/shell.js";
+import { runTDCli } from "./jules/cli.js";
 
 export const CommentTriageSummaryInputSchema = z.object({
   prNumber: z.number(),
@@ -7,21 +7,12 @@ export const CommentTriageSummaryInputSchema = z.object({
 });
 
 export async function commentTriageSummaryHandler(args: z.infer<typeof CommentTriageSummaryInputSchema>) {
-  const result = await runCommand("td", [
+  const output = await runTDCli([
     "gh",
     "post-comment",
     "--pr", args.prNumber.toString(),
     "--body", args.body
-  ]);
-
-  if (result.exitCode !== 0) {
-    throw new Error(`Failed to comment on PR: ${result.stderr}`);
-  }
-
-  const output = JSON.parse(result.stdout);
-  if (output.status === "error") {
-    throw new Error(`Failed to comment on PR: ${output.message}`);
-  }
+  ], "comment on PR");
 
   return {
     success: true,
