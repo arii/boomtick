@@ -12,10 +12,13 @@ export async function getMergeConflictFilesHandler(args: z.infer<typeof GetMerge
   const headRef = args.headRef || "HEAD";
   const conflictFiles = await getMergeConflictFiles(baseBranch, headRef);
 
+  const hasConflicts = conflictFiles.length > 0;
+
   return {
-    prNumber: args.prNumber,
+    hasConflicts,
+    conflictedFiles: conflictFiles,
+    prNumber: args.prNumber ?? null,
     baseBranch,
     headRef,
-    conflictFiles,
   };
 }

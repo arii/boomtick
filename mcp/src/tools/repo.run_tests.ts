@@ -66,5 +66,18 @@ export async function runTestsHandler(args: RunTestsInput) {
     }
   }
 
-  return { success, results };
+  const exitCode = results.length > 0 ? results[results.length - 1].exitCode : 0;
+  const failedTests: string[] = [];
+  for (const res of results) {
+    if (res.exitCode !== 0) {
+      failedTests.push(res.command);
+    }
+  }
+
+  return {
+    passed: success,
+    exitCode,
+    failedTests,
+    results,
+  };
 }

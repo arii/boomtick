@@ -1645,6 +1645,53 @@ export const GetMergeConflictFilesInputJsonSchema = {
   "type": "object"
 } as const;
 
+export const GetMergeConflictFilesResponseSchema = z.object({ "hasConflicts": z.boolean(), "conflictedFiles": z.array(z.string()).optional(), "prNumber": z.union([z.number().int(), z.null()]).default(null), "baseBranch": z.string(), "headRef": z.string() });
+
+export type GetMergeConflictFilesResponse = z.infer<typeof GetMergeConflictFilesResponseSchema>;
+
+export const GetMergeConflictFilesResponseJsonSchema = {
+  "properties": {
+    "hasConflicts": {
+      "title": "Hasconflicts",
+      "type": "boolean"
+    },
+    "conflictedFiles": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Conflictedfiles",
+      "type": "array"
+    },
+    "prNumber": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Prnumber"
+    },
+    "baseBranch": {
+      "title": "Basebranch",
+      "type": "string"
+    },
+    "headRef": {
+      "title": "Headref",
+      "type": "string"
+    }
+  },
+  "required": [
+    "hasConflicts",
+    "baseBranch",
+    "headRef"
+  ],
+  "title": "GetMergeConflictFilesResponse",
+  "type": "object"
+} as const;
+
 export const GetPackageScriptsInputSchema = z.object({ "filter": z.union([z.string(), z.null()]).describe("Optional glob pattern to filter script names.").default(null) });
 
 export type GetPackageScriptsInput = z.infer<typeof GetPackageScriptsInputSchema>;
@@ -3288,6 +3335,44 @@ export const RunTestsInputJsonSchema = {
     }
   },
   "title": "RunTestsInput",
+  "type": "object"
+} as const;
+
+export const RunTestsResponseSchema = z.object({ "passed": z.boolean(), "exitCode": z.number().int(), "failedTests": z.array(z.string()).optional(), "results": z.array(z.record(z.string(), z.any())).optional() });
+
+export type RunTestsResponse = z.infer<typeof RunTestsResponseSchema>;
+
+export const RunTestsResponseJsonSchema = {
+  "properties": {
+    "passed": {
+      "title": "Passed",
+      "type": "boolean"
+    },
+    "exitCode": {
+      "title": "Exitcode",
+      "type": "integer"
+    },
+    "failedTests": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Failedtests",
+      "type": "array"
+    },
+    "results": {
+      "items": {
+        "additionalProperties": true,
+        "type": "object"
+      },
+      "title": "Results",
+      "type": "array"
+    }
+  },
+  "required": [
+    "passed",
+    "exitCode"
+  ],
+  "title": "RunTestsResponse",
   "type": "object"
 } as const;
 
