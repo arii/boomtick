@@ -28,6 +28,7 @@ import { getWorkflowRunsHandler, GetWorkflowRunsInputSchema } from "../tools/rep
 import { createRepairBranchHandler, CreateRepairBranchInputSchema } from "../tools/repo.create_repair_branch.js";
 import { createBranchHandler, CreateBranchInputSchema } from "../tools/repo.create_branch.js";
 import { runTestsHandler, RunTestsInputSchema } from "../tools/repo.run_tests.js";
+import { checkJulesStatusHandler, CheckJulesStatusInputSchema } from "../tools/repo.check_jules_status.js";
 import { commitPatchHandler, CommitPatchInputSchema } from "../tools/repo.commit_patch.js";
 import { openReplacementPrHandler, OpenReplacementPrInputSchema } from "../tools/github.open_replacement_pr.js";
 import { commentTriageSummaryHandler, CommentTriageSummaryInputSchema } from "../tools/github.comment_triage_summary.js";
@@ -150,6 +151,16 @@ export class BoomtickMCPServer {
           contents: [{ uri, mimeType: "application/json", text: JSON.stringify(changedFiles, null, 2) }],
         };
       }
+      if (
+        uri === "mcp://ci/latest-run" ||
+        uri === "repo://ci/latest-run" ||
+        uri === "repo://ci-latest-run"
+      ) {
+        const workflowRuns = await getWorkflowRunsHandler(GetWorkflowRunsInputSchema.parse({}));
+        return {
+          contents: [{ uri, mimeType: "application/json", text: JSON.stringify(workflowRuns, null, 2) }],
+        };
+      }
       if (uri === "repo://package-json" || uri === "mcp://workspace/package-json") {
         const content = await fs.readFile(path.join(config.repoPath, "package.json"), "utf-8");
         return {
@@ -234,6 +245,9 @@ export class BoomtickMCPServer {
           case "repo.create.repair.branch":
           case "repo.create_repair_branch":
             return createSuccessResult(await createRepairBranchHandler(CreateRepairBranchInputSchema.parse(normArgs)));
+          case "repo.check.jules.status":
+          case "repo.check_jules_status":
+            return createSuccessResult(await checkJulesStatusHandler(CheckJulesStatusInputSchema.parse(normArgs)));
           case "repo.run.tests":
           case "repo.run_tests":
             return createSuccessResult(await runTestsHandler(RunTestsInputSchema.parse(normArgs)));
@@ -392,15 +406,32 @@ export class BoomtickMCPServer {
   async run() {
     this.prepareEnvironmentAndPreflight();
 
+    const args = process.argv.slice(2);
+    let port = parseInt(process.env.PORT || process.env.HTTP_PORT || "3000", 10);
+    let bearerToken = process.env.BOOMTICK_MCP_BEARER_TOKEN || process.env.MCP_BEARER_TOKEN || process.env.AUTH_TOKEN;
+
+    for (let i = 0; i < args.length; i++) {
+      if (args[i] === "--port" && i + 1 < args.length) {
+        port = parseInt(args[i + 1], 10);
+        i++;
+      } else if (args[i].startsWith("--port=")) {
+        port = parseInt(args[i].split("=")[1], 10);
+      } else if (args[i] === "--bearer-token" && i + 1 < args.length) {
+        bearerToken = args[i + 1];
+        i++;
+      } else if (args[i].startsWith("--bearer-token=")) {
+        bearerToken = args[i].split("=")[1];
+      }
+    }
+
     const isHttp =
       process.env.MCP_TRANSPORT === "http" ||
-      process.argv.includes("--http") ||
-      (process.env.PORT !== undefined && !process.argv.includes("--stdio")) ||
-      (process.env.HTTP_PORT !== undefined && !process.argv.includes("--stdio"));
+      args.includes("--http") ||
+      (process.env.PORT !== undefined && !args.includes("--stdio")) ||
+      (process.env.HTTP_PORT !== undefined && !args.includes("--stdio"));
 
     if (isHttp) {
-      const port = parseInt(process.env.PORT || process.env.HTTP_PORT || "3000", 10);
-      const mcpHttp = createMcpHttpServer({ port, mcpServer: this.server });
+      const mcpHttp = createMcpHttpServer({ port, bearerToken, mcpServer: this.server });
       await mcpHttp.listen(port);
       return;
     }

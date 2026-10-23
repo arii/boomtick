@@ -94,11 +94,13 @@ export const geminiCodeReviewClient: CodeReviewClientStrategy = {
       // so it can be handled by orchestrator without breaking the CI suite
       return {
         feedback: `Error: Gemini model was truncated during execution (finishReason=${finishReason}).`,
+        role: summary.role,
         tokens: totalTokens,
         cost: 0,
         modelName,
         llmVerdict: 'warn',
         isTruncated: true,
+        findings: [],
       };
     }
 
@@ -123,7 +125,7 @@ export const geminiCodeReviewClient: CodeReviewClientStrategy = {
       cost: cost,
       modelName: modelName,
       llmVerdict: parseCodeReviewVerdict(feedback),
-      state: parsedState.state,
+      findings: parsedState.state?.findings ?? [],
       isTruncated: isTruncated,
       parseError: parsedState.parseError,
     };

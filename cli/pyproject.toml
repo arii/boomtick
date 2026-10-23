@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "boomtick-cli"
-version = "0.13.1"
+version = "0.14.0"
 description = "BoomTick CLI — agentic dev-tools for GitHub workflows"
 authors = [{name = "Ariel Anders"}]
 readme = "README.md"

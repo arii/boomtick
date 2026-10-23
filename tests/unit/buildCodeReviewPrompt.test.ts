@@ -70,7 +70,8 @@ describe('buildCodeReviewPrompt', () => {
     const prompt = buildSystemPrompt({
       diffContext: 'some diff'
     });
-    expect(prompt).toContain('GITHUB SUGGESTIONS: When proposing concrete code fixes for specific lines, include an actionable GitHub suggestion block');
+    expect(prompt).toContain('GITHUB SUGGESTIONS: When proposing concrete code fixes for specific lines or line ranges, output actionable GitHub suggestion blocks');
+    expect(prompt).toContain('so maintainers can apply fixes with one click directly in GitHub\'s PR UI');
     expect(prompt).toContain('"startLine": 10');
     expect(prompt).toContain('"endLine": 12');
     expect(prompt).toContain('"suggestion": "```suggestion\\nconst x = 2;\\n```"');

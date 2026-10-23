@@ -13,7 +13,8 @@
   "type": "module",
   "main": "dist/index.js",
   "bin": {
-    "boomtick-mcp": "dist/index.js"
+    "boomtick-mcp": "dist/index.js",
+    "boomtick-mcp-http": "dist/http.js"
   },
   "scripts": {
     "build": "tsx scripts/sync-contracts.ts && tsc && tsx scripts/sync-mcp-schemas.ts",

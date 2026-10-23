@@ -2,9 +2,12 @@ import { Tool, Prompt, Resource, ResourceTemplate } from "@modelcontextprotocol/
 import {
   HealthCheckInputJsonSchema,
   SearchPRsInputJsonSchema,
+  SearchPRsResponseJsonSchema,
   GetPrDiffInputJsonSchema,
+  PrDiffResponseJsonSchema,
   CheckoutBranchInputJsonSchema,
   GetMergeConflictFilesInputJsonSchema,
+  GetMergeConflictFilesResponseJsonSchema,
   GetChangedFilesInputJsonSchema,
   GetPackageScriptsInputJsonSchema,
   ReadCiLogsInputJsonSchema,
@@ -12,6 +15,7 @@ import {
   CreateBranchInputJsonSchema,
   CreateRepairBranchInputJsonSchema,
   RunTestsInputJsonSchema,
+  RunTestsResponseJsonSchema,
   CommitPatchInputJsonSchema,
   OpenReplacementPrInputJsonSchema,
   CreatePullRequestInputJsonSchema,
@@ -19,8 +23,10 @@ import {
   GetPrInputJsonSchema,
   IssueViewInputJsonSchema,
   IssueUpdateInputJsonSchema,
+  IssueUpdateResponseJsonSchema,
   IssueCommentInputJsonSchema,
   CreateIssueInputJsonSchema,
+  CreateIssueResponseJsonSchema,
   GetCommandSchemaInputJsonSchema,
   ReadAgentContextInputJsonSchema as ReadAgentContextSchema,
   CreateJulesSessionInputJsonSchema,
@@ -79,6 +85,12 @@ export const MCP_RESOURCES: Resource[] = [
     description: "List of changed files in the repository.",
   },
   {
+    uri: "mcp://ci/latest-run",
+    name: "Latest CI Run",
+    mimeType: "application/json",
+    description: "Recent CI exit statuses, workflow runs, and annotations.",
+  },
+  {
     uri: "repo://package-json",
     name: "package.json",
     mimeType: "application/json",
@@ -130,7 +142,7 @@ const BASE_MCP_TOOLS: Tool[] = [
     name: "github.search_open_prs",
     description: "Search for open pull requests in the repository.",
     inputSchema: SearchPRsInputJsonSchema as any,
-    outputSchema: DEFAULT_OUTPUT_SCHEMA as any,
+    outputSchema: SearchPRsResponseJsonSchema as any,
   },
   {
     name: "repo.read_agent_context",
@@ -142,7 +154,7 @@ const BASE_MCP_TOOLS: Tool[] = [
     name: "github.get_pr_diff",
     description: "Get the diff and changed files for a pull request.",
     inputSchema: GetPrDiffInputJsonSchema as any,
-    outputSchema: DEFAULT_OUTPUT_SCHEMA as any,
+    outputSchema: PrDiffResponseJsonSchema as any,
   },
   {
     name: "github.checkout_branch",
@@ -154,7 +166,7 @@ const BASE_MCP_TOOLS: Tool[] = [
     name: "github.get_merge_conflict_files",
     description: "Detect files that conflict when a PR is merged with the base branch.",
     inputSchema: GetMergeConflictFilesInputJsonSchema as any,
-    outputSchema: DEFAULT_OUTPUT_SCHEMA as any,
+    outputSchema: GetMergeConflictFilesResponseJsonSchema as any,
   },
   {
     name: "repo.get_changed_files",
@@ -199,10 +211,26 @@ const BASE_MCP_TOOLS: Tool[] = [
     outputSchema: DEFAULT_OUTPUT_SCHEMA as any,
   },
   {
+    name: "repo.check_jules_status",
+    description: "Check or poll the status of a Jules remediation session and verify its branch or PR status.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        sessionId: { type: "string", description: "The unique ID or task ID of the Jules session." },
+        commitSha: { type: "string", description: "Commit SHA for idempotency key verification." },
+        failureLog: { type: "string", description: "Failure log content for idempotency key calculation." },
+        poll: { type: "boolean", description: "Whether to poll until session completion or timeout." },
+        timeoutMs: { type: "integer", description: "Timeout in milliseconds when polling." },
+        intervalMs: { type: "integer", description: "Polling interval in milliseconds." },
+      },
+    } as any,
+    outputSchema: DEFAULT_OUTPUT_SCHEMA as any,
+  },
+  {
     name: "repo.run_tests",
     description: "Run repository tests and checks.",
     inputSchema: RunTestsInputJsonSchema as any,
-    outputSchema: DEFAULT_OUTPUT_SCHEMA as any,
+    outputSchema: RunTestsResponseJsonSchema as any,
   },
   {
     name: "repo.commit_patch",
@@ -262,7 +290,7 @@ const BASE_MCP_TOOLS: Tool[] = [
     name: "github.issue_update",
     description: "Update a GitHub issue's body, labels, and/or state.",
     inputSchema: IssueUpdateInputJsonSchema as any,
-    outputSchema: DEFAULT_OUTPUT_SCHEMA as any,
+    outputSchema: IssueUpdateResponseJsonSchema as any,
   },
   {
     name: "github.issue_comment",
@@ -274,7 +302,7 @@ const BASE_MCP_TOOLS: Tool[] = [
     name: "github.create_issue",
     description: "Create a new GitHub issue.",
     inputSchema: CreateIssueInputJsonSchema as any,
-    outputSchema: DEFAULT_OUTPUT_SCHEMA as any,
+    outputSchema: CreateIssueResponseJsonSchema as any,
   },
   {
     name: "jules.create_session",

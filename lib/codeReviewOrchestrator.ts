@@ -4,7 +4,7 @@ import { IMPACT_CONFIG } from '../scripts/impact-analysis.config';
 import { ARTIFACTS_DIR } from './visualReviewConstants';
 import { postPRComment, countExistingReviews, getJulesSessionIdFromPR, sendJulesMessage, getPreviousReviewState } from './visualReviewUtils';
 import { runWithConcurrencyLimit, checkReviewQuota, writeVerdictJson, writeGracefulExitVerdict, createTaskErrorResult } from './sharedUtils';
-import { calculateEstimatedTokens, cleanupFeedback, batchFiles, calculateReviewHash, pruneCache, filterLowImpactFiles } from './codeReviewUtils';
+import { calculateEstimatedTokens, cleanupFeedback, batchFiles, calculateReviewHash, pruneCache, filterLowImpactFiles, filterUnifiedDiffByAST } from './codeReviewUtils';
 import type { CodeReviewSummary, CodeReviewResult, CodeReviewState, CodeReviewRole } from './codeReviewTypes';
 import { execFile as execFileCb, spawn } from 'child_process';
 import { promisify } from 'util';
@@ -162,9 +162,10 @@ export async function fetchPRGoal(): Promise<string | undefined> {
       headers: { Authorization: `Bearer ${token}`, Accept: 'application/vnd.github+json' },
     });
     if (!res.ok) return undefined;
-    const pr = await res.json() as { title: string; body: string | null };
+    const pr = await res.json() as { title?: string; body?: string | null } | null;
+    if (!pr || typeof pr !== 'object') return undefined;
     const body = pr.body?.trim() ? `\n\n${pr.body.trim()}` : '';
-    cachedPRGoal = `${pr.title}${body}`;
+    cachedPRGoal = `${pr.title || ''}${body}`;
     return cachedPRGoal;
   } catch {
     cachedPRGoal = undefined;
@@ -327,6 +328,8 @@ export async function getCodeDiffSummary(targetFiles?: string[]): Promise<CodeRe
       const res = await execFile('git', diffArgs, { encoding: 'utf-8', maxBuffer: 1024 * 1024 * 10 });
       rawDiff = (res.stdout as string) || '';
     }
+
+    rawDiff = filterUnifiedDiffByAST(rawDiff);
 
     // basic sanity check - just take the first N chars if it's absurdly large to avoid blowing up context
     let diffContext = rawDiff;
@@ -817,7 +820,8 @@ async function executeReviewTasks(
           }
 
           // HARD GATE: a truncated/malformed response must never silently resolve to PASS.
-          if (result.isTruncated || result.parseError) {
+          const hasValidFindings = Array.isArray(result.findings);
+          if (result.isTruncated || (result.parseError && !hasValidFindings)) {
             const reason = result.isTruncated
               ? "was truncated before completion (likely an output token limit)"
               : `had a malformed findings block (parse error: ${result.parseError})`;
@@ -830,6 +834,8 @@ async function executeReviewTasks(
               skipReason: result.isTruncated ? 'TRUNCATED' : 'PARSE_ERROR',
               feedback: `${result.feedback}\n\n---\n⚠️ **Review incomplete:** the model's response ${reason}. This review could not verify all findings and should not be treated as a clean pass. Consider re-running.`,
             };
+          } else if (result.parseError) {
+            console.warn(`⚠️ ${client.botName} had a parse error (${result.parseError}) but returned valid findings. Proceeding.`);
           }
 
           // Final verification/reconciliation

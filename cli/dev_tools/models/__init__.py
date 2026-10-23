@@ -152,6 +152,14 @@ class GetMergeConflictFilesInput(CamelCaseModel):
     base_branch: str = Field("main", description="The base branch to check against (default: 'main').")
 
 
+class GetMergeConflictFilesResponse(CamelCaseModel):
+    has_conflicts: bool
+    conflicted_files: List[str] = Field(default_factory=list)
+    pr_number: Optional[int] = None
+    base_branch: str
+    head_ref: str
+
+
 class GetChangedFilesInput(CamelCaseModel):
     base: str = Field("main", description="The base ref to compare from (default: 'main').")
     head: str = Field("HEAD", description="The head ref to compare to (default: 'HEAD').")
@@ -225,6 +233,13 @@ class RunTestsInput(CamelCaseModel):
     )
     timeout_seconds: int = Field(300, description="Maximum time in seconds to wait for tests (default: 300).")
     worktree_path: Optional[str] = Field(None, description="Optional path to the worktree to run tests in.")
+
+
+class RunTestsResponse(CamelCaseModel):
+    passed: bool
+    exit_code: int
+    failed_tests: List[str] = Field(default_factory=list)
+    results: List[Dict[str, Any]] = Field(default_factory=list)
 
 
 class RunLighthouseInput(CamelCaseModel):

@@ -1,4 +1,5 @@
-# pylint: disable=invalid-name,line-too-long,missing-docstring,missing-timeout,raise-missing-from
+# pylint: disable=invalid-name,line-too-long,missing-docstring,missing-timeout,raise-missing-from,too-many-locals,too-many-branches
+import hashlib
 import os
 import re
 from concurrent.futures import ThreadPoolExecutor
@@ -184,3 +185,78 @@ class JulesClient:
         response = requests.delete(url, headers=self.headers, timeout=10)
         response.raise_for_status()
         return {"status": "success", "message": "Session cancelled successfully"}
+
+    def check_session_status(
+        self,
+        session_id: str,
+        commit_sha: Optional[str] = None,
+        failure_log: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Checks the status of a Jules session, including idempotency hash calculation and remediation branch retrieval."""
+        session_data = self.get_session(session_id)
+        if not session_data:
+            return {
+                "sessionId": session_id,
+                "status": "NOT_FOUND",
+                "completed": False,
+                "message": f"Session {session_id} not found.",
+            }
+
+        raw_state = session_data.get("state", "UNKNOWN")
+        status = "IN_PROGRESS"
+        if raw_state in ("SUCCEEDED", "COMPLETED"):
+            status = "COMPLETED"
+        elif raw_state in ("FAILED", "CANCELLED", "TERMINATED"):
+            status = "FAILED"
+        elif raw_state in ("IN_PROGRESS", "PENDING"):
+            status = "IN_PROGRESS"
+
+        remediation_branch = None
+        pull_request_url = None
+
+        ctx = session_data.get("sourceContext", {}).get("githubRepoContext", {})
+        if ctx.get("startingBranch"):
+            remediation_branch = ctx.get("startingBranch")
+
+        outputs = session_data.get("outputs", [])
+        if isinstance(outputs, list):
+            for out in outputs:
+                if isinstance(out, dict):
+                    pr = out.get("pullRequest", {})
+                    if pr.get("url"):
+                        pull_request_url = pr.get("url")
+                    if pr.get("branch") or out.get("gitBranch"):
+                        remediation_branch = pr.get("branch") or out.get("gitBranch")
+
+        idempotency_hash = None
+        is_duplicate = False
+
+        if commit_sha and failure_log:
+            h = hashlib.sha256()
+            h.update(f"{commit_sha}:{failure_log.strip()}".encode("utf-8"))
+            idempotency_hash = h.hexdigest()
+
+            clean_id = self._get_clean_id(session_id, "sessions")
+            hash_filename = f".jules-dispatch-{clean_id}.hash"
+            artifacts_dir = "artifacts"
+            hash_path = os.path.join(artifacts_dir, hash_filename)
+            if os.path.exists(hash_path):
+                try:
+                    with open(hash_path, "r", encoding="utf-8") as f:
+                        existing_hash = f.read().strip()
+                        if existing_hash == idempotency_hash:
+                            is_duplicate = True
+                except Exception as e:
+                    log_warn(f"Could not read dispatch hash file {hash_path}: {e}")
+
+        return {
+            "sessionId": session_id,
+            "status": status,
+            "rawState": raw_state,
+            "completed": status == "COMPLETED",
+            "remediationBranch": remediation_branch,
+            "pullRequestUrl": pull_request_url,
+            "idempotencyHash": idempotency_hash,
+            "isDuplicate": is_duplicate,
+            "message": f"Session state: {raw_state}",
+        }
