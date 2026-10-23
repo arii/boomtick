@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.6.1](https://github.com/arii/boomtick/compare/mcp-v0.6.0...mcp-v0.6.1) (2026-10-23)
+
+
+### Bug Fixes
+
+* **mcp:** mount missing handlers for github_get_pr_reviews, github_get_pr_commits, and repo_get_workflow_runs [skip-scope-check] ([#916](https://github.com/arii/boomtick/issues/916)) ([60a2851](https://github.com/arii/boomtick/commit/60a2851a2f2d5ac8010422796573b7ea20bb6767))
+
 ## [0.6.0](https://github.com/arii/boomtick/compare/mcp-v0.5.0...mcp-v0.6.0) (2026-10-22)
 
 

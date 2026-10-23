@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.13.1](https://github.com/arii/boomtick/compare/cli-v0.13.0...cli-v0.13.1) (2026-10-23)
+
+
+### Bug Fixes
+
+* **scripts:** resolve root directory paths and commands in workflow verification scripts [skip-scope-check] ([#913](https://github.com/arii/boomtick/issues/913)) ([5d00802](https://github.com/arii/boomtick/commit/5d0080293cca97060b3334b0441e9ec6d42e6626))
+
 ## [0.13.0](https://github.com/arii/boomtick/compare/cli-v0.12.1...cli-v0.13.0) (2026-10-22)
 
 
