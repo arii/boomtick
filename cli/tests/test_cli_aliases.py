@@ -1,4 +1,5 @@
 """Unit tests for td CLI aliases and defaults ('td audit', 'td pr ...', 'td test')."""
+import os
 from unittest.mock import patch
 from click.testing import CliRunner
 
@@ -28,7 +29,8 @@ def test_pr_detect_conflicts_alias():
 def test_pr_read_reviews_alias():
     """Test 'td pr read-reviews' and 'td pr read-pr-reviews' aliases."""
     runner = CliRunner()
-    with patch("dev_tools.services.github.GitHubClient.fetch_reviews") as mock_reviews:
+    with patch.dict(os.environ, {"GITHUB_TOKEN": "mock-token"}), \
+         patch("dev_tools.services.github.GitHubClient.fetch_reviews") as mock_reviews:
         mock_reviews.return_value = []
 
         res1 = runner.invoke(cli, ["pr", "read-reviews", "--pr-number", "456"])
