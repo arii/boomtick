@@ -75,10 +75,31 @@ BOOMTICK_REPO_PATH=/path/to/repo
 ```
 
 ## Usage
-Run the server via stdio:
+
+### Stdio Transport
+Run the server via stdio (ideal for local CLI workflows and Docker container actions):
 ```bash
 node dist/index.js
 ```
+
+### Streamable HTTP Transport & Remote Networked Access
+For hosted agent harnesses (e.g. Google Gemini Agent endpoints, remote DevAI dashboards) requiring network transport with Bearer token / OAuth 2.1 authentication and RFC 9728 metadata discovery:
+
+```bash
+# Run HTTP entrypoint directly
+node dist/http.js --port 3000 --bearer-token secret123
+
+# Or via CLI binary entrypoint
+boomtick-mcp-http --port 3000 --bearer-token secret123
+
+# Or using environment variables
+MCP_TRANSPORT=http PORT=3000 BOOMTICK_MCP_BEARER_TOKEN=secret123 node dist/index.js
+```
+
+#### Network Endpoints & RFC 9728 Discovery
+- `GET /.well-known/oauth-protected-resource`: OAuth 2.0 / 2.1 Protected Resource Metadata discovery endpoint (RFC 9728).
+- `GET /sse`: Server-Sent Events (SSE) stream endpoint for MCP connections (Protected via Bearer token).
+- `POST /messages?sessionId=...`: MCP client JSON-RPC message posting endpoint (Protected via Bearer token).
 
 ## Release Process
 1. Run tests: `pnpm test`

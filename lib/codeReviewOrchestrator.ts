@@ -162,9 +162,10 @@ export async function fetchPRGoal(): Promise<string | undefined> {
       headers: { Authorization: `Bearer ${token}`, Accept: 'application/vnd.github+json' },
     });
     if (!res.ok) return undefined;
-    const pr = await res.json() as { title: string; body: string | null };
+    const pr = await res.json() as { title?: string; body?: string | null } | null;
+    if (!pr || typeof pr !== 'object') return undefined;
     const body = pr.body?.trim() ? `\n\n${pr.body.trim()}` : '';
-    cachedPRGoal = `${pr.title}${body}`;
+    cachedPRGoal = `${pr.title || ''}${body}`;
     return cachedPRGoal;
   } catch {
     cachedPRGoal = undefined;
