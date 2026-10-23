@@ -1176,38 +1176,56 @@ class Orchestrator:
 
     def run_preflight(self, limit: int = 10, base_branch: Optional[str] = None) -> Dict[str, Any]:
         """
-        Orchestrates td audit, local linting, overlap detection, and merge simulation into a unified preflight report.
+        Orchestrates td doctor, typechecks, local linting, AST audit, overlap detection, and merge simulation into a unified preflight report.
         """
         results: Dict[str, Any] = {
             "status": "success",
-            "audit": {},
+            "doctor": {},
+            "typecheck": {},
             "lint": {},
+            "audit": {},
             "overlaps": [],
             "merge_simulation": {},
         }
 
-        # 1. Deterministic AST Audit
+        # 1. Doctor Diagnostics
         try:
-            audit_res = self.get_audit_results(targets=AUDIT_CHECK_DIRS)
-            results["audit"] = audit_res
-            if audit_res.get("violations"):
-                # Mark warning or error if violations exist
-                results["audit_status"] = "violations_found"
+            results["doctor"] = self.doctor_check()
         except Exception as e:
-            results["audit"] = {"error": str(e)}
+            results["doctor"] = {"status": "error", "message": str(e)}
 
-        # 2. Local Linting Check
+        # 2. Local Typechecks
+        try:
+            tsc_res = run_command(["pnpm", "run", "type-check"], check=False)
+            results["typecheck"] = {
+                "exit_code": tsc_res.returncode,
+                "status": "success" if tsc_res.returncode == 0 else "error",
+                "output": (tsc_res.stdout or tsc_res.stderr or "")[-2000:],
+            }
+        except Exception as e:
+            results["typecheck"] = {"status": "error", "message": str(e)}
+
+        # 3. Local Linting Check
         try:
             lint_res = run_command(["pnpm", "run", "lint"], check=False)
             results["lint"] = {
                 "exit_code": lint_res.returncode,
                 "status": "success" if lint_res.returncode == 0 else "error",
-                "output": (lint_res.stdout or "")[-2000:],
+                "output": (lint_res.stdout or lint_res.stderr or "")[-2000:],
             }
         except Exception as e:
             results["lint"] = {"status": "error", "message": str(e)}
 
-        # 3. Overlap Detection
+        # 4. Deterministic AST Audit
+        try:
+            audit_res = self.get_audit_results(targets=AUDIT_CHECK_DIRS)
+            results["audit"] = audit_res
+            if audit_res.get("violations"):
+                results["audit_status"] = "violations_found"
+        except Exception as e:
+            results["audit"] = {"error": str(e)}
+
+        # 5. Overlap Detection
         try:
             conflicts = self.detect_conflicts()
             formatted_overlaps = []
@@ -1217,21 +1235,39 @@ class Orchestrator:
         except Exception as e:
             results["overlaps"] = [{"error": str(e)}]
 
-        # 4. Merge Simulation via git merge-tree or merge_conflicts
+        # 6. Merge Simulation via git merge-tree
         try:
-            base = base_branch or PROJECT_CONFIG.base_branch_name
-            curr_branch = run_command(["git", "branch", "--show-current"]).strip()
-            if curr_branch:
-                merge_tree_res = run_command(["git", "merge-tree", base, curr_branch], check=False)
-                has_conflicts = "<<<<<<<" in (merge_tree_res.stdout or "")
-                results["merge_simulation"] = {
-                    "base": base,
-                    "head": curr_branch,
-                    "has_conflicts": has_conflicts,
-                    "status": "clean" if not has_conflicts else "conflicts_detected",
-                }
+            base = base_branch or PROJECT_CONFIG.base_branch or "origin/main"
+            curr_branch = run_command(["git", "branch", "--show-current"]).strip() or "HEAD"
+            merge_base = base
+            merge_tree_res = run_command(["git", "merge-tree", merge_base, curr_branch], check=False)
+            if merge_tree_res.returncode != 0 and not merge_base.startswith("origin/"):
+                merge_base_alt = f"origin/{merge_base}"
+                alt_res = run_command(["git", "merge-tree", merge_base_alt, curr_branch], check=False)
+                if alt_res.returncode == 0:
+                    merge_tree_res = alt_res
+                    merge_base = merge_base_alt
+
+            stdout_text = merge_tree_res.stdout or ""
+            has_conflicts = "<<<<<<<" in stdout_text
+            results["merge_simulation"] = {
+                "base": merge_base,
+                "head": curr_branch,
+                "has_conflicts": has_conflicts,
+                "status": "clean" if not has_conflicts and merge_tree_res.returncode == 0 else ("conflicts_detected" if has_conflicts else "error"),
+            }
         except Exception as e:
             results["merge_simulation"] = {"error": str(e)}
+
+        has_errors = (
+            results.get("doctor", {}).get("status") == "error"
+            or results.get("typecheck", {}).get("status") == "error"
+            or results.get("lint", {}).get("status") == "error"
+            or results.get("merge_simulation", {}).get("has_conflicts", False)
+            or results.get("merge_simulation", {}).get("status") == "error"
+        )
+        if has_errors:
+            results["status"] = "error"
 
         return results
 

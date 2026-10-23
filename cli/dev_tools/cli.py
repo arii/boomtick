@@ -1044,7 +1044,7 @@ def summary_report(ctx):
 @click.option("--base", default=PROJECT_CONFIG.base_branch_name, help="Base branch for merge simulation")
 @click.pass_context
 def preflight(ctx, base):
-    """Run local preflight checks: td audit, linting, overlap detection, and merge simulation."""
+    """Run local preflight checks: td doctor, typecheck, linting, overlap detection, and merge simulation."""
     orch = ctx.obj["ORCHESTRATOR"]
     res = orch.run_preflight(base_branch=base)
     out(ctx, "✅ Preflight check complete.", data=res)
