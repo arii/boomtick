@@ -612,7 +612,15 @@ class Orchestrator:
                     if not re.search(rf"^{field}:", md_match.group(1), re.MULTILINE):
                         findings.append(f"Missing frontmatter: `{field}`")
 
-        if not re.search(r"(acceptance criteria|definition of done|## done|verify|test)", body, re.IGNORECASE):
+        is_exempt = (
+            title.lower().startswith("fix(ci):")
+            or "ci failure" in title.lower()
+            or "ci-failure-branch:" in body
+            or "[skip-spec-check]" in body
+            or "[skip-spec-check]" in title
+        )
+
+        if not is_exempt and not re.search(r"(acceptance criteria|definition of done|## done|verify|test)", body, re.IGNORECASE):
             warnings.append("No acceptance criteria.")
 
         if re.search(r"tailwind|className.*flex|className.*grid", body, re.IGNORECASE) and not re.search(
@@ -621,9 +629,10 @@ class Orchestrator:
             warnings.append("Mentions Tailwind but not layout primitives.")
 
         # Spec-Driven Issue Validation
-        missing_spec_sections = [s for s in SPEC_SECTIONS if not self._has_spec_section(s, body)]
-        if missing_spec_sections:
-            findings.append(f"Missing spec-driven sections: {', '.join(f'`{s}`' for s in missing_spec_sections)}")
+        if not is_exempt:
+            missing_spec_sections = [s for s in SPEC_SECTIONS if not self._has_spec_section(s, body)]
+            if missing_spec_sections:
+                findings.append(f"Missing spec-driven sections: {', '.join(f'`{s}`' for s in missing_spec_sections)}")
 
         return {"findings": findings, "warnings": warnings}
 

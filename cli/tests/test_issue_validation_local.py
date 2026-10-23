@@ -68,6 +68,19 @@ def test_validate_content_missing_sections(orchestrator):
     assert len(res["findings"]) > 0
     assert any("Missing spec-driven sections" in f for f in res["findings"])
 
+def test_validate_content_ci_failure_exempt(orchestrator):
+    orchestrator.get_audit_results = MagicMock(return_value={"violations": {}, "config": {}})
+
+    res1 = orchestrator.validate_content("fix(ci): CI failure for PR #944", "CI failure detected in run 123.")
+    assert not any("Missing spec-driven sections" in f for f in res1["findings"])
+    assert not any("No acceptance criteria" in w for w in res1["warnings"])
+
+    res2 = orchestrator.validate_content("Regular Title", "Body <!-- ci-failure-branch:main -->")
+    assert not any("Missing spec-driven sections" in f for f in res2["findings"])
+
+    res3 = orchestrator.validate_content("Task [skip-spec-check]", "Just a quick bug description.")
+    assert not any("Missing spec-driven sections" in f for f in res3["findings"])
+
 def test_cli_validate_issue_file(tmp_path):
     runner = CliRunner()
     draft = tmp_path / "draft.md"

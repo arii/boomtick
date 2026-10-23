@@ -45,6 +45,11 @@ jobs:
         with:
           python-version: '3.12'
 
+      - name: Install Python CLI Dependencies
+        run: |
+          python3 -m pip install --upgrade pip
+          pip install -e cli
+
       - name: Install Node Dependencies
         run: pnpm install --frozen-lockfile
 

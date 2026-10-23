@@ -2,6 +2,13 @@
 import inspect
 import json
 import os
+import sys
+from pathlib import Path
+
+# Ensure the parent directory of dev_tools (cli/) is in sys.path
+_cli_dir = str(Path(__file__).resolve().parent.parent)
+if _cli_dir not in sys.path:
+    sys.path.insert(0, _cli_dir)
 
 from dev_tools import models
 from pydantic import BaseModel
