@@ -256,8 +256,8 @@ export async function getJulesSessionIdFromPR(): Promise<string | null> {
 
   if (!response.ok) return null;
 
-  const prData = await response.json() as { body: string | null };
-  if (!prData.body) return null;
+  const prData = await response.json() as { body?: string | null } | null;
+  if (!prData || typeof prData !== 'object' || !prData.body) return null;
 
   const match = prData.body.match(/jules\.google\.com\/task\/([0-9]+)/);
   return match ? match[1] : null;
