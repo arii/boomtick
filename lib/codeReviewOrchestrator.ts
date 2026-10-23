@@ -817,7 +817,8 @@ async function executeReviewTasks(
           }
 
           // HARD GATE: a truncated/malformed response must never silently resolve to PASS.
-          if (result.isTruncated || result.parseError) {
+          const hasValidFindings = Array.isArray(result.findings);
+          if (result.isTruncated || (result.parseError && !hasValidFindings)) {
             const reason = result.isTruncated
               ? "was truncated before completion (likely an output token limit)"
               : `had a malformed findings block (parse error: ${result.parseError})`;
@@ -830,6 +831,8 @@ async function executeReviewTasks(
               skipReason: result.isTruncated ? 'TRUNCATED' : 'PARSE_ERROR',
               feedback: `${result.feedback}\n\n---\n⚠️ **Review incomplete:** the model's response ${reason}. This review could not verify all findings and should not be treated as a clean pass. Consider re-running.`,
             };
+          } else if (result.parseError) {
+            console.warn(`⚠️ ${client.botName} had a parse error (${result.parseError}) but returned valid findings. Proceeding.`);
           }
 
           // Final verification/reconciliation

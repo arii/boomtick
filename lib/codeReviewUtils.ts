@@ -361,28 +361,34 @@ export function parseCodeReviewStateDetailed(feedback: string): ParsedFindingsRe
       .replace(/\\(?!["\\/bfnrt]|u[0-9a-fA-F]{4})/g, '\\\\');
     let state;
     try {
-      state = JSON.parse(sanitizedJsonText) as CodeReviewState;
+      state = JSON.parse(sanitizedJsonText);
     } catch (e) {
-
       // Attempt to salvage finding parsing from markdown wrap bugs or prefix bugs
       const salvaged = sanitizedJsonText.match(JSON_PATTERN);
       if (salvaged) {
-         try { state = JSON.parse(salvaged[0]); }
-         catch (e2) { return { state: undefined }; }
+         try {
+           state = JSON.parse(salvaged[0]);
+         } catch (e2) {
+           return { state: undefined, parseError: 'invalid_json' };
+         }
       }
       else return { state: undefined, parseError: "invalid_json" };
+    }
+
+    if (Array.isArray(state)) {
+      state = { findings: state };
     }
 
     if (state && state.findings) {
       state.findings = normalizeFindings(state.findings);
     }
 
-    if (!validateFindingsSchema(state)) {
+    if (!validateFindingsSchema(state as CodeReviewState)) {
       errors.push('incomplete_findings');
     }
 
     return {
-      state,
+      state: state as CodeReviewState,
       parseError: errors[0],
       errors: errors.length > 0 ? errors : undefined
     };
