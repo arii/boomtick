@@ -1,6 +1,8 @@
 """Unit tests for AST chunking, BM25 vector store indexing, and code intelligence services."""
 import importlib.util
 import pytest
+from click.testing import CliRunner
+from dev_tools.cli import cli
 from dev_tools.services.vector_store import VectorStore
 from dev_tools.services.ast_audit import ASTAuditor
 from dev_tools.orchestrator import Orchestrator
@@ -100,9 +102,6 @@ def test_orchestrator_preflight(mocker):
 
 def test_preflight_cli_command(mocker):
     """Test running the td preflight CLI command via click runner."""
-    from click.testing import CliRunner
-    from dev_tools.cli import cli
-
     mocker.patch(
         "dev_tools.orchestrator.Orchestrator.run_preflight",
         return_value={
