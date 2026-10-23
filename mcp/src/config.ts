@@ -1,7 +1,9 @@
 import path from "path";
 import fs from "fs";
 import { fileURLToPath } from "url";
-import { execSync } from "child_process";
+import { findRepoRoot } from "./config/repo.js";
+import { getGithubToken } from "./config/github.js";
+import { initializeConfig, getCachedDynamicConfig } from "./config/dynamic.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -14,93 +16,14 @@ if (fs.existsSync(envPath) && typeof process.loadEnvFile === "function") {
   }
 }
 
-function getGithubToken(): string | undefined {
-  if (process.env.GITHUB_TOKEN) {
-    return process.env.GITHUB_TOKEN;
-  }
-  try {
-    const token = execSync("gh auth token", { encoding: "utf-8", stdio: ["ignore", "pipe", "ignore"] }).trim();
-    if (token) {
-      return token;
-    }
-  } catch (e) { /* ignore to allow fallback */ }
-  return undefined;
-}
-
-let cachedDynamicConfig: any = null;
-
-/**
- * Explicitly initializes dynamic configuration from the Python CLI.
- * Should be called once during server startup.
- */
-export function initializeConfig() {
-  if (cachedDynamicConfig !== null) {
-    return cachedDynamicConfig;
-  }
-
-  try {
-    // Attempt to load core properties from the Python CLI in the active workspace
-    const cwd = process.env.BOOMTICK_REPO_PATH || process.cwd();
-    const cmd = `td config view`;
-    const output = execSync(cmd, {
-      cwd,
-      encoding: "utf-8",
-      stdio: ["ignore", "pipe", "ignore"]
-    });
-    cachedDynamicConfig = JSON.parse(output);
-    return cachedDynamicConfig;
-  } catch (e) {
-    const message = e instanceof Error ? e.message : String(e);
-    const errorPrefix = `CRITICAL: Failed to load dynamic config from Python CLI. Ensure Python 3 is installed and cli is in your PYTHONPATH. Details: ${message}`;
-
-    if (process.env.NODE_ENV === "development" || process.env.CI === "true") {
-      throw new Error(errorPrefix);
-    } else {
-      console.warn(errorPrefix);
-    }
-    // Set an empty object to prevent repeated attempts if initialization fails in non-blocking mode
-    cachedDynamicConfig = {};
-  }
-  return cachedDynamicConfig;
-}
-
-function findRepoRoot() {
-  if (process.env.BOOMTICK_REPO_PATH) {
-    return process.env.BOOMTICK_REPO_PATH;
-  }
-
-  // Traverse up from process.cwd() to find project_config.json, workspace.json, or .git
-  let current = process.cwd();
-  while (current !== path.parse(current).root) {
-    if (
-      fs.existsSync(path.join(current, "project_config.json")) ||
-      fs.existsSync(path.join(current, "workspace.json")) ||
-      fs.existsSync(path.join(current, ".git"))
-    ) {
-      return current;
-    }
-    current = path.dirname(current);
-  }
-
-  // Fallback to __dirname search if discovery from cwd fails
-  current = __dirname;
-  while (current !== path.parse(current).root) {
-    if (
-      fs.existsSync(path.join(current, "project_config.json")) ||
-      fs.existsSync(path.join(current, "workspace.json")) ||
-      fs.existsSync(path.join(current, ".git"))
-    ) {
-      return current;
-    }
-    current = path.dirname(current);
-  }
-  // Fallback to the monolithic relative path if discovery fails
-  return path.resolve(__dirname, "../../../");
-}
+export { initializeConfig };
 
 export const config = {
-  get githubToken() { return getGithubToken(); },
+  get githubToken() {
+    return getGithubToken();
+  },
   get githubOwner() {
+    const cachedDynamicConfig = getCachedDynamicConfig();
     const repoString = cachedDynamicConfig?.github_repo;
     if (typeof repoString === "string" && repoString.includes("/")) {
       return repoString.split("/")[0];
@@ -113,6 +36,7 @@ export const config = {
     throw new Error("GITHUB_OWNER must be set via environment variable or project_config.json");
   },
   get githubRepo() {
+    const cachedDynamicConfig = getCachedDynamicConfig();
     const repoString = cachedDynamicConfig?.github_repo;
     if (typeof repoString === "string" && repoString.includes("/")) {
       return repoString.split("/")[1];
@@ -128,16 +52,19 @@ export const config = {
     return findRepoRoot();
   },
   get defaultBaseBranch() {
+    const cachedDynamicConfig = getCachedDynamicConfig();
     return process.env.DEFAULT_BASE_BRANCH || cachedDynamicConfig?.base_branch?.split("/").pop() || "main";
   },
   get viteBasePath() {
-    const path = process.env.VITE_BASE_PATH || cachedDynamicConfig?.vite_base_path;
-    if (!path) {
+    const cachedDynamicConfig = getCachedDynamicConfig();
+    const pathValue = process.env.VITE_BASE_PATH || cachedDynamicConfig?.vite_base_path;
+    if (!pathValue) {
       throw new Error("VITE_BASE_PATH must be set via environment variable or project_config.json");
     }
-    return path;
+    return pathValue;
   },
   get ghPath() {
+    const cachedDynamicConfig = getCachedDynamicConfig();
     return process.env.GH_PATH || cachedDynamicConfig?.gh_path || "gh";
-  }
+  },
 };

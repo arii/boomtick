@@ -1,21 +1,12 @@
 import { z } from "zod";
-import { runCommand } from "../../lib/shell.js";
+import { runTDCli } from "./cli.js";
 
 export const GetJulesMessagesInputSchema = z.object({
   sessionId: z.string(),
 });
 
 export async function getJulesMessagesHandler(input: z.infer<typeof GetJulesMessagesInputSchema>) {
-  const result = await runCommand("td", ["agent", "messages", input.sessionId]);
-
-  if (result.exitCode !== 0) {
-    throw new Error(`Failed to get messages: ${result.stderr}`);
-  }
-
-  const output = JSON.parse(result.stdout);
-  if (output.status === "error") {
-    throw new Error(`Failed to get messages: ${output.message}`);
-  }
+  const output = await runTDCli(["agent", "messages", input.sessionId], "get messages");
 
   return {
     id: input.sessionId.replace("sessions/", ""),

@@ -397,12 +397,6 @@ export class BoomtickMCPServer {
     }
   }
 
-  async startHttp(port = parseInt(process.env.PORT || process.env.HTTP_PORT || "3000", 10), bearerToken?: string) {
-    this.prepareEnvironmentAndPreflight();
-    const mcpHttp = createMcpHttpServer({ port, bearerToken, mcpServer: this.server });
-    return await mcpHttp.listen(port);
-  }
-
   async run() {
     this.prepareEnvironmentAndPreflight();
 
