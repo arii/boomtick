@@ -98,3 +98,54 @@ def test_override_commit_msg(monkeypatch):
     )
 
     assert verify_scope.check_override() is True
+
+
+def test_override_release_please_head_ref(monkeypatch):
+    monkeypatch.delenv("SCOPE_OVERRIDE", raising=False)
+    monkeypatch.setenv("GITHUB_HEAD_REF", "release-please--branches--main")
+    assert verify_scope.check_override() is True
+
+
+def test_override_release_please_github_ref(monkeypatch):
+    monkeypatch.delenv("SCOPE_OVERRIDE", raising=False)
+    monkeypatch.delenv("GITHUB_HEAD_REF", raising=False)
+    monkeypatch.setenv("GITHUB_REF", "refs/heads/release-please--branches--main")
+    assert verify_scope.check_override() is True
+
+
+def test_override_release_please_event_path(monkeypatch, tmp_path):
+    monkeypatch.delenv("SCOPE_OVERRIDE", raising=False)
+    monkeypatch.delenv("GITHUB_HEAD_REF", raising=False)
+    monkeypatch.delenv("GITHUB_REF", raising=False)
+
+    event_file = tmp_path / "event.json"
+    event_data = {
+        "pull_request": {
+            "title": "chore: release main (#942)",
+            "head": {"ref": "release-please--branches--main"},
+            "user": {"login": "release-please[bot]"}
+        }
+    }
+    event_file.write_text(importlib.import_module("json").dumps(event_data), encoding="utf-8")
+    monkeypatch.setenv("GITHUB_EVENT_PATH", str(event_file))
+
+    assert verify_scope.check_override() is True
+
+
+def test_override_release_please_commit_msg(monkeypatch):
+    monkeypatch.delenv("SCOPE_OVERRIDE", raising=False)
+    monkeypatch.delenv("GITHUB_HEAD_REF", raising=False)
+    monkeypatch.delenv("GITHUB_REF", raising=False)
+    monkeypatch.delenv("GITHUB_EVENT_PATH", raising=False)
+
+    class MockCompletedProcess:  # pylint: disable=too-few-public-methods
+        returncode = 0
+        stdout = "chore: release main (#942)"
+        stderr = ""
+
+    monkeypatch.setattr(
+        "subprocess.run",
+        lambda *args, **kwargs: MockCompletedProcess()
+    )
+
+    assert verify_scope.check_override() is True

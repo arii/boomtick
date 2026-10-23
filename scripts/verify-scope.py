@@ -130,12 +130,48 @@ def check_override():
     if os.environ.get("SCOPE_OVERRIDE") == "true":
         return True
 
-    # Check git commit message for bypass tags (check last 10 commits to handle synthetic PR merge commits)
+    # Check environment variables for release-please branch or PR head ref
+    head_ref = os.environ.get("GITHUB_HEAD_REF", "")
+    github_ref = os.environ.get("GITHUB_REF", "")
+    if "release-please" in head_ref.lower() or "release-please" in github_ref.lower():
+        return True
+
+    # Check current git branch name
+    try:
+        res = subprocess.run(["git", "rev-parse", "--abbrev-ref", "HEAD"], capture_output=True, text=True, check=False)
+        if res.returncode == 0:
+            branch_name = res.stdout.strip().lower()
+            if "release-please" in branch_name:
+                return True
+    except Exception:
+        pass
+
+    # Check GITHUB_EVENT_PATH for release-please branch, title, or bot user
+    event_path = os.environ.get("GITHUB_EVENT_PATH")
+    if event_path and os.path.exists(event_path):
+        try:
+            with open(event_path, "r", encoding="utf-8") as f:
+                event = json.load(f)
+            pr = event.get("pull_request", {})
+            pr_head_ref = pr.get("head", {}).get("ref", "")
+            pr_title = pr.get("title", "")
+            user_login = pr.get("user", {}).get("login", "")
+
+            if "release-please" in pr_head_ref.lower() or "release-please" in user_login.lower():
+                return True
+            if pr_title.lower().startswith("chore: release") or (pr_title.lower().startswith("chore(") and "release" in pr_title.lower()):
+                return True
+        except Exception:
+            pass
+
+    # Check git commit message for bypass tags or release-please commit messages
     try:
         res = subprocess.run(["git", "log", "-n", "10", "--pretty=%B"], capture_output=True, text=True, check=False)
         if res.returncode == 0:
             msg = res.stdout.lower()
-            if "[skip-scope-check]" in msg or "[scope-override]" in msg or "skip-scope" in msg:
+            if "[skip-scope-check]" in msg or "[scope-override]" in msg or "skip-scope" in msg or "release-please" in msg:
+                return True
+            if "chore: release" in msg or "chore(main): release" in msg:
                 return True
     except Exception:
         pass
