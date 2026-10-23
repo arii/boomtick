@@ -3,7 +3,7 @@ import { runCommand } from "../lib/shell.js";
 import { resolveRepo } from "../lib/git.js";
 import { sanitizeError } from "../lib/error_utils.js";
 
-const GetPrCommitsInputSchema = z.object({
+export const GetPrCommitsInputSchema = z.object({
   prNumber: z.number().describe("The number of the PR to list commits for."),
   repo: z.string().optional().describe("The target repository override (e.g. org/repo)."),
 });
