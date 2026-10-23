@@ -4,9 +4,10 @@
 set -e
 
 # Ensure we are in the project root
-cd "$(dirname "$0")/../.."
+cd "$(dirname "$0")/.."
 
-TEST_FILE="src/test-ai-conflict.tsx"
+TEST_FILE="cli/logs/test-ai-conflict.tsx"
+mkdir -p cli/logs
 
 echo "🧪 Starting local AI verification..."
 
@@ -14,9 +15,15 @@ echo "🧪 Starting local AI verification..."
 cat > "$TEST_FILE" <<EOF
 import React from 'react';
 
+<<<<<<< HEAD
 export const ConflictComponent = () => {
   return <div>Hello from HEAD (Main)</div>;
 };
+=======
+export const ConflictComponent = () => {
+  return <div>Hello from Feature</div>;
+};
+>>>>>>> feature
 EOF
 
 echo "📝 Created test file: $TEST_FILE"
@@ -25,7 +32,7 @@ echo "📝 Created test file: $TEST_FILE"
 echo "🏃 Running AI resolve in MOCK mode..."
 # Export PYTHONPATH to ensure dev-tools modules can find each other without sys.path hacks
 export PYTHONPATH="$PYTHONPATH:$(pwd)/cli:$(pwd)/cli/dev_tools"
-AI_RESOLVE_MOCK=true td gh resolve
+AI_RESOLVE_MOCK=true td gh resolve "$TEST_FILE" --strategy ours
 
 # 3. Verify the result
 if grep -q "<<<<<<<" "$TEST_FILE"; then

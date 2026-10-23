@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -u
 
-cd "$(dirname "$0")/../.."
+cd "$(dirname "$0")/.."
 source ./.agent-env.sh 2>/dev/null || true
 export ALLOW_HELP=1
 
@@ -47,7 +47,7 @@ repair_origin
 run_check "shared" "python3 --version"
 run_check "shared" "pnpm --version"
 run_check "shared" "PYTHONPATH=\"cli:cli/dev_tools\" td gh --help"
-run_check "shared" "PYTHONPATH=\"cli:cli/dev_tools\" td jules --help"
+run_check "shared" "PYTHONPATH=\"cli:cli/dev_tools\" td agent --help"
 
 run_check "ai-slop-audit.md" "python3 .agents/scripts/audit-ai-slop.py"
 
@@ -55,7 +55,7 @@ run_check "dev-tools-cli-guide.md" "PYTHONPATH=\"cli:cli/dev_tools\" td gh pre-s
 run_check "dev-tools-cli-guide.md" "PYTHONPATH=\"cli:cli/dev_tools\" td gh audit-pr --help"
 run_check "dev-tools-cli-guide.md" "PYTHONPATH=\"cli:cli/dev_tools\" td gh validate-issue --help"
 
-run_check "review-pr.md" "PYTHONPATH=\"cli:cli/dev_tools\" td agent plan-review --pr 2821"
+run_check "review-pr.md" "PYTHONPATH=\"cli:cli/dev_tools\" td agent plan-review --help"
 
 run_check "review-ux.md" "npx playwright --version"
 run_check "review-ux.md" "node scripts/detect-antipatterns.mjs --help"
