@@ -4,7 +4,7 @@ import { IMPACT_CONFIG } from '../scripts/impact-analysis.config';
 import { ARTIFACTS_DIR } from './visualReviewConstants';
 import { postPRComment, countExistingReviews, getJulesSessionIdFromPR, sendJulesMessage, getPreviousReviewState } from './visualReviewUtils';
 import { runWithConcurrencyLimit, checkReviewQuota, writeVerdictJson, writeGracefulExitVerdict, createTaskErrorResult } from './sharedUtils';
-import { calculateEstimatedTokens, cleanupFeedback, batchFiles, calculateReviewHash, pruneCache, filterLowImpactFiles } from './codeReviewUtils';
+import { calculateEstimatedTokens, cleanupFeedback, batchFiles, calculateReviewHash, pruneCache, filterLowImpactFiles, filterUnifiedDiffByAST } from './codeReviewUtils';
 import type { CodeReviewSummary, CodeReviewResult, CodeReviewState, CodeReviewRole } from './codeReviewTypes';
 import { execFile as execFileCb, spawn } from 'child_process';
 import { promisify } from 'util';
@@ -327,6 +327,8 @@ export async function getCodeDiffSummary(targetFiles?: string[]): Promise<CodeRe
       const res = await execFile('git', diffArgs, { encoding: 'utf-8', maxBuffer: 1024 * 1024 * 10 });
       rawDiff = (res.stdout as string) || '';
     }
+
+    rawDiff = filterUnifiedDiffByAST(rawDiff);
 
     // basic sanity check - just take the first N chars if it's absurdly large to avoid blowing up context
     let diffContext = rawDiff;

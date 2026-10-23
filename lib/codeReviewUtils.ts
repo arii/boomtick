@@ -16,10 +16,37 @@ export const DEFAULT_EXCLUDED_PATTERNS = [
   'build/',
   'artifacts/',
   '.tmp-main/',
+  'out/',
+  'coverage/',
   '*.min.js',
   '*.min.css',
   '*.bundle.js',
-  '*.map'
+  '*.map',
+  '*.svg',
+  '*.png',
+  '*.jpg',
+  '*.jpeg',
+  '*.gif',
+  '*.ico',
+  '*.webp',
+  '*.pdf',
+  '*.woff',
+  '*.woff2',
+  '*.ttf',
+  '*.eot',
+  '*.otf',
+  '*.mp4',
+  '*.webm',
+  '*.zip',
+  '*.tar.gz',
+  '*.gz',
+  '*.exe',
+  '*.dll',
+  '*.so',
+  '*.dylib',
+  '*.bin',
+  '*.wasm',
+  '*.snap'
 ];
 
 type CompiledMatcher = {
@@ -29,6 +56,127 @@ type CompiledMatcher = {
   normalizedPattern: string;
   isDirPattern: boolean;
 };
+
+export function extractFilePathFromDiffHeader(header: string): string | undefined {
+  const gitMatch = header.match(/^diff --git a\/(.+?) b\/(.+)$/m);
+  if (gitMatch) return gitMatch[2];
+
+  const plusMatch = header.match(/^\+\+\+\s+b\/(.+)$/m);
+  if (plusMatch) return plusMatch[1];
+
+  const minusMatch = header.match(/^---\s+a\/(.+)$/m);
+  if (minusMatch) return minusMatch[1];
+
+  return undefined;
+}
+
+function isBinaryDiffChunk(chunk: string): boolean {
+  if (/Binary files .* and .* differ/i.test(chunk)) return true;
+  if (/GIT binary patch/i.test(chunk)) return true;
+  if (chunk.includes('\0')) return true;
+  return false;
+}
+
+function splitUnifiedDiffIntoBlocks(diffText: string): string[] {
+  if (!diffText.trim()) return [];
+
+  const lines = diffText.split('\n');
+  const blocks: string[] = [];
+  let currentBlock: string[] = [];
+
+  for (const line of lines) {
+    if ((line.startsWith('diff --git ') || line.startsWith('--- a/') || line.startsWith('--- /dev/null')) && currentBlock.length > 0) {
+      blocks.push(currentBlock.join('\n'));
+      currentBlock = [];
+    }
+    currentBlock.push(line);
+  }
+
+  if (currentBlock.length > 0) {
+    blocks.push(currentBlock.join('\n'));
+  }
+
+  return blocks;
+}
+
+function isRelevantBusinessLogicOrContract(block: string, _filePath?: string): boolean {
+  const lines = block.split('\n');
+  const changedLines = lines.filter(l =>
+    (l.startsWith('+') || l.startsWith('-')) &&
+    !l.startsWith('+++') &&
+    !l.startsWith('---')
+  );
+
+  if (changedLines.length === 0) {
+    return true;
+  }
+
+  // Check if changed lines consist purely of embedded base64/data URI or single minified asset blob
+  let isAssetBlob = false;
+  for (const line of changedLines) {
+    const content = line.slice(1).trim();
+    if (content.startsWith('data:image/') || content.startsWith('data:font/')) {
+      isAssetBlob = true;
+      break;
+    }
+    if (content.length > 1000 && !content.includes(';') && !content.includes('{') && !content.includes('(')) {
+      isAssetBlob = true;
+      break;
+    }
+  }
+
+  if (isAssetBlob) {
+    return false;
+  }
+
+  return true;
+}
+
+/**
+ * AST-aware pre-filter for unified diffs.
+ * Automatically excludes lockfiles, build outputs, minified files, SVG/binary assets,
+ * and generated non-code data blobs, focusing token budget strictly on modified
+ * business logic and contracts.
+ */
+export function filterUnifiedDiffByAST(
+  diffText: string,
+  lowImpactPaths: string[] = DEFAULT_EXCLUDED_PATTERNS
+): string {
+  if (!diffText || typeof diffText !== 'string') {
+    return '';
+  }
+
+  const blocks = splitUnifiedDiffIntoBlocks(diffText);
+  const keptBlocks: string[] = [];
+
+  for (const block of blocks) {
+    const filePath = extractFilePathFromDiffHeader(block);
+
+    // 1. Exclude low impact files by pattern (lockfiles, build outputs, SVG/binary assets)
+    if (filePath) {
+      const filtered = filterLowImpactFiles([filePath], lowImpactPaths);
+      if (filtered.length === 0) {
+        continue;
+      }
+    }
+
+    // 2. Exclude binary diff chunks
+    if (isBinaryDiffChunk(block)) {
+      continue;
+    }
+
+    // 3. Exclude non-business logic / asset blob chunks
+    if (!isRelevantBusinessLogicOrContract(block, filePath)) {
+      continue;
+    }
+
+    keptBlocks.push(block);
+  }
+
+  return keptBlocks.join('\n');
+}
+
+export const filterUnifiedDiff = filterUnifiedDiffByAST;
 
 export function filterLowImpactFiles(files: string[], lowImpactPaths: string[] = DEFAULT_EXCLUDED_PATTERNS): string[] {
   if (!Array.isArray(files) || !Array.isArray(lowImpactPaths)) {
@@ -428,7 +576,7 @@ export function budgetInputContext(
   // System prompt is essential. Let's see how much budget is left.
   const remainingBudgetForDiffAndContext = Math.max(0, maxInputChars - systemPrompt.length);
 
-  let rawDiffText = summary.diffContext;
+  let rawDiffText = filterUnifiedDiffByAST(summary.diffContext);
   let rawExternalText = summary.externalContext || '';
 
   if (rawDiffText.length + rawExternalText.length > remainingBudgetForDiffAndContext) {
