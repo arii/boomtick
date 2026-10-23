@@ -150,6 +150,16 @@ export class BoomtickMCPServer {
           contents: [{ uri, mimeType: "application/json", text: JSON.stringify(changedFiles, null, 2) }],
         };
       }
+      if (
+        uri === "mcp://ci/latest-run" ||
+        uri === "repo://ci/latest-run" ||
+        uri === "repo://ci-latest-run"
+      ) {
+        const workflowRuns = await getWorkflowRunsHandler(GetWorkflowRunsInputSchema.parse({}));
+        return {
+          contents: [{ uri, mimeType: "application/json", text: JSON.stringify(workflowRuns, null, 2) }],
+        };
+      }
       if (uri === "repo://package-json" || uri === "mcp://workspace/package-json") {
         const content = await fs.readFile(path.join(config.repoPath, "package.json"), "utf-8");
         return {

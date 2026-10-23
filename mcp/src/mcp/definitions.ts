@@ -79,6 +79,12 @@ export const MCP_RESOURCES: Resource[] = [
     description: "List of changed files in the repository.",
   },
   {
+    uri: "mcp://ci/latest-run",
+    name: "Latest CI Run",
+    mimeType: "application/json",
+    description: "Recent CI exit statuses, workflow runs, and annotations.",
+  },
+  {
     uri: "repo://package-json",
     name: "package.json",
     mimeType: "application/json",

@@ -100,12 +100,16 @@ describe("BoomtickMCPServer", () => {
   });
 
   describe("ListResources", () => {
-    it("should return resources list", async () => {
+    it("should return resources list containing workspace resources", async () => {
       const handler = requestHandlers.get("resources/list");
       expect(handler).toBeDefined();
       const result = await handler!({ method: "resources/list" });
       expect(result.resources).toBeDefined();
       expect(Array.isArray(result.resources)).toBe(true);
+      const uris = result.resources.map((r: any) => r.uri);
+      expect(uris).toContain("mcp://workspace/agent-contract");
+      expect(uris).toContain("mcp://git/changed-files");
+      expect(uris).toContain("mcp://ci/latest-run");
     });
 
     it("should return resource templates list", async () => {
@@ -186,6 +190,35 @@ describe("BoomtickMCPServer", () => {
 
       expect(result.contents[0].uri).toBe("repo://ci/42");
       expect(JSON.parse(result.contents[0].text)).toEqual({ status: "success" });
+    });
+
+    it("should handle mcp://git/changed-files", async () => {
+      const handler = requestHandlers.get("resources/read");
+      const changedFilesModule = await import("../tools/repo.get_changed_files.js");
+      vi.spyOn(changedFilesModule, "getChangedFilesHandler").mockResolvedValue({ files: ["src/index.ts"] } as any);
+
+      const result = await handler!({
+        method: "resources/read",
+        params: { uri: "mcp://git/changed-files" },
+      });
+
+      expect(result.contents[0].uri).toBe("mcp://git/changed-files");
+      expect(result.contents[0].mimeType).toBe("application/json");
+      expect(JSON.parse(result.contents[0].text)).toEqual({ files: ["src/index.ts"] });
+    });
+
+    it("should handle mcp://ci/latest-run", async () => {
+      const handler = requestHandlers.get("resources/read");
+      vi.spyOn(workflowRunsModule, "getWorkflowRunsHandler").mockResolvedValue({ workflowRuns: [{ id: 1, status: "completed", conclusion: "success" }] } as any);
+
+      const result = await handler!({
+        method: "resources/read",
+        params: { uri: "mcp://ci/latest-run" },
+      });
+
+      expect(result.contents[0].uri).toBe("mcp://ci/latest-run");
+      expect(result.contents[0].mimeType).toBe("application/json");
+      expect(JSON.parse(result.contents[0].text)).toEqual({ workflowRuns: [{ id: 1, status: "completed", conclusion: "success" }] });
     });
 
     it("should throw when resource is unknown", async () => {
