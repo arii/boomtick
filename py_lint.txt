@@ -1,0 +1,40 @@
+
+> boomtick-root@0.2.1 lint:python /app
+> python3 scripts/run-python-tool.py pylint
+
+Executing: /app/.venv/bin/python -m pylint cli --rcfile=/app/.pylintrc
+************* Module dev_tools.cli
+cli/dev_tools/cli.py:12:0: W0611: Unused Any imported from typing (unused-import)
+cli/dev_tools/cli.py:12:0: W0611: Unused Dict imported from typing (unused-import)
+cli/dev_tools/cli.py:12:0: W0611: Unused List imported from typing (unused-import)
+************* Module dev_tools.services.vector_store
+cli/dev_tools/services/vector_store.py:101:0: C0301: Line too long (131/120) (line-too-long)
+cli/dev_tools/services/vector_store.py:108:0: C0301: Line too long (122/120) (line-too-long)
+cli/dev_tools/services/vector_store.py:130:0: C0301: Line too long (136/120) (line-too-long)
+cli/dev_tools/services/vector_store.py:8:0: R0902: Too many instance attributes (10/7) (too-many-instance-attributes)
+cli/dev_tools/services/vector_store.py:93:4: R0914: Too many local variables (26/15) (too-many-locals)
+cli/dev_tools/services/vector_store.py:6:0: W0611: Unused Tuple imported from typing (unused-import)
+************* Module dev_tools.services.ast_audit
+cli/dev_tools/services/ast_audit.py:69:4: R0914: Too many local variables (17/15) (too-many-locals)
+cli/dev_tools/services/ast_audit.py:93:12: R0912: Too many branches (19/12) (too-many-branches)
+cli/dev_tools/services/ast_audit.py:5:0: W0611: Unused Optional imported from typing (unused-import)
+cli/dev_tools/services/ast_audit.py:5:0: W0611: Unused Tuple imported from typing (unused-import)
+************* Module dev_tools.services.context_builder
+cli/dev_tools/services/context_builder.py:94:16: C0415: Import outside toplevel (sys) (import-outside-toplevel)
+************* Module dev_tools.models.__init__
+cli/dev_tools/models/__init__.py:33:0: C0301: Line too long (121/120) (line-too-long)
+cli/dev_tools/models/__init__.py:55:0: C0301: Line too long (121/120) (line-too-long)
+cli/dev_tools/models/__init__.py:72:0: C0301: Line too long (121/120) (line-too-long)
+cli/dev_tools/models/__init__.py:141:0: C0301: Line too long (121/120) (line-too-long)
+cli/dev_tools/models/__init__.py:172:0: C0301: Line too long (121/120) (line-too-long)
+cli/dev_tools/models/__init__.py:180:0: C0301: Line too long (121/120) (line-too-long)
+cli/dev_tools/models/__init__.py:187:0: C0301: Line too long (121/120) (line-too-long)
+cli/dev_tools/models/__init__.py:194:0: C0301: Line too long (121/120) (line-too-long)
+cli/dev_tools/models/__init__.py:202:0: C0301: Line too long (121/120) (line-too-long)
+cli/dev_tools/models/__init__.py:267:0: C0301: Line too long (121/120) (line-too-long)
+cli/dev_tools/models/__init__.py:279:0: C0301: Line too long (121/120) (line-too-long)
+cli/dev_tools/models/__init__.py:286:0: C0301: Line too long (121/120) (line-too-long)
+cli/dev_tools/models/__init__.py:294:0: C0301: Line too long (121/120) (line-too-long)
+
+-----------------------------------
+Your code has been rated at 9.97/10

@@ -1,0 +1,11 @@
+
+> boomtick-root@0.2.1 type-check /app
+> pnpm --filter @arii/boomtick-mcp run type-check
+
+
+> @arii/boomtick-mcp@0.6.1 type-check /app/mcp
+> tsx scripts/sync-contracts.ts && tsc
+
+Generated /app/cli/dev_tools/models/contracts.py
+Regenerating cli-schema.json...
+Generated /app/mcp/src/tools/contract.ts
