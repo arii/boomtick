@@ -31,7 +31,14 @@ permissions:
 jobs:
   validate-quality:
     name: Validate Issue Quality
-    if: github.event_name == 'issues'
+    if: |
+      github.event_name == 'issues' &&
+      !startsWith(github.event.issue.title, 'fix(ci):') &&
+      !contains(github.event.issue.title, 'CI failure') &&
+      !contains(github.event.issue.labels.*.name, 'automated') &&
+      !contains(github.event.issue.labels.*.name, 'ci-failure') &&
+      github.event.issue.user.login != 'github-actions[bot]' &&
+      github.event.issue.user.login != 'google-labs-jules[bot]'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
