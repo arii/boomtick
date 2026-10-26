@@ -323,30 +323,42 @@ def search_issues(ctx, state, limit, labels):
 
 
 @gh.command()
-@click.argument("pr_number", type=int)
+@click.argument("pr_number_arg", required=False, type=int)
+@click.option("--pr", "--pr-number", "pr_number_opt", type=int, help="The PR number to check merge conflicts for.")
 @click.option("--base", default=PROJECT_CONFIG.base_branch_name)
 @click.pass_context
-def merge_conflicts(ctx, pr_number, base):
+def merge_conflicts(ctx, pr_number_arg, pr_number_opt, base):
+    pr_number = pr_number_arg if pr_number_arg is not None else pr_number_opt
+    if pr_number is None:
+        err(ctx, "Provide --pr/--pr-number or a positional PR number")
     orch = ctx.obj["ORCHESTRATOR"]
     res = orch.get_merge_conflicts(pr_number, base_branch=base)
     out(ctx, f"Checked merge conflicts for PR #{pr_number}", data=res)
 
 
 @gh.command()
-@click.argument("pr_number", type=int)
+@click.argument("pr_number_arg", required=False, type=int)
+@click.option("--pr", "--pr-number", "pr_number_opt", type=int, help="The PR number to sync.")
 @click.pass_context
-def sync_pr(ctx, pr_number):
+def sync_pr(ctx, pr_number_arg, pr_number_opt):
     """Reliably pull the latest remote PR state to local, overwriting messy rebases."""
+    pr_number = pr_number_arg if pr_number_arg is not None else pr_number_opt
+    if pr_number is None:
+        err(ctx, "Provide --pr/--pr-number or a positional PR number")
     orch = ctx.obj["ORCHESTRATOR"]
     res = orch.sync_pr(pr_number)
     out(ctx, res["message"], data=res)
 
 
 @gh.command()
-@click.argument("pr_number", type=int)
+@click.argument("pr_number_arg", required=False, type=int)
+@click.option("--pr", "--pr-number", "pr_number_opt", type=int, help="The PR number to fetch diff for.")
 @click.option("--repo", help="Target repository override (e.g. owner/repo)")
 @click.pass_context
-def pr_diff(ctx, pr_number, repo):
+def pr_diff(ctx, pr_number_arg, pr_number_opt, repo):
+    pr_number = pr_number_arg if pr_number_arg is not None else pr_number_opt
+    if pr_number is None:
+        err(ctx, "Provide --pr/--pr-number or a positional PR number")
     orch = ctx.obj["ORCHESTRATOR"]
     extra_kwargs = {"repo": repo} if repo else {}
     res = orch.get_pr_diff_shapen(pr_number, **extra_kwargs)
@@ -354,10 +366,14 @@ def pr_diff(ctx, pr_number, repo):
 
 
 @gh.command()
-@click.argument("pr_number", type=int)
+@click.argument("pr_number_arg", required=False, type=int)
+@click.option("--pr", "--pr-number", "pr_number_opt", type=int, help="The PR number to view.")
 @click.option("--repo", help="Target repository override (e.g. owner/repo)")
 @click.pass_context
-def view(ctx, pr_number, repo):
+def view(ctx, pr_number_arg, pr_number_opt, repo):
+    pr_number = pr_number_arg if pr_number_arg is not None else pr_number_opt
+    if pr_number is None:
+        err(ctx, "Provide --pr/--pr-number or a positional PR number")
     orch = ctx.obj["ORCHESTRATOR"]
     extra_kwargs = {"repo": repo} if repo else {}
     pr = orch.github.fetch_pr_details(pr_number, **extra_kwargs)
@@ -414,7 +430,8 @@ def audit(ctx, check_dirs):
 
 @gh.command()
 @json_option
-@click.argument("pr_number", type=int)
+@click.argument("pr_number_arg", required=False, type=int)
+@click.option("--pr", "--pr-number", "pr_number_opt", type=int, help="The PR number to audit.")
 @click.option("--fetch", is_flag=True)
 @click.option("--audit", "run_audit", is_flag=True)
 @click.option("--submit", is_flag=True)
@@ -423,7 +440,10 @@ def audit(ctx, check_dirs):
 @click.option("--base")
 @click.option("--event")
 @click.pass_context
-def audit_pr(ctx, pr_number, fetch, run_audit, submit, cleanup, dry_run, base, event):
+def audit_pr(ctx, pr_number_arg, pr_number_opt, fetch, run_audit, submit, cleanup, dry_run, base, event):
+    pr_number = pr_number_arg if pr_number_arg is not None else pr_number_opt
+    if pr_number is None:
+        err(ctx, "Provide --pr/--pr-number or a positional PR number")
     orch = ctx.obj["ORCHESTRATOR"]
     res = orch.audit_pr(
         pr_number,
@@ -640,7 +660,7 @@ def _render_conflicts(ctx, conflicts):
 
 
 @gh.command()
-@click.option("--pr", required=True, type=int, help="The PR number to resolve conflicts for.")
+@click.option("--pr", "--pr-number", "pr", required=True, type=int, help="The PR number to resolve conflicts for.")
 @click.option("--allow-unrelated", is_flag=True, help="Allow merging unrelated histories.")
 @click.option(
     "--strategy",
@@ -727,7 +747,7 @@ def verify_versions(ctx, diff_input):
 
 
 @gh.command()
-@click.option("--pr", type=int, help="PR number to detect conflicts for")
+@click.option("--pr", "--pr-number", "pr", type=int, help="PR number to detect conflicts for")
 @click.option("--all", "all_prs", is_flag=True, help="Detect conflicts for all open PRs")
 @click.pass_context
 def detect_conflicts(ctx, pr, all_prs):
@@ -758,7 +778,7 @@ def parse_comment(ctx, body, author_association):
 
 
 @gh.command()
-@click.option("--pr", required=True, type=int, help="The PR number to comment on.")
+@click.option("--pr", "--pr-number", "pr", required=True, type=int, help="The PR number to comment on.")
 @click.option("--file", type=str, help="Path to the file containing the comment body.")
 @click.option("--body", type=str, help="Literal comment text.")
 @click.pass_context
@@ -771,7 +791,7 @@ def post_comment(ctx, pr, file, body):
 
 
 @gh.command(name="read-pr-reviews")
-@click.option("--pr-number", required=True, type=int, help="The PR number to fetch top-level reviews for.")
+@click.option("--pr", "--pr-number", "pr_number", required=True, type=int, help="The PR number to fetch top-level reviews for.")
 @click.option("--repo", help="Target repository override (e.g. owner/repo)")
 @click.pass_context
 def read_pr_reviews(ctx, pr_number, repo):
@@ -785,7 +805,7 @@ def read_pr_reviews(ctx, pr_number, repo):
 
 
 @gh.command(name="list-pr-commits")
-@click.option("--pr-number", required=True, type=int, help="The PR number to list commits for.")
+@click.option("--pr", "--pr-number", "pr_number", required=True, type=int, help="The PR number to list commits for.")
 @click.option("--repo", help="Target repository override (e.g. owner/repo)")
 @click.pass_context
 def list_pr_commits(ctx, pr_number, repo):
@@ -808,7 +828,7 @@ def list_pr_commits(ctx, pr_number, repo):
 
 
 @gh.command(name="read-pr-comments")
-@click.option("--pr-number", required=True, type=int, help="The PR number to fetch comments for.")
+@click.option("--pr", "--pr-number", "pr_number", required=True, type=int, help="The PR number to fetch comments for.")
 @click.pass_context
 def read_pr_comments(ctx, pr_number):
     """Fetch and display standard and review comments for a PR."""
@@ -898,7 +918,7 @@ def audit_gate(ctx):
 
 
 @gh.command()
-@click.option("--pr", required=True, type=int)
+@click.option("--pr", "--pr-number", "pr", required=True, type=int, help="The PR number.")
 @click.option("--status", required=True)
 @click.option("--auditor", required=True)
 @click.option("--dry-run/--execute", default=True)
@@ -1303,7 +1323,7 @@ def analyze(ctx, file):
 
 
 @ai.command()
-@click.option("--pr", required=True, type=int)
+@click.option("--pr", "--pr-number", "pr", required=True, type=int, help="The PR number.")
 @click.option("--command", required=True)
 @click.option("--comment-id")
 @click.pass_context
@@ -1377,7 +1397,7 @@ def sync(ctx, limit):
     out(ctx, "Agent sync complete.", data={"sessions": sessions})
 
 @agent_group.command()
-@click.option("--pr-number", type=int)
+@click.option("--pr", "--pr-number", "pr_number", type=int, help="The PR number.")
 @click.option("--issue-number", type=int)
 @click.option("--branch")
 @click.option("--api-key")
@@ -1408,7 +1428,7 @@ def fix_ci(ctx, pr_number, issue_number, branch, api_key, dry_run):
 @agent_group.command()
 @click.option("--log")
 @click.option("--file")
-@click.option("--pr", type=int)
+@click.option("--pr", "--pr-number", "pr", type=int, help="The PR number.")
 @click.pass_context
 def repair_context(ctx, log, file, pr):
     orch = ctx.obj["ORCHESTRATOR"]
@@ -1513,7 +1533,7 @@ def send(ctx, session_ids, message):
 
 
 @agent_group.command(name="run-local")
-@click.option("--pr", "pr_number", required=False, type=int, help="Pull Request number to evaluate.")
+@click.option("--pr", "--pr-number", "pr_number", required=False, type=int, help="Pull Request number to evaluate.")
 @click.option("--issue", "issue_number", type=int, help="Optional linked Issue number.")
 @click.pass_context
 def run_local(ctx, pr_number, issue_number):
@@ -1548,7 +1568,7 @@ def run_local(ctx, pr_number, issue_number):
 
 
 @agent_group.command(name="plan-review")
-@click.option("--pr", "pr_number", required=True, type=int, help="Pull Request number")
+@click.option("--pr", "--pr-number", "pr_number", required=True, type=int, help="Pull Request number")
 @click.option("--issue", "issue_number", type=int, help="Issue number")
 @click.pass_context
 def plan_review(ctx, pr_number, issue_number):
@@ -1565,6 +1585,8 @@ def plan_review(ctx, pr_number, issue_number):
 @click.option(
     "--pr",
     "--prs",
+    "--pr-number",
+    "--pr-numbers",
     "pr_numbers",
     required=True,
     type=int,
