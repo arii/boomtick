@@ -4,11 +4,9 @@ import fs from 'fs';
 import path from 'path';
 import { JSDOM, VirtualConsole } from 'jsdom';
 import { logHeartbeat } from '../lib/heartbeat';
+import { ARTIFACTS_DIR, DOM_REVIEW_DIR, VISUAL_SUMMARY_PATH } from '../lib/visualReviewConstants';
 import {
-  ARTIFACTS_DIR,
-  DOM_REVIEW_DIR,
   DOM_SUMMARY_PATH,
-  VISUAL_SUMMARY_PATH,
   combinedSeverity,
   domSeverity,
   ensureDirectory,

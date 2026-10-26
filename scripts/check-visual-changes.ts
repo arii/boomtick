@@ -1,5 +1,6 @@
 import { readFile, access } from 'node:fs/promises';
-import { VISUAL_SUMMARY_PATH, type VisualSummary, type VisualRouteSummary } from './impact-review-utils';
+import { VISUAL_SUMMARY_PATH } from '../lib/visualReviewConstants';
+import { type VisualSummary, type VisualRouteSummary } from './impact-review-utils';
 
 /**
  * Checks if a file exists asynchronously.
