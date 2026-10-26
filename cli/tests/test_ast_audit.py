@@ -1,7 +1,7 @@
 """Unit tests for ASTAuditor (Tree-sitter semantic AST linting & anti-slop audits)."""
-import os
-import pytest
 import importlib.util
+
+import pytest
 from dev_tools.services.ast_audit import ASTAuditor
 from dev_tools.orchestrator import Orchestrator
 
