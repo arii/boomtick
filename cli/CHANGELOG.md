@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.14.3](https://github.com/arii/boomtick/compare/cli-v0.14.2...cli-v0.14.3) (2026-10-28)
+
+
+### Bug Fixes
+
+* **ci:** fix scope constraint validation for bot release PRs ([#977](https://github.com/arii/boomtick/issues/977)) ([a02baa0](https://github.com/arii/boomtick/commit/a02baa09d71fba38451c3967fc6ee38060a9ddbf))
+
 ## [0.14.2](https://github.com/arii/boomtick/compare/cli-v0.14.1...cli-v0.14.2) (2026-10-28)
 
 
