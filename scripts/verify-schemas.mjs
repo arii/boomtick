@@ -43,7 +43,7 @@ async function verifySchemas() {
         },
       });
     } else {
-      execFileSync(pythonPath, ['cli/dev_tools/schema_gen.py'], {
+      execFileSync(pythonPath, ['-m', 'dev_tools.schema_gen'], {
         stdio: 'inherit',
         env: {
           ...process.env,

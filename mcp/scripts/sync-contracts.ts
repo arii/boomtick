@@ -216,12 +216,11 @@ async function syncContracts() {
   if (!fs.existsSync(path.join(rootDir, 'pnpm-workspace.yaml'))) {
     rootDir = path.dirname(rootDir);
   }
-  const pythonScriptPath = path.join(rootDir, 'cli/dev_tools/schema_gen.py');
   console.log(`Regenerating cli-schema.json...`);
   const cliDir = path.join(rootDir, 'cli');
   const existingPythonPath = process.env.PYTHONPATH || '';
   const newPythonPath = existingPythonPath ? `${existingPythonPath}${path.delimiter}${cliDir}` : cliDir;
-  execFileSync('python3', [pythonScriptPath], {
+  execFileSync('python3', ['-m', 'dev_tools.schema_gen'], {
     cwd: rootDir,
     stdio: 'inherit',
     env: {
