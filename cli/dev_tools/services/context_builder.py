@@ -13,7 +13,11 @@ from typing import Any, Dict, List, Optional, Set
 from dev_tools.services.github import GitHubClient
 from dev_tools.config import get_config
 
-PROJECT_CONFIG = get_config()
+
+def __getattr__(name: str):
+    if name == "PROJECT_CONFIG":
+        return get_config()
+    raise AttributeError(f"module '{__name__}' has no attribute '{name}'")
 
 
 class ContextBuilder:
@@ -204,7 +208,7 @@ class ContextBuilder:
 
         context = {
             "step": step_name,
-            "project_repo": PROJECT_CONFIG.github_repo,
+            "project_repo": get_config().github_repo,
             "pr": {
                 "number": self.pr_details.get("number"),
                 "title": self.pr_details.get("title", ""),

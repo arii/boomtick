@@ -112,8 +112,8 @@ def test_cli_scaffold_issue():
     mock_config = MagicMock()
     mock_config.spec_sections = ["Section 1", "Section 2"]
 
-    # Patch PROJECT_CONFIG in dev_tools.cli
-    with patch("dev_tools.cli.PROJECT_CONFIG", mock_config):
+    # Patch get_config in dev_tools.cli
+    with patch("dev_tools.cli.get_config", return_value=mock_config):
         result = runner.invoke(cli, ["--no-json", "gh", "scaffold-issue"])
         if result.exit_code != 0:
             print(result.output)
@@ -131,8 +131,8 @@ def test_cli_scaffold_issue_file(tmp_path):
 
     scaffold_file = tmp_path / "scaffold.md"
 
-    # Patch PROJECT_CONFIG in dev_tools.cli
-    with patch("dev_tools.cli.PROJECT_CONFIG", mock_config):
+    # Patch get_config in dev_tools.cli
+    with patch("dev_tools.cli.get_config", return_value=mock_config):
         result = runner.invoke(cli, ["--no-json", "gh", "scaffold-issue", "--file", str(scaffold_file)])
         if result.exit_code != 0:
             print(result.output)
