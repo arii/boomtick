@@ -473,7 +473,7 @@ class Orchestrator:
         return file_exports
 
     def detect_conflicts(self, target_pr_num: Optional[int] = None) -> Dict[Tuple[int, ...], List[str]]:
-        repo = self.github.get_repo(get_repo_name())
+        repo = get_github_client().get_repo(get_repo_name())
         open_prs = list(repo.get_pulls(state="open"))
         file_to_prs = defaultdict(list)
         for pr in open_prs:
@@ -499,23 +499,25 @@ class Orchestrator:
             })
 
         # Symbol export overlap detection
-        repo = self.github.get_repo(get_repo_name())
-        open_prs = list(repo.get_pulls(state="open"))
+        open_prs = self.github.list_pull_requests(state="open")
+        prs_in_conflicts = {num for pr_pair in conflicts.keys() for num in pr_pair}
         if target_pr_num is not None:
-            prs_in_conflicts = {num for pr_pair in conflicts.keys() for num in pr_pair}
             prs_in_conflicts.add(target_pr_num)
-            open_prs = [p for p in open_prs if p.number in prs_in_conflicts]
+            open_prs = [p for p in open_prs if p.get("number") in prs_in_conflicts]
 
         symbol_map: Dict[str, Dict[str, List[int]]] = defaultdict(lambda: defaultdict(list))
         for pr in open_prs:
+            pr_num = pr.get("number")
+            if not pr_num:
+                continue
             try:
-                diff_text = self.github.fetch_pr_diff(pr.number)
+                diff_text = self.github.fetch_pr_diff(pr_num)
                 file_exports = self.extract_exports_from_diff(diff_text)
                 for filepath, symbols in file_exports.items():
                     for sym in symbols:
-                        symbol_map[filepath][sym].append(pr.number)
+                        symbol_map[filepath][sym].append(pr_num)
             except Exception as e:
-                log_warn(f"Could not fetch diff for PR #{pr.number}: {e}")
+                log_warn(f"Could not fetch diff for PR #{pr_num}: {e}")
 
         for filepath, sym_dict in symbol_map.items():
             for sym, prs in sym_dict.items():

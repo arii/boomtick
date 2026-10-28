@@ -41,11 +41,8 @@ def test_extract_exports_from_diff(orchestrator):
 
 def test_detect_semantic_overlaps(orchestrator):
     with patch.object(orchestrator, "detect_conflicts", return_value={(1, 2): ["shared.py"]}), \
-         patch.object(orchestrator.github, "fetch_pr_diff") as mock_fetch_diff:
-
-        mock_pr1 = MagicMock(number=1)
-        mock_pr2 = MagicMock(number=2)
-        orchestrator.github.get_repo.return_value.get_pulls.return_value = [mock_pr1, mock_pr2]
+         patch.object(orchestrator.github, "fetch_pr_diff") as mock_fetch_diff, \
+         patch.object(orchestrator.github, "list_pull_requests", return_value=[{"number": 1}, {"number": 2}]):
 
         def diff_side_effect(pr_num):
             if pr_num == 1:
