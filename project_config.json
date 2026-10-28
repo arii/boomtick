@@ -2,9 +2,19 @@
   "packageName": "boomtick",
   "github_repo": "arii/boomtick",
   "vite_base_path": "/boomtick/",
-  "code-review-chain": {
+  "code_review_chain": {
     "primary": "gpt-4o",
     "fallbacks": ["deepseek-r1", "llama-3.3-70b-instruct"],
     "max_retries": 3
+  },
+  "triage_chain": {
+    "primary": "gpt-4o-mini",
+    "fallbacks": ["gemini-1.5-flash"],
+    "max_retries": 2
+  },
+  "ecosystem_repos": {
+    "arii/boomtick": ".",
+    "arii/tech-dancer": "../tech-dancer",
+    "arii/portfolio": "../portfolio"
   }
 }

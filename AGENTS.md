@@ -24,6 +24,9 @@ Agent tooling in this repository is structured into three tiers:
 | Resolve Merge Conflicts | `github.resolve_conflicts` | `td gh resolve` | `git merge` |
 | Run UX / DOM Audits | `ux.run_audit` | `td ux audit` | `pnpm exec vitest` |
 | Dispatch Jules Session | `jules.dispatch` | `td agent dispatch` | N/A |
+| Multi-Repo Context & Status | `repo.read_agent_context(all=true)` | `td multi-repo status` | N/A |
+| Sequential Multi-Repo Exec | `repo.multi_exec` | `td multi-repo exec "<cmd>"` | N/A |
+| Multi-Repo Context Warming | `repo.read_agent_context` | `td multi-repo context-warm` | N/A |
 
 ---
 

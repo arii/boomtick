@@ -22,6 +22,12 @@ from dev_tools.utils import (
     run_command,
     verify_ci_metrics,
 )
+from dev_tools.multi_repo import (
+    discover_ecosystem_repos,
+    exec_in_repos,
+    get_repo_summary,
+    warm_ecosystem_context,
+)
 
 
 class LazyOrchestrator:
@@ -1802,6 +1808,119 @@ def context_warm(ctx, force):
             _handle_unexpected_error(ctx, "context-warm", e)
     else:
         out(ctx, "✅ Context is up-to-date.", data={"path": context_file})
+
+
+# --- Multi-Repository Ecosystem Commands ---
+
+
+@cli.group(name="multi-repo")
+def multi_repo_group():
+    """Multi-repository ecosystem management and orchestration."""
+
+
+@cli.group(name="repos")
+def repos_group():
+    """Alias for multi-repo command group."""
+
+
+# pylint: disable=too-many-statements
+def _register_multi_repo_commands(group):
+    @group.command(name="list")
+    @click.option("--all", "include_all", is_flag=True, help="Include all auto-discovered sibling directories")
+    @click.pass_context
+    def list_cmd(ctx, include_all):
+        """List ecosystem repositories and local paths."""
+        try:
+            repos = discover_ecosystem_repos(explicit_config={} if include_all else None)
+            repo_list = [{"name": name, "path": str(path)} for name, path in repos.items()]
+            if not ctx.obj.get("JSON", False):
+                click.echo(f"Found {len(repo_list)} ecosystem repositories:")
+                for r in repo_list:
+                    click.echo(f"  • {r['name']:<25} {r['path']}")
+            out(ctx, f"Discovered {len(repo_list)} repositories", data={"repos": repo_list, "total": len(repo_list)})
+        except Exception as e:
+            _handle_unexpected_error(ctx, "multi-repo list", e)
+
+    @group.command(name="status")
+    @click.option("--repo", "-r", "filter_repos", multiple=True, help="Filter to specific repository name(s)")
+    @click.pass_context
+    def status_cmd(ctx, filter_repos):
+        """Show git, branch, and agent context status across ecosystem repositories."""
+        try:
+            filters = list(filter_repos) if filter_repos else None
+            repos = discover_ecosystem_repos(filter_repos=filters)
+            summaries = [get_repo_summary(name, path) for name, path in repos.items()]
+
+            if not ctx.obj.get("JSON", False):
+                click.echo(f"{'Repository':<25} {'Branch':<20} {'Commit':<10} {'Dirty':<8} {'Context':<8}")
+                click.echo("-" * 75)
+                for s in summaries:
+                    dirty_str = "dirty" if s["is_dirty"] else "clean"
+                    ctx_str = "yes" if s["has_context"] else "missing"
+                    click.echo(f"{s['repo']:<25} {s['branch']:<20} {s['commit']:<10} {dirty_str:<8} {ctx_str:<8}")
+
+            out(ctx, f"Status for {len(summaries)} repositories", data={"repos": summaries, "total": len(summaries)})
+        except Exception as e:
+            _handle_unexpected_error(ctx, "multi-repo status", e)
+
+    @group.command(name="context-warm")
+    @click.option("--repo", "-r", "filter_repos", multiple=True, help="Filter to specific repository name(s)")
+    @click.option("--force", is_flag=True, help="Force re-generation of context even if not stale")
+    @click.pass_context
+    def context_warm_cmd(ctx, filter_repos, force):
+        """Pre-warm .agent-context.json across ecosystem repositories."""
+        try:
+            filters = list(filter_repos) if filter_repos else None
+            repos = discover_ecosystem_repos(filter_repos=filters)
+            res = warm_ecosystem_context(repos, force=force)
+
+            if not ctx.obj.get("JSON", False):
+                click.echo(f"Warmed context across {res['total_repos']} repositories:")
+                for r in res["results"]:
+                    status_icon = "✅" if r["passed"] else "❌"
+                    click.echo(f"  {status_icon} {r['repo']:<25} ({r['strategy']}, {r['duration_seconds']}s)")
+                    if not r["passed"] and r.get("output"):
+                        click.echo(f"     Error: {r['output']}")
+
+            if res["status"] == "success":
+                out(ctx, f"Context warmed across {res['total_repos']} repositories", data=res)
+            else:
+                err(ctx, f"Failed to warm context on {res['total_failed']} repositories", data=res)
+        except Exception as e:
+            _handle_unexpected_error(ctx, "multi-repo context-warm", e)
+
+    @group.command(name="exec")
+    @click.argument("command")
+    @click.option("--repo", "-r", "filter_repos", multiple=True, help="Filter to specific repository name(s)")
+    @click.option("--fail-fast/--continue-on-error", default=False, help="Stop on first error or continue")
+    @click.pass_context
+    def exec_cmd(ctx, command, filter_repos, fail_fast):
+        """Execute a shell command sequentially across ecosystem repositories."""
+        try:
+            filters = list(filter_repos) if filter_repos else None
+            repos = discover_ecosystem_repos(filter_repos=filters)
+            res = exec_in_repos(repos, command, continue_on_error=not fail_fast)
+
+            if not ctx.obj.get("JSON", False):
+                click.echo(f"Executed '{command}' across {res['total_repos']} repositories:")
+                for r in res["results"]:
+                    status_icon = "✅" if r["passed"] else "❌"
+                    click.echo(f"\n{status_icon} [{r['repo']}] (exit {r['exit_code']}, {r['duration_seconds']}s)")
+                    if r["stdout"]:
+                        click.echo(r["stdout"])
+                    if r["stderr"]:
+                        click.echo(f"Error output:\n{r['stderr']}")
+
+            if res["status"] == "success":
+                out(ctx, f"Command completed across {res['total_repos']} repositories", data=res)
+            else:
+                err(ctx, f"Command failed on {res['total_failed']} repositories", data=res)
+        except Exception as e:
+            _handle_unexpected_error(ctx, "multi-repo exec", e)
+
+
+_register_multi_repo_commands(multi_repo_group)
+_register_multi_repo_commands(repos_group)
 
 
 for group in [agent_group]:

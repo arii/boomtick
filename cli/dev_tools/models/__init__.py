@@ -392,7 +392,18 @@ class SearchDdgsInput(CamelCaseModel):
 
 
 class ReadAgentContextInput(CamelCaseModel):
-    pass
+    path: Optional[str] = Field(None, description="Local filesystem path to target repository root")
+    repo: Optional[str] = Field(None, description="Target repository name override (e.g. arii/portfolio)")
+    repos: Optional[List[str]] = Field(None, description="List of repository names to fetch context for")
+    all: Optional[bool] = Field(
+        None, description="Whether to fetch context across all discovered ecosystem repositories"
+    )
+
+
+class MultiExecInput(CamelCaseModel):
+    command: str = Field(..., description="Shell command to execute sequentially across repositories")
+    repos: Optional[List[str]] = Field(None, description="Optional list of repository names to target")
+    continue_on_error: Optional[bool] = Field(True, description="Whether to continue execution if a repo command fails")
 
 
 class GetCommandSchemaInput(CamelCaseModel):

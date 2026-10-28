@@ -3,6 +3,7 @@ import { config } from "../config.js";
 import { execSync } from "child_process";
 import * as fs from "fs";
 import * as path from "path";
+import { runTDCli } from "./jules/shared.js";
 
 export interface AgentContext {
   packageName: string;
@@ -36,10 +37,50 @@ export const loadStandaloneAgentContext = (repoRoot: string = process.cwd()): Ag
   };
 };
 
-export const ReadAgentContextInputSchema = z.object({});
+export const ReadAgentContextInputSchema = z.object({
+  path: z.string().optional().describe("Local filesystem path to target repository root"),
+  repo: z.string().optional().describe("Repository name override (e.g. arii/portfolio or portfolio)"),
+  repos: z.array(z.string()).optional().describe("List of repository names to fetch context for"),
+  all: z.boolean().optional().describe("Whether to fetch context across all discovered ecosystem repositories"),
+});
 
-export async function readAgentContextHandler(_args: z.infer<typeof ReadAgentContextInputSchema>) {
-  const context = loadStandaloneAgentContext(config.repoPath);
+export async function readAgentContextHandler(args: z.infer<typeof ReadAgentContextInputSchema>) {
+  // 1. Ecosystem / Multi-repo request
+  if (args.all || (args.repos && args.repos.length > 0)) {
+    const cliArgs = ["multi-repo", "status"];
+    if (args.repos) {
+      for (const r of args.repos) {
+        cliArgs.push("-r", r);
+      }
+    }
+    const output = await runTDCli(cliArgs, "fetch multi-repo context");
+    return {
+      status: "success",
+      ecosystem: true,
+      repos: output.repos ?? [],
+      total: output.total ?? (output.repos?.length ?? 0)
+    };
+  }
+
+  // 2. Specific repository name override
+  if (args.repo) {
+    const output = await runTDCli(["multi-repo", "status", "-r", args.repo], "find target repository");
+    const matched = output.repos?.[0];
+    if (matched?.path) {
+      const context = loadStandaloneAgentContext(matched.path);
+      return {
+        status: "success",
+        repo: matched.repo,
+        path: matched.path,
+        branch: matched.branch,
+        ...context
+      };
+    }
+  }
+
+  // 3. Specific filesystem path
+  const targetPath = args.path ? path.resolve(args.path) : config.repoPath;
+  const context = loadStandaloneAgentContext(targetPath);
   const result: any = {
     status: "success",
     ...context
