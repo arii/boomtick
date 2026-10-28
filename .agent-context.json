@@ -1,0 +1,1683 @@
+{
+  "cli_schema": {
+    "base_command": "td",
+    "description": "Custom developer CLI for BoomTick repository management.",
+    "schema_authority": "Use 'repo.get_command_schema' or 'td schema <path>' for granular discovery. This file remains for legacy fallback.",
+    "subcommands": {
+      "agent cancel": {
+        "description": "Cancel a Jules session.",
+        "exact_usage": "td agent cancel <SESSION_ID>",
+        "required_arguments": [
+          {
+            "description": "",
+            "name": "session_id",
+            "type": "string"
+          }
+        ]
+      },
+      "agent dispatch": {
+        "description": "\n    Initialize a Jules session for a specific branch and task.\n    Note: Use 'main' branch for PR consolidation tasks to avoid rebasing issues.\n    ",
+        "exact_usage": "td agent dispatch [--title <TITLE>] <BRANCH> <TASK>",
+        "optional_flags": [
+          {
+            "description": "Custom session title",
+            "flag": "--title",
+            "type": "string"
+          }
+        ],
+        "required_arguments": [
+          {
+            "description": "",
+            "name": "branch",
+            "type": "string"
+          },
+          {
+            "description": "",
+            "name": "task",
+            "type": "string"
+          }
+        ]
+      },
+      "agent fix-ci": {
+        "description": "",
+        "exact_usage": "td agent fix-ci [--dry-run] [--pr <PR>] [--issue-number <ISSUE-NUMBER>] [--branch <BRANCH>] [--api-key <API-KEY>]",
+        "optional_flags": [
+          {
+            "description": "The PR number.",
+            "flag": "--pr",
+            "type": "integer"
+          },
+          {
+            "description": "",
+            "flag": "--issue-number",
+            "type": "integer"
+          },
+          {
+            "description": "",
+            "flag": "--branch",
+            "type": "string"
+          },
+          {
+            "description": "",
+            "flag": "--api-key",
+            "type": "string"
+          },
+          {
+            "description": "",
+            "flag": "--dry-run",
+            "type": "boolean"
+          }
+        ]
+      },
+      "agent get-session": {
+        "description": "Get details of a Jules session.",
+        "exact_usage": "td agent get-session <SESSION_ID>",
+        "required_arguments": [
+          {
+            "description": "",
+            "name": "session_id",
+            "type": "string"
+          }
+        ]
+      },
+      "agent install-workflows": {
+        "description": "Install and configure standardized GitHub Actions workflows.",
+        "exact_usage": "td agent install-workflows [--dry-run] [--force] [--target <TARGET>]",
+        "optional_flags": [
+          {
+            "description": "Target directory to install workflows.",
+            "flag": "--target",
+            "type": "string"
+          },
+          {
+            "description": "Run without writing files.",
+            "flag": "--dry-run",
+            "type": "boolean"
+          },
+          {
+            "description": "Overwrite existing files.",
+            "flag": "--force",
+            "type": "boolean"
+          }
+        ]
+      },
+      "agent list": {
+        "description": "Sync active agent sessions.",
+        "exact_usage": "td agent list [--limit <LIMIT>]",
+        "optional_flags": [
+          {
+            "description": "Limit the number of sessions to retrieve",
+            "flag": "--limit",
+            "type": "integer"
+          }
+        ]
+      },
+      "agent list-sessions": {
+        "description": "Sync active agent sessions.",
+        "exact_usage": "td agent list-sessions [--limit <LIMIT>]",
+        "optional_flags": [
+          {
+            "description": "Limit the number of sessions to retrieve",
+            "flag": "--limit",
+            "type": "integer"
+          }
+        ]
+      },
+      "agent messages": {
+        "description": "Get message history for a Jules session.",
+        "exact_usage": "td agent messages <SESSION_ID>",
+        "required_arguments": [
+          {
+            "description": "",
+            "name": "session_id",
+            "type": "string"
+          }
+        ]
+      },
+      "agent plan-aggregation": {
+        "description": "Generate a deterministic aggregation workflow plan for an agent.",
+        "exact_usage": "td agent plan-aggregation --pr <PR> --target <TARGET>",
+        "required_flags": [
+          {
+            "description": "PR numbers to aggregate",
+            "flag": "--pr",
+            "type": "integer"
+          },
+          {
+            "description": "Target branch name for aggregation",
+            "flag": "--target",
+            "type": "string"
+          }
+        ]
+      },
+      "agent plan-issue-audit": {
+        "description": "Generate deterministic roadmap and checklist for auditing open issues.",
+        "exact_usage": "td agent plan-issue-audit [--json] [--all-open] [--issue <ISSUE>] [--limit <LIMIT>]",
+        "optional_flags": [
+          {
+            "description": "Output results in JSON format",
+            "flag": "--json",
+            "type": "boolean"
+          },
+          {
+            "description": "Issue number(s) to audit (e.g. --issue 1 --issue 2)",
+            "flag": "--issue",
+            "type": "integer"
+          },
+          {
+            "description": "Audit all open issues",
+            "flag": "--all-open",
+            "type": "boolean"
+          },
+          {
+            "description": "Limit the number of open issues to process",
+            "flag": "--limit",
+            "type": "integer"
+          }
+        ]
+      },
+      "agent plan-review": {
+        "description": "Generate a deterministic review workflow plan for an agent.",
+        "exact_usage": "td agent plan-review --pr <PR> [--issue <ISSUE>]",
+        "optional_flags": [
+          {
+            "description": "Issue number",
+            "flag": "--issue",
+            "type": "integer"
+          }
+        ],
+        "required_flags": [
+          {
+            "description": "Pull Request number",
+            "flag": "--pr",
+            "type": "integer"
+          }
+        ]
+      },
+      "agent plan-workflow-audit": {
+        "description": "Generate deterministic roadmap and checklist for auditing GitHub workflows.",
+        "exact_usage": "td agent plan-workflow-audit [--workflow <WORKFLOW>]",
+        "optional_flags": [
+          {
+            "description": "Specific workflow file to audit",
+            "flag": "--workflow",
+            "type": "string"
+          }
+        ]
+      },
+      "agent repair": {
+        "description": "",
+        "exact_usage": "td agent repair [--stdin] [--worktree] [--logs <LOGS>]",
+        "optional_flags": [
+          {
+            "description": "",
+            "flag": "--logs",
+            "type": "string"
+          },
+          {
+            "description": "",
+            "flag": "--stdin",
+            "type": "boolean"
+          },
+          {
+            "description": "",
+            "flag": "--worktree",
+            "type": "boolean"
+          }
+        ]
+      },
+      "agent repair-context": {
+        "description": "",
+        "exact_usage": "td agent repair-context [--log <LOG>] [--file <FILE>] [--pr <PR>]",
+        "optional_flags": [
+          {
+            "description": "",
+            "flag": "--log",
+            "type": "string"
+          },
+          {
+            "description": "",
+            "flag": "--file",
+            "type": "string"
+          },
+          {
+            "description": "The PR number.",
+            "flag": "--pr",
+            "type": "integer"
+          }
+        ]
+      },
+      "agent run-feedback-check": {
+        "description": "Run a one-shot Automated Agent Feedback Check to trigger CI feedback for active sessions.",
+        "exact_usage": "td agent run-feedback-check [--limit <LIMIT>]",
+        "optional_flags": [
+          {
+            "description": "Limit the number of active sessions to check",
+            "flag": "--limit",
+            "type": "integer"
+          }
+        ]
+      },
+      "agent run-local": {
+        "description": "Run a single-agent multi-role sequential workflow locally.",
+        "exact_usage": "td agent run-local [--pr <PR>] [--issue <ISSUE>]",
+        "optional_flags": [
+          {
+            "description": "Pull Request number to evaluate.",
+            "flag": "--pr",
+            "type": "integer"
+          },
+          {
+            "description": "Optional linked Issue number.",
+            "flag": "--issue",
+            "type": "integer"
+          }
+        ]
+      },
+      "agent send": {
+        "description": "Send a message to active Jules session(s) (supports comma-separated IDs).",
+        "exact_usage": "td agent send <SESSION_IDS> <MESSAGE>",
+        "required_arguments": [
+          {
+            "description": "",
+            "name": "session_ids",
+            "type": "string"
+          },
+          {
+            "description": "",
+            "name": "message",
+            "type": "string"
+          }
+        ]
+      },
+      "agent session": {
+        "description": "Get details of a Jules session.",
+        "exact_usage": "td agent session <SESSION_ID>",
+        "required_arguments": [
+          {
+            "description": "",
+            "name": "session_id",
+            "type": "string"
+          }
+        ]
+      },
+      "agent sync": {
+        "description": "Sync active agent sessions.",
+        "exact_usage": "td agent sync [--limit <LIMIT>]",
+        "optional_flags": [
+          {
+            "description": "Limit the number of sessions to retrieve",
+            "flag": "--limit",
+            "type": "integer"
+          }
+        ]
+      },
+      "agent trigger-feedback": {
+        "description": "Trigger CI feedback for a Jules session.",
+        "exact_usage": "td agent trigger-feedback <SESSION_ID>",
+        "required_arguments": [
+          {
+            "description": "",
+            "name": "session_id",
+            "type": "string"
+          }
+        ]
+      },
+      "ai analyze": {
+        "description": "",
+        "exact_usage": "td ai analyze <FILE>",
+        "required_arguments": [
+          {
+            "description": "",
+            "name": "file",
+            "type": "string"
+          }
+        ]
+      },
+      "ai comment": {
+        "description": "",
+        "exact_usage": "td ai comment --pr <PR> --command <COMMAND> [--comment-id <COMMENT-ID>]",
+        "optional_flags": [
+          {
+            "description": "",
+            "flag": "--comment-id",
+            "type": "string"
+          }
+        ],
+        "required_flags": [
+          {
+            "description": "The PR number.",
+            "flag": "--pr",
+            "type": "integer"
+          },
+          {
+            "description": "",
+            "flag": "--command",
+            "type": "string"
+          }
+        ]
+      },
+      "ai get-context": {
+        "description": "Retrieve dependency and semantic context for a set of changed files.",
+        "exact_usage": "td ai get-context"
+      },
+      "ai review": {
+        "description": "",
+        "exact_usage": "td ai review [--no-cache] <PR_NUMBER>",
+        "optional_flags": [
+          {
+            "description": "Bust the diff cache and force a fresh review call",
+            "flag": "--no-cache",
+            "type": "boolean"
+          }
+        ],
+        "required_arguments": [
+          {
+            "description": "",
+            "name": "pr_number",
+            "type": "integer"
+          }
+        ]
+      },
+      "build": {
+        "description": "Build the project after runtime check",
+        "exact_usage": "td build"
+      },
+      "config view": {
+        "description": "View the current project configuration as JSON.",
+        "exact_usage": "td config view [--json]",
+        "optional_flags": [
+          {
+            "description": "Output results in JSON format",
+            "flag": "--json",
+            "type": "boolean"
+          }
+        ]
+      },
+      "context-warm": {
+        "description": "Pre-warm the .agent-context.json repository index.",
+        "exact_usage": "td context-warm [--force]",
+        "optional_flags": [
+          {
+            "description": "Force re-generation of context even if not stale",
+            "flag": "--force",
+            "type": "boolean"
+          }
+        ]
+      },
+      "doctor": {
+        "description": "Full-stack Runtime & Environment Diagnostic Check",
+        "exact_usage": "td doctor"
+      },
+      "gh aggregate": {
+        "description": "Aggregate multiple PRs into a single branch.",
+        "exact_usage": "td gh aggregate <TARGET_BRANCH> <PR_NUMBERS...>",
+        "required_arguments": [
+          {
+            "description": "",
+            "name": "target_branch",
+            "type": "string"
+          },
+          {
+            "description": "",
+            "name": "pr_numbers",
+            "type": "integer"
+          }
+        ]
+      },
+      "gh audit": {
+        "description": "Run a headless UI audit on the codebase.",
+        "exact_usage": "td gh audit [--check-dirs <CHECK-DIRS>]",
+        "optional_flags": [
+          {
+            "description": "Comma-separated list of directories to audit",
+            "flag": "--check-dirs",
+            "type": "string"
+          }
+        ]
+      },
+      "gh audit-gate": {
+        "description": "",
+        "exact_usage": "td gh audit-gate"
+      },
+      "gh audit-pr": {
+        "description": "",
+        "exact_usage": "td gh audit-pr [--json] [--fetch] [--audit] [--submit] [--cleanup] [--dry-run] [--pr <PR>] [--base <BASE>] [--event <EVENT>] <PR_NUMBER_ARG>",
+        "optional_flags": [
+          {
+            "description": "Output results in JSON format",
+            "flag": "--json",
+            "type": "boolean"
+          },
+          {
+            "description": "The PR number to audit.",
+            "flag": "--pr",
+            "type": "integer"
+          },
+          {
+            "description": "",
+            "flag": "--fetch",
+            "type": "boolean"
+          },
+          {
+            "description": "",
+            "flag": "--audit",
+            "type": "boolean"
+          },
+          {
+            "description": "",
+            "flag": "--submit",
+            "type": "boolean"
+          },
+          {
+            "description": "",
+            "flag": "--cleanup",
+            "type": "boolean"
+          },
+          {
+            "description": "",
+            "flag": "--dry-run",
+            "type": "boolean"
+          },
+          {
+            "description": "",
+            "flag": "--base",
+            "type": "string"
+          },
+          {
+            "description": "",
+            "flag": "--event",
+            "type": "string"
+          }
+        ],
+        "required_arguments": [
+          {
+            "description": "",
+            "name": "pr_number_arg",
+            "type": "integer"
+          }
+        ]
+      },
+      "gh bundle-size": {
+        "description": "",
+        "exact_usage": "td gh bundle-size [--update] [--dry-run] [--baseline-file <BASELINE-FILE>] [--threshold <THRESHOLD>]",
+        "optional_flags": [
+          {
+            "description": "",
+            "flag": "--baseline-file",
+            "type": "string"
+          },
+          {
+            "description": "",
+            "flag": "--threshold",
+            "type": "integer"
+          },
+          {
+            "description": "",
+            "flag": "--update",
+            "type": "boolean"
+          },
+          {
+            "description": "",
+            "flag": "--dry-run",
+            "type": "boolean"
+          }
+        ]
+      },
+      "gh checkout": {
+        "description": "Checkout a branch.",
+        "exact_usage": "td gh checkout <BRANCH>",
+        "required_arguments": [
+          {
+            "description": "",
+            "name": "branch",
+            "type": "string"
+          }
+        ]
+      },
+      "gh create-issue": {
+        "description": "Create a new GitHub issue.",
+        "exact_usage": "td gh create-issue --title <TITLE> [--file <FILE>] [--body <BODY>] [--repo <REPO>]",
+        "optional_flags": [
+          {
+            "description": "Path to file containing issue body",
+            "flag": "--file",
+            "type": "string"
+          },
+          {
+            "description": "Literal body text",
+            "flag": "--body",
+            "type": "string"
+          },
+          {
+            "description": "Target GitHub repository (e.g. owner/repo)",
+            "flag": "--repo",
+            "type": "string"
+          }
+        ],
+        "required_flags": [
+          {
+            "description": "Issue title",
+            "flag": "--title",
+            "type": "string"
+          }
+        ]
+      },
+      "gh create-pr": {
+        "description": "Create a new pull request.",
+        "exact_usage": "td gh create-pr --title <TITLE> --body <BODY> --head <HEAD> [--draft] [--base <BASE>] [--repo <REPO>]",
+        "optional_flags": [
+          {
+            "description": "Base branch",
+            "flag": "--base",
+            "type": "string"
+          },
+          {
+            "description": "",
+            "flag": "--draft",
+            "type": "boolean"
+          },
+          {
+            "description": "Target repository override",
+            "flag": "--repo",
+            "type": "string"
+          }
+        ],
+        "required_flags": [
+          {
+            "description": "",
+            "flag": "--title",
+            "type": "string"
+          },
+          {
+            "description": "",
+            "flag": "--body",
+            "type": "string"
+          },
+          {
+            "description": "",
+            "flag": "--head",
+            "type": "string"
+          }
+        ]
+      },
+      "gh detect-conflicts": {
+        "description": "",
+        "exact_usage": "td gh detect-conflicts [--all] [--pr <PR>]",
+        "optional_flags": [
+          {
+            "description": "PR number to detect conflicts for",
+            "flag": "--pr",
+            "type": "integer"
+          },
+          {
+            "description": "Detect conflicts for all open PRs",
+            "flag": "--all",
+            "type": "boolean"
+          }
+        ]
+      },
+      "gh issue-comment": {
+        "description": "Post a comment to a GitHub issue.",
+        "exact_usage": "td gh issue-comment [--file <FILE>] [--body <BODY>] [--repo <REPO>] <ISSUE_NUMBER>",
+        "optional_flags": [
+          {
+            "description": "Path to file containing comment body",
+            "flag": "--file",
+            "type": "string"
+          },
+          {
+            "description": "Literal body text",
+            "flag": "--body",
+            "type": "string"
+          },
+          {
+            "description": "Target repository override (e.g. owner/repo)",
+            "flag": "--repo",
+            "type": "string"
+          }
+        ],
+        "required_arguments": [
+          {
+            "description": "",
+            "name": "issue_number",
+            "type": "integer"
+          }
+        ]
+      },
+      "gh issue-update": {
+        "description": "Update a GitHub issue's body, labels, and/or state.",
+        "exact_usage": "td gh issue-update [--file <FILE>] [--body <BODY>] [--labels <LABELS>] [--add-labels <ADD-LABELS>] [--remove-labels <REMOVE-LABELS>] [--state <STATE>] [--repo <REPO>] <ISSUE_NUMBER>",
+        "optional_flags": [
+          {
+            "description": "Path to file containing new issue body",
+            "flag": "--file",
+            "type": "string"
+          },
+          {
+            "description": "Literal body text",
+            "flag": "--body",
+            "type": "string"
+          },
+          {
+            "description": "Comma-separated list of labels to set (replaces existing labels)",
+            "flag": "--labels",
+            "type": "string"
+          },
+          {
+            "description": "Comma-separated list of labels to add",
+            "flag": "--add-labels",
+            "type": "string"
+          },
+          {
+            "description": "Comma-separated list of labels to remove",
+            "flag": "--remove-labels",
+            "type": "string"
+          },
+          {
+            "description": "",
+            "flag": "--state",
+            "type": "choice"
+          },
+          {
+            "description": "Target repository override (e.g. owner/repo)",
+            "flag": "--repo",
+            "type": "string"
+          }
+        ],
+        "required_arguments": [
+          {
+            "description": "",
+            "name": "issue_number",
+            "type": "integer"
+          }
+        ]
+      },
+      "gh issue-view": {
+        "description": "View details of a GitHub issue.",
+        "exact_usage": "td gh issue-view [--issue-number <ISSUE-NUMBER>] [--repo <REPO>] <ISSUE_NUMBER_ARG>",
+        "optional_flags": [
+          {
+            "description": "The GitHub issue number to view",
+            "flag": "--issue-number",
+            "type": "integer"
+          },
+          {
+            "description": "Target repository override (e.g. owner/repo)",
+            "flag": "--repo",
+            "type": "string"
+          }
+        ],
+        "required_arguments": [
+          {
+            "description": "",
+            "name": "issue_number_arg",
+            "type": "integer"
+          }
+        ]
+      },
+      "gh list-pr-commits": {
+        "description": "List commits for a PR.",
+        "exact_usage": "td gh list-pr-commits --pr <PR> [--repo <REPO>]",
+        "optional_flags": [
+          {
+            "description": "Target repository override (e.g. owner/repo)",
+            "flag": "--repo",
+            "type": "string"
+          }
+        ],
+        "required_flags": [
+          {
+            "description": "The PR number to list commits for.",
+            "flag": "--pr",
+            "type": "integer"
+          }
+        ]
+      },
+      "gh manage-reviews": {
+        "description": "",
+        "exact_usage": "td gh manage-reviews [--check-responses] [--cleanup-comments] [--dry-run] [--limit <LIMIT>]",
+        "optional_flags": [
+          {
+            "description": "",
+            "flag": "--check-responses",
+            "type": "boolean"
+          },
+          {
+            "description": "",
+            "flag": "--cleanup-comments",
+            "type": "boolean"
+          },
+          {
+            "description": "",
+            "flag": "--dry-run",
+            "type": "boolean"
+          },
+          {
+            "description": "Limit the number of PRs to process",
+            "flag": "--limit",
+            "type": "integer"
+          }
+        ]
+      },
+      "gh merge-conflicts": {
+        "description": "",
+        "exact_usage": "td gh merge-conflicts [--pr <PR>] [--base <BASE>] <PR_NUMBER_ARG>",
+        "optional_flags": [
+          {
+            "description": "The PR number to check merge conflicts for.",
+            "flag": "--pr",
+            "type": "integer"
+          },
+          {
+            "description": "Base branch (defaults to configured base branch)",
+            "flag": "--base",
+            "type": "string"
+          }
+        ],
+        "required_arguments": [
+          {
+            "description": "",
+            "name": "pr_number_arg",
+            "type": "integer"
+          }
+        ]
+      },
+      "gh migrate-tokens": {
+        "description": "",
+        "exact_usage": "td gh migrate-tokens [--dry-run] [--find <FIND>] [--migrate <MIGRATE>]",
+        "optional_flags": [
+          {
+            "description": "",
+            "flag": "--find",
+            "type": "string"
+          },
+          {
+            "description": "",
+            "flag": "--migrate",
+            "type": "string"
+          },
+          {
+            "description": "",
+            "flag": "--dry-run",
+            "type": "boolean"
+          }
+        ]
+      },
+      "gh overlaps": {
+        "description": "Identify and propose consolidation of PRs with high functional or structural overlap.",
+        "exact_usage": "td gh overlaps [--limit <LIMIT>]",
+        "optional_flags": [
+          {
+            "description": "Limit the number of open PRs to process",
+            "flag": "--limit",
+            "type": "integer"
+          }
+        ]
+      },
+      "gh parse-comment": {
+        "description": "Parse a comment body and return intended actions.",
+        "exact_usage": "td gh parse-comment --author-association <AUTHOR-ASSOCIATION> [--body <BODY>]",
+        "optional_flags": [
+          {
+            "description": "The comment body text.",
+            "flag": "--body",
+            "type": "string"
+          }
+        ],
+        "required_flags": [
+          {
+            "description": "The author association (e.g. OWNER, MEMBER).",
+            "flag": "--author-association",
+            "type": "string"
+          }
+        ]
+      },
+      "gh post-comment": {
+        "description": "Post a comment to a PR.",
+        "exact_usage": "td gh post-comment --pr <PR> [--file <FILE>] [--body <BODY>]",
+        "optional_flags": [
+          {
+            "description": "Path to the file containing the comment body.",
+            "flag": "--file",
+            "type": "string"
+          },
+          {
+            "description": "Literal comment text.",
+            "flag": "--body",
+            "type": "string"
+          }
+        ],
+        "required_flags": [
+          {
+            "description": "The PR number to comment on.",
+            "flag": "--pr",
+            "type": "integer"
+          }
+        ]
+      },
+      "gh pr-diff": {
+        "description": "",
+        "exact_usage": "td gh pr-diff [--pr <PR>] [--repo <REPO>] <PR_NUMBER_ARG>",
+        "optional_flags": [
+          {
+            "description": "The PR number to fetch diff for.",
+            "flag": "--pr",
+            "type": "integer"
+          },
+          {
+            "description": "Target repository override (e.g. owner/repo)",
+            "flag": "--repo",
+            "type": "string"
+          }
+        ],
+        "required_arguments": [
+          {
+            "description": "",
+            "name": "pr_number_arg",
+            "type": "integer"
+          }
+        ]
+      },
+      "gh pre-submit": {
+        "description": "",
+        "exact_usage": "td gh pre-submit"
+      },
+      "gh ratchet-any": {
+        "description": "",
+        "exact_usage": "td gh ratchet-any [--update] [--dry-run] [--baseline-file <BASELINE-FILE>]",
+        "optional_flags": [
+          {
+            "description": "",
+            "flag": "--baseline-file",
+            "type": "string"
+          },
+          {
+            "description": "",
+            "flag": "--update",
+            "type": "boolean"
+          },
+          {
+            "description": "",
+            "flag": "--dry-run",
+            "type": "boolean"
+          }
+        ]
+      },
+      "gh read-pr-comments": {
+        "description": "Fetch and display standard and review comments for a PR.",
+        "exact_usage": "td gh read-pr-comments --pr <PR>",
+        "required_flags": [
+          {
+            "description": "The PR number to fetch comments for.",
+            "flag": "--pr",
+            "type": "integer"
+          }
+        ]
+      },
+      "gh read-pr-reviews": {
+        "description": "Fetch top-level reviews for a PR.",
+        "exact_usage": "td gh read-pr-reviews --pr <PR> [--repo <REPO>]",
+        "optional_flags": [
+          {
+            "description": "Target repository override (e.g. owner/repo)",
+            "flag": "--repo",
+            "type": "string"
+          }
+        ],
+        "required_flags": [
+          {
+            "description": "The PR number to fetch top-level reviews for.",
+            "flag": "--pr",
+            "type": "integer"
+          }
+        ]
+      },
+      "gh resolve": {
+        "description": "",
+        "exact_usage": "td gh resolve [--base <BASE>] [--strategy <STRATEGY>] <FILE>",
+        "optional_flags": [
+          {
+            "description": "",
+            "flag": "--base",
+            "type": "string"
+          },
+          {
+            "description": "Deterministic resolution strategy (ours, theirs, or union).",
+            "flag": "--strategy",
+            "type": "choice"
+          }
+        ],
+        "required_arguments": [
+          {
+            "description": "",
+            "name": "file",
+            "type": "string"
+          }
+        ]
+      },
+      "gh resolve-conflicts": {
+        "description": "Resolve merge conflicts for a PR in a separate worktree.",
+        "exact_usage": "td gh resolve-conflicts --pr <PR> [--allow-unrelated] [--push] [--continue] [--strategy <STRATEGY>]",
+        "optional_flags": [
+          {
+            "description": "Allow merging unrelated histories.",
+            "flag": "--allow-unrelated",
+            "type": "boolean"
+          },
+          {
+            "description": "Merge strategy option (-X ours/theirs).",
+            "flag": "--strategy",
+            "type": "choice"
+          },
+          {
+            "description": "Automatically push the resolution to origin.",
+            "flag": "--push",
+            "type": "boolean"
+          },
+          {
+            "description": "Finalize and push an in-progress conflict resolution.",
+            "flag": "--continue",
+            "type": "boolean"
+          }
+        ],
+        "required_flags": [
+          {
+            "description": "The PR number to resolve conflicts for.",
+            "flag": "--pr",
+            "type": "integer"
+          }
+        ]
+      },
+      "gh scaffold-issue": {
+        "description": "Output a markdown skeleton containing the required headers.",
+        "exact_usage": "td gh scaffold-issue [--file <FILE>]",
+        "optional_flags": [
+          {
+            "description": "Path to write the generated markdown scaffold.",
+            "flag": "--file",
+            "type": "string"
+          }
+        ]
+      },
+      "gh search-issues": {
+        "description": "Search for GitHub issues (excluding pull requests) in the repository.",
+        "exact_usage": "td gh search-issues [--json] [--state <STATE>] [--limit <LIMIT>] [--labels <LABELS>]",
+        "optional_flags": [
+          {
+            "description": "Output results in JSON format",
+            "flag": "--json",
+            "type": "boolean"
+          },
+          {
+            "description": "",
+            "flag": "--state",
+            "type": "choice"
+          },
+          {
+            "description": "Limit the number of issues to process",
+            "flag": "--limit",
+            "type": "integer"
+          },
+          {
+            "description": "",
+            "flag": "--labels",
+            "type": "string"
+          }
+        ]
+      },
+      "gh search-prs": {
+        "description": "",
+        "exact_usage": "td gh search-prs [--json] [--include-drafts] [--state <STATE>] [--limit <LIMIT>] [--labels <LABELS>] [--repo <REPO>]",
+        "optional_flags": [
+          {
+            "description": "Output results in JSON format",
+            "flag": "--json",
+            "type": "boolean"
+          },
+          {
+            "description": "",
+            "flag": "--state",
+            "type": "choice"
+          },
+          {
+            "description": "Limit the number of PRs to process",
+            "flag": "--limit",
+            "type": "integer"
+          },
+          {
+            "description": "",
+            "flag": "--include-drafts",
+            "type": "boolean"
+          },
+          {
+            "description": "",
+            "flag": "--labels",
+            "type": "string"
+          },
+          {
+            "description": "Target repository override (e.g. owner/repo)",
+            "flag": "--repo",
+            "type": "string"
+          }
+        ]
+      },
+      "gh status-board": {
+        "description": "",
+        "exact_usage": "td gh status-board [--limit <LIMIT>]",
+        "optional_flags": [
+          {
+            "description": "Limit the number of open PRs to process",
+            "flag": "--limit",
+            "type": "integer"
+          }
+        ]
+      },
+      "gh summary-report": {
+        "description": "Generate a markdown report of CI metrics for GHA Step Summary.",
+        "exact_usage": "td gh summary-report"
+      },
+      "gh sync-pr": {
+        "description": "Reliably pull the latest remote PR state to local, overwriting messy rebases.",
+        "exact_usage": "td gh sync-pr [--pr <PR>] <PR_NUMBER_ARG>",
+        "optional_flags": [
+          {
+            "description": "The PR number to sync.",
+            "flag": "--pr",
+            "type": "integer"
+          }
+        ],
+        "required_arguments": [
+          {
+            "description": "",
+            "name": "pr_number_arg",
+            "type": "integer"
+          }
+        ]
+      },
+      "gh track-review": {
+        "description": "",
+        "exact_usage": "td gh track-review --pr <PR> --status <STATUS> --auditor <AUDITOR> [--dry-run]",
+        "optional_flags": [
+          {
+            "description": "",
+            "flag": "--dry-run",
+            "type": "boolean"
+          }
+        ],
+        "required_flags": [
+          {
+            "description": "The PR number.",
+            "flag": "--pr",
+            "type": "integer"
+          },
+          {
+            "description": "",
+            "flag": "--status",
+            "type": "string"
+          },
+          {
+            "description": "",
+            "flag": "--auditor",
+            "type": "string"
+          }
+        ]
+      },
+      "gh validate-issue": {
+        "description": "",
+        "exact_usage": "td gh validate-issue [--all-open] [--post-comments] [--dry-run] [--issue-number <ISSUE-NUMBER>] [--file <FILE>]",
+        "optional_flags": [
+          {
+            "description": "",
+            "flag": "--issue-number",
+            "type": "integer"
+          },
+          {
+            "description": "",
+            "flag": "--all-open",
+            "type": "boolean"
+          },
+          {
+            "description": "",
+            "flag": "--post-comments",
+            "type": "boolean"
+          },
+          {
+            "description": "",
+            "flag": "--dry-run",
+            "type": "boolean"
+          },
+          {
+            "description": "Path to local issue draft to validate",
+            "flag": "--file",
+            "type": "string"
+          }
+        ]
+      },
+      "gh verify-metrics": {
+        "description": "Verify CI metrics against established thresholds.",
+        "exact_usage": "td gh verify-metrics"
+      },
+      "gh verify-versions": {
+        "description": "Verify version changes in a diff for downgrades or hard blocks.",
+        "exact_usage": "td gh verify-versions <DIFF_INPUT>",
+        "required_arguments": [
+          {
+            "description": "",
+            "name": "diff_input",
+            "type": "string"
+          }
+        ]
+      },
+      "gh view": {
+        "description": "",
+        "exact_usage": "td gh view [--pr <PR>] [--repo <REPO>] <PR_NUMBER_ARG>",
+        "optional_flags": [
+          {
+            "description": "The PR number to view.",
+            "flag": "--pr",
+            "type": "integer"
+          },
+          {
+            "description": "Target repository override (e.g. owner/repo)",
+            "flag": "--repo",
+            "type": "string"
+          }
+        ],
+        "required_arguments": [
+          {
+            "description": "",
+            "name": "pr_number_arg",
+            "type": "integer"
+          }
+        ]
+      },
+      "lint": {
+        "description": "Lint the project after runtime check",
+        "exact_usage": "td lint"
+      },
+      "mcp install": {
+        "description": "Detect agent host environments and register boomtick-mcp.",
+        "exact_usage": "td mcp install [--dry-run] [--host <HOST>] [--path <PATH>] [--command <COMMAND>]",
+        "optional_flags": [
+          {
+            "description": "Target specific host (antigravity, claude, cursor, codex)",
+            "flag": "--host",
+            "type": "string"
+          },
+          {
+            "description": "Custom path to host settings JSON file",
+            "flag": "--path",
+            "type": "string"
+          },
+          {
+            "description": "Command to run MCP server",
+            "flag": "--command",
+            "type": "string"
+          },
+          {
+            "description": "Preview changes without updating files",
+            "flag": "--dry-run",
+            "type": "boolean"
+          }
+        ]
+      },
+      "mcp setup": {
+        "description": "Alias for 'td mcp install'.",
+        "exact_usage": "td mcp setup [--dry-run] [--host <HOST>] [--path <PATH>] [--command <COMMAND>]",
+        "optional_flags": [
+          {
+            "description": "Target specific host (antigravity, claude, cursor, codex)",
+            "flag": "--host",
+            "type": "string"
+          },
+          {
+            "description": "Custom path to host settings JSON file",
+            "flag": "--path",
+            "type": "string"
+          },
+          {
+            "description": "Command to run MCP server",
+            "flag": "--command",
+            "type": "string"
+          },
+          {
+            "description": "Preview changes without updating files",
+            "flag": "--dry-run",
+            "type": "boolean"
+          }
+        ]
+      },
+      "preflight": {
+        "description": "Run local preflight checks: td doctor, typecheck, linting, overlap detection, and merge simulation.",
+        "exact_usage": "td preflight [--base <BASE>]",
+        "optional_flags": [
+          {
+            "description": "Base branch for merge simulation",
+            "flag": "--base",
+            "type": "string"
+          }
+        ]
+      },
+      "repo apply-patch": {
+        "description": "Apply a patch to a file using resilient git apply.",
+        "exact_usage": "td repo apply-patch [--patch-file <PATCH-FILE>] [--patch-body <PATCH-BODY>] <FILEPATH>",
+        "optional_flags": [
+          {
+            "description": "",
+            "flag": "--patch-file",
+            "type": "string"
+          },
+          {
+            "description": "",
+            "flag": "--patch-body",
+            "type": "string"
+          }
+        ],
+        "required_arguments": [
+          {
+            "description": "",
+            "name": "filepath",
+            "type": "string"
+          }
+        ]
+      },
+      "repo ci-logs": {
+        "description": "",
+        "exact_usage": "td repo ci-logs [--all] [--repo <REPO>] <PR_NUMBER>",
+        "optional_flags": [
+          {
+            "description": "Include logs for successful runs",
+            "flag": "--all",
+            "type": "boolean"
+          },
+          {
+            "description": "Target repository override (e.g. owner/repo)",
+            "flag": "--repo",
+            "type": "string"
+          }
+        ],
+        "required_arguments": [
+          {
+            "description": "",
+            "name": "pr_number",
+            "type": "integer"
+          }
+        ]
+      },
+      "repo logs": {
+        "description": "",
+        "exact_usage": "td repo logs [--grep <GREP>] [--repo <REPO>] <PR_NUMBER>",
+        "optional_flags": [
+          {
+            "description": "Filter logs by pattern",
+            "flag": "--grep",
+            "type": "string"
+          },
+          {
+            "description": "Target repository override (e.g. owner/repo)",
+            "flag": "--repo",
+            "type": "string"
+          }
+        ],
+        "required_arguments": [
+          {
+            "description": "",
+            "name": "pr_number",
+            "type": "integer"
+          }
+        ]
+      },
+      "repo run-playwright": {
+        "description": "",
+        "exact_usage": "td repo run-playwright [--grep <GREP>] [--worktree <WORKTREE>]",
+        "optional_flags": [
+          {
+            "description": "",
+            "flag": "--grep",
+            "type": "string"
+          },
+          {
+            "description": "",
+            "flag": "--worktree",
+            "type": "string"
+          }
+        ]
+      },
+      "repo workflow-runs": {
+        "description": "List recent GitHub Actions workflow runs.",
+        "exact_usage": "td repo workflow-runs [--branch <BRANCH>] [--event <EVENT>] [--repo <REPO>]",
+        "optional_flags": [
+          {
+            "description": "Filter by branch",
+            "flag": "--branch",
+            "type": "string"
+          },
+          {
+            "description": "Filter by event (e.g. push, pull_request)",
+            "flag": "--event",
+            "type": "string"
+          },
+          {
+            "description": "Target repository override (e.g. owner/repo)",
+            "flag": "--repo",
+            "type": "string"
+          }
+        ]
+      },
+      "schema": {
+        "description": "Retrieve the schema for a specific subcommand or all commands.",
+        "exact_usage": "td schema [--generate] <COMMAND_PATH>",
+        "optional_flags": [
+          {
+            "description": "Generate CLI schema from Python models",
+            "flag": "--generate",
+            "type": "boolean"
+          }
+        ],
+        "required_arguments": [
+          {
+            "description": "",
+            "name": "command_path",
+            "type": "string"
+          }
+        ]
+      },
+      "test cli": {
+        "description": "Run CLI package tests",
+        "exact_usage": "td test cli"
+      },
+      "ux audit": {
+        "description": "",
+        "exact_usage": "td ux audit [--all-routes] [--desktop] [--mobile] [--route <ROUTE>]",
+        "optional_flags": [
+          {
+            "description": "Specific route to audit",
+            "flag": "--route",
+            "type": "string"
+          },
+          {
+            "description": "Audit all discovered routes",
+            "flag": "--all-routes",
+            "type": "boolean"
+          },
+          {
+            "description": "Audit desktop viewports",
+            "flag": "--desktop",
+            "type": "boolean"
+          },
+          {
+            "description": "Audit mobile viewports",
+            "flag": "--mobile",
+            "type": "boolean"
+          }
+        ]
+      },
+      "ux contrast": {
+        "description": "",
+        "exact_usage": "td ux contrast [--route <ROUTE>]",
+        "optional_flags": [
+          {
+            "description": "Specific route for contrast check",
+            "flag": "--route",
+            "type": "string"
+          }
+        ]
+      },
+      "ux images": {
+        "description": "",
+        "exact_usage": "td ux images [--route <ROUTE>]",
+        "optional_flags": [
+          {
+            "description": "Specific route for image audit",
+            "flag": "--route",
+            "type": "string"
+          }
+        ]
+      },
+      "ux lighthouse": {
+        "description": "",
+        "exact_usage": "td ux lighthouse [--route <ROUTE>]",
+        "optional_flags": [
+          {
+            "description": "Specific route for Lighthouse",
+            "flag": "--route",
+            "type": "string"
+          }
+        ]
+      },
+      "ux overflow": {
+        "description": "",
+        "exact_usage": "td ux overflow [--route <ROUTE>]",
+        "optional_flags": [
+          {
+            "description": "Specific route for overflow check",
+            "flag": "--route",
+            "type": "string"
+          }
+        ]
+      },
+      "ux report": {
+        "description": "",
+        "exact_usage": "td ux report"
+      },
+      "ux screenshots": {
+        "description": "",
+        "exact_usage": "td ux screenshots [--route <ROUTE>]",
+        "optional_flags": [
+          {
+            "description": "Specific route for screenshots",
+            "flag": "--route",
+            "type": "string"
+          }
+        ]
+      }
+    },
+    "tool_name": "td"
+  },
+  "design_tokens": {
+    "index_css": ":root { --spacing-viewport-half: 50vh; }"
+  },
+  "file_tree": {
+    "AGENTS.md": null,
+    "CHANGELOG.md": null,
+    "Dockerfile": null,
+    "README.md": null,
+    "action.yml": null,
+    "artifacts/": {},
+    "cleanup-branches.sh": null,
+    "cli/": {
+      "CHANGELOG.md": null,
+      "MANIFEST.in": null,
+      "README.md": null,
+      "aggregate-prs.sh": null,
+      "analyze_overlaps.sh": null,
+      "analyze_workflows.sh": null,
+      "boomtick_cli.egg-info/": "...",
+      "clients/": "...",
+      "dev_tools/": "...",
+      "instructions.txt": null,
+      "plan-template.md": null,
+      "pyproject.toml": null,
+      "requirements-dev.txt": null,
+      "requirements-pinned.txt": null,
+      "requirements.txt": null,
+      "setup-python.sh": null,
+      "snapshot.sh": null,
+      "tests/": "...",
+      "verify-ai-resolve.sh": null,
+      "verify-workflows.sh": null,
+      "verify.sh": null
+    },
+    "docker-entrypoint.sh": null,
+    "docs/": {
+      "collecting-ai-logs.md": null,
+      "impact-analysis-integration.md": null,
+      "onboarding.md": null,
+      "release-process.md": null
+    },
+    "eslint.config.mjs": null,
+    "install.sh": null,
+    "lib/": {
+      "ReviewPromptConstants.ts": null,
+      "aiLogger.ts": null,
+      "buildCodeReviewPrompt.ts": null,
+      "codeReviewOrchestrator.ts": null,
+      "codeReviewTypes.ts": null,
+      "codeReviewUtils.ts": null,
+      "geminiModelPicker.ts": null,
+      "geminiUtils.ts": null,
+      "githubAuth.ts": null,
+      "heartbeat.ts": null,
+      "impact-analysis-utils.ts": null,
+      "julesReviewClient.ts": null,
+      "projectConfig.ts": null,
+      "promptCategories.ts": null,
+      "sharedUtils.ts": null,
+      "visualGuidelines.ts": null,
+      "visualReviewConstants.ts": null,
+      "visualReviewOrchestrator.ts": null,
+      "visualReviewTypes.ts": null,
+      "visualReviewUtils.ts": null
+    },
+    "mcp/": {
+      "CHANGELOG.md": null,
+      "README.md": null,
+      "actions/": "...",
+      "dist/": "...",
+      "docs/": "...",
+      "package.json": null,
+      "scripts/": "...",
+      "src/": "...",
+      "start_browsermcp.sh": null,
+      "start_github_mcp.sh": null,
+      "tsconfig.json": null,
+      "vitest.config.ts": null
+    },
+    "oxlint.json": null,
+    "package.json": null,
+    "pnpm-lock.yaml": null,
+    "pnpm-workspace.yaml": null,
+    "project_config.json": null,
+    "release-please-config.json": null,
+    "scripts/": {
+      "bulk_collect_runs.sh": null,
+      "check-runtime-files.mjs": null,
+      "check-suppression-inventory.mjs": null,
+      "check-visual-changes.ts": null,
+      "clients/": "...",
+      "detect-antipatterns.mjs": null,
+      "detect-semantic-duplicates.mjs": null,
+      "download_run.sh": null,
+      "finalize-extraction.sh": null,
+      "image-processing-utils.ts": null,
+      "impact-ai-code-review.ts": null,
+      "impact-ai-review.ts": null,
+      "impact-analysis.config.ts": null,
+      "impact-analysis.ts": null,
+      "impact-build-main.ts": null,
+      "impact-dom-diff.ts": null,
+      "impact-review-utils.ts": null,
+      "impact-visual-diff.ts": null,
+      "install-workflows.test.ts": null,
+      "lib/": "...",
+      "run-context-agent.py": null,
+      "run-python-tool.py": null,
+      "utils/": "...",
+      "validate_workspace.py": null,
+      "verify-ci-workflows.py": null,
+      "verify-ci-workflows.sh": null,
+      "verify-schemas.mjs": null,
+      "verify-scope.py": null
+    },
+    "setup-agent.sh": null,
+    "src/": {
+      "index.css": null,
+      "reviewers/": "..."
+    },
+    "tests/": {
+      "unit/": "..."
+    },
+    "tsconfig.app.json": null,
+    "tsup.config.ts": null,
+    "workspace-schema.json": null,
+    "workspace.json": null
+  },
+  "mcp_schema": {
+    "prompts": [],
+    "resources": [],
+    "tools": []
+  },
+  "package_json": {
+    "dependencies": [
+      "@octokit/auth-app",
+      "openai"
+    ],
+    "devDependencies": [
+      "@playwright/test",
+      "@types/jsdom",
+      "@types/pixelmatch",
+      "@types/pngjs",
+      "@typescript-eslint/eslint-plugin",
+      "dependency-cruiser",
+      "diff",
+      "eslint",
+      "fallow",
+      "jscpd",
+      "jsdom",
+      "npm-run-all",
+      "oxlint",
+      "pixelmatch",
+      "pngjs",
+      "sharp",
+      "tsup",
+      "tsx",
+      "typescript",
+      "typescript-eslint",
+      "yaml"
+    ],
+    "name": "boomtick-root",
+    "scripts": {
+      "agent:prime": "td context-warm",
+      "audit:fallow": "fallow",
+      "build:review": "tsup",
+      "check:runtime-files": "node scripts/check-runtime-files.mjs",
+      "doctor": "td doctor",
+      "impact:analysis": "tsx scripts/impact-analysis.ts",
+      "impact:build-main": "tsx scripts/impact-build-main.ts",
+      "impact:dom-diff": "tsx scripts/impact-dom-diff.ts",
+      "impact:gemini-code-review": "tsx scripts/impact-ai-code-review.ts gemini",
+      "impact:gemini-review": "tsx scripts/impact-ai-review.ts gemini",
+      "impact:github-models-code-review": "tsx scripts/impact-ai-code-review.ts github-models",
+      "impact:github-models-review": "tsx scripts/impact-ai-review.ts github-models",
+      "impact:visual-diff": "tsx scripts/impact-visual-diff.ts",
+      "lint": "run-p lint:* audit:fallow",
+      "lint:eslint": "eslint . --max-warnings 0",
+      "lint:ox": "oxlint --deny-warnings -c oxlint.json mcp/src/ mcp/tests/ lib/ tests/ scripts/",
+      "lint:python": "python3 scripts/run-python-tool.py pylint",
+      "lint:types": "pnpm --filter @arii/boomtick-mcp run lint",
+      "preinstall": "node scripts/check-runtime-files.mjs",
+      "test": "pnpm --filter @arii/boomtick-mcp run test",
+      "test:python": "python3 scripts/run-python-tool.py pytest",
+      "type-check": "pnpm --filter @arii/boomtick-mcp run type-check",
+      "type-check:python": "python3 scripts/run-python-tool.py mypy",
+      "verify:schemas": "node scripts/verify-schemas.mjs"
+    }
+  },
+  "project_config": {
+    "code-review-chain": {
+      "fallbacks": [
+        "deepseek-r1",
+        "llama-3.3-70b-instruct"
+      ],
+      "max_retries": 3,
+      "primary": "gpt-4o"
+    },
+    "github_repo": "arii/boomtick",
+    "packageName": "boomtick",
+    "vite_base_path": "/boomtick/"
+  },
+  "repo": {
+    "name": "boomtick-root"
+  }
+}

@@ -2,7 +2,7 @@
 
 Developer tooling for the BoomTick repository. The primary entry point is
 `td`, but agents should always call `boomtick-mcp` Tier 1 tools first —
-`td` is the Tier 2 fallback. See `.agents/AGENTS.md` for the full
+`td` is the Tier 2 fallback. See `AGENTS.md` for the full
 tool hierarchy.
 
 ---
@@ -109,7 +109,7 @@ dispatching Jules sessions.
 ## 🤖 Agent / Jules GitHub Command Pattern
 
 Always use `boomtick-mcp` Tier 1 tools first. `td` is the fallback
-when MCP is unavailable — not the default. See `.agents/AGENTS.md` for the
+when MCP is unavailable — not the default. See `AGENTS.md` for the
 full tool mapping table.
 
 When `td` must be called directly, read the CLI schema from
@@ -181,9 +181,9 @@ explicitly instructed to update the runtime contract.
 
 ## 🚀 Repository CLI (`td`)
 
-`dev-tools/td` is the Tier 2 unified entry point for local repository
+`td` is the Tier 2 unified entry point for local repository
 automation. All available subcommands and flags are defined in
-`dev-tools/cli-schema.json` (also embedded in `.agent-context.json` under
+`cli/dev_tools/cli-schema.json` (also embedded in `.agent-context.json` under
 `cli_schema`). That file is the single source of truth — never use `--help`
 to discover flags.
 

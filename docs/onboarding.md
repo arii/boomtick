@@ -14,7 +14,7 @@ Use this checklist to ensure all prerequisites and configuration steps are compl
   - `JULES_API_KEY`: Required for automated self-repair sessions and orchestrator integration.
   - `GEMINI_API_KEY`: Required for multi-modal code review and vision pipelines.
   - `GITHUB_TOKEN` (or GitHub App Token `APP_ID` / `APP_PRIVATE_KEY`): For repository-scoped actions.
-- [ ] **Install Integration Paradigm**: Select and set up PyPI package (`pip install boomtick`), Docker container (`ghcr.io/arii/boomtick`), or npm MCP package (`@arii/boomtick-mcp`).
+- [ ] **Install Integration Paradigm**: Select and set up PyPI package (`pip install boomtick-cli`), Docker container (`ghcr.io/arii/boomtick`), or npm MCP package (`@arii/boomtick-mcp`).
 - [ ] **Integrate GitHub Composite Actions**: Reference Boomtick composite actions (such as `setup-workspace`, `chatops`, `ai-review`, and `impact-analysis`) in your `.github/workflows/`.
 - [ ] **Verify Local Setup & Schemas**: Test CLI commands or MCP tools locally and run schema contract synchronization (`pnpm run verify:schemas` if developing locally).
 
@@ -53,10 +53,10 @@ The Python CLI developer tool (`td`) and automation utilities are available dire
 
 ```bash
 # Standard pip installation
-pip install boomtick
+pip install boomtick-cli
 
 # Fast installation with uv
-uv pip install boomtick
+uv pip install boomtick-cli
 ```
 
 Verify installation:
@@ -259,6 +259,6 @@ This onboarding and integration guide applies to all downstream consumer reposit
 ## DEFINITION OF DONE
 
 1. `docs/onboarding.md` is updated to remove submodule instructions.
-2. `docs/onboarding.md` includes instructions for PyPI (`pip install boomtick`), Docker (`ghcr.io/arii/boomtick`), and MCP package usage (`@arii/boomtick-mcp`).
+2. `docs/onboarding.md` includes instructions for PyPI (`pip install boomtick-cli`), Docker (`ghcr.io/arii/boomtick`), and MCP package usage (`@arii/boomtick-mcp`).
 3. A clear "Onboarding Checklist" is present in the guide.
 4. The issue successfully validates against `td gh validate-issue`.

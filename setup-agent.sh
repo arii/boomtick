@@ -227,8 +227,8 @@ install_python_deps() {
     local pkg_spec="cli/"
     pip_install --root-user-action=ignore -e "$pkg_spec"
     export PATH="$HOME/.local/bin:$PATH"
-    if ! have td && ! have td; then
-      warn "td/td not found on PATH after editable install. Path: $PATH"
+    if ! have td; then
+      warn "td not found on PATH after editable install. Path: $PATH"
     fi
     STATUS_PYTHON="INSTALLED (td)"
   else
@@ -430,6 +430,19 @@ main() {
 
   configure_remote_origin
   [ "$STATUS_GIT" = "PENDING" ] && STATUS_GIT="INSTALLED"
+
+  log "Building @arii/boomtick-mcp package..."
+  if have pnpm && [ -d "mcp" ]; then
+    pnpm --filter @arii/boomtick-mcp run build || warn "Failed to build @arii/boomtick-mcp."
+  fi
+
+  log "Registering MCP host configurations and warming context..."
+  if have td; then
+    td mcp install --execute || warn "Failed to register MCP host configurations."
+    td context-warm || warn "Failed to warm agent context index."
+  else
+    warn "td command not found on PATH; skipping MCP install and context warming."
+  fi
 
   persist_environment
   run_validation
