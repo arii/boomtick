@@ -158,6 +158,54 @@ def _get_body_content(ctx, orch, file, body):
 
 
 # ==========================================
+# MCP COMMAND GROUP
+# ==========================================
+
+
+@cli.group()
+def mcp():
+    """MCP Discovery and Server Operations"""
+
+
+@mcp.command(name="install")
+@click.option("--host", "-h", "hosts", multiple=True, help="Target specific host (antigravity, claude, cursor, codex)")
+@click.option("--path", "custom_path", help="Custom path to host settings JSON file")
+@click.option("--command", "mcp_command", default="boomtick-mcp", help="Command to run MCP server")
+@click.option("--dry-run/--execute", default=True, help="Preview changes without updating files")
+@click.pass_context
+def mcp_install(ctx, hosts, custom_path, mcp_command, dry_run):
+    """Detect agent host environments and register boomtick-mcp."""
+    from dev_tools.handlers.mcp_installer import detect_and_install_mcp
+
+    target_config = {"command": mcp_command}
+    host_list = list(hosts) if hosts else None
+    res = detect_and_install_mcp(
+        hosts=host_list,
+        dry_run=dry_run,
+        target_config=target_config,
+        custom_path=custom_path,
+    )
+
+    if not ctx.obj.get("JSON", False):
+        click.echo(f"MCP Installation ({'Dry Run' if dry_run else 'Executed'}):")
+        for r in res.get("results", []):
+            click.echo(f"  • {r['path']}: {r['status']} - {r['message']}")
+
+    out(ctx, "MCP registration check complete.", data=res)
+
+
+@mcp.command(name="setup")
+@click.option("--host", "-h", "hosts", multiple=True, help="Target specific host (antigravity, claude, cursor, codex)")
+@click.option("--path", "custom_path", help="Custom path to host settings JSON file")
+@click.option("--command", "mcp_command", default="boomtick-mcp", help="Command to run MCP server")
+@click.option("--dry-run/--execute", default=True, help="Preview changes without updating files")
+@click.pass_context
+def mcp_setup(ctx, hosts, custom_path, mcp_command, dry_run):
+    """Alias for 'td mcp install'."""
+    ctx.invoke(mcp_install, hosts=hosts, custom_path=custom_path, mcp_command=mcp_command, dry_run=dry_run)
+
+
+# ==========================================
 # CONFIG COMMAND GROUP
 # ==========================================
 
