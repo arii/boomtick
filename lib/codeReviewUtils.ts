@@ -12,6 +12,11 @@ const DEFAULT_EXCLUDED_PATTERNS = [
   'package-lock.json',
   'yarn.lock',
   'bun.lockb',
+  'poetry.lock',
+  'Cargo.lock',
+  'Composer.lock',
+  'Pipfile.lock',
+  'flake.lock',
   'dist/',
   'build/',
   'artifacts/',
@@ -223,6 +228,17 @@ export function filterLowImpactFiles(files: string[], lowImpactPaths: string[] =
  * Truncates an AST/unified diff chunk by preserving file headers and diff hunk headers
  * (e.g. `diff --git`, `@@ -a,b +c,d @@`) while dropping middle lines if token/char limit is exceeded.
  */
+function isASTDeclarationBoundary(line: string): boolean {
+  const content = line.replace(/^[+-\s]/, '').trim();
+  if (!content) return false;
+
+  return /^(?:export\s+)?(?:async\s+)?(?:function|class|interface|type|enum|const|let|var|struct|pub|def|fn|private|protected|public|namespace|module)\b/.test(content);
+}
+
+/**
+ * Truncates an AST/unified diff chunk by preserving file headers and diff hunk headers
+ * (e.g. `diff --git`, `@@ -a,b +c,d @@`) while dropping middle lines at AST declaration boundaries if token/char limit is exceeded.
+ */
 export function truncateUnifiedDiff(diffText: string, maxChars: number = 16000): string {
   if (!diffText || diffText.length <= maxChars) {
     return diffText;
@@ -243,7 +259,35 @@ export function truncateUnifiedDiff(diffText: string, maxChars: number = 16000):
 
     if (currentChars + line.length + 1 > maxChars && !isHeader) {
       if (!isDroppingLines) {
-        resultLines.push('...[DIFF TRUNCATED TO FIT TOKEN BUDGET]');
+        // Look back in resultLines for the most recent AST declaration boundary after the last @@ header
+        let boundaryIdx = -1;
+        let lastHunkIdx = -1;
+
+        for (let j = resultLines.length - 1; j >= 0; j--) {
+          if (resultLines[j].startsWith('@@ ')) {
+            lastHunkIdx = j;
+            break;
+          }
+        }
+
+        const startSearchIdx = lastHunkIdx !== -1 ? lastHunkIdx + 1 : 0;
+        for (let j = resultLines.length - 1; j >= startSearchIdx; j--) {
+          if (isASTDeclarationBoundary(resultLines[j])) {
+            boundaryIdx = j;
+            break;
+          }
+        }
+
+        if (boundaryIdx !== -1 && boundaryIdx < resultLines.length) {
+          for (let j = resultLines.length - 1; j >= boundaryIdx; j--) {
+            currentChars -= (resultLines[j].length + 1);
+            resultLines.pop();
+          }
+        }
+
+        const truncationMarker = '...[DIFF TRUNCATED TO FIT TOKEN BUDGET]';
+        resultLines.push(truncationMarker);
+        currentChars += truncationMarker.length + 1;
         isDroppingLines = true;
       }
       continue;
