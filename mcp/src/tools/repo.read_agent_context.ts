@@ -36,10 +36,13 @@ export const loadStandaloneAgentContext = (repoRoot: string = process.cwd()): Ag
   };
 };
 
-export const ReadAgentContextInputSchema = z.object({});
+export const ReadAgentContextInputSchema = z.object({
+  repoPath: z.string().optional(),
+});
 
-export async function readAgentContextHandler(_args: z.infer<typeof ReadAgentContextInputSchema>) {
-  const context = loadStandaloneAgentContext(config.repoPath);
+export async function readAgentContextHandler(args: z.infer<typeof ReadAgentContextInputSchema>) {
+  const repoRoot = args?.repoPath || config.repoPath;
+  const context = loadStandaloneAgentContext(repoRoot);
   const result: any = {
     status: "success",
     ...context
