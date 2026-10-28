@@ -20,6 +20,7 @@ import { getMergeConflictFilesHandler, GetMergeConflictFilesInputSchema } from "
 import { checkoutBranchHandler, CheckoutBranchInputSchema } from "../tools/github.checkout_branch.js";
 import { getChangedFilesHandler, GetChangedFilesInputSchema } from "../tools/repo.get_changed_files.js";
 import { readAgentContextHandler, ReadAgentContextInputSchema } from "../tools/repo.read_agent_context.js";
+import { multiExecHandler, MultiExecInputSchema } from "../tools/repo.multi_exec.js";
 import { getCommandSchemaHandler, GetCommandSchemaInputSchema } from "../tools/repo.get_command_schema.js";
 import { getPackageScriptsHandler, GetPackageScriptsInputSchema } from "../tools/repo.get_package_scripts.js";
 import { readCiLogsHandler, ReadCiLogsInputSchema } from "../tools/repo.read_ci_logs.js";
@@ -213,6 +214,9 @@ export class BoomtickMCPServer {
           case "repo.read.agent.context":
           case "repo.read_agent_context":
             return createSuccessResult(await readAgentContextHandler(ReadAgentContextInputSchema.parse(normArgs)));
+          case "repo.multi.exec":
+          case "repo.multi_exec":
+            return createSuccessResult(await multiExecHandler(MultiExecInputSchema.parse(normArgs)));
           case "github.get.pr.diff":
           case "github.get_pr_diff":
             return createSuccessResult(await getPrDiffHandler(GetPrDiffInputSchema.parse(normArgs)));

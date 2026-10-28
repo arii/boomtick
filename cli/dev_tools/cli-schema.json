@@ -1,1478 +1,4 @@
 {
-  "tool_name": "td",
-  "schema_authority": "Use 'repo.get_command_schema' or 'td schema <path>' for granular discovery. This file remains for legacy fallback.",
-  "description": "Custom developer CLI for BoomTick repository management.",
-  "base_command": "td",
-  "subcommands": {
-    "build": {
-      "description": "Build the project after runtime check",
-      "exact_usage": "td build"
-    },
-    "context-warm": {
-      "description": "Pre-warm the .agent-context.json repository index.",
-      "exact_usage": "td context-warm [--force]",
-      "optional_flags": [
-        {
-          "flag": "--force",
-          "type": "boolean",
-          "description": "Force re-generation of context even if not stale"
-        }
-      ]
-    },
-    "doctor": {
-      "description": "Full-stack Runtime & Environment Diagnostic Check",
-      "exact_usage": "td doctor"
-    },
-    "lint": {
-      "description": "Lint the project after runtime check",
-      "exact_usage": "td lint"
-    },
-    "preflight": {
-      "description": "Run local preflight checks: td doctor, typecheck, linting, overlap detection, and merge simulation.",
-      "exact_usage": "td preflight [--base <BASE>]",
-      "optional_flags": [
-        {
-          "flag": "--base",
-          "type": "string",
-          "description": "Base branch for merge simulation"
-        }
-      ]
-    },
-    "schema": {
-      "description": "Retrieve the schema for a specific subcommand or all commands.",
-      "exact_usage": "td schema [--generate] <COMMAND_PATH>",
-      "required_arguments": [
-        {
-          "name": "command_path",
-          "type": "string",
-          "description": ""
-        }
-      ],
-      "optional_flags": [
-        {
-          "flag": "--generate",
-          "type": "boolean",
-          "description": "Generate CLI schema from Python models"
-        }
-      ]
-    },
-    "agent cancel": {
-      "description": "Cancel a Jules session.",
-      "exact_usage": "td agent cancel <SESSION_ID>",
-      "required_arguments": [
-        {
-          "name": "session_id",
-          "type": "string",
-          "description": ""
-        }
-      ]
-    },
-    "agent dispatch": {
-      "description": "\n    Initialize a Jules session for a specific branch and task.\n    Note: Use 'main' branch for PR consolidation tasks to avoid rebasing issues.\n    ",
-      "exact_usage": "td agent dispatch [--title <TITLE>] <BRANCH> <TASK>",
-      "required_arguments": [
-        {
-          "name": "branch",
-          "type": "string",
-          "description": ""
-        },
-        {
-          "name": "task",
-          "type": "string",
-          "description": ""
-        }
-      ],
-      "optional_flags": [
-        {
-          "flag": "--title",
-          "type": "string",
-          "description": "Custom session title"
-        }
-      ]
-    },
-    "agent fix-ci": {
-      "description": "",
-      "exact_usage": "td agent fix-ci [--dry-run] [--pr <PR>] [--issue-number <ISSUE-NUMBER>] [--branch <BRANCH>] [--api-key <API-KEY>]",
-      "optional_flags": [
-        {
-          "flag": "--pr",
-          "type": "integer",
-          "description": "The PR number."
-        },
-        {
-          "flag": "--issue-number",
-          "type": "integer",
-          "description": ""
-        },
-        {
-          "flag": "--branch",
-          "type": "string",
-          "description": ""
-        },
-        {
-          "flag": "--api-key",
-          "type": "string",
-          "description": ""
-        },
-        {
-          "flag": "--dry-run",
-          "type": "boolean",
-          "description": ""
-        }
-      ]
-    },
-    "agent get-session": {
-      "description": "Get details of a Jules session.",
-      "exact_usage": "td agent get-session <SESSION_ID>",
-      "required_arguments": [
-        {
-          "name": "session_id",
-          "type": "string",
-          "description": ""
-        }
-      ]
-    },
-    "agent install-workflows": {
-      "description": "Install and configure standardized GitHub Actions workflows.",
-      "exact_usage": "td agent install-workflows [--dry-run] [--force] [--target <TARGET>]",
-      "optional_flags": [
-        {
-          "flag": "--target",
-          "type": "string",
-          "description": "Target directory to install workflows."
-        },
-        {
-          "flag": "--dry-run",
-          "type": "boolean",
-          "description": "Run without writing files."
-        },
-        {
-          "flag": "--force",
-          "type": "boolean",
-          "description": "Overwrite existing files."
-        }
-      ]
-    },
-    "agent list": {
-      "description": "Sync active agent sessions.",
-      "exact_usage": "td agent list [--limit <LIMIT>]",
-      "optional_flags": [
-        {
-          "flag": "--limit",
-          "type": "integer",
-          "description": "Limit the number of sessions to retrieve"
-        }
-      ]
-    },
-    "agent list-sessions": {
-      "description": "Sync active agent sessions.",
-      "exact_usage": "td agent list-sessions [--limit <LIMIT>]",
-      "optional_flags": [
-        {
-          "flag": "--limit",
-          "type": "integer",
-          "description": "Limit the number of sessions to retrieve"
-        }
-      ]
-    },
-    "agent messages": {
-      "description": "Get message history for a Jules session.",
-      "exact_usage": "td agent messages <SESSION_ID>",
-      "required_arguments": [
-        {
-          "name": "session_id",
-          "type": "string",
-          "description": ""
-        }
-      ]
-    },
-    "agent plan-aggregation": {
-      "description": "Generate a deterministic aggregation workflow plan for an agent.",
-      "exact_usage": "td agent plan-aggregation --pr <PR> --target <TARGET>",
-      "required_flags": [
-        {
-          "flag": "--pr",
-          "type": "integer",
-          "description": "PR numbers to aggregate"
-        },
-        {
-          "flag": "--target",
-          "type": "string",
-          "description": "Target branch name for aggregation"
-        }
-      ]
-    },
-    "agent plan-issue-audit": {
-      "description": "Generate deterministic roadmap and checklist for auditing open issues.",
-      "exact_usage": "td agent plan-issue-audit [--json] [--all-open] [--issue <ISSUE>] [--limit <LIMIT>]",
-      "optional_flags": [
-        {
-          "flag": "--json",
-          "type": "boolean",
-          "description": "Output results in JSON format"
-        },
-        {
-          "flag": "--issue",
-          "type": "integer",
-          "description": "Issue number(s) to audit (e.g. --issue 1 --issue 2)"
-        },
-        {
-          "flag": "--all-open",
-          "type": "boolean",
-          "description": "Audit all open issues"
-        },
-        {
-          "flag": "--limit",
-          "type": "integer",
-          "description": "Limit the number of open issues to process"
-        }
-      ]
-    },
-    "agent plan-review": {
-      "description": "Generate a deterministic review workflow plan for an agent.",
-      "exact_usage": "td agent plan-review --pr <PR> [--issue <ISSUE>]",
-      "required_flags": [
-        {
-          "flag": "--pr",
-          "type": "integer",
-          "description": "Pull Request number"
-        }
-      ],
-      "optional_flags": [
-        {
-          "flag": "--issue",
-          "type": "integer",
-          "description": "Issue number"
-        }
-      ]
-    },
-    "agent plan-workflow-audit": {
-      "description": "Generate deterministic roadmap and checklist for auditing GitHub workflows.",
-      "exact_usage": "td agent plan-workflow-audit [--workflow <WORKFLOW>]",
-      "optional_flags": [
-        {
-          "flag": "--workflow",
-          "type": "string",
-          "description": "Specific workflow file to audit"
-        }
-      ]
-    },
-    "agent repair": {
-      "description": "",
-      "exact_usage": "td agent repair [--stdin] [--worktree] [--logs <LOGS>]",
-      "optional_flags": [
-        {
-          "flag": "--logs",
-          "type": "string",
-          "description": ""
-        },
-        {
-          "flag": "--stdin",
-          "type": "boolean",
-          "description": ""
-        },
-        {
-          "flag": "--worktree",
-          "type": "boolean",
-          "description": ""
-        }
-      ]
-    },
-    "agent repair-context": {
-      "description": "",
-      "exact_usage": "td agent repair-context [--log <LOG>] [--file <FILE>] [--pr <PR>]",
-      "optional_flags": [
-        {
-          "flag": "--log",
-          "type": "string",
-          "description": ""
-        },
-        {
-          "flag": "--file",
-          "type": "string",
-          "description": ""
-        },
-        {
-          "flag": "--pr",
-          "type": "integer",
-          "description": "The PR number."
-        }
-      ]
-    },
-    "agent run-feedback-check": {
-      "description": "Run a one-shot Automated Agent Feedback Check to trigger CI feedback for active sessions.",
-      "exact_usage": "td agent run-feedback-check [--limit <LIMIT>]",
-      "optional_flags": [
-        {
-          "flag": "--limit",
-          "type": "integer",
-          "description": "Limit the number of active sessions to check"
-        }
-      ]
-    },
-    "agent run-local": {
-      "description": "Run a single-agent multi-role sequential workflow locally.",
-      "exact_usage": "td agent run-local [--pr <PR>] [--issue <ISSUE>]",
-      "optional_flags": [
-        {
-          "flag": "--pr",
-          "type": "integer",
-          "description": "Pull Request number to evaluate."
-        },
-        {
-          "flag": "--issue",
-          "type": "integer",
-          "description": "Optional linked Issue number."
-        }
-      ]
-    },
-    "agent send": {
-      "description": "Send a message to active Jules session(s) (supports comma-separated IDs).",
-      "exact_usage": "td agent send <SESSION_IDS> <MESSAGE>",
-      "required_arguments": [
-        {
-          "name": "session_ids",
-          "type": "string",
-          "description": ""
-        },
-        {
-          "name": "message",
-          "type": "string",
-          "description": ""
-        }
-      ]
-    },
-    "agent session": {
-      "description": "Get details of a Jules session.",
-      "exact_usage": "td agent session <SESSION_ID>",
-      "required_arguments": [
-        {
-          "name": "session_id",
-          "type": "string",
-          "description": ""
-        }
-      ]
-    },
-    "agent sync": {
-      "description": "Sync active agent sessions.",
-      "exact_usage": "td agent sync [--limit <LIMIT>]",
-      "optional_flags": [
-        {
-          "flag": "--limit",
-          "type": "integer",
-          "description": "Limit the number of sessions to retrieve"
-        }
-      ]
-    },
-    "agent trigger-feedback": {
-      "description": "Trigger CI feedback for a Jules session.",
-      "exact_usage": "td agent trigger-feedback <SESSION_ID>",
-      "required_arguments": [
-        {
-          "name": "session_id",
-          "type": "string",
-          "description": ""
-        }
-      ]
-    },
-    "ai analyze": {
-      "description": "",
-      "exact_usage": "td ai analyze <FILE>",
-      "required_arguments": [
-        {
-          "name": "file",
-          "type": "string",
-          "description": ""
-        }
-      ]
-    },
-    "ai comment": {
-      "description": "",
-      "exact_usage": "td ai comment --pr <PR> --command <COMMAND> [--comment-id <COMMENT-ID>]",
-      "required_flags": [
-        {
-          "flag": "--pr",
-          "type": "integer",
-          "description": "The PR number."
-        },
-        {
-          "flag": "--command",
-          "type": "string",
-          "description": ""
-        }
-      ],
-      "optional_flags": [
-        {
-          "flag": "--comment-id",
-          "type": "string",
-          "description": ""
-        }
-      ]
-    },
-    "ai get-context": {
-      "description": "Retrieve dependency and semantic context for a set of changed files.",
-      "exact_usage": "td ai get-context"
-    },
-    "ai review": {
-      "description": "",
-      "exact_usage": "td ai review [--no-cache] <PR_NUMBER>",
-      "required_arguments": [
-        {
-          "name": "pr_number",
-          "type": "integer",
-          "description": ""
-        }
-      ],
-      "optional_flags": [
-        {
-          "flag": "--no-cache",
-          "type": "boolean",
-          "description": "Bust the diff cache and force a fresh review call"
-        }
-      ]
-    },
-    "config view": {
-      "description": "View the current project configuration as JSON.",
-      "exact_usage": "td config view [--json]",
-      "optional_flags": [
-        {
-          "flag": "--json",
-          "type": "boolean",
-          "description": "Output results in JSON format"
-        }
-      ]
-    },
-    "gh aggregate": {
-      "description": "Aggregate multiple PRs into a single branch.",
-      "exact_usage": "td gh aggregate <TARGET_BRANCH> <PR_NUMBERS...>",
-      "required_arguments": [
-        {
-          "name": "target_branch",
-          "type": "string",
-          "description": ""
-        },
-        {
-          "name": "pr_numbers",
-          "type": "integer",
-          "description": ""
-        }
-      ]
-    },
-    "gh audit": {
-      "description": "Run a headless UI audit on the codebase.",
-      "exact_usage": "td gh audit [--check-dirs <CHECK-DIRS>]",
-      "optional_flags": [
-        {
-          "flag": "--check-dirs",
-          "type": "string",
-          "description": "Comma-separated list of directories to audit"
-        }
-      ]
-    },
-    "gh audit-gate": {
-      "description": "",
-      "exact_usage": "td gh audit-gate"
-    },
-    "gh audit-pr": {
-      "description": "",
-      "exact_usage": "td gh audit-pr [--json] [--fetch] [--audit] [--submit] [--cleanup] [--dry-run] [--pr <PR>] [--base <BASE>] [--event <EVENT>] <PR_NUMBER_ARG>",
-      "required_arguments": [
-        {
-          "name": "pr_number_arg",
-          "type": "integer",
-          "description": ""
-        }
-      ],
-      "optional_flags": [
-        {
-          "flag": "--json",
-          "type": "boolean",
-          "description": "Output results in JSON format"
-        },
-        {
-          "flag": "--pr",
-          "type": "integer",
-          "description": "The PR number to audit."
-        },
-        {
-          "flag": "--fetch",
-          "type": "boolean",
-          "description": ""
-        },
-        {
-          "flag": "--audit",
-          "type": "boolean",
-          "description": ""
-        },
-        {
-          "flag": "--submit",
-          "type": "boolean",
-          "description": ""
-        },
-        {
-          "flag": "--cleanup",
-          "type": "boolean",
-          "description": ""
-        },
-        {
-          "flag": "--dry-run",
-          "type": "boolean",
-          "description": ""
-        },
-        {
-          "flag": "--base",
-          "type": "string",
-          "description": ""
-        },
-        {
-          "flag": "--event",
-          "type": "string",
-          "description": ""
-        }
-      ]
-    },
-    "gh bundle-size": {
-      "description": "",
-      "exact_usage": "td gh bundle-size [--update] [--dry-run] [--baseline-file <BASELINE-FILE>] [--threshold <THRESHOLD>]",
-      "optional_flags": [
-        {
-          "flag": "--baseline-file",
-          "type": "string",
-          "description": ""
-        },
-        {
-          "flag": "--threshold",
-          "type": "integer",
-          "description": ""
-        },
-        {
-          "flag": "--update",
-          "type": "boolean",
-          "description": ""
-        },
-        {
-          "flag": "--dry-run",
-          "type": "boolean",
-          "description": ""
-        }
-      ]
-    },
-    "gh checkout": {
-      "description": "Checkout a branch.",
-      "exact_usage": "td gh checkout <BRANCH>",
-      "required_arguments": [
-        {
-          "name": "branch",
-          "type": "string",
-          "description": ""
-        }
-      ]
-    },
-    "gh create-issue": {
-      "description": "Create a new GitHub issue.",
-      "exact_usage": "td gh create-issue --title <TITLE> [--file <FILE>] [--body <BODY>] [--repo <REPO>]",
-      "required_flags": [
-        {
-          "flag": "--title",
-          "type": "string",
-          "description": "Issue title"
-        }
-      ],
-      "optional_flags": [
-        {
-          "flag": "--file",
-          "type": "string",
-          "description": "Path to file containing issue body"
-        },
-        {
-          "flag": "--body",
-          "type": "string",
-          "description": "Literal body text"
-        },
-        {
-          "flag": "--repo",
-          "type": "string",
-          "description": "Target GitHub repository (e.g. owner/repo)"
-        }
-      ]
-    },
-    "gh create-pr": {
-      "description": "Create a new pull request.",
-      "exact_usage": "td gh create-pr --title <TITLE> --body <BODY> --head <HEAD> [--draft] [--base <BASE>] [--repo <REPO>]",
-      "required_flags": [
-        {
-          "flag": "--title",
-          "type": "string",
-          "description": ""
-        },
-        {
-          "flag": "--body",
-          "type": "string",
-          "description": ""
-        },
-        {
-          "flag": "--head",
-          "type": "string",
-          "description": ""
-        }
-      ],
-      "optional_flags": [
-        {
-          "flag": "--base",
-          "type": "string",
-          "description": "Base branch"
-        },
-        {
-          "flag": "--draft",
-          "type": "boolean",
-          "description": ""
-        },
-        {
-          "flag": "--repo",
-          "type": "string",
-          "description": "Target repository override"
-        }
-      ]
-    },
-    "gh detect-conflicts": {
-      "description": "",
-      "exact_usage": "td gh detect-conflicts [--all] [--pr <PR>]",
-      "optional_flags": [
-        {
-          "flag": "--pr",
-          "type": "integer",
-          "description": "PR number to detect conflicts for"
-        },
-        {
-          "flag": "--all",
-          "type": "boolean",
-          "description": "Detect conflicts for all open PRs"
-        }
-      ]
-    },
-    "gh issue-comment": {
-      "description": "Post a comment to a GitHub issue.",
-      "exact_usage": "td gh issue-comment [--file <FILE>] [--body <BODY>] [--repo <REPO>] <ISSUE_NUMBER>",
-      "required_arguments": [
-        {
-          "name": "issue_number",
-          "type": "integer",
-          "description": ""
-        }
-      ],
-      "optional_flags": [
-        {
-          "flag": "--file",
-          "type": "string",
-          "description": "Path to file containing comment body"
-        },
-        {
-          "flag": "--body",
-          "type": "string",
-          "description": "Literal body text"
-        },
-        {
-          "flag": "--repo",
-          "type": "string",
-          "description": "Target repository override (e.g. owner/repo)"
-        }
-      ]
-    },
-    "gh issue-update": {
-      "description": "Update a GitHub issue's body, labels, and/or state.",
-      "exact_usage": "td gh issue-update [--file <FILE>] [--body <BODY>] [--labels <LABELS>] [--add-labels <ADD-LABELS>] [--remove-labels <REMOVE-LABELS>] [--state <STATE>] [--repo <REPO>] <ISSUE_NUMBER>",
-      "required_arguments": [
-        {
-          "name": "issue_number",
-          "type": "integer",
-          "description": ""
-        }
-      ],
-      "optional_flags": [
-        {
-          "flag": "--file",
-          "type": "string",
-          "description": "Path to file containing new issue body"
-        },
-        {
-          "flag": "--body",
-          "type": "string",
-          "description": "Literal body text"
-        },
-        {
-          "flag": "--labels",
-          "type": "string",
-          "description": "Comma-separated list of labels to set (replaces existing labels)"
-        },
-        {
-          "flag": "--add-labels",
-          "type": "string",
-          "description": "Comma-separated list of labels to add"
-        },
-        {
-          "flag": "--remove-labels",
-          "type": "string",
-          "description": "Comma-separated list of labels to remove"
-        },
-        {
-          "flag": "--state",
-          "type": "choice",
-          "description": ""
-        },
-        {
-          "flag": "--repo",
-          "type": "string",
-          "description": "Target repository override (e.g. owner/repo)"
-        }
-      ]
-    },
-    "gh issue-view": {
-      "description": "View details of a GitHub issue.",
-      "exact_usage": "td gh issue-view [--issue-number <ISSUE-NUMBER>] [--repo <REPO>] <ISSUE_NUMBER_ARG>",
-      "required_arguments": [
-        {
-          "name": "issue_number_arg",
-          "type": "integer",
-          "description": ""
-        }
-      ],
-      "optional_flags": [
-        {
-          "flag": "--issue-number",
-          "type": "integer",
-          "description": "The GitHub issue number to view"
-        },
-        {
-          "flag": "--repo",
-          "type": "string",
-          "description": "Target repository override (e.g. owner/repo)"
-        }
-      ]
-    },
-    "gh list-pr-commits": {
-      "description": "List commits for a PR.",
-      "exact_usage": "td gh list-pr-commits --pr <PR> [--repo <REPO>]",
-      "required_flags": [
-        {
-          "flag": "--pr",
-          "type": "integer",
-          "description": "The PR number to list commits for."
-        }
-      ],
-      "optional_flags": [
-        {
-          "flag": "--repo",
-          "type": "string",
-          "description": "Target repository override (e.g. owner/repo)"
-        }
-      ]
-    },
-    "gh manage-reviews": {
-      "description": "",
-      "exact_usage": "td gh manage-reviews [--check-responses] [--cleanup-comments] [--dry-run] [--limit <LIMIT>]",
-      "optional_flags": [
-        {
-          "flag": "--check-responses",
-          "type": "boolean",
-          "description": ""
-        },
-        {
-          "flag": "--cleanup-comments",
-          "type": "boolean",
-          "description": ""
-        },
-        {
-          "flag": "--dry-run",
-          "type": "boolean",
-          "description": ""
-        },
-        {
-          "flag": "--limit",
-          "type": "integer",
-          "description": "Limit the number of PRs to process"
-        }
-      ]
-    },
-    "gh merge-conflicts": {
-      "description": "",
-      "exact_usage": "td gh merge-conflicts [--pr <PR>] [--base <BASE>] <PR_NUMBER_ARG>",
-      "required_arguments": [
-        {
-          "name": "pr_number_arg",
-          "type": "integer",
-          "description": ""
-        }
-      ],
-      "optional_flags": [
-        {
-          "flag": "--pr",
-          "type": "integer",
-          "description": "The PR number to check merge conflicts for."
-        },
-        {
-          "flag": "--base",
-          "type": "string",
-          "description": "Base branch (defaults to configured base branch)"
-        }
-      ]
-    },
-    "gh migrate-tokens": {
-      "description": "",
-      "exact_usage": "td gh migrate-tokens [--dry-run] [--find <FIND>] [--migrate <MIGRATE>]",
-      "optional_flags": [
-        {
-          "flag": "--find",
-          "type": "string",
-          "description": ""
-        },
-        {
-          "flag": "--migrate",
-          "type": "string",
-          "description": ""
-        },
-        {
-          "flag": "--dry-run",
-          "type": "boolean",
-          "description": ""
-        }
-      ]
-    },
-    "gh overlaps": {
-      "description": "Identify and propose consolidation of PRs with high functional or structural overlap.",
-      "exact_usage": "td gh overlaps [--limit <LIMIT>]",
-      "optional_flags": [
-        {
-          "flag": "--limit",
-          "type": "integer",
-          "description": "Limit the number of open PRs to process"
-        }
-      ]
-    },
-    "gh parse-comment": {
-      "description": "Parse a comment body and return intended actions.",
-      "exact_usage": "td gh parse-comment --author-association <AUTHOR-ASSOCIATION> [--body <BODY>]",
-      "required_flags": [
-        {
-          "flag": "--author-association",
-          "type": "string",
-          "description": "The author association (e.g. OWNER, MEMBER)."
-        }
-      ],
-      "optional_flags": [
-        {
-          "flag": "--body",
-          "type": "string",
-          "description": "The comment body text."
-        }
-      ]
-    },
-    "gh post-comment": {
-      "description": "Post a comment to a PR.",
-      "exact_usage": "td gh post-comment --pr <PR> [--file <FILE>] [--body <BODY>]",
-      "required_flags": [
-        {
-          "flag": "--pr",
-          "type": "integer",
-          "description": "The PR number to comment on."
-        }
-      ],
-      "optional_flags": [
-        {
-          "flag": "--file",
-          "type": "string",
-          "description": "Path to the file containing the comment body."
-        },
-        {
-          "flag": "--body",
-          "type": "string",
-          "description": "Literal comment text."
-        }
-      ]
-    },
-    "gh pr-diff": {
-      "description": "",
-      "exact_usage": "td gh pr-diff [--pr <PR>] [--repo <REPO>] <PR_NUMBER_ARG>",
-      "required_arguments": [
-        {
-          "name": "pr_number_arg",
-          "type": "integer",
-          "description": ""
-        }
-      ],
-      "optional_flags": [
-        {
-          "flag": "--pr",
-          "type": "integer",
-          "description": "The PR number to fetch diff for."
-        },
-        {
-          "flag": "--repo",
-          "type": "string",
-          "description": "Target repository override (e.g. owner/repo)"
-        }
-      ]
-    },
-    "gh pre-submit": {
-      "description": "",
-      "exact_usage": "td gh pre-submit"
-    },
-    "gh ratchet-any": {
-      "description": "",
-      "exact_usage": "td gh ratchet-any [--update] [--dry-run] [--baseline-file <BASELINE-FILE>]",
-      "optional_flags": [
-        {
-          "flag": "--baseline-file",
-          "type": "string",
-          "description": ""
-        },
-        {
-          "flag": "--update",
-          "type": "boolean",
-          "description": ""
-        },
-        {
-          "flag": "--dry-run",
-          "type": "boolean",
-          "description": ""
-        }
-      ]
-    },
-    "gh read-pr-comments": {
-      "description": "Fetch and display standard and review comments for a PR.",
-      "exact_usage": "td gh read-pr-comments --pr <PR>",
-      "required_flags": [
-        {
-          "flag": "--pr",
-          "type": "integer",
-          "description": "The PR number to fetch comments for."
-        }
-      ]
-    },
-    "gh read-pr-reviews": {
-      "description": "Fetch top-level reviews for a PR.",
-      "exact_usage": "td gh read-pr-reviews --pr <PR> [--repo <REPO>]",
-      "required_flags": [
-        {
-          "flag": "--pr",
-          "type": "integer",
-          "description": "The PR number to fetch top-level reviews for."
-        }
-      ],
-      "optional_flags": [
-        {
-          "flag": "--repo",
-          "type": "string",
-          "description": "Target repository override (e.g. owner/repo)"
-        }
-      ]
-    },
-    "gh resolve": {
-      "description": "",
-      "exact_usage": "td gh resolve [--base <BASE>] [--strategy <STRATEGY>] <FILE>",
-      "required_arguments": [
-        {
-          "name": "file",
-          "type": "string",
-          "description": ""
-        }
-      ],
-      "optional_flags": [
-        {
-          "flag": "--base",
-          "type": "string",
-          "description": ""
-        },
-        {
-          "flag": "--strategy",
-          "type": "choice",
-          "description": "Deterministic resolution strategy (ours, theirs, or union)."
-        }
-      ]
-    },
-    "gh resolve-conflicts": {
-      "description": "Resolve merge conflicts for a PR in a separate worktree.",
-      "exact_usage": "td gh resolve-conflicts --pr <PR> [--allow-unrelated] [--push] [--continue] [--strategy <STRATEGY>]",
-      "required_flags": [
-        {
-          "flag": "--pr",
-          "type": "integer",
-          "description": "The PR number to resolve conflicts for."
-        }
-      ],
-      "optional_flags": [
-        {
-          "flag": "--allow-unrelated",
-          "type": "boolean",
-          "description": "Allow merging unrelated histories."
-        },
-        {
-          "flag": "--strategy",
-          "type": "choice",
-          "description": "Merge strategy option (-X ours/theirs)."
-        },
-        {
-          "flag": "--push",
-          "type": "boolean",
-          "description": "Automatically push the resolution to origin."
-        },
-        {
-          "flag": "--continue",
-          "type": "boolean",
-          "description": "Finalize and push an in-progress conflict resolution."
-        }
-      ]
-    },
-    "gh scaffold-issue": {
-      "description": "Output a markdown skeleton containing the required headers.",
-      "exact_usage": "td gh scaffold-issue [--file <FILE>]",
-      "optional_flags": [
-        {
-          "flag": "--file",
-          "type": "string",
-          "description": "Path to write the generated markdown scaffold."
-        }
-      ]
-    },
-    "gh search-issues": {
-      "description": "Search for GitHub issues (excluding pull requests) in the repository.",
-      "exact_usage": "td gh search-issues [--json] [--state <STATE>] [--limit <LIMIT>] [--labels <LABELS>]",
-      "optional_flags": [
-        {
-          "flag": "--json",
-          "type": "boolean",
-          "description": "Output results in JSON format"
-        },
-        {
-          "flag": "--state",
-          "type": "choice",
-          "description": ""
-        },
-        {
-          "flag": "--limit",
-          "type": "integer",
-          "description": "Limit the number of issues to process"
-        },
-        {
-          "flag": "--labels",
-          "type": "string",
-          "description": ""
-        }
-      ]
-    },
-    "gh search-prs": {
-      "description": "",
-      "exact_usage": "td gh search-prs [--json] [--include-drafts] [--state <STATE>] [--limit <LIMIT>] [--labels <LABELS>] [--repo <REPO>]",
-      "optional_flags": [
-        {
-          "flag": "--json",
-          "type": "boolean",
-          "description": "Output results in JSON format"
-        },
-        {
-          "flag": "--state",
-          "type": "choice",
-          "description": ""
-        },
-        {
-          "flag": "--limit",
-          "type": "integer",
-          "description": "Limit the number of PRs to process"
-        },
-        {
-          "flag": "--include-drafts",
-          "type": "boolean",
-          "description": ""
-        },
-        {
-          "flag": "--labels",
-          "type": "string",
-          "description": ""
-        },
-        {
-          "flag": "--repo",
-          "type": "string",
-          "description": "Target repository override (e.g. owner/repo)"
-        }
-      ]
-    },
-    "gh status-board": {
-      "description": "",
-      "exact_usage": "td gh status-board [--limit <LIMIT>]",
-      "optional_flags": [
-        {
-          "flag": "--limit",
-          "type": "integer",
-          "description": "Limit the number of open PRs to process"
-        }
-      ]
-    },
-    "gh summary-report": {
-      "description": "Generate a markdown report of CI metrics for GHA Step Summary.",
-      "exact_usage": "td gh summary-report"
-    },
-    "gh sync-pr": {
-      "description": "Reliably pull the latest remote PR state to local, overwriting messy rebases.",
-      "exact_usage": "td gh sync-pr [--pr <PR>] <PR_NUMBER_ARG>",
-      "required_arguments": [
-        {
-          "name": "pr_number_arg",
-          "type": "integer",
-          "description": ""
-        }
-      ],
-      "optional_flags": [
-        {
-          "flag": "--pr",
-          "type": "integer",
-          "description": "The PR number to sync."
-        }
-      ]
-    },
-    "gh track-review": {
-      "description": "",
-      "exact_usage": "td gh track-review --pr <PR> --status <STATUS> --auditor <AUDITOR> [--dry-run]",
-      "required_flags": [
-        {
-          "flag": "--pr",
-          "type": "integer",
-          "description": "The PR number."
-        },
-        {
-          "flag": "--status",
-          "type": "string",
-          "description": ""
-        },
-        {
-          "flag": "--auditor",
-          "type": "string",
-          "description": ""
-        }
-      ],
-      "optional_flags": [
-        {
-          "flag": "--dry-run",
-          "type": "boolean",
-          "description": ""
-        }
-      ]
-    },
-    "gh validate-issue": {
-      "description": "",
-      "exact_usage": "td gh validate-issue [--all-open] [--post-comments] [--dry-run] [--issue-number <ISSUE-NUMBER>] [--file <FILE>]",
-      "optional_flags": [
-        {
-          "flag": "--issue-number",
-          "type": "integer",
-          "description": ""
-        },
-        {
-          "flag": "--all-open",
-          "type": "boolean",
-          "description": ""
-        },
-        {
-          "flag": "--post-comments",
-          "type": "boolean",
-          "description": ""
-        },
-        {
-          "flag": "--dry-run",
-          "type": "boolean",
-          "description": ""
-        },
-        {
-          "flag": "--file",
-          "type": "string",
-          "description": "Path to local issue draft to validate"
-        }
-      ]
-    },
-    "gh verify-metrics": {
-      "description": "Verify CI metrics against established thresholds.",
-      "exact_usage": "td gh verify-metrics"
-    },
-    "gh verify-versions": {
-      "description": "Verify version changes in a diff for downgrades or hard blocks.",
-      "exact_usage": "td gh verify-versions <DIFF_INPUT>",
-      "required_arguments": [
-        {
-          "name": "diff_input",
-          "type": "string",
-          "description": ""
-        }
-      ]
-    },
-    "gh view": {
-      "description": "",
-      "exact_usage": "td gh view [--pr <PR>] [--repo <REPO>] <PR_NUMBER_ARG>",
-      "required_arguments": [
-        {
-          "name": "pr_number_arg",
-          "type": "integer",
-          "description": ""
-        }
-      ],
-      "optional_flags": [
-        {
-          "flag": "--pr",
-          "type": "integer",
-          "description": "The PR number to view."
-        },
-        {
-          "flag": "--repo",
-          "type": "string",
-          "description": "Target repository override (e.g. owner/repo)"
-        }
-      ]
-    },
-    "mcp install": {
-      "description": "Detect agent host environments and register boomtick-mcp.",
-      "exact_usage": "td mcp install [--dry-run] [--host <HOST>] [--path <PATH>] [--command <COMMAND>]",
-      "optional_flags": [
-        {
-          "flag": "--host",
-          "type": "string",
-          "description": "Target specific host (antigravity, claude, cursor, codex)"
-        },
-        {
-          "flag": "--path",
-          "type": "string",
-          "description": "Custom path to host settings JSON file"
-        },
-        {
-          "flag": "--command",
-          "type": "string",
-          "description": "Command to run MCP server"
-        },
-        {
-          "flag": "--dry-run",
-          "type": "boolean",
-          "description": "Preview changes without updating files"
-        }
-      ]
-    },
-    "mcp setup": {
-      "description": "Alias for 'td mcp install'.",
-      "exact_usage": "td mcp setup [--dry-run] [--host <HOST>] [--path <PATH>] [--command <COMMAND>]",
-      "optional_flags": [
-        {
-          "flag": "--host",
-          "type": "string",
-          "description": "Target specific host (antigravity, claude, cursor, codex)"
-        },
-        {
-          "flag": "--path",
-          "type": "string",
-          "description": "Custom path to host settings JSON file"
-        },
-        {
-          "flag": "--command",
-          "type": "string",
-          "description": "Command to run MCP server"
-        },
-        {
-          "flag": "--dry-run",
-          "type": "boolean",
-          "description": "Preview changes without updating files"
-        }
-      ]
-    },
-    "repo apply-patch": {
-      "description": "Apply a patch to a file using resilient git apply.",
-      "exact_usage": "td repo apply-patch [--patch-file <PATCH-FILE>] [--patch-body <PATCH-BODY>] <FILEPATH>",
-      "required_arguments": [
-        {
-          "name": "filepath",
-          "type": "string",
-          "description": ""
-        }
-      ],
-      "optional_flags": [
-        {
-          "flag": "--patch-file",
-          "type": "string",
-          "description": ""
-        },
-        {
-          "flag": "--patch-body",
-          "type": "string",
-          "description": ""
-        }
-      ]
-    },
-    "repo ci-logs": {
-      "description": "",
-      "exact_usage": "td repo ci-logs [--all] [--repo <REPO>] <PR_NUMBER>",
-      "required_arguments": [
-        {
-          "name": "pr_number",
-          "type": "integer",
-          "description": ""
-        }
-      ],
-      "optional_flags": [
-        {
-          "flag": "--all",
-          "type": "boolean",
-          "description": "Include logs for successful runs"
-        },
-        {
-          "flag": "--repo",
-          "type": "string",
-          "description": "Target repository override (e.g. owner/repo)"
-        }
-      ]
-    },
-    "repo logs": {
-      "description": "",
-      "exact_usage": "td repo logs [--grep <GREP>] [--repo <REPO>] <PR_NUMBER>",
-      "required_arguments": [
-        {
-          "name": "pr_number",
-          "type": "integer",
-          "description": ""
-        }
-      ],
-      "optional_flags": [
-        {
-          "flag": "--grep",
-          "type": "string",
-          "description": "Filter logs by pattern"
-        },
-        {
-          "flag": "--repo",
-          "type": "string",
-          "description": "Target repository override (e.g. owner/repo)"
-        }
-      ]
-    },
-    "repo run-playwright": {
-      "description": "",
-      "exact_usage": "td repo run-playwright [--grep <GREP>] [--worktree <WORKTREE>]",
-      "optional_flags": [
-        {
-          "flag": "--grep",
-          "type": "string",
-          "description": ""
-        },
-        {
-          "flag": "--worktree",
-          "type": "string",
-          "description": ""
-        }
-      ]
-    },
-    "repo workflow-runs": {
-      "description": "List recent GitHub Actions workflow runs.",
-      "exact_usage": "td repo workflow-runs [--branch <BRANCH>] [--event <EVENT>] [--repo <REPO>]",
-      "optional_flags": [
-        {
-          "flag": "--branch",
-          "type": "string",
-          "description": "Filter by branch"
-        },
-        {
-          "flag": "--event",
-          "type": "string",
-          "description": "Filter by event (e.g. push, pull_request)"
-        },
-        {
-          "flag": "--repo",
-          "type": "string",
-          "description": "Target repository override (e.g. owner/repo)"
-        }
-      ]
-    },
-    "test cli": {
-      "description": "Run CLI package tests",
-      "exact_usage": "td test cli"
-    },
-    "ux audit": {
-      "description": "",
-      "exact_usage": "td ux audit [--all-routes] [--desktop] [--mobile] [--route <ROUTE>]",
-      "optional_flags": [
-        {
-          "flag": "--route",
-          "type": "string",
-          "description": "Specific route to audit"
-        },
-        {
-          "flag": "--all-routes",
-          "type": "boolean",
-          "description": "Audit all discovered routes"
-        },
-        {
-          "flag": "--desktop",
-          "type": "boolean",
-          "description": "Audit desktop viewports"
-        },
-        {
-          "flag": "--mobile",
-          "type": "boolean",
-          "description": "Audit mobile viewports"
-        }
-      ]
-    },
-    "ux contrast": {
-      "description": "",
-      "exact_usage": "td ux contrast [--route <ROUTE>]",
-      "optional_flags": [
-        {
-          "flag": "--route",
-          "type": "string",
-          "description": "Specific route for contrast check"
-        }
-      ]
-    },
-    "ux images": {
-      "description": "",
-      "exact_usage": "td ux images [--route <ROUTE>]",
-      "optional_flags": [
-        {
-          "flag": "--route",
-          "type": "string",
-          "description": "Specific route for image audit"
-        }
-      ]
-    },
-    "ux lighthouse": {
-      "description": "",
-      "exact_usage": "td ux lighthouse [--route <ROUTE>]",
-      "optional_flags": [
-        {
-          "flag": "--route",
-          "type": "string",
-          "description": "Specific route for Lighthouse"
-        }
-      ]
-    },
-    "ux overflow": {
-      "description": "",
-      "exact_usage": "td ux overflow [--route <ROUTE>]",
-      "optional_flags": [
-        {
-          "flag": "--route",
-          "type": "string",
-          "description": "Specific route for overflow check"
-        }
-      ]
-    },
-    "ux report": {
-      "description": "",
-      "exact_usage": "td ux report"
-    },
-    "ux screenshots": {
-      "description": "",
-      "exact_usage": "td ux screenshots [--route <ROUTE>]",
-      "optional_flags": [
-        {
-          "flag": "--route",
-          "type": "string",
-          "description": "Specific route for screenshots"
-        }
-      ]
-    }
-  },
   "_warning": "AUTO-GENERATED: DO NOT EDIT MANUALLY. Update models.py instead.",
   "models": {
     "AIFileReview": {
@@ -2193,6 +719,101 @@
       "title": "CamelCaseModel",
       "type": "object"
     },
+    "CheckJulesStatusResponse": {
+      "properties": {
+        "sessionId": {
+          "title": "Sessionid",
+          "type": "string"
+        },
+        "status": {
+          "title": "Status",
+          "type": "string"
+        },
+        "rawState": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Rawstate"
+        },
+        "completed": {
+          "default": false,
+          "title": "Completed",
+          "type": "boolean"
+        },
+        "remediationBranch": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Remediationbranch"
+        },
+        "pullRequestUrl": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Pullrequesturl"
+        },
+        "idempotencyHash": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Idempotencyhash"
+        },
+        "isDuplicate": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Isduplicate"
+        },
+        "message": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Message"
+        }
+      },
+      "required": [
+        "sessionId",
+        "status"
+      ],
+      "title": "CheckJulesStatusResponse",
+      "type": "object"
+    },
     "CheckoutBranchInput": {
       "properties": {
         "branch": {
@@ -2218,6 +839,24 @@
         "branch"
       ],
       "title": "CheckoutBranchInput",
+      "type": "object"
+    },
+    "CheckoutBranchResponse": {
+      "properties": {
+        "success": {
+          "default": true,
+          "title": "Success",
+          "type": "boolean"
+        },
+        "branch": {
+          "title": "Branch",
+          "type": "string"
+        }
+      },
+      "required": [
+        "branch"
+      ],
+      "title": "CheckoutBranchResponse",
       "type": "object"
     },
     "CodeReviewResult": {
@@ -2659,6 +1298,24 @@
       "title": "CommentTriageSummaryInput",
       "type": "object"
     },
+    "CommentTriageSummaryResponse": {
+      "properties": {
+        "success": {
+          "default": true,
+          "title": "Success",
+          "type": "boolean"
+        },
+        "commentUrl": {
+          "title": "Commenturl",
+          "type": "string"
+        }
+      },
+      "required": [
+        "commentUrl"
+      ],
+      "title": "CommentTriageSummaryResponse",
+      "type": "object"
+    },
     "CommitPatchInput": {
       "properties": {
         "worktreePath": {
@@ -2694,6 +1351,31 @@
       "title": "CommitPatchInput",
       "type": "object"
     },
+    "CommitPatchResponse": {
+      "properties": {
+        "success": {
+          "default": true,
+          "title": "Success",
+          "type": "boolean"
+        },
+        "commitSha": {
+          "title": "Commitsha",
+          "type": "string"
+        },
+        "changedFiles": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Changedfiles",
+          "type": "array"
+        }
+      },
+      "required": [
+        "commitSha"
+      ],
+      "title": "CommitPatchResponse",
+      "type": "object"
+    },
     "CreateBranchInput": {
       "properties": {
         "branchName": {
@@ -2712,6 +1394,36 @@
         "branchName"
       ],
       "title": "CreateBranchInput",
+      "type": "object"
+    },
+    "CreateBranchResponse": {
+      "properties": {
+        "success": {
+          "default": true,
+          "title": "Success",
+          "type": "boolean"
+        },
+        "branchName": {
+          "title": "Branchname",
+          "type": "string"
+        },
+        "baseBranch": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Basebranch"
+        }
+      },
+      "required": [
+        "branchName"
+      ],
+      "title": "CreateBranchResponse",
       "type": "object"
     },
     "CreateIssueInput": {
@@ -2948,6 +1660,24 @@
       "title": "CreatePullRequestInput",
       "type": "object"
     },
+    "CreatePullRequestResponse": {
+      "properties": {
+        "success": {
+          "default": true,
+          "title": "Success",
+          "type": "boolean"
+        },
+        "url": {
+          "title": "Url",
+          "type": "string"
+        }
+      },
+      "required": [
+        "url"
+      ],
+      "title": "CreatePullRequestResponse",
+      "type": "object"
+    },
     "CreateRepairBranchInput": {
       "properties": {
         "prNumber": {
@@ -2981,6 +1711,39 @@
       "title": "CreateRepairBranchInput",
       "type": "object"
     },
+    "CreateRepairBranchResponse": {
+      "properties": {
+        "prNumber": {
+          "title": "Prnumber",
+          "type": "integer"
+        },
+        "originalBranch": {
+          "title": "Originalbranch",
+          "type": "string"
+        },
+        "repairBranch": {
+          "title": "Repairbranch",
+          "type": "string"
+        },
+        "baseBranch": {
+          "title": "Basebranch",
+          "type": "string"
+        },
+        "worktreePath": {
+          "title": "Worktreepath",
+          "type": "string"
+        }
+      },
+      "required": [
+        "prNumber",
+        "originalBranch",
+        "repairBranch",
+        "baseBranch",
+        "worktreePath"
+      ],
+      "title": "CreateRepairBranchResponse",
+      "type": "object"
+    },
     "GetChangedFilesInput": {
       "properties": {
         "base": {
@@ -2999,6 +1762,19 @@
       "title": "GetChangedFilesInput",
       "type": "object"
     },
+    "GetChangedFilesResponse": {
+      "properties": {
+        "files": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Files",
+          "type": "array"
+        }
+      },
+      "title": "GetChangedFilesResponse",
+      "type": "object"
+    },
     "GetCommandSchemaInput": {
       "properties": {
         "commandPath": {
@@ -3011,6 +1787,37 @@
         "commandPath"
       ],
       "title": "GetCommandSchemaInput",
+      "type": "object"
+    },
+    "GetCommandSchemaResponse": {
+      "properties": {
+        "status": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Status"
+        },
+        "schema": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Schema"
+        }
+      },
+      "title": "GetCommandSchemaResponse",
       "type": "object"
     },
     "GetMergeConflictFilesInput": {
@@ -3094,6 +1901,19 @@
       "title": "GetPackageScriptsInput",
       "type": "object"
     },
+    "GetPackageScriptsResponse": {
+      "properties": {
+        "scripts": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "title": "Scripts",
+          "type": "object"
+        }
+      },
+      "title": "GetPackageScriptsResponse",
+      "type": "object"
+    },
     "GetPrCommitsInput": {
       "properties": {
         "prNumber": {
@@ -3120,6 +1940,20 @@
         "prNumber"
       ],
       "title": "GetPrCommitsInput",
+      "type": "object"
+    },
+    "GetPrCommitsResponse": {
+      "properties": {
+        "commits": {
+          "items": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "title": "Commits",
+          "type": "array"
+        }
+      },
+      "title": "GetPrCommitsResponse",
       "type": "object"
     },
     "GetPrDiffInput": {
@@ -3178,6 +2012,20 @@
       "title": "GetPrInput",
       "type": "object"
     },
+    "GetPrResponse": {
+      "properties": {
+        "pr": {
+          "additionalProperties": true,
+          "title": "Pr",
+          "type": "object"
+        }
+      },
+      "required": [
+        "pr"
+      ],
+      "title": "GetPrResponse",
+      "type": "object"
+    },
     "GetPrReviewsInput": {
       "properties": {
         "prNumber": {
@@ -3204,6 +2052,32 @@
         "prNumber"
       ],
       "title": "GetPrReviewsInput",
+      "type": "object"
+    },
+    "GetPrReviewsResponse": {
+      "properties": {
+        "reviews": {
+          "items": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "title": "Reviews",
+          "type": "array"
+        },
+        "reviewCount": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Reviewcount"
+        }
+      },
+      "title": "GetPrReviewsResponse",
       "type": "object"
     },
     "GetRouteMapInput": {
@@ -3271,6 +2145,20 @@
       "title": "GetWorkflowRunsInput",
       "type": "object"
     },
+    "GetWorkflowRunsResponse": {
+      "properties": {
+        "workflowRuns": {
+          "items": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "title": "Workflowruns",
+          "type": "array"
+        }
+      },
+      "title": "GetWorkflowRunsResponse",
+      "type": "object"
+    },
     "HealthCheckInput": {
       "properties": {
         "checkDeep": {
@@ -3281,6 +2169,30 @@
         }
       },
       "title": "HealthCheckInput",
+      "type": "object"
+    },
+    "HealthCheckResponse": {
+      "properties": {
+        "status": {
+          "default": "ok",
+          "title": "Status",
+          "type": "string"
+        },
+        "config": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Config"
+        }
+      },
+      "title": "HealthCheckResponse",
       "type": "object"
     },
     "IssueCommentInput": {
@@ -3315,6 +2227,27 @@
         "body"
       ],
       "title": "IssueCommentInput",
+      "type": "object"
+    },
+    "IssueCommentResponse": {
+      "properties": {
+        "status": {
+          "default": "success",
+          "title": "Status",
+          "type": "string"
+        },
+        "comment": {
+          "anyOf": [
+            {},
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Comment"
+        }
+      },
+      "title": "IssueCommentResponse",
       "type": "object"
     },
     "IssueSummary": {
@@ -3566,6 +2499,71 @@
       "title": "IssueViewInput",
       "type": "object"
     },
+    "IssueViewResponse": {
+      "properties": {
+        "issue": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Issue"
+        }
+      },
+      "title": "IssueViewResponse",
+      "type": "object"
+    },
+    "JulesGetMessagesResponse": {
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "messages": {
+          "items": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "title": "Messages",
+          "type": "array"
+        }
+      },
+      "required": [
+        "id"
+      ],
+      "title": "JulesGetMessagesResponse",
+      "type": "object"
+    },
+    "JulesGetPrResponse": {
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "pullRequestUrl": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Pullrequesturl"
+        }
+      },
+      "required": [
+        "id"
+      ],
+      "title": "JulesGetPrResponse",
+      "type": "object"
+    },
     "JulesListSessionsInput": {
       "properties": {
         "pageSize": {
@@ -3596,6 +2594,61 @@
         }
       },
       "title": "JulesListSessionsInput",
+      "type": "object"
+    },
+    "JulesListSessionsResponse": {
+      "$defs": {
+        "JulesSessionResponse": {
+          "properties": {
+            "id": {
+              "title": "Id",
+              "type": "string"
+            },
+            "status": {
+              "title": "Status",
+              "type": "string"
+            },
+            "createdAt": {
+              "anyOf": [
+                {},
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Createdat"
+            },
+            "pullRequestUrl": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Pullrequesturl"
+            }
+          },
+          "required": [
+            "id",
+            "status"
+          ],
+          "title": "JulesSessionResponse",
+          "type": "object"
+        }
+      },
+      "properties": {
+        "sessions": {
+          "items": {
+            "$ref": "#/$defs/JulesSessionResponse"
+          },
+          "title": "Sessions",
+          "type": "array"
+        }
+      },
+      "title": "JulesListSessionsResponse",
       "type": "object"
     },
     "JulesSendMessageInput": {
@@ -3629,6 +2682,39 @@
       "title": "JulesSendMessageInput",
       "type": "object"
     },
+    "JulesSendMessageResponse": {
+      "properties": {
+        "id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
+          ],
+          "title": "Id"
+        },
+        "status": {
+          "default": "success",
+          "title": "Status",
+          "type": "string"
+        },
+        "message": {
+          "title": "Message",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "message"
+      ],
+      "title": "JulesSendMessageResponse",
+      "type": "object"
+    },
     "JulesSessionIdInput": {
       "properties": {
         "sessionId": {
@@ -3641,6 +2727,161 @@
         "sessionId"
       ],
       "title": "JulesSessionIdInput",
+      "type": "object"
+    },
+    "JulesSessionResponse": {
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "status": {
+          "title": "Status",
+          "type": "string"
+        },
+        "createdAt": {
+          "anyOf": [
+            {},
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Createdat"
+        },
+        "pullRequestUrl": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Pullrequesturl"
+        }
+      },
+      "required": [
+        "id",
+        "status"
+      ],
+      "title": "JulesSessionResponse",
+      "type": "object"
+    },
+    "JulesTriggerFeedbackResponse": {
+      "properties": {
+        "status": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Status"
+        },
+        "message": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Message"
+        }
+      },
+      "title": "JulesTriggerFeedbackResponse",
+      "type": "object"
+    },
+    "MultiExecInput": {
+      "properties": {
+        "command": {
+          "description": "Shell command to execute sequentially across repositories",
+          "title": "Command",
+          "type": "string"
+        },
+        "repos": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Optional list of repository names to target",
+          "title": "Repos"
+        },
+        "continueOnError": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": true,
+          "description": "Whether to continue execution if a repo command fails",
+          "title": "Continueonerror"
+        }
+      },
+      "required": [
+        "command"
+      ],
+      "title": "MultiExecInput",
+      "type": "object"
+    },
+    "MultiExecResponse": {
+      "properties": {
+        "status": {
+          "default": "success",
+          "description": "Execution status",
+          "title": "Status",
+          "type": "string"
+        },
+        "total": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Total repositories executed against",
+          "title": "Total"
+        },
+        "results": {
+          "anyOf": [
+            {
+              "items": {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Execution results per repository",
+          "title": "Results"
+        }
+      },
+      "title": "MultiExecResponse",
       "type": "object"
     },
     "OpenReplacementPrInput": {
@@ -3704,6 +2945,24 @@
         "pushMode"
       ],
       "title": "OpenReplacementPrInput",
+      "type": "object"
+    },
+    "OpenReplacementPrResponse": {
+      "properties": {
+        "success": {
+          "default": true,
+          "title": "Success",
+          "type": "boolean"
+        },
+        "url": {
+          "title": "Url",
+          "type": "string"
+        }
+      },
+      "required": [
+        "url"
+      ],
+      "title": "OpenReplacementPrResponse",
       "type": "object"
     },
     "PRComment": {
@@ -3863,7 +3122,7 @@
             }
           ],
           "default": null,
-          "description": "Optional filesystem path to target workspace repository root.",
+          "description": "Local filesystem path to target repository root",
           "title": "Path"
         },
         "repoPath": {
@@ -3882,7 +3141,6 @@
         "repo": {
           "anyOf": [
             {
-              "pattern": "^[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+$",
               "type": "string"
             },
             {
@@ -3892,9 +3150,86 @@
           "default": null,
           "description": "Target GitHub repository string (e.g. org/repo).",
           "title": "Repo"
+        },
+        "repos": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "List of repository names to fetch context for",
+          "title": "Repos"
+        },
+        "all": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Whether to fetch context across all discovered ecosystem repositories",
+          "title": "All"
         }
       },
       "title": "ReadAgentContextInput",
+      "type": "object"
+    },
+    "ReadAgentContextResponse": {
+      "properties": {
+        "status": {
+          "default": "success",
+          "title": "Status",
+          "type": "string"
+        },
+        "packageName": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Packagename"
+        },
+        "gitCommit": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Gitcommit"
+        },
+        "config": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Config"
+        }
+      },
+      "title": "ReadAgentContextResponse",
       "type": "object"
     },
     "ReadCiLogsInput": {
@@ -3929,6 +3264,54 @@
         "prNumber"
       ],
       "title": "ReadCiLogsInput",
+      "type": "object"
+    },
+    "ReadCiLogsResponse": {
+      "properties": {
+        "checks": {
+          "anyOf": [
+            {
+              "items": {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Checks"
+        },
+        "failedChecks": {
+          "anyOf": [
+            {
+              "items": {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Failedchecks"
+        },
+        "logs": {
+          "anyOf": [
+            {},
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Logs"
+        }
+      },
+      "title": "ReadCiLogsResponse",
       "type": "object"
     },
     "ReadPRCommentsInput": {
@@ -4131,6 +3514,22 @@
         "prNumber"
       ],
       "title": "RepoLogsInput",
+      "type": "object"
+    },
+    "RepoLogsResponse": {
+      "properties": {
+        "logs": {
+          "anyOf": [
+            {},
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Logs"
+        }
+      },
+      "title": "RepoLogsResponse",
       "type": "object"
     },
     "ReviewComment": {
