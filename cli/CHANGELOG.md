@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.14.1](https://github.com/arii/boomtick/compare/cli-v0.14.0...cli-v0.14.1) (2026-10-28)
+
+
+### Bug Fixes
+
+* **ci:** fix release pipeline schema generation and issue quality check on automated alerts [skip-scope-check] ([#956](https://github.com/arii/boomtick/issues/956)) ([a0e6114](https://github.com/arii/boomtick/commit/a0e6114e33dac799313f36f363de6008477cebfe))
+* **ci:** fix release-please scope constraint validation failure ([#947](https://github.com/arii/boomtick/issues/947)) ([2c0615d](https://github.com/arii/boomtick/commit/2c0615d8877591f2da203e766c917e022bde764e))
+* **ci:** support modular refactoring and extracted sub-files in verify-scope.py ([#968](https://github.com/arii/boomtick/issues/968)) ([a73ac4f](https://github.com/arii/boomtick/commit/a73ac4f90c7c078c5a7d9a448f03cef04ab549f6))
+* **cli:** Eliminate runtime sys.path mutations in schema_gen.py ([#967](https://github.com/arii/boomtick/issues/967)) ([e1654de](https://github.com/arii/boomtick/commit/e1654dec8cf4af0da08d0808ee815e39cb9ab634))
+* **cli:** Standardize PR number CLI arguments to accept both '--pr' and '--pr-number' across all 'td gh' subcommands ([#966](https://github.com/arii/boomtick/issues/966)) ([5000b9b](https://github.com/arii/boomtick/commit/5000b9b254e178a88a99fce2627bf69a0bf3a149))
+* **doctor:** Deduplicate safe.directory list and fix false-positive ownership check in td doctor ([#965](https://github.com/arii/boomtick/issues/965)) ([1901a98](https://github.com/arii/boomtick/commit/1901a98a9fafc403bce8110eb4c059c6a1078d8e))
+
 ## [0.14.0](https://github.com/arii/boomtick/compare/cli-v0.13.1...cli-v0.14.0) (2026-10-23)
 
 

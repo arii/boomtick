@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.6.2](https://github.com/arii/boomtick/compare/mcp-v0.6.1...mcp-v0.6.2) (2026-10-28)
+
+
+### Bug Fixes
+
+* **ci:** fix release pipeline schema generation and issue quality check on automated alerts [skip-scope-check] ([#956](https://github.com/arii/boomtick/issues/956)) ([a0e6114](https://github.com/arii/boomtick/commit/a0e6114e33dac799313f36f363de6008477cebfe))
+* **cli:** Eliminate runtime sys.path mutations in schema_gen.py ([#967](https://github.com/arii/boomtick/issues/967)) ([e1654de](https://github.com/arii/boomtick/commit/e1654dec8cf4af0da08d0808ee815e39cb9ab634))
+
 ## [0.6.1](https://github.com/arii/boomtick/compare/mcp-v0.6.0...mcp-v0.6.1) (2026-10-23)
 
 
