@@ -16,14 +16,15 @@ Agent tooling in this repository is structured into three tiers:
 
 | Task | Tier 1 (MCP) | Tier 2 (`td` CLI) | Tier 3 (Shell) |
 | :--- | :--- | :--- | :--- |
-| Read Agent Context Index | `repo.read_agent_context` | `td context-warm` | `cat .agent-context.json` |
-| PR Code Review | `ai.review_pr` | `td ai review <PR>` | `gh pr diff <PR>` |
-| Search Open PRs | `github.search_prs` | `td gh search-prs` | `gh pr list` |
-| View PR Details / Diff | `github.get_pr_diff` | `td gh pr-diff <PR>` | `gh pr diff <PR>` |
-| Fetch CI Logs | `repo.get_ci_logs` | `td repo ci-logs <PR>` | `gh run view --log` |
-| Resolve Merge Conflicts | `github.resolve_conflicts` | `td gh resolve` | `git merge` |
-| Run UX / DOM Audits | `ux.run_audit` | `td ux audit` | `pnpm exec vitest` |
-| Dispatch Jules Session | `jules.dispatch` | `td agent dispatch` | N/A |
+| Read Agent Context Index | `repo.read_agent_context` (`repo_read_agent_context`) | `td context-warm` / `pnpm run agent:prime` | `cat .agent-context.json` |
+| PR Code Review | `github.get_pr_diff` + `github.get_pr_reviews` | `td ai review <PR>` | `gh pr diff <PR>` |
+| Search Open PRs | `github.search_open_prs` (`github_search_open_prs`) | `td gh search-prs` | `gh pr list` |
+| View PR Details / Diff | `github.get_pr_diff` (`github_get_pr_diff`) | `td gh pr-diff <PR>` | `gh pr diff <PR>` |
+| Fetch CI Logs | `repo.read_ci_logs` (`repo_read_ci_logs`) | `td repo ci-logs <PR>` | `gh run view --log` |
+| Resolve / Check Conflicts | `github.get_merge_conflict_files` (`github_get_merge_conflict_files`) | `td gh resolve` / `td gh merge-conflicts` | `git merge` |
+| Run UX / DOM Audits | N/A (Vitest suite) | `td ux audit` | `pnpm exec vitest` |
+| Create Jules Session | `jules.create_session` (`jules_create_session`) | `td agent dispatch` | N/A |
+| Run Test Suites | `repo.run_tests` (`repo_run_tests`) | `td test` / `td test cli` | `pnpm test` / `pytest` |
 
 ---
 
@@ -88,5 +89,7 @@ Config path: `~/.cursor/mcp.json` or `.cursor/mcp.json`
 ## 3. Core Standards & Invariants
 
 - **Always prefer Tier 1 MCP tools when connected.**
+- **`td` is the canonical CLI.** `td-cli` has been retired and will not be reintroduced. No backwards-compatibility shims, aliases, or symlinks are permitted. All agents and workflows must invoke `td`.
 - **Never modify generated artifacts directly.** Trace source files and rebuild.
 - **Run preflight checks (`td preflight`) before submitting PRs or finalizing changes.**
+- **One-step onboarding:** Run `./setup-agent.sh` to install dependencies, build the MCP server, register host configurations via `td mcp install --execute`, and pre-warm `.agent-context.json`.

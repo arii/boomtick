@@ -92,12 +92,12 @@
     },
     "agent fix-ci": {
       "description": "",
-      "exact_usage": "td agent fix-ci [--dry-run] [--pr-number <PR-NUMBER>] [--issue-number <ISSUE-NUMBER>] [--branch <BRANCH>] [--api-key <API-KEY>]",
+      "exact_usage": "td agent fix-ci [--dry-run] [--pr <PR>] [--issue-number <ISSUE-NUMBER>] [--branch <BRANCH>] [--api-key <API-KEY>]",
       "optional_flags": [
         {
-          "flag": "--pr-number",
+          "flag": "--pr",
           "type": "integer",
-          "description": ""
+          "description": "The PR number."
         },
         {
           "flag": "--issue-number",
@@ -295,7 +295,7 @@
         {
           "flag": "--pr",
           "type": "integer",
-          "description": ""
+          "description": "The PR number."
         }
       ]
     },
@@ -393,7 +393,7 @@
         {
           "flag": "--pr",
           "type": "integer",
-          "description": ""
+          "description": "The PR number."
         },
         {
           "flag": "--command",
@@ -475,10 +475,10 @@
     },
     "gh audit-pr": {
       "description": "",
-      "exact_usage": "td gh audit-pr [--json] [--fetch] [--audit] [--submit] [--cleanup] [--dry-run] [--base <BASE>] [--event <EVENT>] <PR_NUMBER>",
+      "exact_usage": "td gh audit-pr [--json] [--fetch] [--audit] [--submit] [--cleanup] [--dry-run] [--pr <PR>] [--base <BASE>] [--event <EVENT>] <PR_NUMBER_ARG>",
       "required_arguments": [
         {
-          "name": "pr_number",
+          "name": "pr_number_arg",
           "type": "integer",
           "description": ""
         }
@@ -488,6 +488,11 @@
           "flag": "--json",
           "type": "boolean",
           "description": "Output results in JSON format"
+        },
+        {
+          "flag": "--pr",
+          "type": "integer",
+          "description": "The PR number to audit."
         },
         {
           "flag": "--fetch",
@@ -615,7 +620,7 @@
         {
           "flag": "--base",
           "type": "string",
-          "description": ""
+          "description": "Base branch"
         },
         {
           "flag": "--draft",
@@ -746,10 +751,10 @@
     },
     "gh list-pr-commits": {
       "description": "List commits for a PR.",
-      "exact_usage": "td gh list-pr-commits --pr-number <PR-NUMBER> [--repo <REPO>]",
+      "exact_usage": "td gh list-pr-commits --pr <PR> [--repo <REPO>]",
       "required_flags": [
         {
-          "flag": "--pr-number",
+          "flag": "--pr",
           "type": "integer",
           "description": "The PR number to list commits for."
         }
@@ -790,19 +795,24 @@
     },
     "gh merge-conflicts": {
       "description": "",
-      "exact_usage": "td gh merge-conflicts [--base <BASE>] <PR_NUMBER>",
+      "exact_usage": "td gh merge-conflicts [--pr <PR>] [--base <BASE>] <PR_NUMBER_ARG>",
       "required_arguments": [
         {
-          "name": "pr_number",
+          "name": "pr_number_arg",
           "type": "integer",
           "description": ""
         }
       ],
       "optional_flags": [
         {
+          "flag": "--pr",
+          "type": "integer",
+          "description": "The PR number to check merge conflicts for."
+        },
+        {
           "flag": "--base",
           "type": "string",
-          "description": ""
+          "description": "Base branch (defaults to configured base branch)"
         }
       ]
     },
@@ -881,15 +891,20 @@
     },
     "gh pr-diff": {
       "description": "",
-      "exact_usage": "td gh pr-diff [--repo <REPO>] <PR_NUMBER>",
+      "exact_usage": "td gh pr-diff [--pr <PR>] [--repo <REPO>] <PR_NUMBER_ARG>",
       "required_arguments": [
         {
-          "name": "pr_number",
+          "name": "pr_number_arg",
           "type": "integer",
           "description": ""
         }
       ],
       "optional_flags": [
+        {
+          "flag": "--pr",
+          "type": "integer",
+          "description": "The PR number to fetch diff for."
+        },
         {
           "flag": "--repo",
           "type": "string",
@@ -924,10 +939,10 @@
     },
     "gh read-pr-comments": {
       "description": "Fetch and display standard and review comments for a PR.",
-      "exact_usage": "td gh read-pr-comments --pr-number <PR-NUMBER>",
+      "exact_usage": "td gh read-pr-comments --pr <PR>",
       "required_flags": [
         {
-          "flag": "--pr-number",
+          "flag": "--pr",
           "type": "integer",
           "description": "The PR number to fetch comments for."
         }
@@ -935,10 +950,10 @@
     },
     "gh read-pr-reviews": {
       "description": "Fetch top-level reviews for a PR.",
-      "exact_usage": "td gh read-pr-reviews --pr-number <PR-NUMBER> [--repo <REPO>]",
+      "exact_usage": "td gh read-pr-reviews --pr <PR> [--repo <REPO>]",
       "required_flags": [
         {
-          "flag": "--pr-number",
+          "flag": "--pr",
           "type": "integer",
           "description": "The PR number to fetch top-level reviews for."
         }
@@ -1097,12 +1112,19 @@
     },
     "gh sync-pr": {
       "description": "Reliably pull the latest remote PR state to local, overwriting messy rebases.",
-      "exact_usage": "td gh sync-pr <PR_NUMBER>",
+      "exact_usage": "td gh sync-pr [--pr <PR>] <PR_NUMBER_ARG>",
       "required_arguments": [
         {
-          "name": "pr_number",
+          "name": "pr_number_arg",
           "type": "integer",
           "description": ""
+        }
+      ],
+      "optional_flags": [
+        {
+          "flag": "--pr",
+          "type": "integer",
+          "description": "The PR number to sync."
         }
       ]
     },
@@ -1113,7 +1135,7 @@
         {
           "flag": "--pr",
           "type": "integer",
-          "description": ""
+          "description": "The PR number."
         },
         {
           "flag": "--status",
@@ -1182,19 +1204,76 @@
     },
     "gh view": {
       "description": "",
-      "exact_usage": "td gh view [--repo <REPO>] <PR_NUMBER>",
+      "exact_usage": "td gh view [--pr <PR>] [--repo <REPO>] <PR_NUMBER_ARG>",
       "required_arguments": [
         {
-          "name": "pr_number",
+          "name": "pr_number_arg",
           "type": "integer",
           "description": ""
         }
       ],
       "optional_flags": [
         {
+          "flag": "--pr",
+          "type": "integer",
+          "description": "The PR number to view."
+        },
+        {
           "flag": "--repo",
           "type": "string",
           "description": "Target repository override (e.g. owner/repo)"
+        }
+      ]
+    },
+    "mcp install": {
+      "description": "Detect agent host environments and register boomtick-mcp.",
+      "exact_usage": "td mcp install [--dry-run] [--host <HOST>] [--path <PATH>] [--command <COMMAND>]",
+      "optional_flags": [
+        {
+          "flag": "--host",
+          "type": "string",
+          "description": "Target specific host (antigravity, claude, cursor, codex)"
+        },
+        {
+          "flag": "--path",
+          "type": "string",
+          "description": "Custom path to host settings JSON file"
+        },
+        {
+          "flag": "--command",
+          "type": "string",
+          "description": "Command to run MCP server"
+        },
+        {
+          "flag": "--dry-run",
+          "type": "boolean",
+          "description": "Preview changes without updating files"
+        }
+      ]
+    },
+    "mcp setup": {
+      "description": "Alias for 'td mcp install'.",
+      "exact_usage": "td mcp setup [--dry-run] [--host <HOST>] [--path <PATH>] [--command <COMMAND>]",
+      "optional_flags": [
+        {
+          "flag": "--host",
+          "type": "string",
+          "description": "Target specific host (antigravity, claude, cursor, codex)"
+        },
+        {
+          "flag": "--path",
+          "type": "string",
+          "description": "Custom path to host settings JSON file"
+        },
+        {
+          "flag": "--command",
+          "type": "string",
+          "description": "Command to run MCP server"
+        },
+        {
+          "flag": "--dry-run",
+          "type": "boolean",
+          "description": "Preview changes without updating files"
         }
       ]
     },
