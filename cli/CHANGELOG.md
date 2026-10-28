@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.14.2](https://github.com/arii/boomtick/compare/cli-v0.14.1...cli-v0.14.2) (2026-10-28)
+
+
+### Bug Fixes
+
+* **cli:** load project config lazily to avoid crash outside repo ([#975](https://github.com/arii/boomtick/issues/975)) ([ff88b1a](https://github.com/arii/boomtick/commit/ff88b1ad0c7663d737e465ff430e2d349d7fad84))
+
 ## [0.14.1](https://github.com/arii/boomtick/compare/cli-v0.14.0...cli-v0.14.1) (2026-10-28)
 
 
