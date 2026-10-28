@@ -4,7 +4,7 @@ set -e
 # Ensure we are in the project root
 cd "$(dirname "$0")/.."
 
-echo "=== Setting up Python ETL Environment ==="
+echo "=== Setting up Python CLI Environment ==="
 
 # Helper for tool checks
 check_tool() {
@@ -24,7 +24,7 @@ if check_tool uv; then
   fi
   source .venv/bin/activate
   echo "Installing Python dependencies with uv..."
-  if ! uv pip install -r etl/requirements.txt; then
+  if ! uv pip install -e cli; then
     echo "❌ Error: uv pip install failed."
     exit 1
   fi
@@ -36,7 +36,7 @@ elif check_tool python3; then
   fi
   source .venv/bin/activate
   echo "Installing Python dependencies with pip..."
-  if ! pip install -r etl/requirements.txt; then
+  if ! pip install -e cli; then
     echo "❌ Error: pip install failed."
     exit 1
   fi

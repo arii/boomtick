@@ -14,7 +14,7 @@ Use this checklist to ensure all prerequisites and configuration steps are compl
   - `JULES_API_KEY`: Required for automated self-repair sessions and orchestrator integration.
   - `GEMINI_API_KEY`: Required for multi-modal code review and vision pipelines.
   - `GITHUB_TOKEN` (or GitHub App Token `APP_ID` / `APP_PRIVATE_KEY`): For repository-scoped actions.
-- [ ] **Install Integration Paradigm**: Select and set up PyPI package (`pip install boomtick`), Docker container (`ghcr.io/arii/boomtick`), or npm MCP package (`@arii/boomtick-mcp`).
+- [ ] **Install Integration Paradigm**: Select and set up PyPI package (`pip install boomtick-cli`), Docker container (`ghcr.io/arii/boomtick`), or npm MCP package (`@arii/boomtick-mcp`).
 - [ ] **Integrate GitHub Composite Actions**: Reference Boomtick composite actions (such as `setup-workspace`, `chatops`, `ai-review`, and `impact-analysis`) in your `.github/workflows/`.
 - [ ] **Verify Local Setup & Schemas**: Test CLI commands or MCP tools locally and run schema contract synchronization (`pnpm run verify:schemas` if developing locally).
 
@@ -47,16 +47,16 @@ This guide details the integration lifecycle of `boomtick` in four operational s
 
 Downstream consumer repositories integrate Boomtick's powerful automation capabilities **without** initializing it as a git submodule. Boomtick is consumed as a standalone PyPI package, a Docker container image, an npm MCP package, or via GitHub composite actions. This decouples your workflows from direct filesystem dependency trees, speeding up CI pipelines and eliminating submodule overhead.
 
-#### 1. PyPI Package (`boomtick`)
+#### 1. PyPI Package (`boomtick-cli`)
 
-The Python CLI developer tool (`td`) and automation utilities are available directly via PyPI.
+The Python CLI developer tool (`td`) and automation utilities are available directly via PyPI under `boomtick-cli`.
 
 ```bash
 # Standard pip installation
-pip install boomtick
+pip install boomtick-cli
 
 # Fast installation with uv
-uv pip install boomtick
+uv pip install boomtick-cli
 ```
 
 Verify installation:
@@ -211,7 +211,16 @@ This triggers `scripts/verify-schemas.mjs`, which generates CLI schemas from Pyt
   ```
 
 #### Activating the MCP Server Locally
-To connect Claude Desktop or another client to the local MCP server:
+
+You can automatically detect installed agent hosts (Antigravity CLI, Claude Code, Cursor, VS Code) and register `boomtick-mcp` using `td`:
+
+```bash
+td mcp install --execute
+# or
+td mcp setup --execute
+```
+
+Alternatively, manually configure your MCP client configuration (e.g. `~/.claude.json` or `.cursor/mcp.json`):
 ```json
 {
   "mcpServers": {
@@ -259,6 +268,6 @@ This onboarding and integration guide applies to all downstream consumer reposit
 ## DEFINITION OF DONE
 
 1. `docs/onboarding.md` is updated to remove submodule instructions.
-2. `docs/onboarding.md` includes instructions for PyPI (`pip install boomtick`), Docker (`ghcr.io/arii/boomtick`), and MCP package usage (`@arii/boomtick-mcp`).
+2. `docs/onboarding.md` includes instructions for PyPI (`pip install boomtick-cli`), Docker (`ghcr.io/arii/boomtick`), and MCP package usage (`@arii/boomtick-mcp`).
 3. A clear "Onboarding Checklist" is present in the guide.
 4. The issue successfully validates against `td gh validate-issue`.

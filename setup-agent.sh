@@ -227,8 +227,8 @@ install_python_deps() {
     local pkg_spec="cli/"
     pip_install --root-user-action=ignore -e "$pkg_spec"
     export PATH="$HOME/.local/bin:$PATH"
-    if ! have td && ! have td; then
-      warn "td/td not found on PATH after editable install. Path: $PATH"
+    if ! have td; then
+      warn "td not found on PATH after editable install. Path: $PATH"
     fi
     STATUS_PYTHON="INSTALLED (td)"
   else
@@ -391,7 +391,14 @@ run_validation() {
         pnpm --filter @arii/boomtick-mcp run sync-contracts
       ) || warn "Failed to generate schemas/contracts."
     fi
-    pnpm --filter @arii/boomtick-mcp run sync:mcp-schemas || true
+    log "Building MCP server..."
+    pnpm --filter @arii/boomtick-mcp run build || true
+    if command -v td >/dev/null 2>&1; then
+      log "Registering boomtick-mcp in host configurations..."
+      td mcp install --execute || true
+      log "Warming repository agent context index..."
+      td context-warm || true
+    fi
   fi
 }
 
