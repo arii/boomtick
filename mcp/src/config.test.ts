@@ -25,10 +25,11 @@ describe("config", () => {
       vi.mocked(execSync).mockReturnValue(JSON.stringify(mockConfig));
 
       const { initializeConfig } = await import("./config.js");
+      const { findRepoRoot } = await import("./config/repo.js");
       const result = initializeConfig();
 
       expect(execSync).toHaveBeenCalledWith("td config view", expect.objectContaining({
-        cwd: process.cwd()
+        cwd: findRepoRoot()
       }));
       expect(result).toEqual(mockConfig);
     });
@@ -133,10 +134,17 @@ describe("config", () => {
       expect(() => config.githubRepo).toThrow("GITHUB_REPO must be set via environment variable or project_config.json");
     });
 
-    it("should resolve repoPath from BOOMTICK_REPO_PATH or findRepoRoot fallback", async () => {
+    it("should resolve active workspace from process.cwd() over BOOMTICK_REPO_PATH when inside a repo", async () => {
       process.env.BOOMTICK_REPO_PATH = "/custom/repo/path";
       const { config } = await import("./config.js");
-      expect(config.repoPath).toBe("/custom/repo/path");
+      expect(config.repoPath).toBe(process.cwd().replace(/\/mcp$/, ""));
+    });
+
+    it("should fallback to BOOMTICK_REPO_PATH when process.cwd() is outside any repo", async () => {
+      process.env.BOOMTICK_REPO_PATH = "/custom/repo/path";
+      const { findRepoRoot } = await import("./config/repo.js");
+      const rootDir = process.platform === "win32" ? "C:\\" : "/";
+      expect(findRepoRoot(rootDir)).toBe("/custom/repo/path");
     });
 
     it("should resolve defaultBaseBranch, viteBasePath, and ghPath", async () => {
