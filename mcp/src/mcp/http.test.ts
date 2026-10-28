@@ -18,6 +18,16 @@ describe("createMcpHttpServer", () => {
     }
   });
 
+  it("should respond with 200 on GET /health endpoint", async () => {
+    httpServerObj = createMcpHttpServer({ port: 0, mcpServer });
+    port = await httpServerObj.listen(0);
+
+    const res = await fetch(`http://localhost:${port}/health`);
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body).toEqual({ status: "ok", transport: "http" });
+  });
+
   it("should respond with RFC 9728 OAuth protected resource metadata on /.well-known/oauth-protected-resource", async () => {
     httpServerObj = createMcpHttpServer({ port: 0, mcpServer });
     port = await httpServerObj.listen(0);
