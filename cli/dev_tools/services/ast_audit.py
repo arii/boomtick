@@ -47,6 +47,8 @@ RAW_HTML_TAGS: Set[str] = {
     "li",
 }
 
+TYPOGRAPHY_HTML_TAGS: Set[str] = {"p", "h1", "h2", "h3", "h4", "h5", "h6"}
+
 # Regex for placeholder comments
 PLACEHOLDER_COMMENT_RE = re.compile(
     r"\b(TODO|FIXME|STUB|HACK|AI scaffolding)\b(?::|\s)", re.IGNORECASE
@@ -169,6 +171,19 @@ class ASTAuditor:
                 elif attr_name == "className":
                     has_classname = True
 
+        if tag_name in TYPOGRAPHY_HTML_TAGS:
+            return {
+                "type": "typography_token",
+                "severity": "warning",
+                "line": node.start_point[0] + 1,
+                "rule": "use-typography-tokens",
+                "message": (
+                    f"Raw HTML typography `<{tag_name}>` bypasses shared typography primitives"
+                    " (<Text />, <Heading />, etc.)."
+                ),
+                "value": tag_name,
+            }
+
         if tag_name in RAW_HTML_TAGS:
             if has_style:
                 return {
@@ -197,6 +212,7 @@ class ASTAuditor:
         findings: List[Dict[str, Any]] = []
         lines = code.splitlines()
         raw_tags_re = r"<(?:" + "|".join(sorted(RAW_HTML_TAGS)) + r")\b"
+        typo_tags_re = r"<(?:" + "|".join(sorted(TYPOGRAPHY_HTML_TAGS)) + r")\b"
         for idx, line in enumerate(lines):
             line_str = line.strip()
             if "// @ts-ignore" in line_str or "// @ts-expect-error" in line_str or "/* @ts-ignore" in line_str:
@@ -217,7 +233,16 @@ class ASTAuditor:
                     "message": f"Placeholder comment detected: `{line_str}`",
                     "value": line_str,
                 })
-            if re.search(raw_tags_re, line) and ("style=" in line or "className=" in line):
+            if re.search(typo_tags_re, line):
+                findings.append({
+                    "type": "typography_token",
+                    "severity": "warning",
+                    "line": idx + 1,
+                    "rule": "use-typography-tokens",
+                    "message": f"Raw HTML typography tag found: `{line_str[:40]}`",
+                    "value": line_str,
+                })
+            elif re.search(raw_tags_re, line) and ("style=" in line or "className=" in line):
                 findings.append({
                     "type": "jsx_primitive",
                     "severity": "warning",

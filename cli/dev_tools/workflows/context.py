@@ -76,6 +76,30 @@ class WorkflowContext:
         with self._lock:
             return self._scratchpad.get(key, default)
 
+    def create_snapshot(self) -> Dict[str, Any]:
+        """Creates a snapshot of current state and scratchpad."""
+        with self._lock:
+            return {
+                "state": dict(self._state),
+                "scratchpad": dict(self._scratchpad),
+            }
+
+    def restore_snapshot(self, snapshot: Dict[str, Any]) -> None:
+        """Restores state and scratchpad from a snapshot."""
+        with self._lock:
+            self._state = dict(snapshot.get("state", {}))
+            self._scratchpad = dict(snapshot.get("scratchpad", {}))
+
+    def save_checkpoint(self, node_name: str, result: Any) -> None:
+        """Caches execution result of a node."""
+        with self._lock:
+            self._state[f"__checkpoint_{node_name}"] = result
+
+    def get_checkpoint(self, node_name: str) -> Any:
+        """Retrieves cached result of a node if available."""
+        with self._lock:
+            return self._state.get(f"__checkpoint_{node_name}")
+
     def record_node_execution(
         self,
         node_name: str,

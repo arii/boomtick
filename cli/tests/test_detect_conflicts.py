@@ -16,6 +16,57 @@ def orchestrator():
         yield orch
 
 
+def test_extract_exports_from_diff(orchestrator):
+    ts_diff = """
++++ b/src/components/Button.tsx
+@@ -10,3 +10,4 @@
++export function CustomButton() { return null; }
++export const BUTTON_SIZE = 42;
++export interface ButtonProps {}
+"""
+    py_diff = """
++++ b/cli/dev_tools/service.py
+@@ -1,3 +1,4 @@
++def new_helper(): pass
++class NewService: pass
+"""
+    exports_ts = orchestrator.extract_exports_from_diff(ts_diff)
+    assert "src/components/Button.tsx" in exports_ts
+    assert exports_ts["src/components/Button.tsx"] == {"CustomButton", "BUTTON_SIZE", "ButtonProps"}
+
+    exports_py = orchestrator.extract_exports_from_diff(py_diff)
+    assert "cli/dev_tools/service.py" in exports_py
+    assert exports_py["cli/dev_tools/service.py"] == {"new_helper", "NewService"}
+
+
+def test_detect_semantic_overlaps(orchestrator):
+    with patch.object(orchestrator, "detect_conflicts", return_value={(1, 2): ["shared.py"]}), \
+         patch.object(orchestrator.github, "fetch_pr_diff") as mock_fetch_diff:
+
+        mock_pr1 = MagicMock(number=1)
+        mock_pr2 = MagicMock(number=2)
+        orchestrator.github.get_repo.return_value.get_pulls.return_value = [mock_pr1, mock_pr2]
+
+        def diff_side_effect(pr_num):
+            if pr_num == 1:
+                return "+++ b/shared.py\n+export function sharedUtil() {}"
+            if pr_num == 2:
+                return "+++ b/shared.py\n+export function sharedUtil() {}"
+            return ""
+
+        mock_fetch_diff.side_effect = diff_side_effect
+
+        overlaps = orchestrator.detect_semantic_overlaps()
+        types = [o["type"] for o in overlaps]
+        assert "file_overlap" in types
+        assert "export_overlap" in types
+
+        export_overlap = next(o for o in overlaps if o["type"] == "export_overlap")
+        assert export_overlap["prs"] == [1, 2]
+        assert export_overlap["file"] == "shared.py"
+        assert export_overlap["symbol"] == "sharedUtil"
+
+
 def test_orchestrator_detect_conflicts_specific_pr(orchestrator):
     with patch.object(orchestrator, "detect_conflicts") as mock_detect:
         mock_detect.return_value = {(1, 2): ["shared.py"]}
