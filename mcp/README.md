@@ -41,19 +41,21 @@ A Model Context Protocol (MCP) server designed to empower AI agents with structu
 
 ### Installation
 ```bash
-cd boomtick-mcp
-pnpm install
-pnpm build
+# From repository root
+pnpm --filter @arii/boomtick-mcp run build
+
+# Register boomtick-mcp across installed agent hosts automatically
+td mcp install --execute
 ```
 
-### Installation via MCP Client (e.g. Claude Desktop)
+### Manual Configuration via MCP Client (e.g. Claude Desktop, Cursor)
 Add the following to your MCP client configuration (e.g. `claude_desktop_config.json`):
 ```json
 {
   "mcpServers": {
     "boomtick": {
       "command": "node",
-      "args": ["/absolute/path/to/boomtick-mcp/dist/index.js"],
+      "args": ["/absolute/path/to/mcp/dist/index.js"],
       "env": {
         "GITHUB_TOKEN": "your_pat",
         "GITHUB_OWNER": "your_org",
