@@ -415,6 +415,23 @@ export interface ReviewInlineComment {
   body: string;
 }
 
+export function formatAsGitHubSuggestion(code: string): string {
+  const trimmed = code.trim();
+  if (!trimmed) return '';
+
+  if (trimmed.startsWith('```suggestion')) {
+    return trimmed.endsWith('```') ? trimmed : `${trimmed}\n\`\`\``;
+  }
+
+  if (/^```[a-zA-Z0-9_-]*\n/.test(trimmed) && trimmed.endsWith('```')) {
+    const lines = trimmed.split('\n');
+    const innerCode = lines.slice(1, -1).join('\n');
+    return `\`\`\`suggestion\n${innerCode}\n\`\`\``;
+  }
+
+  return `\`\`\`suggestion\n${trimmed}\n\`\`\``;
+}
+
 export function buildReviewComments(state: unknown): ReviewInlineComment[] {
   if (!state || typeof state !== 'object') return [];
   const findings = (state as { findings?: any[] }).findings;
@@ -440,15 +457,11 @@ export function buildReviewComments(state: unknown): ReviewInlineComment[] {
     }
 
     if (f.suggestion && typeof f.suggestion === 'string' && f.suggestion.trim()) {
-      const trimmed = f.suggestion.trim();
-      const suggestionBlock = trimmed.startsWith('```suggestion')
-        ? trimmed
-        : `\`\`\`suggestion\n${trimmed}\n\`\`\``;
-      commentBody += `\n\n${suggestionBlock}`;
+      commentBody += `\n\n${formatAsGitHubSuggestion(f.suggestion)}`;
     } else if (f.fixSummary && typeof f.fixSummary === 'string' && f.fixSummary.trim()) {
       const trimmedFix = f.fixSummary.trim();
-      if (trimmedFix.startsWith('```suggestion')) {
-        commentBody += `\n\n${trimmedFix}`;
+      if (trimmedFix.includes('```suggestion') || /^```[a-zA-Z0-9_-]*\n/.test(trimmedFix)) {
+        commentBody += `\n\n${formatAsGitHubSuggestion(trimmedFix)}`;
       } else {
         commentBody += `\n\n**Suggested Fix:** ${trimmedFix}`;
       }
