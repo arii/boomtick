@@ -58,50 +58,90 @@ def get_changed_files(base_branch=None):
 
     return sorted(list(files))
 
-def fetch_issue_description(issue_file=None, issue_body=None, issue_number=None):
-    if issue_body:
-        return issue_body
+def fetch_linked_issue_bodies(text: str, fetched_nums=None) -> str:
+    """Find issue numbers like #123, Fixes #123 in text and fetch their descriptions."""
+    if fetched_nums is None:
+        fetched_nums = set()
 
-    if issue_file and os.path.exists(issue_file):
-        with open(issue_file, "r", encoding="utf-8") as f:
-            return f.read()
-
-    # Check GITHUB_EVENT_PATH
-    event_path = os.environ.get("GITHUB_EVENT_PATH")
-    if event_path and os.path.exists(event_path):
+    extra_texts = []
+    # Find patterns like #123 or fixes #123
+    issue_refs = set(re.findall(r'#(\d+)', text))
+    for num in issue_refs:
+        if num in fetched_nums:
+            continue
+        fetched_nums.add(num)
         try:
-            with open(event_path, "r", encoding="utf-8") as f:
-                event = json.load(f)
-            pr = event.get("pull_request", {})
-            body = pr.get("body") or ""
-            title = pr.get("title") or ""
-
-            issue = event.get("issue", {})
-            body = body or issue.get("body") or ""
-            title = title or issue.get("title") or ""
-
-            if body or title:
-                return f"{title}\n\n{body}"
+            res = subprocess.run(
+                ["gh", "issue", "view", str(num), "--json", "title,body"],
+                capture_output=True, text=True, check=False
+            )
+            if res.returncode == 0:
+                data = json.loads(res.stdout)
+                title = data.get('title', '')
+                body = data.get('body', '')
+                extra_texts.append(f"\n--- Linked Issue #{num} ---\n{title}\n\n{body}")
         except Exception:
             pass
 
+    if extra_texts:
+        return text + "\n" + "\n".join(extra_texts)
+    return text
+
+def fetch_issue_description(issue_file=None, issue_body=None, issue_number=None):
+    raw_text = None
+
+    if issue_body:
+        raw_text = issue_body
+
+    if not raw_text and issue_file and os.path.exists(issue_file):
+        with open(issue_file, "r", encoding="utf-8") as f:
+            raw_text = f.read()
+
+    # Check GITHUB_EVENT_PATH
+    if not raw_text:
+        event_path = os.environ.get("GITHUB_EVENT_PATH")
+        if event_path and os.path.exists(event_path):
+            try:
+                with open(event_path, "r", encoding="utf-8") as f:
+                    event = json.load(f)
+                pr = event.get("pull_request", {})
+                body = pr.get("body") or ""
+                title = pr.get("title") or ""
+
+                issue = event.get("issue", {})
+                body = body or issue.get("body") or ""
+                title = title or issue.get("title") or ""
+
+                if body or title:
+                    raw_text = f"{title}\n\n{body}"
+            except Exception:
+                pass
+
     # Try using gh CLI if issue_number is provided
-    if issue_number:
+    if not raw_text and issue_number:
         try:
-            res = subprocess.run(["gh", "issue", "view", str(issue_number), "--json", "title,body"], capture_output=True, text=True, check=False)
+            res = subprocess.run(
+                ["gh", "issue", "view", str(issue_number), "--json", "title,body"],
+                capture_output=True, text=True, check=False
+            )
             if res.returncode == 0:
                 data = json.loads(res.stdout)
-                return f"{data.get('title', '')}\n\n{data.get('body', '')}"
+                raw_text = f"{data.get('title', '')}\n\n{data.get('body', '')}"
         except Exception:
             pass
 
     # Try looking for task_description.md or similar files in workspace
-    for fallback_path in ["task_description.md", "issue_description.md", ".agents/task_description.md"]:
-        if os.path.exists(fallback_path):
-            with open(fallback_path, "r", encoding="utf-8") as f:
-                return f.read()
+    if not raw_text:
+        for fallback_path in ["task_description.md", "issue_description.md", ".agents/task_description.md"]:
+            if os.path.exists(fallback_path):
+                with open(fallback_path, "r", encoding="utf-8") as f:
+                    raw_text = f.read()
+                    break
 
-    return None
+    if raw_text:
+        raw_text = fetch_linked_issue_bodies(raw_text)
+
+    return raw_text
 
 def normalize_name(name: str) -> str:
     return name.replace("_", "-").lower()
@@ -178,9 +218,96 @@ def check_override():
 
     return False
 
+def is_module_hierarchy_subfile(filepath: str, allowed_file_paths: set) -> bool:
+    """
+    Check if candidate file is a newly created/extracted sub-file inside a subfolder or module namespace
+    corresponding to an explicitly allowed parent file.
+    E.g. if mcp/src/config.ts is allowed, mcp/src/config/dynamic.ts or mcp/src/config/github.ts is allowed.
+    """
+    filepath_norm = os.path.normpath(filepath)
+    for allowed_p in allowed_file_paths:
+        allowed_p_norm = os.path.normpath(allowed_p)
+        parent_dir, filename = os.path.split(allowed_p_norm)
+        stem, _ = os.path.splitext(filename)
+
+        # 1. Check if filepath is inside a folder named `stem` at parent_dir (e.g. mcp/src/config/...)
+        expected_dir = os.path.normpath(os.path.join(parent_dir, stem))
+        if filepath_norm.startswith(expected_dir + os.sep):
+            return True
+
+        # 2. Check if filepath is a sibling module with prefix stem (e.g. config.sub.ts or config-sub.ts)
+        if parent_dir and os.path.dirname(filepath_norm) == parent_dir:
+            cand_filename = os.path.basename(filepath_norm)
+            if cand_filename.startswith(f"{stem}.") or cand_filename.startswith(f"{stem}-") or cand_filename.startswith(f"{stem}_"):
+                return True
+
+    return False
+
+def check_file_imports_target(importer_path: str, target_path: str) -> bool:
+    """Check if importer_path file imports target_path (or vice versa)."""
+    if not os.path.isfile(importer_path):
+        return False
+
+    try:
+        with open(importer_path, 'r', encoding='utf-8', errors='ignore') as f:
+            content = f.read()
+    except Exception:
+        return False
+
+    norm_target = os.path.normpath(target_path)
+    target_dir, target_file = os.path.split(norm_target)
+    target_stem, target_ext = os.path.splitext(target_file)
+    importer_dir = os.path.dirname(importer_path)
+
+    # JS/TS relative imports: import ... from './...'
+    js_imports = re.findall(r'(?:import|export|require)\s*(?:[^\'\"]*?\s*from\s*)?[\(\'\"]([^\'\"]+)[\)\'\"]', content)
+    for imp in js_imports:
+        if imp.startswith('.'):
+            resolved = os.path.normpath(os.path.join(importer_dir, imp))
+            resolved_stem, _ = os.path.splitext(resolved)
+            target_base = os.path.normpath(os.path.join(target_dir, target_stem))
+            if resolved_stem == target_base:
+                return True
+            if target_stem == 'index' and target_dir == resolved:
+                return True
+
+    # Python relative/absolute module imports
+    py_imports = re.findall(r'(?:from|import)\s+([\.\w]+)', content)
+    for imp in py_imports:
+        imp_parts = imp.lstrip('.').split('.')
+        target_parts = os.path.splitext(target_path)[0].split(os.sep)
+        if imp_parts and imp_parts[-1] == target_stem:
+            return True
+
+    return False
+
+def is_refactor_extraction_heuristic(filepath: str, allowed_file_paths: set) -> bool:
+    """
+    If a newly added/extracted file is imported by an allowed file within the same package/component tree
+    (or imports an allowed file in the same package/component tree), allow it as a modular extraction.
+    """
+    filepath_norm = os.path.normpath(filepath)
+    cand_dir = os.path.dirname(filepath_norm)
+
+    for allowed_p in allowed_file_paths:
+        allowed_p_norm = os.path.normpath(allowed_p)
+        allowed_dir = os.path.dirname(allowed_p_norm)
+
+        # Must share a package or component subtree (common parent path up to 2 directory levels)
+        if cand_dir == allowed_dir or cand_dir.startswith(allowed_dir + os.sep) or allowed_dir.startswith(cand_dir + os.sep):
+            # Check if allowed file imports candidate file OR candidate file imports allowed file
+            if check_file_imports_target(allowed_p_norm, filepath_norm) or check_file_imports_target(filepath_norm, allowed_p_norm):
+                return True
+
+    return False
+
+def split_camel_case(s: str) -> list:
+    """Splits camelCase or PascalCase strings into lowercased component tokens."""
+    return [w.lower() for w in re.findall(r'[A-Z]?[a-z]+|[A-Z]+(?=[A-Z][a-z]|\d|\b)|[0-9]+', s) if w]
+
 def check_scope(changed_files, issue_text):
     if not issue_text:
-        # If no issue text is found, we warning and pass to prevent blocking if run locally without metadata
+        # If no issue text is found, we warn and pass to prevent blocking if run locally without metadata
         return True, [], []
 
     issue_text_lower = issue_text.lower()
@@ -195,7 +322,13 @@ def check_scope(changed_files, issue_text):
 
     # Extract single words/tokens
     word_regex = r'[a-zA-Z0-9_\-]+'
-    mentioned_words = set(re.findall(word_regex, issue_text_lower))
+    raw_words = set(re.findall(word_regex, issue_text))
+    mentioned_words = set()
+    for w in raw_words:
+        mentioned_words.add(w.lower())
+        for sub_w in split_camel_case(w):
+            mentioned_words.add(sub_w)
+
     stop_words = {
         "with", "this", "that", "from", "your", "have", "will", "mode", "flag", "test", "file", "spec",
         "tool", "mode", "strict", "scope", "hook", "hooks", "commit", "issue", "branch", "main", "origin",
@@ -211,8 +344,9 @@ def check_scope(changed_files, issue_text):
         allowed_base_names.add(base.lower())
 
     allowed_files = []
-    disallowed_files = []
+    candidates_for_pass_2 = []
 
+    # PASS 1: Direct matches, exempt files, directory matches, test matches, token matches
     for filepath in changed_files:
         filepath_lower = filepath.lower()
         filename_lower = os.path.basename(filepath).lower()
@@ -234,13 +368,15 @@ def check_scope(changed_files, issue_text):
 
         # 3. Directory match
         is_in_mentioned_dir = False
+        matched_dir = None
         for md in mentioned_dirs:
             md_clean = md.strip("/")
             if md_clean and any(part == md_clean for part in filepath_lower.split("/")):
                 is_in_mentioned_dir = True
+                matched_dir = md
                 break
         if is_in_mentioned_dir:
-            allowed_files.append((filepath, f"Located in mentioned directory: {md}"))
+            allowed_files.append((filepath, f"Located in mentioned directory: {matched_dir}"))
             continue
 
         # 4. Test file for an allowed file
@@ -263,6 +399,25 @@ def check_scope(changed_files, issue_text):
 
         if is_base_matched:
             allowed_files.append((filepath, "Base name/key token matched in issue"))
+            continue
+
+        candidates_for_pass_2.append(filepath)
+
+    # PASS 2: Modular refactoring / sub-file extractions & import heuristics
+    disallowed_files = []
+    allowed_file_paths = {f[0] for f in allowed_files}
+
+    for filepath in candidates_for_pass_2:
+        # 1. Module hierarchy matching
+        if is_module_hierarchy_subfile(filepath, allowed_file_paths):
+            allowed_files.append((filepath, "Module hierarchy sub-file extracted from in-scope parent module"))
+            allowed_file_paths.add(filepath)
+            continue
+
+        # 2. Import heuristic matching
+        if is_refactor_extraction_heuristic(filepath, allowed_file_paths):
+            allowed_files.append((filepath, "Extracted helper module imported by/importing in-scope module"))
+            allowed_file_paths.add(filepath)
             continue
 
         disallowed_files.append(filepath)
