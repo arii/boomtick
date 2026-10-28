@@ -94,7 +94,7 @@ runs:
           if command -v td >/dev/null 2>&1; then
             PYTHONPATH="$CLI_PATH" td schema --generate
           else
-            PYTHONPATH="$CLI_PATH" python3 "$CLI_PATH/dev_tools/schema_gen.py"
+            PYTHONPATH="$CLI_PATH" python3 -m dev_tools.schema_gen
           fi
           npx tsx "$FILTER_PATH/scripts/sync-contracts.ts"
           pnpm --filter "$FILTER_PATH" run sync:mcp-schemas

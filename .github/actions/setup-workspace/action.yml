@@ -219,7 +219,7 @@ runs:
             exit 1
           fi
         else
-          if ! python3 "$CLI_DIR_ABS/dev_tools/schema_gen.py"; then
+          if ! python3 -m dev_tools.schema_gen; then
             echo "::error::Schema generation via python3 failed!"
             exit 1
           fi

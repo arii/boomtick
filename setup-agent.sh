@@ -386,7 +386,7 @@ run_validation() {
         if command -v td >/dev/null 2>&1; then
           td schema --generate
         else
-          python3 "$CLI_ROOT/dev_tools/schema_gen.py"
+          python3 -m dev_tools.schema_gen
         fi
         pnpm --filter @arii/boomtick-mcp run sync-contracts
       ) || warn "Failed to generate schemas/contracts."
