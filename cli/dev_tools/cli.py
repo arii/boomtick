@@ -1413,14 +1413,15 @@ def agent_group():
 @click.argument("branch")
 @click.argument("task")
 @click.option("--title", "-t", help="Custom session title")
+@click.option("--repo", "-r", help="Target GitHub repository (e.g. arii/portfolio)")
 @click.pass_context
-def dispatch(ctx, branch, task, title):
+def dispatch(ctx, branch, task, title, repo):
     """
     Initialize a Jules session for a specific branch and task.
     Note: Use 'main' branch for PR consolidation tasks to avoid rebasing issues.
     """
     orch = ctx.obj["ORCHESTRATOR"]
-    res = orch.dispatch_jules_review(branch, task, title=title)
+    res = orch.dispatch_jules_review(branch, task, title=title, repo=repo)
 
     if not ctx.obj.get("JSON", False):
         click.echo("\n" * 2)

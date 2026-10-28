@@ -111,6 +111,29 @@ def test_orchestrator_dispatch_jules_review_passes_title(mock_jules_cls, mock_gh
     )
 
 
+@patch("dev_tools.orchestrator.GitHubClient")
+@patch("dev_tools.orchestrator.JulesClient")
+def test_orchestrator_dispatch_jules_review_with_target_repo(mock_jules_cls, mock_gh_cls):
+    orch = Orchestrator()
+    orch.github.branch_exists.return_value = True
+    orch.jules.discover_source_id.return_value = "portfolio-source-id"
+    orch.jules.create_session_from_source.return_value = {"name": "sessions/444"}
+
+    res = orch.dispatch_jules_review(
+        branch="main",
+        prompt="Fix mobile viewport bug",
+        title="Fix Mobile Bug",
+        repo="arii/portfolio",
+    )
+
+    assert res == {"name": "sessions/444"}
+    orch.github.branch_exists.assert_called_once_with("main", repo="arii/portfolio")
+    orch.jules.discover_source_id.assert_called_once_with("arii/portfolio")
+    orch.jules.create_session_from_source.assert_called_once_with(
+        "portfolio-source-id", "main", "Fix mobile viewport bug", title="Fix Mobile Bug"
+    )
+
+
 @patch("dev_tools.orchestrator.Orchestrator.dispatch_jules_review")
 def test_cli_agent_dispatch_with_title_flag(mock_dispatch):
     mock_dispatch.return_value = {"name": "sessions/222", "title": "My Custom Title"}
@@ -123,7 +146,7 @@ def test_cli_agent_dispatch_with_title_flag(mock_dispatch):
     )
 
     assert result.exit_code == 0
-    mock_dispatch.assert_called_once_with("main", "Task details", title="My Custom Title")
+    mock_dispatch.assert_called_once_with("main", "Task details", title="My Custom Title", repo=None)
 
 
 @patch("dev_tools.orchestrator.Orchestrator.dispatch_jules_review")
@@ -138,4 +161,19 @@ def test_cli_agent_dispatch_without_title_flag(mock_dispatch):
     )
 
     assert result.exit_code == 0
-    mock_dispatch.assert_called_once_with("main", "# Auto Extracted Title\n\nTask details", title=None)
+    mock_dispatch.assert_called_once_with("main", "# Auto Extracted Title\n\nTask details", title=None, repo=None)
+
+
+@patch("dev_tools.orchestrator.Orchestrator.dispatch_jules_review")
+def test_cli_agent_dispatch_with_repo_flag(mock_dispatch):
+    mock_dispatch.return_value = {"name": "sessions/555"}
+    runner = CliRunner()
+
+    result = runner.invoke(
+        cli,
+        ["agent", "dispatch", "--repo", "arii/portfolio", "main", "Cross-repo repair task"],
+        obj={},
+    )
+
+    assert result.exit_code == 0
+    mock_dispatch.assert_called_once_with("main", "Cross-repo repair task", title=None, repo="arii/portfolio")

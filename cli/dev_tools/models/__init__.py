@@ -340,6 +340,11 @@ class CreateJulesSessionInput(CamelCaseModel):
     task: str = Field(..., description="The instructions for Jules.")
     branch: Optional[str] = Field(None, description="The base branch to start from (e.g., 'main').")
     pr: Optional[int] = Field(None, description="The PR number to use as the base branch context.")
+    repo: Optional[str] = Field(
+        None,
+        pattern=r"^[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+$",
+        description="The target repository override (e.g. org/repo).",
+    )
 
 
 class JulesSessionIdInput(CamelCaseModel):
@@ -392,7 +397,15 @@ class SearchDdgsInput(CamelCaseModel):
 
 
 class ReadAgentContextInput(CamelCaseModel):
-    pass
+    path: Optional[str] = Field(None, description="Optional filesystem path to target workspace repository root.")
+    repo_path: Optional[str] = Field(
+        None, description="Alias for path (filesystem path to target workspace repository root)."
+    )
+    repo: Optional[str] = Field(
+        None,
+        pattern=r"^[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+$",
+        description="Target GitHub repository string (e.g. org/repo).",
+    )
 
 
 class GetCommandSchemaInput(CamelCaseModel):
