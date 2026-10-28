@@ -1,6 +1,7 @@
 # pylint: disable=missing-docstring,protected-access,unused-import
 import sys
 import os
+import json
 import importlib.util
 import pytest
 
@@ -78,6 +79,141 @@ def test_directory_match():
     assert len(disallowed) == 0
 
 
+def test_module_hierarchy_subfile():
+    issue_text = "Refactor monolithic configuration logic in mcp/src/config.ts into modular files."
+    changed_files = [
+        "mcp/src/config.ts",
+        "mcp/src/config/dynamic.ts",
+        "mcp/src/config/github.ts",
+        "mcp/src/config/repo.ts"
+    ]
+
+    success, allowed, disallowed = verify_scope.check_scope(changed_files, issue_text)
+
+    assert success is True
+    assert len(allowed) == 4
+    assert len(disallowed) == 0
+
+
+def test_refactor_import_heuristic():
+    issue_text = "Extract helper functions from mcp/src/tools/jules/cancel-session.ts into shared CLI helper."
+    # mcp/src/tools/jules/cancel-session.ts imports mcp/src/tools/jules/cli.ts
+    changed_files = [
+        "mcp/src/tools/jules/cancel-session.ts",
+        "mcp/src/tools/jules/cli.ts"
+    ]
+
+    success, allowed, disallowed = verify_scope.check_scope(changed_files, issue_text)
+
+    assert success is True
+    assert len(allowed) == 2
+    assert len(disallowed) == 0
+
+
+def test_linked_issue_fetching(monkeypatch):
+    issue_text = "Clean up MCP server complexity. Fixes #936."
+
+    class MockCompletedProcess:  # pylint: disable=too-few-public-methods
+        returncode = 0
+        stdout = json.dumps({
+            "title": "[cleanup] MCP Server & Tools",
+            "body": "Refactor targets in mcp/src/tools/jules/shared.ts, mcp/src/config.ts."
+        })
+        stderr = ""
+
+    monkeypatch.setattr(
+        "subprocess.run",
+        lambda *args, **kwargs: MockCompletedProcess()
+    )
+
+    full_text = verify_scope.fetch_linked_issue_bodies(issue_text)
+    assert "mcp/src/config.ts" in full_text
+
+    changed_files = ["mcp/src/config.ts", "mcp/src/config/dynamic.ts"]
+    success, allowed, disallowed = verify_scope.check_scope(changed_files, full_text)
+
+    assert success is True
+    assert len(allowed) == 2
+    assert len(disallowed) == 0
+
+
+def test_pr_949_scenario(monkeypatch):
+    pr_body = """Cleaned up dead code, complexity, and duplication in the MCP server package:
+1. Removed unused startHttp method in BoomtickMCPServer.
+2. Broken down complex files (shared.ts, config.ts) into smaller modular sub-files.
+3. Extracted duplicate td execution and error parsing boilerplate in 7 tool handlers into shared runTDCli helper.
+
+Fixes #936"""
+
+    body_text = (
+        "## Dead Code\n- Remove unused class member `startHttp` in `mcp/src/mcp/server.ts`.\n\n"
+        "## Complexity\n- Refactor targets in `mcp/src/tools/jules/shared.ts` (64 LOC, 6 dependents), "
+        "`mcp/src/config.ts` (144 LOC, 9 dependents).\n\n"
+        "## Duplication\n- DRY up clone groups in the following files: "
+        "`mcp/src/tools/github.comment_triage_summary.ts`, `mcp/src/tools/github.get_pr_diff.ts`, "
+        "`mcp/src/tools/jules/cancel-session.ts`, `mcp/src/tools/jules/get-messages.ts`, "
+        "`mcp/src/tools/jules/list-sessions.ts`, `mcp/src/tools/jules/send-message.ts`, "
+        "`mcp/src/tools/jules/trigger-feedback.ts`."
+    )
+
+    class MockCompletedProcess:  # pylint: disable=too-few-public-methods
+        returncode = 0
+        stdout = json.dumps({
+            "title": "[cleanup] MCP Server & Tools",
+            "body": body_text
+        })
+        stderr = ""
+
+    monkeypatch.setattr(
+        "subprocess.run",
+        lambda *args, **kwargs: MockCompletedProcess()
+    )
+
+    full_text = verify_scope.fetch_linked_issue_bodies(pr_body)
+
+    changed_files = [
+        "mcp/src/config.ts",
+        "mcp/src/config/dynamic.ts",
+        "mcp/src/config/github.ts",
+        "mcp/src/config/repo.ts",
+        "mcp/src/http.ts",
+        "mcp/src/mcp/http.test.ts",
+        "mcp/src/mcp/server.ts",
+        "mcp/src/tools/github.comment_triage_summary.ts",
+        "mcp/src/tools/github.get_pr_diff.ts",
+        "mcp/src/tools/jules/cancel-session.ts",
+        "mcp/src/tools/jules/cli.ts",
+        "mcp/src/tools/jules/get-messages.ts",
+        "mcp/src/tools/jules/list-sessions.ts",
+        "mcp/src/tools/jules/send-message.ts",
+        "mcp/src/tools/jules/session.ts",
+        "mcp/src/tools/jules/shared.ts",
+        "mcp/src/tools/jules/trigger-feedback.ts",
+    ]
+
+    success, allowed, disallowed = verify_scope.check_scope(changed_files, full_text)
+
+    assert success is True
+    assert len(allowed) == len(changed_files)
+    assert len(disallowed) == 0
+
+
+def test_unrelated_file_blocked_under_strict():
+    issue_text = "Refactor monolithic configuration logic in mcp/src/config.ts into modular files."
+    changed_files = [
+        "mcp/src/config.ts",
+        "mcp/src/config/dynamic.ts",
+        "cli/dev_tools/schema_gen.py"  # Completely unrelated package/directory
+    ]
+
+    success, allowed, disallowed = verify_scope.check_scope(changed_files, issue_text)
+
+    assert success is False
+    assert len(allowed) == 2
+    assert len(disallowed) == 1
+    assert disallowed[0] == "cli/dev_tools/schema_gen.py"
+
+
 def test_override_env(monkeypatch):
     monkeypatch.setenv("SCOPE_OVERRIDE", "true")
     assert verify_scope.check_override() is True
@@ -126,7 +262,7 @@ def test_override_release_please_event_path(monkeypatch, tmp_path):
             "user": {"login": "release-please[bot]"}
         }
     }
-    event_file.write_text(importlib.import_module("json").dumps(event_data), encoding="utf-8")
+    event_file.write_text(json.dumps(event_data), encoding="utf-8")
     monkeypatch.setenv("GITHUB_EVENT_PATH", str(event_file))
 
     assert verify_scope.check_override() is True
