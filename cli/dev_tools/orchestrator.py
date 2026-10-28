@@ -1986,6 +1986,7 @@ Respond only after the PR is created or updated:
             name = os.path.basename(f_path)
             plan_path = os.path.join(plan_dir, f"workflow-plan-{name}.md")
             violations = file_audit_results[f_path]
+            violations_text = "" if not violations else "\n".join(f"- {v}" for v in violations)
 
             with open(plan_path, "w", encoding="utf-8") as f:
                 f.write(f"""# Workflow Audit Plan: {name}
@@ -1997,7 +1998,7 @@ Respond only after the PR is created or updated:
 {"✅ All rules followed." if not violations else "❌ Non-compliant patterns found."}
 
 ### Violations
-{"" if not violations else "\n".join(f"- {v}" for v in violations)}
+{violations_text}
 
 ## Audit Instructions
 

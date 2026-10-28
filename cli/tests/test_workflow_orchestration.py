@@ -300,3 +300,27 @@ def test_concrete_nodes_execution(mock_orchestrator_class):
     assert context.read_scratchpad("verified_node_version") == "24.16.0"
     assert context.read_scratchpad("verified_pnpm_version") == "10.28.2"
     assert context.read_scratchpad("validation_focus") == "Validating under Node 24.16.0"
+
+
+def test_fstring_backslash_compatibility():
+    import ast
+    import os
+
+    cli_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+    violations = []
+
+    for root, _, files in os.walk(cli_dir):
+        for file in files:
+            if not file.endswith(".py"):
+                continue
+            path = os.path.join(root, file)
+            with open(path, "r", encoding="utf-8") as f:
+                content = f.read()
+            tree = ast.parse(content, filename=path)
+            for node in ast.walk(tree):
+                if isinstance(node, ast.FormattedValue):
+                    seg = ast.get_source_segment(content, node.value)
+                    if seg and "\\" in seg:
+                        violations.append((path, node.lineno, seg))
+
+    assert not violations, f"f-string expression(s) contain backslashes incompatible with Python < 3.12: {violations}"
