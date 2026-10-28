@@ -25,6 +25,9 @@ Agent tooling in this repository is structured into three tiers:
 | Run UX / DOM Audits | N/A (Vitest suite) | `td ux audit` | `pnpm exec vitest` |
 | Create Jules Session | `jules.create_session` (`jules_create_session`) | `td agent dispatch` | N/A |
 | Run Test Suites | `repo.run_tests` (`repo_run_tests`) | `td test` / `td test cli` | `pnpm test` / `pytest` |
+| Multi-Repo Context & Status | `repo.read_agent_context(all=true)` | `td multi-repo status` | N/A |
+| Sequential Multi-Repo Exec | `repo.multi_exec` (`repo_multi_exec`) | `td multi-repo exec "<cmd>"` | N/A |
+| Multi-Repo Context Warming | `repo.read_agent_context` | `td multi-repo context-warm` | N/A |
 
 ---
 

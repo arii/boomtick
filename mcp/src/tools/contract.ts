@@ -3099,6 +3099,101 @@ export const JulesTriggerFeedbackResponseJsonSchema = {
   "type": "object"
 } as const;
 
+export const MultiExecInputSchema = z.object({ "command": z.string().describe("Shell command to execute sequentially across repositories"), "repos": z.union([z.array(z.string()), z.null()]).describe("Optional list of repository names to target").default(null), "continueOnError": z.union([z.boolean(), z.null()]).describe("Whether to continue execution if a repo command fails").default(true) });
+
+export type MultiExecInput = z.infer<typeof MultiExecInputSchema>;
+
+export const MultiExecInputJsonSchema = {
+  "properties": {
+    "command": {
+      "description": "Shell command to execute sequentially across repositories",
+      "title": "Command",
+      "type": "string"
+    },
+    "repos": {
+      "anyOf": [
+        {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Optional list of repository names to target",
+      "title": "Repos"
+    },
+    "continueOnError": {
+      "anyOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": true,
+      "description": "Whether to continue execution if a repo command fails",
+      "title": "Continueonerror"
+    }
+  },
+  "required": [
+    "command"
+  ],
+  "title": "MultiExecInput",
+  "type": "object"
+} as const;
+
+export const MultiExecResponseSchema = z.object({ "status": z.string().describe("Execution status").default("success"), "total": z.union([z.number().int(), z.null()]).describe("Total repositories executed against").default(null), "results": z.union([z.array(z.record(z.string(), z.any())), z.null()]).describe("Execution results per repository").default(null) });
+
+export type MultiExecResponse = z.infer<typeof MultiExecResponseSchema>;
+
+export const MultiExecResponseJsonSchema = {
+  "properties": {
+    "status": {
+      "default": "success",
+      "description": "Execution status",
+      "title": "Status",
+      "type": "string"
+    },
+    "total": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Total repositories executed against",
+      "title": "Total"
+    },
+    "results": {
+      "anyOf": [
+        {
+          "items": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Execution results per repository",
+      "title": "Results"
+    }
+  },
+  "title": "MultiExecResponse",
+  "type": "object"
+} as const;
+
 export const OpenReplacementPrInputSchema = z.object({ "originalPrNumber": z.number().int().describe("The number of the pull request being replaced."), "repairBranch": z.string().describe("The branch containing the fixes."), "baseBranch": z.string().describe("The branch to merge the fixes into."), "title": z.string().describe("The title of the new PR."), "body": z.string().describe("The body/description of the new PR."), "draft": z.boolean().describe("Whether to create the PR as a draft (default: true).").default(true), "worktreePath": z.union([z.string(), z.null()]).describe("Optional path to the worktree where the PR is created from.").default(null), "pushMode": z.boolean().describe("Safety gate: Must be true to push the branch and open the PR.") });
 
 export type OpenReplacementPrInput = z.infer<typeof OpenReplacementPrInputSchema>;
@@ -3350,7 +3445,7 @@ export const PrDiffResponseJsonSchema = {
   "type": "object"
 } as const;
 
-export const ReadAgentContextInputSchema = z.object({ "path": z.union([z.string(), z.null()]).describe("Optional filesystem path to target workspace repository root.").default(null), "repoPath": z.union([z.string(), z.null()]).describe("Alias for path (filesystem path to target workspace repository root).").default(null), "repo": z.union([z.string().regex(new RegExp("^[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+$")), z.null()]).describe("Target GitHub repository string (e.g. org/repo).").default(null) });
+export const ReadAgentContextInputSchema = z.object({ "path": z.union([z.string(), z.null()]).describe("Local filesystem path to target repository root").default(null), "repoPath": z.union([z.string(), z.null()]).describe("Alias for path (filesystem path to target workspace repository root).").default(null), "repo": z.union([z.string(), z.null()]).describe("Target GitHub repository string (e.g. org/repo).").default(null), "repos": z.union([z.array(z.string()), z.null()]).describe("List of repository names to fetch context for").default(null), "all": z.union([z.boolean(), z.null()]).describe("Whether to fetch context across all discovered ecosystem repositories").default(null) });
 
 export type ReadAgentContextInput = z.infer<typeof ReadAgentContextInputSchema>;
 
@@ -3366,7 +3461,7 @@ export const ReadAgentContextInputJsonSchema = {
         }
       ],
       "default": null,
-      "description": "Optional filesystem path to target workspace repository root.",
+      "description": "Local filesystem path to target repository root",
       "title": "Path"
     },
     "repoPath": {
@@ -3385,7 +3480,6 @@ export const ReadAgentContextInputJsonSchema = {
     "repo": {
       "anyOf": [
         {
-          "pattern": "^[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+$",
           "type": "string"
         },
         {
@@ -3395,6 +3489,35 @@ export const ReadAgentContextInputJsonSchema = {
       "default": null,
       "description": "Target GitHub repository string (e.g. org/repo).",
       "title": "Repo"
+    },
+    "repos": {
+      "anyOf": [
+        {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "List of repository names to fetch context for",
+      "title": "Repos"
+    },
+    "all": {
+      "anyOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Whether to fetch context across all discovered ecosystem repositories",
+      "title": "All"
     }
   },
   "title": "ReadAgentContextInput",
