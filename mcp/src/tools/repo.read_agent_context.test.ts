@@ -15,4 +15,16 @@ describe("Standalone Agent Context Loader", () => {
     expect(res).toHaveProperty("packageName");
     expect(res).toHaveProperty("gitCommit");
   });
+
+  it("readAgentContextHandler should accept path argument", async () => {
+    const res = await readAgentContextHandler({ path: process.cwd() });
+    expect(res).toHaveProperty("status", "success");
+    expect(res).toHaveProperty("packageName");
+  });
+
+  it("readAgentContextHandler should accept repo argument", async () => {
+    const res = await readAgentContextHandler({ repo: "arii/tech-dancer" });
+    expect(res).toHaveProperty("status", "success");
+    expect(res).toHaveProperty("repo", "arii/tech-dancer");
+  });
 });

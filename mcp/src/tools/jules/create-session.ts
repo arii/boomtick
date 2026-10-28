@@ -5,12 +5,17 @@ export const CreateJulesSessionInputSchema = z.object({
   task: z.string(),
   branch: z.string().optional(),
   pr: z.number().optional(),
+  repo: z.string().optional(),
 });
 
 export async function createJulesSessionHandler(input: z.infer<typeof CreateJulesSessionInputSchema>) {
   let branch = input.branch;
   if (!branch && input.pr) {
-    const prData = await runTDCli(["gh", "view", input.pr.toString()]);
+    const ghArgs = ["gh", "view", input.pr.toString()];
+    if (input.repo) {
+      ghArgs.push("--repo", input.repo);
+    }
+    const prData = await runTDCli(ghArgs);
     branch = prData.pr.headRefName;
   }
 
@@ -18,6 +23,12 @@ export async function createJulesSessionHandler(input: z.infer<typeof CreateJule
       branch = process.env.DEFAULT_BASE_BRANCH || "main";
   }
 
-  const output = await runTDCli(["agent", "dispatch", branch, input.task]);
+  const dispatchArgs = ["agent", "dispatch"];
+  if (input.repo) {
+    dispatchArgs.push("--repo", input.repo);
+  }
+  dispatchArgs.push(branch, input.task);
+
+  const output = await runTDCli(dispatchArgs);
   return parseJulesSession(output.session || output);
 }

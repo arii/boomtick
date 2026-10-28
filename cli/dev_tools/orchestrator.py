@@ -329,12 +329,15 @@ class Orchestrator:
             return [f.strip() for f in res.stdout.splitlines() if f.strip()]
         return []
 
-    def dispatch_jules_review(self, branch: str, prompt: str, title: Optional[str] = None) -> Optional[Dict[str, Any]]:
+    def dispatch_jules_review(
+        self, branch: str, prompt: str, title: Optional[str] = None, repo: Optional[str] = None
+    ) -> Optional[Dict[str, Any]]:
         """
         Automates the creation of Jules sessions.
         """
-        if not self.github.branch_exists(branch):
-            raise CLIError(f"Branch '{branch}' does not exist in the repository.")
+        target_repo = repo or self.github.repo or ""
+        if not self.github.branch_exists(branch, repo=target_repo):
+            raise CLIError(f"Branch '{branch}' does not exist in repository '{target_repo}'.")
 
         # Prevent dispatching Jules for consolidation/aggregation tasks
         if re.search(r"\b(consolidate|aggregate)\s+pr(s)?\b", prompt.lower()):
@@ -342,10 +345,9 @@ class Orchestrator:
                 "PR consolidation and aggregation tasks should be performed directly using the 'gh aggregate' command instead of dispatching a Jules session."
             )
 
-        repo_name = self.github.repo or ""
-        source_id = self.jules.discover_source_id(repo_name)
+        source_id = self.jules.discover_source_id(target_repo)
         if not source_id:
-            raise CLIError(f"Could not find a Jules source mapping for repository: {repo_name}")
+            raise CLIError(f"Could not find a Jules source mapping for repository: {target_repo}")
 
         session = self.jules.create_session_from_source(source_id, branch, prompt, title=title)
         return session
