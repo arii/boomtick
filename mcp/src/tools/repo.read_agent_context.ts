@@ -37,16 +37,35 @@ export const loadStandaloneAgentContext = (repoRoot: string = process.cwd()): Ag
 };
 
 export const ReadAgentContextInputSchema = z.object({
+  path: z.string().optional(),
   repoPath: z.string().optional(),
+  repo: z.string().optional(),
 });
 
 export async function readAgentContextHandler(args: z.infer<typeof ReadAgentContextInputSchema>) {
-  const repoRoot = args?.repoPath || config.repoPath;
+  let targetPath = args?.path || args?.repoPath;
+
+  if (!targetPath && args?.repo) {
+    const repoName = args.repo.includes("/") ? args.repo.split("/")[1] : args.repo;
+    const cwdParent = path.resolve(process.cwd(), "..", repoName);
+    const configParent = path.resolve(config.repoPath, "..", repoName);
+
+    if (fs.existsSync(cwdParent)) {
+      targetPath = cwdParent;
+    } else if (fs.existsSync(configParent)) {
+      targetPath = configParent;
+    }
+  }
+
+  const repoRoot = targetPath || config.repoPath;
   const context = loadStandaloneAgentContext(repoRoot);
   const result: any = {
     status: "success",
     ...context
   };
+  if (args?.repo) {
+    result.repo = args.repo;
+  }
   delete result.submodules;
   if (result.config) {
     delete result.config.submodules;

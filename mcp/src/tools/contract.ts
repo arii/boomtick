@@ -1438,7 +1438,7 @@ export const CreateIssueResponseJsonSchema = {
   "type": "object"
 } as const;
 
-export const CreateJulesSessionInputSchema = z.object({ "task": z.string().describe("The instructions for Jules."), "branch": z.union([z.string(), z.null()]).describe("The base branch to start from (e.g., 'main').").default(null), "pr": z.union([z.number().int(), z.null()]).describe("The PR number to use as the base branch context.").default(null) });
+export const CreateJulesSessionInputSchema = z.object({ "task": z.string().describe("The instructions for Jules."), "branch": z.union([z.string(), z.null()]).describe("The base branch to start from (e.g., 'main').").default(null), "pr": z.union([z.number().int(), z.null()]).describe("The PR number to use as the base branch context.").default(null), "repo": z.union([z.string().regex(new RegExp("^[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+$")), z.null()]).describe("The target repository override (e.g. org/repo).").default(null) });
 
 export type CreateJulesSessionInput = z.infer<typeof CreateJulesSessionInputSchema>;
 
@@ -1474,6 +1474,20 @@ export const CreateJulesSessionInputJsonSchema = {
       "default": null,
       "description": "The PR number to use as the base branch context.",
       "title": "Pr"
+    },
+    "repo": {
+      "anyOf": [
+        {
+          "pattern": "^[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "The target repository override (e.g. org/repo).",
+      "title": "Repo"
     }
   },
   "required": [
@@ -2568,12 +2582,53 @@ export const PrDiffResponseJsonSchema = {
   "type": "object"
 } as const;
 
-export const ReadAgentContextInputSchema = z.object({});
+export const ReadAgentContextInputSchema = z.object({ "path": z.union([z.string(), z.null()]).describe("Optional filesystem path to target workspace repository root.").default(null), "repoPath": z.union([z.string(), z.null()]).describe("Alias for path (filesystem path to target workspace repository root).").default(null), "repo": z.union([z.string().regex(new RegExp("^[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+$")), z.null()]).describe("Target GitHub repository string (e.g. org/repo).").default(null) });
 
 export type ReadAgentContextInput = z.infer<typeof ReadAgentContextInputSchema>;
 
 export const ReadAgentContextInputJsonSchema = {
-  "properties": {},
+  "properties": {
+    "path": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Optional filesystem path to target workspace repository root.",
+      "title": "Path"
+    },
+    "repoPath": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Alias for path (filesystem path to target workspace repository root).",
+      "title": "Repopath"
+    },
+    "repo": {
+      "anyOf": [
+        {
+          "pattern": "^[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Target GitHub repository string (e.g. org/repo).",
+      "title": "Repo"
+    }
+  },
   "title": "ReadAgentContextInput",
   "type": "object"
 } as const;

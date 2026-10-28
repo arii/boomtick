@@ -2874,6 +2874,20 @@
           "default": null,
           "description": "The PR number to use as the base branch context.",
           "title": "Pr"
+        },
+        "repo": {
+          "anyOf": [
+            {
+              "pattern": "^[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The target repository override (e.g. org/repo).",
+          "title": "Repo"
         }
       },
       "required": [
@@ -3838,7 +3852,48 @@
       "type": "object"
     },
     "ReadAgentContextInput": {
-      "properties": {},
+      "properties": {
+        "path": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Optional filesystem path to target workspace repository root.",
+          "title": "Path"
+        },
+        "repoPath": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Alias for path (filesystem path to target workspace repository root).",
+          "title": "Repopath"
+        },
+        "repo": {
+          "anyOf": [
+            {
+              "pattern": "^[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Target GitHub repository string (e.g. org/repo).",
+          "title": "Repo"
+        }
+      },
       "title": "ReadAgentContextInput",
       "type": "object"
     },
