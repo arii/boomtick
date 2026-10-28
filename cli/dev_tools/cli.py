@@ -347,6 +347,9 @@ def gh():
     """GitHub Operations"""
 
 
+cli.add_command(gh, name="pr")
+
+
 @gh.command()
 @json_option
 @click.option("--state", type=click.Choice(["open", "closed", "all"]), default="open")
@@ -1259,9 +1262,15 @@ def lint(ctx):
     out(ctx, "✅ Lint complete")
 
 
-@cli.group()
-def test():
+@cli.group(invoke_without_command=True)
+@click.pass_context
+def test(ctx):
     """Testing Operations"""
+    if ctx.invoked_subcommand is None:
+        orch = ctx.obj["ORCHESTRATOR"]
+        orch.runtime_check()
+        run_command(["pnpm", "run", "test"])
+        out(ctx, "✅ Workspace tests passed")
 
 
 @test.command(name="cli")

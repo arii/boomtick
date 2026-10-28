@@ -205,3 +205,42 @@ def test_agent_plan_review_options():
 
         res_pr_num = runner.invoke(cli, ["agent", "plan-review", "--pr-number", "42"])
         assert res_pr_num.exit_code == 0, res_pr_num.output
+
+
+def test_td_pr_alias():
+    runner = CliRunner()
+    with patch("dev_tools.cli.LazyOrchestrator") as mock_lazy:
+        mock_orch = MagicMock()
+        mock_lazy.return_value = mock_orch
+        mock_orch.list_prs.return_value = {"prs": []}
+
+        res = runner.invoke(cli, ["pr", "search-prs"])
+        assert res.exit_code == 0, res.output
+        assert json.loads(res.output)["status"] == "success"
+
+
+def test_td_test_default_workspace():
+    runner = CliRunner()
+    with patch("dev_tools.cli.run_command") as mock_run_cmd, \
+         patch("dev_tools.cli.LazyOrchestrator") as mock_lazy:
+        mock_orch = MagicMock()
+        mock_lazy.return_value = mock_orch
+
+        res = runner.invoke(cli, ["test"])
+        assert res.exit_code == 0, res.output
+        assert json.loads(res.output)["status"] == "success"
+        mock_run_cmd.assert_called_once_with(["pnpm", "run", "test"])
+
+
+def test_td_test_cli_subcommand():
+    runner = CliRunner()
+    with patch("subprocess.run") as mock_subproc_run, \
+         patch("dev_tools.cli.LazyOrchestrator") as mock_lazy:
+        mock_orch = MagicMock()
+        mock_lazy.return_value = mock_orch
+        mock_subproc_run.return_value = MagicMock(returncode=0)
+
+        res = runner.invoke(cli, ["test", "cli"])
+        assert res.exit_code == 0, res.output
+        assert json.loads(res.output)["status"] == "success"
+        mock_subproc_run.assert_called_once()
