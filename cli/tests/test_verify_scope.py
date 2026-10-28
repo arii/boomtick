@@ -268,6 +268,42 @@ def test_override_release_please_event_path(monkeypatch, tmp_path):
     assert verify_scope.check_override() is True
 
 
+def test_override_boomtick_bot_user(monkeypatch, tmp_path):
+    monkeypatch.delenv("SCOPE_OVERRIDE", raising=False)
+    monkeypatch.delenv("GITHUB_HEAD_REF", raising=False)
+    monkeypatch.delenv("GITHUB_REF", raising=False)
+
+    event_file = tmp_path / "event.json"
+    event_data = {
+        "pull_request": {
+            "title": "chore: release main (#972)",
+            "head": {"ref": "release-please--branches--main"},
+            "user": {"login": "boomtick[bot]"}
+        }
+    }
+    event_file.write_text(json.dumps(event_data), encoding="utf-8")
+    monkeypatch.setenv("GITHUB_EVENT_PATH", str(event_file))
+
+    assert verify_scope.check_override() is True
+
+
+def test_dockerfile_case_insensitive_exempt():
+    issue_text = "Fix a bug in .github/workflows/release.yml."
+    changed_files = [
+        "Dockerfile",
+        "package-lock.json",
+        "action.yml",
+        ".dependency-cruiser.config.mjs",
+        "tsup.config.ts"
+    ]
+
+    success, allowed, disallowed = verify_scope.check_scope(changed_files, issue_text)
+
+    assert success is True
+    assert len(allowed) == 5
+    assert len(disallowed) == 0
+
+
 def test_override_release_please_commit_msg(monkeypatch):
     monkeypatch.delenv("SCOPE_OVERRIDE", raising=False)
     monkeypatch.delenv("GITHUB_HEAD_REF", raising=False)

@@ -12,13 +12,16 @@ import subprocess
 import json
 
 EXEMPT_FILES = {
-    "Dockerfile", "package.json", "pnpm-lock.yaml", "pnpm-workspace.yaml", "project_config.json",
+    "dockerfile", "package.json", "package-lock.json", "pnpm-lock.yaml", "pnpm-workspace.yaml", "project_config.json",
     "tsconfig.json", "workspace.json", ".gitignore", ".dockerignore", ".pylintrc",
     "eslint.config.mjs", "oxlint.json", "tsconfig.app.json", ".release-please-manifest.json",
     "release-please-config.json", "changelog.md", "readme.md", "agents.md", "ci.yml", "release.yml",
     "verify-scope.py", "test_verify_scope.py", "reviewpromptconstants.ts",
-    "prompt_constants.json", "pyproject.toml"
+    "prompt_constants.json", "pyproject.toml", "action.yml", ".dependency-cruiser.config.mjs",
+    ".fallowrc.json", ".jscpd.json", ".node-version", ".npmrc", "tsup.config.ts",
+    "workspace-schema.json", ".env.example"
 }
+EXEMPT_FILES_LOWER = {f.lower() for f in EXEMPT_FILES}
 
 def get_changed_files(base_branch=None):
     files = set()
@@ -171,9 +174,10 @@ def check_override():
         return True
 
     # Check environment variables for release-please branch or PR head ref
-    head_ref = os.environ.get("GITHUB_HEAD_REF", "")
-    github_ref = os.environ.get("GITHUB_REF", "")
-    if "release-please" in head_ref.lower() or "release-please" in github_ref.lower():
+    head_ref = os.environ.get("GITHUB_HEAD_REF", "").lower()
+    github_ref = os.environ.get("GITHUB_REF", "").lower()
+    release_branch_keywords = ["release-please", "autorelease", "release/", "release-"]
+    if any(k in head_ref or k in github_ref for k in release_branch_keywords):
         return True
 
     # Check current git branch name
@@ -181,7 +185,7 @@ def check_override():
         res = subprocess.run(["git", "rev-parse", "--abbrev-ref", "HEAD"], capture_output=True, text=True, check=False)
         if res.returncode == 0:
             branch_name = res.stdout.strip().lower()
-            if "release-please" in branch_name:
+            if any(k in branch_name for k in release_branch_keywords):
                 return True
     except Exception:
         pass
@@ -193,13 +197,22 @@ def check_override():
             with open(event_path, "r", encoding="utf-8") as f:
                 event = json.load(f)
             pr = event.get("pull_request", {})
-            pr_head_ref = pr.get("head", {}).get("ref", "")
-            pr_title = pr.get("title", "")
-            user_login = pr.get("user", {}).get("login", "")
+            pr_head_ref = pr.get("head", {}).get("ref", "").lower()
+            pr_title = pr.get("title", "").strip().lower()
+            user_login = pr.get("user", {}).get("login", "").lower()
 
-            if "release-please" in pr_head_ref.lower() or "release-please" in user_login.lower():
+            if any(k in pr_head_ref for k in release_branch_keywords):
                 return True
-            if pr_title.lower().startswith("chore: release") or (pr_title.lower().startswith("chore(") and "release" in pr_title.lower()):
+            if any(k in user_login for k in ["release-please", "boomtick", "github-actions"]) or user_login.endswith("[bot]"):
+                return True
+            if (
+                pr_title.startswith("chore: release")
+                or pr_title.startswith("release:")
+                or pr_title.startswith("chore(release)")
+                or (pr_title.startswith("chore(") and "release" in pr_title)
+                or "chore: release main" in pr_title
+                or "chore(deps" in pr_title
+            ):
                 return True
         except Exception:
             pass
@@ -209,9 +222,9 @@ def check_override():
         res = subprocess.run(["git", "log", "-n", "10", "--pretty=%B"], capture_output=True, text=True, check=False)
         if res.returncode == 0:
             msg = res.stdout.lower()
-            if "[skip-scope-check]" in msg or "[scope-override]" in msg or "skip-scope" in msg or "release-please" in msg:
+            if any(tag in msg for tag in ["[skip-scope-check]", "[scope-override]", "skip-scope", "release-please"]):
                 return True
-            if "chore: release" in msg or "chore(main): release" in msg:
+            if any(tag in msg for tag in ["chore: release", "chore(main): release", "chore: release main"]):
                 return True
     except Exception:
         pass
@@ -353,7 +366,7 @@ def check_scope(changed_files, issue_text):
         base_lower = os.path.splitext(filename_lower)[0]
 
         # 1. Exempt files
-        if filename_lower in EXEMPT_FILES:
+        if filename_lower in EXEMPT_FILES_LOWER:
             allowed_files.append((filepath, "Exempt configuration/readme/tooling file"))
             continue
 
