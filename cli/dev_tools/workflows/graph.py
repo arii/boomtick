@@ -105,12 +105,12 @@ class WorkflowGraph:
         def visit(node_name: str) -> None:
             if node_name not in visited:
                 visited.add(node_name)
-                # Visit all nodes that this node depends on first
-                for dep in self.dependencies.get(node_name, set()):
+                # Visit all nodes that this node depends on first in deterministic order
+                for dep in sorted(self.dependencies.get(node_name, set())):
                     visit(dep)
                 order.append(node_name)
 
-        for name in self.nodes:
+        for name in sorted(self.nodes):
             visit(name)
 
         return [self.nodes[name] for name in order]
