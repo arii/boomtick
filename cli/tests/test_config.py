@@ -42,6 +42,66 @@ def test_load_custom_config(tmp_path):
     assert config.ai_synthesis_model == "gpt-4o"
 
 
+def test_import_outside_repo(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    from dev_tools.config import get_config
+    get_config.cache_clear()
+    monkeypatch.setattr("dev_tools.config._detect_repo_name", lambda: None)
+
+    import dev_tools.cli
+    import dev_tools.orchestrator
+    import dev_tools.services.context_builder
+
+    assert dev_tools.cli.cli is not None
+
+
+def test_help_outside_repo(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    from dev_tools.config import get_config
+    get_config.cache_clear()
+    monkeypatch.setattr("dev_tools.config._detect_repo_name", lambda: None)
+
+    from click.testing import CliRunner
+    from dev_tools.cli import cli
+
+    runner = CliRunner()
+    result_help = runner.invoke(cli, ["--help"])
+    assert result_help.exit_code == 0
+    assert "Unified Tech-Dancer DevTools CLI" in result_help.output
+
+
+def test_config_view_missing_config(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    from dev_tools.config import get_config
+    get_config.cache_clear()
+    monkeypatch.setattr("dev_tools.config._detect_repo_name", lambda: None)
+
+    from click.testing import CliRunner
+    from dev_tools.cli import cli
+
+    runner = CliRunner()
+    result = runner.invoke(cli, ["--no-json", "config", "view"])
+    assert result.exit_code != 0
+    assert "Missing required configuration: github_repo" in result.output
+    assert "Traceback" not in result.output
+
+
+def test_config_dependent_command_missing_config(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    from dev_tools.config import get_config
+    get_config.cache_clear()
+    monkeypatch.setattr("dev_tools.config._detect_repo_name", lambda: None)
+
+    from click.testing import CliRunner
+    from dev_tools.cli import cli
+
+    runner = CliRunner()
+    result = runner.invoke(cli, ["--no-json", "gh", "search-issues"])
+    assert result.exit_code != 0
+    assert isinstance(result.exception, ValueError)
+    assert "Missing required configuration: github_repo" in str(result.exception)
+
+
 def test_load_package_name(tmp_path):
     # Test loading packageName
     config_file1 = tmp_path / "project_config1.json"

@@ -50,8 +50,13 @@ class LazyOrchestrator:
         return dir(self._get_instance())
 
 
-PROJECT_CONFIG = get_config()
-DEFAULT_GH_API_LIMIT = PROJECT_CONFIG.default_limit
+DEFAULT_GH_API_LIMIT = 10
+
+
+def __getattr__(name: str):
+    if name == "PROJECT_CONFIG":
+        return get_config()
+    raise AttributeError(f"module '{__name__}' has no attribute '{name}'")
 
 
 def limit_option(default_val=DEFAULT_GH_API_LIMIT, help_text="Limit the number of items to process"):
@@ -170,11 +175,15 @@ def config_view(ctx):
     # ctx.obj might be None if the command is called directly or during unit tests
     is_json = ctx.obj.get("JSON", True) if ctx.obj is not None else True
 
-    if is_json:
-        click.echo(json.dumps(asdict(PROJECT_CONFIG), indent=2))
-    else:
-        click.echo("Current configuration:")
-        click.echo(json.dumps(asdict(PROJECT_CONFIG), indent=2))
+    try:
+        conf = get_config()
+        if is_json:
+            click.echo(json.dumps(asdict(conf), indent=2))
+        else:
+            click.echo("Current configuration:")
+            click.echo(json.dumps(asdict(conf), indent=2))
+    except (ValueError, CLIError) as e:
+        err(ctx, str(e))
 
 
 # ==========================================
@@ -325,12 +334,14 @@ def search_issues(ctx, state, limit, labels):
 @gh.command()
 @click.argument("pr_number_arg", required=False, type=int)
 @click.option("--pr", "--pr-number", "pr_number_opt", type=int, help="The PR number to check merge conflicts for.")
-@click.option("--base", default=PROJECT_CONFIG.base_branch_name)
+@click.option("--base", default=None, help="Base branch (defaults to configured base branch)")
 @click.pass_context
 def merge_conflicts(ctx, pr_number_arg, pr_number_opt, base):
     pr_number = pr_number_arg if pr_number_arg is not None else pr_number_opt
     if pr_number is None:
         err(ctx, "Provide --pr/--pr-number or a positional PR number")
+    if base is None:
+        base = get_config().base_branch_name
     orch = ctx.obj["ORCHESTRATOR"]
     res = orch.get_merge_conflicts(pr_number, base_branch=base)
     out(ctx, f"Checked merge conflicts for PR #{pr_number}", data=res)
@@ -417,12 +428,14 @@ def resolve(ctx, file, base, strategy):
 @gh.command()
 @click.option(
     "--check-dirs",
-    default=os.environ.get("AUDIT_CHECK_DIRS", ",".join(PROJECT_CONFIG.audit_check_dirs)),
+    default=None,
     help="Comma-separated list of directories to audit",
 )
 @click.pass_context
 def audit(ctx, check_dirs):
     """Run a headless UI audit on the codebase."""
+    if check_dirs is None:
+        check_dirs = os.environ.get("AUDIT_CHECK_DIRS") or ",".join(get_config().audit_check_dirs)
     orch = ctx.obj["ORCHESTRATOR"]
     res = orch.get_audit_results(targets=check_dirs.split(","))
     out(ctx, "Headless audit complete.", data=res)
@@ -591,7 +604,7 @@ def validate_issue(ctx, issue_number, all_open, post_comments, dry_run, file=Non
 @click.pass_context
 def scaffold_issue(ctx, file):
     """Output a markdown skeleton containing the required headers."""
-    sections = PROJECT_CONFIG.spec_sections
+    sections = get_config().spec_sections
 
     output = "# Issue Title\n\n"
     for section in sections:
@@ -613,12 +626,13 @@ def scaffold_issue(ctx, file):
 @click.option("--title", required=True)
 @click.option("--body", required=True)
 @click.option("--head", required=True)
-@click.option("--base", default=PROJECT_CONFIG.base_branch_name)
+@click.option("--base", default=None, help="Base branch")
 @click.option("--draft", is_flag=True)
 @click.option("--repo", help="Target repository override")
 @click.pass_context
 def create_pr(ctx, title, body, head, base, draft, repo):
     """Create a new pull request."""
+    base = base or get_config().base_branch_name
     orch = ctx.obj["ORCHESTRATOR"]
     res = orch.create_pull_request(title, body, head, base, draft=draft, repo=repo)
     out(ctx, f"✅ Created PR: {res.get('html_url')}", data={"pr": res})
@@ -707,7 +721,7 @@ def verify_versions(ctx, diff_input):
     if not diff_input:
         # If no input provided, try to get diff against main
         try:
-            diff_input = run_command(["git", "diff", PROJECT_CONFIG.base_branch])
+            diff_input = run_command(["git", "diff", get_config().base_branch])
         except Exception as e:
             _handle_unexpected_error(ctx, "check-diff", e)
 
@@ -1060,10 +1074,11 @@ def summary_report(ctx):
 
 
 @cli.command(name="preflight")
-@click.option("--base", default=PROJECT_CONFIG.base_branch_name, help="Base branch for merge simulation")
+@click.option("--base", default=None, help="Base branch for merge simulation")
 @click.pass_context
 def preflight(ctx, base):
     """Run local preflight checks: td doctor, typecheck, linting, overlap detection, and merge simulation."""
+    base = base or get_config().base_branch_name
     orch = ctx.obj["ORCHESTRATOR"]
     res = orch.run_preflight(base_branch=base)
     out(ctx, "✅ Preflight check complete.", data=res)
@@ -1721,7 +1736,7 @@ def context_warm(ctx, force):
         log_info("🧊 Context is stale or missing. Warming up...")
         try:
             # Use dynamic resolution from ProjectConfig for the context builder script
-            script_path = PROJECT_CONFIG.context_builder_script
+            script_path = get_config().context_builder_script
             if not os.path.exists(script_path):
                 err(ctx, f"Context builder script not found at {script_path}")
 
@@ -1754,7 +1769,7 @@ def main():
     except Exception as e:
         # If we are in JSON mode, we should ideally output JSON error.
         # Detecting JSON mode from sys.argv since click context isn't available here yet if it failed early.
-        # Note: {PROJECT_CONFIG.cli_alias} subcommands are JSON by default.
+        # Note: {get_config().cli_alias} subcommands are JSON by default.
         is_json = "--no-json" not in sys.argv
 
         if is_json:

@@ -51,12 +51,16 @@ from dev_tools.utils import (
     walk_tsx,
 )
 
-PROJECT_CONFIG = get_config()
-AUDIT_CHECK_DIRS = PROJECT_CONFIG.audit_check_dirs
-SPEC_SECTIONS = PROJECT_CONFIG.spec_sections
-
-# Pre-compute UI indicators for heuristic checks
-UI_INDICATORS = PROJECT_CONFIG.ui_indicators
+def __getattr__(name: str):
+    if name == "PROJECT_CONFIG":
+        return get_config()
+    if name == "AUDIT_CHECK_DIRS":
+        return get_config().audit_check_dirs
+    if name == "SPEC_SECTIONS":
+        return get_config().spec_sections
+    if name == "UI_INDICATORS":
+        return get_config().ui_indicators
+    raise AttributeError(f"module '{__name__}' has no attribute '{name}'")
 
 
 class Orchestrator:
@@ -92,7 +96,7 @@ class Orchestrator:
     @property
     def github(self) -> GitHubClient:
         if self._github is None:
-            self._github = GitHubClient(repo=PROJECT_CONFIG.github_repo, no_cache=self.no_cache)
+            self._github = GitHubClient(repo=get_config().github_repo, no_cache=self.no_cache)
         return self._github
 
     @property
@@ -148,14 +152,14 @@ class Orchestrator:
             if line.startswith("+++ b/"):
                 files_in_diff.add(line[6:])
 
-        is_ui = any(any(ind in f for ind in UI_INDICATORS) for f in files_in_diff)
+        is_ui = any(any(ind in f for ind in get_config().ui_indicators) for f in files_in_diff)
         is_python = any(f.endswith(".py") for f in files_in_diff)
-        is_infra = any(any(ind in f for ind in PROJECT_CONFIG.infra_file_paths) for f in files_in_diff)
+        is_infra = any(any(ind in f for ind in get_config().infra_file_paths) for f in files_in_diff)
 
         # File Necessity Check (Temporary Files)
         temp_files = []
         for f in files_in_diff:
-            if any(re.search(pattern, f) for pattern in PROJECT_CONFIG.temp_file_patterns):
+            if any(re.search(pattern, f) for pattern in get_config().temp_file_patterns):
                 temp_files.append(f)
 
         fails = [c["name"] for c in checks.get("check_runs", []) if c.get("conclusion") == "failure"]
@@ -178,7 +182,7 @@ class Orchestrator:
                 feedback += "  - *Fix:* Verify that the `dist` directory compiles correctly without TypeScript or Vite errors.\n"
 
         if is_ui:
-            tailwind_indicators = PROJECT_CONFIG.tailwind_indicators
+            tailwind_indicators = get_config().tailwind_indicators
             if any(ind in diff for ind in tailwind_indicators):
                 feedback += "- **Design System Anti-patterns:** The diff contains raw Tailwind classes (e.g. padding/margin utility classes, arbitrary values).\n"
                 feedback += "  - *Fix:* Replace raw Tailwind layout classes with `Stack`, `Box`, or `Grid` primitives using design tokens (e.g., `gap={4}`, `paddingY={{ base: 4, md: 1.5 }}`). Verify by running `td gh audit-gate`.\n"
@@ -191,21 +195,21 @@ class Orchestrator:
             feedback += "  - *Fix:* Ensure `python3 -m pytest tests/` passes. Update `test_td` or equivalent test files if extending `dev-tools`.\n"
 
         if is_infra:
-            feedback += PROJECT_CONFIG.infra_feedback
+            feedback += get_config().infra_feedback
 
         if temp_files:
-            feedback += PROJECT_CONFIG.temp_file_feedback
+            feedback += get_config().temp_file_feedback
             for tf in sorted(temp_files):
                 feedback += f"  - `{tf}`\n"
 
         if pr.get("mergeable") is False:
-            base_branch_name = PROJECT_CONFIG.base_branch_name
+            base_branch_name = get_config().base_branch_name
             feedback += f"- **Merge Conflicts:** This PR has conflicts with the `{base_branch_name}` base branch.\n"
-            feedback += f"  - *Fix:* Pull `{base_branch_name}` into your branch, resolve the conflicts (e.g., via `{PROJECT_CONFIG.cli_alias} gh detect-conflicts`), and force push.\n"
+            feedback += f"  - *Fix:* Pull `{base_branch_name}` into your branch, resolve the conflicts (e.g., via `{get_config().cli_alias} gh detect-conflicts`), and force push.\n"
 
         if "overlap" in pr.get("title", "").lower() or "cli" in pr.get("title", "").lower():
             feedback += "- **Overlap / Interdependency:** This PR touches dev-tools or overlap logic.\n"
-            feedback += f"  - *Fix:* Ensure this is rebased against recent changes in the `{PROJECT_CONFIG.base_branch_name}` branch to avoid overlapping functionality.\n"
+            feedback += f"  - *Fix:* Ensure this is rebased against recent changes in the `{get_config().base_branch_name}` branch to avoid overlapping functionality.\n"
 
         # Default if no specific issues caught by heuristics
         if feedback.endswith("**Specific Issues & Actionable Fixes:**\n"):
@@ -630,7 +634,7 @@ class Orchestrator:
 
         # Spec-Driven Issue Validation
         if not is_exempt:
-            missing_spec_sections = [s for s in SPEC_SECTIONS if not self._has_spec_section(s, body)]
+            missing_spec_sections = [s for s in get_config().spec_sections if not self._has_spec_section(s, body)]
             if missing_spec_sections:
                 findings.append(f"Missing spec-driven sections: {', '.join(f'`{s}`' for s in missing_spec_sections)}")
 
@@ -684,7 +688,7 @@ class Orchestrator:
                 if warnings:
                     comment += "### ⚠️ Warnings\n" + "\n".join(f"- {w}" for w in warnings) + "\n"
                 if not dry_run:
-                    issue.create_comment(f"{comment}\n---\n*Generated by `{PROJECT_CONFIG.cli_alias} validate-issue`*")
+                    issue.create_comment(f"{comment}\n---\n*Generated by `{get_config().cli_alias} validate-issue`*")
 
         return {
             "status": "success" if total_findings == 0 else "error",
@@ -1267,7 +1271,7 @@ class Orchestrator:
 
         # 4. Deterministic AST Audit
         try:
-            audit_res = self.get_audit_results(targets=AUDIT_CHECK_DIRS)
+            audit_res = self.get_audit_results(targets=get_config().audit_check_dirs)
             results["audit"] = audit_res
             if audit_res.get("violations"):
                 results["audit_status"] = "violations_found"
@@ -1286,7 +1290,7 @@ class Orchestrator:
 
         # 6. Merge Simulation via git merge-tree
         try:
-            base = base_branch or PROJECT_CONFIG.base_branch or "origin/main"
+            base = base_branch or get_config().base_branch or "origin/main"
             curr_branch = run_command(["git", "branch", "--show-current"]).strip() or "HEAD"
             merge_base = base
             merge_tree_res = run_command(["git", "merge-tree", merge_base, curr_branch], check=False)
@@ -1335,7 +1339,7 @@ class Orchestrator:
         script_path = self._resolve_antipatterns_script()
         steps = [
             ("Anti-Pattern Audit", ["node", script_path]),
-            ("Version Downgrade Check", [PROJECT_CONFIG.cli_alias, "gh", "verify-versions"]),
+            ("Version Downgrade Check", [get_config().cli_alias, "gh", "verify-versions"]),
             ("TypeScript", ["pnpm", "run", "type-check"]),
             ("Lint", ["pnpm", "run", "lint"]),
         ]
@@ -1392,7 +1396,7 @@ class Orchestrator:
         branch_name = None
         try:
             branch_name = f"repair/local-{datetime.now().strftime('%H%M%S')}"
-            prefix = PROJECT_CONFIG.worktree_prefix
+            prefix = get_config().worktree_prefix
             # Create temporary worktree within repo root to avoid Security Error
             worktree_path = os.path.join(original_cwd, f"{prefix}{datetime.now().strftime('%H%M%S')}")
             os.makedirs(worktree_path, exist_ok=True)
@@ -1450,7 +1454,7 @@ class Orchestrator:
 
             baseline_count = 0
             # Robust base branch discovery: try config, then origin/main, then main
-            base_candidates = [PROJECT_CONFIG.base_branch, "origin/main", "main"]
+            base_candidates = [get_config().base_branch, "origin/main", "main"]
             base_ref = None
             for cand in base_candidates:
                 if (
@@ -1475,7 +1479,7 @@ class Orchestrator:
                 mf
                 for mf in base_files
                 if (mf.endswith(".tsx") or mf.endswith(".ts"))
-                and any(mf == d or mf.startswith(d + "/") for d in AUDIT_CHECK_DIRS)
+                and any(mf == d or mf.startswith(d + "/") for d in get_config().audit_check_dirs)
             ]
             for mf in relevant:
                 res_show = run_command(["git", "show", f"{base_ref}:{mf}"], check=False, log_on_error=False)
@@ -1594,8 +1598,8 @@ class Orchestrator:
                             f"File: {f['file']}, Line: {f['line']}, Error: {f['message']} ({f['type']})"
                         )
 
-        base_branch = PROJECT_CONFIG.base_branch
-        base_branch_name = PROJECT_CONFIG.base_branch_name
+        base_branch = get_config().base_branch
+        base_branch_name = get_config().base_branch_name
 
         prompt = f"""# Agent Prompt: Self-Review, Fix, and Publish PR
 
@@ -2082,7 +2086,7 @@ Run the workflow (if possible via `gh workflow run` or by pushing a test branch)
                 f.write(f"""# Workflow Plan: Issue #{issue['number']}
 
 ## Agent Instructions
-- **Environment Check**: Ensure Python dependencies and pnpm {PROJECT_CONFIG.pnpm_version} are available.
+- **Environment Check**: Ensure Python dependencies and pnpm {get_config().pnpm_version} are available.
 
 ## Issue Context
 - **Title:** {issue['title']}
@@ -2283,7 +2287,7 @@ Follow the "Audit comment template" in `docs/agent/issue-audit-rules.md` to post
     def get_merge_conflicts(self, prNumber: int, base_branch: Optional[str] = None) -> Dict[str, Any]:
         """Detects merge conflicts for a PR against a base branch using a temporary worktree."""
         if base_branch is None:
-            base_branch = PROJECT_CONFIG.base_branch_name
+            base_branch = get_config().base_branch_name
         # Get PR head ref
         pr_data = self.github.fetch_pr_details(prNumber)
         head_ref = pr_data.get("head", {}).get("ref")
@@ -2550,7 +2554,7 @@ Follow the "Audit comment template" in `docs/agent/issue-audit-rules.md` to post
         """
         Aggregates multiple PRs into a single target branch and creates a consolidated PR.
         """
-        base_branch = PROJECT_CONFIG.base_branch_name
+        base_branch = get_config().base_branch_name
 
         # 1. Isolation & Cleanliness
         run_git_commands(
@@ -2762,7 +2766,7 @@ Follow the "Audit comment template" in `docs/agent/issue-audit-rules.md` to post
 
 ## Agent Instructions
 
-- **Environment Check**: Ensure Python dependencies and pnpm {PROJECT_CONFIG.pnpm_version} are available.
+- **Environment Check**: Ensure Python dependencies and pnpm {get_config().pnpm_version} are available.
 - setup complete
 - validation complete
 - context collected (via `td agent plan-review --pr {prNumber}`)
@@ -3034,7 +3038,7 @@ Overlapping functionality identified and resolved.
         try:
             # 1. Fetch PR details early to fail fast
             pr_data = self.github.fetch_pr_details(prNumber)
-            default_base = PROJECT_CONFIG.base_branch_name
+            default_base = get_config().base_branch_name
             base_branch = pr_data.get("base", {}).get("ref", default_base)
             head_ref = pr_data.get("head", {}).get("ref")
 
@@ -3223,7 +3227,7 @@ Overlapping functionality identified and resolved.
         plan_lines = []
         plan_lines.append(f"# Aggregation Workflow Plan: {escape_md(target_branch)}\n")
         plan_lines.append("## Agent Instructions")
-        plan_lines.append(f"- **Environment Check**: Ensure Python dependencies and pnpm {PROJECT_CONFIG.pnpm_version} are available.")
+        plan_lines.append(f"- **Environment Check**: Ensure Python dependencies and pnpm {get_config().pnpm_version} are available.")
         plan_lines.append("- setup complete")
         plan_lines.append("- validation complete")
         plan_lines.append("- context collected")
@@ -3271,7 +3275,7 @@ Overlapping functionality identified and resolved.
 
         plan_lines.append("\n## Sequential Execution Plan")
         plan_lines.append("### Base Branch Setup")
-        plan_lines.append(f"1. Checkout base branch (`{PROJECT_CONFIG.base_branch_name}`) and pull latest changes.")
+        plan_lines.append(f"1. Checkout base branch (`{get_config().base_branch_name}`) and pull latest changes.")
         plan_lines.append(f"2. Create and checkout target aggregation branch: `git checkout -b {escape_md(target_branch)}`.")
 
         plan_lines.append("\n### Step-by-Step Merge Sequence")
