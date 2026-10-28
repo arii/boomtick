@@ -1156,12 +1156,35 @@ class Orchestrator:
             cwd = os.getcwd()
             safe_dirs_res = run_command(["git", "config", "--get-all", "safe.directory"], check=False, log_on_error=False)
             safe_dirs_out = safe_dirs_res.stdout if hasattr(safe_dirs_res, "stdout") else str(safe_dirs_res)
-            safe_dirs = [d.strip() for d in safe_dirs_out.splitlines() if d.strip()]
+            raw_safe_dirs = [d.strip() for d in safe_dirs_out.splitlines() if d.strip()]
+            safe_dirs = list(dict.fromkeys(raw_safe_dirs))
 
-            status_res = run_command(["git", "status", "--porcelain"], check=False, log_on_error=False)
-            status_err = status_res.stderr if hasattr(status_res, "stderr") else ""
+            real_cwd = os.path.realpath(cwd)
+            is_safe = False
+            if "*" in safe_dirs:
+                is_safe = True
+            else:
+                for d in safe_dirs:
+                    try:
+                        real_d = os.path.realpath(os.path.expanduser(d))
+                        if real_cwd == real_d:
+                            is_safe = True
+                            break
+                        rel = os.path.relpath(real_cwd, real_d)
+                        if not rel.startswith("..") and not os.path.isabs(rel):
+                            is_safe = True
+                            break
+                    except Exception:
+                        pass
 
-            if "*" in safe_dirs or cwd in safe_dirs or any(d in cwd for d in safe_dirs) or "fatal" not in status_err.lower():
+            is_owner = False
+            if hasattr(os, "getuid"):
+                try:
+                    is_owner = (os.stat(cwd).st_uid == os.getuid())
+                except Exception:
+                    is_owner = False
+
+            if is_safe or is_owner:
                 results["git_safe_directory"] = "configured"
                 results["checks"]["git_safe_directory"] = {"status": "ok", "configured_directories": safe_dirs}
             else:

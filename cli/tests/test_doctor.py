@@ -57,3 +57,53 @@ def test_doctor_cli_command():
     result = runner.invoke(cli, ["doctor"])
     assert result.exit_code == 0
     assert "status" in result.output or "Doctor" in result.output
+
+
+def test_doctor_git_safe_directory_deduplication():
+    """Test that git_safe_directory deduplicates duplicate safe.directory entries."""
+    orch = Orchestrator()
+    mock_safe_dirs_out = "/repo/path\n/repo/path\n/other/path\n/repo/path\n"
+
+    def mock_run_command(cmd, **_kwargs):
+        if cmd == ["git", "config", "--get-all", "safe.directory"]:
+            return type("Res", (), {"stdout": mock_safe_dirs_out, "stderr": ""})()
+        return ""
+
+    with patch("dev_tools.orchestrator.run_command", side_effect=mock_run_command):
+        with patch.object(orch, "runtime_check", return_value={"node": "24.16.0", "pnpm": "10.28.2"}):
+            with patch("os.getcwd", return_value="/repo/path"):
+                with patch("os.path.realpath", side_effect=lambda p: p):
+                    res = orch.doctor_check()
+                    assert res["git_safe_directory"] == "configured"
+                    configured = res["checks"]["git_safe_directory"]["configured_directories"]
+                    assert configured == ["/repo/path", "/other/path"]
+
+
+def test_doctor_git_safe_directory_strict_ownership():
+    """Test strict ownership and safe.directory matching logic."""
+    orch = Orchestrator()
+
+    def mock_run_command(_cmd, **_kwargs):
+        return type("Res", (), {"stdout": "", "stderr": ""})()
+
+    # Case 1: Not in safe_dirs, process UID does not match repo stat UID -> unconfigured
+    with patch("dev_tools.orchestrator.run_command", side_effect=mock_run_command):
+        with patch.object(orch, "runtime_check", return_value={"node": "24.16.0", "pnpm": "10.28.2"}):
+            with patch("os.getcwd", return_value="/repo/path"):
+                with patch("os.path.realpath", side_effect=lambda p: p):
+                    with patch("os.getuid", return_value=1000):
+                        stat_mismatch = type("StatResMismatch", (), {"st_uid": 1001})()
+                        with patch("os.stat", return_value=stat_mismatch):
+                            res = orch.doctor_check()
+                            assert res["git_safe_directory"] == "unconfigured"
+
+    # Case 2: Not in safe_dirs, process UID matches repo stat UID -> configured
+    with patch("dev_tools.orchestrator.run_command", side_effect=mock_run_command):
+        with patch.object(orch, "runtime_check", return_value={"node": "24.16.0", "pnpm": "10.28.2"}):
+            with patch("os.getcwd", return_value="/repo/path"):
+                with patch("os.path.realpath", side_effect=lambda p: p):
+                    with patch("os.getuid", return_value=1000):
+                        stat_match = type("StatResMatch", (), {"st_uid": 1000})()
+                        with patch("os.stat", return_value=stat_match):
+                            res = orch.doctor_check()
+                            assert res["git_safe_directory"] == "configured"
