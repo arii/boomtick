@@ -143,12 +143,44 @@ export class BoomtickMCPServer {
         };
       }
       if (
+        uri === "mcp://workspace/project-config" ||
+        uri === "mcp://workspace/project_config" ||
+        uri === "repo://project-config"
+      ) {
+        const configPath = path.join(config.repoPath, "project_config.json");
+        let content = "{}";
+        try {
+          content = await fs.readFile(configPath, "utf-8");
+        } catch {
+          // Fallback if file doesn't exist
+        }
+        return {
+          contents: [{ uri, mimeType: "application/json", text: content }],
+        };
+      }
+      if (
         uri === "mcp://git/changed-files" ||
         uri === "repo://changed-files"
       ) {
         const changedFiles = await getChangedFilesHandler(GetChangedFilesInputSchema.parse({}));
         return {
           contents: [{ uri, mimeType: "application/json", text: JSON.stringify(changedFiles, null, 2) }],
+        };
+      }
+      if (
+        uri === "mcp://git/status" ||
+        uri === "repo://git-status" ||
+        uri === "repo://status"
+      ) {
+        let statusText = "";
+        try {
+          const res = spawnSync("git", ["status", "--porcelain"], { cwd: config.repoPath, encoding: "utf-8" });
+          statusText = res.stdout || "";
+        } catch {
+          // Fallback if git fails
+        }
+        return {
+          contents: [{ uri, mimeType: "application/json", text: JSON.stringify({ status: statusText.trim() }, null, 2) }],
         };
       }
       if (

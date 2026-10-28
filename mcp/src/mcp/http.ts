@@ -32,6 +32,13 @@ export function createMcpHttpServer(options: HttpServerOptions) {
 
     const url = new URL(req.url || "/", `http://${req.headers.host || "localhost"}`);
 
+    // Endpoint 0: Health check endpoint for readiness probes / load balancers
+    if (url.pathname === "/health" && req.method === "GET") {
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ status: "ok", transport: "http" }));
+      return;
+    }
+
     // Endpoint 1: RFC 9728 OAuth Protected Resource Metadata Discovery
     if (url.pathname === "/.well-known/oauth-protected-resource" && (req.method === "GET" || req.method === "HEAD")) {
       const metadata = {
@@ -82,11 +89,24 @@ export function createMcpHttpServer(options: HttpServerOptions) {
 
     // Endpoint 2: SSE stream setup
     if (url.pathname === "/sse" && req.method === "GET") {
+      res.setHeader("Cache-Control", "no-cache");
+      res.setHeader("Content-Type", "text/event-stream");
+      res.setHeader("Connection", "keep-alive");
+
       const transport = new SSEServerTransport("/messages", res);
       transports.set(transport.sessionId, transport);
+
+      const keepAliveInterval = setInterval(() => {
+        if (!res.writableEnded) {
+          res.write(": keep-alive\n\n");
+        }
+      }, 15000);
+
       transport.onclose = () => {
+        clearInterval(keepAliveInterval);
         transports.delete(transport.sessionId);
       };
+
       await mcpServer.connect(transport);
       return;
     }
