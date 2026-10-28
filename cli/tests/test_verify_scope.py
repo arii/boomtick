@@ -20,6 +20,12 @@ assert spec.loader is not None
 spec.loader.exec_module(verify_scope)
 
 
+@pytest.fixture(autouse=True)
+def chdir_to_repo_root(monkeypatch):
+    monkeypatch.chdir(repo_root)
+
+
+
 def test_exact_file_match():
     issue_text = "Fix a bug in .github/workflows/release.yml related to Docker buildx."
     changed_files = [".github/workflows/release.yml"]
