@@ -109,6 +109,48 @@ jobs:
             type=sha,prefix=sha-
             type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
 
+      - name: Build and Load Docker Image for Verification
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: ./Dockerfile
+          push: false
+          load: true
+          tags: boomtick-review:test
+          cache-from: type=gha
+
+      - name: Verify Container Pure-Node Footprint & Size Budget
+        run: |
+          echo "::group::Asserting zero Python binaries in review container"
+          if docker run --rm boomtick-review:test sh -c "command -v python || command -v python3 || command -v pip || command -v pip3" >/dev/null 2>&1; then
+            echo "::error::Python runtime or pip binaries detected in review container! Container must remain pure-Node."
+            exit 1
+          fi
+          echo "✅ Verified zero Python / pip binaries inside container."
+          echo "::endgroup::"
+
+          echo "::group::Asserting Node.js 24 runtime and runner bundle"
+          NODE_VERSION=$(docker run --rm boomtick-review:test node --version)
+          echo "Node.js version in container: $NODE_VERSION"
+          if [[ "$NODE_VERSION" != v24* ]]; then
+            echo "::error::Expected Node.js 24, found $NODE_VERSION"
+            exit 1
+          fi
+          docker run --rm boomtick-review:test test -f /workspace/dist/runner.cjs
+          echo "✅ Node.js 24 and dist/runner.cjs verified."
+          echo "::endgroup::"
+
+          echo "::group::Asserting Image Size Budget"
+          SIZE_BYTES=$(docker image inspect boomtick-review:test --format='{{.Size}}')
+          SIZE_MB=$((SIZE_BYTES / 1024 / 1024))
+          echo "Uncompressed image size: ${SIZE_MB}MB"
+          if [ "$SIZE_MB" -gt 250 ]; then
+            echo "::error::Container uncompressed image size (${SIZE_MB}MB) exceeds max budget limit (250MB uncompressed / 150MB compressed)."
+            exit 1
+          fi
+          echo "✅ Container size (${SIZE_MB}MB uncompressed) conforms to size budget."
+          echo "::endgroup::"
+
       - name: Build and Push Docker Image
         uses: docker/build-push-action@v7
         with:
