@@ -467,3 +467,151 @@ class PrDiffResponse(CamelCaseModel):
     files: List[Dict[str, Any]]
     diff_text: str
     is_truncated: bool
+
+
+# Tool Output Models
+
+
+class HealthCheckResponse(CamelCaseModel):
+    status: str = "ok"
+    config: Optional[Dict[str, Any]] = None
+
+
+class ReadAgentContextResponse(CamelCaseModel):
+    status: str = "success"
+    package_name: Optional[str] = None
+    git_commit: Optional[str] = None
+    config: Optional[Dict[str, Any]] = None
+
+
+class CheckoutBranchResponse(CamelCaseModel):
+    success: bool = True
+    branch: str
+
+
+class GetChangedFilesResponse(CamelCaseModel):
+    files: List[str] = Field(default_factory=list)
+
+
+class GetCommandSchemaResponse(CamelCaseModel):
+    status: Optional[str] = None
+    cmd_schema: Optional[Dict[str, Any]] = Field(None, alias="schema")
+
+
+class GetPackageScriptsResponse(CamelCaseModel):
+    scripts: Dict[str, str] = Field(default_factory=dict)
+
+
+class ReadCiLogsResponse(CamelCaseModel):
+    checks: Optional[List[Dict[str, Any]]] = None
+    failed_checks: Optional[List[Dict[str, Any]]] = None
+    logs: Optional[Any] = None
+
+
+class RepoLogsResponse(CamelCaseModel):
+    logs: Optional[Any] = None
+
+
+class GetWorkflowRunsResponse(CamelCaseModel):
+    workflow_runs: List[Dict[str, Any]] = Field(default_factory=list)
+
+
+class CreateBranchResponse(CamelCaseModel):
+    success: bool = True
+    branch_name: str
+    base_branch: Optional[str] = None
+
+
+class CreateRepairBranchResponse(CamelCaseModel):
+    pr_number: int
+    original_branch: str
+    repair_branch: str
+    base_branch: str
+    worktree_path: str
+
+
+class CheckJulesStatusResponse(CamelCaseModel):
+    session_id: str
+    status: str
+    raw_state: Optional[str] = None
+    completed: bool = False
+    remediation_branch: Optional[str] = None
+    pull_request_url: Optional[str] = None
+    idempotency_hash: Optional[str] = None
+    is_duplicate: Optional[bool] = None
+    message: Optional[str] = None
+
+
+class CommitPatchResponse(CamelCaseModel):
+    success: bool = True
+    commit_sha: str
+    changed_files: List[str] = Field(default_factory=list)
+
+
+class OpenReplacementPrResponse(CamelCaseModel):
+    success: bool = True
+    url: str
+
+
+class CreatePullRequestResponse(CamelCaseModel):
+    success: bool = True
+    url: str
+
+
+class CommentTriageSummaryResponse(CamelCaseModel):
+    success: bool = True
+    comment_url: str
+
+
+class GetPrResponse(CamelCaseModel):
+    pr: Dict[str, Any]
+
+
+class GetPrReviewsResponse(CamelCaseModel):
+    reviews: List[Dict[str, Any]] = Field(default_factory=list)
+    review_count: Optional[int] = None
+
+
+class GetPrCommitsResponse(CamelCaseModel):
+    commits: List[Dict[str, Any]] = Field(default_factory=list)
+
+
+class IssueViewResponse(CamelCaseModel):
+    issue: Optional[Dict[str, Any]] = None
+
+
+class IssueCommentResponse(CamelCaseModel):
+    status: str = "success"
+    comment: Optional[Any] = None
+
+
+class JulesSessionResponse(CamelCaseModel):
+    id: str
+    status: str
+    created_at: Optional[Any] = None
+    pull_request_url: Optional[str] = None
+
+
+class JulesSendMessageResponse(CamelCaseModel):
+    id: Union[str, List[str]]
+    status: str = "success"
+    message: str
+
+
+class JulesGetMessagesResponse(CamelCaseModel):
+    id: str
+    messages: List[Dict[str, Any]] = Field(default_factory=list)
+
+
+class JulesListSessionsResponse(CamelCaseModel):
+    sessions: List[JulesSessionResponse] = Field(default_factory=list)
+
+
+class JulesGetPrResponse(CamelCaseModel):
+    id: str
+    pull_request_url: Optional[str] = None
+
+
+class JulesTriggerFeedbackResponse(CamelCaseModel):
+    status: Optional[str] = None
+    message: Optional[str] = None

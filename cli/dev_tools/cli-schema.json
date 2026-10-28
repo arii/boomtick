@@ -2114,6 +2114,101 @@
       "title": "CamelCaseModel",
       "type": "object"
     },
+    "CheckJulesStatusResponse": {
+      "properties": {
+        "sessionId": {
+          "title": "Sessionid",
+          "type": "string"
+        },
+        "status": {
+          "title": "Status",
+          "type": "string"
+        },
+        "rawState": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Rawstate"
+        },
+        "completed": {
+          "default": false,
+          "title": "Completed",
+          "type": "boolean"
+        },
+        "remediationBranch": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Remediationbranch"
+        },
+        "pullRequestUrl": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Pullrequesturl"
+        },
+        "idempotencyHash": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Idempotencyhash"
+        },
+        "isDuplicate": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Isduplicate"
+        },
+        "message": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Message"
+        }
+      },
+      "required": [
+        "sessionId",
+        "status"
+      ],
+      "title": "CheckJulesStatusResponse",
+      "type": "object"
+    },
     "CheckoutBranchInput": {
       "properties": {
         "branch": {
@@ -2139,6 +2234,24 @@
         "branch"
       ],
       "title": "CheckoutBranchInput",
+      "type": "object"
+    },
+    "CheckoutBranchResponse": {
+      "properties": {
+        "success": {
+          "default": true,
+          "title": "Success",
+          "type": "boolean"
+        },
+        "branch": {
+          "title": "Branch",
+          "type": "string"
+        }
+      },
+      "required": [
+        "branch"
+      ],
+      "title": "CheckoutBranchResponse",
       "type": "object"
     },
     "CodeReviewResult": {
@@ -2580,6 +2693,24 @@
       "title": "CommentTriageSummaryInput",
       "type": "object"
     },
+    "CommentTriageSummaryResponse": {
+      "properties": {
+        "success": {
+          "default": true,
+          "title": "Success",
+          "type": "boolean"
+        },
+        "commentUrl": {
+          "title": "Commenturl",
+          "type": "string"
+        }
+      },
+      "required": [
+        "commentUrl"
+      ],
+      "title": "CommentTriageSummaryResponse",
+      "type": "object"
+    },
     "CommitPatchInput": {
       "properties": {
         "worktreePath": {
@@ -2615,6 +2746,31 @@
       "title": "CommitPatchInput",
       "type": "object"
     },
+    "CommitPatchResponse": {
+      "properties": {
+        "success": {
+          "default": true,
+          "title": "Success",
+          "type": "boolean"
+        },
+        "commitSha": {
+          "title": "Commitsha",
+          "type": "string"
+        },
+        "changedFiles": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Changedfiles",
+          "type": "array"
+        }
+      },
+      "required": [
+        "commitSha"
+      ],
+      "title": "CommitPatchResponse",
+      "type": "object"
+    },
     "CreateBranchInput": {
       "properties": {
         "branchName": {
@@ -2633,6 +2789,36 @@
         "branchName"
       ],
       "title": "CreateBranchInput",
+      "type": "object"
+    },
+    "CreateBranchResponse": {
+      "properties": {
+        "success": {
+          "default": true,
+          "title": "Success",
+          "type": "boolean"
+        },
+        "branchName": {
+          "title": "Branchname",
+          "type": "string"
+        },
+        "baseBranch": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Basebranch"
+        }
+      },
+      "required": [
+        "branchName"
+      ],
+      "title": "CreateBranchResponse",
       "type": "object"
     },
     "CreateIssueInput": {
@@ -2855,6 +3041,24 @@
       "title": "CreatePullRequestInput",
       "type": "object"
     },
+    "CreatePullRequestResponse": {
+      "properties": {
+        "success": {
+          "default": true,
+          "title": "Success",
+          "type": "boolean"
+        },
+        "url": {
+          "title": "Url",
+          "type": "string"
+        }
+      },
+      "required": [
+        "url"
+      ],
+      "title": "CreatePullRequestResponse",
+      "type": "object"
+    },
     "CreateRepairBranchInput": {
       "properties": {
         "prNumber": {
@@ -2888,6 +3092,39 @@
       "title": "CreateRepairBranchInput",
       "type": "object"
     },
+    "CreateRepairBranchResponse": {
+      "properties": {
+        "prNumber": {
+          "title": "Prnumber",
+          "type": "integer"
+        },
+        "originalBranch": {
+          "title": "Originalbranch",
+          "type": "string"
+        },
+        "repairBranch": {
+          "title": "Repairbranch",
+          "type": "string"
+        },
+        "baseBranch": {
+          "title": "Basebranch",
+          "type": "string"
+        },
+        "worktreePath": {
+          "title": "Worktreepath",
+          "type": "string"
+        }
+      },
+      "required": [
+        "prNumber",
+        "originalBranch",
+        "repairBranch",
+        "baseBranch",
+        "worktreePath"
+      ],
+      "title": "CreateRepairBranchResponse",
+      "type": "object"
+    },
     "GetChangedFilesInput": {
       "properties": {
         "base": {
@@ -2906,6 +3143,19 @@
       "title": "GetChangedFilesInput",
       "type": "object"
     },
+    "GetChangedFilesResponse": {
+      "properties": {
+        "files": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Files",
+          "type": "array"
+        }
+      },
+      "title": "GetChangedFilesResponse",
+      "type": "object"
+    },
     "GetCommandSchemaInput": {
       "properties": {
         "commandPath": {
@@ -2918,6 +3168,37 @@
         "commandPath"
       ],
       "title": "GetCommandSchemaInput",
+      "type": "object"
+    },
+    "GetCommandSchemaResponse": {
+      "properties": {
+        "status": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Status"
+        },
+        "schema": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Schema"
+        }
+      },
+      "title": "GetCommandSchemaResponse",
       "type": "object"
     },
     "GetMergeConflictFilesInput": {
@@ -3001,6 +3282,19 @@
       "title": "GetPackageScriptsInput",
       "type": "object"
     },
+    "GetPackageScriptsResponse": {
+      "properties": {
+        "scripts": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "title": "Scripts",
+          "type": "object"
+        }
+      },
+      "title": "GetPackageScriptsResponse",
+      "type": "object"
+    },
     "GetPrCommitsInput": {
       "properties": {
         "prNumber": {
@@ -3027,6 +3321,20 @@
         "prNumber"
       ],
       "title": "GetPrCommitsInput",
+      "type": "object"
+    },
+    "GetPrCommitsResponse": {
+      "properties": {
+        "commits": {
+          "items": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "title": "Commits",
+          "type": "array"
+        }
+      },
+      "title": "GetPrCommitsResponse",
       "type": "object"
     },
     "GetPrDiffInput": {
@@ -3085,6 +3393,20 @@
       "title": "GetPrInput",
       "type": "object"
     },
+    "GetPrResponse": {
+      "properties": {
+        "pr": {
+          "additionalProperties": true,
+          "title": "Pr",
+          "type": "object"
+        }
+      },
+      "required": [
+        "pr"
+      ],
+      "title": "GetPrResponse",
+      "type": "object"
+    },
     "GetPrReviewsInput": {
       "properties": {
         "prNumber": {
@@ -3111,6 +3433,32 @@
         "prNumber"
       ],
       "title": "GetPrReviewsInput",
+      "type": "object"
+    },
+    "GetPrReviewsResponse": {
+      "properties": {
+        "reviews": {
+          "items": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "title": "Reviews",
+          "type": "array"
+        },
+        "reviewCount": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Reviewcount"
+        }
+      },
+      "title": "GetPrReviewsResponse",
       "type": "object"
     },
     "GetRouteMapInput": {
@@ -3178,6 +3526,20 @@
       "title": "GetWorkflowRunsInput",
       "type": "object"
     },
+    "GetWorkflowRunsResponse": {
+      "properties": {
+        "workflowRuns": {
+          "items": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "title": "Workflowruns",
+          "type": "array"
+        }
+      },
+      "title": "GetWorkflowRunsResponse",
+      "type": "object"
+    },
     "HealthCheckInput": {
       "properties": {
         "checkDeep": {
@@ -3188,6 +3550,30 @@
         }
       },
       "title": "HealthCheckInput",
+      "type": "object"
+    },
+    "HealthCheckResponse": {
+      "properties": {
+        "status": {
+          "default": "ok",
+          "title": "Status",
+          "type": "string"
+        },
+        "config": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Config"
+        }
+      },
+      "title": "HealthCheckResponse",
       "type": "object"
     },
     "IssueCommentInput": {
@@ -3222,6 +3608,27 @@
         "body"
       ],
       "title": "IssueCommentInput",
+      "type": "object"
+    },
+    "IssueCommentResponse": {
+      "properties": {
+        "status": {
+          "default": "success",
+          "title": "Status",
+          "type": "string"
+        },
+        "comment": {
+          "anyOf": [
+            {},
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Comment"
+        }
+      },
+      "title": "IssueCommentResponse",
       "type": "object"
     },
     "IssueSummary": {
@@ -3473,6 +3880,71 @@
       "title": "IssueViewInput",
       "type": "object"
     },
+    "IssueViewResponse": {
+      "properties": {
+        "issue": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Issue"
+        }
+      },
+      "title": "IssueViewResponse",
+      "type": "object"
+    },
+    "JulesGetMessagesResponse": {
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "messages": {
+          "items": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "title": "Messages",
+          "type": "array"
+        }
+      },
+      "required": [
+        "id"
+      ],
+      "title": "JulesGetMessagesResponse",
+      "type": "object"
+    },
+    "JulesGetPrResponse": {
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "pullRequestUrl": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Pullrequesturl"
+        }
+      },
+      "required": [
+        "id"
+      ],
+      "title": "JulesGetPrResponse",
+      "type": "object"
+    },
     "JulesListSessionsInput": {
       "properties": {
         "pageSize": {
@@ -3503,6 +3975,61 @@
         }
       },
       "title": "JulesListSessionsInput",
+      "type": "object"
+    },
+    "JulesListSessionsResponse": {
+      "$defs": {
+        "JulesSessionResponse": {
+          "properties": {
+            "id": {
+              "title": "Id",
+              "type": "string"
+            },
+            "status": {
+              "title": "Status",
+              "type": "string"
+            },
+            "createdAt": {
+              "anyOf": [
+                {},
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Createdat"
+            },
+            "pullRequestUrl": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Pullrequesturl"
+            }
+          },
+          "required": [
+            "id",
+            "status"
+          ],
+          "title": "JulesSessionResponse",
+          "type": "object"
+        }
+      },
+      "properties": {
+        "sessions": {
+          "items": {
+            "$ref": "#/$defs/JulesSessionResponse"
+          },
+          "title": "Sessions",
+          "type": "array"
+        }
+      },
+      "title": "JulesListSessionsResponse",
       "type": "object"
     },
     "JulesSendMessageInput": {
@@ -3536,6 +4063,39 @@
       "title": "JulesSendMessageInput",
       "type": "object"
     },
+    "JulesSendMessageResponse": {
+      "properties": {
+        "id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
+          ],
+          "title": "Id"
+        },
+        "status": {
+          "default": "success",
+          "title": "Status",
+          "type": "string"
+        },
+        "message": {
+          "title": "Message",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "message"
+      ],
+      "title": "JulesSendMessageResponse",
+      "type": "object"
+    },
     "JulesSessionIdInput": {
       "properties": {
         "sessionId": {
@@ -3548,6 +4108,76 @@
         "sessionId"
       ],
       "title": "JulesSessionIdInput",
+      "type": "object"
+    },
+    "JulesSessionResponse": {
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "status": {
+          "title": "Status",
+          "type": "string"
+        },
+        "createdAt": {
+          "anyOf": [
+            {},
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Createdat"
+        },
+        "pullRequestUrl": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Pullrequesturl"
+        }
+      },
+      "required": [
+        "id",
+        "status"
+      ],
+      "title": "JulesSessionResponse",
+      "type": "object"
+    },
+    "JulesTriggerFeedbackResponse": {
+      "properties": {
+        "status": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Status"
+        },
+        "message": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Message"
+        }
+      },
+      "title": "JulesTriggerFeedbackResponse",
       "type": "object"
     },
     "OpenReplacementPrInput": {
@@ -3611,6 +4241,24 @@
         "pushMode"
       ],
       "title": "OpenReplacementPrInput",
+      "type": "object"
+    },
+    "OpenReplacementPrResponse": {
+      "properties": {
+        "success": {
+          "default": true,
+          "title": "Success",
+          "type": "boolean"
+        },
+        "url": {
+          "title": "Url",
+          "type": "string"
+        }
+      },
+      "required": [
+        "url"
+      ],
+      "title": "OpenReplacementPrResponse",
       "type": "object"
     },
     "PRComment": {
@@ -3763,6 +4411,54 @@
       "title": "ReadAgentContextInput",
       "type": "object"
     },
+    "ReadAgentContextResponse": {
+      "properties": {
+        "status": {
+          "default": "success",
+          "title": "Status",
+          "type": "string"
+        },
+        "packageName": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Packagename"
+        },
+        "gitCommit": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Gitcommit"
+        },
+        "config": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Config"
+        }
+      },
+      "title": "ReadAgentContextResponse",
+      "type": "object"
+    },
     "ReadCiLogsInput": {
       "properties": {
         "prNumber": {
@@ -3795,6 +4491,54 @@
         "prNumber"
       ],
       "title": "ReadCiLogsInput",
+      "type": "object"
+    },
+    "ReadCiLogsResponse": {
+      "properties": {
+        "checks": {
+          "anyOf": [
+            {
+              "items": {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Checks"
+        },
+        "failedChecks": {
+          "anyOf": [
+            {
+              "items": {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Failedchecks"
+        },
+        "logs": {
+          "anyOf": [
+            {},
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Logs"
+        }
+      },
+      "title": "ReadCiLogsResponse",
       "type": "object"
     },
     "ReadPRCommentsInput": {
@@ -3997,6 +4741,22 @@
         "prNumber"
       ],
       "title": "RepoLogsInput",
+      "type": "object"
+    },
+    "RepoLogsResponse": {
+      "properties": {
+        "logs": {
+          "anyOf": [
+            {},
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Logs"
+        }
+      },
+      "title": "RepoLogsResponse",
       "type": "object"
     },
     "ReviewComment": {

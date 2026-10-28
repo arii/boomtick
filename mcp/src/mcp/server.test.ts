@@ -207,6 +207,33 @@ describe("BoomtickMCPServer", () => {
       expect(JSON.parse(result.contents[0].text)).toEqual({ files: ["src/index.ts"] });
     });
 
+    it("should handle mcp://workspace/project-config", async () => {
+      const handler = requestHandlers.get("resources/read");
+      vi.mocked(fs.readFile).mockResolvedValue('{"packageName": "boomtick"}');
+
+      const result = await handler!({
+        method: "resources/read",
+        params: { uri: "mcp://workspace/project-config" },
+      });
+
+      expect(result.contents[0].uri).toBe("mcp://workspace/project-config");
+      expect(result.contents[0].mimeType).toBe("application/json");
+      expect(JSON.parse(result.contents[0].text)).toEqual({ packageName: "boomtick" });
+    });
+
+    it("should handle mcp://git/status", async () => {
+      const handler = requestHandlers.get("resources/read");
+
+      const result = await handler!({
+        method: "resources/read",
+        params: { uri: "mcp://git/status" },
+      });
+
+      expect(result.contents[0].uri).toBe("mcp://git/status");
+      expect(result.contents[0].mimeType).toBe("application/json");
+      expect(JSON.parse(result.contents[0].text)).toHaveProperty("status");
+    });
+
     it("should handle mcp://ci/latest-run", async () => {
       const handler = requestHandlers.get("resources/read");
       vi.spyOn(workflowRunsModule, "getWorkflowRunsHandler").mockResolvedValue({ workflowRuns: [{ id: 1, status: "completed", conclusion: "success" }] } as any);
@@ -240,6 +267,17 @@ describe("BoomtickMCPServer", () => {
       const result = await handler!({ method: "tools/list" });
       expect(result.tools).toBeDefined();
       expect(Array.isArray(result.tools)).toBe(true);
+    });
+
+    it("should ensure all tools have typed outputSchema and none are empty or untyped DEFAULT_OUTPUT_SCHEMA", async () => {
+      const handler = requestHandlers.get("tools/list");
+      const result = await handler!({ method: "tools/list" });
+      for (const tool of result.tools) {
+        expect(tool.outputSchema).toBeDefined();
+        expect(tool.outputSchema.type).toBe("object");
+        expect(tool.outputSchema.properties).toBeDefined();
+        expect(Object.keys(tool.outputSchema.properties).length).toBeGreaterThan(0);
+      }
     });
   });
 
