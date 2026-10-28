@@ -12,6 +12,27 @@ HAS_TREE_SITTER = (
 
 
 @pytest.mark.skipif(not HAS_TREE_SITTER, reason="tree-sitter or tree-sitter-typescript not installed")
+def test_typography_token_bypasses(tmp_path):
+    """Test detection of raw HTML typography elements bypassing design typography tokens."""
+    auditor = ASTAuditor(baseline_file=str(tmp_path / "baseline.json"))
+
+    code = """
+export function BadTypography() {
+    return (
+        <div>
+            <h1>Header Title</h1>
+            <p>Body paragraph</p>
+        </div>
+    );
+}
+"""
+    findings = auditor.audit_file("src/BadTypography.tsx", code)
+    rules = [f["rule"] for f in findings]
+    assert "use-typography-tokens" in rules
+    assert len(findings) >= 2
+
+
+@pytest.mark.skipif(not HAS_TREE_SITTER, reason="tree-sitter or tree-sitter-typescript not installed")
 def test_design_system_and_token_bypasses(tmp_path):
     """Test detection of raw JSX tags with inline style or className bypassing layout primitives."""
     auditor = ASTAuditor(baseline_file=str(tmp_path / "baseline.json"))
