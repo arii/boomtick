@@ -4,12 +4,8 @@ import { fileURLToPath } from "url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-export function findRepoRoot(): string {
-  if (process.env.BOOMTICK_REPO_PATH) {
-    return process.env.BOOMTICK_REPO_PATH;
-  }
-
-  let current = process.cwd();
+export function findRepoRoot(startDir?: string): string {
+  let current = startDir || process.cwd();
   while (current !== path.parse(current).root) {
     if (
       fs.existsSync(path.join(current, "project_config.json")) ||
@@ -19,6 +15,10 @@ export function findRepoRoot(): string {
       return current;
     }
     current = path.dirname(current);
+  }
+
+  if (process.env.BOOMTICK_REPO_PATH) {
+    return process.env.BOOMTICK_REPO_PATH;
   }
 
   current = __dirname;

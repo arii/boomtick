@@ -39,6 +39,7 @@ export const loadStandaloneAgentContext = (repoRoot: string = process.cwd()): Ag
 
 export const ReadAgentContextInputSchema = z.object({
   path: z.string().optional().describe("Local filesystem path to target repository root"),
+  repoPath: z.string().optional().describe("Alias for path to target repository root"),
   repo: z.string().optional().describe("Repository name override (e.g. arii/portfolio or portfolio)"),
   repos: z.array(z.string()).optional().describe("List of repository names to fetch context for"),
   all: z.boolean().optional().describe("Whether to fetch context across all discovered ecosystem repositories"),
@@ -79,7 +80,7 @@ export async function readAgentContextHandler(args: z.infer<typeof ReadAgentCont
   }
 
   // 3. Specific filesystem path
-  const targetPath = args.path ? path.resolve(args.path) : config.repoPath;
+  const targetPath = (args.path || args.repoPath) ? path.resolve(args.path || args.repoPath!) : config.repoPath;
   const context = loadStandaloneAgentContext(targetPath);
   const result: any = {
     status: "success",

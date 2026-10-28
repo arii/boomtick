@@ -1,14 +1,15 @@
 import { execSync } from "child_process";
+import { findRepoRoot } from "./repo.js";
 
 let cachedDynamicConfig: any = null;
 
-export function initializeConfig() {
+export function initializeConfig(targetCwd?: string) {
   if (cachedDynamicConfig !== null) {
     return cachedDynamicConfig;
   }
 
   try {
-    const cwd = process.env.BOOMTICK_REPO_PATH || process.cwd();
+    const cwd = findRepoRoot(targetCwd);
     const cmd = `td config view`;
     const output = execSync(cmd, {
       cwd,

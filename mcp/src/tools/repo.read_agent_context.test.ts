@@ -16,6 +16,13 @@ describe("Standalone Agent Context Loader", () => {
     expect(res).toHaveProperty("gitCommit");
   });
 
+  it("readAgentContextHandler should accept optional repoPath argument", async () => {
+    const res = await readAgentContextHandler({ repoPath: process.cwd() });
+    expect(res).toHaveProperty("status", "success");
+    expect(res).toHaveProperty("packageName");
+    expect(res).toHaveProperty("gitCommit");
+  });
+
   it("should handle multi-repo context querying when all: true is passed", async () => {
     const res = await readAgentContextHandler({ all: true });
     expect(res.status).toBe("success");
