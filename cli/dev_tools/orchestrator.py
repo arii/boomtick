@@ -108,8 +108,8 @@ class Orchestrator:
     def initialize_jules(self, client: JulesClient) -> None:
         self._jules = client
 
-    def _resolve_antipatterns_script(self) -> str:
-        """Resolves the path to detect-antipatterns.mjs."""
+    def _resolve_antipatterns_script(self) -> Optional[str]:
+        """Resolves the path to detect-antipatterns.mjs or returns None if missing."""
         # 1. Try standard root location
         script_path = "scripts/detect-antipatterns.mjs"
         if os.path.exists(script_path):
@@ -123,7 +123,20 @@ class Orchestrator:
         if os.path.exists(abs_path):
             return abs_path
 
-        return script_path
+        return None
+
+    def _pnpm_has_script(self, script_name: str, cwd: Optional[str] = None) -> bool:
+        """Checks if package.json in cwd defines script_name."""
+        target_dir = cwd or os.getcwd()
+        pkg_path = os.path.join(target_dir, "package.json")
+        if not os.path.exists(pkg_path):
+            return False
+        try:
+            with open(pkg_path, "r", encoding="utf-8") as f:
+                pkg_data = json.load(f)
+            return script_name in pkg_data.get("scripts", {})
+        except Exception:
+            return False
 
     def _hash_content(self, content: str) -> str:
         return hashlib.md5(content.encode("utf-8")).hexdigest()
@@ -370,17 +383,20 @@ class Orchestrator:
 
     def get_audit_results(self, content: Optional[str] = None, targets: Optional[List[str]] = None) -> Dict[str, Any]:
         script_path = self._resolve_antipatterns_script()
-        cmd = ["node", script_path, "--json"]
-        if targets:
-            cmd.extend(targets)
-        elif content is not None:
-            cmd.append("-")
-        res = run_command(cmd, check=False, input_str=content)
-        try:
-            stdout = res.stdout if isinstance(res, subprocess.CompletedProcess) else str(res)
-            node_results = json.loads(stdout)
-        except json.JSONDecodeError:
-            node_results = {"violations": {}, "config": {}}
+        if script_path and os.path.exists(script_path):
+            cmd = ["node", script_path, "--json"]
+            if targets:
+                cmd.extend(targets)
+            elif content is not None:
+                cmd.append("-")
+            res = run_command(cmd, check=False, input_str=content)
+            try:
+                stdout = res.stdout if isinstance(res, subprocess.CompletedProcess) else str(res)
+                node_results = json.loads(stdout)
+            except json.JSONDecodeError:
+                node_results = {"violations": {}, "config": {}}
+        else:
+            node_results = {"violations": {}, "config": {}, "status": "skipped", "reason": "detect-antipatterns.mjs not found"}
 
         # Integrate Python ASTAuditor deterministic checks
         from dev_tools.services.ast_audit import ASTAuditor
@@ -1040,10 +1056,11 @@ class Orchestrator:
         ]
         if files_to_audit:
             script_path = self._resolve_antipatterns_script()
-            audit_res = run_command(
-                ["node", script_path, "--json"] + files_to_audit,
-                check=False,
-            )
+            if script_path and os.path.exists(script_path):
+                audit_res = run_command(
+                    ["node", script_path, "--json"] + files_to_audit,
+                    check=False,
+                )
             output = audit_res.stdout if isinstance(audit_res, subprocess.CompletedProcess) else str(audit_res)
             if output and "{" in output:
                 json_start = output.find("{")
@@ -1323,26 +1340,32 @@ class Orchestrator:
             results["doctor"] = {"status": "error", "message": str(e)}
 
         # 2. Local Typechecks
-        try:
-            tsc_res = run_command(["pnpm", "run", "type-check"], check=False)
-            results["typecheck"] = {
-                "exit_code": tsc_res.returncode,
-                "status": "success" if tsc_res.returncode == 0 else "error",
-                "output": (tsc_res.stdout or tsc_res.stderr or "")[-2000:],
-            }
-        except Exception as e:
-            results["typecheck"] = {"status": "error", "message": str(e)}
+        if self._pnpm_has_script("type-check"):
+            try:
+                tsc_res = run_command(["pnpm", "run", "type-check"], check=False)
+                results["typecheck"] = {
+                    "exit_code": tsc_res.returncode,
+                    "status": "success" if tsc_res.returncode == 0 else "error",
+                    "output": (tsc_res.stdout or tsc_res.stderr or "")[-2000:],
+                }
+            except Exception as e:
+                results["typecheck"] = {"status": "error", "message": str(e)}
+        else:
+            results["typecheck"] = {"status": "skipped", "reason": "script not in package.json"}
 
         # 3. Local Linting Check
-        try:
-            lint_res = run_command(["pnpm", "run", "lint"], check=False)
-            results["lint"] = {
-                "exit_code": lint_res.returncode,
-                "status": "success" if lint_res.returncode == 0 else "error",
-                "output": (lint_res.stdout or lint_res.stderr or "")[-2000:],
-            }
-        except Exception as e:
-            results["lint"] = {"status": "error", "message": str(e)}
+        if self._pnpm_has_script("lint"):
+            try:
+                lint_res = run_command(["pnpm", "run", "lint"], check=False)
+                results["lint"] = {
+                    "exit_code": lint_res.returncode,
+                    "status": "success" if lint_res.returncode == 0 else "error",
+                    "output": (lint_res.stdout or lint_res.stderr or "")[-2000:],
+                }
+            except Exception as e:
+                results["lint"] = {"status": "error", "message": str(e)}
+        else:
+            results["lint"] = {"status": "skipped", "reason": "script not in package.json"}
 
         # 4. Deterministic AST Audit
         try:
@@ -1504,6 +1527,8 @@ class Orchestrator:
 
     def handle_audit_gate(self) -> Dict[str, Any]:
         script_path = self._resolve_antipatterns_script()
+        if not script_path or not os.path.exists(script_path):
+            return {"current": 0, "baseline": 0, "status": "skipped", "reason": "detect-antipatterns.mjs not found"}
         current_count = int(run_command(["node", script_path, "--count-only"]) or 0)
         baseline_count = self.resolve_baseline(None, "AUDIT_BASELINE", -1)
 

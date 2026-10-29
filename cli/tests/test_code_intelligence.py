@@ -84,6 +84,7 @@ def test_orchestrator_preflight(mocker):
     mocker.patch.object(orch, "doctor_check", return_value={"status": "success", "node": "24.16.0", "pnpm": "10.28.2"})
     mocker.patch.object(orch, "get_audit_results", return_value={"violations": {}})
     mocker.patch.object(orch, "detect_conflicts", return_value={})
+    mocker.patch.object(orch, "_pnpm_has_script", return_value=True)
     mocker.patch("dev_tools.orchestrator.run_command", return_value=mocker.MagicMock(returncode=0, stdout="clean"))
 
     res = orch.run_preflight(base_branch="main")
@@ -98,6 +99,30 @@ def test_orchestrator_preflight(mocker):
     assert "overlaps" in res
     assert "merge_simulation" in res
     assert res["merge_simulation"]["status"] == "clean"
+
+
+def test_orchestrator_preflight_skips_missing_scripts(tmp_path, mocker):
+    """Test preflight skips typecheck and lint when not in package.json."""
+    pkg_json = tmp_path / "package.json"
+    pkg_json.write_text('{"scripts": {"build": "vite build"}}', encoding="utf-8")
+
+    orch = Orchestrator()
+    mocker.patch.object(orch, "doctor_check", return_value={"status": "success"})
+    mocker.patch.object(orch, "get_audit_results", return_value={"violations": {}})
+    mocker.patch.object(orch, "detect_conflicts", return_value={})
+    mocker.patch("dev_tools.orchestrator.run_command", return_value=mocker.MagicMock(returncode=0, stdout="clean"))
+
+    # Test _pnpm_has_script helper
+    assert orch._pnpm_has_script("type-check", cwd=str(tmp_path)) is False
+    assert orch._pnpm_has_script("build", cwd=str(tmp_path)) is True
+
+    # Patch working directory to tmp_path
+    mocker.patch("os.getcwd", return_value=str(tmp_path))
+
+    res = orch.run_preflight(base_branch="main")
+    assert res["status"] == "success"
+    assert res["typecheck"] == {"status": "skipped", "reason": "script not in package.json"}
+    assert res["lint"] == {"status": "skipped", "reason": "script not in package.json"}
 
 
 def test_preflight_cli_command(mocker):
