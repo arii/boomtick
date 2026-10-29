@@ -19,7 +19,9 @@ import { getPrDiffHandler, GetPrDiffInputSchema } from "../tools/github.get_pr_d
 import { getMergeConflictFilesHandler, GetMergeConflictFilesInputSchema } from "../tools/github.get_merge_conflict_files.js";
 import { checkoutBranchHandler, CheckoutBranchInputSchema } from "../tools/github.checkout_branch.js";
 import { getChangedFilesHandler, GetChangedFilesInputSchema } from "../tools/repo.get_changed_files.js";
+import { readAgentContractHandler, ReadAgentContractInputSchema } from "../tools/repo.read_agent_contract.js";
 import { readAgentContextHandler, ReadAgentContextInputSchema } from "../tools/repo.read_agent_context.js";
+import { getContextStatusHandler, GetContextStatusInputSchema } from "../tools/repo.get_context_status.js";
 import { multiExecHandler, MultiExecInputSchema } from "../tools/repo.multi_exec.js";
 import { getCommandSchemaHandler, GetCommandSchemaInputSchema } from "../tools/repo.get_command_schema.js";
 import { getPackageScriptsHandler, GetPackageScriptsInputSchema } from "../tools/repo.get_package_scripts.js";
@@ -133,6 +135,7 @@ export class BoomtickMCPServer {
     this.server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
       const uri = request.params.uri;
       if (
+        uri === "boomtick://workspace/agent-contract" ||
         uri === "mcp://workspace/agent-contract" ||
         uri === "mcp://workspace/agent_contract"
       ) {
@@ -143,6 +146,7 @@ export class BoomtickMCPServer {
         };
       }
       if (
+        uri === "boomtick://workspace/project-config" ||
         uri === "mcp://workspace/project-config" ||
         uri === "mcp://workspace/project_config" ||
         uri === "repo://project-config"
@@ -159,6 +163,7 @@ export class BoomtickMCPServer {
         };
       }
       if (
+        uri === "boomtick://git/changed-files" ||
         uri === "mcp://git/changed-files" ||
         uri === "repo://changed-files"
       ) {
@@ -168,6 +173,7 @@ export class BoomtickMCPServer {
         };
       }
       if (
+        uri === "boomtick://git/status" ||
         uri === "mcp://git/status" ||
         uri === "repo://git-status" ||
         uri === "repo://status"
@@ -184,6 +190,7 @@ export class BoomtickMCPServer {
         };
       }
       if (
+        uri === "boomtick://ci/latest-run" ||
         uri === "mcp://ci/latest-run" ||
         uri === "repo://ci/latest-run" ||
         uri === "repo://ci-latest-run"
@@ -193,13 +200,13 @@ export class BoomtickMCPServer {
           contents: [{ uri, mimeType: "application/json", text: JSON.stringify(workflowRuns, null, 2) }],
         };
       }
-      if (uri === "repo://package-json" || uri === "mcp://workspace/package-json") {
+      if (uri === "boomtick://repo/package-json" || uri === "repo://package-json" || uri === "mcp://workspace/package-json") {
         const content = await fs.readFile(path.join(config.repoPath, "package.json"), "utf-8");
         return {
           contents: [{ uri, mimeType: "application/json", text: content }],
         };
       }
-      if (uri === "repo://design-tokens" || uri === "mcp://workspace/design-tokens") {
+      if (uri === "boomtick://repo/design-tokens" || uri === "repo://design-tokens" || uri === "mcp://workspace/design-tokens") {
         const tokensPath = path.join(config.repoPath, "src/styles/design-tokens.ts");
         const content = await fs.readFile(tokensPath, "utf-8");
         return {
@@ -242,9 +249,15 @@ export class BoomtickMCPServer {
           case "github.search.open.prs":
           case "github.search_open_prs":
             return createSuccessResult(await searchOpenPrsHandler(SearchOpenPrsInputSchema.parse(normArgs)));
+          case "repo.read.agent.contract":
+          case "repo.read_agent_contract":
+            return createSuccessResult(await readAgentContractHandler(ReadAgentContractInputSchema.parse(normArgs)));
           case "repo.read.agent.context":
           case "repo.read_agent_context":
             return createSuccessResult(await readAgentContextHandler(ReadAgentContextInputSchema.parse(normArgs)));
+          case "repo.get.context.status":
+          case "repo.get_context_status":
+            return createSuccessResult(await getContextStatusHandler(GetContextStatusInputSchema.parse(normArgs)));
           case "repo.multi.exec":
           case "repo.multi_exec":
             return createSuccessResult(await multiExecHandler(MultiExecInputSchema.parse(normArgs)));

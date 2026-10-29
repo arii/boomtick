@@ -2125,6 +2125,102 @@ export const GetCommandSchemaResponseJsonSchema = {
   "type": "object"
 } as const;
 
+export const GetContextStatusInputSchema = z.object({ "path": z.union([z.string(), z.null()]).describe("Local filesystem path to target repository root").default(null), "repoPath": z.union([z.string(), z.null()]).describe("Alias for path (filesystem path to target workspace repository root).").default(null), "repo": z.union([z.string(), z.null()]).describe("Target GitHub repository string (e.g. org/repo).").default(null) });
+
+export type GetContextStatusInput = z.infer<typeof GetContextStatusInputSchema>;
+
+export const GetContextStatusInputJsonSchema = {
+  "properties": {
+    "path": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Local filesystem path to target repository root",
+      "title": "Path"
+    },
+    "repoPath": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Alias for path (filesystem path to target workspace repository root).",
+      "title": "Repopath"
+    },
+    "repo": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Target GitHub repository string (e.g. org/repo).",
+      "title": "Repo"
+    }
+  },
+  "title": "GetContextStatusInput",
+  "type": "object"
+} as const;
+
+export const GetContextStatusResponseSchema = z.object({ "warm": z.boolean().describe("Whether the .agent-context.json index is warm and up-to-date."), "lastWarmedAt": z.union([z.string(), z.null()]).describe("ISO timestamp when .agent-context.json was last updated or created.").default(null), "path": z.string().describe("Path to .agent-context.json."), "staleFiles": z.array(z.string()).describe("List of files that are newer than .agent-context.json or stale.").optional() });
+
+export type GetContextStatusResponse = z.infer<typeof GetContextStatusResponseSchema>;
+
+export const GetContextStatusResponseJsonSchema = {
+  "properties": {
+    "warm": {
+      "description": "Whether the .agent-context.json index is warm and up-to-date.",
+      "title": "Warm",
+      "type": "boolean"
+    },
+    "lastWarmedAt": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "ISO timestamp when .agent-context.json was last updated or created.",
+      "title": "Lastwarmedat"
+    },
+    "path": {
+      "description": "Path to .agent-context.json.",
+      "title": "Path",
+      "type": "string"
+    },
+    "staleFiles": {
+      "description": "List of files that are newer than .agent-context.json or stale.",
+      "items": {
+        "type": "string"
+      },
+      "title": "Stalefiles",
+      "type": "array"
+    }
+  },
+  "required": [
+    "warm",
+    "path"
+  ],
+  "title": "GetContextStatusResponse",
+  "type": "object"
+} as const;
+
 export const GetMergeConflictFilesInputSchema = z.object({ "prNumber": z.union([z.number().int(), z.null()]).describe("The number of the pull request to check for conflicts.").default(null), "baseBranch": z.string().describe("The base branch to check against (default: 'main').").default("main"), "headRef": z.string().describe("The head ref or branch to check.").default("HEAD"), "repo": z.union([z.string(), z.null()]).describe("Target GitHub repository override.").default(null), "path": z.union([z.string(), z.null()]).describe("Local filesystem path to target repository root.").default(null), "repoPath": z.union([z.string(), z.null()]).describe("Alias for path to target repository root.").default(null) });
 
 export type GetMergeConflictFilesInput = z.infer<typeof GetMergeConflictFilesInputSchema>;
@@ -3789,6 +3885,98 @@ export const ReadAgentContextResponseJsonSchema = {
     }
   },
   "title": "ReadAgentContextResponse",
+  "type": "object"
+} as const;
+
+export const ReadAgentContractInputSchema = z.object({ "path": z.union([z.string(), z.null()]).describe("Local filesystem path to target repository root").default(null), "repoPath": z.union([z.string(), z.null()]).describe("Alias for path (filesystem path to target workspace repository root).").default(null), "repo": z.union([z.string(), z.null()]).describe("Target GitHub repository string (e.g. org/repo).").default(null) });
+
+export type ReadAgentContractInput = z.infer<typeof ReadAgentContractInputSchema>;
+
+export const ReadAgentContractInputJsonSchema = {
+  "properties": {
+    "path": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Local filesystem path to target repository root",
+      "title": "Path"
+    },
+    "repoPath": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Alias for path (filesystem path to target workspace repository root).",
+      "title": "Repopath"
+    },
+    "repo": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Target GitHub repository string (e.g. org/repo).",
+      "title": "Repo"
+    }
+  },
+  "title": "ReadAgentContractInput",
+  "type": "object"
+} as const;
+
+export const ReadAgentContractResponseSchema = z.object({ "status": z.string().default("success"), "content": z.union([z.string(), z.null()]).describe("The content of the agent contract specification file.").default(null), "path": z.union([z.string(), z.null()]).describe("Path to the agent contract file.").default(null) });
+
+export type ReadAgentContractResponse = z.infer<typeof ReadAgentContractResponseSchema>;
+
+export const ReadAgentContractResponseJsonSchema = {
+  "properties": {
+    "status": {
+      "default": "success",
+      "title": "Status",
+      "type": "string"
+    },
+    "content": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "The content of the agent contract specification file.",
+      "title": "Content"
+    },
+    "path": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Path to the agent contract file.",
+      "title": "Path"
+    }
+  },
+  "title": "ReadAgentContractResponse",
   "type": "object"
 } as const;
 

@@ -37,6 +37,48 @@ export const loadStandaloneAgentContext = (repoRoot: string = process.cwd()): Ag
   };
 };
 
+export async function resolveTargetRepoPath(args: {
+  path?: string | null;
+  repoPath?: string | null;
+  repo?: string | null;
+}): Promise<string> {
+  if (args.repo) {
+    let matchedPath: string | undefined;
+    try {
+      const output = await runTDCli(["multi-repo", "status", "-r", args.repo], "find target repository");
+      const matched = output.repos?.[0];
+      if (matched?.path) {
+        matchedPath = matched.path;
+      }
+    } catch {
+      // Fallback if CLI unavailable
+    }
+
+    if (!matchedPath) {
+      const repoName = args.repo.includes("/") ? args.repo.split("/")[1] : args.repo;
+      const cwdParent = path.resolve(process.cwd(), "..", repoName);
+      const configParent = path.resolve(config.repoPath, "..", repoName);
+
+      if (fs.existsSync(cwdParent)) {
+        matchedPath = cwdParent;
+      } else if (fs.existsSync(configParent)) {
+        matchedPath = configParent;
+      }
+    }
+
+    if (matchedPath) {
+      return matchedPath;
+    }
+  }
+
+  const explicitPath = args.path || args.repoPath;
+  if (explicitPath) {
+    return path.resolve(explicitPath);
+  }
+
+  return config.repoPath;
+}
+
 export const ReadAgentContextInputSchema = z.object({
   path: z.string().optional().describe("Local filesystem path to target repository root"),
   repoPath: z.string().optional().describe("Alias for path to target repository root"),
@@ -65,30 +107,8 @@ export async function readAgentContextHandler(args: z.infer<typeof ReadAgentCont
 
   // 2. Specific repository name override
   if (args.repo) {
-    let matchedPath: string | undefined;
-    try {
-      const output = await runTDCli(["multi-repo", "status", "-r", args.repo], "find target repository");
-      const matched = output.repos?.[0];
-      if (matched?.path) {
-        matchedPath = matched.path;
-      }
-    } catch {
-      // Fallback to directory inspection if CLI is unavailable or not in TD workspace
-    }
-
-    if (!matchedPath) {
-      const repoName = args.repo.includes("/") ? args.repo.split("/")[1] : args.repo;
-      const cwdParent = path.resolve(process.cwd(), "..", repoName);
-      const configParent = path.resolve(config.repoPath, "..", repoName);
-
-      if (fs.existsSync(cwdParent)) {
-        matchedPath = cwdParent;
-      } else if (fs.existsSync(configParent)) {
-        matchedPath = configParent;
-      }
-    }
-
-    if (matchedPath) {
+    const matchedPath = await resolveTargetRepoPath({ repo: args.repo });
+    if (matchedPath && matchedPath !== config.repoPath) {
       const context = loadStandaloneAgentContext(matchedPath);
       return {
         status: "success",
@@ -99,11 +119,12 @@ export async function readAgentContextHandler(args: z.infer<typeof ReadAgentCont
     }
   }
 
-  // 3. Specific filesystem path
-  const targetPath = (args.path || args.repoPath) ? path.resolve(args.path || args.repoPath!) : config.repoPath;
+  // 3. Specific filesystem path or default
+  const targetPath = await resolveTargetRepoPath(args);
   const context = loadStandaloneAgentContext(targetPath);
   const result: any = {
     status: "success",
+    path: targetPath,
     ...context
   };
   if (args?.repo) {

@@ -264,6 +264,19 @@ describe("BoomtickMCPServer", () => {
       expect(JSON.parse(result.contents[0].text)).toEqual({ workflowRuns: [{ id: 1, status: "completed", conclusion: "success" }] });
     });
 
+    it("should handle boomtick:// URIs", async () => {
+      const handler = requestHandlers.get("resources/read");
+      vi.mocked(fs.readFile).mockResolvedValue("# Agent Contract\nRule 1");
+
+      const result = await handler!({
+        method: "resources/read",
+        params: { uri: "boomtick://workspace/agent-contract" },
+      });
+
+      expect(fs.readFile).toHaveBeenCalledWith("/mock/repo/.agents/AGENT_CONTRACT.md", "utf-8");
+      expect(result.contents[0].uri).toBe("boomtick://workspace/agent-contract");
+    });
+
     it("should throw when resource is unknown", async () => {
       const handler = requestHandlers.get("resources/read");
 
