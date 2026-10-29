@@ -6,8 +6,9 @@ import { parseJulesSession } from "./session.js";
 export const ListJulesSessionsInputSchema = JulesListSessionsInputSchema;
 
 export async function listJulesSessionsHandler(
-  input: z.infer<typeof ListJulesSessionsInputSchema>
+  input: z.input<typeof ListJulesSessionsInputSchema>
 ): Promise<JulesListSessionsResponse> {
+  const parsedInput = ListJulesSessionsInputSchema.parse(input);
   const output = await runTDCli(["agent", "sync"], "list sessions");
   const rawSessions = output.sessions || [];
 
