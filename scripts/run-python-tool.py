@@ -38,8 +38,8 @@ def main():
         tool_cmd = [sys.executable, "-m", tool_module]
     else:
         print(f"Error: {tool_module} not found in local .venv or current environment.", file=sys.stderr)
-        print("Please run the bootstrap script first to configure your local environment:", file=sys.stderr)
-        print("    pnpm run bootstrap:python", file=sys.stderr)
+        print("Please run the setup script first to configure your local environment:", file=sys.stderr)
+        print("    ./setup-agent.sh", file=sys.stderr)
         sys.exit(1)
 
     # Some defaults for tools if args are not passed

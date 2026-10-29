@@ -61,6 +61,10 @@ class WorkflowRunner:
             context = WorkflowContext(initial_inputs)
 
         for node in sorted_nodes:
+            cached_res = context.get_checkpoint(node.name)
+            if cached_res is not None:
+                continue
+
             retry_policy = node.retry_policy or {}
             max_retries = retry_policy.get("max_retries", 0)
             backoff_factor = retry_policy.get("backoff_factor", 1.0)
@@ -68,11 +72,12 @@ class WorkflowRunner:
             retries_attempted = 0
             success = False
             last_error = None
+            snapshot = context.create_snapshot()
 
             while retries_attempted <= max_retries:
                 start_time = datetime.now(timezone.utc)
                 try:
-                    self._execute_with_timeout(node, context)
+                    res = self._execute_with_timeout(node, context)
                     end_time = datetime.now(timezone.utc)
                     context.record_node_execution(
                         node_name=node.name,
@@ -82,6 +87,7 @@ class WorkflowRunner:
                         retries=retries_attempted,
                         role=node.role,
                     )
+                    context.save_checkpoint(node.name, res if res is not None else True)
                     success = True
                     break
                 except Exception as e:
@@ -99,10 +105,12 @@ class WorkflowRunner:
 
                     retries_attempted += 1
                     if retries_attempted <= max_retries:
+                        context.restore_snapshot(snapshot)
                         sleep_time = backoff_factor * (2 ** (retries_attempted - 1))
                         self.sleep_fn(sleep_time)
 
             if not success:
+                context.restore_snapshot(snapshot)
                 if self.halt_on_failure:
                     if last_error:
                         raise last_error

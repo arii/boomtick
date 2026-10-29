@@ -17,6 +17,7 @@ import {
   truncateUnifiedDiff,
   withRetry
 } from '../../lib/codeReviewUtils';
+import { buildReviewComments, formatAsGitHubSuggestion } from '../../lib/visualReviewUtils';
 import { buildSystemPrompt } from '../../lib/buildCodeReviewPrompt';
 
 
@@ -131,6 +132,11 @@ describe('codeReviewUtils', () => {
         'src/index.ts',
         'pnpm-lock.yaml',
         'package-lock.json',
+        'poetry.lock',
+        'Cargo.lock',
+        'Composer.lock',
+        'Pipfile.lock',
+        'flake.lock',
         'dist/bundle.js',
         'build/main.js',
         'coverage/lcov.info',
@@ -252,6 +258,72 @@ describe('codeReviewUtils', () => {
       expect(truncated).toContain('diff --git');
       expect(truncated).toContain('@@ -1,5 +1,5 @@');
       expect(truncated).toContain('...[DIFF TRUNCATED TO FIT TOKEN BUDGET]');
+    });
+
+    it('truncates diff at AST declaration boundaries when exceeding character budget', () => {
+      const diff = [
+        'diff --git a/src/service.ts b/src/service.ts',
+        '--- a/src/service.ts',
+        '+++ b/src/service.ts',
+        '@@ -1,20 +1,20 @@',
+        '+ export function calculateTotal(items: number[]): number {',
+        '+   return items.reduce((a, b) => a + b, 0);',
+        '+ }',
+        '+ export class UserService {',
+        '+   async getUser(id: string) { return { id }; }',
+        '+ }'
+      ].join('\n');
+
+      // Set maxChars tight enough to trigger truncation after headers and first AST export
+      const truncated = truncateUnifiedDiff(diff, 180);
+
+      expect(truncated).toContain('diff --git a/src/service.ts');
+      expect(truncated).toContain('...[DIFF TRUNCATED TO FIT TOKEN BUDGET]');
+      expect(truncated).not.toContain('async getUser(id: string)');
+    });
+  });
+
+  describe('buildReviewComments and GitHub suggestion formatting', () => {
+    it('formats raw code into GitHub suggestion blocks', () => {
+      expect(formatAsGitHubSuggestion('const x = 2;')).toBe('```suggestion\nconst x = 2;\n```');
+      expect(formatAsGitHubSuggestion('```typescript\nconst x = 2;\n```')).toBe('```suggestion\nconst x = 2;\n```');
+      expect(formatAsGitHubSuggestion('```suggestion\nconst x = 2;\n```')).toBe('```suggestion\nconst x = 2;\n```');
+    });
+
+    it('generates GitHub-compatible suggestion fences in inline review comments', () => {
+      const state = {
+        findings: [
+          {
+            id: 'f-1',
+            file: 'src/app.ts',
+            line: 15,
+            status: 'open',
+            severity: 'HIGH',
+            issue: 'Incorrect user assignment',
+            suggestion: 'const user = fetchUser(id);'
+          },
+          {
+            id: 'f-2',
+            file: 'src/config.ts',
+            line: 5,
+            status: 'open',
+            severity: 'MEDIUM',
+            issue: 'Use const over let',
+            fixSummary: '```typescript\nconst port = 8080;\n```'
+          }
+        ]
+      };
+
+      const comments = buildReviewComments(state);
+      expect(comments.length).toBe(2);
+
+      expect(comments[0].path).toBe('src/app.ts');
+      expect(comments[0].line).toBe(15);
+      expect(comments[0].body).toContain('```suggestion\nconst user = fetchUser(id);\n```');
+
+      expect(comments[1].path).toBe('src/config.ts');
+      expect(comments[1].line).toBe(5);
+      expect(comments[1].body).toContain('```suggestion\nconst port = 8080;\n```');
     });
   });
 

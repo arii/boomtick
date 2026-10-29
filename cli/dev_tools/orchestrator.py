@@ -447,6 +447,33 @@ class Orchestrator:
     def get_pr_files(self, pr: Any) -> set[str]:
         return {f.filename for f in pr.get_files()}
 
+    def extract_exports_from_diff(self, diff_text: str) -> Dict[str, set[str]]:
+        """
+        Extracts exported symbols added or modified in a PR diff per file.
+        Supports TypeScript/JavaScript (export function/const/class/type/interface)
+        and Python (def/class additions).
+        """
+        file_exports = defaultdict(set)
+        current_file = None
+        for line in diff_text.splitlines():
+            if line.startswith("+++ b/"):
+                current_file = line[6:]
+            elif line.startswith("+") and not line.startswith("+++") and current_file:
+                added = line[1:].strip()
+                # TS/JS exports
+                ts_match = re.search(
+                    r"\bexport\s+(?:default\s+)?(?:async\s+)?(?:function|const|class|type|interface|enum|let|var)\s+([A-Za-z0-9_]+)",
+                    added,
+                )
+                if ts_match:
+                    file_exports[current_file].add(ts_match.group(1))
+                else:
+                    # Python top-level class or function definition
+                    py_match = re.search(r"^(?:def|class)\s+([A-Za-z0-9_]+)", added)
+                    if py_match:
+                        file_exports[current_file].add(py_match.group(1))
+        return file_exports
+
     def detect_conflicts(self, target_pr_num: Optional[int] = None) -> Dict[Tuple[int, ...], List[str]]:
         repo = get_github_client().get_repo(get_repo_name())
         open_prs = list(repo.get_pulls(state="open"))
@@ -459,6 +486,52 @@ class Orchestrator:
             if len(prs) > 1 and (target_pr_num is None or target_pr_num in prs):
                 conflicts[tuple(sorted(prs))].append(filename)
         return conflicts
+
+    def detect_semantic_overlaps(self, target_pr_num: Optional[int] = None) -> List[Dict[str, Any]]:
+        """
+        Detects both textual file overlaps and shared exported symbol modifications across open PRs.
+        """
+        conflicts = self.detect_conflicts(target_pr_num)
+        results = []
+        for pr_pair, files in conflicts.items():
+            results.append({
+                "prs": list(pr_pair),
+                "files": files,
+                "type": "file_overlap",
+            })
+
+        # Symbol export overlap detection
+        open_prs = self.github.list_pull_requests(state="open")
+        prs_in_conflicts = {num for pr_pair in conflicts.keys() for num in pr_pair}
+        if target_pr_num is not None:
+            prs_in_conflicts.add(target_pr_num)
+            open_prs = [p for p in open_prs if p.get("number") in prs_in_conflicts]
+
+        symbol_map: Dict[str, Dict[str, List[int]]] = defaultdict(lambda: defaultdict(list))
+        for pr in open_prs:
+            pr_num = pr.get("number")
+            if not pr_num:
+                continue
+            try:
+                diff_text = self.github.fetch_pr_diff(pr_num)
+                file_exports = self.extract_exports_from_diff(diff_text)
+                for filepath, symbols in file_exports.items():
+                    for sym in symbols:
+                        symbol_map[filepath][sym].append(pr_num)
+            except Exception as e:
+                log_warn(f"Could not fetch diff for PR #{pr_num}: {e}")
+
+        for filepath, sym_dict in symbol_map.items():
+            for sym, prs in sym_dict.items():
+                if len(prs) > 1 and (target_pr_num is None or target_pr_num in prs):
+                    results.append({
+                        "prs": sorted(prs),
+                        "file": filepath,
+                        "symbol": sym,
+                        "type": "export_overlap",
+                    })
+
+        return results
 
     def _has_spec_section(self, section_name: str, text: str) -> bool:
         """Robustly checks for the presence of a markdown section or numbered list item."""

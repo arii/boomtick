@@ -91,6 +91,8 @@ jobs:
           ref: ${{ inputs.ref || github.ref }}
 
       - name: Run Scope Verification Check
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           python3 scripts/verify-scope.py --strict-scope
 

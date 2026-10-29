@@ -302,6 +302,28 @@ def test_concrete_nodes_execution(mock_orchestrator_class):
     assert context.read_scratchpad("validation_focus") == "Validating under Node 24.16.0"
 
 
+def test_context_snapshot_rollback_and_checkpoint():
+    ctx = WorkflowContext(initial_inputs={"key1": "val1"})
+    ctx.set("state_var", "initial")
+    ctx.write_scratchpad("note", "first_note")
+
+    snap = ctx.create_snapshot()
+
+    # Modify state and scratchpad
+    ctx.set("state_var", "modified")
+    ctx.write_scratchpad("note", "second_note")
+    assert ctx.get("state_var") == "modified"
+
+    # Restore snapshot
+    ctx.restore_snapshot(snap)
+    assert ctx.get("state_var") == "initial"
+    assert ctx.read_scratchpad("note") == "first_note"
+
+    # Test checkpointing
+    ctx.save_checkpoint("NodeA", "cached_result")
+    assert ctx.get_checkpoint("NodeA") == "cached_result"
+
+
 def test_fstring_backslash_compatibility():
     import ast
     import os
