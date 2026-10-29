@@ -17,16 +17,12 @@ RUN pnpm run build:review
 # Stage 2: Minimal Node.js standalone execution image
 FROM node:24-alpine
 
-ENV PATH="/workspace/node_modules/.bin:$PATH"
-
 RUN apk add --no-cache git jq ca-certificates && \
     git config --global --add safe.directory '*'
 
 WORKDIR /workspace
 
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY --from=builder /workspace/dist /workspace/dist
-COPY --from=builder /workspace/node_modules /workspace/node_modules
 
 COPY docker-entrypoint.sh /docker-entrypoint.sh
 RUN chmod +x /docker-entrypoint.sh

@@ -9,6 +9,7 @@ export default defineConfig({
   outDir: 'dist',
   clean: true,
   noSplitting: true,
+  noExternal: [/@octokit/],
   outExtension() {
     return {
       js: '.cjs',

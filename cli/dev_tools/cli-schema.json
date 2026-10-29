@@ -69,7 +69,7 @@
     },
     "agent dispatch": {
       "description": "\n    Initialize a Jules session for a specific branch and task.\n    Note: Use 'main' branch for PR consolidation tasks to avoid rebasing issues.\n    ",
-      "exact_usage": "td agent dispatch [--title <TITLE>] <BRANCH> <TASK>",
+      "exact_usage": "td agent dispatch [--title <TITLE>] [--repo <REPO>] <BRANCH> <TASK>",
       "required_arguments": [
         {
           "name": "branch",
@@ -87,17 +87,22 @@
           "flag": "--title",
           "type": "string",
           "description": "Custom session title"
+        },
+        {
+          "flag": "--repo",
+          "type": "string",
+          "description": "Target GitHub repository (e.g. arii/portfolio)"
         }
       ]
     },
     "agent fix-ci": {
       "description": "",
-      "exact_usage": "td agent fix-ci [--dry-run] [--pr-number <PR-NUMBER>] [--issue-number <ISSUE-NUMBER>] [--branch <BRANCH>] [--api-key <API-KEY>]",
+      "exact_usage": "td agent fix-ci [--dry-run] [--pr <PR>] [--issue-number <ISSUE-NUMBER>] [--branch <BRANCH>] [--api-key <API-KEY>]",
       "optional_flags": [
         {
-          "flag": "--pr-number",
+          "flag": "--pr",
           "type": "integer",
-          "description": ""
+          "description": "The PR number."
         },
         {
           "flag": "--issue-number",
@@ -295,7 +300,7 @@
         {
           "flag": "--pr",
           "type": "integer",
-          "description": ""
+          "description": "The PR number."
         }
       ]
     },
@@ -393,7 +398,7 @@
         {
           "flag": "--pr",
           "type": "integer",
-          "description": ""
+          "description": "The PR number."
         },
         {
           "flag": "--command",
@@ -475,10 +480,10 @@
     },
     "gh audit-pr": {
       "description": "",
-      "exact_usage": "td gh audit-pr [--json] [--fetch] [--audit] [--submit] [--cleanup] [--dry-run] [--base <BASE>] [--event <EVENT>] <PR_NUMBER>",
+      "exact_usage": "td gh audit-pr [--json] [--fetch] [--audit] [--submit] [--cleanup] [--dry-run] [--pr <PR>] [--base <BASE>] [--event <EVENT>] <PR_NUMBER_ARG>",
       "required_arguments": [
         {
-          "name": "pr_number",
+          "name": "pr_number_arg",
           "type": "integer",
           "description": ""
         }
@@ -488,6 +493,11 @@
           "flag": "--json",
           "type": "boolean",
           "description": "Output results in JSON format"
+        },
+        {
+          "flag": "--pr",
+          "type": "integer",
+          "description": "The PR number to audit."
         },
         {
           "flag": "--fetch",
@@ -615,7 +625,7 @@
         {
           "flag": "--base",
           "type": "string",
-          "description": ""
+          "description": "Base branch"
         },
         {
           "flag": "--draft",
@@ -746,10 +756,10 @@
     },
     "gh list-pr-commits": {
       "description": "List commits for a PR.",
-      "exact_usage": "td gh list-pr-commits --pr-number <PR-NUMBER> [--repo <REPO>]",
+      "exact_usage": "td gh list-pr-commits --pr <PR> [--repo <REPO>]",
       "required_flags": [
         {
-          "flag": "--pr-number",
+          "flag": "--pr",
           "type": "integer",
           "description": "The PR number to list commits for."
         }
@@ -790,19 +800,24 @@
     },
     "gh merge-conflicts": {
       "description": "",
-      "exact_usage": "td gh merge-conflicts [--base <BASE>] <PR_NUMBER>",
+      "exact_usage": "td gh merge-conflicts [--pr <PR>] [--base <BASE>] <PR_NUMBER_ARG>",
       "required_arguments": [
         {
-          "name": "pr_number",
+          "name": "pr_number_arg",
           "type": "integer",
           "description": ""
         }
       ],
       "optional_flags": [
         {
+          "flag": "--pr",
+          "type": "integer",
+          "description": "The PR number to check merge conflicts for."
+        },
+        {
           "flag": "--base",
           "type": "string",
-          "description": ""
+          "description": "Base branch (defaults to configured base branch)"
         }
       ]
     },
@@ -881,15 +896,20 @@
     },
     "gh pr-diff": {
       "description": "",
-      "exact_usage": "td gh pr-diff [--repo <REPO>] <PR_NUMBER>",
+      "exact_usage": "td gh pr-diff [--pr <PR>] [--repo <REPO>] <PR_NUMBER_ARG>",
       "required_arguments": [
         {
-          "name": "pr_number",
+          "name": "pr_number_arg",
           "type": "integer",
           "description": ""
         }
       ],
       "optional_flags": [
+        {
+          "flag": "--pr",
+          "type": "integer",
+          "description": "The PR number to fetch diff for."
+        },
         {
           "flag": "--repo",
           "type": "string",
@@ -924,10 +944,10 @@
     },
     "gh read-pr-comments": {
       "description": "Fetch and display standard and review comments for a PR.",
-      "exact_usage": "td gh read-pr-comments --pr-number <PR-NUMBER>",
+      "exact_usage": "td gh read-pr-comments --pr <PR>",
       "required_flags": [
         {
-          "flag": "--pr-number",
+          "flag": "--pr",
           "type": "integer",
           "description": "The PR number to fetch comments for."
         }
@@ -935,10 +955,10 @@
     },
     "gh read-pr-reviews": {
       "description": "Fetch top-level reviews for a PR.",
-      "exact_usage": "td gh read-pr-reviews --pr-number <PR-NUMBER> [--repo <REPO>]",
+      "exact_usage": "td gh read-pr-reviews --pr <PR> [--repo <REPO>]",
       "required_flags": [
         {
-          "flag": "--pr-number",
+          "flag": "--pr",
           "type": "integer",
           "description": "The PR number to fetch top-level reviews for."
         }
@@ -1097,12 +1117,19 @@
     },
     "gh sync-pr": {
       "description": "Reliably pull the latest remote PR state to local, overwriting messy rebases.",
-      "exact_usage": "td gh sync-pr <PR_NUMBER>",
+      "exact_usage": "td gh sync-pr [--pr <PR>] <PR_NUMBER_ARG>",
       "required_arguments": [
         {
-          "name": "pr_number",
+          "name": "pr_number_arg",
           "type": "integer",
           "description": ""
+        }
+      ],
+      "optional_flags": [
+        {
+          "flag": "--pr",
+          "type": "integer",
+          "description": "The PR number to sync."
         }
       ]
     },
@@ -1113,7 +1140,7 @@
         {
           "flag": "--pr",
           "type": "integer",
-          "description": ""
+          "description": "The PR number."
         },
         {
           "flag": "--status",
@@ -1182,11 +1209,102 @@
     },
     "gh view": {
       "description": "",
-      "exact_usage": "td gh view [--repo <REPO>] <PR_NUMBER>",
+      "exact_usage": "td gh view [--pr <PR>] [--repo <REPO>] <PR_NUMBER_ARG>",
       "required_arguments": [
         {
-          "name": "pr_number",
+          "name": "pr_number_arg",
           "type": "integer",
+          "description": ""
+        }
+      ],
+      "optional_flags": [
+        {
+          "flag": "--pr",
+          "type": "integer",
+          "description": "The PR number to view."
+        },
+        {
+          "flag": "--repo",
+          "type": "string",
+          "description": "Target repository override (e.g. owner/repo)"
+        }
+      ]
+    },
+    "mcp install": {
+      "description": "Detect agent host environments and register boomtick-mcp.",
+      "exact_usage": "td mcp install [--dry-run] [--host <HOST>] [--path <PATH>] [--command <COMMAND>]",
+      "optional_flags": [
+        {
+          "flag": "--host",
+          "type": "string",
+          "description": "Target specific host (antigravity, claude, cursor, codex)"
+        },
+        {
+          "flag": "--path",
+          "type": "string",
+          "description": "Custom path to host settings JSON file"
+        },
+        {
+          "flag": "--command",
+          "type": "string",
+          "description": "Command to run MCP server"
+        },
+        {
+          "flag": "--dry-run",
+          "type": "boolean",
+          "description": "Preview changes without updating files"
+        }
+      ]
+    },
+    "mcp setup": {
+      "description": "Alias for 'td mcp install'.",
+      "exact_usage": "td mcp setup [--dry-run] [--host <HOST>] [--path <PATH>] [--command <COMMAND>]",
+      "optional_flags": [
+        {
+          "flag": "--host",
+          "type": "string",
+          "description": "Target specific host (antigravity, claude, cursor, codex)"
+        },
+        {
+          "flag": "--path",
+          "type": "string",
+          "description": "Custom path to host settings JSON file"
+        },
+        {
+          "flag": "--command",
+          "type": "string",
+          "description": "Command to run MCP server"
+        },
+        {
+          "flag": "--dry-run",
+          "type": "boolean",
+          "description": "Preview changes without updating files"
+        }
+      ]
+    },
+    "multi-repo context-warm": {
+      "description": "Pre-warm .agent-context.json across ecosystem repositories.",
+      "exact_usage": "td multi-repo context-warm [--force] [--repo <REPO>]",
+      "optional_flags": [
+        {
+          "flag": "--repo",
+          "type": "string",
+          "description": "Filter to specific repository name(s)"
+        },
+        {
+          "flag": "--force",
+          "type": "boolean",
+          "description": "Force re-generation of context even if not stale"
+        }
+      ]
+    },
+    "multi-repo exec": {
+      "description": "Execute a shell command sequentially across ecosystem repositories.",
+      "exact_usage": "td multi-repo exec [--fail-fast] [--repo <REPO>] <COMMAND>",
+      "required_arguments": [
+        {
+          "name": "command",
+          "type": "string",
           "description": ""
         }
       ],
@@ -1194,7 +1312,34 @@
         {
           "flag": "--repo",
           "type": "string",
-          "description": "Target repository override (e.g. owner/repo)"
+          "description": "Filter to specific repository name(s)"
+        },
+        {
+          "flag": "--fail-fast",
+          "type": "boolean",
+          "description": "Stop on first error or continue"
+        }
+      ]
+    },
+    "multi-repo list": {
+      "description": "List ecosystem repositories and local paths.",
+      "exact_usage": "td multi-repo list [--all]",
+      "optional_flags": [
+        {
+          "flag": "--all",
+          "type": "boolean",
+          "description": "Include all auto-discovered sibling directories"
+        }
+      ]
+    },
+    "multi-repo status": {
+      "description": "Show git, branch, and agent context status across ecosystem repositories.",
+      "exact_usage": "td multi-repo status [--repo <REPO>]",
+      "optional_flags": [
+        {
+          "flag": "--repo",
+          "type": "string",
+          "description": "Filter to specific repository name(s)"
         }
       ]
     },
@@ -1301,6 +1446,67 @@
           "flag": "--repo",
           "type": "string",
           "description": "Target repository override (e.g. owner/repo)"
+        }
+      ]
+    },
+    "repos context-warm": {
+      "description": "Pre-warm .agent-context.json across ecosystem repositories.",
+      "exact_usage": "td repos context-warm [--force] [--repo <REPO>]",
+      "optional_flags": [
+        {
+          "flag": "--repo",
+          "type": "string",
+          "description": "Filter to specific repository name(s)"
+        },
+        {
+          "flag": "--force",
+          "type": "boolean",
+          "description": "Force re-generation of context even if not stale"
+        }
+      ]
+    },
+    "repos exec": {
+      "description": "Execute a shell command sequentially across ecosystem repositories.",
+      "exact_usage": "td repos exec [--fail-fast] [--repo <REPO>] <COMMAND>",
+      "required_arguments": [
+        {
+          "name": "command",
+          "type": "string",
+          "description": ""
+        }
+      ],
+      "optional_flags": [
+        {
+          "flag": "--repo",
+          "type": "string",
+          "description": "Filter to specific repository name(s)"
+        },
+        {
+          "flag": "--fail-fast",
+          "type": "boolean",
+          "description": "Stop on first error or continue"
+        }
+      ]
+    },
+    "repos list": {
+      "description": "List ecosystem repositories and local paths.",
+      "exact_usage": "td repos list [--all]",
+      "optional_flags": [
+        {
+          "flag": "--all",
+          "type": "boolean",
+          "description": "Include all auto-discovered sibling directories"
+        }
+      ]
+    },
+    "repos status": {
+      "description": "Show git, branch, and agent context status across ecosystem repositories.",
+      "exact_usage": "td repos status [--repo <REPO>]",
+      "optional_flags": [
+        {
+          "flag": "--repo",
+          "type": "string",
+          "description": "Filter to specific repository name(s)"
         }
       ]
     },
