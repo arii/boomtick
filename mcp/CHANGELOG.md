@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.7.3](https://github.com/arii/boomtick/compare/mcp-v0.7.2...mcp-v0.7.3) (2026-10-29)
+
+
+### Bug Fixes
+
+* **ci:** include workspace unit and script tests in vitest config ([#1022](https://github.com/arii/boomtick/issues/1022)) ([80de0f8](https://github.com/arii/boomtick/commit/80de0f8d710637294b06c9302dc59468fc703ef4))
+* **mcp:** align resource URI schemes with MCP server discovery and add context status check tool ([#1016](https://github.com/arii/boomtick/issues/1016)) ([522cae1](https://github.com/arii/boomtick/commit/522cae149cf302a6c66c8c0f20e17309fa483173))
+* **mcp:** wrap jules.list_sessions response in object ([#1013](https://github.com/arii/boomtick/issues/1013)) ([0e14e8d](https://github.com/arii/boomtick/commit/0e14e8d09d4880a281ff5153ac56be61dff848bd))
+
 ## [0.7.2](https://github.com/arii/boomtick/compare/mcp-v0.7.1...mcp-v0.7.2) (2026-10-29)
 
 

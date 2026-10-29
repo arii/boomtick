@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.15.2](https://github.com/arii/boomtick/compare/cli-v0.15.1...cli-v0.15.2) (2026-10-29)
+
+
+### Bug Fixes
+
+* **cli:** add suggest fast-path and graceful list-sessions fallback ([#1021](https://github.com/arii/boomtick/issues/1021)) ([309ef2a](https://github.com/arii/boomtick/commit/309ef2aec26061815f3c4dd3bf2a7e67d4ff220e))
+* **cli:** allow preflight in non-monorepo repositories by skipping missing scripts ([#1028](https://github.com/arii/boomtick/issues/1028)) ([c6dafdd](https://github.com/arii/boomtick/commit/c6dafdd5e48d23f5539b9dfe900084a8b52d546e))
+* **mcp:** align resource URI schemes with MCP server discovery and add context status check tool ([#1016](https://github.com/arii/boomtick/issues/1016)) ([522cae1](https://github.com/arii/boomtick/commit/522cae149cf302a6c66c8c0f20e17309fa483173))
+
 ## [0.15.1](https://github.com/arii/boomtick/compare/cli-v0.15.0...cli-v0.15.1) (2026-10-29)
 
 
