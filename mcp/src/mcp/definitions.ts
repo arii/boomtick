@@ -107,7 +107,7 @@ export const MCP_RESOURCES: Resource[] = [
   },
   {
     uri: "mcp://workspace/agent-contract",
-    name: "Agent Contract (Legacy URI)",
+    name: "Agent Contract",
     mimeType: "text/markdown",
     description: "The agent contract specification file (.agents/AGENT_CONTRACT.md) provided by the 'boomtick' MCP server.",
   },
@@ -119,7 +119,7 @@ export const MCP_RESOURCES: Resource[] = [
   },
   {
     uri: "mcp://workspace/project-config",
-    name: "Project Configuration (Legacy URI)",
+    name: "Project Configuration",
     mimeType: "application/json",
     description: "The project configuration (project_config.json) provided by the 'boomtick' MCP server.",
   },
@@ -131,7 +131,7 @@ export const MCP_RESOURCES: Resource[] = [
   },
   {
     uri: "mcp://git/changed-files",
-    name: "Git Changed Files (Legacy URI)",
+    name: "Git Changed Files",
     mimeType: "application/json",
     description: "List of changed files in the repository provided by the 'boomtick' MCP server.",
   },
@@ -143,7 +143,7 @@ export const MCP_RESOURCES: Resource[] = [
   },
   {
     uri: "mcp://git/status",
-    name: "Git Status (Legacy URI)",
+    name: "Git Status",
     mimeType: "application/json",
     description: "Current working directory git status provided by the 'boomtick' MCP server.",
   },
@@ -155,7 +155,7 @@ export const MCP_RESOURCES: Resource[] = [
   },
   {
     uri: "mcp://ci/latest-run",
-    name: "Latest CI Run (Legacy URI)",
+    name: "Latest CI Run",
     mimeType: "application/json",
     description: "Recent CI exit statuses, workflow runs, and annotations provided by the 'boomtick' MCP server.",
   },
@@ -167,7 +167,7 @@ export const MCP_RESOURCES: Resource[] = [
   },
   {
     uri: "repo://package-json",
-    name: "package.json (Legacy URI)",
+    name: "package.json",
     mimeType: "application/json",
     description: "The root package.json file of the repository provided by the 'boomtick' MCP server.",
   },
@@ -179,7 +179,7 @@ export const MCP_RESOURCES: Resource[] = [
   },
   {
     uri: "repo://design-tokens",
-    name: "Design Tokens (Legacy URI)",
+    name: "Design Tokens",
     mimeType: "application/json",
     description: "The design tokens used in the repository provided by the 'boomtick' MCP server.",
   },
