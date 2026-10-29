@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.7.2](https://github.com/arii/boomtick/compare/mcp-v0.7.1...mcp-v0.7.2) (2026-10-29)
+
+
+### Bug Fixes
+
+* **mcp:** remove legacy repo://agent-contract resource while retaining underscore variant ([fce9e3b](https://github.com/arii/boomtick/commit/fce9e3b6d09c6a80d714f548d0c3a4fb919ef787))
+
 ## [0.7.1](https://github.com/arii/boomtick/compare/mcp-v0.7.0...mcp-v0.7.1) (2026-10-29)
 
 
