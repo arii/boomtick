@@ -5,11 +5,13 @@ Please perform a comprehensive technical review of all currently open pull reque
 ## 1. Multi-Tiered Model Configuration & Fallbacks
 The review system leverages a dynamic, resilient provider strategy configured in `project_config.json`:
 - **triage_chain**: Configured for initial triage.
-  - *Primary*: `gpt-4o-mini` (or env override `AI_TRIAGE_CHAIN_PRIMARY`).
-  - *Fallbacks*: `llama-3.3-70b-instruct` (or env override `AI_TRIAGE_CHAIN_FALLBACKS`).
+  - *Primary*: `gemini-2.5-flash` (or env override `AI_TRIAGE_CHAIN_PRIMARY`).
+  - *Fallbacks*: `gemini-1.5-flash` (or env override `AI_TRIAGE_CHAIN_FALLBACKS`).
 - **code_review_chain**: Configured for deep, specialized review.
-  - *Primary*: `gpt-4o` (or env override `AI_SPECIALIST_CHAIN_PRIMARY`).
-  - *Fallbacks*: `deepseek-r1`, `llama-3.3-70b-instruct` (or env override `AI_SPECIALIST_CHAIN_FALLBACKS`).
+  - *Primary*: `gemini-2.5-pro` (or env override `AI_SPECIALIST_CHAIN_PRIMARY`).
+  - *Fallbacks*: `gemini-2.5-flash`, `gemini-1.5-pro` (or env override `AI_SPECIALIST_CHAIN_FALLBACKS`).
+
+*(Note: Boomtick exclusively supports the Gemini API for AI code review at this time. Ensure `GEMINI_API_KEY` is provided.)*
 
 **Fallback Registry Mechanism:**
 In case of recoverable errors (429 rate limits, 50x server errors), the client automatically retries with exponential backoff and cascades through the defined fallback models. This ensures zero-disruption execution even during API degradation.
@@ -22,7 +24,7 @@ Review execution must utilize the multi-tiered model pipeline based on diff comp
     - *Simple Changes*: Small style cleanups, documentation, small utility functions, configuration tweaks, or minor text modifications are handled directly in the triage phase using fast/cheap models.
     - *Complex Changes*: Architectural adjustments, core layout/UI additions, data flow changes, performance-sensitive algorithms, or potential security implications are flagged to trigger the specialist phase.
 - **Specialist Phase (Specialist Agent)**:
-  - Triggered automatically when triage detects complexity. Executes deep, isolated analysis with a high-capacity model (e.g., `gpt-4o` / `deepseek-r1`) to find edge cases and vulnerabilities.
+  - Triggered automatically when triage detects complexity. Executes deep, isolated analysis with a high-capacity model (e.g., `gemini-2.5-pro`) to find edge cases and vulnerabilities.
 
 ## 3. Standard Inline Feedback Formatting
 To ensure clarity, usefulness, and easy parsing, all inline comments provided in the review metadata JSON must adhere strictly to the following markdown structure inside the comment body:

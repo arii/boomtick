@@ -358,6 +358,17 @@
         }
       ]
     },
+    "agent suggest": {
+      "description": "Evaluate repository state and suggest next actions using deterministic fast-path.",
+      "exact_usage": "td agent suggest [--repo <REPO>]",
+      "optional_flags": [
+        {
+          "flag": "--repo",
+          "type": "string",
+          "description": "Target GitHub repository (e.g. owner/repo)"
+        }
+      ]
+    },
     "agent sync": {
       "description": "Sync active agent sessions.",
       "exact_usage": "td agent sync [--limit <LIMIT>]",

@@ -3,12 +3,12 @@
   "github_repo": "arii/boomtick",
   "vite_base_path": "/boomtick/",
   "code_review_chain": {
-    "primary": "gpt-4o",
-    "fallbacks": ["deepseek-r1", "llama-3.3-70b-instruct"],
+    "primary": "gemini-2.5-pro",
+    "fallbacks": ["gemini-2.5-flash", "gemini-1.5-pro"],
     "max_retries": 3
   },
   "triage_chain": {
-    "primary": "gpt-4o-mini",
+    "primary": "gemini-2.5-flash",
     "fallbacks": ["gemini-1.5-flash"],
     "max_retries": 2
   },
