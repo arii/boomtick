@@ -12,12 +12,18 @@ from dev_tools.utils import log_debug, log_info, log_warn
 class JulesClient:
     def __init__(self, api_key: Optional[str] = None):
         self.api_key = api_key or os.environ.get("JULES_API_KEY")
-        if not self.api_key:
-            raise ValueError("JULES_API_KEY is not set or empty")
 
         self.base_url = "https://jules.googleapis.com/v1alpha"
         self.legacy_url = "https://api.jules.ai/v1/sessions"
-        self.headers = {"Content-Type": "application/json", "x-goog-api-key": self.api_key}
+
+    def _ensure_api_key(self) -> None:
+        if not self.api_key:
+            raise ValueError("JULES_API_KEY is not set or empty")
+
+    @property
+    def headers(self) -> Dict[str, str]:
+        self._ensure_api_key()
+        return {"Content-Type": "application/json", "x-goog-api-key": self.api_key or ""}
 
     def _get_clean_id(self, res_id: str, prefix: str) -> str:
         return res_id.replace(f"{prefix}/", "")

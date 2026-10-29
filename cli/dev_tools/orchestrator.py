@@ -2448,6 +2448,54 @@ Follow the "Audit comment template" in `docs/agent/issue-audit-rules.md` to post
         )
         return resp.model_dump()
 
+    def suggest_next_action(self, repo: Optional[str] = None) -> Dict[str, Any]:
+        """Pre-evaluate repository state and provide deterministic suggestions or fallback to LLM."""
+        open_prs_res = self.list_prs(state="open", limit=100, repo=repo)
+        open_prs_count = len(open_prs_res.get("prs", []))
+
+        extra_kwargs = {"repo": repo} if repo else {}
+        workflow_runs = self.github.fetch_workflow_runs(**extra_kwargs)
+        failing_runs_count = sum(
+            1 for run in workflow_runs
+            if run.get("conclusion") in ("failure", "timed_out") or run.get("status") in ("in_progress", "queued") and run.get("conclusion") == "failure"
+        )
+
+        active_sessions = []
+        try:
+            active_sessions = self.jules.list_sessions(pageSize=100)
+        except ValueError:
+            active_sessions = []
+
+        active_sessions_count = len([
+            s for s in active_sessions
+            if s.get("state") in ("IN_PROGRESS", "PENDING", "QUEUED")
+        ])
+
+        if open_prs_count == 0 and failing_runs_count == 0 and active_sessions_count == 0:
+            suggestion = "SUGGEST: none :: All queues clear and checks green."
+            return {
+                "status": "success",
+                "suggestion": suggestion,
+                "fast_path": True,
+                "counts": {
+                    "open_prs": open_prs_count,
+                    "failing_runs": failing_runs_count,
+                    "active_sessions": active_sessions_count,
+                },
+            }
+
+        suggestion = f"SUGGEST: triage :: Action items found (Open PRs: {open_prs_count}, Failing Runs: {failing_runs_count}, Active Sessions: {active_sessions_count})."
+        return {
+            "status": "success",
+            "suggestion": suggestion,
+            "fast_path": False,
+            "counts": {
+                "open_prs": open_prs_count,
+                "failing_runs": failing_runs_count,
+                "active_sessions": active_sessions_count,
+            },
+        }
+
     def list_prs(
         self,
         state: str = "open",

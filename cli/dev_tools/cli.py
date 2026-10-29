@@ -1450,7 +1450,15 @@ def dispatch(ctx, branch, task, title, repo):
 def sync(ctx, limit):
     """Sync active agent sessions."""
     orch = ctx.obj["ORCHESTRATOR"]
-    sessions = orch.jules.list_sessions(pageSize=limit)
+    try:
+        sessions = orch.jules.list_sessions(pageSize=limit)
+    except ValueError as e:
+        if "JULES_API_KEY" in str(e):
+            if not ctx.obj["JSON"]:
+                click.echo("⚠️ Warning: JULES_API_KEY unset")
+            out(ctx, "Agent sync complete (JULES_API_KEY unset).", data={"sessions": [], "warning": "JULES_API_KEY unset"})
+            return
+        raise e
 
     if not ctx.obj["JSON"]:
         if not sessions:
@@ -1727,6 +1735,21 @@ def install_workflows(ctx, target, dry_run, force):
             err(ctx, "Workflows installation failed.")
     except Exception as e:
         _handle_unexpected_error(ctx, "agent install-workflows", e)
+
+
+@agent_group.command(name="suggest")
+@click.option("--repo", "-r", help="Target GitHub repository (e.g. owner/repo)")
+@click.pass_context
+def suggest(ctx, repo):
+    """Evaluate repository state and suggest next actions using deterministic fast-path."""
+    orch = ctx.obj["ORCHESTRATOR"]
+    try:
+        res = orch.suggest_next_action(repo=repo)
+        if not ctx.obj.get("JSON", False):
+            click.echo(res.get("suggestion"))
+        out(ctx, res.get("suggestion", ""), data=res)
+    except Exception as e:
+        _handle_unexpected_error(ctx, "agent suggest", e)
 
 
 @agent_group.command(name="run-feedback-check")
