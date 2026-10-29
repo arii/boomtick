@@ -8,6 +8,7 @@ import * as ciLogsModule from "../tools/repo.read_ci_logs.js";
 import * as prReviewsModule from "../tools/github.get_pr_reviews.js";
 import * as prCommitsModule from "../tools/github.get_pr_commits.js";
 import * as workflowRunsModule from "../tools/repo.get_workflow_runs.js";
+import * as listJulesSessionsModule from "../tools/jules/list-sessions.js";
 
 vi.mock("fs/promises");
 vi.mock("../config.js", () => ({
@@ -335,6 +336,24 @@ describe("BoomtickMCPServer", () => {
         params: { name: "repo_get_workflow_runs", arguments: {} },
       });
       expect(resWorkflow.structuredContent).toEqual({ runs: [] });
+    });
+
+    it("should execute jules.list_sessions and return structuredContent as a record object wrapping sessions", async () => {
+      const handler = requestHandlers.get("tools/call");
+      vi.spyOn(listJulesSessionsModule, "listJulesSessionsHandler").mockResolvedValue({
+        sessions: [{ id: "sess-1", status: "completed" }],
+      });
+
+      const res = await handler!({
+        method: "tools/call",
+        params: { name: "jules.list_sessions", arguments: {} },
+      });
+
+      expect(res.structuredContent).toEqual({
+        sessions: [{ id: "sess-1", status: "completed" }],
+      });
+      expect(Array.isArray(res.structuredContent)).toBe(false);
+      expect(typeof res.structuredContent).toBe("object");
     });
 
     it("should return error result for unknown tool", async () => {
