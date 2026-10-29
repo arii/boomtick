@@ -409,6 +409,17 @@ class SearchDdgsInput(CamelCaseModel):
     max_results: Optional[int] = Field(None, description="Maximum number of results to return.")
 
 
+class ReadAgentContractInput(CamelCaseModel):
+    path: Optional[str] = Field(None, description="Local filesystem path to target repository root")
+    repo_path: Optional[str] = Field(
+        None, description="Alias for path (filesystem path to target workspace repository root)."
+    )
+    repo: Optional[str] = Field(
+        None,
+        description="Target GitHub repository string (e.g. org/repo).",
+    )
+
+
 class ReadAgentContextInput(CamelCaseModel):
     path: Optional[str] = Field(None, description="Local filesystem path to target repository root")
     repo_path: Optional[str] = Field(
@@ -421,6 +432,17 @@ class ReadAgentContextInput(CamelCaseModel):
     repos: Optional[List[str]] = Field(None, description="List of repository names to fetch context for")
     all: Optional[bool] = Field(
         None, description="Whether to fetch context across all discovered ecosystem repositories"
+    )
+
+
+class GetContextStatusInput(CamelCaseModel):
+    path: Optional[str] = Field(None, description="Local filesystem path to target repository root")
+    repo_path: Optional[str] = Field(
+        None, description="Alias for path (filesystem path to target workspace repository root)."
+    )
+    repo: Optional[str] = Field(
+        None,
+        description="Target GitHub repository string (e.g. org/repo).",
     )
 
 
@@ -518,11 +540,24 @@ class HealthCheckResponse(CamelCaseModel):
     config: Optional[Dict[str, Any]] = None
 
 
+class ReadAgentContractResponse(CamelCaseModel):
+    status: str = "success"
+    content: Optional[str] = Field(None, description="The content of the agent contract specification file.")
+    path: Optional[str] = Field(None, description="Path to the agent contract file.")
+
+
 class ReadAgentContextResponse(CamelCaseModel):
     status: str = "success"
     package_name: Optional[str] = None
     git_commit: Optional[str] = None
     config: Optional[Dict[str, Any]] = None
+
+
+class GetContextStatusResponse(CamelCaseModel):
+    warm: bool = Field(..., description="Whether the .agent-context.json index is warm and up-to-date.")
+    last_warmed_at: Optional[str] = Field(None, description="ISO timestamp when .agent-context.json was last updated or created.")
+    path: str = Field(..., description="Path to .agent-context.json.")
+    stale_files: List[str] = Field(default_factory=list, description="List of files that are newer than .agent-context.json or stale.")
 
 
 class CheckoutBranchResponse(CamelCaseModel):
