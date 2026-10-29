@@ -81,10 +81,7 @@ export function resolveRepoPath(options: RepoPathOptions = {}): string {
           for (const [key, relPath] of Object.entries(parsed.ecosystem_repos)) {
             const keyRepoName = key.includes("/") ? key.split("/")[1] : key;
             if (key === rawRepo || keyRepoName === repoName) {
-              const resolved = path.resolve(rootPath, relPath as string);
-              if (syncFs.existsSync(resolved)) {
-                return resolved;
-              }
+              return path.resolve(rootPath, relPath as string);
             }
           }
         }
