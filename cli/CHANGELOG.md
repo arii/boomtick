@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.15.1](https://github.com/arii/boomtick/compare/cli-v0.15.0...cli-v0.15.1) (2026-10-29)
+
+
+### Bug Fixes
+
+* **mcp:** resolve target workspace dynamically in repo.create_branch and worktree tools ([#990](https://github.com/arii/boomtick/issues/990)) ([cd2f34e](https://github.com/arii/boomtick/commit/cd2f34ea8607f037b855d41f899bf5152dc13c1f))
+
 ## [0.15.0](https://github.com/arii/boomtick/compare/cli-v0.14.3...cli-v0.15.0) (2026-10-29)
 
 

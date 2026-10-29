@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.7.1](https://github.com/arii/boomtick/compare/mcp-v0.7.0...mcp-v0.7.1) (2026-10-29)
+
+
+### Bug Fixes
+
+* **mcp:** resolve ecosystem_repos without requiring local path existence during isolated test runs ([53ab66a](https://github.com/arii/boomtick/commit/53ab66ab6503c93ff07bfd4e525a5f490df16386))
+* **mcp:** resolve target workspace dynamically in repo.create_branch and worktree tools ([#990](https://github.com/arii/boomtick/issues/990)) ([cd2f34e](https://github.com/arii/boomtick/commit/cd2f34ea8607f037b855d41f899bf5152dc13c1f))
+
 ## [0.7.0](https://github.com/arii/boomtick/compare/mcp-v0.6.2...mcp-v0.7.0) (2026-10-29)
 
 
