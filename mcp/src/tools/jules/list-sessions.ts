@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { JulesSession } from "../types.js";
+import { JulesListSessionsResponse } from "../contract.js";
 import { runTDCli } from "./cli.js";
 import { parseJulesSession } from "./session.js";
 
@@ -8,9 +8,10 @@ export const ListJulesSessionsInputSchema = z.object({
   pageToken: z.string().optional(),
 });
 
-export async function listJulesSessionsHandler(input: z.infer<typeof ListJulesSessionsInputSchema>): Promise<JulesSession[]> {
+export async function listJulesSessionsHandler(input: z.infer<typeof ListJulesSessionsInputSchema>): Promise<JulesListSessionsResponse> {
   const output = await runTDCli(["agent", "sync"], "list sessions");
-  const sessions = output.sessions || [];
+  const rawSessions = output.sessions || [];
+  const sessions = rawSessions.map((session: any) => parseJulesSession(session));
 
-  return sessions.map((session: any) => parseJulesSession(session));
+  return { sessions };
 }
