@@ -1061,7 +1061,9 @@ class Orchestrator:
                     ["node", script_path, "--json"] + files_to_audit,
                     check=False,
                 )
-            output = audit_res.stdout if isinstance(audit_res, subprocess.CompletedProcess) else str(audit_res)
+                output = audit_res.stdout if isinstance(audit_res, subprocess.CompletedProcess) else str(audit_res)
+            else:
+                output = ""
             if output and "{" in output:
                 json_start = output.find("{")
                 json_end = output.rfind("}") + 1
@@ -1435,12 +1437,14 @@ class Orchestrator:
 
         # 2. Automated Validation Steps
         script_path = self._resolve_antipatterns_script()
-        steps = [
-            ("Anti-Pattern Audit", ["node", script_path]),
+        steps: List[Tuple[str, List[str]]] = []
+        if script_path and os.path.exists(script_path):
+            steps.append(("Anti-Pattern Audit", ["node", script_path]))
+        steps.extend([
             ("Version Downgrade Check", [get_config().cli_alias, "gh", "verify-versions"]),
             ("TypeScript", ["pnpm", "run", "type-check"]),
             ("Lint", ["pnpm", "run", "lint"]),
-        ]
+        ])
 
         for name, cmd in steps:
             log_info(f"Running check: {name} ({' '.join(cmd)})")
