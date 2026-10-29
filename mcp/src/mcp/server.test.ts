@@ -317,7 +317,7 @@ describe("BoomtickMCPServer", () => {
 
       const result = await handler!({
         method: "tools/call",
-        params: { name: "boomtick_health", arguments: {} },
+        params: { name: "boomtick.health", arguments: {} },
       });
 
       expect(result).toEqual({
@@ -351,7 +351,7 @@ describe("BoomtickMCPServer", () => {
       expect(resWorkflow.structuredContent).toEqual({ runs: [] });
     });
 
-    it("should execute jules_list_sessions and return structuredContent as a record object wrapping sessions", async () => {
+    it("should execute jules.list_sessions and return structuredContent as a record object wrapping sessions", async () => {
       const handler = requestHandlers.get("tools/call");
       vi.spyOn(listJulesSessionsModule, "listJulesSessionsHandler").mockResolvedValue({
         sessions: [{ id: "sess-1", status: "completed" }],
@@ -359,7 +359,7 @@ describe("BoomtickMCPServer", () => {
 
       const res = await handler!({
         method: "tools/call",
-        params: { name: "jules_list_sessions", arguments: {} },
+        params: { name: "jules.list_sessions", arguments: {} },
       });
 
       expect(res.structuredContent).toEqual({
@@ -389,7 +389,7 @@ describe("BoomtickMCPServer", () => {
 
       const result = await handler!({
         method: "tools/call",
-        params: { name: "boomtick_health", arguments: {} },
+        params: { name: "boomtick.health", arguments: {} },
       });
 
       expect(result).toEqual({
