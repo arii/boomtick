@@ -23,6 +23,7 @@ def test_cli_list_sessions_without_api_key():
         assert '"sessions": []' in result.output
 
 
+@patch.dict("os.environ", {"GITHUB_TOKEN": "fake_token"})
 def test_suggest_next_action_fast_path():
     orch = Orchestrator()
     orch.list_prs = MagicMock(return_value={"prs": []})
@@ -37,6 +38,7 @@ def test_suggest_next_action_fast_path():
     assert res["counts"] == {"open_prs": 0, "failing_runs": 0, "active_sessions": 0}
 
 
+@patch.dict("os.environ", {"GITHUB_TOKEN": "fake_token"})
 def test_suggest_next_action_with_open_pr():
     orch = Orchestrator()
     orch.list_prs = MagicMock(return_value={"prs": [{"number": 1}]})

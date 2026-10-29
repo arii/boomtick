@@ -1,0 +1,29 @@
+--- cli/tests/test_agent_suggest_fallback.py
++++ cli/tests/test_agent_suggest_fallback.py
+@@ -23,10 +23,11 @@
+         assert '"sessions": []' in result.output
+
+
+-def test_suggest_next_action_fast_path():
++@patch.dict("os.environ", {"GITHUB_TOKEN": "fake_token"})
++def test_suggest_next_action_fast_path():
+     orch = Orchestrator()
+     orch.list_prs = MagicMock(return_value={"prs": []})
+-    orch._github = MagicMock()
++    orch.github.fetch_workflow_runs = MagicMock(return_value=[])
+     orch._jules = MagicMock()
+     orch.jules.list_sessions = MagicMock(return_value=[])
+
+@@ -37,10 +38,11 @@
+     assert res["counts"] == {"open_prs": 0, "failing_runs": 0, "active_sessions": 0}
+
+
+-def test_suggest_next_action_with_open_pr():
++@patch.dict("os.environ", {"GITHUB_TOKEN": "fake_token"})
++def test_suggest_next_action_with_open_pr():
+     orch = Orchestrator()
+     orch.list_prs = MagicMock(return_value={"prs": [{"number": 1}]})
+-    orch._github = MagicMock()
++    orch.github.fetch_workflow_runs = MagicMock(return_value=[])
+     orch._jules = MagicMock()
+     orch.jules.list_sessions = MagicMock(return_value=[])
