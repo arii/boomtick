@@ -1440,11 +1440,11 @@ class Orchestrator:
         steps: List[Tuple[str, List[str]]] = []
         if script_path and os.path.exists(script_path):
             steps.append(("Anti-Pattern Audit", ["node", script_path]))
-        steps.extend([
-            ("Version Downgrade Check", [get_config().cli_alias, "gh", "verify-versions"]),
-            ("TypeScript", ["pnpm", "run", "type-check"]),
-            ("Lint", ["pnpm", "run", "lint"]),
-        ])
+        steps.append(("Version Downgrade Check", [get_config().cli_alias, "gh", "verify-versions"]))
+        if self._pnpm_has_script("type-check"):
+            steps.append(("TypeScript", ["pnpm", "run", "type-check"]))
+        if self._pnpm_has_script("lint"):
+            steps.append(("Lint", ["pnpm", "run", "lint"]))
 
         for name, cmd in steps:
             log_info(f"Running check: {name} ({' '.join(cmd)})")
