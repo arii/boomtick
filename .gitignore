@@ -204,3 +204,4 @@ artifacts/
 collected-logs/
 runs/
 failed-run/
+.agent-context.json

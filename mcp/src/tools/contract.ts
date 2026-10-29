@@ -1451,7 +1451,7 @@ export const CommitPatchResponseJsonSchema = {
   "type": "object"
 } as const;
 
-export const CreateBranchInputSchema = z.object({ "branchName": z.string().describe("The name of the new branch"), "baseBranch": z.string().describe("Branch to branch off from").default("main") });
+export const CreateBranchInputSchema = z.object({ "branchName": z.string().describe("The name of the new branch"), "baseBranch": z.string().describe("Branch to branch off from").default("main"), "repo": z.union([z.string(), z.null()]).describe("Target repository override (e.g. org/repo or repo).").default(null), "path": z.union([z.string(), z.null()]).describe("Local filesystem path to target repository root.").default(null), "repoPath": z.union([z.string(), z.null()]).describe("Alias for path to target repository root.").default(null) });
 
 export type CreateBranchInput = z.infer<typeof CreateBranchInputSchema>;
 
@@ -1467,6 +1467,45 @@ export const CreateBranchInputJsonSchema = {
       "description": "Branch to branch off from",
       "title": "Basebranch",
       "type": "string"
+    },
+    "repo": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Target repository override (e.g. org/repo or repo).",
+      "title": "Repo"
+    },
+    "path": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Local filesystem path to target repository root.",
+      "title": "Path"
+    },
+    "repoPath": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Alias for path to target repository root.",
+      "title": "Repopath"
     }
   },
   "required": [
@@ -1476,7 +1515,7 @@ export const CreateBranchInputJsonSchema = {
   "type": "object"
 } as const;
 
-export const CreateBranchResponseSchema = z.object({ "success": z.boolean().default(true), "branchName": z.string(), "baseBranch": z.union([z.string(), z.null()]).default(null) });
+export const CreateBranchResponseSchema = z.object({ "success": z.boolean().default(true), "branchName": z.string(), "baseBranch": z.union([z.string(), z.null()]).default(null), "repo": z.union([z.string(), z.null()]).default(null), "path": z.union([z.string(), z.null()]).default(null) });
 
 export type CreateBranchResponse = z.infer<typeof CreateBranchResponseSchema>;
 
@@ -1502,6 +1541,30 @@ export const CreateBranchResponseJsonSchema = {
       ],
       "default": null,
       "title": "Basebranch"
+    },
+    "repo": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Repo"
+    },
+    "path": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Path"
     }
   },
   "required": [
@@ -1788,7 +1851,7 @@ export const CreatePullRequestResponseJsonSchema = {
   "type": "object"
 } as const;
 
-export const CreateRepairBranchInputSchema = z.object({ "prNumber": z.number().int().describe("The original pull request number to repair."), "repairBranchName": z.union([z.string(), z.null()]).describe("Optional custom name for the new repair branch.").default(null), "writeMode": z.boolean().describe("Safety gate: Must be true to perform branch creation and worktree setup.") });
+export const CreateRepairBranchInputSchema = z.object({ "prNumber": z.number().int().describe("The original pull request number to repair."), "repairBranchName": z.union([z.string(), z.null()]).describe("Optional custom name for the new repair branch.").default(null), "writeMode": z.boolean().describe("Safety gate: Must be true to perform branch creation and worktree setup."), "repo": z.union([z.string(), z.null()]).describe("Target repository override (e.g. org/repo or repo).").default(null), "path": z.union([z.string(), z.null()]).describe("Local filesystem path to target repository root.").default(null), "repoPath": z.union([z.string(), z.null()]).describe("Alias for path to target repository root.").default(null) });
 
 export type CreateRepairBranchInput = z.infer<typeof CreateRepairBranchInputSchema>;
 
@@ -1816,6 +1879,45 @@ export const CreateRepairBranchInputJsonSchema = {
       "description": "Safety gate: Must be true to perform branch creation and worktree setup.",
       "title": "Writemode",
       "type": "boolean"
+    },
+    "repo": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Target repository override (e.g. org/repo or repo).",
+      "title": "Repo"
+    },
+    "path": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Local filesystem path to target repository root.",
+      "title": "Path"
+    },
+    "repoPath": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Alias for path to target repository root.",
+      "title": "Repopath"
     }
   },
   "required": [
@@ -1826,7 +1928,7 @@ export const CreateRepairBranchInputJsonSchema = {
   "type": "object"
 } as const;
 
-export const CreateRepairBranchResponseSchema = z.object({ "prNumber": z.number().int(), "originalBranch": z.string(), "repairBranch": z.string(), "baseBranch": z.string(), "worktreePath": z.string() });
+export const CreateRepairBranchResponseSchema = z.object({ "prNumber": z.number().int(), "originalBranch": z.string(), "repairBranch": z.string(), "baseBranch": z.string(), "worktreePath": z.string(), "repo": z.union([z.string(), z.null()]).default(null), "path": z.union([z.string(), z.null()]).default(null) });
 
 export type CreateRepairBranchResponse = z.infer<typeof CreateRepairBranchResponseSchema>;
 
@@ -1851,6 +1953,30 @@ export const CreateRepairBranchResponseJsonSchema = {
     "worktreePath": {
       "title": "Worktreepath",
       "type": "string"
+    },
+    "repo": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Repo"
+    },
+    "path": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Path"
     }
   },
   "required": [
@@ -1864,7 +1990,7 @@ export const CreateRepairBranchResponseJsonSchema = {
   "type": "object"
 } as const;
 
-export const GetChangedFilesInputSchema = z.object({ "base": z.string().describe("The base ref to compare from (default: 'main').").default("main"), "head": z.string().describe("The head ref to compare to (default: 'HEAD').").default("HEAD") });
+export const GetChangedFilesInputSchema = z.object({ "base": z.string().describe("The base ref to compare from (default: 'main').").default("main"), "head": z.string().describe("The head ref to compare to (default: 'HEAD').").default("HEAD"), "repo": z.union([z.string(), z.null()]).describe("Target GitHub repository override.").default(null), "path": z.union([z.string(), z.null()]).describe("Local filesystem path to target repository root.").default(null), "repoPath": z.union([z.string(), z.null()]).describe("Alias for path to target repository root.").default(null) });
 
 export type GetChangedFilesInput = z.infer<typeof GetChangedFilesInputSchema>;
 
@@ -1881,6 +2007,45 @@ export const GetChangedFilesInputJsonSchema = {
       "description": "The head ref to compare to (default: 'HEAD').",
       "title": "Head",
       "type": "string"
+    },
+    "repo": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Target GitHub repository override.",
+      "title": "Repo"
+    },
+    "path": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Local filesystem path to target repository root.",
+      "title": "Path"
+    },
+    "repoPath": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Alias for path to target repository root.",
+      "title": "Repopath"
     }
   },
   "title": "GetChangedFilesInput",
@@ -1960,27 +2125,77 @@ export const GetCommandSchemaResponseJsonSchema = {
   "type": "object"
 } as const;
 
-export const GetMergeConflictFilesInputSchema = z.object({ "prNumber": z.number().int().describe("The number of the pull request to check for conflicts."), "baseBranch": z.string().describe("The base branch to check against (default: 'main').").default("main") });
+export const GetMergeConflictFilesInputSchema = z.object({ "prNumber": z.union([z.number().int(), z.null()]).describe("The number of the pull request to check for conflicts.").default(null), "baseBranch": z.string().describe("The base branch to check against (default: 'main').").default("main"), "headRef": z.string().describe("The head ref or branch to check.").default("HEAD"), "repo": z.union([z.string(), z.null()]).describe("Target GitHub repository override.").default(null), "path": z.union([z.string(), z.null()]).describe("Local filesystem path to target repository root.").default(null), "repoPath": z.union([z.string(), z.null()]).describe("Alias for path to target repository root.").default(null) });
 
 export type GetMergeConflictFilesInput = z.infer<typeof GetMergeConflictFilesInputSchema>;
 
 export const GetMergeConflictFilesInputJsonSchema = {
   "properties": {
     "prNumber": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
       "description": "The number of the pull request to check for conflicts.",
-      "title": "Prnumber",
-      "type": "integer"
+      "title": "Prnumber"
     },
     "baseBranch": {
       "default": "main",
       "description": "The base branch to check against (default: 'main').",
       "title": "Basebranch",
       "type": "string"
+    },
+    "headRef": {
+      "default": "HEAD",
+      "description": "The head ref or branch to check.",
+      "title": "Headref",
+      "type": "string"
+    },
+    "repo": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Target GitHub repository override.",
+      "title": "Repo"
+    },
+    "path": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Local filesystem path to target repository root.",
+      "title": "Path"
+    },
+    "repoPath": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Alias for path to target repository root.",
+      "title": "Repopath"
     }
   },
-  "required": [
-    "prNumber"
-  ],
   "title": "GetMergeConflictFilesInput",
   "type": "object"
 } as const;

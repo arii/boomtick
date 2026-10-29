@@ -156,8 +156,12 @@ class CheckoutBranchInput(CamelCaseModel):
 
 
 class GetMergeConflictFilesInput(CamelCaseModel):
-    pr_number: int = Field(..., description="The number of the pull request to check for conflicts.")
+    pr_number: Optional[int] = Field(None, description="The number of the pull request to check for conflicts.")
     base_branch: str = Field("main", description="The base branch to check against (default: 'main').")
+    head_ref: str = Field("HEAD", description="The head ref or branch to check.")
+    repo: Optional[str] = Field(None, description="Target GitHub repository override.")
+    path: Optional[str] = Field(None, description="Local filesystem path to target repository root.")
+    repo_path: Optional[str] = Field(None, description="Alias for path to target repository root.")
 
 
 class GetMergeConflictFilesResponse(CamelCaseModel):
@@ -171,6 +175,9 @@ class GetMergeConflictFilesResponse(CamelCaseModel):
 class GetChangedFilesInput(CamelCaseModel):
     base: str = Field("main", description="The base ref to compare from (default: 'main').")
     head: str = Field("HEAD", description="The head ref to compare to (default: 'HEAD').")
+    repo: Optional[str] = Field(None, description="Target GitHub repository override.")
+    path: Optional[str] = Field(None, description="Local filesystem path to target repository root.")
+    repo_path: Optional[str] = Field(None, description="Alias for path to target repository root.")
 
 
 class GetPackageScriptsInput(CamelCaseModel):
@@ -232,6 +239,9 @@ class GetWorkflowRunsInput(CamelCaseModel):
 class CreateBranchInput(CamelCaseModel):
     branch_name: str = Field(..., description="The name of the new branch")
     base_branch: str = Field("main", description="Branch to branch off from")
+    repo: Optional[str] = Field(None, description="Target repository override (e.g. org/repo or repo).")
+    path: Optional[str] = Field(None, description="Local filesystem path to target repository root.")
+    repo_path: Optional[str] = Field(None, description="Alias for path to target repository root.")
 
 
 class CreateRepairBranchInput(CamelCaseModel):
@@ -242,6 +252,9 @@ class CreateRepairBranchInput(CamelCaseModel):
     write_mode: bool = Field(
         ..., description="Safety gate: Must be true to perform branch creation and worktree setup."
     )
+    repo: Optional[str] = Field(None, description="Target repository override (e.g. org/repo or repo).")
+    path: Optional[str] = Field(None, description="Local filesystem path to target repository root.")
+    repo_path: Optional[str] = Field(None, description="Alias for path to target repository root.")
 
 
 class RunTestsInput(CamelCaseModel):
@@ -548,6 +561,8 @@ class CreateBranchResponse(CamelCaseModel):
     success: bool = True
     branch_name: str
     base_branch: Optional[str] = None
+    repo: Optional[str] = None
+    path: Optional[str] = None
 
 
 class CreateRepairBranchResponse(CamelCaseModel):
@@ -556,6 +571,8 @@ class CreateRepairBranchResponse(CamelCaseModel):
     repair_branch: str
     base_branch: str
     worktree_path: str
+    repo: Optional[str] = None
+    path: Optional[str] = None
 
 
 class CheckJulesStatusResponse(CamelCaseModel):

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import { getChangedFiles, getMergeConflictFiles } from "./git.js";
+import { getChangedFiles, getMergeConflictFiles, resolveRepoPath, createWorktree } from "./git.js";
 import * as shell from "./shell.js";
 
 vi.mock("./shell.js", () => ({
@@ -104,6 +104,50 @@ describe("Git Helpers", () => {
 
       await expect(getMergeConflictFiles("invalid", "feature")).rejects.toThrow(
         "Git merge-tree failed: fatal: not a valid object name"
+      );
+    });
+  });
+
+  describe("resolveRepoPath", () => {
+    it("should return explicit path when path is provided", () => {
+      const resolved = resolveRepoPath({ path: "/tmp/custom-repo" });
+      expect(resolved).toBe("/tmp/custom-repo");
+    });
+
+    it("should return explicit repoPath when repoPath is provided", () => {
+      const resolved = resolveRepoPath({ repoPath: "/tmp/another-repo" });
+      expect(resolved).toBe("/tmp/another-repo");
+    });
+
+    it("should resolve repo path via ecosystem_repos when repo is given", () => {
+      const resolved = resolveRepoPath({ repo: "arii/tech-dancer" });
+      expect(resolved).toContain("tech-dancer");
+    });
+
+    it("should fall back to current working directory when empty", () => {
+      const resolved = resolveRepoPath({});
+      expect(typeof resolved).toBe("string");
+      expect(resolved.length).toBeGreaterThan(0);
+    });
+  });
+
+  describe("createWorktree", () => {
+    it("should pass baseRepoPath cwd to runCommand when provided", async () => {
+      vi.mocked(shell.runCommand).mockResolvedValue({
+        exitCode: 0,
+        stdout: "",
+        stderr: "",
+        durationMs: 5,
+        command: "git",
+      });
+
+      const worktree = await createWorktree("origin/feature", 123, "/home/ari/tech-dancer");
+
+      expect(worktree).toContain("boomtick-mcp-rescue-123");
+      expect(shell.runCommand).toHaveBeenCalledWith(
+        "git",
+        expect.arrayContaining(["worktree", "add"]),
+        { cwd: "/home/ari/tech-dancer" }
       );
     });
   });

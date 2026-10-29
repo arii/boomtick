@@ -2989,6 +2989,45 @@
           "description": "Branch to branch off from",
           "title": "Basebranch",
           "type": "string"
+        },
+        "repo": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Target repository override (e.g. org/repo or repo).",
+          "title": "Repo"
+        },
+        "path": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Local filesystem path to target repository root.",
+          "title": "Path"
+        },
+        "repoPath": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Alias for path to target repository root.",
+          "title": "Repopath"
         }
       },
       "required": [
@@ -3019,6 +3058,30 @@
           ],
           "default": null,
           "title": "Basebranch"
+        },
+        "repo": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Repo"
+        },
+        "path": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Path"
         }
       },
       "required": [
@@ -3303,6 +3366,45 @@
           "description": "Safety gate: Must be true to perform branch creation and worktree setup.",
           "title": "Writemode",
           "type": "boolean"
+        },
+        "repo": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Target repository override (e.g. org/repo or repo).",
+          "title": "Repo"
+        },
+        "path": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Local filesystem path to target repository root.",
+          "title": "Path"
+        },
+        "repoPath": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Alias for path to target repository root.",
+          "title": "Repopath"
         }
       },
       "required": [
@@ -3333,6 +3435,30 @@
         "worktreePath": {
           "title": "Worktreepath",
           "type": "string"
+        },
+        "repo": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Repo"
+        },
+        "path": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Path"
         }
       },
       "required": [
@@ -3358,6 +3484,45 @@
           "description": "The head ref to compare to (default: 'HEAD').",
           "title": "Head",
           "type": "string"
+        },
+        "repo": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Target GitHub repository override.",
+          "title": "Repo"
+        },
+        "path": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Local filesystem path to target repository root.",
+          "title": "Path"
+        },
+        "repoPath": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Alias for path to target repository root.",
+          "title": "Repopath"
         }
       },
       "title": "GetChangedFilesInput",
@@ -3424,20 +3589,70 @@
     "GetMergeConflictFilesInput": {
       "properties": {
         "prNumber": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
           "description": "The number of the pull request to check for conflicts.",
-          "title": "Prnumber",
-          "type": "integer"
+          "title": "Prnumber"
         },
         "baseBranch": {
           "default": "main",
           "description": "The base branch to check against (default: 'main').",
           "title": "Basebranch",
           "type": "string"
+        },
+        "headRef": {
+          "default": "HEAD",
+          "description": "The head ref or branch to check.",
+          "title": "Headref",
+          "type": "string"
+        },
+        "repo": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Target GitHub repository override.",
+          "title": "Repo"
+        },
+        "path": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Local filesystem path to target repository root.",
+          "title": "Path"
+        },
+        "repoPath": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Alias for path to target repository root.",
+          "title": "Repopath"
         }
       },
-      "required": [
-        "prNumber"
-      ],
       "title": "GetMergeConflictFilesInput",
       "type": "object"
     },
