@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.7.0](https://github.com/arii/boomtick/compare/mcp-v0.6.2...mcp-v0.7.0) (2026-10-29)
+
+
+### Features
+
+* **aggregate:** agent onboarding, multi-repo context, and sequential orchestration ([#1001](https://github.com/arii/boomtick/issues/1001)) ([7060777](https://github.com/arii/boomtick/commit/7060777195a84d391b5098226ce06a04ddefcd9a))
+* **aggregate:** pure-node container, review runner hardening, mcp modernization, and offline dag engine ([#1002](https://github.com/arii/boomtick/issues/1002)) ([056503c](https://github.com/arii/boomtick/commit/056503c8c21b5bd99f3b9d874ee7fac25972362a))
+* **mcp:** modernize boomtick-mcp with typed outputSchema, resources interface, and streamable HTTP transport ([26401df](https://github.com/arii/boomtick/commit/26401df06774e9de7756a375e0080810cc35926e))
+
+
+### Bug Fixes
+
+* **mcp:** resolve active repository dynamically across workspaces ([#981](https://github.com/arii/boomtick/issues/981)) ([9a757ea](https://github.com/arii/boomtick/commit/9a757ea5d1a878861e69bee4e36201849f7a03e4))
+
 ## [0.6.2](https://github.com/arii/boomtick/compare/mcp-v0.6.1...mcp-v0.6.2) (2026-10-28)
 
 

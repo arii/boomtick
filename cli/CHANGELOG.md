@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.15.0](https://github.com/arii/boomtick/compare/cli-v0.14.3...cli-v0.15.0) (2026-10-29)
+
+
+### Features
+
+* **aggregate:** agent onboarding, multi-repo context, and sequential orchestration ([#1001](https://github.com/arii/boomtick/issues/1001)) ([7060777](https://github.com/arii/boomtick/commit/7060777195a84d391b5098226ce06a04ddefcd9a))
+* **aggregate:** pure-node container, review runner hardening, mcp modernization, and offline dag engine ([#1002](https://github.com/arii/boomtick/issues/1002)) ([056503c](https://github.com/arii/boomtick/commit/056503c8c21b5bd99f3b9d874ee7fac25972362a))
+* **cli:** solidify td as a deterministic offline workstation engine ([d5f1a06](https://github.com/arii/boomtick/commit/d5f1a0685114d947cf82a95a8d2ae9749f695c20))
+* **cli:** solidify td as a deterministic offline workstation engine ([d059e67](https://github.com/arii/boomtick/commit/d059e675e77ccf570f45a4a668967b50ae22f480))
+* **mcp:** modernize boomtick-mcp with typed outputSchema, resources interface, and streamable HTTP transport ([26401df](https://github.com/arii/boomtick/commit/26401df06774e9de7756a375e0080810cc35926e))
+
+
+### Bug Fixes
+
+* **container:** optimize container image footprint within 250MB size budget ([3e61d20](https://github.com/arii/boomtick/commit/3e61d205163a741890789047207452fec52df141))
+
 ## [0.14.3](https://github.com/arii/boomtick/compare/cli-v0.14.2...cli-v0.14.3) (2026-10-28)
 
 
