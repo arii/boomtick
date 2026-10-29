@@ -749,6 +749,106 @@ export const CamelCaseModelJsonSchema = {
   "type": "object"
 } as const;
 
+export const CheckJulesStatusResponseSchema = z.object({ "sessionId": z.string(), "status": z.string(), "rawState": z.union([z.string(), z.null()]).default(null), "completed": z.boolean().default(false), "remediationBranch": z.union([z.string(), z.null()]).default(null), "pullRequestUrl": z.union([z.string(), z.null()]).default(null), "idempotencyHash": z.union([z.string(), z.null()]).default(null), "isDuplicate": z.union([z.boolean(), z.null()]).default(null), "message": z.union([z.string(), z.null()]).default(null) });
+
+export type CheckJulesStatusResponse = z.infer<typeof CheckJulesStatusResponseSchema>;
+
+export const CheckJulesStatusResponseJsonSchema = {
+  "properties": {
+    "sessionId": {
+      "title": "Sessionid",
+      "type": "string"
+    },
+    "status": {
+      "title": "Status",
+      "type": "string"
+    },
+    "rawState": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Rawstate"
+    },
+    "completed": {
+      "default": false,
+      "title": "Completed",
+      "type": "boolean"
+    },
+    "remediationBranch": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Remediationbranch"
+    },
+    "pullRequestUrl": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Pullrequesturl"
+    },
+    "idempotencyHash": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Idempotencyhash"
+    },
+    "isDuplicate": {
+      "anyOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Isduplicate"
+    },
+    "message": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Message"
+    }
+  },
+  "required": [
+    "sessionId",
+    "status"
+  ],
+  "title": "CheckJulesStatusResponse",
+  "type": "object"
+} as const;
+
 export const CheckoutBranchInputSchema = z.object({ "branch": z.string().describe("The name of the branch to checkout."), "worktreePath": z.union([z.string(), z.null()]).describe("Optional path to the worktree to perform the checkout in.").default(null) });
 
 export type CheckoutBranchInput = z.infer<typeof CheckoutBranchInputSchema>;
@@ -778,6 +878,29 @@ export const CheckoutBranchInputJsonSchema = {
     "branch"
   ],
   "title": "CheckoutBranchInput",
+  "type": "object"
+} as const;
+
+export const CheckoutBranchResponseSchema = z.object({ "success": z.boolean().default(true), "branch": z.string() });
+
+export type CheckoutBranchResponse = z.infer<typeof CheckoutBranchResponseSchema>;
+
+export const CheckoutBranchResponseJsonSchema = {
+  "properties": {
+    "success": {
+      "default": true,
+      "title": "Success",
+      "type": "boolean"
+    },
+    "branch": {
+      "title": "Branch",
+      "type": "string"
+    }
+  },
+  "required": [
+    "branch"
+  ],
+  "title": "CheckoutBranchResponse",
   "type": "object"
 } as const;
 
@@ -1235,6 +1358,29 @@ export const CommentTriageSummaryInputJsonSchema = {
   "type": "object"
 } as const;
 
+export const CommentTriageSummaryResponseSchema = z.object({ "success": z.boolean().default(true), "commentUrl": z.string() });
+
+export type CommentTriageSummaryResponse = z.infer<typeof CommentTriageSummaryResponseSchema>;
+
+export const CommentTriageSummaryResponseJsonSchema = {
+  "properties": {
+    "success": {
+      "default": true,
+      "title": "Success",
+      "type": "boolean"
+    },
+    "commentUrl": {
+      "title": "Commenturl",
+      "type": "string"
+    }
+  },
+  "required": [
+    "commentUrl"
+  ],
+  "title": "CommentTriageSummaryResponse",
+  "type": "object"
+} as const;
+
 export const CommitPatchInputSchema = z.object({ "worktreePath": z.string().describe("Path to the worktree where changes are made."), "message": z.string().describe("Commit message."), "allowedFiles": z.array(z.string()).describe("List of files that are allowed to be committed."), "writeMode": z.boolean().describe("Safety gate: Must be true to perform the commit.") });
 
 export type CommitPatchInput = z.infer<typeof CommitPatchInputSchema>;
@@ -1275,6 +1421,36 @@ export const CommitPatchInputJsonSchema = {
   "type": "object"
 } as const;
 
+export const CommitPatchResponseSchema = z.object({ "success": z.boolean().default(true), "commitSha": z.string(), "changedFiles": z.array(z.string()).optional() });
+
+export type CommitPatchResponse = z.infer<typeof CommitPatchResponseSchema>;
+
+export const CommitPatchResponseJsonSchema = {
+  "properties": {
+    "success": {
+      "default": true,
+      "title": "Success",
+      "type": "boolean"
+    },
+    "commitSha": {
+      "title": "Commitsha",
+      "type": "string"
+    },
+    "changedFiles": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Changedfiles",
+      "type": "array"
+    }
+  },
+  "required": [
+    "commitSha"
+  ],
+  "title": "CommitPatchResponse",
+  "type": "object"
+} as const;
+
 export const CreateBranchInputSchema = z.object({ "branchName": z.string().describe("The name of the new branch"), "baseBranch": z.string().describe("Branch to branch off from").default("main") });
 
 export type CreateBranchInput = z.infer<typeof CreateBranchInputSchema>;
@@ -1297,6 +1473,41 @@ export const CreateBranchInputJsonSchema = {
     "branchName"
   ],
   "title": "CreateBranchInput",
+  "type": "object"
+} as const;
+
+export const CreateBranchResponseSchema = z.object({ "success": z.boolean().default(true), "branchName": z.string(), "baseBranch": z.union([z.string(), z.null()]).default(null) });
+
+export type CreateBranchResponse = z.infer<typeof CreateBranchResponseSchema>;
+
+export const CreateBranchResponseJsonSchema = {
+  "properties": {
+    "success": {
+      "default": true,
+      "title": "Success",
+      "type": "boolean"
+    },
+    "branchName": {
+      "title": "Branchname",
+      "type": "string"
+    },
+    "baseBranch": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Basebranch"
+    }
+  },
+  "required": [
+    "branchName"
+  ],
+  "title": "CreateBranchResponse",
   "type": "object"
 } as const;
 
@@ -1438,7 +1649,7 @@ export const CreateIssueResponseJsonSchema = {
   "type": "object"
 } as const;
 
-export const CreateJulesSessionInputSchema = z.object({ "task": z.string().describe("The instructions for Jules."), "branch": z.union([z.string(), z.null()]).describe("The base branch to start from (e.g., 'main').").default(null), "pr": z.union([z.number().int(), z.null()]).describe("The PR number to use as the base branch context.").default(null) });
+export const CreateJulesSessionInputSchema = z.object({ "task": z.string().describe("The instructions for Jules."), "branch": z.union([z.string(), z.null()]).describe("The base branch to start from (e.g., 'main').").default(null), "pr": z.union([z.number().int(), z.null()]).describe("The PR number to use as the base branch context.").default(null), "repo": z.union([z.string().regex(new RegExp("^[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+$")), z.null()]).describe("The target repository override (e.g. org/repo).").default(null) });
 
 export type CreateJulesSessionInput = z.infer<typeof CreateJulesSessionInputSchema>;
 
@@ -1474,6 +1685,20 @@ export const CreateJulesSessionInputJsonSchema = {
       "default": null,
       "description": "The PR number to use as the base branch context.",
       "title": "Pr"
+    },
+    "repo": {
+      "anyOf": [
+        {
+          "pattern": "^[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "The target repository override (e.g. org/repo).",
+      "title": "Repo"
     }
   },
   "required": [
@@ -1540,6 +1765,29 @@ export const CreatePullRequestInputJsonSchema = {
   "type": "object"
 } as const;
 
+export const CreatePullRequestResponseSchema = z.object({ "success": z.boolean().default(true), "url": z.string() });
+
+export type CreatePullRequestResponse = z.infer<typeof CreatePullRequestResponseSchema>;
+
+export const CreatePullRequestResponseJsonSchema = {
+  "properties": {
+    "success": {
+      "default": true,
+      "title": "Success",
+      "type": "boolean"
+    },
+    "url": {
+      "title": "Url",
+      "type": "string"
+    }
+  },
+  "required": [
+    "url"
+  ],
+  "title": "CreatePullRequestResponse",
+  "type": "object"
+} as const;
+
 export const CreateRepairBranchInputSchema = z.object({ "prNumber": z.number().int().describe("The original pull request number to repair."), "repairBranchName": z.union([z.string(), z.null()]).describe("Optional custom name for the new repair branch.").default(null), "writeMode": z.boolean().describe("Safety gate: Must be true to perform branch creation and worktree setup.") });
 
 export type CreateRepairBranchInput = z.infer<typeof CreateRepairBranchInputSchema>;
@@ -1578,6 +1826,44 @@ export const CreateRepairBranchInputJsonSchema = {
   "type": "object"
 } as const;
 
+export const CreateRepairBranchResponseSchema = z.object({ "prNumber": z.number().int(), "originalBranch": z.string(), "repairBranch": z.string(), "baseBranch": z.string(), "worktreePath": z.string() });
+
+export type CreateRepairBranchResponse = z.infer<typeof CreateRepairBranchResponseSchema>;
+
+export const CreateRepairBranchResponseJsonSchema = {
+  "properties": {
+    "prNumber": {
+      "title": "Prnumber",
+      "type": "integer"
+    },
+    "originalBranch": {
+      "title": "Originalbranch",
+      "type": "string"
+    },
+    "repairBranch": {
+      "title": "Repairbranch",
+      "type": "string"
+    },
+    "baseBranch": {
+      "title": "Basebranch",
+      "type": "string"
+    },
+    "worktreePath": {
+      "title": "Worktreepath",
+      "type": "string"
+    }
+  },
+  "required": [
+    "prNumber",
+    "originalBranch",
+    "repairBranch",
+    "baseBranch",
+    "worktreePath"
+  ],
+  "title": "CreateRepairBranchResponse",
+  "type": "object"
+} as const;
+
 export const GetChangedFilesInputSchema = z.object({ "base": z.string().describe("The base ref to compare from (default: 'main').").default("main"), "head": z.string().describe("The head ref to compare to (default: 'HEAD').").default("HEAD") });
 
 export type GetChangedFilesInput = z.infer<typeof GetChangedFilesInputSchema>;
@@ -1601,6 +1887,24 @@ export const GetChangedFilesInputJsonSchema = {
   "type": "object"
 } as const;
 
+export const GetChangedFilesResponseSchema = z.object({ "files": z.array(z.string()).optional() });
+
+export type GetChangedFilesResponse = z.infer<typeof GetChangedFilesResponseSchema>;
+
+export const GetChangedFilesResponseJsonSchema = {
+  "properties": {
+    "files": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Files",
+      "type": "array"
+    }
+  },
+  "title": "GetChangedFilesResponse",
+  "type": "object"
+} as const;
+
 export const GetCommandSchemaInputSchema = z.object({ "commandPath": z.string().describe("The CLI command path to retrieve the schema for (e.g. 'gh audit-pr')") });
 
 export type GetCommandSchemaInput = z.infer<typeof GetCommandSchemaInputSchema>;
@@ -1617,6 +1921,42 @@ export const GetCommandSchemaInputJsonSchema = {
     "commandPath"
   ],
   "title": "GetCommandSchemaInput",
+  "type": "object"
+} as const;
+
+export const GetCommandSchemaResponseSchema = z.object({ "status": z.union([z.string(), z.null()]).default(null), "schema": z.union([z.record(z.string(), z.any()), z.null()]).default(null) });
+
+export type GetCommandSchemaResponse = z.infer<typeof GetCommandSchemaResponseSchema>;
+
+export const GetCommandSchemaResponseJsonSchema = {
+  "properties": {
+    "status": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Status"
+    },
+    "schema": {
+      "anyOf": [
+        {
+          "additionalProperties": true,
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Schema"
+    }
+  },
+  "title": "GetCommandSchemaResponse",
   "type": "object"
 } as const;
 
@@ -1716,6 +2056,24 @@ export const GetPackageScriptsInputJsonSchema = {
   "type": "object"
 } as const;
 
+export const GetPackageScriptsResponseSchema = z.object({ "scripts": z.record(z.string(), z.string()).optional() });
+
+export type GetPackageScriptsResponse = z.infer<typeof GetPackageScriptsResponseSchema>;
+
+export const GetPackageScriptsResponseJsonSchema = {
+  "properties": {
+    "scripts": {
+      "additionalProperties": {
+        "type": "string"
+      },
+      "title": "Scripts",
+      "type": "object"
+    }
+  },
+  "title": "GetPackageScriptsResponse",
+  "type": "object"
+} as const;
+
 export const GetPrCommitsInputSchema = z.object({ "prNumber": z.number().int().describe("The number of the PR to list commits for."), "repo": z.union([z.string().regex(new RegExp("^[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+$")), z.null()]).describe("The target repository override (e.g. org/repo).").default(null) });
 
 export type GetPrCommitsInput = z.infer<typeof GetPrCommitsInputSchema>;
@@ -1746,6 +2104,25 @@ export const GetPrCommitsInputJsonSchema = {
     "prNumber"
   ],
   "title": "GetPrCommitsInput",
+  "type": "object"
+} as const;
+
+export const GetPrCommitsResponseSchema = z.object({ "commits": z.array(z.record(z.string(), z.any())).optional() });
+
+export type GetPrCommitsResponse = z.infer<typeof GetPrCommitsResponseSchema>;
+
+export const GetPrCommitsResponseJsonSchema = {
+  "properties": {
+    "commits": {
+      "items": {
+        "additionalProperties": true,
+        "type": "object"
+      },
+      "title": "Commits",
+      "type": "array"
+    }
+  },
+  "title": "GetPrCommitsResponse",
   "type": "object"
 } as const;
 
@@ -1815,6 +2192,25 @@ export const GetPrInputJsonSchema = {
   "type": "object"
 } as const;
 
+export const GetPrResponseSchema = z.object({ "pr": z.record(z.string(), z.any()) });
+
+export type GetPrResponse = z.infer<typeof GetPrResponseSchema>;
+
+export const GetPrResponseJsonSchema = {
+  "properties": {
+    "pr": {
+      "additionalProperties": true,
+      "title": "Pr",
+      "type": "object"
+    }
+  },
+  "required": [
+    "pr"
+  ],
+  "title": "GetPrResponse",
+  "type": "object"
+} as const;
+
 export const GetPrReviewsInputSchema = z.object({ "prNumber": z.number().int().describe("The number of the PR to view reviews for."), "repo": z.union([z.string().regex(new RegExp("^[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+$")), z.null()]).describe("The target repository override (e.g. org/repo).").default(null) });
 
 export type GetPrReviewsInput = z.infer<typeof GetPrReviewsInputSchema>;
@@ -1845,6 +2241,37 @@ export const GetPrReviewsInputJsonSchema = {
     "prNumber"
   ],
   "title": "GetPrReviewsInput",
+  "type": "object"
+} as const;
+
+export const GetPrReviewsResponseSchema = z.object({ "reviews": z.array(z.record(z.string(), z.any())).optional(), "reviewCount": z.union([z.number().int(), z.null()]).default(null) });
+
+export type GetPrReviewsResponse = z.infer<typeof GetPrReviewsResponseSchema>;
+
+export const GetPrReviewsResponseJsonSchema = {
+  "properties": {
+    "reviews": {
+      "items": {
+        "additionalProperties": true,
+        "type": "object"
+      },
+      "title": "Reviews",
+      "type": "array"
+    },
+    "reviewCount": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Reviewcount"
+    }
+  },
+  "title": "GetPrReviewsResponse",
   "type": "object"
 } as const;
 
@@ -1923,6 +2350,25 @@ export const GetWorkflowRunsInputJsonSchema = {
   "type": "object"
 } as const;
 
+export const GetWorkflowRunsResponseSchema = z.object({ "workflowRuns": z.array(z.record(z.string(), z.any())).optional() });
+
+export type GetWorkflowRunsResponse = z.infer<typeof GetWorkflowRunsResponseSchema>;
+
+export const GetWorkflowRunsResponseJsonSchema = {
+  "properties": {
+    "workflowRuns": {
+      "items": {
+        "additionalProperties": true,
+        "type": "object"
+      },
+      "title": "Workflowruns",
+      "type": "array"
+    }
+  },
+  "title": "GetWorkflowRunsResponse",
+  "type": "object"
+} as const;
+
 export const HealthCheckInputSchema = z.object({ "checkDeep": z.boolean().describe("Whether to perform a deep health check including external dependencies.").default(false) });
 
 export type HealthCheckInput = z.infer<typeof HealthCheckInputSchema>;
@@ -1937,6 +2383,35 @@ export const HealthCheckInputJsonSchema = {
     }
   },
   "title": "HealthCheckInput",
+  "type": "object"
+} as const;
+
+export const HealthCheckResponseSchema = z.object({ "status": z.string().default("ok"), "config": z.union([z.record(z.string(), z.any()), z.null()]).default(null) });
+
+export type HealthCheckResponse = z.infer<typeof HealthCheckResponseSchema>;
+
+export const HealthCheckResponseJsonSchema = {
+  "properties": {
+    "status": {
+      "default": "ok",
+      "title": "Status",
+      "type": "string"
+    },
+    "config": {
+      "anyOf": [
+        {
+          "additionalProperties": true,
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Config"
+    }
+  },
+  "title": "HealthCheckResponse",
   "type": "object"
 } as const;
 
@@ -1976,6 +2451,32 @@ export const IssueCommentInputJsonSchema = {
     "body"
   ],
   "title": "IssueCommentInput",
+  "type": "object"
+} as const;
+
+export const IssueCommentResponseSchema = z.object({ "status": z.string().default("success"), "comment": z.union([z.any(), z.null()]).default(null) });
+
+export type IssueCommentResponse = z.infer<typeof IssueCommentResponseSchema>;
+
+export const IssueCommentResponseJsonSchema = {
+  "properties": {
+    "status": {
+      "default": "success",
+      "title": "Status",
+      "type": "string"
+    },
+    "comment": {
+      "anyOf": [
+        {},
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Comment"
+    }
+  },
+  "title": "IssueCommentResponse",
   "type": "object"
 } as const;
 
@@ -2248,6 +2749,86 @@ export const IssueViewInputJsonSchema = {
   "type": "object"
 } as const;
 
+export const IssueViewResponseSchema = z.object({ "issue": z.union([z.record(z.string(), z.any()), z.null()]).default(null) });
+
+export type IssueViewResponse = z.infer<typeof IssueViewResponseSchema>;
+
+export const IssueViewResponseJsonSchema = {
+  "properties": {
+    "issue": {
+      "anyOf": [
+        {
+          "additionalProperties": true,
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Issue"
+    }
+  },
+  "title": "IssueViewResponse",
+  "type": "object"
+} as const;
+
+export const JulesGetMessagesResponseSchema = z.object({ "id": z.string(), "messages": z.array(z.record(z.string(), z.any())).optional() });
+
+export type JulesGetMessagesResponse = z.infer<typeof JulesGetMessagesResponseSchema>;
+
+export const JulesGetMessagesResponseJsonSchema = {
+  "properties": {
+    "id": {
+      "title": "Id",
+      "type": "string"
+    },
+    "messages": {
+      "items": {
+        "additionalProperties": true,
+        "type": "object"
+      },
+      "title": "Messages",
+      "type": "array"
+    }
+  },
+  "required": [
+    "id"
+  ],
+  "title": "JulesGetMessagesResponse",
+  "type": "object"
+} as const;
+
+export const JulesGetPrResponseSchema = z.object({ "id": z.string(), "pullRequestUrl": z.union([z.string(), z.null()]).default(null) });
+
+export type JulesGetPrResponse = z.infer<typeof JulesGetPrResponseSchema>;
+
+export const JulesGetPrResponseJsonSchema = {
+  "properties": {
+    "id": {
+      "title": "Id",
+      "type": "string"
+    },
+    "pullRequestUrl": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Pullrequesturl"
+    }
+  },
+  "required": [
+    "id"
+  ],
+  "title": "JulesGetPrResponse",
+  "type": "object"
+} as const;
+
 export const JulesListSessionsInputSchema = z.object({ "pageSize": z.union([z.number().int(), z.null()]).describe("Maximum number of sessions to return.").default(null), "pageToken": z.union([z.string(), z.null()]).describe("Token for pagination.").default(null) });
 
 export type JulesListSessionsInput = z.infer<typeof JulesListSessionsInputSchema>;
@@ -2282,6 +2863,66 @@ export const JulesListSessionsInputJsonSchema = {
     }
   },
   "title": "JulesListSessionsInput",
+  "type": "object"
+} as const;
+
+export const JulesListSessionsResponseSchema = z.object({ "sessions": z.array(z.any()).optional() });
+
+export type JulesListSessionsResponse = z.infer<typeof JulesListSessionsResponseSchema>;
+
+export const JulesListSessionsResponseJsonSchema = {
+  "$defs": {
+    "JulesSessionResponse": {
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "status": {
+          "title": "Status",
+          "type": "string"
+        },
+        "createdAt": {
+          "anyOf": [
+            {},
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Createdat"
+        },
+        "pullRequestUrl": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Pullrequesturl"
+        }
+      },
+      "required": [
+        "id",
+        "status"
+      ],
+      "title": "JulesSessionResponse",
+      "type": "object"
+    }
+  },
+  "properties": {
+    "sessions": {
+      "items": {
+        "$ref": "#/$defs/JulesSessionResponse"
+      },
+      "title": "Sessions",
+      "type": "array"
+    }
+  },
+  "title": "JulesListSessionsResponse",
   "type": "object"
 } as const;
 
@@ -2321,6 +2962,44 @@ export const JulesSendMessageInputJsonSchema = {
   "type": "object"
 } as const;
 
+export const JulesSendMessageResponseSchema = z.object({ "id": z.union([z.string(), z.array(z.string())]), "status": z.string().default("success"), "message": z.string() });
+
+export type JulesSendMessageResponse = z.infer<typeof JulesSendMessageResponseSchema>;
+
+export const JulesSendMessageResponseJsonSchema = {
+  "properties": {
+    "id": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      ],
+      "title": "Id"
+    },
+    "status": {
+      "default": "success",
+      "title": "Status",
+      "type": "string"
+    },
+    "message": {
+      "title": "Message",
+      "type": "string"
+    }
+  },
+  "required": [
+    "id",
+    "message"
+  ],
+  "title": "JulesSendMessageResponse",
+  "type": "object"
+} as const;
+
 export const JulesSessionIdInputSchema = z.object({ "sessionId": z.string().describe("The unique ID of the Jules session.") });
 
 export type JulesSessionIdInput = z.infer<typeof JulesSessionIdInputSchema>;
@@ -2337,6 +3016,181 @@ export const JulesSessionIdInputJsonSchema = {
     "sessionId"
   ],
   "title": "JulesSessionIdInput",
+  "type": "object"
+} as const;
+
+export const JulesSessionResponseSchema = z.object({ "id": z.string(), "status": z.string(), "createdAt": z.union([z.any(), z.null()]).default(null), "pullRequestUrl": z.union([z.string(), z.null()]).default(null) });
+
+export type JulesSessionResponse = z.infer<typeof JulesSessionResponseSchema>;
+
+export const JulesSessionResponseJsonSchema = {
+  "properties": {
+    "id": {
+      "title": "Id",
+      "type": "string"
+    },
+    "status": {
+      "title": "Status",
+      "type": "string"
+    },
+    "createdAt": {
+      "anyOf": [
+        {},
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Createdat"
+    },
+    "pullRequestUrl": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Pullrequesturl"
+    }
+  },
+  "required": [
+    "id",
+    "status"
+  ],
+  "title": "JulesSessionResponse",
+  "type": "object"
+} as const;
+
+export const JulesTriggerFeedbackResponseSchema = z.object({ "status": z.union([z.string(), z.null()]).default(null), "message": z.union([z.string(), z.null()]).default(null) });
+
+export type JulesTriggerFeedbackResponse = z.infer<typeof JulesTriggerFeedbackResponseSchema>;
+
+export const JulesTriggerFeedbackResponseJsonSchema = {
+  "properties": {
+    "status": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Status"
+    },
+    "message": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Message"
+    }
+  },
+  "title": "JulesTriggerFeedbackResponse",
+  "type": "object"
+} as const;
+
+export const MultiExecInputSchema = z.object({ "command": z.string().describe("Shell command to execute sequentially across repositories"), "repos": z.union([z.array(z.string()), z.null()]).describe("Optional list of repository names to target").default(null), "continueOnError": z.union([z.boolean(), z.null()]).describe("Whether to continue execution if a repo command fails").default(true) });
+
+export type MultiExecInput = z.infer<typeof MultiExecInputSchema>;
+
+export const MultiExecInputJsonSchema = {
+  "properties": {
+    "command": {
+      "description": "Shell command to execute sequentially across repositories",
+      "title": "Command",
+      "type": "string"
+    },
+    "repos": {
+      "anyOf": [
+        {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Optional list of repository names to target",
+      "title": "Repos"
+    },
+    "continueOnError": {
+      "anyOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": true,
+      "description": "Whether to continue execution if a repo command fails",
+      "title": "Continueonerror"
+    }
+  },
+  "required": [
+    "command"
+  ],
+  "title": "MultiExecInput",
+  "type": "object"
+} as const;
+
+export const MultiExecResponseSchema = z.object({ "status": z.string().describe("Execution status").default("success"), "total": z.union([z.number().int(), z.null()]).describe("Total repositories executed against").default(null), "results": z.union([z.array(z.record(z.string(), z.any())), z.null()]).describe("Execution results per repository").default(null) });
+
+export type MultiExecResponse = z.infer<typeof MultiExecResponseSchema>;
+
+export const MultiExecResponseJsonSchema = {
+  "properties": {
+    "status": {
+      "default": "success",
+      "description": "Execution status",
+      "title": "Status",
+      "type": "string"
+    },
+    "total": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Total repositories executed against",
+      "title": "Total"
+    },
+    "results": {
+      "anyOf": [
+        {
+          "items": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Execution results per repository",
+      "title": "Results"
+    }
+  },
+  "title": "MultiExecResponse",
   "type": "object"
 } as const;
 
@@ -2405,6 +3259,29 @@ export const OpenReplacementPrInputJsonSchema = {
     "pushMode"
   ],
   "title": "OpenReplacementPrInput",
+  "type": "object"
+} as const;
+
+export const OpenReplacementPrResponseSchema = z.object({ "success": z.boolean().default(true), "url": z.string() });
+
+export type OpenReplacementPrResponse = z.infer<typeof OpenReplacementPrResponseSchema>;
+
+export const OpenReplacementPrResponseJsonSchema = {
+  "properties": {
+    "success": {
+      "default": true,
+      "title": "Success",
+      "type": "boolean"
+    },
+    "url": {
+      "title": "Url",
+      "type": "string"
+    }
+  },
+  "required": [
+    "url"
+  ],
+  "title": "OpenReplacementPrResponse",
   "type": "object"
 } as const;
 
@@ -2568,13 +3445,135 @@ export const PrDiffResponseJsonSchema = {
   "type": "object"
 } as const;
 
-export const ReadAgentContextInputSchema = z.object({});
+export const ReadAgentContextInputSchema = z.object({ "path": z.union([z.string(), z.null()]).describe("Local filesystem path to target repository root").default(null), "repoPath": z.union([z.string(), z.null()]).describe("Alias for path (filesystem path to target workspace repository root).").default(null), "repo": z.union([z.string(), z.null()]).describe("Target GitHub repository string (e.g. org/repo).").default(null), "repos": z.union([z.array(z.string()), z.null()]).describe("List of repository names to fetch context for").default(null), "all": z.union([z.boolean(), z.null()]).describe("Whether to fetch context across all discovered ecosystem repositories").default(null) });
 
 export type ReadAgentContextInput = z.infer<typeof ReadAgentContextInputSchema>;
 
 export const ReadAgentContextInputJsonSchema = {
-  "properties": {},
+  "properties": {
+    "path": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Local filesystem path to target repository root",
+      "title": "Path"
+    },
+    "repoPath": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Alias for path (filesystem path to target workspace repository root).",
+      "title": "Repopath"
+    },
+    "repo": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Target GitHub repository string (e.g. org/repo).",
+      "title": "Repo"
+    },
+    "repos": {
+      "anyOf": [
+        {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "List of repository names to fetch context for",
+      "title": "Repos"
+    },
+    "all": {
+      "anyOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Whether to fetch context across all discovered ecosystem repositories",
+      "title": "All"
+    }
+  },
   "title": "ReadAgentContextInput",
+  "type": "object"
+} as const;
+
+export const ReadAgentContextResponseSchema = z.object({ "status": z.string().default("success"), "packageName": z.union([z.string(), z.null()]).default(null), "gitCommit": z.union([z.string(), z.null()]).default(null), "config": z.union([z.record(z.string(), z.any()), z.null()]).default(null) });
+
+export type ReadAgentContextResponse = z.infer<typeof ReadAgentContextResponseSchema>;
+
+export const ReadAgentContextResponseJsonSchema = {
+  "properties": {
+    "status": {
+      "default": "success",
+      "title": "Status",
+      "type": "string"
+    },
+    "packageName": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Packagename"
+    },
+    "gitCommit": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Gitcommit"
+    },
+    "config": {
+      "anyOf": [
+        {
+          "additionalProperties": true,
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Config"
+    }
+  },
+  "title": "ReadAgentContextResponse",
   "type": "object"
 } as const;
 
@@ -2614,6 +3613,59 @@ export const ReadCiLogsInputJsonSchema = {
     "prNumber"
   ],
   "title": "ReadCiLogsInput",
+  "type": "object"
+} as const;
+
+export const ReadCiLogsResponseSchema = z.object({ "checks": z.union([z.array(z.record(z.string(), z.any())), z.null()]).default(null), "failedChecks": z.union([z.array(z.record(z.string(), z.any())), z.null()]).default(null), "logs": z.union([z.any(), z.null()]).default(null) });
+
+export type ReadCiLogsResponse = z.infer<typeof ReadCiLogsResponseSchema>;
+
+export const ReadCiLogsResponseJsonSchema = {
+  "properties": {
+    "checks": {
+      "anyOf": [
+        {
+          "items": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Checks"
+    },
+    "failedChecks": {
+      "anyOf": [
+        {
+          "items": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Failedchecks"
+    },
+    "logs": {
+      "anyOf": [
+        {},
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Logs"
+    }
+  },
+  "title": "ReadCiLogsResponse",
   "type": "object"
 } as const;
 
@@ -2831,6 +3883,27 @@ export const RepoLogsInputJsonSchema = {
     "prNumber"
   ],
   "title": "RepoLogsInput",
+  "type": "object"
+} as const;
+
+export const RepoLogsResponseSchema = z.object({ "logs": z.union([z.any(), z.null()]).default(null) });
+
+export type RepoLogsResponse = z.infer<typeof RepoLogsResponseSchema>;
+
+export const RepoLogsResponseJsonSchema = {
+  "properties": {
+    "logs": {
+      "anyOf": [
+        {},
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Logs"
+    }
+  },
+  "title": "RepoLogsResponse",
   "type": "object"
 } as const;
 

@@ -49,6 +49,15 @@ describe("createJulesSessionHandler", () => {
     ]);
   });
 
+  it("should create a session with repo parameter", async () => {
+    const result = await createJulesSessionHandler({ task: "do work", branch: "main", repo: "arii/portfolio" });
+    expect(result.id).toBe("1234567890");
+
+    expect(shell.runCommand).toHaveBeenCalledWith("td", [
+      "agent", "dispatch", "--repo", "arii/portfolio", "main", "do work"
+    ]);
+  });
+
   it("should create a session with PR number", async () => {
     vi.mocked(shell.runCommand).mockImplementation(async (cmd, args) => {
       if (args[1] === "view") {

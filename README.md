@@ -14,13 +14,14 @@ Initialize the agent environment and set up the local CLI:
 ./setup-agent.sh
 ```
 
-Run the MCP server locally (requires Node.js):
+Run the MCP server locally or register with your agent hosts:
 
 ```bash
-cd mcp
-pnpm install
-pnpm build
-node dist/index.js
+# Register boomtick-mcp with local agent hosts (Antigravity CLI, Claude Code, Cursor, VS Code)
+td mcp install --execute
+
+# Or run directly via stdio
+node mcp/dist/index.js
 ```
 
 ---
@@ -33,7 +34,7 @@ The codebase is split into two primary operational layers:
 
 ### Zero-Submodule Integration
 
-Boomtick uses a direct standalone package, container, and composite action integration strategy. See [docs/onboarding.md](docs/onboarding.md) for how to integrate Boomtick into downstream repositories via PyPI (`boomtick`), Docker (`ghcr.io/arii/boomtick`), npm (`@arii/boomtick-mcp`), or composite actions.
+Boomtick uses a direct standalone package, container, and composite action integration strategy. See [docs/onboarding.md](docs/onboarding.md) for how to integrate Boomtick into downstream repositories via PyPI (`boomtick-cli`), Docker (`ghcr.io/arii/boomtick`), npm (`@arii/boomtick-mcp`), or composite actions.
 
 ---
 
