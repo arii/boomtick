@@ -7,7 +7,7 @@ import { resolveTargetRepoPath } from "./repo.read_agent_context.js";
 
 export { GetContextStatusInputSchema };
 
-export async function getContextStatusHandler(args: z.infer<typeof GetContextStatusInputSchema>) {
+export async function getContextStatusHandler(args: Partial<z.infer<typeof GetContextStatusInputSchema>>) {
   const targetPath = await resolveTargetRepoPath(args);
   const contextFile = path.join(targetPath, ".agent-context.json");
 

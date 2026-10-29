@@ -7,7 +7,7 @@ import { resolveTargetRepoPath } from "./repo.read_agent_context.js";
 
 export { ReadAgentContractInputSchema };
 
-export async function readAgentContractHandler(args: z.infer<typeof ReadAgentContractInputSchema>) {
+export async function readAgentContractHandler(args: Partial<z.infer<typeof ReadAgentContractInputSchema>>) {
   const targetPath = await resolveTargetRepoPath(args);
   const contractPath = path.join(targetPath, ".agents", "AGENT_CONTRACT.md");
 
