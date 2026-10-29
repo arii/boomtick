@@ -53,6 +53,23 @@ async function main() {
 
     console.log(`\nFound ${files.length} changed files.`);
 
+    // Find affected files in src/
+    const srcChanges = files.filter(f => f.startsWith('src/'));
+
+    if (srcChanges.length === 0) {
+      console.log('✅ No source code changes in src/. Generating code-only LOW impact report.');
+      const emptyReport: ImpactReport = {
+        changedFiles: files,
+        affectedPages: [],
+        affectedDynamicImports: [],
+        routes: [],
+        visualReviewRequired: [],
+        impactLevel: 'LOW'
+      };
+      generateReports(emptyReport, files, []);
+      return;
+    }
+
     // Generate dependency graph
     await logHeartbeat('Generating dependency graph');
     console.log('📊 Generating dependency graph...');
@@ -75,17 +92,30 @@ async function main() {
       return;
     }
 
-    const depcruiseBin = fs.existsSync('/workspace/node_modules/.bin/depcruise')
-      ? '/workspace/node_modules/.bin/depcruise'
-      : 'npx depcruise';
-    graphJson = exec(`${depcruiseBin} src --config ${depCruiseConfig} --ts-config ${tsConfig} --output-type json`);
+    let depcruiseBin = 'depcruise';
+    if (fs.existsSync('/workspace/node_modules/.bin/depcruise')) {
+      depcruiseBin = '/workspace/node_modules/.bin/depcruise';
+    } else if (fs.existsSync('node_modules/.bin/depcruise')) {
+      depcruiseBin = 'node_modules/.bin/depcruise';
+    } else {
+      try {
+        exec('command -v depcruise');
+        depcruiseBin = 'depcruise';
+      } catch {
+        depcruiseBin = 'npx dependency-cruiser';
+      }
+    }
 
-    const graph: DependencyGraph = JSON.parse(graphJson);
+    let rawGraphOutput = exec(`${depcruiseBin} src --config ${depCruiseConfig} --ts-config ${tsConfig} --output-type json`);
+    const jsonStart = rawGraphOutput.indexOf('{');
+    const jsonEnd = rawGraphOutput.lastIndexOf('}');
+    if (jsonStart !== -1 && jsonEnd !== -1 && jsonEnd > jsonStart) {
+      rawGraphOutput = rawGraphOutput.substring(jsonStart, jsonEnd + 1);
+    }
+
+    const graph: DependencyGraph = JSON.parse(rawGraphOutput);
 
     const reverseMap = buildReverseMap(graph);
-
-    // Find affected files in src/
-    const srcChanges = files.filter(f => f.startsWith('src/'));
 
     // Trace layout hierarchy upward from the point of change
     const { layoutTrace, sharedLayouts } = traceLayoutHierarchyUpward(srcChanges, reverseMap);

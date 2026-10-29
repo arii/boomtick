@@ -18,6 +18,7 @@ RUN pnpm run build:review
 FROM node:24-alpine
 
 RUN apk add --no-cache git jq ca-certificates && \
+    npm install -g dependency-cruiser@18.7.0 && \
     git config --global --add safe.directory '*'
 
 WORKDIR /workspace
