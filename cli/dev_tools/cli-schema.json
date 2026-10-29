@@ -2981,6 +2981,20 @@
           "default": null,
           "description": "The PR number to use as the base branch context.",
           "title": "Pr"
+        },
+        "repo": {
+          "anyOf": [
+            {
+              "pattern": "^[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The target repository override (e.g. org/repo).",
+          "title": "Repo"
         }
       },
       "required": [
@@ -4180,6 +4194,91 @@
       "title": "JulesTriggerFeedbackResponse",
       "type": "object"
     },
+    "MultiExecInput": {
+      "properties": {
+        "command": {
+          "description": "Shell command to execute sequentially across repositories",
+          "title": "Command",
+          "type": "string"
+        },
+        "repos": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Optional list of repository names to target",
+          "title": "Repos"
+        },
+        "continueOnError": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": true,
+          "description": "Whether to continue execution if a repo command fails",
+          "title": "Continueonerror"
+        }
+      },
+      "required": [
+        "command"
+      ],
+      "title": "MultiExecInput",
+      "type": "object"
+    },
+    "MultiExecResponse": {
+      "properties": {
+        "status": {
+          "default": "success",
+          "description": "Execution status",
+          "title": "Status",
+          "type": "string"
+        },
+        "total": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Total repositories executed against",
+          "title": "Total"
+        },
+        "results": {
+          "anyOf": [
+            {
+              "items": {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Execution results per repository",
+          "title": "Results"
+        }
+      },
+      "title": "MultiExecResponse",
+      "type": "object"
+    },
     "OpenReplacementPrInput": {
       "properties": {
         "originalPrNumber": {
@@ -4407,7 +4506,76 @@
       "type": "object"
     },
     "ReadAgentContextInput": {
-      "properties": {},
+      "properties": {
+        "path": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Local filesystem path to target repository root",
+          "title": "Path"
+        },
+        "repoPath": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Alias for path (filesystem path to target workspace repository root).",
+          "title": "Repopath"
+        },
+        "repo": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Target GitHub repository string (e.g. org/repo).",
+          "title": "Repo"
+        },
+        "repos": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "List of repository names to fetch context for",
+          "title": "Repos"
+        },
+        "all": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Whether to fetch context across all discovered ecosystem repositories",
+          "title": "All"
+        }
+      },
       "title": "ReadAgentContextInput",
       "type": "object"
     },

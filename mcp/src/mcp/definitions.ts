@@ -47,6 +47,8 @@ import {
   GetCommandSchemaResponseJsonSchema,
   ReadAgentContextInputJsonSchema as ReadAgentContextSchema,
   ReadAgentContextResponseJsonSchema,
+  MultiExecInputJsonSchema,
+  MultiExecResponseJsonSchema,
   CreateJulesSessionInputJsonSchema,
   JulesSessionIdInputJsonSchema,
   JulesSendMessageInputJsonSchema,
@@ -179,9 +181,15 @@ const BASE_MCP_TOOLS: Tool[] = [
   },
   {
     name: "repo.read_agent_context",
-    description: "Read the full repository index including file tree, CLI schema, and MCP tools.",
+    description: "Read the repository index including metadata, model review chains, or multi-repo ecosystem status.",
     inputSchema: ReadAgentContextSchema as any,
     outputSchema: ReadAgentContextResponseJsonSchema as any,
+  },
+  {
+    name: "repo.multi_exec",
+    description: "Execute a shell command sequentially across ecosystem repositories (or a filtered subset).",
+    inputSchema: MultiExecInputJsonSchema as any,
+    outputSchema: MultiExecResponseJsonSchema as any,
   },
   {
     name: "github.get_pr_diff",

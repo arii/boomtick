@@ -21,6 +21,7 @@
     "audit:fallow": "fallow",
     "check:runtime-files": "node scripts/check-runtime-files.mjs",
     "doctor": "td doctor",
+    "agent:prime": "td context-warm",
     "preinstall": "node scripts/check-runtime-files.mjs",
     "impact:analysis": "tsx scripts/impact-analysis.ts",
     "impact:build-main": "tsx scripts/impact-build-main.ts",

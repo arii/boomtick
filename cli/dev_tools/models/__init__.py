@@ -340,6 +340,11 @@ class CreateJulesSessionInput(CamelCaseModel):
     task: str = Field(..., description="The instructions for Jules.")
     branch: Optional[str] = Field(None, description="The base branch to start from (e.g., 'main').")
     pr: Optional[int] = Field(None, description="The PR number to use as the base branch context.")
+    repo: Optional[str] = Field(
+        None,
+        pattern=r"^[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+$",
+        description="The target repository override (e.g. org/repo).",
+    )
 
 
 class JulesSessionIdInput(CamelCaseModel):
@@ -392,7 +397,30 @@ class SearchDdgsInput(CamelCaseModel):
 
 
 class ReadAgentContextInput(CamelCaseModel):
-    pass
+    path: Optional[str] = Field(None, description="Local filesystem path to target repository root")
+    repo_path: Optional[str] = Field(
+        None, description="Alias for path (filesystem path to target workspace repository root)."
+    )
+    repo: Optional[str] = Field(
+        None,
+        description="Target GitHub repository string (e.g. org/repo).",
+    )
+    repos: Optional[List[str]] = Field(None, description="List of repository names to fetch context for")
+    all: Optional[bool] = Field(
+        None, description="Whether to fetch context across all discovered ecosystem repositories"
+    )
+
+
+class MultiExecInput(CamelCaseModel):
+    command: str = Field(..., description="Shell command to execute sequentially across repositories")
+    repos: Optional[List[str]] = Field(None, description="Optional list of repository names to target")
+    continue_on_error: Optional[bool] = Field(True, description="Whether to continue execution if a repo command fails")
+
+
+class MultiExecResponse(CamelCaseModel):
+    status: str = Field("success", description="Execution status")
+    total: Optional[int] = Field(None, description="Total repositories executed against")
+    results: Optional[List[Dict[str, Any]]] = Field(None, description="Execution results per repository")
 
 
 class GetCommandSchemaInput(CamelCaseModel):
