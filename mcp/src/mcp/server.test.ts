@@ -137,6 +137,21 @@ describe("BoomtickMCPServer", () => {
       });
     });
 
+    it("should handle mcp://workspace/agent_contract (underscore variant)", async () => {
+      const handler = requestHandlers.get("resources/read");
+      vi.mocked(fs.readFile).mockResolvedValue("# Agent Contract\nRule 1");
+
+      const result = await handler!({
+        method: "resources/read",
+        params: { uri: "mcp://workspace/agent_contract" },
+      });
+
+      expect(fs.readFile).toHaveBeenCalledWith("/mock/repo/.agents/AGENT_CONTRACT.md", "utf-8");
+      expect(result).toEqual({
+        contents: [{ uri: "mcp://workspace/agent_contract", mimeType: "text/markdown", text: "# Agent Contract\nRule 1" }],
+      });
+    });
+
     it("should handle repo://package-json", async () => {
       const handler = requestHandlers.get("resources/read");
       vi.mocked(fs.readFile).mockResolvedValue('{"name": "test"}');

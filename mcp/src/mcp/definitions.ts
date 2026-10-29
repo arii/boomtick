@@ -102,12 +102,6 @@ export const MCP_RESOURCES: Resource[] = [
     description: "The agent contract specification file (.agents/AGENT_CONTRACT.md).",
   },
   {
-    uri: "repo://agent-contract",
-    name: "Agent Contract (Legacy URI)",
-    mimeType: "text/markdown",
-    description: "The agent contract specification file (.agents/AGENT_CONTRACT.md).",
-  },
-  {
     uri: "mcp://workspace/project-config",
     name: "Project Configuration",
     mimeType: "application/json",

@@ -134,8 +134,7 @@ export class BoomtickMCPServer {
       const uri = request.params.uri;
       if (
         uri === "mcp://workspace/agent-contract" ||
-        uri === "mcp://workspace/agent_contract" ||
-        uri === "repo://agent-contract"
+        uri === "mcp://workspace/agent_contract"
       ) {
         const contractPath = path.join(config.repoPath, ".agents", "AGENT_CONTRACT.md");
         const content = await fs.readFile(contractPath, "utf-8");
