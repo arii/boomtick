@@ -33,6 +33,7 @@ export interface CodeReviewSummary {
   externalContext?: string;
   impactSemanticContext?: string;
   previousState?: CodeReviewState;
+  estimatedInputTokens?: number;
 }
 
 // fallow-ignore-next-line unused-type
