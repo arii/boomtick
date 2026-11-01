@@ -432,6 +432,71 @@ export function formatAsGitHubSuggestion(code: string): string {
   return `\`\`\`suggestion\n${trimmed}\n\`\`\``;
 }
 
+/**
+ * Formats a finding's suggested fix or code snippet into GitHub suggestion markdown.
+ */
+function formatFindingSuggestion(suggestion?: unknown, fixSummary?: unknown): string {
+  if (typeof suggestion === 'string' && suggestion.trim()) {
+    return `\n\n${formatAsGitHubSuggestion(suggestion)}`;
+  }
+
+  if (typeof fixSummary === 'string' && fixSummary.trim()) {
+    const trimmedFix = fixSummary.trim();
+    if (trimmedFix.includes('```suggestion') || /^```[a-zA-Z0-9_-]*\n/.test(trimmedFix)) {
+      return `\n\n${formatAsGitHubSuggestion(trimmedFix)}`;
+    }
+    return `\n\n**Suggested Fix:** ${trimmedFix}`;
+  }
+
+  return '';
+}
+
+/**
+ * Builds the markdown comment body for an inline review finding.
+ */
+function formatFindingCommentBody(finding: Record<string, any>): string {
+  let commentBody = finding.issue ? `**[${finding.severity || 'Finding'}]** ${finding.issue}` : '';
+
+  if (finding.counterexample) {
+    commentBody += `\n\n*Why it fails:* ${finding.counterexample}`;
+  }
+
+  commentBody += formatFindingSuggestion(finding.suggestion, finding.fixSummary);
+  return commentBody.trim();
+}
+
+/**
+ * Converts a single raw finding object into a GitHub inline review comment.
+ * Returns null if the finding is invalid, not open, or lacks required file/line metadata.
+ */
+function createReviewCommentFromFinding(f: unknown): ReviewInlineComment | null {
+  if (!f || typeof f !== 'object') return null;
+  const finding = f as Record<string, any>;
+
+  if (finding.status && finding.status !== 'open') return null;
+
+  const filePath = finding.file || finding.path;
+  const lineNum = finding.line || finding.endLine;
+
+  if (!filePath || typeof filePath !== 'string' || !lineNum || typeof lineNum !== 'number') {
+    return null;
+  }
+
+  const comment: ReviewInlineComment = {
+    path: filePath,
+    line: lineNum,
+    side: 'RIGHT',
+    body: formatFindingCommentBody(finding),
+  };
+
+  if (finding.startLine && typeof finding.startLine === 'number' && finding.startLine < lineNum) {
+    comment.start_line = finding.startLine;
+    comment.start_side = 'RIGHT';
+  }
+
+  return comment;
+}
+
 export function buildReviewComments(state: unknown): ReviewInlineComment[] {
   if (!state || typeof state !== 'object') return [];
   const findings = (state as { findings?: any[] }).findings;
@@ -440,46 +505,10 @@ export function buildReviewComments(state: unknown): ReviewInlineComment[] {
   const comments: ReviewInlineComment[] = [];
 
   for (const f of findings) {
-    if (!f || typeof f !== 'object') continue;
-    if (f.status && f.status !== 'open') continue;
-
-    const filePath = f.file || f.path;
-    const lineNum = f.line || f.endLine;
-
-    if (!filePath || typeof filePath !== 'string' || !lineNum || typeof lineNum !== 'number') {
-      continue;
+    const comment = createReviewCommentFromFinding(f);
+    if (comment) {
+      comments.push(comment);
     }
-
-    let commentBody = f.issue ? `**[${f.severity || 'Finding'}]** ${f.issue}` : '';
-
-    if (f.counterexample) {
-      commentBody += `\n\n*Why it fails:* ${f.counterexample}`;
-    }
-
-    if (f.suggestion && typeof f.suggestion === 'string' && f.suggestion.trim()) {
-      commentBody += `\n\n${formatAsGitHubSuggestion(f.suggestion)}`;
-    } else if (f.fixSummary && typeof f.fixSummary === 'string' && f.fixSummary.trim()) {
-      const trimmedFix = f.fixSummary.trim();
-      if (trimmedFix.includes('```suggestion') || /^```[a-zA-Z0-9_-]*\n/.test(trimmedFix)) {
-        commentBody += `\n\n${formatAsGitHubSuggestion(trimmedFix)}`;
-      } else {
-        commentBody += `\n\n**Suggested Fix:** ${trimmedFix}`;
-      }
-    }
-
-    const comment: ReviewInlineComment = {
-      path: filePath,
-      line: lineNum,
-      side: 'RIGHT',
-      body: commentBody.trim(),
-    };
-
-    if (f.startLine && typeof f.startLine === 'number' && f.startLine < lineNum) {
-      comment.start_line = f.startLine;
-      comment.start_side = 'RIGHT';
-    }
-
-    comments.push(comment);
   }
 
   return comments;
