@@ -8,6 +8,8 @@ export const ALLOWED_COMMANDS = {
   gh: "gh",
   td: "td",
   pnpm: "pnpm",
+  npm: "npm",
+  sh: "sh",
   ls: "ls",
   rm: "rm",
   mkdir: "mkdir",

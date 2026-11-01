@@ -591,10 +591,27 @@ class HealthCheckResponse(CamelCaseModel):
     config: Optional[Dict[str, Any]] = None
 
 
+class AgentContractConfig(CamelCaseModel):
+    base_branch: str = Field("main", description="The default base branch.")
+    setup_command: Optional[str] = Field(None, description="Command to set up dependencies.")
+    test_command: Optional[str] = Field(None, description="Command to run tests.")
+    lint_command: Optional[str] = Field(None, description="Command to run linter.")
+    build_command: Optional[str] = Field(None, description="Command to build the project.")
+    shared_deps: Literal["symlink", "install", "none"] = Field(
+        "symlink", description="Dependency sharing strategy."
+    )
+    sparse_paths: Optional[List[str]] = Field(None, description="Optional sparse checkout paths.")
+    worktree_ttl_days: int = Field(7, description="Worktree TTL in days.")
+
+
 class ReadAgentContractResponse(CamelCaseModel):
     status: str = "success"
     content: Optional[str] = Field(None, description="The content of the agent contract specification file.")
     path: Optional[str] = Field(None, description="Path to the agent contract file.")
+    config: Optional[AgentContractConfig] = Field(
+        None,
+        description="Parsed agent contract configuration.",
+    )
 
 
 class ReadAgentContextResponse(CamelCaseModel):

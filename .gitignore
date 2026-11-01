@@ -195,6 +195,7 @@ test-results/
 .boomtick/
 logs/
 !/lib/
+!mcp/src/lib/
 audit.py
 generate_audit.py
 

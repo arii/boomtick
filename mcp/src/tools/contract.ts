@@ -739,6 +739,108 @@ export const AISynthesisReviewJsonSchema = {
   "type": "object"
 } as const;
 
+export const AgentContractConfigSchema = z.object({ "baseBranch": z.string().describe("The default base branch.").default("main"), "setupCommand": z.union([z.string(), z.null()]).describe("Command to set up dependencies.").default(null), "testCommand": z.union([z.string(), z.null()]).describe("Command to run tests.").default(null), "lintCommand": z.union([z.string(), z.null()]).describe("Command to run linter.").default(null), "buildCommand": z.union([z.string(), z.null()]).describe("Command to build the project.").default(null), "sharedDeps": z.enum(["symlink","install","none"]).describe("Dependency sharing strategy.").default("symlink"), "sparsePaths": z.union([z.array(z.string()), z.null()]).describe("Optional sparse checkout paths.").default(null), "worktreeTtlDays": z.number().int().describe("Worktree TTL in days.").default(7) });
+
+export type AgentContractConfig = z.infer<typeof AgentContractConfigSchema>;
+
+export const AgentContractConfigJsonSchema = {
+  "properties": {
+    "baseBranch": {
+      "default": "main",
+      "description": "The default base branch.",
+      "title": "Basebranch",
+      "type": "string"
+    },
+    "setupCommand": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Command to set up dependencies.",
+      "title": "Setupcommand"
+    },
+    "testCommand": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Command to run tests.",
+      "title": "Testcommand"
+    },
+    "lintCommand": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Command to run linter.",
+      "title": "Lintcommand"
+    },
+    "buildCommand": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Command to build the project.",
+      "title": "Buildcommand"
+    },
+    "sharedDeps": {
+      "default": "symlink",
+      "description": "Dependency sharing strategy.",
+      "enum": [
+        "symlink",
+        "install",
+        "none"
+      ],
+      "title": "Shareddeps",
+      "type": "string"
+    },
+    "sparsePaths": {
+      "anyOf": [
+        {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Optional sparse checkout paths.",
+      "title": "Sparsepaths"
+    },
+    "worktreeTtlDays": {
+      "default": 7,
+      "description": "Worktree TTL in days.",
+      "title": "Worktreettldays",
+      "type": "integer"
+    }
+  },
+  "title": "AgentContractConfig",
+  "type": "object"
+} as const;
+
 export const AgentDiscussInputSchema = z.object({ "sessionId": z.string().describe("References active or completed session from agent_dispatch"), "topic": z.enum(["status","review-diff","request-changes","approve-merge","abandon"]).describe("Operational topic for discussion protocol"), "message": z.union([z.string(), z.null()]).describe("Structured feedback message (required when topic == 'request-changes')").default(null), "writeMode": z.union([z.boolean(), z.null()]).describe("Safety gate: required true for approve-merge and abandon").default(false), "pushMode": z.union([z.boolean(), z.null()]).describe("Safety gate: required true for network push and PR creation in approve-merge").default(false), "repo": z.union([z.string(), z.null()]).describe("Target repository override").default(null) });
 
 export type AgentDiscussInput = z.infer<typeof AgentDiscussInputSchema>;
@@ -4374,11 +4476,110 @@ export const ReadAgentContractInputJsonSchema = {
   "type": "object"
 } as const;
 
-export const ReadAgentContractResponseSchema = z.object({ "status": z.string().default("success"), "content": z.union([z.string(), z.null()]).describe("The content of the agent contract specification file.").default(null), "path": z.union([z.string(), z.null()]).describe("Path to the agent contract file.").default(null) });
+export const ReadAgentContractResponseSchema = z.object({ "status": z.string().default("success"), "content": z.union([z.string(), z.null()]).describe("The content of the agent contract specification file.").default(null), "path": z.union([z.string(), z.null()]).describe("Path to the agent contract file.").default(null), "config": z.union([z.any(), z.null()]).describe("Parsed agent contract configuration.").default(null) });
 
 export type ReadAgentContractResponse = z.infer<typeof ReadAgentContractResponseSchema>;
 
 export const ReadAgentContractResponseJsonSchema = {
+  "$defs": {
+    "AgentContractConfig": {
+      "properties": {
+        "baseBranch": {
+          "default": "main",
+          "description": "The default base branch.",
+          "title": "Basebranch",
+          "type": "string"
+        },
+        "setupCommand": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Command to set up dependencies.",
+          "title": "Setupcommand"
+        },
+        "testCommand": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Command to run tests.",
+          "title": "Testcommand"
+        },
+        "lintCommand": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Command to run linter.",
+          "title": "Lintcommand"
+        },
+        "buildCommand": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Command to build the project.",
+          "title": "Buildcommand"
+        },
+        "sharedDeps": {
+          "default": "symlink",
+          "description": "Dependency sharing strategy.",
+          "enum": [
+            "symlink",
+            "install",
+            "none"
+          ],
+          "title": "Shareddeps",
+          "type": "string"
+        },
+        "sparsePaths": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Optional sparse checkout paths.",
+          "title": "Sparsepaths"
+        },
+        "worktreeTtlDays": {
+          "default": 7,
+          "description": "Worktree TTL in days.",
+          "title": "Worktreettldays",
+          "type": "integer"
+        }
+      },
+      "title": "AgentContractConfig",
+      "type": "object"
+    }
+  },
   "properties": {
     "status": {
       "default": "success",
@@ -4410,6 +4611,18 @@ export const ReadAgentContractResponseJsonSchema = {
       "default": null,
       "description": "Path to the agent contract file.",
       "title": "Path"
+    },
+    "config": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/AgentContractConfig"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Parsed agent contract configuration."
     }
   },
   "title": "ReadAgentContractResponse",

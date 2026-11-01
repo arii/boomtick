@@ -1,6 +1,8 @@
 import { z } from "zod";
 import { runCommand } from "../lib/shell.js";
 import { createWorktree, resolveRepoPath } from "../lib/git.js";
+import { readAgentContractHandler } from "./repo.read_agent_contract.js";
+import { ensureSharedDependencies } from "../lib/dependency_cache.js";
 
 export const CreateRepairBranchInputSchema = z.object({
   prNumber: z.number(),
@@ -51,6 +53,21 @@ export async function createRepairBranchHandler(args: z.infer<typeof CreateRepai
 
   // Create the actual repair branch in the worktree
   await runCommand("git", ["checkout", "-b", repairBranch], { cwd: worktreePath });
+
+  // Read agent contract to get dependency cache config and setup commands
+  try {
+    const contractResult = await readAgentContractHandler({ path: targetCwd });
+    if (contractResult?.config) {
+      await ensureSharedDependencies({
+        repoPath: targetCwd,
+        worktreePath,
+        config: contractResult.config,
+      });
+    }
+  } catch (e) {
+    // Graceful fallback if agent contract is absent or dependency sharing fails
+    console.warn("Could not apply agent contract dependency caching:", e);
+  }
 
   const response: Record<string, unknown> = {
     prNumber: args.prNumber,

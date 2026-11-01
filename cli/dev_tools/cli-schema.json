@@ -714,6 +714,103 @@
       "title": "AISynthesisReview",
       "type": "object"
     },
+    "AgentContractConfig": {
+      "properties": {
+        "baseBranch": {
+          "default": "main",
+          "description": "The default base branch.",
+          "title": "Basebranch",
+          "type": "string"
+        },
+        "setupCommand": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Command to set up dependencies.",
+          "title": "Setupcommand"
+        },
+        "testCommand": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Command to run tests.",
+          "title": "Testcommand"
+        },
+        "lintCommand": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Command to run linter.",
+          "title": "Lintcommand"
+        },
+        "buildCommand": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Command to build the project.",
+          "title": "Buildcommand"
+        },
+        "sharedDeps": {
+          "default": "symlink",
+          "description": "Dependency sharing strategy.",
+          "enum": [
+            "symlink",
+            "install",
+            "none"
+          ],
+          "title": "Shareddeps",
+          "type": "string"
+        },
+        "sparsePaths": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Optional sparse checkout paths.",
+          "title": "Sparsepaths"
+        },
+        "worktreeTtlDays": {
+          "default": 7,
+          "description": "Worktree TTL in days.",
+          "title": "Worktreettldays",
+          "type": "integer"
+        }
+      },
+      "title": "AgentContractConfig",
+      "type": "object"
+    },
     "AgentDiscussInput": {
       "properties": {
         "sessionId": {
@@ -3970,6 +4067,105 @@
       "type": "object"
     },
     "ReadAgentContractResponse": {
+      "$defs": {
+        "AgentContractConfig": {
+          "properties": {
+            "baseBranch": {
+              "default": "main",
+              "description": "The default base branch.",
+              "title": "Basebranch",
+              "type": "string"
+            },
+            "setupCommand": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Command to set up dependencies.",
+              "title": "Setupcommand"
+            },
+            "testCommand": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Command to run tests.",
+              "title": "Testcommand"
+            },
+            "lintCommand": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Command to run linter.",
+              "title": "Lintcommand"
+            },
+            "buildCommand": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Command to build the project.",
+              "title": "Buildcommand"
+            },
+            "sharedDeps": {
+              "default": "symlink",
+              "description": "Dependency sharing strategy.",
+              "enum": [
+                "symlink",
+                "install",
+                "none"
+              ],
+              "title": "Shareddeps",
+              "type": "string"
+            },
+            "sparsePaths": {
+              "anyOf": [
+                {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Optional sparse checkout paths.",
+              "title": "Sparsepaths"
+            },
+            "worktreeTtlDays": {
+              "default": 7,
+              "description": "Worktree TTL in days.",
+              "title": "Worktreettldays",
+              "type": "integer"
+            }
+          },
+          "title": "AgentContractConfig",
+          "type": "object"
+        }
+      },
       "properties": {
         "status": {
           "default": "success",
@@ -4001,6 +4197,18 @@
           "default": null,
           "description": "Path to the agent contract file.",
           "title": "Path"
+        },
+        "config": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/AgentContractConfig"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Parsed agent contract configuration."
         }
       },
       "title": "ReadAgentContractResponse",
