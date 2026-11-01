@@ -876,6 +876,305 @@ export const AgentDiscussResponseJsonSchema = {
   "type": "object"
 } as const;
 
+export const AgentDispatchInputSchema = z.object({ "worktreeId": z.string().describe("References an active worktree from worktree_create"), "brief": z.string().describe("Task specification, instructions, expected verification"), "model": z.union([z.string(), z.null()]).describe("Target execution model, e.g. local Ollama qwen2.5-coder:7b or Gemini API").default(null), "repo": z.union([z.string(), z.null()]).describe("Target repository override").default(null) });
+
+export type AgentDispatchInput = z.infer<typeof AgentDispatchInputSchema>;
+
+export const AgentDispatchInputJsonSchema = {
+  "properties": {
+    "worktreeId": {
+      "description": "References an active worktree from worktree_create",
+      "title": "Worktreeid",
+      "type": "string"
+    },
+    "brief": {
+      "description": "Task specification, instructions, expected verification",
+      "title": "Brief",
+      "type": "string"
+    },
+    "model": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Target execution model, e.g. local Ollama qwen2.5-coder:7b or Gemini API",
+      "title": "Model"
+    },
+    "repo": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Target repository override",
+      "title": "Repo"
+    }
+  },
+  "required": [
+    "worktreeId",
+    "brief"
+  ],
+  "title": "AgentDispatchInput",
+  "type": "object"
+} as const;
+
+export const AgentDispatchResponseSchema = z.object({ "sessionId": z.string(), "worktreeId": z.string(), "status": z.enum(["running","ready"]), "startedAt": z.number().int() });
+
+export type AgentDispatchResponse = z.infer<typeof AgentDispatchResponseSchema>;
+
+export const AgentDispatchResponseJsonSchema = {
+  "properties": {
+    "sessionId": {
+      "title": "Sessionid",
+      "type": "string"
+    },
+    "worktreeId": {
+      "title": "Worktreeid",
+      "type": "string"
+    },
+    "status": {
+      "enum": [
+        "running",
+        "ready"
+      ],
+      "title": "Status",
+      "type": "string"
+    },
+    "startedAt": {
+      "title": "Startedat",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "sessionId",
+    "worktreeId",
+    "status",
+    "startedAt"
+  ],
+  "title": "AgentDispatchResponse",
+  "type": "object"
+} as const;
+
+export const AgentLogsInputSchema = z.object({ "sessionId": z.string().describe("The ID of the session to fetch logs for"), "tail": z.number().int().describe("Number of tail lines to retrieve").default(100) });
+
+export type AgentLogsInput = z.infer<typeof AgentLogsInputSchema>;
+
+export const AgentLogsInputJsonSchema = {
+  "properties": {
+    "sessionId": {
+      "description": "The ID of the session to fetch logs for",
+      "title": "Sessionid",
+      "type": "string"
+    },
+    "tail": {
+      "default": 100,
+      "description": "Number of tail lines to retrieve",
+      "title": "Tail",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "sessionId"
+  ],
+  "title": "AgentLogsInput",
+  "type": "object"
+} as const;
+
+export const AgentLogsResponseSchema = z.object({ "sessionId": z.string(), "logs": z.array(z.string()).optional(), "totalLines": z.number().int() });
+
+export type AgentLogsResponse = z.infer<typeof AgentLogsResponseSchema>;
+
+export const AgentLogsResponseJsonSchema = {
+  "properties": {
+    "sessionId": {
+      "title": "Sessionid",
+      "type": "string"
+    },
+    "logs": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Logs",
+      "type": "array"
+    },
+    "totalLines": {
+      "title": "Totallines",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "sessionId",
+    "totalLines"
+  ],
+  "title": "AgentLogsResponse",
+  "type": "object"
+} as const;
+
+export const AgentStatusInputSchema = z.object({ "sessionId": z.string().describe("The ID of the session to check status for") });
+
+export type AgentStatusInput = z.infer<typeof AgentStatusInputSchema>;
+
+export const AgentStatusInputJsonSchema = {
+  "properties": {
+    "sessionId": {
+      "description": "The ID of the session to check status for",
+      "title": "Sessionid",
+      "type": "string"
+    }
+  },
+  "required": [
+    "sessionId"
+  ],
+  "title": "AgentStatusInput",
+  "type": "object"
+} as const;
+
+export const AgentStatusResponseSchema = z.object({ "sessionId": z.string(), "worktreeId": z.string(), "state": z.enum(["running","done","failed"]), "lastCheckpoint": z.string(), "changedFiles": z.array(z.string()).optional(), "lastVerification": z.union([z.any(), z.null()]).default(null) });
+
+export type AgentStatusResponse = z.infer<typeof AgentStatusResponseSchema>;
+
+export const AgentStatusResponseJsonSchema = {
+  "$defs": {
+    "AgentStatusVerification": {
+      "properties": {
+        "testsPassed": {
+          "title": "Testspassed",
+          "type": "boolean"
+        },
+        "errors": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Errors"
+        },
+        "exitCode": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Exitcode"
+        }
+      },
+      "required": [
+        "testsPassed"
+      ],
+      "title": "AgentStatusVerification",
+      "type": "object"
+    }
+  },
+  "properties": {
+    "sessionId": {
+      "title": "Sessionid",
+      "type": "string"
+    },
+    "worktreeId": {
+      "title": "Worktreeid",
+      "type": "string"
+    },
+    "state": {
+      "enum": [
+        "running",
+        "done",
+        "failed"
+      ],
+      "title": "State",
+      "type": "string"
+    },
+    "lastCheckpoint": {
+      "title": "Lastcheckpoint",
+      "type": "string"
+    },
+    "changedFiles": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Changedfiles",
+      "type": "array"
+    },
+    "lastVerification": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/AgentStatusVerification"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    }
+  },
+  "required": [
+    "sessionId",
+    "worktreeId",
+    "state",
+    "lastCheckpoint"
+  ],
+  "title": "AgentStatusResponse",
+  "type": "object"
+} as const;
+
+export const AgentStatusVerificationSchema = z.object({ "testsPassed": z.boolean(), "errors": z.union([z.string(), z.null()]).default(null), "exitCode": z.union([z.number().int(), z.null()]).default(null) });
+
+export type AgentStatusVerification = z.infer<typeof AgentStatusVerificationSchema>;
+
+export const AgentStatusVerificationJsonSchema = {
+  "properties": {
+    "testsPassed": {
+      "title": "Testspassed",
+      "type": "boolean"
+    },
+    "errors": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Errors"
+    },
+    "exitCode": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Exitcode"
+    }
+  },
+  "required": [
+    "testsPassed"
+  ],
+  "title": "AgentStatusVerification",
+  "type": "object"
+} as const;
+
 export const CamelCaseModelSchema = z.object({});
 
 export type CamelCaseModel = z.infer<typeof CamelCaseModelSchema>;

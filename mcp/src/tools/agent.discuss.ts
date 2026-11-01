@@ -140,11 +140,11 @@ export async function agentDiscussHandler(rawArgs: AgentDiscussInput) {
           head: branch,
           base: baseBranch,
           draft: false,
-          repo: args.repo || session.repo,
+          repo: (args.repo || session.repo) ?? undefined,
         });
 
         // 4. Clean up the worktree
-        await removeWorktree(worktreePath, args.repo || session.repo);
+        await removeWorktree(worktreePath, (args.repo || session.repo) ?? undefined);
 
         // 5. Complete session
         await sessionManager.completeSession(args.sessionId, prResult.url);
