@@ -69,6 +69,14 @@ import {
   GetPrCommitsResponseJsonSchema,
   GetWorkflowRunsInputJsonSchema,
   GetWorkflowRunsResponseJsonSchema,
+  AgentDiscussInputJsonSchema,
+  AgentDiscussResponseJsonSchema,
+  WorktreeCreateInputJsonSchema,
+  WorktreeCreateResponseJsonSchema,
+  WorktreeListInputJsonSchema,
+  WorktreeListResponseJsonSchema,
+  WorktreeRemoveInputJsonSchema,
+  WorktreeRemoveResponseJsonSchema,
 } from "../tools/contract.js";
 
 export const MCP_PROMPTS: Prompt[] = [
@@ -298,6 +306,24 @@ const BASE_MCP_TOOLS: Tool[] = [
     outputSchema: CreateBranchResponseJsonSchema as any,
   },
   {
+    name: "worktree_create",
+    description: "Allocates an isolated git branch agent/<name>-<timestamp> and managed worktree directory with optional sparse checkout.",
+    inputSchema: WorktreeCreateInputJsonSchema as any,
+    outputSchema: WorktreeCreateResponseJsonSchema as any,
+  },
+  {
+    name: "worktree_list",
+    description: "Reports active managed worktrees, branches, age, uncommitted change counts, and disk usage.",
+    inputSchema: WorktreeListInputJsonSchema as any,
+    outputSchema: WorktreeListResponseJsonSchema as any,
+  },
+  {
+    name: "worktree_remove",
+    description: "Performs safe worktree removal, modification check, and pruning.",
+    inputSchema: WorktreeRemoveInputJsonSchema as any,
+    outputSchema: WorktreeRemoveResponseJsonSchema as any,
+  },
+  {
     name: "repo_create_repair_branch",
     description: "Creates a fresh worktree and a new repair branch for an existing PR. This isolates the repair work from the main codebase.",
     inputSchema: CreateRepairBranchInputJsonSchema as any,
@@ -444,6 +470,12 @@ const BASE_MCP_TOOLS: Tool[] = [
     description: "Automatically collect CI status/logs for the PR associated with a Jules session and send them back as feedback.",
     inputSchema: JulesSessionIdInputJsonSchema as any,
     outputSchema: JulesTriggerFeedbackResponseJsonSchema as any,
+  },
+  {
+    name: "agent_discuss",
+    description: "Execute structured discussion protocol with operational topics (status, review-diff, request-changes, approve-merge, abandon) for autonomous agent sessions.",
+    inputSchema: AgentDiscussInputJsonSchema as any,
+    outputSchema: AgentDiscussResponseJsonSchema as any,
   },
 ];
 
