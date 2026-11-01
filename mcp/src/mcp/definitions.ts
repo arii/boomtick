@@ -75,6 +75,14 @@ import {
   AgentStatusResponseJsonSchema,
   AgentLogsInputJsonSchema,
   AgentLogsResponseJsonSchema,
+  AgentDiscussInputJsonSchema,
+  AgentDiscussResponseJsonSchema,
+  WorktreeCreateInputJsonSchema,
+  WorktreeCreateResponseJsonSchema,
+  WorktreeListInputJsonSchema,
+  WorktreeListResponseJsonSchema,
+  WorktreeRemoveInputJsonSchema,
+  WorktreeRemoveResponseJsonSchema,
 } from "../tools/contract.js";
 
 export const MCP_PROMPTS: Prompt[] = [
@@ -468,6 +476,12 @@ const BASE_MCP_TOOLS: Tool[] = [
     description: "Retrieve tail logs and total lines from an agent session transcript.",
     inputSchema: AgentLogsInputJsonSchema as any,
     outputSchema: AgentLogsResponseJsonSchema as any,
+  },
+  {
+    name: "agent_discuss",
+    description: "Execute structured discussion protocol with operational topics (status, review-diff, request-changes, approve-merge, abandon) for autonomous agent sessions.",
+    inputSchema: AgentDiscussInputJsonSchema as any,
+    outputSchema: AgentDiscussResponseJsonSchema as any,
   },
 ];
 

@@ -3,30 +3,45 @@ import * as syncFs from "fs";
 import path from "path";
 import crypto from "crypto";
 import { config } from "../config.js";
-import { resolveRepoPath } from "./git.js";
-import { runCommand, ShellResult } from "./shell.js";
+import { resolveRepoPath, removeWorktree } from "./git.js";
+import { runCommand } from "./shell.js";
 
-export interface SessionVerification {
+export type SessionState = "running" | "done" | "failed" | "abandoned";
+
+export interface LastVerification {
   testsPassed: boolean;
   errors?: string | null;
   exitCode?: number | null;
+  output?: string;
 }
 
-export interface SessionData {
+export type SessionVerification = LastVerification;
+
+export interface AgentSession {
   sessionId: string;
   worktreeId: string;
   worktreePath: string;
+  branch: string;
+  baseBranch: string;
+  repo?: string | null;
   brief: string;
   model?: string | null;
-  repo?: string | null;
-  state: "running" | "done" | "failed";
+  state: SessionState;
   status: "running" | "ready";
   startedAt: number;
+  createdAt: number;
+  updatedAt: number;
   lastCheckpoint: string;
   changedFiles: string[];
-  lastVerification?: SessionVerification | null;
+  retries: number;
+  maxRetries: number;
+  transcript: string[];
   logs: string[];
+  lastVerification?: LastVerification | null;
+  pullRequestUrl?: string;
 }
+
+export type SessionData = AgentSession;
 
 export interface DispatchOptions {
   worktreeId: string;
@@ -43,7 +58,8 @@ export interface ContainmentCheckResult {
 
 export class SessionManager {
   private static instance: SessionManager;
-  private memorySessions: Map<string, SessionData> = new Map();
+  private sessions: Map<string, AgentSession> = new Map();
+  private locks: Map<string, Promise<void>> = new Map();
 
   private constructor() {}
 
@@ -55,10 +71,56 @@ export class SessionManager {
   }
 
   /**
+   * Resets singleton instance (useful for testing).
+   */
+  public static resetInstance(): void {
+    SessionManager.instance = new SessionManager();
+  }
+
+  /**
    * Resets sessions in memory (useful for testing).
    */
   public reset(): void {
-    this.memorySessions.clear();
+    this.sessions.clear();
+    this.locks.clear();
+  }
+
+  /**
+   * Acquire an asynchronous mutex lock for a specific sessionId to prevent race conditions.
+   * Returns a release callback.
+   */
+  public async acquireLock(sessionId: string): Promise<() => void> {
+    while (this.locks.has(sessionId)) {
+      await this.locks.get(sessionId);
+    }
+
+    let releaseLock: () => void = () => {};
+    const lockPromise = new Promise<void>((resolve) => {
+      releaseLock = resolve;
+    });
+
+    this.locks.set(sessionId, lockPromise);
+
+    return () => {
+      this.locks.delete(sessionId);
+      releaseLock();
+    };
+  }
+
+  public registerSession(session: AgentSession): void {
+    this.sessions.set(session.sessionId, session);
+  }
+
+  public getSession(sessionId: string): AgentSession {
+    const session = this.sessions.get(sessionId);
+    if (!session) {
+      throw new Error(`Session not found: ${sessionId}`);
+    }
+    return session;
+  }
+
+  public hasSession(sessionId: string): boolean {
+    return this.sessions.has(sessionId);
   }
 
   /**
@@ -76,15 +138,12 @@ export class SessionManager {
     const repoRoot = this.getRepoRoot(repo);
     const worktreesRoot = path.resolve(repoRoot, ".worktrees");
 
-    // If worktreeId is a relative ID (e.g. "feat-branch" or "test-wt-1")
     if (!path.isAbsolute(worktreeId)) {
-      const candidatePath = path.resolve(worktreesRoot, path.basename(worktreeId));
-      return candidatePath;
+      return path.resolve(worktreesRoot, path.basename(worktreeId));
     }
 
-    // If an absolute path is provided, ensure it resides inside a legitimate .worktrees root
     const resolvedPath = path.resolve(worktreeId);
-    if (!resolvedPath.includes(`${path.sep}.worktrees${path.sep}`)) {
+    if (!resolvedPath.includes(`${path.sep}.worktrees${path.sep}`) && !syncFs.existsSync(resolvedPath)) {
       throw new Error(`Invalid worktreeId: '${worktreeId}' escapes worktrees root.`);
     }
 
@@ -102,7 +161,6 @@ export class SessionManager {
 
     const resolvedTarget = path.resolve(canonicalWorktree, targetPath);
 
-    // If target exists, verify realpath to guard against symlink escapes
     if (syncFs.existsSync(resolvedTarget)) {
       const realTarget = syncFs.realpathSync(resolvedTarget);
       if (realTarget !== canonicalWorktree && !realTarget.startsWith(canonicalWorktree + path.sep)) {
@@ -113,14 +171,12 @@ export class SessionManager {
       return realTarget;
     }
 
-    // If target doesn't exist yet, check lexical containment against canonicalWorktree
     if (resolvedTarget !== canonicalWorktree && !resolvedTarget.startsWith(canonicalWorktree + path.sep)) {
       throw new Error(
         `Containment error: Target path '${targetPath}' escapes worktree root '${worktreePath}'`
       );
     }
 
-    // Also check ancestor dirs of resolvedTarget to ensure no symlinks escape
     let cur = path.dirname(resolvedTarget);
     while (cur.length >= canonicalWorktree.length) {
       if (syncFs.existsSync(cur)) {
@@ -147,123 +203,134 @@ export class SessionManager {
    * 3. Explicit task brief
    * Note: repo_read_agent_context is NOT auto-loaded.
    */
-  public async loadSessionContext(
-    worktreePath: string,
-    brief: string
-  ): Promise<{ systemPrompt: string; localContract: string; brief: string }> {
-    let systemPrompt = "";
+  public async loadAgentContext(worktreePath: string, brief: string): Promise<string> {
+    const contextSections: string[] = [];
+
+    // 1. Repair agent prompt
+    const repairPromptPath = path.resolve(process.cwd(), "src/agents/repair-agent.prompt.md");
+    if (syncFs.existsSync(repairPromptPath)) {
+      const promptContent = await fs.readFile(repairPromptPath, "utf-8");
+      contextSections.push(`# System Prompt (Repair Agent)\n\n${promptContent}`);
+    }
+
+    // 2. Local worktree contract
+    const contractPath = path.join(worktreePath, ".agents", "AGENT_CONTRACT.md");
+    if (syncFs.existsSync(contractPath)) {
+      const contractContent = await fs.readFile(contractPath, "utf-8");
+      contextSections.push(`# Worktree Agent Contract\n\n${contractContent}`);
+    }
+
+    // 3. Explicit brief
+    contextSections.push(`# Task Brief\n\n${brief}`);
+
+    return contextSections.join("\n\n---\n\n");
+  }
+
+  /**
+   * Spawns an isolated agent session locked to the given worktree.
+   */
+  public async dispatch(options: DispatchOptions): Promise<AgentSession> {
+    const worktreePath = this.resolveWorktreePath(options.worktreeId, options.repo);
+
+    if (!syncFs.existsSync(worktreePath)) {
+      throw new Error(`Worktree path does not exist: ${worktreePath}`);
+    }
+
+    let branch = "agent/" + path.basename(worktreePath);
+    let baseBranch = "main";
     try {
-      const promptPath = path.resolve(config.repoPath || process.cwd(), "mcp/src/agents/repair-agent.prompt.md");
-      if (syncFs.existsSync(promptPath)) {
-        systemPrompt = await fs.readFile(promptPath, "utf-8");
+      const brRes = await runCommand("git", ["branch", "--show-current"], { cwd: worktreePath });
+      if (brRes.exitCode === 0 && brRes.stdout.trim()) {
+        branch = brRes.stdout.trim();
       }
     } catch {
-      // fallback
+      // ignore
     }
 
-    let localContract = "";
-    try {
-      const contractPath = path.resolve(worktreePath, ".agents", "AGENT_CONTRACT.md");
-      if (syncFs.existsSync(contractPath)) {
-        localContract = await fs.readFile(contractPath, "utf-8");
-      }
-    } catch {
-      // fallback
-    }
+    const sessionId = `sess_${crypto.randomBytes(6).toString("hex")}`;
+    const now = Date.now();
 
-    return {
-      systemPrompt,
-      localContract,
-      brief,
+    const session: AgentSession = {
+      sessionId,
+      worktreeId: options.worktreeId,
+      worktreePath,
+      branch,
+      baseBranch,
+      repo: options.repo,
+      brief: options.brief,
+      model: options.model,
+      state: "running",
+      status: "running",
+      startedAt: now,
+      createdAt: now,
+      updatedAt: now,
+      lastCheckpoint: "worktree_setup",
+      changedFiles: [],
+      retries: 0,
+      maxRetries: 3,
+      transcript: [`[System]: Dispatch initiated with model ${options.model || "default"}`],
+      logs: [`[${new Date(now).toISOString()}] Session ${sessionId} initialized in worktree ${worktreePath}`],
+      lastVerification: null,
     };
+
+    await this.saveSession(session);
+    return session;
   }
 
   /**
-   * Extracts deterministic verification commands (testCommand, lintCommand) strictly from the agent contract.
-   * Never relies on caller or hallucinated commands.
+   * Persists session data both in memory and to disk inside worktree (session.json).
    */
-  public extractContractCommands(contractContent: string): {
-    testCommand: string;
-    lintCommand?: string;
-    commands: string[];
-  } {
-    let testCommand = "pnpm test";
-    let lintCommand: string | undefined = undefined;
+  public async saveSession(session: AgentSession): Promise<void> {
+    this.sessions.set(session.sessionId, session);
 
-    // 1. Look for testCommand / lintCommand in yaml / json / markdown fields
-    const testMatch = contractContent.match(/testCommand:\s*["']?([^"'\r\n]+)["']?/i) ||
-      contractContent.match(/test_command:\s*["']?([^"'\r\n]+)["']?/i) ||
-      contractContent.match(/`([^`]*(?:test|pytest|vitest|npm test|pnpm test)[^`]*)`/i);
-
-    if (testMatch && testMatch[1]) {
-      testCommand = testMatch[1].trim();
-    }
-
-    const lintMatch = contractContent.match(/lintCommand:\s*["']?([^"'\r\n]+)["']?/i) ||
-      contractContent.match(/lint_command:\s*["']?([^"'\r\n]+)["']?/i) ||
-      contractContent.match(/`([^`]*(?:lint|eslint|oxlint)[^`]*)`/i);
-
-    if (lintMatch && lintMatch[1]) {
-      lintCommand = lintMatch[1].trim();
-    }
-
-    const commands: string[] = [];
-    if (lintCommand) {
-      commands.push(lintCommand);
-    }
-    if (testCommand) {
-      commands.push(testCommand);
-    }
-
-    return {
-      testCommand,
-      lintCommand,
-      commands,
-    };
-  }
-
-  /**
-   * Saves session data to disk (`.worktrees/<worktreeId>/session.json`).
-   */
-  public async persistSession(session: SessionData): Promise<void> {
-    try {
-      if (!syncFs.existsSync(session.worktreePath)) {
-        await fs.mkdir(session.worktreePath, { recursive: true });
+    if (session.worktreePath && syncFs.existsSync(session.worktreePath)) {
+      const sessionFile = path.join(session.worktreePath, "session.json");
+      try {
+        await fs.writeFile(sessionFile, JSON.stringify(session, null, 2), "utf-8");
+      } catch {
+        // ignore write errors if worktree is being removed
       }
-      const sessionFilePath = path.join(session.worktreePath, "session.json");
-      await fs.writeFile(sessionFilePath, JSON.stringify(session, null, 2), "utf-8");
-    } catch (err) {
-      console.error(`Failed to persist session ${session.sessionId}:`, err);
     }
   }
 
+  public async persistSession(sessionId: string): Promise<void> {
+    const session = this.getSession(sessionId);
+    await this.saveSession(session);
+  }
+
   /**
-   * Loads session from disk if not present in memory.
+   * Loads session from memory or disk.
    */
-  public async loadSession(sessionId: string): Promise<SessionData | null> {
-    if (this.memorySessions.has(sessionId)) {
-      return this.memorySessions.get(sessionId)!;
+  public async loadSession(sessionId: string): Promise<AgentSession | null> {
+    if (this.sessions.has(sessionId)) {
+      return this.sessions.get(sessionId)!;
     }
 
-    // Try finding in active worktrees directory
+    // Check under common worktrees paths if in active repo
     const repoRoot = this.getRepoRoot();
     const worktreesDir = path.resolve(repoRoot, ".worktrees");
     if (syncFs.existsSync(worktreesDir)) {
-      const entries = await fs.readdir(worktreesDir);
-      for (const entry of entries) {
-        const candidateSessionFile = path.join(worktreesDir, entry, "session.json");
-        if (syncFs.existsSync(candidateSessionFile)) {
-          try {
-            const raw = await fs.readFile(candidateSessionFile, "utf-8");
-            const data = JSON.parse(raw) as SessionData;
-            if (data.sessionId === sessionId) {
-              this.memorySessions.set(sessionId, data);
-              return data;
+      try {
+        const entries = await fs.readdir(worktreesDir, { withFileTypes: true });
+        for (const entry of entries) {
+          if (entry.isDirectory()) {
+            const candidateFile = path.join(worktreesDir, entry.name, "session.json");
+            if (syncFs.existsSync(candidateFile)) {
+              try {
+                const content = await fs.readFile(candidateFile, "utf-8");
+                const data = JSON.parse(content) as AgentSession;
+                if (data.sessionId === sessionId) {
+                  this.sessions.set(sessionId, data);
+                  return data;
+                }
+              } catch {
+                // ignore corrupted session file
+              }
             }
-          } catch {
-            // ignore corrupted files
           }
         }
+      } catch {
+        // ignore
       }
     }
 
@@ -271,69 +338,13 @@ export class SessionManager {
   }
 
   /**
-   * Spawns / dispatches an agent session scoped to a worktree.
-   */
-  public async dispatch(options: DispatchOptions): Promise<SessionData> {
-    const worktreePath = this.resolveWorktreePath(options.worktreeId, options.repo);
-
-    if (!syncFs.existsSync(worktreePath)) {
-      throw new Error(`Worktree not found for worktreeId '${options.worktreeId}' at path '${worktreePath}'`);
-    }
-
-    const sessionId = `session-${crypto.randomBytes(6).toString("hex")}`;
-    const startedAt = Date.now();
-
-    const session: SessionData = {
-      sessionId,
-      worktreeId: options.worktreeId,
-      worktreePath,
-      brief: options.brief,
-      model: options.model || null,
-      repo: options.repo || null,
-      state: "running",
-      status: "running",
-      startedAt,
-      lastCheckpoint: "worktree_setup",
-      changedFiles: [],
-      lastVerification: null,
-      logs: [
-        `[${new Date(startedAt).toISOString()}] Session ${sessionId} dispatched for worktree ${options.worktreeId}`,
-        `[${new Date(startedAt).toISOString()}] Model: ${options.model || "default"} | Jail CWD: ${worktreePath}`,
-        `[${new Date(startedAt).toISOString()}] State: running | Checkpoint: worktree_setup`,
-      ],
-    };
-
-    // Isolated task context verification
-    const context = await this.loadSessionContext(worktreePath, options.brief);
-    session.logs.push(`[${new Date().toISOString()}] Context loaded: zero ambient context (repair-agent prompt + local contract)`);
-
-    this.memorySessions.set(sessionId, session);
-    await this.persistSession(session);
-
-    return session;
-  }
-
-  /**
-   * Appends logs to session transcript and updates session file.
-   */
-  public async appendLogs(sessionId: string, newLogs: string[]): Promise<void> {
-    const session = await this.loadSession(sessionId);
-    if (!session) {
-      throw new Error(`Session ${sessionId} not found`);
-    }
-
-    session.logs.push(...newLogs);
-    await this.persistSession(session);
-  }
-
-  /**
-   * Updates session checkpoint and status.
+   * Updates session checkpoint and state.
    */
   public async updateCheckpoint(
     sessionId: string,
     checkpoint: string,
-    state?: "running" | "done" | "failed"
-  ): Promise<void> {
+    state?: SessionState
+  ): Promise<AgentSession> {
     const session = await this.loadSession(sessionId);
     if (!session) {
       throw new Error(`Session ${sessionId} not found`);
@@ -342,39 +353,34 @@ export class SessionManager {
     session.lastCheckpoint = checkpoint;
     if (state) {
       session.state = state;
-      session.status = state === "running" ? "running" : "ready";
     }
-    session.logs.push(`[${new Date().toISOString()}] Checkpoint updated: ${checkpoint}${state ? ` (state: ${state})` : ""}`);
+    session.updatedAt = Date.now();
+    session.logs.push(`[${new Date().toISOString()}] Checkpoint: ${checkpoint} (state: ${session.state})`);
 
-    // Update changed files via git status inside worktree
-    try {
-      const statusRes = await runCommand("git", ["status", "--porcelain"], { cwd: session.worktreePath });
-      session.changedFiles = statusRes.stdout
-        .split("\n")
-        .map((l) => (l.endsWith("\r") ? l.slice(0, -1) : l))
-        .filter((l) => l.trim().length > 0)
-        .map((l) => {
-          const match = l.match(/^..\s+(.*)$/);
-          if (!match) return l.slice(3).trim();
-          let file = match[1].trim();
-          if (file.includes(" -> ")) {
-            file = file.split(" -> ").pop()!.trim();
-          }
-          if (file.startsWith('"') && file.endsWith('"')) {
-            file = file.slice(1, -1);
-          }
-          return file;
-        })
-        .filter(Boolean);
-    } catch {
-      // ignore git status errors
-    }
-
-    await this.persistSession(session);
+    await this.saveSession(session);
+    return session;
   }
 
   /**
-   * Runs verification extracted strictly from the worktree's contract.
+   * Appends logs to session transcript.
+   */
+  public async appendLogs(sessionId: string, newLogs: string[]): Promise<AgentSession> {
+    const session = await this.loadSession(sessionId);
+    if (!session) {
+      throw new Error(`Session ${sessionId} not found`);
+    }
+
+    for (const logLine of newLogs) {
+      session.logs.push(`[${new Date().toISOString()}] ${logLine}`);
+    }
+    session.updatedAt = Date.now();
+
+    await this.saveSession(session);
+    return session;
+  }
+
+  /**
+   * Runs verification commands declared in the worktree's AGENT_CONTRACT.md.
    */
   public async runVerification(sessionId: string): Promise<SessionVerification> {
     const session = await this.loadSession(sessionId);
@@ -382,26 +388,42 @@ export class SessionManager {
       throw new Error(`Session ${sessionId} not found`);
     }
 
-    const context = await this.loadSessionContext(session.worktreePath, session.brief);
-    const contractCmds = this.extractContractCommands(context.localContract);
+    const contractPath = path.join(session.worktreePath, ".agents", "AGENT_CONTRACT.md");
+    let testCommands: string[] = [];
 
-    session.logs.push(
-      `[${new Date().toISOString()}] Running verification extracted from contract: ${contractCmds.commands.join(", ")}`
-    );
+    if (syncFs.existsSync(contractPath)) {
+      const contractText = await fs.readFile(contractPath, "utf-8");
+      const lines = contractText.split("\n");
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (trimmed.startsWith("testCommand:")) {
+          testCommands.push(trimmed.replace(/^testCommand:\s*/, "").trim());
+        }
+        if (trimmed.startsWith("lintCommand:")) {
+          testCommands.push(trimmed.replace(/^lintCommand:\s*/, "").trim());
+        }
+      }
+    }
+
+    if (testCommands.length === 0) {
+      testCommands = ["npm test"];
+    }
 
     let testsPassed = true;
-    let errors: string | undefined = undefined;
+    let errors: string | null = null;
     let lastExitCode: number | null = 0;
 
-    for (const fullCmd of contractCmds.commands) {
-      const tokens: string[] = fullCmd.split(/\s+/).filter(Boolean);
-      const [cmd, ...args] = tokens;
+    for (const cmdStr of testCommands) {
+      session.logs.push(`[Verification] Running: ${cmdStr}`);
+      const parts = cmdStr.split(/\s+/);
+      const prog = parts[0];
+      const args = parts.slice(1);
+
       try {
-        const res: ShellResult = await runCommand(cmd, args, { cwd: session.worktreePath });
-        session.logs.push(`[CMD] ${fullCmd} -> exit code ${res.exitCode}`);
+        const res = await runCommand(prog, args, { cwd: session.worktreePath });
         if (res.exitCode !== 0) {
           testsPassed = false;
-          errors = res.stderr || res.stdout || `Command failed with code ${res.exitCode}`;
+          errors = res.stderr || res.stdout;
           lastExitCode = res.exitCode;
           break;
         }
@@ -438,7 +460,6 @@ export class SessionManager {
       throw new Error(`Session ${sessionId} not found`);
     }
 
-    // Refresh changed files via git status
     const statusRes = await runCommand("git", ["status", "--porcelain"], { cwd: session.worktreePath });
     const currentChangedFiles = statusRes.stdout
       .split("\n")
@@ -460,7 +481,6 @@ export class SessionManager {
 
     session.changedFiles = currentChangedFiles;
 
-    // Check if committing files not modified in the session
     const unauthorizedFiles = allowedFiles.filter((f) => !currentChangedFiles.includes(f));
     if (unauthorizedFiles.length > 0) {
       throw new Error(
@@ -479,7 +499,6 @@ export class SessionManager {
       throw new Error("commit_patch failed: No changes to commit");
     }
 
-    // Stage and commit
     await runCommand("git", ["add", "--", ...currentChangedFiles], { cwd: session.worktreePath });
     const commitRes = await runCommand("git", ["commit", "-m", message], { cwd: session.worktreePath });
     if (commitRes.exitCode !== 0) {
@@ -502,13 +521,12 @@ export class SessionManager {
   /**
    * Retrieves session status.
    */
-  public async getStatus(sessionId: string): Promise<SessionData> {
+  public async getStatus(sessionId: string): Promise<AgentSession> {
     const session = await this.loadSession(sessionId);
     if (!session) {
       throw new Error(`Session ${sessionId} not found`);
     }
 
-    // Refresh changedFiles from git status
     try {
       const statusRes = await runCommand("git", ["status", "--porcelain"], { cwd: session.worktreePath });
       session.changedFiles = statusRes.stdout
@@ -555,6 +573,181 @@ export class SessionManager {
       sessionId,
       logs: returnedLogs,
       totalLines,
+    };
+  }
+
+  /**
+   * Appends structured feedback and resumes bounded execution in the worktree.
+   * Max retry bound: 3 attempts.
+   */
+  public async requestChanges(sessionId: string, message: string): Promise<AgentSession> {
+    const session = this.getSession(sessionId);
+
+    if (session.state === "abandoned") {
+      throw new Error(`Cannot request changes on abandoned session: ${sessionId}`);
+    }
+
+    if (!message || message.trim().length === 0) {
+      throw new Error("Message cannot be empty when requesting changes.");
+    }
+
+    const currentRetries = session.retries || 0;
+    const maxRetries = session.maxRetries || 3;
+
+    if (currentRetries >= maxRetries) {
+      session.state = "failed";
+      session.updatedAt = Date.now();
+      session.transcript.push(`[System]: Retry budget of ${maxRetries} exceeded. Marking session failed.`);
+      await this.persistSession(sessionId);
+      throw new Error(`Retry budget of ${maxRetries} exceeded for session ${sessionId}.`);
+    }
+
+    session.retries = currentRetries + 1;
+    session.brief += `\n\n[Change Request ${session.retries}]: ${message.trim()}`;
+    session.transcript.push(`[User Feedback]: ${message.trim()}`);
+    session.state = "running";
+    session.updatedAt = Date.now();
+
+    await this.persistSession(sessionId);
+    return session;
+  }
+
+  /**
+   * Marks session as completed / approved.
+   */
+  public async completeSession(sessionId: string, prUrl?: string): Promise<AgentSession> {
+    const session = this.getSession(sessionId);
+    session.state = "done";
+    session.updatedAt = Date.now();
+    if (prUrl) {
+      session.pullRequestUrl = prUrl;
+    }
+    session.transcript.push(`[System]: Session completed successfully.`);
+    await this.persistSession(sessionId);
+    return session;
+  }
+
+  /**
+   * Cancels session and cleans up worktree.
+   */
+  public async abandonSession(sessionId: string, baseRepoPath?: string): Promise<AgentSession> {
+    const session = this.getSession(sessionId);
+    session.state = "abandoned";
+    session.updatedAt = Date.now();
+    session.transcript.push(`[System]: Session abandoned and worktree removed.`);
+
+    if (session.worktreePath) {
+      try {
+        await removeWorktree(session.worktreePath, baseRepoPath || session.repo || undefined);
+      } catch (err) {
+        try {
+          await fs.rm(session.worktreePath, { recursive: true, force: true });
+        } catch {
+          // Ignore removal failure
+        }
+      }
+    }
+
+    return session;
+  }
+
+  /**
+   * Queries status of session worktree: current state, modified files, diff stats, and verification status.
+   */
+  public async getSessionStatus(sessionId: string): Promise<{
+    sessionId: string;
+    state: SessionState;
+    branch: string;
+    baseBranch: string;
+    modifiedFiles: string[];
+    diffStat: { insertions: number; deletions: number; summary: string };
+    lastVerification?: LastVerification | null;
+  }> {
+    const session = this.getSession(sessionId);
+    const worktreePath = session.worktreePath;
+
+    let modifiedFiles: string[] = [];
+    let insertions = 0;
+    let deletions = 0;
+    let statSummary = "+0 / -0";
+
+    if (worktreePath) {
+      const statusRes = await runCommand("git", ["status", "--porcelain"], { cwd: worktreePath });
+      if (statusRes.exitCode === 0) {
+        modifiedFiles = statusRes.stdout
+          .split("\n")
+          .map((l) => (l.endsWith("\r") ? l.slice(0, -1) : l))
+          .filter((l) => l.trim().length > 0)
+          .map((l) => {
+            const match = l.match(/^..\s+(.*)$/);
+            if (!match) return l.slice(3).trim();
+            let file = match[1].trim();
+            if (file.includes(" -> ")) {
+              file = file.split(" -> ").pop()!.trim();
+            }
+            return file.replace(/^"|"$/g, "");
+          });
+      }
+
+      const base = session.baseBranch || "main";
+      const diffStatRes = await runCommand(
+        "git",
+        ["diff", "--stat", `${base}...HEAD`],
+        { cwd: worktreePath }
+      );
+
+      if (diffStatRes.exitCode === 0 && diffStatRes.stdout.trim().length > 0) {
+        const lines = diffStatRes.stdout.trim().split("\n");
+        const lastLine = lines[lines.length - 1];
+        const insMatch = lastLine.match(/(\d+)\s+insertion/);
+        const delMatch = lastLine.match(/(\d+)\s+deletion/);
+        insertions = insMatch ? parseInt(insMatch[1], 10) : 0;
+        deletions = delMatch ? parseInt(delMatch[1], 10) : 0;
+        statSummary = `+${insertions} / -${deletions}`;
+      }
+    }
+
+    return {
+      sessionId: session.sessionId,
+      state: session.state,
+      branch: session.branch,
+      baseBranch: session.baseBranch,
+      modifiedFiles,
+      diffStat: {
+        insertions,
+        deletions,
+        summary: statSummary,
+      },
+      lastVerification: session.lastVerification,
+    };
+  }
+
+  /**
+   * Generates full unified diff from base branch using git diff <baseBranch>...HEAD and returns review outputs.
+   */
+  public async getReviewDiff(sessionId: string): Promise<{
+    sessionId: string;
+    baseBranch: string;
+    branch: string;
+    unifiedDiff: string;
+    verificationOutputs?: LastVerification | null;
+  }> {
+    const session = this.getSession(sessionId);
+    const worktreePath = session.worktreePath;
+    const base = session.baseBranch || "main";
+
+    let unifiedDiff = "";
+    if (worktreePath) {
+      const diffRes = await runCommand("git", ["diff", `${base}...HEAD`], { cwd: worktreePath });
+      unifiedDiff = diffRes.stdout || "";
+    }
+
+    return {
+      sessionId: session.sessionId,
+      baseBranch: base,
+      branch: session.branch,
+      unifiedDiff,
+      verificationOutputs: session.lastVerification,
     };
   }
 }

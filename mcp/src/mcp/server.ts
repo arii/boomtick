@@ -53,6 +53,7 @@ import { listJulesSessionsHandler, ListJulesSessionsInputSchema } from "../tools
 import { cancelJulesSessionHandler, CancelJulesSessionInputSchema } from "../tools/jules/cancel-session.js";
 import { getJulesPullRequestHandler, GetJulesPullRequestInputSchema } from "../tools/jules/get-pr.js";
 import { triggerJulesFeedbackHandler, TriggerJulesFeedbackInputSchema } from "../tools/jules/trigger-feedback.js";
+import { agentDiscussHandler, AgentDiscussInputSchema } from "../tools/agent.discuss.js";
 
 import { agentDispatchHandler, AgentDispatchInputSchema } from "../tools/agent.dispatch.js";
 import { agentStatusHandler, AgentStatusInputSchema } from "../tools/agent.status.js";
@@ -331,6 +332,8 @@ export class BoomtickMCPServer {
             return createSuccessResult(await agentStatusHandler(AgentStatusInputSchema.parse(normArgs)));
           case "agent_logs":
             return createSuccessResult(await agentLogsHandler(AgentLogsInputSchema.parse(normArgs)));
+          case "agent_discuss":
+            return createSuccessResult(await agentDiscussHandler(AgentDiscussInputSchema.parse(normArgs)));
           default:
             return createErrorResult(`Tool not found: ${request.params.name}`);
         }
