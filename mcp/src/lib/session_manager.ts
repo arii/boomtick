@@ -27,12 +27,12 @@ export interface AgentSession {
   brief: string;
   model?: string | null;
   state: SessionState;
-  status: "running" | "ready";
-  startedAt: number;
+  status?: "running" | "ready";
+  startedAt?: number;
   createdAt: number;
   updatedAt: number;
-  lastCheckpoint: string;
-  changedFiles: string[];
+  lastCheckpoint?: string;
+  changedFiles?: string[];
   retries: number;
   maxRetries: number;
   transcript: string[];
@@ -370,9 +370,7 @@ export class SessionManager {
       throw new Error(`Session ${sessionId} not found`);
     }
 
-    for (const logLine of newLogs) {
-      session.logs.push(`[${new Date().toISOString()}] ${logLine}`);
-    }
+    session.logs.push(...newLogs);
     session.updatedAt = Date.now();
 
     await this.saveSession(session);
