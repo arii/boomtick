@@ -1,7 +1,7 @@
 import { buildVisualReviewPayload, enrichVisualReviewPayload, parseLLMVerdict, parseVisualReviewFindings } from '../../lib/visualReviewUtils';
 import { extractFeedbackText } from '../../lib/codeReviewUtils';
 import { pickGeminiModel, getGeminiPricing } from '../../lib/geminiModelPicker';
-import { invokeGeminiWithBudgetRetry } from '../../lib/geminiUtils';
+import { invokeGeminiWithBudgetRetry, handleGeminiResponse } from '../../lib/geminiUtils';
 import type { LLMClientStrategy, AgentRole } from '../../lib/visualReviewOrchestrator';
 
 import type { RouteReview, VisualRouteSummary } from '../../lib/visualReviewTypes';
@@ -53,47 +53,15 @@ export const geminiVisualReviewClient: LLMClientStrategy = {
       pseudoWithRetry
     );
 
-    const response = retryResult.response;
-    const finishReason = retryResult.finishReason;
-    maxOutputTokens = retryResult.finalMaxOutputTokens;
-    thinkingBudget = retryResult.finalThinkingBudget;
+    const parsedGemini = handleGeminiResponse(retryResult, modelName, thinkingBudget);
 
-    const usageMetadata = response.usage_metadata as {
-      input_tokens?: number;
-      output_tokens?: number;
-      total_tokens?: number;
-      thoughts_token_count?: number;
-    };
-    const inputTokens = usageMetadata?.input_tokens ?? 0;
-    const outputTokens = usageMetadata?.output_tokens ?? 0;
-    const totalTokens = usageMetadata?.total_tokens ?? 0;
-    const cacheTokens = (usageMetadata as { cache_read_tokens?: number })?.cache_read_tokens ?? 0;
-    const thoughtsTokenCount = usageMetadata?.thoughts_token_count ??
-                               (typeof response.response_metadata === 'object' && response.response_metadata !== null
-                                 ? ((response.response_metadata as Record<string, unknown>).usage as Record<string, unknown>)?.thoughts_token_count as number | undefined
-                                 : 0) ?? 0;
-
-    if (thoughtsTokenCount > thinkingBudget * 1.1) {
-      console.warn('Thinking budget exceeded by >10%', {
-        budgetSet: thinkingBudget,
-        thoughtsUsed: thoughtsTokenCount,
-        model: modelName,
-      });
-    }
-
-    const isTruncated = finishReason === 'MAX_TOKENS' || finishReason === 'length' || finishReason === 'max_tokens';
-
-    if (isTruncated) {
-      console.error('Gemini truncation', {
-        finishReason,
-        usage: usageMetadata,
-      });
+    if (parsedGemini.isTruncated) {
       return {
         route: summary.route,
         severity: summary.severity,
         differencePercent: summary.differencePercent,
-        feedback: `Error: Gemini model was truncated during execution (finishReason=${finishReason}).`,
-        tokens: totalTokens,
+        feedback: parsedGemini.feedback,
+        tokens: parsedGemini.tokens,
         cost: 0,
         modelName,
         llmVerdict: 'warn',
@@ -102,27 +70,20 @@ export const geminiVisualReviewClient: LLMClientStrategy = {
       };
     }
 
-    const pricing = getGeminiPricing(modelName);
-    const cost = pricing ? (inputTokens / 1_000_000) * pricing.inputCostPerM + (outputTokens / 1_000_000) * pricing.outputCostPerM : 0;
-
-    const feedback = extractFeedbackText(response.content) || (
-      typeof response.content === 'string' ? response.content : JSON.stringify(response.content)
-    );
-
     return {
       route: summary.route,
       severity: summary.severity,
       differencePercent: summary.differencePercent,
-      feedback: feedback,
-      tokens: totalTokens,
-      inputTokens,
-      outputTokens,
-      cacheTokens,
-      cost: cost,
+      feedback: parsedGemini.feedback,
+      tokens: parsedGemini.tokens,
+      inputTokens: parsedGemini.inputTokens,
+      outputTokens: parsedGemini.outputTokens,
+      cacheTokens: parsedGemini.cacheTokens,
+      cost: parsedGemini.cost,
       modelName: modelName,
-      llmVerdict: parseLLMVerdict(feedback),
-      findings: parseVisualReviewFindings(feedback),
-      isTruncated: isTruncated,
+      llmVerdict: parseLLMVerdict(parsedGemini.feedback),
+      findings: parseVisualReviewFindings(parsedGemini.feedback),
+      isTruncated: parsedGemini.isTruncated,
     };
   }
 };

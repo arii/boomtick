@@ -12,7 +12,7 @@ import {
 import { buildSystemPrompt } from '../../lib/buildCodeReviewPrompt';
 
 import { pickGeminiModel, getGeminiPricing } from '../../lib/geminiModelPicker';
-import { invokeGeminiWithBudgetRetry } from '../../lib/geminiUtils';
+import { invokeGeminiWithBudgetRetry, handleGeminiResponse } from '../../lib/geminiUtils';
 
 import type { CodeReviewSummary, CodeReviewResult } from '../../lib/codeReviewTypes';
 import type { CodeReviewClientStrategy } from '../../lib/codeReviewOrchestrator';
@@ -53,49 +53,15 @@ export const geminiCodeReviewClient: CodeReviewClientStrategy = {
       withRetry
     );
 
-    const response = retryResult.response;
-    const finishReason = retryResult.finishReason;
-    thinkingBudget = retryResult.finalThinkingBudget;
+    const parsedGemini = handleGeminiResponse(retryResult, modelName, thinkingBudget);
 
-    const usageMetadata = response.usage_metadata as {
-      input_tokens?: number;
-      output_tokens?: number;
-      total_tokens?: number;
-      thoughts_token_count?: number;
-      cache_read_tokens?: number;
-    };
-
-    const inputTokens = usageMetadata?.input_tokens ?? 0;
-    const outputTokens = usageMetadata?.output_tokens ?? 0;
-    const totalTokens = usageMetadata?.total_tokens ?? 0;
-    const cacheTokens = usageMetadata?.cache_read_tokens ?? 0;
-    // thoughtsTokenCount might be nested in response_metadata or usage_metadata
-    const thoughtsTokenCount = usageMetadata?.thoughts_token_count ??
-                               (typeof response.response_metadata === 'object' && response.response_metadata !== null
-                                 ? ((response.response_metadata as Record<string, unknown>).usage as Record<string, unknown>)?.thoughts_token_count as number | undefined
-                                 : 0) ?? 0;
-
-    if (thoughtsTokenCount > thinkingBudget * 1.1) {
-      console.warn('Thinking budget exceeded by >10%', {
-        budgetSet: thinkingBudget,
-        thoughtsUsed: thoughtsTokenCount,
-        model: modelName,
-      });
-    }
-
-    const isTruncated = finishReason === 'MAX_TOKENS' || finishReason === 'length' || finishReason === 'max_tokens';
-
-    if (isTruncated) {
-      console.error('Gemini truncation', {
-        finishReason,
-        usage: usageMetadata,
-      });
+    if (parsedGemini.isTruncated) {
       // Do not throw here, instead pass the error state gracefully
       // so it can be handled by orchestrator without breaking the CI suite
       return {
-        feedback: `Error: Gemini model was truncated during execution (finishReason=${finishReason}).`,
+        feedback: parsedGemini.feedback,
         role: summary.role,
-        tokens: totalTokens,
+        tokens: parsedGemini.tokens,
         cost: 0,
         modelName,
         llmVerdict: 'warn',
@@ -104,29 +70,20 @@ export const geminiCodeReviewClient: CodeReviewClientStrategy = {
       };
     }
 
-    const pricing = getGeminiPricing(modelName);
-    const cost = pricing ? (inputTokens / 1_000_000) * pricing.inputCostPerM + (outputTokens / 1_000_000) * pricing.outputCostPerM : 0;
-
-    // Safe to parse from here. The response.content.parts structure isn't exposed properly via Langchain here
-    // typically in @langchain response.content is a string, but if we extract only text it's better
-    const feedback = extractFeedbackText(response.content) || (
-      typeof response.content === 'string' ? response.content : JSON.stringify(response.content)
-    );
-
-    const parsedState = parseCodeReviewStateDetailed(feedback);
+    const parsedState = parseCodeReviewStateDetailed(parsedGemini.feedback);
 
     return {
-      feedback: feedback,
+      feedback: parsedGemini.feedback,
       role: summary.role,
-      tokens: totalTokens,
-      inputTokens,
-      outputTokens,
-      cacheTokens,
-      cost: cost,
+      tokens: parsedGemini.tokens,
+      inputTokens: parsedGemini.inputTokens,
+      outputTokens: parsedGemini.outputTokens,
+      cacheTokens: parsedGemini.cacheTokens,
+      cost: parsedGemini.cost,
       modelName: modelName,
-      llmVerdict: parseCodeReviewVerdict(feedback),
+      llmVerdict: parseCodeReviewVerdict(parsedGemini.feedback),
       findings: parsedState.state?.findings ?? [],
-      isTruncated: isTruncated,
+      isTruncated: parsedGemini.isTruncated,
       parseError: parsedState.parseError,
     };
   }

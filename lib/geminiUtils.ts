@@ -1,3 +1,67 @@
+
+import { getGeminiPricing } from './geminiModelPicker.js';
+import { extractFeedbackText } from './codeReviewUtils.js';
+
+export interface GeminiResponseParseResult {
+  tokens: number;
+  inputTokens: number;
+  outputTokens: number;
+  cacheTokens: number;
+  cost: number;
+  feedback: string;
+  isTruncated: boolean;
+}
+
+export function handleGeminiResponse(
+  retryResult: any,
+  modelName: string,
+  thinkingBudget: number
+): GeminiResponseParseResult {
+  const { response, finishReason } = retryResult;
+
+  const usageMetadata = response.usage_metadata || {};
+  const inputTokens = usageMetadata.input_tokens ?? 0;
+  const outputTokens = usageMetadata.output_tokens ?? 0;
+  const totalTokens = usageMetadata.total_tokens ?? 0;
+  const cacheTokens = usageMetadata.cache_read_tokens ?? 0;
+  const finalThinkingBudget = retryResult.finalThinkingBudget || thinkingBudget;
+
+  const thoughtsTokenCount = usageMetadata.thoughts_token_count ??
+                             (typeof response.response_metadata === 'object' && response.response_metadata !== null
+                               ? ((response.response_metadata as Record<string, unknown>).usage as Record<string, unknown>)?.thoughts_token_count as number | undefined
+                               : 0) ?? 0;
+
+  if (thoughtsTokenCount > finalThinkingBudget * 1.1) {
+    console.warn('Thinking budget exceeded by >10%', {
+      budgetSet: finalThinkingBudget,
+      thoughtsUsed: thoughtsTokenCount,
+      model: modelName,
+    });
+  }
+
+  const isTruncated = finishReason === 'MAX_TOKENS' || finishReason === 'length' || finishReason === 'max_tokens';
+  if (isTruncated) {
+    console.error('Gemini truncation', { finishReason, usage: usageMetadata });
+  }
+
+  const pricing = getGeminiPricing(modelName);
+  const cost = pricing ? (inputTokens / 1_000_000) * pricing.inputCostPerM + (outputTokens / 1_000_000) * pricing.outputCostPerM : 0;
+
+  const feedback = extractFeedbackText(response.content) || (
+    typeof response.content === 'string' ? response.content : JSON.stringify(response.content)
+  );
+
+  return {
+    tokens: totalTokens,
+    inputTokens,
+    outputTokens,
+    cacheTokens,
+    cost,
+    feedback: isTruncated ? `Error: Gemini model was truncated during execution (finishReason=${finishReason}).` : feedback,
+    isTruncated
+  };
+}
+
 export function extractFinishReason(res: Record<string, any>): string {
   const metadata = res?.response_metadata;
   if (metadata?.finishReason) return metadata.finishReason;
