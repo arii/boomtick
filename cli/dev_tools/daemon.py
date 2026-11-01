@@ -26,6 +26,8 @@ class JulesFeedbackDaemon:
         self.orchestrator = Orchestrator()
         # Ensure the orchestrator uses our extended client
         self.orchestrator.initialize_jules(self.jules)
+        self._pr_cache: Dict[Any, Any] = {}
+        self._session_to_pr_map: Dict[str, Any] = {}
 
     def run(self, limit: int = 10):
         logger.info("Starting Jules Feedback Daemon")
@@ -36,8 +38,8 @@ class JulesFeedbackDaemon:
             logger.error(f"Error fetching sessions: {e}")
             sys.exit(1)
 
-        self._pr_cache: Dict[int, Any] = {}
-        self._session_to_pr_map: Dict[str, Any] = {}
+        self._pr_cache.clear()
+        self._session_to_pr_map.clear()
 
         # Batch pre-match sessions to PRs where possible to reduce API hits
         self._pre_match_sessions_batch(sessions)
@@ -59,25 +61,27 @@ class JulesFeedbackDaemon:
         if not session_ids:
             return
 
-        # GitHub Search API query construction
-        # Example: (ID1 OR ID2 OR ID3) in:body,title state:open
-        id_query = " OR ".join([f'"{sid}"' for sid in session_ids])
-        full_query = f"({id_query}) in:body,title state:open"
+        # GitHub Search API allows maximum 5 AND / OR / NOT operators per query.
+        # We chunk session_ids into batches of up to 5 to avoid 422 Validation Failed errors.
+        batch_size = 5
+        for i in range(0, len(session_ids), batch_size):
+            chunk = session_ids[i : i + batch_size]
+            id_query = " OR ".join([f'"{sid}"' for sid in chunk])
+            full_query = f"({id_query}) in:body,title state:open"
 
-        try:
-            logger.info(f"Performing batch PR search for {len(session_ids)} session IDs")
-            found_prs = self.github.search_pull_requests(full_query, limit=50)
+            try:
+                logger.info(f"Performing batch PR search for {len(chunk)} session IDs")
+                found_prs = self.github.search_pull_requests(full_query, limit=50)
 
-            for pr in found_prs:
-                body = (pr.get("body") or "").lower()
-                title = (pr.get("title") or "").lower()
-                for sid in session_ids:
-                    if sid.lower() in body or sid.lower() in title:
-                        self._session_to_pr_map[sid] = pr
-                        # Cache the PR details as well
-                        self._pr_cache[pr["number"]] = pr
-        except Exception as e:
-            logger.warning(f"Batch PR search failed, will fallback to individual lookups: {e}")
+                for pr in found_prs:
+                    body = (pr.get("body") or "").lower()
+                    title = (pr.get("title") or "").lower()
+                    for sid in chunk:
+                        if sid.lower() in body or sid.lower() in title:
+                            self._session_to_pr_map[sid] = pr
+                            self._pr_cache[(self.github.repo, pr["number"])] = pr
+            except Exception as e:
+                logger.warning(f"Batch PR search failed for chunk: {e}")
 
     def _get_pr_for_session(self, session: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         """Optimized PR lookup for a session."""
@@ -90,9 +94,15 @@ class JulesFeedbackDaemon:
         # 1-3. Delegate to orchestrator logic
         pr_num = self.orchestrator.get_pr_for_session(session)
         if pr_num:
-            if pr_num not in self._pr_cache:
-                self._pr_cache[pr_num] = self.github.fetch_pr_details(pr_num)
-            return self._pr_cache[pr_num]
+            repo = self.orchestrator.get_repo_for_session(session)
+            cache_key = (repo, pr_num)
+            if cache_key not in self._pr_cache:
+                try:
+                    self._pr_cache[cache_key] = self.github.fetch_pr_details(pr_num, repo=repo)
+                except Exception as e:
+                    logger.warning(f"Could not fetch PR #{pr_num} for session {session_id} in {repo}: {e}")
+                    return None
+            return self._pr_cache[cache_key]
 
         return None
 
