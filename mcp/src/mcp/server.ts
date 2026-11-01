@@ -30,6 +30,9 @@ import { repoLogsHandler, RepoLogsInputSchema } from "../tools/repo.logs.js";
 import { getWorkflowRunsHandler, GetWorkflowRunsInputSchema } from "../tools/repo.get_workflow_runs.js";
 import { createRepairBranchHandler, CreateRepairBranchInputSchema } from "../tools/repo.create_repair_branch.js";
 import { createBranchHandler, CreateBranchInputSchema } from "../tools/repo.create_branch.js";
+import { worktreeCreateHandler, WorktreeCreateInputSchema } from "../tools/worktree.create.js";
+import { worktreeListHandler, WorktreeListInputSchema } from "../tools/worktree.list.js";
+import { worktreeRemoveHandler, WorktreeRemoveInputSchema } from "../tools/worktree.remove.js";
 import { runTestsHandler, RunTestsInputSchema } from "../tools/repo.run_tests.js";
 import { checkJulesStatusHandler, CheckJulesStatusInputSchema } from "../tools/repo.check_jules_status.js";
 import { commitPatchHandler, CommitPatchInputSchema } from "../tools/repo.commit_patch.js";
@@ -276,6 +279,12 @@ export class BoomtickMCPServer {
             return createSuccessResult(await getWorkflowRunsHandler(GetWorkflowRunsInputSchema.parse(normArgs)));
           case "repo_create_branch":
             return createSuccessResult(await createBranchHandler(CreateBranchInputSchema.parse(normArgs)));
+          case "worktree_create":
+            return createSuccessResult(await worktreeCreateHandler(WorktreeCreateInputSchema.parse(normArgs)));
+          case "worktree_list":
+            return createSuccessResult(await worktreeListHandler(WorktreeListInputSchema.parse(normArgs)));
+          case "worktree_remove":
+            return createSuccessResult(await worktreeRemoveHandler(WorktreeRemoveInputSchema.parse(normArgs)));
           case "repo_create_repair_branch":
             return createSuccessResult(await createRepairBranchHandler(CreateRepairBranchInputSchema.parse(normArgs)));
           case "repo_check_jules_status":
