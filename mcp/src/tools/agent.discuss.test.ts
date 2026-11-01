@@ -45,12 +45,12 @@ describe("agent_discuss MCP tool", () => {
     it("returns state, diff stats, and verification status without mutations", async () => {
       vi.spyOn(shell, "runCommand").mockImplementation(async (cmd, args) => {
         if (cmd === "git" && args[0] === "status") {
-          return { exitCode: 0, stdout: " M src/calc.ts\n?? src/new.ts\n", stderr: "" };
+          return { exitCode: 0, stdout: " M src/calc.ts\n?? src/new.ts\n", stderr: "", durationMs: 10, command: "git status" };
         }
         if (cmd === "git" && args[0] === "diff" && args[1] === "--stat") {
-          return { exitCode: 0, stdout: " src/calc.ts | 4 ++--\n 1 file changed, 2 insertions(+), 2 deletions(-)\n", stderr: "" };
+          return { exitCode: 0, stdout: " src/calc.ts | 4 ++--\n 1 file changed, 2 insertions(+), 2 deletions(-)\n", stderr: "", durationMs: 10, command: "git diff --stat" };
         }
-        return { exitCode: 0, stdout: "", stderr: "" };
+        return { exitCode: 0, stdout: "", stderr: "", durationMs: 5, command: `${cmd} ${args.join(" ")}` };
       });
 
       const res = await agentDiscussHandler({
@@ -61,12 +61,13 @@ describe("agent_discuss MCP tool", () => {
       expect(res.status).toBe("success");
       expect(res.topic).toBe("status");
       expect(res.data).toBeDefined();
-      expect(res.data?.state).toBe("running");
-      expect(res.data?.branch).toBe("agent/fix-1-timestamp");
-      expect(res.data?.diffStat?.summary).toBe("+2 / -2");
-      expect(res.data?.diffStat?.insertions).toBe(2);
-      expect(res.data?.diffStat?.deletions).toBe(2);
-      expect(res.data?.lastVerification?.testsPassed).toBe(true);
+      const statusData = res.data as any;
+      expect(statusData?.state).toBe("running");
+      expect(statusData?.branch).toBe("agent/fix-1-timestamp");
+      expect(statusData?.diffStat?.summary).toBe("+2 / -2");
+      expect(statusData?.diffStat?.insertions).toBe(2);
+      expect(statusData?.diffStat?.deletions).toBe(2);
+      expect(statusData?.lastVerification?.testsPassed).toBe(true);
     });
   });
 
@@ -75,9 +76,9 @@ describe("agent_discuss MCP tool", () => {
       const mockDiff = "diff --git a/src/calc.ts b/src/calc.ts\n--- a/src/calc.ts\n+++ b/src/calc.ts\n@@ -1,2 +1,2 @@\n-const x = 1;\n+const x = 2;\n";
       vi.spyOn(shell, "runCommand").mockImplementation(async (cmd, args) => {
         if (cmd === "git" && args[0] === "diff" && args[1] === "main...HEAD") {
-          return { exitCode: 0, stdout: mockDiff, stderr: "" };
+          return { exitCode: 0, stdout: mockDiff, stderr: "", durationMs: 10, command: "git diff" };
         }
-        return { exitCode: 0, stdout: "", stderr: "" };
+        return { exitCode: 0, stdout: "", stderr: "", durationMs: 5, command: `${cmd} ${args.join(" ")}` };
       });
 
       const res = await agentDiscussHandler({
@@ -87,8 +88,9 @@ describe("agent_discuss MCP tool", () => {
 
       expect(res.status).toBe("success");
       expect(res.topic).toBe("review-diff");
-      expect(res.data?.unifiedDiff).toBe(mockDiff);
-      expect(res.data?.verificationOutputs?.testsPassed).toBe(true);
+      const reviewData = res.data as any;
+      expect(reviewData?.unifiedDiff).toBe(mockDiff);
+      expect(reviewData?.verificationOutputs?.testsPassed).toBe(true);
     });
   });
 
@@ -118,9 +120,10 @@ describe("agent_discuss MCP tool", () => {
       });
 
       expect(res.status).toBe("success");
-      expect(res.data?.retries).toBe(1);
-      expect(res.data?.state).toBe("running");
-      expect(res.data?.brief).toContain("Please add unit tests for edge cases.");
+      const data = res.data as any;
+      expect(data?.retries).toBe(1);
+      expect(data?.state).toBe("running");
+      expect(data?.brief).toContain("Please add unit tests for edge cases.");
 
       const updatedSession = sessionManager.getSession(mockSessionId);
       expect(updatedSession.retries).toBe(1);
@@ -174,12 +177,12 @@ describe("agent_discuss MCP tool", () => {
     it("stages, commits, pushes, creates PR, and cleans up worktree when authorized", async () => {
       vi.spyOn(shell, "runCommand").mockImplementation(async (cmd, args) => {
         if (cmd === "git" && args[0] === "status") {
-          return { exitCode: 0, stdout: " M src/calc.ts\n", stderr: "" };
+          return { exitCode: 0, stdout: " M src/calc.ts\n", stderr: "", durationMs: 10, command: "git status" };
         }
         if (cmd === "git" && args[0] === "push") {
-          return { exitCode: 0, stdout: "Everything up-to-date", stderr: "" };
+          return { exitCode: 0, stdout: "Everything up-to-date", stderr: "", durationMs: 10, command: "git push" };
         }
-        return { exitCode: 0, stdout: "", stderr: "" };
+        return { exitCode: 0, stdout: "", stderr: "", durationMs: 5, command: `${cmd} ${args.join(" ")}` };
       });
 
       const commitSpy = vi.spyOn(commitPatch, "commitPatchHandler").mockResolvedValue({
@@ -203,7 +206,8 @@ describe("agent_discuss MCP tool", () => {
       });
 
       expect(res.status).toBe("success");
-      expect(res.data?.pullRequestUrl).toBe("https://github.com/arii/boomtick/pull/999");
+      const approveData = res.data as any;
+      expect(approveData?.pullRequestUrl).toBe("https://github.com/arii/boomtick/pull/999");
       expect(commitSpy).toHaveBeenCalledWith(
         expect.objectContaining({
           worktreePath: mockWorktreePath,
@@ -247,7 +251,8 @@ describe("agent_discuss MCP tool", () => {
       });
 
       expect(res.status).toBe("success");
-      expect(res.data?.state).toBe("abandoned");
+      const abandonData = res.data as any;
+      expect(abandonData?.state).toBe("abandoned");
       expect(removeWorktreeSpy).toHaveBeenCalledWith(mockWorktreePath, undefined);
 
       const session = sessionManager.getSession(mockSessionId);
@@ -264,9 +269,9 @@ describe("agent_discuss MCP tool", () => {
       vi.spyOn(shell, "runCommand").mockImplementation(async (cmd, args) => {
         if (cmd === "git" && args[0] === "status") {
           await new Promise((r) => setTimeout(r, 50));
-          return { exitCode: 0, stdout: "", stderr: "" };
+          return { exitCode: 0, stdout: "", stderr: "", durationMs: 50, command: "git status" };
         }
-        return { exitCode: 0, stdout: "", stderr: "" };
+        return { exitCode: 0, stdout: "", stderr: "", durationMs: 5, command: `${cmd} ${args.join(" ")}` };
       });
 
       const p1 = agentDiscussHandler({

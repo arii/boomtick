@@ -1,12 +1,13 @@
 import { z } from "zod";
-import { AgentDiscussInputSchema, AgentDiscussInput } from "./contract.js";
+import { AgentDiscussInputSchema } from "./contract.js";
 import { SessionManager } from "../lib/session_manager.js";
 import { commitPatchHandler } from "./repo.commit_patch.js";
 import { createPullRequestHandler } from "./github.create_pull_request.js";
 import { removeWorktree } from "../lib/git.js";
 import { runCommand } from "../lib/shell.js";
 
-export { AgentDiscussInputSchema, AgentDiscussInput };
+export type AgentDiscussInput = z.input<typeof AgentDiscussInputSchema>;
+export { AgentDiscussInputSchema };
 
 export async function agentDiscussHandler(rawArgs: AgentDiscussInput) {
   const args = AgentDiscussInputSchema.parse(rawArgs);
