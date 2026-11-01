@@ -236,57 +236,6 @@ class GetWorkflowRunsInput(CamelCaseModel):
     )
 
 
-class WorktreeCreateInput(CamelCaseModel):
-    repo: Optional[str] = Field(None, description="Target repository override (e.g. org/repo or repo).")
-    path: Optional[str] = Field(None, description="Local filesystem override.")
-    base_branch: Optional[str] = Field(
-        None, description="Base branch to branch off, defaults to agent contract's baseBranch or main."
-    )
-    name: Optional[str] = Field(None, description="Slug descriptor for the worktree, sanitized [a-z0-9-].")
-    sparse_paths: Optional[List[str]] = Field(None, description="Path prefixes for sparse checkout.")
-    write_mode: bool = Field(..., description="Required true, following BoomTick mutating tool convention.")
-
-
-class WorktreeCreateResponse(CamelCaseModel):
-    worktree_id: str
-    path: str
-    branch: str
-    base_branch: str
-    created_at: int
-
-
-class WorktreeItem(CamelCaseModel):
-    worktree_id: str
-    path: str
-    branch: str
-    age_seconds: Union[int, float]
-    changed_files_count: int
-    disk_usage_bytes: int
-
-
-class WorktreeListInput(CamelCaseModel):
-    repo: Optional[str] = Field(None, description="Target repository override (e.g. org/repo or repo).")
-    path: Optional[str] = Field(None, description="Local filesystem override.")
-
-
-class WorktreeListResponse(CamelCaseModel):
-    worktrees: List[WorktreeItem] = Field(default_factory=list)
-
-
-class WorktreeRemoveInput(CamelCaseModel):
-    worktree_id: str = Field(..., description="The unique ID of the worktree to remove.")
-    force: bool = Field(False, description="Whether to force remove worktree even with uncommitted changes.")
-    write_mode: bool = Field(..., description="Required true, following BoomTick mutating tool convention.")
-    repo: Optional[str] = Field(None, description="Target repository override (e.g. org/repo or repo).")
-    path: Optional[str] = Field(None, description="Local filesystem override.")
-
-
-class WorktreeRemoveResponse(CamelCaseModel):
-    status: str = "removed"
-    worktree_id: str
-    freed_bytes: Optional[int] = None
-
-
 class CreateBranchInput(CamelCaseModel):
     branch_name: str = Field(..., description="The name of the new branch")
     base_branch: str = Field("main", description="Branch to branch off from")

@@ -74,13 +74,21 @@ export class SessionManager {
    */
   public resolveWorktreePath(worktreeId: string, repo?: string | null): string {
     const repoRoot = this.getRepoRoot(repo);
-    // If worktreeId is absolute or relative path that exists
-    if (path.isAbsolute(worktreeId) && syncFs.existsSync(worktreeId)) {
-      return path.resolve(worktreeId);
+    const worktreesRoot = path.resolve(repoRoot, ".worktrees");
+
+    // If worktreeId is a relative ID (e.g. "feat-branch" or "test-wt-1")
+    if (!path.isAbsolute(worktreeId)) {
+      const candidatePath = path.resolve(worktreesRoot, path.basename(worktreeId));
+      return candidatePath;
     }
 
-    const defaultWorktreeDir = path.resolve(repoRoot, ".worktrees", worktreeId);
-    return defaultWorktreeDir;
+    // If an absolute path is provided, ensure it resides inside a legitimate .worktrees root
+    const resolvedPath = path.resolve(worktreeId);
+    if (!resolvedPath.includes(`${path.sep}.worktrees${path.sep}`)) {
+      throw new Error(`Invalid worktreeId: '${worktreeId}' escapes worktrees root.`);
+    }
+
+    return resolvedPath;
   }
 
   /**
