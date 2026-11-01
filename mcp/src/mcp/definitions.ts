@@ -69,6 +69,8 @@ import {
   GetPrCommitsResponseJsonSchema,
   GetWorkflowRunsInputJsonSchema,
   GetWorkflowRunsResponseJsonSchema,
+  AgentDiscussInputJsonSchema,
+  AgentDiscussResponseJsonSchema,
 } from "../tools/contract.js";
 
 export const MCP_PROMPTS: Prompt[] = [
@@ -444,6 +446,12 @@ const BASE_MCP_TOOLS: Tool[] = [
     description: "Automatically collect CI status/logs for the PR associated with a Jules session and send them back as feedback.",
     inputSchema: JulesSessionIdInputJsonSchema as any,
     outputSchema: JulesTriggerFeedbackResponseJsonSchema as any,
+  },
+  {
+    name: "agent_discuss",
+    description: "Execute structured discussion protocol with operational topics (status, review-diff, request-changes, approve-merge, abandon) for autonomous agent sessions.",
+    inputSchema: AgentDiscussInputJsonSchema as any,
+    outputSchema: AgentDiscussResponseJsonSchema as any,
   },
 ];
 
