@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.7.4](https://github.com/arii/boomtick/compare/mcp-v0.7.3...mcp-v0.7.4) (2026-11-01)
+
+
+### Bug Fixes
+
+* **mcp:** sanitize tool names to conform with MCP client tool naming regex ([#1031](https://github.com/arii/boomtick/issues/1031)) ([cb13f04](https://github.com/arii/boomtick/commit/cb13f040a5ff7559e68edbd28dde6b54fdd709e3))
+
 ## [0.7.3](https://github.com/arii/boomtick/compare/mcp-v0.7.2...mcp-v0.7.3) (2026-11-01)
 
 
