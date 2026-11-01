@@ -12,7 +12,7 @@ Use this checklist to ensure all prerequisites and configuration steps are compl
 - [ ] **Create Repository Configuration**: Add `project_config.json` at your repository root with `github_repo` and AI review model chain configurations.
 - [ ] **Configure GitHub Secrets**: Set up required repository secrets:
   - `JULES_API_KEY`: Required for automated self-repair sessions and orchestrator integration.
-  - `GEMINI_API_KEY`: Required for multi-modal code review and vision pipelines.
+  - `GEMINI_API_KEY`: Required for multi-modal code review and vision pipelines (Gemini API is the sole supported AI provider for code review).
   - `GITHUB_TOKEN` (or GitHub App Token `APP_ID` / `APP_PRIVATE_KEY`): For repository-scoped actions.
 - [ ] **Install Integration Paradigm**: Select and set up PyPI package (`pip install boomtick-cli`), Docker container (`ghcr.io/arii/boomtick`), or npm MCP package (`@arii/boomtick-mcp`).
 - [ ] **Integrate GitHub Composite Actions**: Reference Boomtick composite actions (such as `setup-workspace`, `chatops`, `ai-review`, and `impact-analysis`) in your `.github/workflows/`.
@@ -99,20 +99,22 @@ npx @arii/boomtick-mcp
 Every downstream repository consuming `boomtick` requires workspace configuration files at its root.
 
 #### Step 1: Create `project_config.json`
-Add `project_config.json` to declare base parameters for `td` and AI review model routing:
+Add `project_config.json` to declare base parameters for `td` and AI review model routing.
+
+> **Note:** Only the Gemini API is supported for AI triage and code review at this time. Configurations must specify supported Gemini models (e.g., `gemini-2.5-flash`, `gemini-2.5-pro`, `gemini-1.5-flash`, `gemini-1.5-pro`). Third-party providers and models (such as OpenAI, DeepSeek, or LLaMA) are not supported.
 
 ```json
 {
   "github_repo": "your-org/your-repo",
   "vite_base_path": "/",
   "triage_chain": {
-    "primary": "gpt-4o-mini",
+    "primary": "gemini-2.5-flash",
     "fallbacks": ["gemini-1.5-flash"],
     "max_retries": 2
   },
   "code_review_chain": {
-    "primary": "gpt-4o",
-    "fallbacks": ["deepseek-r1", "llama-3.3-70b-instruct"],
+    "primary": "gemini-2.5-pro",
+    "fallbacks": ["gemini-2.5-flash", "gemini-1.5-pro"],
     "max_retries": 3
   }
 }
@@ -184,7 +186,7 @@ Boomtick exposes the following Composite Actions under `arii/boomtick/.github/ac
 #### GitHub Secrets Configuration
 Configure the following Secrets in your repository settings:
 - `JULES_API_KEY`: Communicates with the Jules session orchestrator.
-- `GEMINI_API_KEY`: Enables multi-modal vision and code review pipelines.
+- `GEMINI_API_KEY`: Required credential enabling Gemini API multi-modal vision and code review pipelines (only Gemini API is supported for AI code review at this time).
 - `GITHUB_TOKEN` or GitHub App Token (`APP_ID` & `APP_PRIVATE_KEY`): Passed as `github_token` input to composite actions.
 
 ---
