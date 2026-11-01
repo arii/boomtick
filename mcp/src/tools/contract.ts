@@ -739,6 +739,143 @@ export const AISynthesisReviewJsonSchema = {
   "type": "object"
 } as const;
 
+export const AgentDiscussInputSchema = z.object({ "sessionId": z.string().describe("References active or completed session from agent_dispatch"), "topic": z.enum(["status","review-diff","request-changes","approve-merge","abandon"]).describe("Operational topic for discussion protocol"), "message": z.union([z.string(), z.null()]).describe("Structured feedback message (required when topic == 'request-changes')").default(null), "writeMode": z.union([z.boolean(), z.null()]).describe("Safety gate: required true for approve-merge and abandon").default(false), "pushMode": z.union([z.boolean(), z.null()]).describe("Safety gate: required true for network push and PR creation in approve-merge").default(false), "repo": z.union([z.string(), z.null()]).describe("Target repository override").default(null) });
+
+export type AgentDiscussInput = z.infer<typeof AgentDiscussInputSchema>;
+
+export const AgentDiscussInputJsonSchema = {
+  "properties": {
+    "sessionId": {
+      "description": "References active or completed session from agent_dispatch",
+      "title": "Sessionid",
+      "type": "string"
+    },
+    "topic": {
+      "description": "Operational topic for discussion protocol",
+      "enum": [
+        "status",
+        "review-diff",
+        "request-changes",
+        "approve-merge",
+        "abandon"
+      ],
+      "title": "Topic",
+      "type": "string"
+    },
+    "message": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Structured feedback message (required when topic == 'request-changes')",
+      "title": "Message"
+    },
+    "writeMode": {
+      "anyOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": false,
+      "description": "Safety gate: required true for approve-merge and abandon",
+      "title": "Writemode"
+    },
+    "pushMode": {
+      "anyOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": false,
+      "description": "Safety gate: required true for network push and PR creation in approve-merge",
+      "title": "Pushmode"
+    },
+    "repo": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Target repository override",
+      "title": "Repo"
+    }
+  },
+  "required": [
+    "sessionId",
+    "topic"
+  ],
+  "title": "AgentDiscussInput",
+  "type": "object"
+} as const;
+
+export const AgentDiscussResponseSchema = z.object({ "sessionId": z.string(), "topic": z.string(), "status": z.string().default("success"), "data": z.union([z.record(z.string(), z.any()), z.null()]).default(null), "message": z.union([z.string(), z.null()]).default(null) });
+
+export type AgentDiscussResponse = z.infer<typeof AgentDiscussResponseSchema>;
+
+export const AgentDiscussResponseJsonSchema = {
+  "properties": {
+    "sessionId": {
+      "title": "Sessionid",
+      "type": "string"
+    },
+    "topic": {
+      "title": "Topic",
+      "type": "string"
+    },
+    "status": {
+      "default": "success",
+      "title": "Status",
+      "type": "string"
+    },
+    "data": {
+      "anyOf": [
+        {
+          "additionalProperties": true,
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Data"
+    },
+    "message": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Message"
+    }
+  },
+  "required": [
+    "sessionId",
+    "topic"
+  ],
+  "title": "AgentDiscussResponse",
+  "type": "object"
+} as const;
+
 export const CamelCaseModelSchema = z.object({});
 
 export type CamelCaseModel = z.infer<typeof CamelCaseModelSchema>;

@@ -746,3 +746,22 @@ class JulesGetPrResponse(CamelCaseModel):
 class JulesTriggerFeedbackResponse(CamelCaseModel):
     status: Optional[str] = None
     message: Optional[str] = None
+
+
+class AgentDiscussInput(CamelCaseModel):
+    session_id: str = Field(..., description="References active or completed session from agent_dispatch")
+    topic: Literal["status", "review-diff", "request-changes", "approve-merge", "abandon"] = Field(
+        ..., description="Operational topic for discussion protocol"
+    )
+    message: Optional[str] = Field(None, description="Structured feedback message (required when topic == 'request-changes')")
+    write_mode: Optional[bool] = Field(False, description="Safety gate: required true for approve-merge and abandon")
+    push_mode: Optional[bool] = Field(False, description="Safety gate: required true for network push and PR creation in approve-merge")
+    repo: Optional[str] = Field(None, description="Target repository override")
+
+
+class AgentDiscussResponse(CamelCaseModel):
+    session_id: str
+    topic: str
+    status: str = "success"
+    data: Optional[Dict[str, Any]] = None
+    message: Optional[str] = None
