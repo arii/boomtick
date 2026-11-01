@@ -232,7 +232,7 @@ class GetWorkflowRunsInput(CamelCaseModel):
     repo: Optional[str] = Field(
         None,
         pattern=r"^[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+$",
-        description="The target repository override (e.g. org/repo).",
+        description="The target GitHub repository in owner/repo format (e.g. 'arii/remote-server'). Omit or pass null to use the current repository context.",
     )
 
 
