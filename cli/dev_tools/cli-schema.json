@@ -5420,7 +5420,15 @@
           "title": "Path"
         },
         "config": {
-          "$ref": "#/$defs/AgentContractConfig",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/AgentContractConfig"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
           "description": "Parsed agent contract configuration."
         }
       },

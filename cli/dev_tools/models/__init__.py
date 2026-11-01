@@ -557,8 +557,8 @@ class ReadAgentContractResponse(CamelCaseModel):
     status: str = "success"
     content: Optional[str] = Field(None, description="The content of the agent contract specification file.")
     path: Optional[str] = Field(None, description="Path to the agent contract file.")
-    config: AgentContractConfig = Field(
-        default_factory=AgentContractConfig,
+    config: Optional[AgentContractConfig] = Field(
+        None,
         description="Parsed agent contract configuration.",
     )
 

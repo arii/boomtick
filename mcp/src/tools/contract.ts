@@ -4040,7 +4040,7 @@ export const ReadAgentContractInputJsonSchema = {
   "type": "object"
 } as const;
 
-export const ReadAgentContractResponseSchema = z.object({ "status": z.string().default("success"), "content": z.union([z.string(), z.null()]).describe("The content of the agent contract specification file.").default(null), "path": z.union([z.string(), z.null()]).describe("Path to the agent contract file.").default(null), "config": z.any().describe("Parsed agent contract configuration.").optional() });
+export const ReadAgentContractResponseSchema = z.object({ "status": z.string().default("success"), "content": z.union([z.string(), z.null()]).describe("The content of the agent contract specification file.").default(null), "path": z.union([z.string(), z.null()]).describe("Path to the agent contract file.").default(null), "config": z.union([z.any(), z.null()]).describe("Parsed agent contract configuration.").default(null) });
 
 export type ReadAgentContractResponse = z.infer<typeof ReadAgentContractResponseSchema>;
 
@@ -4177,7 +4177,15 @@ export const ReadAgentContractResponseJsonSchema = {
       "title": "Path"
     },
     "config": {
-      "$ref": "#/$defs/AgentContractConfig",
+      "anyOf": [
+        {
+          "$ref": "#/$defs/AgentContractConfig"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
       "description": "Parsed agent contract configuration."
     }
   },
