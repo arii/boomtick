@@ -69,6 +69,12 @@ import {
   GetPrCommitsResponseJsonSchema,
   GetWorkflowRunsInputJsonSchema,
   GetWorkflowRunsResponseJsonSchema,
+  WorktreeCreateInputJsonSchema,
+  WorktreeCreateResponseJsonSchema,
+  WorktreeListInputJsonSchema,
+  WorktreeListResponseJsonSchema,
+  WorktreeRemoveInputJsonSchema,
+  WorktreeRemoveResponseJsonSchema,
 } from "../tools/contract.js";
 
 export const MCP_PROMPTS: Prompt[] = [
@@ -296,6 +302,24 @@ const BASE_MCP_TOOLS: Tool[] = [
     description: "Creates a new clean git branch from a target base branch.",
     inputSchema: CreateBranchInputJsonSchema as any,
     outputSchema: CreateBranchResponseJsonSchema as any,
+  },
+  {
+    name: "worktree_create",
+    description: "Allocates an isolated git branch agent/<name>-<timestamp> and managed worktree directory with optional sparse checkout.",
+    inputSchema: WorktreeCreateInputJsonSchema as any,
+    outputSchema: WorktreeCreateResponseJsonSchema as any,
+  },
+  {
+    name: "worktree_list",
+    description: "Reports active managed worktrees, branches, age, uncommitted change counts, and disk usage.",
+    inputSchema: WorktreeListInputJsonSchema as any,
+    outputSchema: WorktreeListResponseJsonSchema as any,
+  },
+  {
+    name: "worktree_remove",
+    description: "Performs safe worktree removal, modification check, and pruning.",
+    inputSchema: WorktreeRemoveInputJsonSchema as any,
+    outputSchema: WorktreeRemoveResponseJsonSchema as any,
   },
   {
     name: "repo_create_repair_branch",

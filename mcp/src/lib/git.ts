@@ -162,6 +162,314 @@ export async function removeWorktree(worktreePath: string, baseRepoPath?: string
   await runCommand("git", ["worktree", "prune"], cwdOption);
 }
 
+export async function getDirectorySize(dirPath: string): Promise<number> {
+  try {
+    let totalSize = 0;
+    const entries = await fs.readdir(dirPath, { withFileTypes: true });
+    for (const entry of entries) {
+      const fullPath = path.join(dirPath, entry.name);
+      try {
+        const stats = await fs.lstat(fullPath);
+        if (stats.isDirectory()) {
+          totalSize += await getDirectorySize(fullPath);
+        } else {
+          totalSize += stats.size;
+        }
+      } catch {
+        // Skip inaccessible entries
+      }
+    }
+    return totalSize;
+  } catch {
+    return 0;
+  }
+}
+
+export interface CreateManagedWorktreeOptions {
+  targetRepoPath: string;
+  name?: string | null;
+  baseBranch?: string | null;
+  sparsePaths?: string[] | null;
+}
+
+export interface ManagedWorktreeResult {
+  worktreeId: string;
+  path: string;
+  branch: string;
+  baseBranch: string;
+  createdAt: number;
+}
+
+export async function createManagedWorktree(options: CreateManagedWorktreeOptions): Promise<ManagedWorktreeResult> {
+  const targetRepo = options.targetRepoPath;
+  const rawName = (options.name || "agent").toLowerCase().replace(/[^a-z0-9-]/g, "-").replace(/^-+|-+$/g, "") || "agent";
+  const now = Date.now();
+  const worktreeId = `wt-${rawName}-${now}`;
+  const branch = `agent/${rawName}-${now}`;
+
+  // Base branch resolution: explicit -> dynamic config defaultBaseBranch -> main
+  let baseBranch: string = options.baseBranch?.trim() || "";
+  if (!baseBranch) {
+    try {
+      baseBranch = config.defaultBaseBranch || "main";
+    } catch {
+      baseBranch = "main";
+    }
+  }
+
+  // Worktree directory resolution:
+  // Primary: <repo>/.worktrees/<worktreeId>
+  // Fallback: /tmp/boomtick-worktrees/<worktreeId>
+  let worktreePath: string = path.join(targetRepo, ".worktrees", worktreeId);
+  try {
+    const parentDir = path.join(targetRepo, ".worktrees");
+    await fs.mkdir(parentDir, { recursive: true });
+  } catch {
+    const fallbackDir = "/tmp/boomtick-worktrees";
+    await fs.mkdir(fallbackDir, { recursive: true });
+    worktreePath = path.join(fallbackDir, worktreeId);
+  }
+
+  // Ensure baseBranch ref is available (try origin/baseBranch or baseBranch)
+  try {
+    await runCommand("git", ["fetch", "origin", baseBranch], { cwd: targetRepo });
+  } catch {
+    // Ignore fetch failure if local branch or offline
+  }
+
+  let startPoint = `origin/${baseBranch}`;
+  const verifyOrigin = await runCommand("git", ["rev-parse", "--verify", startPoint], { cwd: targetRepo });
+  if (verifyOrigin.exitCode !== 0) {
+    const verifyLocal = await runCommand("git", ["rev-parse", "--verify", baseBranch], { cwd: targetRepo });
+    if (verifyLocal.exitCode === 0) {
+      startPoint = baseBranch;
+    } else {
+      // Fallback: HEAD
+      startPoint = "HEAD";
+    }
+  }
+
+  const addResult = await runCommand(
+    "git",
+    ["worktree", "add", "-b", branch, worktreePath, startPoint],
+    { cwd: targetRepo }
+  );
+
+  if (addResult.exitCode !== 0) {
+    throw new Error(`Failed to create worktree: ${addResult.stderr}`);
+  }
+
+  // If sparse checkout paths requested, configure sparse-checkout cone mode
+  if (options.sparsePaths && options.sparsePaths.length > 0) {
+    const initResult = await runCommand("git", ["sparse-checkout", "init", "--cone"], { cwd: worktreePath });
+    if (initResult.exitCode !== 0) {
+      throw new Error(`Failed to initialize sparse checkout: ${initResult.stderr}`);
+    }
+    const setResult = await runCommand("git", ["sparse-checkout", "set", ...options.sparsePaths], { cwd: worktreePath });
+    if (setResult.exitCode !== 0) {
+      throw new Error(`Failed to set sparse checkout paths: ${setResult.stderr}`);
+    }
+  }
+
+  return {
+    worktreeId,
+    path: worktreePath,
+    branch,
+    baseBranch,
+    createdAt: now,
+  };
+}
+
+export interface WorktreeInfo {
+  worktreeId: string;
+  path: string;
+  branch: string;
+  ageSeconds: number;
+  changedFilesCount: number;
+  diskUsageBytes: number;
+}
+
+export async function listWorktrees(repoPath: string): Promise<WorktreeInfo[]> {
+  const listResult = await runCommand("git", ["worktree", "list", "--porcelain"], { cwd: repoPath });
+  if (listResult.exitCode !== 0) {
+    throw new Error(`Failed to list worktrees: ${listResult.stderr}`);
+  }
+
+  const blocks = listResult.stdout.split("\n\n").map((b) => b.trim()).filter((b) => b.length > 0);
+  const now = Date.now();
+  const worktrees: WorktreeInfo[] = [];
+
+  for (const block of blocks) {
+    const lines = block.split("\n");
+    let wtPath = "";
+    let branch = "";
+
+    for (const line of lines) {
+      if (line.startsWith("worktree ")) {
+        wtPath = line.substring(9).trim();
+      } else if (line.startsWith("branch ")) {
+        branch = line.substring(7).trim().replace(/^refs\/heads\//, "");
+      } else if (line.startsWith("detached")) {
+        branch = "detached";
+      }
+    }
+
+    if (!wtPath) continue;
+
+    // Filter for managed worktrees: contains .worktrees or boomtick-worktrees or branch starts with agent/ or folder wt-
+    const folderName = path.basename(wtPath);
+    const isManaged =
+      wtPath.includes(".worktrees") ||
+      wtPath.includes("boomtick-worktrees") ||
+      folderName.startsWith("wt-") ||
+      branch.startsWith("agent/");
+
+    if (!isManaged) continue;
+
+    // Extract worktreeId
+    let worktreeId = folderName;
+    if (!worktreeId.startsWith("wt-")) {
+      worktreeId = `wt-${folderName}`;
+    }
+
+    // Check directory age
+    let ageSeconds = 0;
+    try {
+      const stat = await fs.stat(wtPath);
+      ageSeconds = Math.max(0, Math.floor((now - stat.birthtimeMs) / 1000));
+      if (Number.isNaN(ageSeconds) || ageSeconds === 0) {
+        ageSeconds = Math.max(0, Math.floor((now - stat.mtimeMs) / 1000));
+      }
+    } catch {
+      // If stat fails, try to extract timestamp from wt-<name>-<timestamp>
+      const match = worktreeId.match(/-(\d{10,13})$/);
+      if (match) {
+        const ts = parseInt(match[1], 10);
+        const epochMs = ts > 1e12 ? ts : ts * 1000;
+        ageSeconds = Math.max(0, Math.floor((now - epochMs) / 1000));
+      }
+    }
+
+    // Measure disk usage
+    const diskUsageBytes = await getDirectorySize(wtPath);
+
+    // Count uncommitted changed files
+    let changedFilesCount = 0;
+    const statusRes = await runCommand("git", ["status", "--porcelain"], { cwd: wtPath });
+    if (statusRes.exitCode === 0) {
+      const changed = statusRes.stdout.split("\n").filter((l) => l.trim().length > 0);
+      changedFilesCount = changed.length;
+    }
+
+    worktrees.push({
+      worktreeId,
+      path: wtPath,
+      branch,
+      ageSeconds,
+      changedFilesCount,
+      diskUsageBytes,
+    });
+  }
+
+  return worktrees;
+}
+
+export async function removeWorktreeById(
+  worktreeId: string,
+  repoPath: string,
+  force: boolean = false
+): Promise<{ freedBytes: number; worktreeId: string }> {
+  const worktrees = await listWorktrees(repoPath);
+  const target = worktrees.find(
+    (w) => w.worktreeId === worktreeId || path.basename(w.path) === worktreeId
+  );
+
+  if (!target) {
+    throw new Error(`Worktree '${worktreeId}' not found.`);
+  }
+
+  // Refuse removal if uncommitted modifications exist and force is false
+  if (!force && target.changedFilesCount > 0) {
+    throw new Error(
+      `Cannot remove worktree '${worktreeId}': has ${target.changedFilesCount} uncommitted modified files. Use force: true to remove.`
+    );
+  }
+
+  const freedBytes = target.diskUsageBytes;
+
+  const removeArgs = ["worktree", "remove"];
+  if (force) {
+    removeArgs.push("--force");
+  }
+  removeArgs.push(target.path);
+
+  const removeResult = await runCommand("git", removeArgs, { cwd: repoPath });
+  if (removeResult.exitCode !== 0) {
+    // If git worktree remove fails, check if manual directory deletion is necessary
+    if (force) {
+      await fs.rm(target.path, { recursive: true, force: true });
+    } else {
+      throw new Error(`Failed to remove worktree: ${removeResult.stderr}`);
+    }
+  }
+
+  await runCommand("git", ["worktree", "prune"], { cwd: repoPath });
+
+  return {
+    freedBytes,
+    worktreeId,
+  };
+}
+
+export async function getContractWorktreeTtl(repoPath: string): Promise<number> {
+  const defaultTtl = 7 * 24 * 60 * 60; // 7 days in seconds
+  try {
+    const contractPath = path.join(repoPath, ".agents", "AGENT_CONTRACT.md");
+    if (syncFs.existsSync(contractPath)) {
+      const content = await fs.readFile(contractPath, "utf-8");
+      const match = content.match(/worktree[_-]ttl[_-]seconds\s*[:=]\s*(\d+)/i) ||
+                    content.match(/worktree[_-]ttl[_-]days\s*[:=]\s*(\d+)/i);
+      if (match) {
+        const val = parseInt(match[1], 10);
+        if (content.toLowerCase().includes("ttl-days") || content.toLowerCase().includes("ttl_days")) {
+          return val * 24 * 60 * 60;
+        }
+        return val;
+      }
+    }
+  } catch {
+    // Ignore and fallback
+  }
+  return defaultTtl;
+}
+
+export async function sweepStaleWorktrees(
+  repoPath: string,
+  ttlSeconds?: number
+): Promise<{ sweptWorktreeIds: string[]; totalFreedBytes: number }> {
+  const effectiveTtl = ttlSeconds !== undefined ? ttlSeconds : await getContractWorktreeTtl(repoPath);
+  const worktrees = await listWorktrees(repoPath);
+  const sweptWorktreeIds: string[] = [];
+  let totalFreedBytes = 0;
+
+  for (const wt of worktrees) {
+    if (wt.ageSeconds >= effectiveTtl) {
+      try {
+        const result = await removeWorktreeById(wt.worktreeId, repoPath, true);
+        sweptWorktreeIds.push(wt.worktreeId);
+        totalFreedBytes += result.freedBytes;
+      } catch {
+        // Continue sweeping others if one fails
+      }
+    }
+  }
+
+  return {
+    sweptWorktreeIds,
+    totalFreedBytes,
+  };
+}
+
 export interface ChangedFile {
   status: string;
   path: string;
