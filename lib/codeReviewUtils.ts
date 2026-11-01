@@ -224,15 +224,65 @@ export function filterLowImpactFiles(files: string[], lowImpactPaths: string[] =
   });
 }
 
+const TRUNCATION_MARKER = '...[DIFF TRUNCATED TO FIT TOKEN BUDGET]';
+
 /**
- * Truncates an AST/unified diff chunk by preserving file headers and diff hunk headers
- * (e.g. `diff --git`, `@@ -a,b +c,d @@`) while dropping middle lines if token/char limit is exceeded.
+ * Checks if a diff line is a file header or hunk boundary header.
+ */
+function isDiffHeaderLine(line: string): boolean {
+  return line.startsWith('diff --git') ||
+         line.startsWith('--- ') ||
+         line.startsWith('+++ ') ||
+         line.startsWith('@@ ');
+}
+
+/**
+ * Detects AST declaration boundary lines in diff hunks.
  */
 function isASTDeclarationBoundary(line: string): boolean {
   const content = line.replace(/^[+-\s]/, '').trim();
   if (!content) return false;
 
   return /^(?:export\s+)?(?:async\s+)?(?:function|class|interface|type|enum|const|let|var|struct|pub|def|fn|private|protected|public|namespace|module)\b/.test(content);
+}
+
+/**
+ * Finds the most recent AST declaration boundary index in resultLines after the last @@ hunk header.
+ */
+function findASTBoundaryIndex(resultLines: string[]): number {
+  let lastHunkIdx = -1;
+  for (let j = resultLines.length - 1; j >= 0; j--) {
+    if (resultLines[j].startsWith('@@ ')) {
+      lastHunkIdx = j;
+      break;
+    }
+  }
+
+  const startSearchIdx = lastHunkIdx !== -1 ? lastHunkIdx + 1 : 0;
+  for (let j = resultLines.length - 1; j >= startSearchIdx; j--) {
+    if (isASTDeclarationBoundary(resultLines[j])) {
+      return j;
+    }
+  }
+
+  return -1;
+}
+
+/**
+ * Trims result lines back to the latest AST boundary and returns the number of chars removed.
+ */
+function trimToASTBoundary(resultLines: string[]): number {
+  const boundaryIdx = findASTBoundaryIndex(resultLines);
+  if (boundaryIdx === -1 || boundaryIdx >= resultLines.length) {
+    return 0;
+  }
+
+  let removedChars = 0;
+  for (let j = resultLines.length - 1; j >= boundaryIdx; j--) {
+    removedChars += resultLines[j].length + 1;
+    resultLines.pop();
+  }
+  return removedChars;
 }
 
 /**
@@ -249,52 +299,24 @@ export function truncateUnifiedDiff(diffText: string, maxChars: number = 16000):
   let currentChars = 0;
   let isDroppingLines = false;
 
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i];
-
-    const isHeader = line.startsWith('diff --git') ||
-                     line.startsWith('--- ') ||
-                     line.startsWith('+++ ') ||
-                     line.startsWith('@@ ');
-
-    if (currentChars + line.length + 1 > maxChars && !isHeader) {
-      if (!isDroppingLines) {
-        // Look back in resultLines for the most recent AST declaration boundary after the last @@ header
-        let boundaryIdx = -1;
-        let lastHunkIdx = -1;
-
-        for (let j = resultLines.length - 1; j >= 0; j--) {
-          if (resultLines[j].startsWith('@@ ')) {
-            lastHunkIdx = j;
-            break;
-          }
-        }
-
-        const startSearchIdx = lastHunkIdx !== -1 ? lastHunkIdx + 1 : 0;
-        for (let j = resultLines.length - 1; j >= startSearchIdx; j--) {
-          if (isASTDeclarationBoundary(resultLines[j])) {
-            boundaryIdx = j;
-            break;
-          }
-        }
-
-        if (boundaryIdx !== -1 && boundaryIdx < resultLines.length) {
-          for (let j = resultLines.length - 1; j >= boundaryIdx; j--) {
-            currentChars -= (resultLines[j].length + 1);
-            resultLines.pop();
-          }
-        }
-
-        const truncationMarker = '...[DIFF TRUNCATED TO FIT TOKEN BUDGET]';
-        resultLines.push(truncationMarker);
-        currentChars += truncationMarker.length + 1;
-        isDroppingLines = true;
-      }
-      continue;
-    }
+  for (const line of lines) {
+    const isHeader = isDiffHeaderLine(line);
 
     if (isHeader) {
       isDroppingLines = false;
+      resultLines.push(line);
+      currentChars += line.length + 1;
+      continue;
+    }
+
+    if (currentChars + line.length + 1 > maxChars) {
+      if (!isDroppingLines) {
+        currentChars -= trimToASTBoundary(resultLines);
+        resultLines.push(TRUNCATION_MARKER);
+        currentChars += TRUNCATION_MARKER.length + 1;
+        isDroppingLines = true;
+      }
+      continue;
     }
 
     resultLines.push(line);
