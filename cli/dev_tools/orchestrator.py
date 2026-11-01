@@ -2596,6 +2596,21 @@ Follow the "Audit comment template" in `docs/agent/issue-audit-rules.md` to post
             ],
         }
 
+    def get_repo_for_session(self, session: Dict[str, Any]) -> Optional[str]:
+        """Extracts the repository name (owner/repo) associated with a session."""
+        if session.get("outputs") and isinstance(session["outputs"], list):
+            for output in session["outputs"]:
+                if output.get("pullRequest") and output["pullRequest"].get("url"):
+                    match = re.search(r"github\.com/([^/]+/[^/]+)/pull/\d+", output["pullRequest"]["url"])
+                    if match:
+                        return match.group(1)
+
+        src = session.get("sourceContext", {}).get("source", "")
+        if src.startswith("sources/github/"):
+            return src.replace("sources/github/", "")
+
+        return None
+
     def get_pr_for_session(self, session: Dict[str, Any]) -> Optional[int]:
         """Optimized PR lookup for a session."""
         session_id = session.get("name", "").replace("sessions/", "")
@@ -2641,9 +2656,10 @@ Follow the "Audit comment template" in `docs/agent/issue-audit-rules.md` to post
                 "message": "Could not associate session with an open PR.",
             }
 
-        pr_details = self.github.fetch_pr_details(prNumber)
+        repo = self.get_repo_for_session(session)
+        pr_details = self.github.fetch_pr_details(prNumber, repo=repo)
         sha = pr_details.get("head", {}).get("sha")
-        check_runs = self.github.fetch_check_runs(sha)
+        check_runs = self.github.fetch_check_runs(sha, repo=repo)
 
         if not check_runs:
             return {"status": "no_checks", "message": "No CI checks found for this PR head."}
@@ -2664,7 +2680,7 @@ Follow the "Audit comment template" in `docs/agent/issue-audit-rules.md` to post
                 run_id = run.get("id")
                 if not isinstance(run_id, int):
                     continue
-                logs = self.github.fetch_check_run_logs(run_id, external_id=run.get("external_id"))
+                logs = self.github.fetch_check_run_logs(run_id, external_id=run.get("external_id"), repo=repo)
                 findings = extract_failing_info(logs)
                 if findings:
                     for f in findings:
