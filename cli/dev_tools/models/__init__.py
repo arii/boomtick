@@ -695,3 +695,47 @@ class JulesGetPrResponse(CamelCaseModel):
 class JulesTriggerFeedbackResponse(CamelCaseModel):
     status: Optional[str] = None
     message: Optional[str] = None
+
+
+class AgentDispatchInput(CamelCaseModel):
+    worktree_id: str = Field(..., description="References an active worktree from worktree_create")
+    brief: str = Field(..., description="Task specification, instructions, expected verification")
+    model: Optional[str] = Field(None, description="Target execution model, e.g. local Ollama qwen2.5-coder:7b or Gemini API")
+    repo: Optional[str] = Field(None, description="Target repository override")
+
+
+class AgentDispatchResponse(CamelCaseModel):
+    session_id: str
+    worktree_id: str
+    status: Literal["running", "ready"]
+    started_at: int
+
+
+class AgentStatusInput(CamelCaseModel):
+    session_id: str = Field(..., description="The ID of the session to check status for")
+
+
+class AgentStatusVerification(CamelCaseModel):
+    tests_passed: bool
+    errors: Optional[str] = None
+    exit_code: Optional[int] = None
+
+
+class AgentStatusResponse(CamelCaseModel):
+    session_id: str
+    worktree_id: str
+    state: Literal["running", "done", "failed"]
+    last_checkpoint: str
+    changed_files: List[str] = Field(default_factory=list)
+    last_verification: Optional[AgentStatusVerification] = None
+
+
+class AgentLogsInput(CamelCaseModel):
+    session_id: str = Field(..., description="The ID of the session to fetch logs for")
+    tail: int = Field(100, description="Number of tail lines to retrieve")
+
+
+class AgentLogsResponse(CamelCaseModel):
+    session_id: str
+    logs: List[str] = Field(default_factory=list)
+    total_lines: int

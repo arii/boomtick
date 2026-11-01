@@ -69,6 +69,12 @@ import {
   GetPrCommitsResponseJsonSchema,
   GetWorkflowRunsInputJsonSchema,
   GetWorkflowRunsResponseJsonSchema,
+  AgentDispatchInputJsonSchema,
+  AgentDispatchResponseJsonSchema,
+  AgentStatusInputJsonSchema,
+  AgentStatusResponseJsonSchema,
+  AgentLogsInputJsonSchema,
+  AgentLogsResponseJsonSchema,
 } from "../tools/contract.js";
 
 export const MCP_PROMPTS: Prompt[] = [
@@ -444,6 +450,24 @@ const BASE_MCP_TOOLS: Tool[] = [
     description: "Automatically collect CI status/logs for the PR associated with a Jules session and send them back as feedback.",
     inputSchema: JulesSessionIdInputJsonSchema as any,
     outputSchema: JulesTriggerFeedbackResponseJsonSchema as any,
+  },
+  {
+    name: "agent_dispatch",
+    description: "Dispatch an autonomous agent session jailed to a specific git worktree.",
+    inputSchema: AgentDispatchInputJsonSchema as any,
+    outputSchema: AgentDispatchResponseJsonSchema as any,
+  },
+  {
+    name: "agent_status",
+    description: "Check the status, current checkpoint, changed files, and last verification of a worktree session.",
+    inputSchema: AgentStatusInputJsonSchema as any,
+    outputSchema: AgentStatusResponseJsonSchema as any,
+  },
+  {
+    name: "agent_logs",
+    description: "Retrieve tail logs and total lines from an agent session transcript.",
+    inputSchema: AgentLogsInputJsonSchema as any,
+    outputSchema: AgentLogsResponseJsonSchema as any,
   },
 ];
 
