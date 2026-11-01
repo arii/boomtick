@@ -2927,7 +2927,7 @@
             }
           ],
           "default": null,
-          "description": "The target repository override (e.g. org/repo).",
+          "description": "The target GitHub repository in owner/repo format (e.g. 'arii/remote-server'). Omit or pass null to use the current repository context.",
           "title": "Repo"
         }
       },

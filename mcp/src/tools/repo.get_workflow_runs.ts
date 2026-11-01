@@ -6,7 +6,13 @@ import { sanitizeError } from "../lib/error_utils.js";
 export const GetWorkflowRunsInputSchema = z.object({
   branch: z.string().optional().describe("Filter workflow runs by branch name."),
   event: z.string().optional().describe("Filter workflow runs by event (e.g. push, pull_request)."),
-  repo: z.string().optional().describe("The target repository override (e.g. org/repo)."),
+  repo: z
+    .string()
+    .regex(/^[a-zA-Z0-9_.-]+\/[a-zA-Z0-9_.-]+$/)
+    .optional()
+    .describe(
+      "The target GitHub repository in owner/repo format (e.g. 'arii/remote-server'). Omit or pass null to use the current repository context."
+    ),
 });
 
 export async function getWorkflowRunsHandler(args: z.infer<typeof GetWorkflowRunsInputSchema>) {
@@ -23,13 +29,33 @@ export async function getWorkflowRunsHandler(args: z.infer<typeof GetWorkflowRun
 
   const result = await runCommand("td", cliArgs);
 
-  if (result.exitCode !== 0) {
-    throw new Error(`Failed to fetch workflow runs: ${sanitizeError(result.stderr)}`);
+  let output: any = null;
+  if (result.stdout && result.stdout.trim().startsWith("{")) {
+    try {
+      output = JSON.parse(result.stdout);
+    } catch {
+      // ignore JSON parse error
+    }
   }
 
-  const output = JSON.parse(result.stdout);
-  if (output.status === "error") {
-    throw new Error(`Failed to fetch workflow runs: ${output.message}`);
+  if (output && output.status === "error") {
+    const msg = output.message || "Unknown error";
+    if (msg.includes("Not Found") || output.code === 404) {
+      throw new Error(`Repository '${targetRepo}' not found (404)`);
+    }
+    throw new Error(`Failed to fetch workflow runs: ${msg}`);
+  }
+
+  if (result.exitCode !== 0) {
+    const errText = sanitizeError(result.stderr) || sanitizeError(result.stdout) || "Unknown error";
+    if (errText.includes("Not Found") || errText.includes("404")) {
+      throw new Error(`Repository '${targetRepo}' not found (404)`);
+    }
+    throw new Error(`Failed to fetch workflow runs: ${errText}`);
+  }
+
+  if (!output || !output.workflow_runs) {
+    throw new Error("Failed to fetch workflow runs: Invalid output format");
   }
 
   return { workflowRuns: output.workflow_runs };

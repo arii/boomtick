@@ -3148,7 +3148,7 @@ export const GetRouteMapInputJsonSchema = {
   "type": "object"
 } as const;
 
-export const GetWorkflowRunsInputSchema = z.object({ "branch": z.union([z.string(), z.null()]).describe("Filter workflow runs by branch name.").default(null), "event": z.union([z.string(), z.null()]).describe("Filter workflow runs by event (e.g. push, pull_request).").default(null), "repo": z.union([z.string().regex(new RegExp("^[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+$")), z.null()]).describe("The target repository override (e.g. org/repo).").default(null) });
+export const GetWorkflowRunsInputSchema = z.object({ "branch": z.union([z.string(), z.null()]).describe("Filter workflow runs by branch name.").default(null), "event": z.union([z.string(), z.null()]).describe("Filter workflow runs by event (e.g. push, pull_request).").default(null), "repo": z.union([z.string().regex(new RegExp("^[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+$")), z.null()]).describe("The target GitHub repository in owner/repo format (e.g. 'arii/remote-server'). Omit or pass null to use the current repository context.").default(null) });
 
 export type GetWorkflowRunsInput = z.infer<typeof GetWorkflowRunsInputSchema>;
 
@@ -3191,7 +3191,7 @@ export const GetWorkflowRunsInputJsonSchema = {
         }
       ],
       "default": null,
-      "description": "The target repository override (e.g. org/repo).",
+      "description": "The target GitHub repository in owner/repo format (e.g. 'arii/remote-server'). Omit or pass null to use the current repository context.",
       "title": "Repo"
     }
   },
