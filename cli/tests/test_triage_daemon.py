@@ -196,10 +196,10 @@ def test_cli_run_triage_invocation():
             "backlog_dispatched": [],
         }
 
-        res = runner.invoke(cli, ["agent", "run-triage", "--limit", "5", "--concurrency", "2", "--dry-run"])
+        res = runner.invoke(cli, ["agent", "run-triage", "--limit", "5", "--concurrency", "2", "--dry-run"], catch_exceptions=False)
         assert res.exit_code == 0
         mock_run.assert_called_once()
-        args, kwargs = mock_run.call_args
+        _, kwargs = mock_run.call_args
         assert kwargs["limit"] == 5
         assert kwargs["concurrency_limit"] == 2
         assert kwargs["dry_run"] is True

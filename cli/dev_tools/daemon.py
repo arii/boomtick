@@ -2,7 +2,7 @@
 import logging
 import re
 import sys
-from typing import Any, Dict, List, Optional, Set
+from typing import Any, Dict, List, Optional
 
 from dev_tools.orchestrator import Orchestrator
 from dev_tools.services.github import GitHubClient
@@ -203,7 +203,6 @@ class AutonomousTriageDaemon:
             files = view_details.get("files", [])
             if isinstance(files, list) and len(files) == 0:
                 logger.warning(f"Empty PR detected: #{pr_num} in {repo} (0 files changed)")
-                msg = f"Closing empty PR #{pr_num} (0 files changed) from session {session_id}"
                 if results is not None:
                     results["empty_prs_handled"].append({"repo": repo, "pr": pr_num, "session": session_id})
                 if not dry_run:
@@ -420,7 +419,7 @@ class AutonomousTriageDaemon:
                             results["stale_issues_closed"].append(
                                 {"repo": repo, "issue": issue_num, "pr": associated_pr_num}
                             )
-                        if not dry_run:
+                        if not dry_run and issue_num is not None:
                             comment = f"Automated triage: Associated PR #{associated_pr_num} has been resolved/merged. Closing orphan failure issue."
                             self.github.close_issue(issue_num, repo=repo, comment=comment)
                 except Exception as e:
@@ -485,7 +484,7 @@ class AutonomousTriageDaemon:
                 if results is not None:
                     results["backlog_dispatched"].append({"repo": repo, "issue": issue_num, "title": title})
 
-                if not dry_run:
+                if not dry_run and issue_num is not None:
                     try:
                         self.github.add_labels(issue_num, ["jules"], repo=repo)
                         available_slots -= 1
