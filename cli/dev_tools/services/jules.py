@@ -125,12 +125,16 @@ class JulesClient:
             return "Session completed successfully."
         return ""
 
-    def get_messages(self, session_id: str, timeout: int = 10) -> List[Dict[str, Any]]:
+    def get_activities(self, session_id: str, timeout: int = 10) -> List[Dict[str, Any]]:
+        """Retrieves raw activities list for a session."""
         clean_id = self._get_clean_id(session_id, "sessions")
         url = f"{self.base_url}/sessions/{clean_id}/activities"
         response = requests.get(url, headers=self.headers, timeout=timeout)
         response.raise_for_status()
-        activities = response.json().get("activities", [])
+        return response.json().get("activities", [])
+
+    def get_messages(self, session_id: str, timeout: int = 10) -> List[Dict[str, Any]]:
+        activities = self.get_activities(session_id, timeout=timeout)
         messages = []
         for act in activities:
             content = self._extract_activity_content(act)
