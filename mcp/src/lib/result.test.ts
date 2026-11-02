@@ -31,6 +31,21 @@ describe("result utils", () => {
       });
       expect(result.isError).toBeUndefined();
     });
+
+    it("should wrap array data in { result: data } for structuredContent", () => {
+      const arrayData = [1, 2];
+      const result = createSuccessResult(arrayData);
+      expect(result).toEqual({
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify(arrayData, null, 2),
+          },
+        ],
+        structuredContent: { result: [1, 2] },
+      });
+      expect(result.isError).toBeUndefined();
+    });
   });
 
   describe("createErrorResult", () => {
