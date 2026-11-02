@@ -31,6 +31,12 @@ describe("result utils", () => {
       });
       expect(result.isError).toBeUndefined();
     });
+
+    it("should wrap bare arrays so structuredContent stays a record", () => {
+      const result = createSuccessResult([1, 2]);
+      expect(result.structuredContent).toEqual({ result: [1, 2] });
+      expect(result.isError).toBeUndefined();
+    });
   });
 
   describe("createErrorResult", () => {

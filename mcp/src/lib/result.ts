@@ -6,7 +6,7 @@ export interface ToolResult extends CallToolResult {
 
 export function createSuccessResult(data: any): ToolResult {
   const structuredContent =
-    typeof data === "object" && data !== null
+    typeof data === "object" && data !== null && !Array.isArray(data)
       ? data
       : { result: data };
 
