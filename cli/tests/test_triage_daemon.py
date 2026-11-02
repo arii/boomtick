@@ -185,7 +185,8 @@ def test_cli_run_triage_invocation():
     from dev_tools.cli import cli
 
     runner = CliRunner()
-    with patch("dev_tools.daemon.AutonomousTriageDaemon.run_triage") as mock_run:
+    with patch.dict("os.environ", {"GITHUB_TOKEN": "mock-token", "GH_TOKEN": "mock-token"}), \
+         patch("dev_tools.daemon.AutonomousTriageDaemon.run_triage") as mock_run:
         mock_run.return_value = {
             "status": "success",
             "sessions_evaluated": 1,
