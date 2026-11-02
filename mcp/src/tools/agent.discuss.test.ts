@@ -220,6 +220,12 @@ describe("agent_discuss MCP tool", () => {
           head: "agent/fix-1-timestamp",
           base: "main",
           draft: false,
+          body: expect.stringContaining("Automated verification tests passed."),
+        })
+      );
+      expect(prSpy).not.toHaveBeenCalledWith(
+        expect.objectContaining({
+          body: expect.stringMatching(/✅|\u26a0\ufe0f/),
         })
       );
       expect(removeWorktreeSpy).toHaveBeenCalledWith(mockWorktreePath, undefined);

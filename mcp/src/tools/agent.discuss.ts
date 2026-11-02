@@ -130,8 +130,8 @@ export async function agentDiscussHandler(rawArgs: AgentDiscussInput) {
           ``,
           `### Verification Details`,
           session.lastVerification?.testsPassed
-            ? `✅ Automated verification tests passed.`
-            : `⚠️ Verification status: ${session.lastVerification?.errors || "No errors recorded."}`,
+            ? `Automated verification tests passed.`
+            : `Verification status: ${session.lastVerification?.errors || "No errors recorded."}`,
         ].join("\n");
 
         const prResult = await createPullRequestHandler({
