@@ -849,12 +849,13 @@ def parse_comment(ctx, body, author_association):
 @click.option("--pr", "--pr-number", "pr", required=True, type=int, help="The PR number to comment on.")
 @click.option("--file", type=str, help="Path to the file containing the comment body.")
 @click.option("--body", type=str, help="Literal comment text.")
+@click.option("--repo", help="Target repository override (e.g. owner/repo)")
 @click.pass_context
-def post_comment(ctx, pr, file, body):
+def post_comment(ctx, pr, file, body, repo=None):
     """Post a comment to a PR."""
     orch = ctx.obj["ORCHESTRATOR"]
     content = _get_body_content(ctx, orch, file, body)
-    res = orch.post_comment(pr, content)
+    res = orch.post_comment(pr, content, repo=repo)
     out(ctx, f"✅ Successfully posted comment to PR #{pr}", data=res)
 
 

@@ -229,10 +229,19 @@ export async function getMergeConflictFiles(
     .map((l) => l.trim())
     .filter((l) => l.length > 0);
 
-  // First line is tree hash if successful or conflict output
-  // When conflicts exist, git merge-tree --write-tree --name-only outputs conflicted filenames
-  // Skip tree hash line if present (40 hex chars)
-  const files = lines.filter((line) => !/^[0-9a-f]{40}$/i.test(line));
+  // First line is tree hash if successful or conflict output.
+  // Filter out tree hash (40 or 64 hex characters).
+  // Filter out git merge progress/informational messages:
+  // "Auto-merging ...", "CONFLICT (...)", "Merge made by ...", etc.
+  const files = lines.filter((line) => {
+    if (/^[0-9a-f]{40,64}$/i.test(line)) return false;
+    if (/^auto-merging\s+/i.test(line)) return false;
+    if (/^conflict\s*\([^)]*\):/i.test(line)) return false;
+    if (/^warning:/i.test(line)) return false;
+    if (/^error:/i.test(line)) return false;
+    if (/^hint:/i.test(line)) return false;
+    return true;
+  });
 
-  return files;
+  return Array.from(new Set(files));
 }

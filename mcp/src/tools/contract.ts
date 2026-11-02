@@ -1871,7 +1871,7 @@ export const CodeReviewStateJsonSchema = {
   "type": "object"
 } as const;
 
-export const CommentTriageSummaryInputSchema = z.object({ "prNumber": z.number().int().describe("The number of the original PR to comment on."), "body": z.string().describe("The content of the comment.") });
+export const CommentTriageSummaryInputSchema = z.object({ "prNumber": z.number().int().describe("The number of the original PR to comment on."), "body": z.string().describe("The content of the comment."), "repo": z.union([z.string().regex(new RegExp("^[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+$")), z.null()]).describe("The target repository override (e.g. org/repo).").default(null) });
 
 export type CommentTriageSummaryInput = z.infer<typeof CommentTriageSummaryInputSchema>;
 
@@ -1886,6 +1886,20 @@ export const CommentTriageSummaryInputJsonSchema = {
       "description": "The content of the comment.",
       "title": "Body",
       "type": "string"
+    },
+    "repo": {
+      "anyOf": [
+        {
+          "pattern": "^[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "The target repository override (e.g. org/repo).",
+      "title": "Repo"
     }
   },
   "required": [
@@ -2466,7 +2480,7 @@ export const CreateRepairBranchInputJsonSchema = {
   "type": "object"
 } as const;
 
-export const CreateRepairBranchResponseSchema = z.object({ "prNumber": z.number().int(), "originalBranch": z.string(), "repairBranch": z.string(), "baseBranch": z.string(), "worktreePath": z.string(), "repo": z.union([z.string(), z.null()]).default(null), "path": z.union([z.string(), z.null()]).default(null) });
+export const CreateRepairBranchResponseSchema = z.object({ "prNumber": z.number().int(), "originalBranch": z.string(), "repairBranch": z.string(), "baseBranch": z.string(), "worktreePath": z.string(), "repo": z.union([z.string(), z.null()]).default(null), "path": z.union([z.string(), z.null()]).default(null), "baseSha": z.union([z.string(), z.null()]).default(null), "prHeadSha": z.union([z.string(), z.null()]).default(null), "fetched": z.boolean().default(false) });
 
 export type CreateRepairBranchResponse = z.infer<typeof CreateRepairBranchResponseSchema>;
 
@@ -2515,6 +2529,35 @@ export const CreateRepairBranchResponseJsonSchema = {
       ],
       "default": null,
       "title": "Path"
+    },
+    "baseSha": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Basesha"
+    },
+    "prHeadSha": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Prheadsha"
+    },
+    "fetched": {
+      "default": false,
+      "title": "Fetched",
+      "type": "boolean"
     }
   },
   "required": [
@@ -4043,7 +4086,7 @@ export const MultiExecResponseJsonSchema = {
   "type": "object"
 } as const;
 
-export const OpenReplacementPrInputSchema = z.object({ "originalPrNumber": z.number().int().describe("The number of the pull request being replaced."), "repairBranch": z.string().describe("The branch containing the fixes."), "baseBranch": z.string().describe("The branch to merge the fixes into."), "title": z.string().describe("The title of the new PR."), "body": z.string().describe("The body/description of the new PR."), "draft": z.boolean().describe("Whether to create the PR as a draft (default: true).").default(true), "worktreePath": z.union([z.string(), z.null()]).describe("Optional path to the worktree where the PR is created from.").default(null), "pushMode": z.boolean().describe("Safety gate: Must be true to push the branch and open the PR.") });
+export const OpenReplacementPrInputSchema = z.object({ "originalPrNumber": z.number().int().describe("The number of the pull request being replaced."), "repairBranch": z.string().describe("The branch containing the fixes."), "baseBranch": z.string().describe("The branch to merge the fixes into."), "title": z.string().describe("The title of the new PR."), "body": z.string().describe("The body/description of the new PR."), "draft": z.boolean().describe("Whether to create the PR as a draft (default: true).").default(true), "worktreePath": z.union([z.string(), z.null()]).describe("Optional path to the worktree where the PR is created from.").default(null), "pushMode": z.boolean().describe("Safety gate: Must be true to push the branch and open the PR."), "repo": z.union([z.string().regex(new RegExp("^[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+$")), z.null()]).describe("The target repository override (e.g. org/repo).").default(null) });
 
 export type OpenReplacementPrInput = z.infer<typeof OpenReplacementPrInputSchema>;
 
@@ -4097,6 +4140,20 @@ export const OpenReplacementPrInputJsonSchema = {
       "description": "Safety gate: Must be true to push the branch and open the PR.",
       "title": "Pushmode",
       "type": "boolean"
+    },
+    "repo": {
+      "anyOf": [
+        {
+          "pattern": "^[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "The target repository override (e.g. org/repo).",
+      "title": "Repo"
     }
   },
   "required": [
