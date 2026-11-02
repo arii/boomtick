@@ -105,37 +105,39 @@ def build_repo_context():
         generated_subcommands = collect_commands(cli, max_depth=2)
         cli_schema["subcommands"] = generated_subcommands
 
-        cli_schema_path = package_root / "cli" / "dev_tools" / "cli-schema.json"
+        cli_commands_schema_path = package_root / "cli" / "dev_tools" / "cli-commands-schema.json"
 
         # Write full schema for legacy/reference but don't bloat the agent context
+        # Write atomically using a temporary file to avoid half-written corruption
         full_subcommands = collect_commands(cli)
         full_payload = cli_schema.copy()
         full_payload["subcommands"] = full_subcommands
-        cli_schema_path.write_text(json.dumps(full_payload, indent=2))
+
+        temp_schema_path = cli_commands_schema_path.with_suffix(".tmp")
+        temp_schema_path.write_text(json.dumps(full_payload, indent=2) + "\n", encoding="utf-8")
+        temp_schema_path.replace(cli_commands_schema_path)
 
         # Also trigger Pydantic model contract generation
-        try:
-            import io
-            from contextlib import redirect_stdout
+        import io
+        from contextlib import redirect_stdout
 
-            from dev_tools.schema_gen import generate_schema
+        from dev_tools.schema_gen import generate_schema
 
-            # Capture stdout to ensure clean JSON output for build-repo-context.py
-            with redirect_stdout(io.StringIO()):
-                generate_schema()
-            # Note: sync-contracts.ts is run via pnpm run verify:schemas or manually
-        except Exception as schema_err:
-            print(f"Error generating model schemas: {schema_err}", file=sys.stderr)
+        # Capture stdout to ensure clean JSON output for build-repo-context.py
+        with redirect_stdout(io.StringIO()):
+            generate_schema()
+        # Note: sync-contracts.ts is run via pnpm run verify:schemas or manually
 
     except Exception as e:
-        print(f"Error generating cli-schema.json dynamically: {e}", file=sys.stderr)
-        # Fallback to reading file if generation failed
+        print(f"Error generating command or model schemas dynamically: {e}", file=sys.stderr)
+        # Fallback to reading command schema file if generation failed
         try:
-            cli_schema_path = package_root / "cli" / "dev_tools" / "cli-schema.json"
-            if cli_schema_path.exists():
-                cli_schema = json.loads(cli_schema_path.read_text())
+            cli_commands_schema_path = package_root / "cli" / "dev_tools" / "cli-commands-schema.json"
+            if cli_commands_schema_path.exists():
+                cli_schema = json.loads(cli_commands_schema_path.read_text(encoding="utf-8"))
         except Exception as read_err:
-            print(f"Fallback read of cli-schema.json failed: {read_err}", file=sys.stderr)
+            print(f"Fallback read of cli-commands-schema.json failed: {read_err}", file=sys.stderr)
+        raise
 
     # 5. File Tree (Repo Root)
     def get_dir_structure(path, max_depth=2, current_depth=0):

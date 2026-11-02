@@ -21,12 +21,17 @@ def get_models_schema():
 
 
 def generate_schema():
+    """Generates the Pydantic models schema contract.
+
+    Sole owner/writer of cli/dev_tools/cli-schema.json.
+    Command schemas are owned separately by cli-commands-schema.json.
+    """
     schemas = {
         "_warning": "AUTO-GENERATED: DO NOT EDIT MANUALLY. Update models.py instead.",
         "models": get_models_schema(),
     }
 
-    # Use cli-schema.json as the unified target
+    # Use cli-schema.json as the models target (sole writer: schema_gen.py)
     output_path = os.path.join(os.path.dirname(__file__), "cli-schema.json")
 
     # Read existing if exists to merge

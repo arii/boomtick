@@ -58,7 +58,12 @@ export async function getContextStatusHandler(args: Partial<z.infer<typeof GetCo
   }
 
   // Check if any tracked modified/uncommitted files or major config files are newer than .agent-context.json mtime
-  const keyFiles = ["package.json", "project_config.json", "cli/dev_tools/cli-schema.json"];
+  const keyFiles = [
+    "package.json",
+    "project_config.json",
+    "cli/dev_tools/cli-schema.json",
+    "cli/dev_tools/cli-commands-schema.json",
+  ];
   for (const keyFile of keyFiles) {
     const fullPath = path.join(targetPath, keyFile);
     if (fs.existsSync(fullPath)) {
