@@ -96,3 +96,24 @@ Config path: `~/.cursor/mcp.json` or `.cursor/mcp.json`
 - **Never modify generated artifacts directly.** Trace source files and rebuild.
 - **Run preflight checks (`td preflight`) before submitting PRs or finalizing changes.**
 - **One-step onboarding:** Run `./setup-agent.sh` to install dependencies, build the MCP server, register host configurations via `td mcp install --execute`, and pre-warm `.agent-context.json`.
+
+---
+
+## 4. Commands
+
+- `pnpm test` — run the MCP (Vitest) test suite
+- `pnpm run test:python` — run the Python CLI (pytest) test suite
+- `pnpm run lint` — run the lint task
+
+## 5. Code Map
+
+- `mcp` — MCP server source
+- `cli` — Python CLI source
+- `tests` — automated tests
+- `docs` — project documentation
+
+## 6. Conventions
+
+- Use ESM `import`/`export` in TypeScript.
+- Use `import` and `from ... import` in Python.
+- Name TypeScript tests `*.test.ts` and Python tests `test_*.py`.

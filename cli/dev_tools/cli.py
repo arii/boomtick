@@ -1133,7 +1133,13 @@ def summary_report(ctx):
 @click.option("--base", default=None, help="Base branch for merge simulation")
 @click.pass_context
 def preflight(ctx, base):
-    """Run local preflight checks: td doctor, typecheck, linting, overlap detection, and merge simulation."""
+    """Run local preflight checks: td doctor, typecheck, linting, overlap detection, and merge simulation.
+
+    Repo-aware: typecheck/lint are skipped when package.json lacks those scripts,
+    the AST audit is skipped when no configured audit_check_dirs exist in this
+    repo, and merge simulation discovers the base ref (config base, origin/main,
+    main, origin/master, master) instead of assuming origin/main.
+    """
     base = base or get_config().base_branch_name
     orch = ctx.obj["ORCHESTRATOR"]
     res = orch.run_preflight(base_branch=base)
@@ -1418,16 +1424,23 @@ def agent_group():
 
 
 @agent_group.command()
-@click.argument("branch")
-@click.argument("task")
+@click.argument("branch", required=False)
+@click.argument("task", required=False)
 @click.option("--title", "-t", help="Custom session title")
 @click.option("--repo", "-r", help="Target GitHub repository (e.g. arii/portfolio)")
+@click.option("--prompt", "prompt", default=None, help="Task text (alternative to the TASK argument)")
+@click.option("--branch", "branch_opt", default=None, help="Branch to work on (alternative to the BRANCH argument)")
 @click.pass_context
-def dispatch(ctx, branch, task, title, repo):
+def dispatch(ctx, branch, task, title, repo, prompt, branch_opt):
     """
     Initialize a Jules session for a specific branch and task.
     Note: Use 'main' branch for PR consolidation tasks to avoid rebasing issues.
+    BRANCH and TASK may also be passed as --branch / --prompt flags.
     """
+    branch = branch_opt or branch
+    task = prompt or task
+    if not branch or not task:
+        raise click.UsageError("Missing BRANCH and TASK (or --branch and --prompt).")
     orch = ctx.obj["ORCHESTRATOR"]
     res = orch.dispatch_jules_review(branch, task, title=title, repo=repo)
 
@@ -2029,6 +2042,15 @@ for group in [agent_group]:
     group.add_command(get_session, name="session")
     group.add_command(sync, name="list")
     group.add_command(sync, name="list-sessions")
+
+
+@cli.group(name="jules")
+def jules_group():
+    """Jules session operations (alias of the matching `td agent` commands)."""
+
+
+jules_group.add_command(sync, name="list-sessions")
+jules_group.add_command(sync, name="list")
 
 
 def main():
