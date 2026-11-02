@@ -205,3 +205,14 @@ def test_agent_plan_review_options():
 
         res_pr_num = runner.invoke(cli, ["agent", "plan-review", "--pr-number", "42"])
         assert res_pr_num.exit_code == 0, res_pr_num.output
+
+def test_gh_post_comment_repo_option():
+    runner = CliRunner()
+    with patch("dev_tools.cli.LazyOrchestrator") as mock_lazy:
+        mock_orch = MagicMock()
+        mock_lazy.return_value = mock_orch
+        mock_orch.post_comment.return_value = {"id": 456}
+
+        res = runner.invoke(cli, ["gh", "post-comment", "--pr", "42", "--body", "hello", "--repo", "org/repo"])
+        assert res.exit_code == 0, res.output
+        mock_orch.post_comment.assert_called_with(42, "hello", repo="org/repo")

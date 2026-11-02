@@ -10,6 +10,7 @@ export const OpenReplacementPrInputSchema = z.object({
   draft: z.boolean().optional().default(true),
   worktreePath: z.string().optional(),
   pushMode: z.boolean().optional().default(false),
+  repo: z.string().optional().describe("The target repository override (e.g. org/repo)."),
 });
 
 export async function openReplacementPrHandler(args: z.infer<typeof OpenReplacementPrInputSchema>) {
@@ -33,6 +34,10 @@ export async function openReplacementPrHandler(args: z.infer<typeof OpenReplacem
 
   if (args.draft) {
     prArgs.push("--draft");
+  }
+
+  if (args.repo) {
+    prArgs.push("--repo", args.repo);
   }
 
   const result = await runCommand("gh", prArgs, { cwd: args.worktreePath });

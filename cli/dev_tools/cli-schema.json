@@ -1777,6 +1777,20 @@
           "description": "The content of the comment.",
           "title": "Body",
           "type": "string"
+        },
+        "repo": {
+          "anyOf": [
+            {
+              "pattern": "^[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The target repository override (e.g. org/repo).",
+          "title": "Repo"
         }
       },
       "required": [
@@ -2346,6 +2360,35 @@
           ],
           "default": null,
           "title": "Path"
+        },
+        "baseSha": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Basesha"
+        },
+        "prHeadSha": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Prheadsha"
+        },
+        "fetched": {
+          "default": false,
+          "title": "Fetched",
+          "type": "boolean"
         }
       },
       "required": [
@@ -3723,6 +3766,20 @@
           "description": "Safety gate: Must be true to push the branch and open the PR.",
           "title": "Pushmode",
           "type": "boolean"
+        },
+        "repo": {
+          "anyOf": [
+            {
+              "pattern": "^[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The target repository override (e.g. org/repo).",
+          "title": "Repo"
         }
       },
       "required": [

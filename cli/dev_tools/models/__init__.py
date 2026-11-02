@@ -352,6 +352,11 @@ class OpenReplacementPrInput(CamelCaseModel):
         None, description="Optional path to the worktree where the PR is created from."
     )
     push_mode: bool = Field(..., description="Safety gate: Must be true to push the branch and open the PR.")
+    repo: Optional[str] = Field(
+        None,
+        pattern=r"^[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+$",
+        description="The target repository override (e.g. org/repo).",
+    )
 
 
 class CreatePullRequestInput(CamelCaseModel):
@@ -370,6 +375,11 @@ class CreatePullRequestInput(CamelCaseModel):
 class CommentTriageSummaryInput(CamelCaseModel):
     pr_number: int = Field(..., description="The number of the original PR to comment on.")
     body: str = Field(..., description="The content of the comment.")
+    repo: Optional[str] = Field(
+        None,
+        pattern=r"^[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+$",
+        description="The target repository override (e.g. org/repo).",
+    )
 
 
 class GetPrInput(CamelCaseModel):
@@ -676,6 +686,9 @@ class CreateRepairBranchResponse(CamelCaseModel):
     worktree_path: str
     repo: Optional[str] = None
     path: Optional[str] = None
+    base_sha: Optional[str] = None
+    pr_head_sha: Optional[str] = None
+    fetched: bool = False
 
 
 class CheckJulesStatusResponse(CamelCaseModel):

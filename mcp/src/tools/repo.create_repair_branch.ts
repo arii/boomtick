@@ -48,6 +48,27 @@ export async function createRepairBranchHandler(args: z.infer<typeof CreateRepai
   // Ensure latest in target repo
   await runCommand("git", ["fetch", "origin", headRefName], { cwd: targetCwd });
   await runCommand("git", ["fetch", "origin", baseRefName], { cwd: targetCwd });
+  const fetched = true;
+
+  let baseSha: string | null = null;
+  let prHeadSha: string | null = null;
+  try {
+    const baseShaRes = await runCommand("git", ["rev-parse", `origin/${baseRefName}`], { cwd: targetCwd });
+    if (baseShaRes.exitCode === 0 && baseShaRes.stdout.trim()) {
+      baseSha = baseShaRes.stdout.trim();
+    }
+  } catch {
+    // Fallback if rev-parse fails
+  }
+
+  try {
+    const headShaRes = await runCommand("git", ["rev-parse", `origin/${headRefName}`], { cwd: targetCwd });
+    if (headShaRes.exitCode === 0 && headShaRes.stdout.trim()) {
+      prHeadSha = headShaRes.stdout.trim();
+    }
+  } catch {
+    // Fallback if rev-parse fails
+  }
 
   const worktreePath = await createWorktree(`origin/${headRefName}`, args.prNumber, targetCwd);
 
@@ -76,6 +97,9 @@ export async function createRepairBranchHandler(args: z.infer<typeof CreateRepai
     baseBranch: baseRefName,
     worktreePath,
     path: targetCwd,
+    baseSha,
+    prHeadSha,
+    fetched,
   };
 
   if (args.repo) {
