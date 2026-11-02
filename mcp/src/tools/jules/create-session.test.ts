@@ -108,6 +108,19 @@ describe("createJulesSessionHandler", () => {
       .rejects.toThrow("td returned error: PR not found");
   });
 
+  it("should append resolution path if JULES_API_KEY is not set or empty", async () => {
+    vi.mocked(shell.runCommand).mockResolvedValue({
+      stdout: JSON.stringify({ status: "error", message: "JULES_API_KEY is not set or empty" }),
+      stderr: "",
+      exitCode: 1,
+      durationMs: 10,
+      command: "td agent dispatch"
+    });
+
+    await expect(createJulesSessionHandler({ task: "do work" }))
+      .rejects.toThrow(/td returned error: JULES_API_KEY is not set or empty \(checked in environment and .*\)/);
+  });
+
   it("should throw descriptive error if PR JSON is invalid", async () => {
     vi.mocked(shell.runCommand).mockResolvedValue({
       stdout: "invalid json",
