@@ -91,9 +91,12 @@ def test_create_session_from_source_auto_extract_title(mock_post):
     assert payload["prompt"] == prompt
 
 
+@patch("dev_tools.orchestrator.get_github_token", return_value="fake-token")
 @patch("dev_tools.orchestrator.GitHubClient")
 @patch("dev_tools.orchestrator.JulesClient")
-def test_orchestrator_dispatch_jules_review_passes_title(mock_jules_cls, mock_gh_cls):
+def test_orchestrator_dispatch_jules_review_passes_title(
+    mock_jules_cls, mock_gh_cls, mock_token
+):
     orch = Orchestrator()
     orch.github.branch_exists.return_value = True
     orch.jules.discover_source_id.return_value = "clean-source-id"
@@ -111,9 +114,12 @@ def test_orchestrator_dispatch_jules_review_passes_title(mock_jules_cls, mock_gh
     )
 
 
+@patch("dev_tools.orchestrator.get_github_token", return_value="fake-token")
 @patch("dev_tools.orchestrator.GitHubClient")
 @patch("dev_tools.orchestrator.JulesClient")
-def test_orchestrator_dispatch_jules_review_with_target_repo(mock_jules_cls, mock_gh_cls):
+def test_orchestrator_dispatch_jules_review_with_target_repo(
+    mock_jules_cls, mock_gh_cls, mock_token
+):
     orch = Orchestrator()
     orch.github.branch_exists.return_value = True
     orch.jules.discover_source_id.return_value = "portfolio-source-id"
