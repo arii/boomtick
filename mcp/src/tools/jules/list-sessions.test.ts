@@ -61,4 +61,22 @@ describe("listJulesSessionsHandler", () => {
     const result = await listJulesSessionsHandler({});
     expect(result).toEqual({ sessions: [] });
   });
+
+  it("should throw explicit error naming JULES_API_KEY and resolution path when JULES_API_KEY is unset", async () => {
+    vi.mocked(shell.runCommand).mockResolvedValue({
+      stdout: JSON.stringify({
+        status: "success",
+        sessions: [],
+        warning: "JULES_API_KEY unset",
+      }),
+      stderr: "",
+      exitCode: 0,
+      durationMs: 0,
+      command: "td agent sync",
+    });
+
+    await expect(listJulesSessionsHandler({})).rejects.toThrow(
+      /JULES_API_KEY is not set or empty \(checked in environment and .*\)/
+    );
+  });
 });

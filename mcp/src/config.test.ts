@@ -1,9 +1,64 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { execSync } from "child_process";
+import fs from "fs";
+import path from "path";
+import os from "os";
 
 vi.mock("child_process", () => ({
   execSync: vi.fn(),
 }));
+
+describe("stack .env loader", () => {
+  const originalEnv = process.env;
+  let tmpDir: string;
+
+  beforeEach(() => {
+    process.env = { ...originalEnv };
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "boomtick-test-env-"));
+  });
+
+  afterEach(() => {
+    process.env = originalEnv;
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  it("should resolve default stack .env path or custom override", async () => {
+    delete process.env.REMOTE_SERVER_ENV_PATH;
+    delete process.env.STACK_ENV_PATH;
+    const { resolveStackEnvPath, DEFAULT_STACK_ENV_PATH } = await import("./config.js");
+    expect(resolveStackEnvPath()).toBe(DEFAULT_STACK_ENV_PATH);
+
+    process.env.REMOTE_SERVER_ENV_PATH = "/custom/remote-server/.env";
+    expect(resolveStackEnvPath()).toBe("/custom/remote-server/.env");
+
+    delete process.env.REMOTE_SERVER_ENV_PATH;
+    process.env.STACK_ENV_PATH = "/custom/stack/.env";
+    expect(resolveStackEnvPath()).toBe("/custom/stack/.env");
+  });
+
+  it("should load JULES_API_KEY from stack .env without clobbering existing env vars", async () => {
+    const envFilePath = path.join(tmpDir, ".env");
+    fs.writeFileSync(
+      envFilePath,
+      `
+# Comment line
+JULES_API_KEY="my-secret-jules-key"
+PRE_EXISTING_VAR="from-file"
+ANOTHER_KEY=plain_value
+`
+    );
+
+    delete process.env.JULES_API_KEY;
+    process.env.PRE_EXISTING_VAR = "original-value";
+
+    const { loadStackEnv } = await import("./config.js");
+    loadStackEnv(envFilePath);
+
+    expect(process.env.JULES_API_KEY).toBe("my-secret-jules-key");
+    expect(process.env.PRE_EXISTING_VAR).toBe("original-value");
+    expect(process.env.ANOTHER_KEY).toBe("plain_value");
+  });
+});
 
 describe("config", () => {
   const originalEnv = process.env;

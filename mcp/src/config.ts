@@ -16,6 +16,58 @@ if (fs.existsSync(envPath) && typeof process.loadEnvFile === "function") {
   }
 }
 
+export const DEFAULT_STACK_ENV_PATH = "/srv/remote-server/.env";
+
+export function resolveStackEnvPath(): string {
+  return (
+    process.env.REMOTE_SERVER_ENV_PATH ||
+    process.env.STACK_ENV_PATH ||
+    DEFAULT_STACK_ENV_PATH
+  );
+}
+
+export function loadStackEnv(explicitPath?: string): void {
+  const targetPath = explicitPath || resolveStackEnvPath();
+  if (!fs.existsSync(targetPath)) {
+    return;
+  }
+
+  try {
+    const content = fs.readFileSync(targetPath, "utf-8");
+    const lines = content.split(/\r?\n/);
+    for (const rawLine of lines) {
+      const line = rawLine.trim();
+      if (!line || line.startsWith("#")) {
+        continue;
+      }
+      const eqIdx = line.indexOf("=");
+      if (eqIdx === -1) {
+        continue;
+      }
+      const key = line.slice(0, eqIdx).trim();
+      let value = line.slice(eqIdx + 1).trim();
+
+      // Strip surrounding quotes if present
+      if (
+        (value.startsWith('"') && value.endsWith('"')) ||
+        (value.startsWith("'") && value.endsWith("'"))
+      ) {
+        value = value.slice(1, -1);
+      }
+
+      // Do not overwrite existing environment variables
+      if (process.env[key] === undefined) {
+        process.env[key] = value;
+      }
+    }
+  } catch {
+    // Gracefully ignore reading errors
+  }
+}
+
+// Load stack .env on startup
+loadStackEnv();
+
 export { initializeConfig };
 
 export const config = {
