@@ -218,7 +218,7 @@ class Orchestrator:
         if pr.get("mergeable") is False:
             base_branch_name = get_config().base_branch_name
             feedback += f"- **Merge Conflicts:** This PR has conflicts with the `{base_branch_name}` base branch.\n"
-            feedback += f"  - *Fix:* Pull `{base_branch_name}` into your branch, resolve the conflicts (e.g., via `{get_config().cli_alias} gh detect-conflicts`), and force push.\n"
+            feedback += f"  - *Fix:* Pull `{base_branch_name}` into your branch, resolve the conflicts (e.g., via `{get_config().cli_alias} gh resolve-conflicts --pr {pr.get('number', '')}`), and force push.\n"
 
         if "overlap" in pr.get("title", "").lower() or "cli" in pr.get("title", "").lower():
             feedback += "- **Overlap / Interdependency:** This PR touches dev-tools or overlap logic.\n"
@@ -491,6 +491,11 @@ class Orchestrator:
         return file_exports
 
     def detect_conflicts(self, target_pr_num: Optional[int] = None) -> Dict[Tuple[int, ...], List[str]]:
+        """
+        Detect file overlap between open PRs (shared touched paths).
+
+        This is NOT merge-conflict detection — for mergeability use GitHub mergeStateStatus/mergeable.
+        """
         repo = get_github_client().get_repo(get_repo_name())
         open_prs = list(repo.get_pulls(state="open"))
         file_to_prs = defaultdict(list)
@@ -788,13 +793,23 @@ class Orchestrator:
         }
 
     def handle_detect_conflicts(self, pr_num: Optional[int] = None, all_prs: bool = False) -> List[Dict[str, Any]]:
+        """
+        Handle detect-conflicts request, returning PR-vs-PR file overlap groups.
+
+        Each group is explicitly typed with "type": "file_overlap" so consumers
+        do not mistake touched-path overlap for git merge unmergeability.
+        """
         if pr_num is not None and all_prs:
             raise CLIError("Provide either pr_num or all_prs, not both")
         target_pr = pr_num if not all_prs else None
         conflicts = self.detect_conflicts(target_pr)
         formatted = []
         for pr_pair, files in conflicts.items():
-            formatted.append({"prs": list(pr_pair), "files": files})
+            formatted.append({
+                "prs": list(pr_pair),
+                "files": files,
+                "type": "file_overlap",
+            })
         return formatted
 
     def handle_status_board(self, limit: int = 10) -> List[Dict[str, Any]]:

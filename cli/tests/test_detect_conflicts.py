@@ -72,6 +72,7 @@ def test_orchestrator_detect_conflicts_specific_pr(orchestrator):
         assert len(res) == 1
         assert res[0]["prs"] == [1, 2]
         assert res[0]["files"] == ["shared.py"]
+        assert res[0]["type"] == "file_overlap"
 
 
 def test_orchestrator_detect_conflicts_all_prs(orchestrator):
@@ -80,6 +81,8 @@ def test_orchestrator_detect_conflicts_all_prs(orchestrator):
         res = orchestrator.handle_detect_conflicts(all_prs=True)
         mock_detect.assert_called_once_with(None)
         assert len(res) == 2
+        assert res[0]["type"] == "file_overlap"
+        assert res[1]["type"] == "file_overlap"
 
 
 def test_cli_detect_conflicts_all():
@@ -91,7 +94,7 @@ def test_cli_detect_conflicts_all():
 
         # Mock handle_detect_conflicts response
         mock_orch.handle_detect_conflicts.return_value = [
-            {"prs": [1, 2], "files": ["shared.py"]}
+            {"prs": [1, 2], "files": ["shared.py"], "type": "file_overlap"}
         ]
 
         # Invoke CLI command in JSON mode (default)
@@ -102,6 +105,7 @@ def test_cli_detect_conflicts_all():
         assert data["status"] == "success"
         assert len(data["conflicts"]) == 1
         assert data["conflicts"][0]["prs"] == [1, 2]
+        assert data["conflicts"][0]["type"] == "file_overlap"
         mock_orch.handle_detect_conflicts.assert_called_once_with(pr_num=None, all_prs=True)
 
 
@@ -139,7 +143,7 @@ def test_cli_detect_conflicts_no_args():
         mock_lazy.return_value = mock_orch
 
         mock_orch.handle_detect_conflicts.return_value = [
-            {"prs": [1, 2], "files": ["shared.py"]}
+            {"prs": [1, 2], "files": ["shared.py"], "type": "file_overlap"}
         ]
 
         result = runner.invoke(cli, ["gh", "detect-conflicts"])
@@ -153,4 +157,5 @@ def test_cli_detect_conflicts_no_args():
         data = json.loads(stdout)
         assert data["status"] == "success"
         assert len(data["conflicts"]) == 1
+        assert data["conflicts"][0]["type"] == "file_overlap"
         mock_orch.handle_detect_conflicts.assert_called_once_with(pr_num=None, all_prs=True)
