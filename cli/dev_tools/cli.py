@@ -717,14 +717,14 @@ def aggregate(ctx, target_branch, pr_numbers):
 def _render_conflicts(ctx, conflicts):
     if not ctx.obj["JSON"]:
         if not conflicts:
-            click.echo("✅ No potential merge conflicts detected.")
+            click.echo("✅ No file overlap between open PRs detected.")
         for c in conflicts:
             prs_str = ' ↔ '.join(f'#{p}' for p in c['prs'])
             files_count = len(c['files'])
             click.echo(f"⚠️  {prs_str} share {files_count} file(s):")
             for f in sorted(c["files"])[:10]:
                 click.echo(f"    - {f}")
-    out(ctx, f"Found {len(conflicts)} potential conflicts.", data={"conflicts": conflicts})
+    out(ctx, f"Found {len(conflicts)} file overlap group(s).", data={"conflicts": conflicts})
 
 
 @gh.command()
@@ -815,10 +815,11 @@ def verify_versions(ctx, diff_input):
 
 
 @gh.command()
-@click.option("--pr", "--pr-number", "pr", type=int, help="PR number to detect conflicts for")
-@click.option("--all", "all_prs", is_flag=True, help="Detect conflicts for all open PRs")
+@click.option("--pr", "--pr-number", "pr", type=int, help="PR number to detect file overlap for")
+@click.option("--all", "all_prs", is_flag=True, help="Detect file overlap for all open PRs")
 @click.pass_context
 def detect_conflicts(ctx, pr, all_prs):
+    """Detect file overlap between open PRs (shared touched paths). This is NOT merge-conflict detection — for mergeability use GitHub mergeStateStatus/mergeable."""
     if pr is not None and all_prs:
         err(ctx, "Provide either --pr or --all, not both")
     if pr is None and not all_prs:
