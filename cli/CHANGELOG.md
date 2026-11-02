@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.17.1](https://github.com/arii/boomtick/compare/cli-v0.17.0...cli-v0.17.1) (2026-11-02)
+
+
+### Bug Fixes
+
+* **schemas:** gitignore generated schemas, clean regen + tracked hooks ([#1076](https://github.com/arii/boomtick/issues/1076)) ([bd14054](https://github.com/arii/boomtick/commit/bd140545a30148731c697bc67e78a1062c24f150))
+
 ## [0.17.0](https://github.com/arii/boomtick/compare/cli-v0.16.0...cli-v0.17.0) (2026-11-02)
 
 
