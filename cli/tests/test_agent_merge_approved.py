@@ -1,4 +1,4 @@
-import pytest
+"""Unit tests for agent merge-approved command and eligibility checks."""
 from unittest.mock import MagicMock, patch
 from click.testing import CliRunner
 from dev_tools.cli import cli
@@ -7,6 +7,7 @@ from dev_tools.orchestrator import Orchestrator
 
 @patch.dict("os.environ", {"GITHUB_TOKEN": "fake_token"})
 def test_evaluate_pr_merge_readiness_eligible():
+    """Test that a fully approved, clean, non-draft PR with green checks is eligible."""
     orch = Orchestrator()
     orch.github.fetch_pr_details = MagicMock(return_value={
         "title": "Fix something",
@@ -32,6 +33,7 @@ def test_evaluate_pr_merge_readiness_eligible():
 
 @patch.dict("os.environ", {"GITHUB_TOKEN": "fake_token"})
 def test_evaluate_pr_merge_readiness_ineligible_reasons():
+    """Test refusal reasons for drafts, unapproved, failing checks, and conflicting PRs."""
     orch = Orchestrator()
     # 1. Draft
     orch.github.fetch_pr_details = MagicMock(return_value={
@@ -94,10 +96,11 @@ def test_evaluate_pr_merge_readiness_ineligible_reasons():
 
 @patch.dict("os.environ", {"GITHUB_TOKEN": "fake_token"})
 def test_merge_approved_dry_run_and_execute():
+    """Test dry-run preview and execute modes for merge_approved."""
     orch = Orchestrator()
     orch.list_prs = MagicMock(return_value={"prs": [{"number": 10}, {"number": 20}]})
 
-    def fake_readiness(pr_num, repo=None):
+    def fake_readiness(pr_num, **_kwargs):
         if pr_num == 10:
             return {
                 "pr_number": 10,
@@ -109,17 +112,16 @@ def test_merge_approved_dry_run_and_execute():
                 "is_eligible": True,
                 "reason": None,
             }
-        else:
-            return {
-                "pr_number": 20,
-                "title": "PR 20",
-                "draft": False,
-                "review_decision": None,
-                "has_failing_checks": False,
-                "mergeable": "MERGEABLE",
-                "is_eligible": False,
-                "reason": "Review decision is unapproved",
-            }
+        return {
+            "pr_number": 20,
+            "title": "PR 20",
+            "draft": False,
+            "review_decision": None,
+            "has_failing_checks": False,
+            "mergeable": "MERGEABLE",
+            "is_eligible": False,
+            "reason": "Review decision is unapproved",
+        }
 
     orch.evaluate_pr_merge_readiness = MagicMock(side_effect=fake_readiness)
     orch.github.merge_pull_request = MagicMock(return_value={"message": "Pull Request successfully merged"})
@@ -150,6 +152,7 @@ def test_merge_approved_dry_run_and_execute():
 
 
 def test_cli_agent_merge_approved():
+    """Test CLI invocation of td agent merge-approved."""
     runner = CliRunner()
     with patch("dev_tools.orchestrator.Orchestrator.merge_approved") as mock_merge:
         mock_merge.return_value = {

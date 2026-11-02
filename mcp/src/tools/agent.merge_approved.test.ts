@@ -12,17 +12,17 @@ describe("agent_merge_approved MCP tool handler", () => {
       status: "success",
       mode: "dry-run",
       total_evaluated: 1,
-      eligible_count: 1,
-      merged_count: null,
+      eligibleCount: 1,
+      mergedCount: null,
       results: [
         {
-          pr_number: 12,
+          prNumber: 12,
           title: "PR 12",
           draft: false,
-          review_decision: "APPROVED",
-          has_failing_checks: false,
+          reviewDecision: "APPROVED",
+          hasFailingChecks: false,
           mergeable: "MERGEABLE",
-          is_eligible: true,
+          isEligible: true,
           reason: null,
         },
       ],
@@ -33,7 +33,7 @@ describe("agent_merge_approved MCP tool handler", () => {
       ["agent", "merge-approved", "-r", "test/repo", "--dry-run"],
       "agent merge-approved"
     );
-    expect(res.eligible_count).toBe(1);
+    expect(res.eligibleCount).toBe(1);
     expect(res.mode).toBe("dry-run");
   });
 
@@ -41,18 +41,18 @@ describe("agent_merge_approved MCP tool handler", () => {
     const runTDCliSpy = vi.spyOn(cliModule, "runTDCli").mockResolvedValue({
       status: "success",
       mode: "execute",
-      total_evaluated: 1,
-      eligible_count: 1,
-      merged_count: 1,
+      totalEvaluated: 1,
+      eligibleCount: 1,
+      mergedCount: 1,
       results: [
         {
-          pr_number: 12,
+          prNumber: 12,
           title: "PR 12",
           draft: false,
-          review_decision: "APPROVED",
-          has_failing_checks: false,
+          reviewDecision: "APPROVED",
+          hasFailingChecks: false,
           mergeable: "MERGEABLE",
-          is_eligible: true,
+          isEligible: true,
           reason: null,
           merged: true,
           message: "Merged successfully",
@@ -65,7 +65,7 @@ describe("agent_merge_approved MCP tool handler", () => {
       ["agent", "merge-approved", "-r", "test/repo", "--execute"],
       "agent merge-approved"
     );
-    expect(res.merged_count).toBe(1);
+    expect(res.mergedCount).toBe(1);
     expect(res.mode).toBe("execute");
   });
 });

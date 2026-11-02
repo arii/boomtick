@@ -2634,7 +2634,7 @@ Follow the "Audit comment template" in `docs/agent/issue-audit-rules.md` to post
 
         results = []
         eligible_count = 0
-        merged_count = 0 if execute else None
+        merged_count: Optional[int] = 0 if execute else None
 
         for pr in open_prs:
             pr_num = pr.get("number")
@@ -2655,12 +2655,14 @@ Follow the "Audit comment template" in `docs/agent/issue-audit-rules.md` to post
                         continue
 
                     try:
+                        target_repo_name = repo or self.github.repo
                         merge_res = self.github.merge_pull_request(
                             pr_num,
-                            commit_title=f"Merge pull request #{pr_num} from {repo or self.repo}",
+                            commit_title=f"Merge pull request #{pr_num} from {target_repo_name}",
                             repo=repo,
                         )
-                        merged_count += 1
+                        if merged_count is not None:
+                            merged_count += 1
                         results.append({
                             **recheck,
                             "merged": True,
