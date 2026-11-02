@@ -839,3 +839,44 @@ class AgentDiscussResponse(CamelCaseModel):
     status: str = "success"
     data: Optional[Dict[str, Any]] = None
     message: Optional[str] = None
+
+
+class AgentMergeApprovedItem(CamelCaseModel):
+    pr_number: int
+    title: str
+    draft: bool
+    review_decision: Optional[str] = None
+    has_failing_checks: bool
+    mergeable: Optional[str] = None
+    is_eligible: bool
+    reason: Optional[str] = None
+    merged: Optional[bool] = None
+    message: Optional[str] = None
+
+
+class AgentMergeApprovedInput(CamelCaseModel):
+    repo: Optional[str] = Field(None, description="Target repository override (e.g. owner/repo)")
+    execute: Optional[bool] = Field(False, description="Merge each ready PR instead of dry-run preview")
+
+
+class AgentMergeApprovedResponse(CamelCaseModel):
+    status: str = "success"
+    mode: Literal["dry-run", "execute"]
+    total_evaluated: int
+    eligible_count: int
+    merged_count: Optional[int] = None
+    results: List[AgentMergeApprovedItem] = Field(default_factory=list)
+
+
+class SuggestCounts(CamelCaseModel):
+    open_prs: int = 0
+    failing_runs: int = 0
+    active_sessions: int = 0
+
+
+class SuggestNextActionResponse(CamelCaseModel):
+    status: str = "success"
+    suggestion: str
+    fast_path: bool
+    counts: SuggestCounts
+    runnable_command: Optional[str] = None

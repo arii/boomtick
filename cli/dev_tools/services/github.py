@@ -502,6 +502,68 @@ class GitHubClient:
 
         return prs
 
+    def merge_pull_request(
+        self,
+        number: int,
+        commit_title: Optional[str] = None,
+        commit_message: Optional[str] = None,
+        merge_method: str = "merge",
+        repo: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Merges a pull request using GitHub REST API."""
+        target_repo = repo or self.repo
+        payload: Dict[str, Any] = {"merge_method": merge_method}
+        if commit_title:
+            payload["commit_title"] = commit_title
+        if commit_message:
+            payload["commit_message"] = commit_message
+        return self._request("PUT", f"/repos/{target_repo}/pulls/{number}/merge", json_data=payload)
+
+    def fetch_pr_review_decision(self, number: int, repo: Optional[str] = None) -> Optional[str]:
+        """
+        Determines the review decision ('APPROVED', 'CHANGES_REQUESTED', 'REVIEW_REQUIRED', or None).
+        Attempts to query GraphQL for reviewDecision first, falling back to REST reviews.
+        """
+        target_repo = repo or self.repo
+        if "/" in str(target_repo):
+            owner, repo_name = str(target_repo).split("/", 1)
+            query = """
+            query getPrReviewDecision($owner: String!, $repo: String!, $prNumber: Int!) {
+              repository(owner: $owner, name: $repo) {
+                pullRequest(number: $prNumber) {
+                  reviewDecision
+                }
+              }
+            }
+            """
+            try:
+                res = self._request("POST", "/graphql", json_data={"query": query, "variables": {"owner": owner, "repo": repo_name, "prNumber": number}})
+                pr_node = res.get("data", {}).get("repository", {}).get("pullRequest")
+                if pr_node and "reviewDecision" in pr_node:
+                    return pr_node.get("reviewDecision")
+            except Exception:
+                pass
+
+        # Fallback to REST reviews
+        try:
+            reviews = self.fetch_reviews(number, repo=target_repo)
+            # Find the latest review state per user
+            user_reviews: Dict[str, str] = {}
+            for r in reviews:
+                user = r.get("user", {}).get("login")
+                state = r.get("state")
+                if user and state in ("APPROVED", "CHANGES_REQUESTED", "COMMENTED", "DISMISSED"):
+                    if state != "COMMENTED":
+                        user_reviews[user] = state
+            states = list(user_reviews.values())
+            if any(s == "CHANGES_REQUESTED" for s in states):
+                return "CHANGES_REQUESTED"
+            if any(s == "APPROVED" for s in states):
+                return "APPROVED"
+        except Exception:
+            pass
+        return None
+
     def create_pull_request(
         self, title: str, body: str, head: str, base: str, draft: bool = False, repo: Optional[str] = None
     ) -> Dict[str, Any]:
