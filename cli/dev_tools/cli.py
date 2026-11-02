@@ -1768,6 +1768,49 @@ def run_feedback_check(ctx, limit):
         _handle_unexpected_error(ctx, "agent run-feedback-check", e)
 
 
+@agent_group.command(name="run-triage")
+@click.option("--limit", type=int, default=10, help="Limit the number of sessions/PRs to inspect")
+@click.option("--concurrency", type=int, default=2, help="Maximum concurrent Jules sessions for backlog dispatch")
+@click.option("--repo", "-r", "repos", multiple=True, help="Target ecosystem repository override(s)")
+@click.option("--dry-run/--execute", default=False, help="Perform dry run without mutating actions")
+@click.pass_context
+def run_triage(ctx, limit, concurrency, repos, dry_run):
+    """Autonomous multi-repo triage pass (PR auto-merge, Jules plan nudging, backlog dispatch)."""
+    try:
+        from dev_tools.daemon import AutonomousTriageDaemon
+
+        repo_list = list(repos) if repos else None
+        daemon_instance = AutonomousTriageDaemon(repos=repo_list)
+        res = daemon_instance.run_triage(
+            limit=limit,
+            concurrency_limit=concurrency,
+            dry_run=dry_run,
+        )
+        if not ctx.obj.get("JSON", False):
+            click.echo("Autonomous Multi-Repo Triage Summary:")
+            click.echo(f"  • Sessions evaluated: {res.get('sessions_evaluated', 0)}")
+            click.echo(f"  • Sessions nudged:    {len(res.get('sessions_nudged', []))}")
+            click.echo(f"  • Empty PRs handled:  {len(res.get('empty_prs_handled', []))}")
+            click.echo(f"  • PRs auto-merged:    {len(res.get('prs_merged', []))}")
+            click.echo(f"  • Stale CI closed:    {len(res.get('stale_issues_closed', []))}")
+            click.echo(f"  • Backlog dispatched: {len(res.get('backlog_dispatched', []))}")
+
+        out(ctx, "Autonomous triage pass completed successfully.", data=res)
+    except Exception as e:
+        _handle_unexpected_error(ctx, "agent run-triage", e)
+
+
+@agent_group.command(name="triage-daemon")
+@click.option("--limit", type=int, default=10, help="Limit the number of sessions/PRs to inspect")
+@click.option("--concurrency", type=int, default=2, help="Maximum concurrent Jules sessions for backlog dispatch")
+@click.option("--repo", "-r", "repos", multiple=True, help="Target ecosystem repository override(s)")
+@click.option("--dry-run/--execute", default=False, help="Perform dry run without mutating actions")
+@click.pass_context
+def triage_daemon(ctx, limit, concurrency, repos, dry_run):
+    """Alias for 'td agent run-triage'."""
+    ctx.invoke(run_triage, limit=limit, concurrency=concurrency, repos=repos, dry_run=dry_run)
+
+
 @cli.command(name="context-warm")
 @click.option("--force", is_flag=True, help="Force re-generation of context even if not stale")
 @click.pass_context

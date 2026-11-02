@@ -527,6 +527,120 @@ class GitHubClient:
         data = {"title": title, "body": body, "head": head, "base": base, "draft": draft}
         return self._request("POST", f"/repos/{target_repo}/pulls", json_data=data)
 
+    def mark_pr_ready(self, number: int, repo: Optional[str] = None) -> bool:
+        """Promote a draft PR to ready for review via gh CLI or GraphQL."""
+        target_repo = repo or self.repo
+        cmd = ["gh", "pr", "ready", str(number), "-R", target_repo]
+        res = subprocess.run(cmd, capture_output=True, text=True, check=False)
+        if res.returncode == 0:
+            return True
+        log_warn(f"gh pr ready failed for #{number} in {target_repo}: {res.stderr}")
+        return False
+
+    def merge_pr(
+        self,
+        number: int,
+        repo: Optional[str] = None,
+        method: str = "merge",
+        delete_branch: bool = True,
+        admin: bool = False,
+    ) -> bool:
+        """Merges a pull request using gh CLI."""
+        target_repo = repo or self.repo
+        cmd = ["gh", "pr", "merge", str(number), "-R", target_repo]
+        if method == "squash":
+            cmd.append("--squash")
+        elif method == "rebase":
+            cmd.append("--rebase")
+        else:
+            cmd.append("--merge")
+
+        if delete_branch:
+            cmd.append("--delete-branch")
+        if admin:
+            cmd.append("--admin")
+
+        res = subprocess.run(cmd, capture_output=True, text=True, check=False)
+        if res.returncode == 0:
+            return True
+        log_warn(f"gh pr merge failed for #{number} in {target_repo}: {res.stderr}")
+        return False
+
+    def close_pr(self, number: int, repo: Optional[str] = None, comment: Optional[str] = None) -> bool:
+        """Closes a pull request with an optional comment."""
+        target_repo = repo or self.repo
+        cmd = ["gh", "pr", "close", str(number), "-R", target_repo]
+        if comment:
+            cmd.extend(["--comment", comment])
+        res = subprocess.run(cmd, capture_output=True, text=True, check=False)
+        if res.returncode == 0:
+            return True
+        log_warn(f"gh pr close failed for #{number} in {target_repo}: {res.stderr}")
+        return False
+
+    def close_issue(self, number: int, repo: Optional[str] = None, comment: Optional[str] = None) -> bool:
+        """Closes an issue with an optional comment."""
+        target_repo = repo or self.repo
+        cmd = ["gh", "issue", "close", str(number), "-R", target_repo]
+        if comment:
+            cmd.extend(["--comment", comment])
+        res = subprocess.run(cmd, capture_output=True, text=True, check=False)
+        if res.returncode == 0:
+            return True
+        log_warn(f"gh issue close failed for #{number} in {target_repo}: {res.stderr}")
+        return False
+
+    def fetch_pr_view_details(self, number: int, repo: Optional[str] = None) -> Dict[str, Any]:
+        """Fetches detailed PR evaluation fields: title, state, mergeable, statusCheckRollup, isDraft, files, body."""
+        target_repo = repo or self.repo
+        cmd = [
+            "gh",
+            "pr",
+            "view",
+            str(number),
+            "-R",
+            target_repo,
+            "--json",
+            "title,state,mergeable,statusCheckRollup,isDraft,files,body,number,headRefName,baseRefName",
+        ]
+        res = subprocess.run(cmd, capture_output=True, text=True, check=False)
+        if res.returncode == 0 and res.stdout.strip():
+            try:
+                return json.loads(res.stdout)
+            except Exception as e:
+                log_warn(f"Error parsing gh pr view JSON for PR #{number}: {e}")
+
+        # Fallback to REST API if gh pr view fails
+        try:
+            pr = self.fetch_pr_details(number, repo=target_repo)
+            files = self.fetch_pr_files(number, repo=target_repo)
+            sha = pr.get("head", {}).get("sha")
+            check_runs = self.fetch_check_runs(sha, repo=target_repo) if sha else []
+            rollup = [
+                {
+                    "name": c.get("name"),
+                    "status": c.get("status"),
+                    "conclusion": c.get("conclusion"),
+                }
+                for c in check_runs
+            ]
+            mergeable_val = "MERGEABLE" if pr.get("mergeable") is True else ("CONFLICTING" if pr.get("mergeable") is False else "UNKNOWN")
+            return {
+                "number": pr.get("number"),
+                "title": pr.get("title"),
+                "state": (pr.get("state") or "").upper(),
+                "mergeable": mergeable_val,
+                "statusCheckRollup": rollup,
+                "isDraft": pr.get("draft", False),
+                "files": [{"path": f.get("filename")} for f in files],
+                "body": pr.get("body") or "",
+                "headRefName": pr.get("head", {}).get("ref"),
+                "baseRefName": pr.get("base", {}).get("ref"),
+            }
+        except Exception as e:
+            log_warn(f"Fallback fetch_pr_view_details failed for PR #{number}: {e}")
+            return {}
+
     def _handle_missing_logs(self, identifier: Any, is_fallback: bool = False) -> str:
         """Helper to log warning and return a warning string for missing logs."""
         label = "check run" if is_fallback else "job"
