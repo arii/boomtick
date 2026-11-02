@@ -13,6 +13,8 @@ if [ "${SKIP_HOOKS:-0}" = "1" ]; then
 fi
 
 fail=0
+# Make sure the gitignored schemas exist before the gates that read them.
+bash "$(git rev-parse --show-toplevel)/scripts/ensure-schemas.sh" 2>/dev/null || true
 if command -v pnpm >/dev/null 2>&1; then
   pnpm verify:schemas || fail=1
   pnpm check:runtime-files || fail=1

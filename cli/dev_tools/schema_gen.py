@@ -32,22 +32,14 @@ def generate_schema():
     }
 
     # Use cli-schema.json as the models target (sole writer: schema_gen.py)
+    # Written cleanly every time (no merge with existing content):
+    # stale keys from older writers must never survive regeneration.
     output_path = os.path.join(os.path.dirname(__file__), "cli-schema.json")
-
-    # Read existing if exists to merge
-    existing = {}
-    if os.path.exists(output_path):
-        try:
-            with open(output_path, "r", encoding="utf-8") as f:
-                existing = json.load(f)
-        except Exception as e:
-            print(f"Warning: Could not read existing cli-schema.json: {e}")
-
-    existing.update(schemas)
-
-    with open(output_path, "w", encoding="utf-8") as f:
-        json.dump(existing, f, indent=2)
+    tmp_path = output_path + ".tmp"
+    with open(tmp_path, "w", encoding="utf-8") as f:
+        json.dump(schemas, f, indent=2)
         f.write("\n")
+    os.replace(tmp_path, output_path)
 
     print(
         f"Updated cli-schema.json with {len(schemas['models'])} models at {output_path}",

@@ -18,6 +18,7 @@ Use this checklist to ensure all prerequisites and configuration steps are compl
 - [ ] **Integrate GitHub Composite Actions**: Reference Boomtick composite actions (such as `setup-workspace`, `chatops`, `ai-review`, and `impact-analysis`) in your `.github/workflows/`.
 - [ ] **Verify Local Setup & Schemas**: Test CLI commands or MCP tools locally and run schema contract synchronization (`pnpm run verify:schemas` if developing locally).
 - [ ] **Install Git Hooks**: Run `bash scripts/setup-hooks.sh` so the tracked `post-merge` (dependency refresh) and `pre-push` (fast schema/runtime gates) hooks are active. Re-run after a fresh clone — Git does not track `.git/hooks`. Bypass the push gate once with `SKIP_HOOKS=1 git push` if needed.
+- [ ] **Generated Schemas (no action needed)**: `cli/dev_tools/cli-schema.json` and `cli-commands-schema.json` are gitignored and auto-regenerated — by the git hooks when missing, by `td schema --generate`, by `td context-warm`, and by `pnpm verify:schemas`. Readers tolerate their absence, so a fresh clone works before the first generation.
 
 ---
 

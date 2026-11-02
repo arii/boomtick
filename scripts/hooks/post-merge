@@ -15,6 +15,10 @@ changed="$(git diff --name-only ORIG_HEAD HEAD 2>/dev/null \
   || git diff --name-only 'HEAD@{1}' HEAD 2>/dev/null || true)"
 [ -z "$changed" ] && exit 0
 
+# The generated CLI schemas are gitignored, so refresh them after
+# any merge that might have changed models or commands.
+bash "$(git rev-parse --show-toplevel)/scripts/ensure-schemas.sh" 2>/dev/null || true
+
 if printf '%s\n' "$changed" | grep -Eq '^(package\.json|pnpm-lock\.yaml)'; then
   if command -v pnpm >/dev/null 2>&1; then
     echo "[post-merge] dependencies changed — pnpm install --frozen-lockfile..."
