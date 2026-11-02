@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.2.0](https://github.com/arii/boomtick/compare/action-v0.1.2...action-v0.2.0) (2026-11-02)
+
+
+### Features
+
+* **mcp:** agent_dispatch with worktree-scoped sessions (agent_status, agent_logs) ([ae10c37](https://github.com/arii/boomtick/commit/ae10c37ee04a116fef953f98c91e3d90a013d4e6))
+* **mcp:** agent_dispatch with worktree-scoped sessions (agent_status, agent_logs) ([2817fe4](https://github.com/arii/boomtick/commit/2817fe45b5f9d631098c0a35539bd41ebd874483))
+
 ## [0.1.2](https://github.com/arii/boomtick/compare/action-v0.1.1...action-v0.1.2) (2026-08-13)
 
 
