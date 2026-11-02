@@ -23,7 +23,7 @@ if TYPE_CHECKING:
 
 from dev_tools.config import get_config
 from dev_tools.handlers.command_handler import CommandHandler
-from dev_tools.models import IssueSummary, PRSummary, PrDiffResponse
+from dev_tools.models import IssueSummary, PRSummary, PrDiffResponse, PrViewResponse, RunJobsResponse
 from dev_tools.utils import (
     log_info,
     CLIError,
@@ -2508,6 +2508,57 @@ Follow the "Audit comment template" in `docs/agent/issue-audit-rules.md` to post
             diff_text=diff_text,
             is_truncated=truncated,
         )
+        return resp.model_dump()
+
+    def get_pr_view_shapen(self, prNumber: int, repo: Optional[str] = None) -> Dict[str, Any]:
+        """Fetches a single PR state snapshot: title, state, draft, reviewDecision, mergeable, checks."""
+        extra_kwargs = {"repo": repo} if repo else {}
+        pr = self.github.fetch_pr_details(prNumber, **extra_kwargs)
+        review_decision = self.github.fetch_pr_review_decision(prNumber, **extra_kwargs)
+        head_sha = (pr.get("head") or {}).get("sha")
+        check_runs = self.github.fetch_check_runs(head_sha, **extra_kwargs) if head_sha else []
+        checks = [
+            {"name": c.get("name"), "status": c.get("status"), "conclusion": c.get("conclusion")}
+            for c in (check_runs or [])
+        ]
+        summary = {"total": len(checks), "passed": 0, "failed": 0, "pending": 0, "skipped": 0}
+        for check in checks:
+            conclusion = (check.get("conclusion") or "").lower()
+            status = (check.get("status") or "").lower()
+            if status != "completed" or not conclusion:
+                summary["pending"] += 1
+            elif conclusion == "success":
+                summary["passed"] += 1
+            elif conclusion in ("skipped", "neutral"):
+                summary["skipped"] += 1
+            else:
+                summary["failed"] += 1
+        mergeable_raw = pr.get("mergeable")
+        if mergeable_raw is True:
+            mergeable = "MERGEABLE"
+        elif mergeable_raw is False:
+            mergeable = "CONFLICTING"
+        else:
+            mergeable = "UNKNOWN"
+        resp = PrViewResponse.model_validate(
+            {
+                "pr_number": prNumber,
+                "title": pr.get("title"),
+                "state": (pr.get("state") or "").upper() or None,
+                "draft": bool(pr.get("draft", False)),
+                "review_decision": review_decision,
+                "mergeable": mergeable,
+                "checks": checks,
+                "checks_summary": summary,
+            }
+        )
+        return resp.model_dump()
+
+    def get_run_jobs_shapen(self, run_id: int, repo: Optional[str] = None) -> Dict[str, Any]:
+        """Fetches workflow run jobs shaped to name/conclusion/steps."""
+        extra_kwargs = {"repo": repo} if repo else {}
+        jobs = self.github.fetch_workflow_run_jobs(run_id, **extra_kwargs) or []
+        resp = RunJobsResponse.model_validate({"run_id": run_id, "total_count": len(jobs), "jobs": jobs})
         return resp.model_dump()
 
     def suggest_next_action(self, repo: Optional[str] = None) -> Dict[str, Any]:

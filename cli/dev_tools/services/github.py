@@ -422,6 +422,31 @@ class GitHubClient:
         data = self._request("GET", f"/repos/{target_repo}/actions/runs", params=params if params else None)
         return data.get("workflow_runs", []) if isinstance(data, dict) else []
 
+    def fetch_workflow_run_jobs(self, run_id: int, repo: Optional[str] = None) -> List[Dict[str, Any]]:
+        """Fetches jobs for a workflow run, shaped to name/conclusion/steps."""
+        target_repo = repo or self.repo
+        data = self._request("GET", f"/repos/{target_repo}/actions/runs/{run_id}/jobs")
+        jobs = data.get("jobs", []) if isinstance(data, dict) else []
+        return [
+            {
+                "id": job.get("id"),
+                "name": job.get("name"),
+                "status": job.get("status"),
+                "conclusion": job.get("conclusion"),
+                "html_url": job.get("html_url"),
+                "steps": [
+                    {
+                        "number": step.get("number"),
+                        "name": step.get("name"),
+                        "status": step.get("status"),
+                        "conclusion": step.get("conclusion"),
+                    }
+                    for step in (job.get("steps") or [])
+                ],
+            }
+            for job in jobs
+        ]
+
     def search_pull_requests(self, query: str, limit: int = 10, repo: Optional[str] = None) -> List[Dict[str, Any]]:
         """General search for pull requests using the Search API."""
         target_repo = repo or self.repo
