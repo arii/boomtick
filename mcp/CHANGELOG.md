@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.9.0](https://github.com/arii/boomtick/compare/mcp-v0.8.1...mcp-v0.9.0) (2026-11-02)
+
+
+### Features
+
+* **cli:** add td gh pr-view and run-jobs commands ([a6100d7](https://github.com/arii/boomtick/commit/a6100d7d19e849892cd4120aa5020474a8fe3d40)), closes [#1082](https://github.com/arii/boomtick/issues/1082) [#1083](https://github.com/arii/boomtick/issues/1083)
+* **cli:** add td gh pr-view and run-jobs commands ([#1085](https://github.com/arii/boomtick/issues/1085)) ([64bc1c4](https://github.com/arii/boomtick/commit/64bc1c484503fec98bc840f5ae5d1d2b883c7062))
+
 ## [0.8.1](https://github.com/arii/boomtick/compare/mcp-v0.8.0...mcp-v0.8.1) (2026-11-02)
 
 

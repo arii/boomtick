@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.18.0](https://github.com/arii/boomtick/compare/cli-v0.17.1...cli-v0.18.0) (2026-11-02)
+
+
+### Features
+
+* **cli:** add td gh pr-view and run-jobs commands ([a6100d7](https://github.com/arii/boomtick/commit/a6100d7d19e849892cd4120aa5020474a8fe3d40)), closes [#1082](https://github.com/arii/boomtick/issues/1082) [#1083](https://github.com/arii/boomtick/issues/1083)
+* **cli:** add td gh pr-view and run-jobs commands ([#1085](https://github.com/arii/boomtick/issues/1085)) ([64bc1c4](https://github.com/arii/boomtick/commit/64bc1c484503fec98bc840f5ae5d1d2b883c7062))
+* **cli:** deep-agent track td-parity ([#1080](https://github.com/arii/boomtick/issues/1080)) ([361c178](https://github.com/arii/boomtick/commit/361c178b1b4cca4f040211562375895e3d8d9c65))
+
 ## [0.17.1](https://github.com/arii/boomtick/compare/cli-v0.17.0...cli-v0.17.1) (2026-11-02)
 
 
