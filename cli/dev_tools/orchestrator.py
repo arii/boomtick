@@ -35,6 +35,7 @@ from dev_tools.utils import (
     get_bundle_size,
     get_gha_variable,
     get_github_client,
+    get_github_token,
     get_or_create_log_dir,
     get_repo_name,
     get_stack_versions,
@@ -348,9 +349,10 @@ class Orchestrator:
         """
         Automates the creation of Jules sessions.
         """
-        target_repo = repo or self.github.repo or ""
-        if not self.github.branch_exists(branch, repo=target_repo):
-            raise CLIError(f"Branch '{branch}' does not exist in repository '{target_repo}'.")
+        target_repo = repo or (get_repo_name() if not repo else None) or (self.github.repo if get_github_token() else "") or ""
+        if get_github_token():
+            if not self.github.branch_exists(branch, repo=target_repo):
+                raise CLIError(f"Branch '{branch}' does not exist in repository '{target_repo}'.")
 
         # Prevent dispatching Jules for consolidation/aggregation tasks
         if re.search(r"\b(consolidate|aggregate)\s+pr(s)?\b", prompt.lower()):

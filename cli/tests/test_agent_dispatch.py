@@ -177,3 +177,28 @@ def test_cli_agent_dispatch_with_repo_flag(mock_dispatch):
 
     assert result.exit_code == 0
     mock_dispatch.assert_called_once_with("main", "Cross-repo repair task", title=None, repo="arii/portfolio")
+
+
+def test_dispatch_jules_review_without_github_token():
+    with patch("dev_tools.orchestrator.get_github_token", return_value=None), \
+         patch.object(Orchestrator, "github", MagicMock(side_effect=ValueError("Missing GITHUB_TOKEN environment variable."))), \
+         patch.object(JulesClient, "discover_source_id", return_value="source-123"), \
+         patch.object(JulesClient, "create_session_from_source", return_value={"name": "sessions/999", "state": "ACTIVE"}):
+        orch = Orchestrator()
+        res = orch.dispatch_jules_review("main", "repair bug", repo="arii/boomtick")
+        assert res == {"name": "sessions/999", "state": "ACTIVE"}
+
+
+def test_cli_agent_dispatch_without_github_token():
+    runner = CliRunner(env={"GITHUB_TOKEN": None, "GH_TOKEN": None})
+    with patch("dev_tools.orchestrator.get_github_token", return_value=None), \
+         patch.object(JulesClient, "discover_source_id", return_value="source-boomtick"), \
+         patch.object(JulesClient, "create_session_from_source", return_value={"name": "sessions/sess-123"}):
+        result = runner.invoke(
+            cli,
+            ["agent", "dispatch", "--repo", "arii/boomtick", "main", "Fix issue without GH token"],
+            obj={},
+            env={"GITHUB_TOKEN": "", "GH_TOKEN": ""},
+        )
+        assert result.exit_code == 0, result.output
+        assert "sessions/sess-123" in result.output
