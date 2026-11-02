@@ -1,5 +1,32 @@
 # Changelog
 
+## [0.16.0](https://github.com/arii/boomtick/compare/cli-v0.15.2...cli-v0.16.0) (2026-11-02)
+
+
+### Features
+
+* **contract:** machine-readable front-matter in AGENT_CONTRACT.md with shared dependency caching ([c5a4790](https://github.com/arii/boomtick/commit/c5a479065f9817279f4fdd21c1bfca8ef62da7b7))
+* **contract:** machine-readable front-matter in AGENT_CONTRACT.md with shared dependency caching ([78317bf](https://github.com/arii/boomtick/commit/78317bf187ba32b0cf1dcd5152d3f5502dc3224d))
+* **contract:** machine-readable front-matter in AGENT_CONTRACT.md with shared dependency caching ([#1047](https://github.com/arii/boomtick/issues/1047)) ([507464b](https://github.com/arii/boomtick/commit/507464bd8daa3cc81a504e8df65c3e2bdf0e465f))
+* **mcp:** agent_discuss fixed-topic protocol ([#1044](https://github.com/arii/boomtick/issues/1044)) ([946897d](https://github.com/arii/boomtick/commit/946897d9d4f2c0fa2fce66d5847e63f690baecd3))
+* **mcp:** agent_dispatch with worktree-scoped sessions (agent_status, agent_logs) ([ae10c37](https://github.com/arii/boomtick/commit/ae10c37ee04a116fef953f98c91e3d90a013d4e6))
+* **mcp:** agent_dispatch with worktree-scoped sessions (agent_status, agent_logs) ([2817fe4](https://github.com/arii/boomtick/commit/2817fe45b5f9d631098c0a35539bd41ebd874483))
+* **mcp:** agent_dispatch with worktree-scoped sessions (agent_status, agent_logs) ([f201ab0](https://github.com/arii/boomtick/commit/f201ab0a86c43f0967699ca10bce456d290b4904))
+* **mcp:** agent_dispatch with worktree-scoped sessions (agent_status, agent_logs) ([82f6684](https://github.com/arii/boomtick/commit/82f668454c076b4806002f21100fd038a41f741a))
+* **mcp:** agent_dispatch with worktree-scoped sessions (agent_status, agent_logs) ([#1046](https://github.com/arii/boomtick/issues/1046)) ([df5313e](https://github.com/arii/boomtick/commit/df5313e830d40a2fec7170fae50dc103816a1e07))
+* **mcp:** worktree lifecycle tools ([d1d3fb4](https://github.com/arii/boomtick/commit/d1d3fb42a56a3530c793503e9b7972d8307057d9))
+* **mcp:** worktree lifecycle tools (worktree_create, worktree_list, worktree_remove) ([#1042](https://github.com/arii/boomtick/issues/1042)) ([1ca2ae1](https://github.com/arii/boomtick/commit/1ca2ae15010f062f7e2bed9f4da0bac89991c00a))
+
+
+### Bug Fixes
+
+* **daemon:** support multi-repo Jules feedback and chunk batch PR searches [skip-scope-check] ([18719a2](https://github.com/arii/boomtick/commit/18719a2f942d7df8325ab70a9f9bdedee528212c))
+* **daemon:** support multi-repo Jules feedback and chunk batch PR searches [skip-scope-check] ([#1053](https://github.com/arii/boomtick/issues/1053)) ([2aa9f65](https://github.com/arii/boomtick/commit/2aa9f658c5f72d81608ccec25614dde240d40609))
+* **mcp:** clarify repo override param description and surface errors in repo_get_workflow_runs (fixes [#1025](https://github.com/arii/boomtick/issues/1025)) ([818342e](https://github.com/arii/boomtick/commit/818342ebf224d727e4581271b9263194d72e0e34))
+* **mcp:** clarify repo override param description and surface errors in repo_get_workflow_runs [skip-scope-check] ([#1051](https://github.com/arii/boomtick/issues/1051)) ([6ab5003](https://github.com/arii/boomtick/commit/6ab5003735696faa3c3d26ba0a0d6454dd3baca3))
+* **mcp:** restore worktree schema models and align session manager types ([2629dc6](https://github.com/arii/boomtick/commit/2629dc6aa11379238099f6dd42b143a98b385d3a))
+* **repair-flow:** improve branch observability, conflict accuracy, repo overrides ([#1058](https://github.com/arii/boomtick/issues/1058)) ([8f96ef8](https://github.com/arii/boomtick/commit/8f96ef8c2071e1db0b7ed1056c9640f03b4e7f3c))
+
 ## [0.15.2](https://github.com/arii/boomtick/compare/cli-v0.15.1...cli-v0.15.2) (2026-11-01)
 
 
