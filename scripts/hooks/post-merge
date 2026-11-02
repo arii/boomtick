@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+# post-merge hook — TRACKED copy in scripts/hooks/post-merge.
+# Git never tracks .git/hooks itself, so this file is the source of
+# truth; install with: bash scripts/setup-hooks.sh
+#
+# What it does: if the merge touched package.json or pnpm-lock.yaml,
+# it refreshes node_modules with a frozen lockfile install — nothing
+# else. If pnpm is absent it prints a notice and exits 0: a missing
+# tool must not make a good merge look bad, and automated pulls skip
+# hooks entirely (-c core.hooksPath=/dev/null) anyway.
+set -u
+cd "$(git rev-parse --show-toplevel 2>/dev/null || echo .)" || exit 0
+
+changed="$(git diff --name-only ORIG_HEAD HEAD 2>/dev/null \
+  || git diff --name-only 'HEAD@{1}' HEAD 2>/dev/null || true)"
+[ -z "$changed" ] && exit 0
+
+if printf '%s\n' "$changed" | grep -Eq '^(package\.json|pnpm-lock\.yaml)'; then
+  if command -v pnpm >/dev/null 2>&1; then
+    echo "[post-merge] dependencies changed — pnpm install --frozen-lockfile..."
+    pnpm install --frozen-lockfile \
+      || echo "[post-merge] pnpm install failed (node_modules may be stale)"
+  else
+    echo "[post-merge] dependencies changed — pnpm not found; run pnpm install --frozen-lockfile manually"
+  fi
+fi
+
+exit 0

@@ -42,6 +42,7 @@ SKIP_GH_INSTALL="${SKIP_GH_INSTALL:-0}"
 SKIP_NODE_INSTALL="${SKIP_NODE_INSTALL:-0}"
 SKIP_VALIDATION="${SKIP_VALIDATION:-0}"
 SKIP_REMOTE_CONFIG="${SKIP_REMOTE_CONFIG:-0}"
+SKIP_GIT_HOOKS="${SKIP_GIT_HOOKS:-0}"
 INSTALL_AI_DEPS="${INSTALL_AI_DEPS:-0}"
 
 export CI="${CI:-1}"
@@ -53,6 +54,7 @@ STATUS_APT="PENDING"
 STATUS_PYTHON="PENDING"
 STATUS_NODE="PENDING"
 STATUS_GIT="PENDING"
+STATUS_HOOKS="PENDING"
 STATUS_PLAYWRIGHT="PENDING"
 
 if [ "$(id -u)" -ne 0 ] && ! command -v sudo >/dev/null 2>&1; then
@@ -307,6 +309,29 @@ configure_remote_origin() {
   fi
 }
 
+install_git_hooks() {
+  if [ "$SKIP_GIT_HOOKS" = "1" ]; then
+    STATUS_HOOKS="SKIPPED (SKIP_GIT_HOOKS=1)"
+    return 0
+  fi
+  if ! git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+    STATUS_HOOKS="SKIPPED (not a git repo)"
+    return 0
+  fi
+  local root
+  root="$(git rev-parse --show-toplevel 2>/dev/null || true)"
+  if [ -z "$root" ] || [ ! -f "$root/scripts/setup-hooks.sh" ]; then
+    STATUS_HOOKS="SKIPPED (scripts/setup-hooks.sh not found)"
+    return 0
+  fi
+  if bash "$root/scripts/setup-hooks.sh"; then
+    STATUS_HOOKS="INSTALLED"
+  else
+    STATUS_HOOKS="WARNING (hook install failed)"
+    warn "Git hooks could not be installed; run bash scripts/setup-hooks.sh manually."
+  fi
+}
+
 persist_environment() {
   log "Persisting environment settings to ~/.config/boomtick/env.sh..."
   local env_file="$HOME/.config/boomtick/env.sh"
@@ -438,6 +463,9 @@ main() {
   configure_remote_origin
   [ "$STATUS_GIT" = "PENDING" ] && STATUS_GIT="INSTALLED"
 
+  install_git_hooks
+  [ "$STATUS_HOOKS" = "PENDING" ] && STATUS_HOOKS="INSTALLED"
+
   persist_environment
   run_validation
 
@@ -448,6 +476,7 @@ main() {
   echo "Node.js & pnpm:    $STATUS_NODE"
   echo "Playwright:        $STATUS_PLAYWRIGHT"
   echo "Git Configuration: $STATUS_GIT"
+  echo "Git Hooks:         $STATUS_HOOKS"
   echo "======================"
 
   log "Setup complete."
