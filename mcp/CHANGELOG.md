@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.8.1](https://github.com/arii/boomtick/compare/mcp-v0.8.0...mcp-v0.8.1) (2026-11-02)
+
+
+### Bug Fixes
+
+* **mcp:** load stack .env so jules_* tools see JULES_API_KEY ([#1072](https://github.com/arii/boomtick/issues/1072)) ([e8e0bc7](https://github.com/arii/boomtick/commit/e8e0bc757cb5c8a1bc7fc5dc639d45aa3939d715))
+* **mcp:** strip emoji from agent-discuss verification status strings ([#1070](https://github.com/arii/boomtick/issues/1070)) ([3388c42](https://github.com/arii/boomtick/commit/3388c421f2eebc2186510b43b763ebd2e6a1c368))
+* **td:** stop build-repo-context clobbering cli-schema.json ([#1069](https://github.com/arii/boomtick/issues/1069)) ([ecf952e](https://github.com/arii/boomtick/commit/ecf952e0b853b2fe7e92386d8f51d67d7c599f43))
+
 ## [0.8.0](https://github.com/arii/boomtick/compare/mcp-v0.7.4...mcp-v0.8.0) (2026-11-02)
 
 

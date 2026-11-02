@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.17.0](https://github.com/arii/boomtick/compare/cli-v0.16.0...cli-v0.17.0) (2026-11-02)
+
+
+### Features
+
+* **daemon:** autonomous multi-repo triage daemon ([#1059](https://github.com/arii/boomtick/issues/1059)) ([ddcc4c8](https://github.com/arii/boomtick/commit/ddcc4c85d8ecbbd88a073cc27c8ebba8119459d7))
+
+
+### Bug Fixes
+
+* **td:** stop build-repo-context clobbering cli-schema.json ([#1069](https://github.com/arii/boomtick/issues/1069)) ([ecf952e](https://github.com/arii/boomtick/commit/ecf952e0b853b2fe7e92386d8f51d67d7c599f43))
+* **td:** tag detect-conflicts output as file overlap, not merge conflicts ([#1067](https://github.com/arii/boomtick/issues/1067)) ([4ed880d](https://github.com/arii/boomtick/commit/4ed880d8bbdf1d59e95e92607f59640a28c10a86))
+
 ## [0.16.0](https://github.com/arii/boomtick/compare/cli-v0.15.2...cli-v0.16.0) (2026-11-02)
 
 
