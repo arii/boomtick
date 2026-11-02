@@ -107,3 +107,15 @@ def test_build_repo_context_schema_gen_failure_propagates(monkeypatch):
     models_data = json.loads(cli_schema_path.read_text(encoding="utf-8"))
     assert "models" in models_data
     assert "subcommands" not in models_data
+
+
+def test_commands_schema_path_skipped_outside_checkout(tmp_path):
+    """The legacy cli-commands-schema.json write target resolves only
+    inside a boomtick checkout; anywhere else there is no target and
+    the write must be skipped (td context-warm from another repo)."""
+    assert build_repo_context_module.commands_schema_path(tmp_path) is None
+    target_dir = tmp_path / "cli" / "dev_tools"
+    target_dir.mkdir(parents=True)
+    assert build_repo_context_module.commands_schema_path(tmp_path) == (
+        target_dir / "cli-commands-schema.json"
+    )
