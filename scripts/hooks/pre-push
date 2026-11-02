@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+# pre-push hook — TRACKED copy in scripts/hooks/pre-push.
+# Install with: bash scripts/setup-hooks.sh
+#
+# Runs only the fast local gates (schema contracts + runtime-file
+# check). Full lint/tests stay in CI. Bypass with: SKIP_HOOKS=1 git push
+set -u
+cd "$(git rev-parse --show-toplevel 2>/dev/null || echo .)" || exit 0
+
+if [ "${SKIP_HOOKS:-0}" = "1" ]; then
+  echo "[pre-push] skipped (SKIP_HOOKS=1)"
+  exit 0
+fi
+
+fail=0
+# Make sure the gitignored schemas exist before the gates that read them.
+bash "$(git rev-parse --show-toplevel)/scripts/ensure-schemas.sh" 2>/dev/null || true
+if command -v pnpm >/dev/null 2>&1; then
+  pnpm verify:schemas || fail=1
+  pnpm check:runtime-files || fail=1
+else
+  echo "[pre-push] pnpm not found — skipping local gates (CI will cover)"
+fi
+
+if [ "$fail" -ne 0 ]; then
+  echo "[pre-push] gate failed — push blocked. Fix and retry, or bypass once with SKIP_HOOKS=1 git push"
+  exit 1
+fi
+exit 0
