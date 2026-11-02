@@ -719,18 +719,18 @@
       ]
     },
     "gh detect-conflicts": {
-      "description": "",
+      "description": "Detect file overlap between open PRs (shared touched paths). This is NOT merge-conflict detection \u2014 for mergeability use GitHub mergeStateStatus/mergeable.",
       "exact_usage": "td gh detect-conflicts [--all] [--pr <PR>]",
       "optional_flags": [
         {
           "flag": "--pr",
           "type": "integer",
-          "description": "PR number to detect conflicts for"
+          "description": "PR number to detect file overlap for"
         },
         {
           "flag": "--all",
           "type": "boolean",
-          "description": "Detect conflicts for all open PRs"
+          "description": "Detect file overlap for all open PRs"
         }
       ]
     },

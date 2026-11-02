@@ -84,6 +84,24 @@ def test_build_repo_context_schema_separation():
     assert cli_schema_path.read_text(encoding="utf-8") == initial_cli_schema
 
 
+def test_build_repo_context_leaves_tracked_files_clean():
+    """Test that running build_repo_context leaves tracked files unmodified."""
+    import subprocess
+
+    repo_root = pathlib.Path(__file__).resolve().parent.parent.parent
+    build_repo_context()
+
+    # Check git diff for tracked files in cli/dev_tools/
+    res = subprocess.run(
+        ["git", "diff", "--exit-code", "cli/dev_tools/cli-schema.json", "cli/dev_tools/cli-commands-schema.json"],
+        cwd=repo_root,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert res.returncode == 0, f"Tracked schema files were dirtied:\n{res.stdout}"
+
+
 def test_build_repo_context_schema_gen_failure_propagates(monkeypatch):
     """Test that if generate_schema throws, build_repo_context fails loudly
 
