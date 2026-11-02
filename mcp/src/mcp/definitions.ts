@@ -77,6 +77,8 @@ import {
   AgentLogsResponseJsonSchema,
   AgentDiscussInputJsonSchema,
   AgentDiscussResponseJsonSchema,
+  AgentMergeApprovedInputJsonSchema,
+  AgentMergeApprovedResponseJsonSchema,
   WorktreeCreateInputJsonSchema,
   WorktreeCreateResponseJsonSchema,
   WorktreeListInputJsonSchema,
@@ -482,6 +484,12 @@ const BASE_MCP_TOOLS: Tool[] = [
     description: "Execute structured discussion protocol with operational topics (status, review-diff, request-changes, approve-merge, abandon) for autonomous agent sessions.",
     inputSchema: AgentDiscussInputJsonSchema as any,
     outputSchema: AgentDiscussResponseJsonSchema as any,
+  },
+  {
+    name: "agent_merge_approved",
+    description: "Deterministic merge gate: dry-run list merge-ready PRs, or execute merges for approved, green, non-draft, mergeable PRs.",
+    inputSchema: AgentMergeApprovedInputJsonSchema as any,
+    outputSchema: AgentMergeApprovedResponseJsonSchema as any,
   },
 ];
 

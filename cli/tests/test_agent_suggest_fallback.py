@@ -35,22 +35,62 @@ def test_suggest_next_action_fast_path():
     assert res["status"] == "success"
     assert res["fast_path"] is True
     assert res["suggestion"] == "SUGGEST: none :: All queues clear and checks green."
+    assert res["runnable_command"] is None
     assert res["counts"] == {"open_prs": 0, "failing_runs": 0, "active_sessions": 0}
 
 
 @patch.dict("os.environ", {"GITHUB_TOKEN": "fake_token"})
-def test_suggest_next_action_with_open_pr():
+def test_suggest_next_action_with_conflicted_pr():
     orch = Orchestrator()
-    orch.list_prs = MagicMock(return_value={"prs": [{"number": 1}]})
+    orch.list_prs = MagicMock(return_value={"prs": [{"number": 42, "mergeStateStatus": "DIRTY"}]})
     orch.github.fetch_workflow_runs = MagicMock(return_value=[])
     orch._jules = MagicMock()
     orch.jules.list_sessions = MagicMock(return_value=[])
 
     res = orch.suggest_next_action()
     assert res["status"] == "success"
-    assert res["fast_path"] is False
-    assert "SUGGEST: triage" in res["suggestion"]
-    assert res["counts"]["open_prs"] == 1
+    assert res["runnable_command"] == "td gh resolve-conflicts --pr 42"
+
+
+@patch.dict("os.environ", {"GITHUB_TOKEN": "fake_token"})
+def test_suggest_next_action_with_failing_ci():
+    orch = Orchestrator()
+    orch.list_prs = MagicMock(return_value={"prs": [{"number": 15, "mergeStateStatus": "CLEAN"}]})
+    orch.github.fetch_workflow_runs = MagicMock(return_value=[{"conclusion": "failure", "status": "completed"}])
+    orch._jules = MagicMock()
+    orch.jules.list_sessions = MagicMock(return_value=[])
+
+    res = orch.suggest_next_action()
+    assert res["status"] == "success"
+    assert res["runnable_command"] == "td --json agent fix-ci --pr 15 --execute"
+
+
+@patch.dict("os.environ", {"GITHUB_TOKEN": "fake_token"})
+def test_suggest_next_action_with_approved_pr():
+    orch = Orchestrator()
+    orch.list_prs = MagicMock(return_value={"prs": [{"number": 88, "mergeStateStatus": "CLEAN"}]})
+    orch.github.fetch_workflow_runs = MagicMock(return_value=[])
+    orch.github.fetch_pr_review_decision = MagicMock(return_value="APPROVED")
+    orch._jules = MagicMock()
+    orch.jules.list_sessions = MagicMock(return_value=[])
+
+    res = orch.suggest_next_action(repo="owner/repo")
+    assert res["status"] == "success"
+    assert res["runnable_command"] == "td agent merge-approved -r owner/repo --execute"
+
+
+@patch.dict("os.environ", {"GITHUB_TOKEN": "fake_token"})
+def test_suggest_next_action_with_changes_requested():
+    orch = Orchestrator()
+    orch.list_prs = MagicMock(return_value={"prs": [{"number": 99, "mergeStateStatus": "CLEAN"}]})
+    orch.github.fetch_workflow_runs = MagicMock(return_value=[])
+    orch.github.fetch_pr_review_decision = MagicMock(return_value="CHANGES_REQUESTED")
+    orch._jules = MagicMock()
+    orch.jules.list_sessions = MagicMock(return_value=[])
+
+    res = orch.suggest_next_action()
+    assert res["status"] == "success"
+    assert res["runnable_command"] == "td gh read-pr-reviews --pr 99"
 
 
 def test_cli_agent_suggest():

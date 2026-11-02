@@ -1061,6 +1061,277 @@
       "title": "AgentLogsResponse",
       "type": "object"
     },
+    "AgentMergeApprovedInput": {
+      "properties": {
+        "repo": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Target repository override (e.g. owner/repo)",
+          "title": "Repo"
+        },
+        "execute": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": false,
+          "description": "Merge each ready PR instead of dry-run preview",
+          "title": "Execute"
+        }
+      },
+      "title": "AgentMergeApprovedInput",
+      "type": "object"
+    },
+    "AgentMergeApprovedItem": {
+      "properties": {
+        "prNumber": {
+          "title": "Prnumber",
+          "type": "integer"
+        },
+        "title": {
+          "title": "Title",
+          "type": "string"
+        },
+        "draft": {
+          "title": "Draft",
+          "type": "boolean"
+        },
+        "reviewDecision": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Reviewdecision"
+        },
+        "hasFailingChecks": {
+          "title": "Hasfailingchecks",
+          "type": "boolean"
+        },
+        "mergeable": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Mergeable"
+        },
+        "isEligible": {
+          "title": "Iseligible",
+          "type": "boolean"
+        },
+        "reason": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Reason"
+        },
+        "merged": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Merged"
+        },
+        "message": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Message"
+        }
+      },
+      "required": [
+        "prNumber",
+        "title",
+        "draft",
+        "hasFailingChecks",
+        "isEligible"
+      ],
+      "title": "AgentMergeApprovedItem",
+      "type": "object"
+    },
+    "AgentMergeApprovedResponse": {
+      "$defs": {
+        "AgentMergeApprovedItem": {
+          "properties": {
+            "prNumber": {
+              "title": "Prnumber",
+              "type": "integer"
+            },
+            "title": {
+              "title": "Title",
+              "type": "string"
+            },
+            "draft": {
+              "title": "Draft",
+              "type": "boolean"
+            },
+            "reviewDecision": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Reviewdecision"
+            },
+            "hasFailingChecks": {
+              "title": "Hasfailingchecks",
+              "type": "boolean"
+            },
+            "mergeable": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Mergeable"
+            },
+            "isEligible": {
+              "title": "Iseligible",
+              "type": "boolean"
+            },
+            "reason": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Reason"
+            },
+            "merged": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Merged"
+            },
+            "message": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Message"
+            }
+          },
+          "required": [
+            "prNumber",
+            "title",
+            "draft",
+            "hasFailingChecks",
+            "isEligible"
+          ],
+          "title": "AgentMergeApprovedItem",
+          "type": "object"
+        }
+      },
+      "properties": {
+        "status": {
+          "default": "success",
+          "title": "Status",
+          "type": "string"
+        },
+        "mode": {
+          "enum": [
+            "dry-run",
+            "execute"
+          ],
+          "title": "Mode",
+          "type": "string"
+        },
+        "totalEvaluated": {
+          "title": "Totalevaluated",
+          "type": "integer"
+        },
+        "eligibleCount": {
+          "title": "Eligiblecount",
+          "type": "integer"
+        },
+        "mergedCount": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Mergedcount"
+        },
+        "results": {
+          "items": {
+            "$ref": "#/$defs/AgentMergeApprovedItem"
+          },
+          "title": "Results",
+          "type": "array"
+        }
+      },
+      "required": [
+        "mode",
+        "totalEvaluated",
+        "eligibleCount"
+      ],
+      "title": "AgentMergeApprovedResponse",
+      "type": "object"
+    },
     "AgentStatusInput": {
       "properties": {
         "sessionId": {
@@ -5296,6 +5567,89 @@
         }
       },
       "title": "SearchPRsResponse",
+      "type": "object"
+    },
+    "SuggestCounts": {
+      "properties": {
+        "openPrs": {
+          "default": 0,
+          "title": "Openprs",
+          "type": "integer"
+        },
+        "failingRuns": {
+          "default": 0,
+          "title": "Failingruns",
+          "type": "integer"
+        },
+        "activeSessions": {
+          "default": 0,
+          "title": "Activesessions",
+          "type": "integer"
+        }
+      },
+      "title": "SuggestCounts",
+      "type": "object"
+    },
+    "SuggestNextActionResponse": {
+      "$defs": {
+        "SuggestCounts": {
+          "properties": {
+            "openPrs": {
+              "default": 0,
+              "title": "Openprs",
+              "type": "integer"
+            },
+            "failingRuns": {
+              "default": 0,
+              "title": "Failingruns",
+              "type": "integer"
+            },
+            "activeSessions": {
+              "default": 0,
+              "title": "Activesessions",
+              "type": "integer"
+            }
+          },
+          "title": "SuggestCounts",
+          "type": "object"
+        }
+      },
+      "properties": {
+        "status": {
+          "default": "success",
+          "title": "Status",
+          "type": "string"
+        },
+        "suggestion": {
+          "title": "Suggestion",
+          "type": "string"
+        },
+        "fastPath": {
+          "title": "Fastpath",
+          "type": "boolean"
+        },
+        "counts": {
+          "$ref": "#/$defs/SuggestCounts"
+        },
+        "runnableCommand": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Runnablecommand"
+        }
+      },
+      "required": [
+        "suggestion",
+        "fastPath",
+        "counts"
+      ],
+      "title": "SuggestNextActionResponse",
       "type": "object"
     },
     "VisualReviewFinding": {

@@ -1121,6 +1121,292 @@ export const AgentLogsResponseJsonSchema = {
   "type": "object"
 } as const;
 
+export const AgentMergeApprovedInputSchema = z.object({ "repo": z.union([z.string(), z.null()]).describe("Target repository override (e.g. owner/repo)").default(null), "execute": z.union([z.boolean(), z.null()]).describe("Merge each ready PR instead of dry-run preview").default(false) });
+
+export type AgentMergeApprovedInput = z.infer<typeof AgentMergeApprovedInputSchema>;
+
+export const AgentMergeApprovedInputJsonSchema = {
+  "properties": {
+    "repo": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Target repository override (e.g. owner/repo)",
+      "title": "Repo"
+    },
+    "execute": {
+      "anyOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": false,
+      "description": "Merge each ready PR instead of dry-run preview",
+      "title": "Execute"
+    }
+  },
+  "title": "AgentMergeApprovedInput",
+  "type": "object"
+} as const;
+
+export const AgentMergeApprovedItemSchema = z.object({ "prNumber": z.number().int(), "title": z.string(), "draft": z.boolean(), "reviewDecision": z.union([z.string(), z.null()]).default(null), "hasFailingChecks": z.boolean(), "mergeable": z.union([z.string(), z.null()]).default(null), "isEligible": z.boolean(), "reason": z.union([z.string(), z.null()]).default(null), "merged": z.union([z.boolean(), z.null()]).default(null), "message": z.union([z.string(), z.null()]).default(null) });
+
+export type AgentMergeApprovedItem = z.infer<typeof AgentMergeApprovedItemSchema>;
+
+export const AgentMergeApprovedItemJsonSchema = {
+  "properties": {
+    "prNumber": {
+      "title": "Prnumber",
+      "type": "integer"
+    },
+    "title": {
+      "title": "Title",
+      "type": "string"
+    },
+    "draft": {
+      "title": "Draft",
+      "type": "boolean"
+    },
+    "reviewDecision": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Reviewdecision"
+    },
+    "hasFailingChecks": {
+      "title": "Hasfailingchecks",
+      "type": "boolean"
+    },
+    "mergeable": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Mergeable"
+    },
+    "isEligible": {
+      "title": "Iseligible",
+      "type": "boolean"
+    },
+    "reason": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Reason"
+    },
+    "merged": {
+      "anyOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Merged"
+    },
+    "message": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Message"
+    }
+  },
+  "required": [
+    "prNumber",
+    "title",
+    "draft",
+    "hasFailingChecks",
+    "isEligible"
+  ],
+  "title": "AgentMergeApprovedItem",
+  "type": "object"
+} as const;
+
+export const AgentMergeApprovedResponseSchema = z.object({ "status": z.string().default("success"), "mode": z.enum(["dry-run","execute"]), "totalEvaluated": z.number().int(), "eligibleCount": z.number().int(), "mergedCount": z.union([z.number().int(), z.null()]).default(null), "results": z.array(z.any()).optional() });
+
+export type AgentMergeApprovedResponse = z.infer<typeof AgentMergeApprovedResponseSchema>;
+
+export const AgentMergeApprovedResponseJsonSchema = {
+  "$defs": {
+    "AgentMergeApprovedItem": {
+      "properties": {
+        "prNumber": {
+          "title": "Prnumber",
+          "type": "integer"
+        },
+        "title": {
+          "title": "Title",
+          "type": "string"
+        },
+        "draft": {
+          "title": "Draft",
+          "type": "boolean"
+        },
+        "reviewDecision": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Reviewdecision"
+        },
+        "hasFailingChecks": {
+          "title": "Hasfailingchecks",
+          "type": "boolean"
+        },
+        "mergeable": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Mergeable"
+        },
+        "isEligible": {
+          "title": "Iseligible",
+          "type": "boolean"
+        },
+        "reason": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Reason"
+        },
+        "merged": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Merged"
+        },
+        "message": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Message"
+        }
+      },
+      "required": [
+        "prNumber",
+        "title",
+        "draft",
+        "hasFailingChecks",
+        "isEligible"
+      ],
+      "title": "AgentMergeApprovedItem",
+      "type": "object"
+    }
+  },
+  "properties": {
+    "status": {
+      "default": "success",
+      "title": "Status",
+      "type": "string"
+    },
+    "mode": {
+      "enum": [
+        "dry-run",
+        "execute"
+      ],
+      "title": "Mode",
+      "type": "string"
+    },
+    "totalEvaluated": {
+      "title": "Totalevaluated",
+      "type": "integer"
+    },
+    "eligibleCount": {
+      "title": "Eligiblecount",
+      "type": "integer"
+    },
+    "mergedCount": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Mergedcount"
+    },
+    "results": {
+      "items": {
+        "$ref": "#/$defs/AgentMergeApprovedItem"
+      },
+      "title": "Results",
+      "type": "array"
+    }
+  },
+  "required": [
+    "mode",
+    "totalEvaluated",
+    "eligibleCount"
+  ],
+  "title": "AgentMergeApprovedResponse",
+  "type": "object"
+} as const;
+
 export const AgentStatusInputSchema = z.object({ "sessionId": z.string().describe("The ID of the session to check status for") });
 
 export type AgentStatusInput = z.infer<typeof AgentStatusInputSchema>;
@@ -5790,6 +6076,99 @@ export const SearchPRsResponseJsonSchema = {
     }
   },
   "title": "SearchPRsResponse",
+  "type": "object"
+} as const;
+
+export const SuggestCountsSchema = z.object({ "openPrs": z.number().int().default(0), "failingRuns": z.number().int().default(0), "activeSessions": z.number().int().default(0) });
+
+export type SuggestCounts = z.infer<typeof SuggestCountsSchema>;
+
+export const SuggestCountsJsonSchema = {
+  "properties": {
+    "openPrs": {
+      "default": 0,
+      "title": "Openprs",
+      "type": "integer"
+    },
+    "failingRuns": {
+      "default": 0,
+      "title": "Failingruns",
+      "type": "integer"
+    },
+    "activeSessions": {
+      "default": 0,
+      "title": "Activesessions",
+      "type": "integer"
+    }
+  },
+  "title": "SuggestCounts",
+  "type": "object"
+} as const;
+
+export const SuggestNextActionResponseSchema = z.object({ "status": z.string().default("success"), "suggestion": z.string(), "fastPath": z.boolean(), "counts": z.any(), "runnableCommand": z.union([z.string(), z.null()]).default(null) });
+
+export type SuggestNextActionResponse = z.infer<typeof SuggestNextActionResponseSchema>;
+
+export const SuggestNextActionResponseJsonSchema = {
+  "$defs": {
+    "SuggestCounts": {
+      "properties": {
+        "openPrs": {
+          "default": 0,
+          "title": "Openprs",
+          "type": "integer"
+        },
+        "failingRuns": {
+          "default": 0,
+          "title": "Failingruns",
+          "type": "integer"
+        },
+        "activeSessions": {
+          "default": 0,
+          "title": "Activesessions",
+          "type": "integer"
+        }
+      },
+      "title": "SuggestCounts",
+      "type": "object"
+    }
+  },
+  "properties": {
+    "status": {
+      "default": "success",
+      "title": "Status",
+      "type": "string"
+    },
+    "suggestion": {
+      "title": "Suggestion",
+      "type": "string"
+    },
+    "fastPath": {
+      "title": "Fastpath",
+      "type": "boolean"
+    },
+    "counts": {
+      "$ref": "#/$defs/SuggestCounts"
+    },
+    "runnableCommand": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Runnablecommand"
+    }
+  },
+  "required": [
+    "suggestion",
+    "fastPath",
+    "counts"
+  ],
+  "title": "SuggestNextActionResponse",
   "type": "object"
 } as const;
 

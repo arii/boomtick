@@ -1738,6 +1738,39 @@ def install_workflows(ctx, target, dry_run, force):
         _handle_unexpected_error(ctx, "agent install-workflows", e)
 
 
+@agent_group.command(name="merge-approved")
+@click.option("--repo", "-r", help="Target GitHub repository (e.g. owner/repo)")
+@click.option("--dry-run/--execute", default=True, help="Preview mergeable PRs or merge each approved PR")
+@click.pass_context
+def merge_approved(ctx, repo, dry_run):
+    """Deterministic merge gate for approved, green, non-draft, mergeable PRs."""
+    orch = ctx.obj["ORCHESTRATOR"]
+    try:
+        res = orch.merge_approved(repo=repo, execute=not dry_run)
+        if not ctx.obj.get("JSON", False):
+            mode_str = "Execution" if not dry_run else "Dry Run"
+            click.echo(f"Agent Merge-Approved ({mode_str}):")
+            click.echo(f"  • Total Evaluated: {res['total_evaluated']}")
+            click.echo(f"  • Eligible PRs:   {res['eligible_count']}")
+            if not dry_run:
+                click.echo(f"  • Merged PRs:     {res['merged_count']}")
+            for item in res.get("results", []):
+                pr_num = item.get("pr_number")
+                title = item.get("title", "")
+                if dry_run:
+                    status_icon = "✅" if item.get("is_eligible") else "❌"
+                    status_msg = "READY" if item.get("is_eligible") else f"REFUSED: {item.get('reason')}"
+                    click.echo(f"  {status_icon} #{pr_num}: {title} [{status_msg}]")
+                else:
+                    status_icon = "✅" if item.get("merged") else "❌"
+                    status_msg = item.get("message")
+                    click.echo(f"  {status_icon} #{pr_num}: {title} [{status_msg}]")
+
+        out(ctx, f"Evaluated {res['total_evaluated']} PRs ({res['eligible_count']} eligible).", data=res)
+    except Exception as e:
+        _handle_unexpected_error(ctx, "agent merge-approved", e)
+
+
 @agent_group.command(name="suggest")
 @click.option("--repo", "-r", help="Target GitHub repository (e.g. owner/repo)")
 @click.pass_context

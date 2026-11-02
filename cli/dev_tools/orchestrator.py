@@ -2511,7 +2511,51 @@ Follow the "Audit comment template" in `docs/agent/issue-audit-rules.md` to post
                     "failing_runs": failing_runs_count,
                     "active_sessions": active_sessions_count,
                 },
+                "runnable_command": None,
             }
+
+        # Determine runnable command based on highest-priority state
+        runnable_command = "td --json preflight"
+        open_prs = open_prs_res.get("prs", [])
+
+        # 1. Check for merge conflicts
+        conflicted_pr = None
+        for pr in open_prs:
+            merge_state = (pr.get("mergeStateStatus") or "").upper()
+            if merge_state in ("DIRTY", "CONFLICTING"):
+                conflicted_pr = pr.get("number")
+                break
+        if conflicted_pr is not None:
+            runnable_command = f"td gh resolve-conflicts --pr {conflicted_pr}"
+        elif failing_runs_count > 0:
+            # 2. Check for failing CI runs
+            target_pr = None
+            if open_prs:
+                target_pr = open_prs[0].get("number")
+            if target_pr is not None:
+                runnable_command = f"td --json agent fix-ci --pr {target_pr} --execute"
+            else:
+                runnable_command = "td --json agent fix-ci --execute"
+        else:
+            # 3. Check for requested changes or merge-ready PRs
+            changes_requested_pr = None
+            ready_pr = None
+            for pr in open_prs:
+                pr_num = pr.get("number")
+                decision = self.github.fetch_pr_review_decision(pr_num, repo=repo)
+                if decision == "CHANGES_REQUESTED":
+                    changes_requested_pr = pr_num
+                    break
+                if decision == "APPROVED" and ready_pr is None:
+                    ready_pr = pr_num
+
+            if changes_requested_pr is not None:
+                runnable_command = f"td gh read-pr-reviews --pr {changes_requested_pr}"
+            elif ready_pr is not None:
+                repo_flag = f" -r {repo}" if repo else ""
+                runnable_command = f"td agent merge-approved{repo_flag} --execute"
+            else:
+                runnable_command = "td --json preflight"
 
         suggestion = f"SUGGEST: triage :: Action items found (Open PRs: {open_prs_count}, Failing Runs: {failing_runs_count}, Active Sessions: {active_sessions_count})."
         return {
@@ -2523,6 +2567,130 @@ Follow the "Audit comment template" in `docs/agent/issue-audit-rules.md` to post
                 "failing_runs": failing_runs_count,
                 "active_sessions": active_sessions_count,
             },
+            "runnable_command": runnable_command,
+        }
+
+    def evaluate_pr_merge_readiness(self, pr_num: int, repo: Optional[str] = None) -> Dict[str, Any]:
+        """
+        Evaluates deterministic merge eligibility for a single pull request:
+        - not a draft
+        - reviewDecision == APPROVED
+        - no check with a failing conclusion
+        - mergeable == MERGEABLE
+        """
+        pr_details = self.github.fetch_pr_details(pr_num, repo=repo)
+        title = pr_details.get("title", "")
+        is_draft = bool(pr_details.get("draft"))
+
+        review_decision = self.github.fetch_pr_review_decision(pr_num, repo=repo)
+
+        # Check mergeable status
+        raw_mergeable = pr_details.get("mergeable")
+        merge_state = pr_details.get("mergeable_state")
+        # In GitHub API, mergeable can be True, False, or None (if background check is computing)
+        mergeable_str = "MERGEABLE" if raw_mergeable is True else ("CONFLICTING" if raw_mergeable is False else (str(merge_state).upper() if merge_state else "UNKNOWN"))
+
+        # Check check runs on head SHA
+        head_sha = pr_details.get("head", {}).get("sha")
+        has_failing_checks = False
+        if head_sha:
+            check_runs = self.github.fetch_check_runs(head_sha, repo=repo)
+            failing_conclusions = {"failure", "timed_out", "action_required", "cancelled"}
+            has_failing_checks = any(run.get("conclusion") in failing_conclusions for run in check_runs)
+
+        # Refusal reasons evaluation
+        refusal_reasons = []
+        if is_draft:
+            refusal_reasons.append("PR is a draft")
+        if review_decision != "APPROVED":
+            refusal_reasons.append(f"Review decision is {review_decision or 'unapproved'}")
+        if has_failing_checks:
+            refusal_reasons.append("Head commit has failing check runs")
+        if mergeable_str != "MERGEABLE":
+            refusal_reasons.append(f"Mergeable status is {mergeable_str}")
+
+        is_eligible = len(refusal_reasons) == 0
+        reason = None if is_eligible else "; ".join(refusal_reasons)
+
+        return {
+            "pr_number": pr_num,
+            "title": title,
+            "draft": is_draft,
+            "review_decision": review_decision,
+            "has_failing_checks": has_failing_checks,
+            "mergeable": mergeable_str,
+            "is_eligible": is_eligible,
+            "reason": reason,
+        }
+
+    def merge_approved(self, repo: Optional[str] = None, execute: bool = False) -> Dict[str, Any]:
+        """
+        Deterministic merge gate:
+        - dry-run: list merge-ready PRs
+        - --execute: re-check eligibility immediately before each merge and merge each ready PR
+        """
+        open_prs_res = self.list_prs(state="open", limit=100, repo=repo)
+        open_prs = open_prs_res.get("prs", [])
+
+        results = []
+        eligible_count = 0
+        merged_count: Optional[int] = 0 if execute else None
+
+        for pr in open_prs:
+            pr_num = pr.get("number")
+            readiness = self.evaluate_pr_merge_readiness(pr_num, repo=repo)
+            if readiness["is_eligible"]:
+                eligible_count += 1
+
+            if execute:
+                if readiness["is_eligible"]:
+                    # Immediate re-check before merging to guard against race conditions
+                    recheck = self.evaluate_pr_merge_readiness(pr_num, repo=repo)
+                    if not recheck["is_eligible"]:
+                        results.append({
+                            **recheck,
+                            "merged": False,
+                            "message": f"Refused merge on re-check: {recheck['reason']}",
+                        })
+                        continue
+
+                    try:
+                        target_repo_name = repo or self.github.repo
+                        merge_res = self.github.merge_pull_request(
+                            pr_num,
+                            commit_title=f"Merge pull request #{pr_num} from {target_repo_name}",
+                            repo=repo,
+                        )
+                        if merged_count is not None:
+                            merged_count += 1
+                        results.append({
+                            **recheck,
+                            "merged": True,
+                            "message": merge_res.get("message", "Merged successfully"),
+                        })
+                    except Exception as e:
+                        results.append({
+                            **recheck,
+                            "merged": False,
+                            "message": f"Merge failed: {str(e)}",
+                        })
+                else:
+                    results.append({
+                        **readiness,
+                        "merged": False,
+                        "message": f"Refused: {readiness['reason']}",
+                    })
+            else:
+                # Dry run preview
+                results.append(readiness)
+
+        return {
+            "status": "success",
+            "mode": "execute" if execute else "dry-run",
+            "total_evaluated": len(results),
+            "eligible_count": eligible_count,
+            "merged_count": merged_count,
+            "results": results,
         }
 
     def list_prs(
