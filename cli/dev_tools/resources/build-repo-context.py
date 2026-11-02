@@ -43,6 +43,13 @@ def safe_read_and_minify(file_path: pathlib.Path, base_dir: pathlib.Path) -> str
         return ""
 
 
+def commands_schema_path(package_root):
+    """Legacy cli-commands-schema.json target, or None outside a
+    boomtick checkout (td runs context-warm in any repo)."""
+    target = package_root / "cli" / "dev_tools" / "cli-commands-schema.json"
+    return target if target.parent.is_dir() else None
+
+
 def build_repo_context():
     """Gathers static context about the repository."""
 
@@ -105,17 +112,21 @@ def build_repo_context():
         generated_subcommands = collect_commands(cli, max_depth=2)
         cli_schema["subcommands"] = generated_subcommands
 
-        cli_commands_schema_path = package_root / "cli" / "dev_tools" / "cli-commands-schema.json"
-
         # Write full schema for legacy/reference but don't bloat the agent context
-        # Write atomically using a temporary file to avoid half-written corruption
+        # Write atomically using a temporary file to avoid half-written corruption.
+        # Outside a boomtick checkout there is no target: skip the write,
+        # the in-memory cli_schema above still feeds the context.
         full_subcommands = collect_commands(cli)
         full_payload = cli_schema.copy()
         full_payload["subcommands"] = full_subcommands
 
-        temp_schema_path = cli_commands_schema_path.with_suffix(".tmp")
-        temp_schema_path.write_text(json.dumps(full_payload, indent=2) + "\n", encoding="utf-8")
-        temp_schema_path.replace(cli_commands_schema_path)
+        cli_commands_schema_path = commands_schema_path(package_root)
+        if cli_commands_schema_path is None:
+            print("Skipping cli-commands-schema.json write: not a boomtick checkout.", file=sys.stderr)
+        else:
+            temp_schema_path = cli_commands_schema_path.with_suffix(".tmp")
+            temp_schema_path.write_text(json.dumps(full_payload, indent=2) + "\n", encoding="utf-8")
+            temp_schema_path.replace(cli_commands_schema_path)
 
         # Also trigger Pydantic model contract generation
         import io
@@ -132,8 +143,8 @@ def build_repo_context():
         print(f"Error generating command or model schemas dynamically: {e}", file=sys.stderr)
         # Fallback to reading command schema file if generation failed
         try:
-            cli_commands_schema_path = package_root / "cli" / "dev_tools" / "cli-commands-schema.json"
-            if cli_commands_schema_path.exists():
+            cli_commands_schema_path = commands_schema_path(package_root)
+            if cli_commands_schema_path is not None and cli_commands_schema_path.exists():
                 cli_schema = json.loads(cli_commands_schema_path.read_text(encoding="utf-8"))
         except Exception as read_err:
             print(f"Fallback read of cli-commands-schema.json failed: {read_err}", file=sys.stderr)
