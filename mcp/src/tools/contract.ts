@@ -4600,6 +4600,42 @@ export const PRSummaryJsonSchema = {
   "type": "object"
 } as const;
 
+export const PrCheckSummarySchema = z.object({ "total": z.number().int().default(0), "passed": z.number().int().default(0), "failed": z.number().int().default(0), "pending": z.number().int().default(0), "skipped": z.number().int().default(0) });
+
+export type PrCheckSummary = z.infer<typeof PrCheckSummarySchema>;
+
+export const PrCheckSummaryJsonSchema = {
+  "properties": {
+    "total": {
+      "default": 0,
+      "title": "Total",
+      "type": "integer"
+    },
+    "passed": {
+      "default": 0,
+      "title": "Passed",
+      "type": "integer"
+    },
+    "failed": {
+      "default": 0,
+      "title": "Failed",
+      "type": "integer"
+    },
+    "pending": {
+      "default": 0,
+      "title": "Pending",
+      "type": "integer"
+    },
+    "skipped": {
+      "default": 0,
+      "title": "Skipped",
+      "type": "integer"
+    }
+  },
+  "title": "PrCheckSummary",
+  "type": "object"
+} as const;
+
 export const PrDiffResponseSchema = z.object({ "prNumber": z.number().int(), "files": z.array(z.record(z.string(), z.any())), "diffText": z.string(), "isTruncated": z.boolean() });
 
 export type PrDiffResponse = z.infer<typeof PrDiffResponseSchema>;
@@ -4634,6 +4670,202 @@ export const PrDiffResponseJsonSchema = {
     "isTruncated"
   ],
   "title": "PrDiffResponse",
+  "type": "object"
+} as const;
+
+export const PrViewCheckSchema = z.object({ "name": z.union([z.string(), z.null()]).default(null), "status": z.union([z.string(), z.null()]).default(null), "conclusion": z.union([z.string(), z.null()]).default(null) });
+
+export type PrViewCheck = z.infer<typeof PrViewCheckSchema>;
+
+export const PrViewCheckJsonSchema = {
+  "properties": {
+    "name": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Name"
+    },
+    "status": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Status"
+    },
+    "conclusion": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Conclusion"
+    }
+  },
+  "title": "PrViewCheck",
+  "type": "object"
+} as const;
+
+export const PrViewResponseSchema = z.object({ "prNumber": z.number().int(), "title": z.union([z.string(), z.null()]).default(null), "state": z.union([z.string(), z.null()]).default(null), "draft": z.boolean().default(false), "reviewDecision": z.union([z.string(), z.null()]).default(null), "mergeable": z.string().default("UNKNOWN"), "checks": z.array(z.any()).optional(), "checksSummary": z.any().optional() });
+
+export type PrViewResponse = z.infer<typeof PrViewResponseSchema>;
+
+export const PrViewResponseJsonSchema = {
+  "$defs": {
+    "PrCheckSummary": {
+      "properties": {
+        "total": {
+          "default": 0,
+          "title": "Total",
+          "type": "integer"
+        },
+        "passed": {
+          "default": 0,
+          "title": "Passed",
+          "type": "integer"
+        },
+        "failed": {
+          "default": 0,
+          "title": "Failed",
+          "type": "integer"
+        },
+        "pending": {
+          "default": 0,
+          "title": "Pending",
+          "type": "integer"
+        },
+        "skipped": {
+          "default": 0,
+          "title": "Skipped",
+          "type": "integer"
+        }
+      },
+      "title": "PrCheckSummary",
+      "type": "object"
+    },
+    "PrViewCheck": {
+      "properties": {
+        "name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Name"
+        },
+        "status": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Status"
+        },
+        "conclusion": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Conclusion"
+        }
+      },
+      "title": "PrViewCheck",
+      "type": "object"
+    }
+  },
+  "properties": {
+    "prNumber": {
+      "title": "Prnumber",
+      "type": "integer"
+    },
+    "title": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Title"
+    },
+    "state": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "State"
+    },
+    "draft": {
+      "default": false,
+      "title": "Draft",
+      "type": "boolean"
+    },
+    "reviewDecision": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Reviewdecision"
+    },
+    "mergeable": {
+      "default": "UNKNOWN",
+      "title": "Mergeable",
+      "type": "string"
+    },
+    "checks": {
+      "items": {
+        "$ref": "#/$defs/PrViewCheck"
+      },
+      "title": "Checks",
+      "type": "array"
+    },
+    "checksSummary": {
+      "$ref": "#/$defs/PrCheckSummary"
+    }
+  },
+  "required": [
+    "prNumber"
+  ],
+  "title": "PrViewResponse",
   "type": "object"
 } as const;
 
@@ -5690,6 +5922,358 @@ export const RouteReviewJsonSchema = {
     "cost"
   ],
   "title": "RouteReview",
+  "type": "object"
+} as const;
+
+export const RunJobSchema = z.object({ "id": z.union([z.number().int(), z.null()]).default(null), "name": z.union([z.string(), z.null()]).default(null), "status": z.union([z.string(), z.null()]).default(null), "conclusion": z.union([z.string(), z.null()]).default(null), "htmlUrl": z.union([z.string(), z.null()]).default(null), "steps": z.array(z.any()).optional() });
+
+export type RunJob = z.infer<typeof RunJobSchema>;
+
+export const RunJobJsonSchema = {
+  "$defs": {
+    "RunJobStep": {
+      "properties": {
+        "number": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Number"
+        },
+        "name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Name"
+        },
+        "status": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Status"
+        },
+        "conclusion": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Conclusion"
+        }
+      },
+      "title": "RunJobStep",
+      "type": "object"
+    }
+  },
+  "properties": {
+    "id": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Id"
+    },
+    "name": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Name"
+    },
+    "status": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Status"
+    },
+    "conclusion": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Conclusion"
+    },
+    "htmlUrl": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Htmlurl"
+    },
+    "steps": {
+      "items": {
+        "$ref": "#/$defs/RunJobStep"
+      },
+      "title": "Steps",
+      "type": "array"
+    }
+  },
+  "title": "RunJob",
+  "type": "object"
+} as const;
+
+export const RunJobStepSchema = z.object({ "number": z.union([z.number().int(), z.null()]).default(null), "name": z.union([z.string(), z.null()]).default(null), "status": z.union([z.string(), z.null()]).default(null), "conclusion": z.union([z.string(), z.null()]).default(null) });
+
+export type RunJobStep = z.infer<typeof RunJobStepSchema>;
+
+export const RunJobStepJsonSchema = {
+  "properties": {
+    "number": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Number"
+    },
+    "name": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Name"
+    },
+    "status": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Status"
+    },
+    "conclusion": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Conclusion"
+    }
+  },
+  "title": "RunJobStep",
+  "type": "object"
+} as const;
+
+export const RunJobsResponseSchema = z.object({ "runId": z.number().int(), "totalCount": z.number().int().default(0), "jobs": z.array(z.any()).optional() });
+
+export type RunJobsResponse = z.infer<typeof RunJobsResponseSchema>;
+
+export const RunJobsResponseJsonSchema = {
+  "$defs": {
+    "RunJob": {
+      "properties": {
+        "id": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Id"
+        },
+        "name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Name"
+        },
+        "status": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Status"
+        },
+        "conclusion": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Conclusion"
+        },
+        "htmlUrl": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Htmlurl"
+        },
+        "steps": {
+          "items": {
+            "$ref": "#/$defs/RunJobStep"
+          },
+          "title": "Steps",
+          "type": "array"
+        }
+      },
+      "title": "RunJob",
+      "type": "object"
+    },
+    "RunJobStep": {
+      "properties": {
+        "number": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Number"
+        },
+        "name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Name"
+        },
+        "status": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Status"
+        },
+        "conclusion": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Conclusion"
+        }
+      },
+      "title": "RunJobStep",
+      "type": "object"
+    }
+  },
+  "properties": {
+    "runId": {
+      "title": "Runid",
+      "type": "integer"
+    },
+    "totalCount": {
+      "default": 0,
+      "title": "Totalcount",
+      "type": "integer"
+    },
+    "jobs": {
+      "items": {
+        "$ref": "#/$defs/RunJob"
+      },
+      "title": "Jobs",
+      "type": "array"
+    }
+  },
+  "required": [
+    "runId"
+  ],
+  "title": "RunJobsResponse",
   "type": "object"
 } as const;
 

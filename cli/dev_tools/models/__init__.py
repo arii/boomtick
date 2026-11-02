@@ -593,6 +593,53 @@ class PrDiffResponse(CamelCaseModel):
     is_truncated: bool
 
 
+class PrCheckSummary(CamelCaseModel):
+    total: int = 0
+    passed: int = 0
+    failed: int = 0
+    pending: int = 0
+    skipped: int = 0
+
+
+class PrViewCheck(CamelCaseModel):
+    name: Optional[str] = None
+    status: Optional[str] = None
+    conclusion: Optional[str] = None
+
+
+class PrViewResponse(CamelCaseModel):
+    pr_number: int
+    title: Optional[str] = None
+    state: Optional[str] = None
+    draft: bool = False
+    review_decision: Optional[str] = None
+    mergeable: str = "UNKNOWN"
+    checks: List[PrViewCheck] = Field(default_factory=list)
+    checks_summary: PrCheckSummary = Field(default_factory=PrCheckSummary)
+
+
+class RunJobStep(CamelCaseModel):
+    number: Optional[int] = None
+    name: Optional[str] = None
+    status: Optional[str] = None
+    conclusion: Optional[str] = None
+
+
+class RunJob(CamelCaseModel):
+    id: Optional[int] = None
+    name: Optional[str] = None
+    status: Optional[str] = None
+    conclusion: Optional[str] = None
+    html_url: Optional[str] = None
+    steps: List[RunJobStep] = Field(default_factory=list)
+
+
+class RunJobsResponse(CamelCaseModel):
+    run_id: int
+    total_count: int = 0
+    jobs: List[RunJob] = Field(default_factory=list)
+
+
 # Tool Output Models
 
 

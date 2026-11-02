@@ -897,6 +897,42 @@ def list_pr_commits(ctx, pr_number, repo):
     out(ctx, f"Fetched {len(commits)} commits for PR #{pr_number}", data={"commits": commits})
 
 
+@gh.command(name="pr-view")
+@click.argument("pr_number_arg", required=False, type=int)
+@click.option("--pr", "--pr-number", "pr_number_opt", type=int, help="The PR number to fetch state for.")
+@click.option("--repo", help="Target repository override (e.g. owner/repo)")
+@click.pass_context
+def pr_view(ctx, pr_number_arg, pr_number_opt, repo):
+    """Fetch a single PR state snapshot (state, draft, reviews, checks, mergeable)."""
+    pr_number = pr_number_arg if pr_number_arg is not None else pr_number_opt
+    if pr_number is None:
+        err(ctx, "Provide --pr/--pr-number or a positional PR number")
+    if pr_number <= 0:
+        err(ctx, "PR number must be a positive integer.")
+    orch = ctx.obj["ORCHESTRATOR"]
+    extra_kwargs = {"repo": repo} if repo else {}
+    res = orch.get_pr_view_shapen(pr_number, **extra_kwargs)
+    out(ctx, f"Fetched state for PR #{pr_number}", data=res)
+
+
+@gh.command(name="run-jobs")
+@click.argument("run_id_arg", required=False, type=int)
+@click.option("--run", "--run-id", "run_id_opt", type=int, help="The workflow run ID to list jobs for.")
+@click.option("--repo", help="Target repository override (e.g. owner/repo)")
+@click.pass_context
+def run_jobs(ctx, run_id_arg, run_id_opt, repo):
+    """List jobs for a workflow run."""
+    run_id = run_id_arg if run_id_arg is not None else run_id_opt
+    if run_id is None:
+        err(ctx, "Provide --run/--run-id or a positional run ID")
+    if run_id <= 0:
+        err(ctx, "Run ID must be a positive integer.")
+    orch = ctx.obj["ORCHESTRATOR"]
+    extra_kwargs = {"repo": repo} if repo else {}
+    res = orch.get_run_jobs_shapen(run_id, **extra_kwargs)
+    out(ctx, f"Fetched {len(res.get('jobs', []))} jobs for run {run_id}", data=res)
+
+
 @gh.command(name="read-pr-comments")
 @click.option("--pr", "--pr-number", "pr_number", required=True, type=int, help="The PR number to fetch comments for.")
 @click.pass_context

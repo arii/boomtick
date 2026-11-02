@@ -423,5 +423,62 @@ def test_fetch_workflow_runs():
             assert res == [{"id": 10, "name": "CI"}]
 
 
+def test_fetch_workflow_run_jobs():
+    with patch("dev_tools.utils.get_github_token", return_value="dummy_token"), patch(
+        "dev_tools.services.github.DiskCache"
+    ) as mock_cache:
+        mock_cache.return_value.get.return_value = None
+        client = GitHubClient(repo="owner/repo")
+
+        mock_jobs_resp = {
+            "total_count": 1,
+            "jobs": [
+                {
+                    "id": 111,
+                    "name": "build",
+                    "status": "completed",
+                    "conclusion": "success",
+                    "html_url": "http://example.com/job/111",
+                    "runner_name": "ubuntu-runner",
+                    "steps": [
+                        {
+                            "number": 1,
+                            "name": "checkout",
+                            "status": "completed",
+                            "conclusion": "success",
+                            "started_at": "2024-01-01T00:00:00Z",
+                        }
+                    ],
+                }
+            ],
+        }
+        with patch.object(client, "_request", return_value=mock_jobs_resp) as mock_request:
+            res = client.fetch_workflow_run_jobs(123, repo="arii/boomtick")
+            mock_request.assert_called_once_with("GET", "/repos/arii/boomtick/actions/runs/123/jobs")
+            assert res == [
+                {
+                    "id": 111,
+                    "name": "build",
+                    "status": "completed",
+                    "conclusion": "success",
+                    "html_url": "http://example.com/job/111",
+                    "steps": [{"number": 1, "name": "checkout", "status": "completed", "conclusion": "success"}],
+                }
+            ]
+
+
+def test_fetch_workflow_run_jobs_empty():
+    with patch("dev_tools.utils.get_github_token", return_value="dummy_token"), patch(
+        "dev_tools.services.github.DiskCache"
+    ) as mock_cache:
+        mock_cache.return_value.get.return_value = None
+        client = GitHubClient(repo="owner/repo")
+
+        with patch.object(client, "_request", return_value={"total_count": 0, "jobs": []}) as mock_request:
+            res = client.fetch_workflow_run_jobs(999)
+            mock_request.assert_called_once_with("GET", "/repos/owner/repo/actions/runs/999/jobs")
+            assert res == []
+
+
 if __name__ == "__main__":
     unittest.main()
