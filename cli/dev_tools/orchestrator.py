@@ -1384,12 +1384,20 @@ class Orchestrator:
         else:
             results["lint"] = {"status": "skipped", "reason": "script not in package.json"}
 
-        # 4. Deterministic AST Audit
+        # 4. Deterministic AST Audit (repo-aware: only scan targets that exist here)
         try:
-            audit_res = self.get_audit_results(targets=get_config().audit_check_dirs)
-            results["audit"] = audit_res
-            if audit_res.get("violations"):
-                results["audit_status"] = "violations_found"
+            configured_targets = get_config().audit_check_dirs or []
+            existing_targets = [t for t in configured_targets if os.path.exists(t)]
+            if not existing_targets:
+                results["audit"] = {
+                    "status": "skipped",
+                    "reason": "no configured audit_check_dirs exist in this repo",
+                }
+            else:
+                audit_res = self.get_audit_results(targets=existing_targets)
+                results["audit"] = audit_res
+                if audit_res.get("violations"):
+                    results["audit_status"] = "violations_found"
         except Exception as e:
             results["audit"] = {"error": str(e)}
 
@@ -1403,27 +1411,37 @@ class Orchestrator:
         except Exception as e:
             results["overlaps"] = [{"error": str(e)}]
 
-        # 6. Merge Simulation via git merge-tree
+        # 6. Merge Simulation via git merge-tree (repo-aware base discovery)
         try:
-            base = base_branch or get_config().base_branch or "origin/main"
-            curr_branch = run_command(["git", "branch", "--show-current"]).strip() or "HEAD"
-            merge_base = base
-            merge_tree_res = run_command(["git", "merge-tree", merge_base, curr_branch], check=False)
-            if merge_tree_res.returncode != 0 and not merge_base.startswith("origin/"):
-                merge_base_alt = f"origin/{merge_base}"
-                alt_res = run_command(["git", "merge-tree", merge_base_alt, curr_branch], check=False)
-                if alt_res.returncode == 0:
-                    merge_tree_res = alt_res
-                    merge_base = merge_base_alt
-
-            stdout_text = merge_tree_res.stdout or ""
-            has_conflicts = "<<<<<<<" in stdout_text
-            results["merge_simulation"] = {
-                "base": merge_base,
-                "head": curr_branch,
-                "has_conflicts": has_conflicts,
-                "status": "clean" if not has_conflicts and merge_tree_res.returncode == 0 else ("conflicts_detected" if has_conflicts else "error"),
-            }
+            requested_base = base_branch or get_config().base_branch or "origin/main"
+            base_candidates = [requested_base]
+            for fallback in ("origin/main", "main", "origin/master", "master"):
+                if fallback not in base_candidates:
+                    base_candidates.append(fallback)
+            merge_base = None
+            for cand in base_candidates:
+                verify = run_command(
+                    ["git", "rev-parse", "--verify", cand], check=False, log_on_error=False
+                )
+                if verify.returncode == 0:
+                    merge_base = cand
+                    break
+            if merge_base is None:
+                results["merge_simulation"] = {
+                    "status": "skipped",
+                    "reason": f"no base ref found (tried {base_candidates})",
+                }
+            else:
+                curr_branch = run_command(["git", "branch", "--show-current"]).strip() or "HEAD"
+                merge_tree_res = run_command(["git", "merge-tree", merge_base, curr_branch], check=False)
+                stdout_text = merge_tree_res.stdout or ""
+                has_conflicts = "<<<<<<<" in stdout_text
+                results["merge_simulation"] = {
+                    "base": merge_base,
+                    "head": curr_branch,
+                    "has_conflicts": has_conflicts,
+                    "status": "clean" if not has_conflicts and merge_tree_res.returncode == 0 else ("conflicts_detected" if has_conflicts else "error"),
+                }
         except Exception as e:
             results["merge_simulation"] = {"error": str(e)}
 

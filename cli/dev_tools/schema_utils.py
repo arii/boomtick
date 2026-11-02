@@ -51,6 +51,7 @@ def collect_commands(root_cmd, prefix="", max_depth=10):
 
             args_str = []
             req_args = []
+            opt_args = []
             opt_flags = []
             req_flags = []
 
@@ -58,17 +59,18 @@ def collect_commands(root_cmd, prefix="", max_depth=10):
                 param_type = get_type_name(param)
                 if isinstance(param, click.Argument):
                     arg_name = param.name.upper()
-                    if param.nargs == -1:
-                        args_str.append(f"<{arg_name}...>")
+                    arg_label = f"<{arg_name}...>" if param.nargs == -1 else f"<{arg_name}>"
+                    arg_info = {
+                        "name": param.name,
+                        "type": param_type,
+                        "description": getattr(param, "help", "") or "",
+                    }
+                    if param.required:
+                        args_str.append(arg_label)
+                        req_args.append(arg_info)
                     else:
-                        args_str.append(f"<{arg_name}>")
-                    req_args.append(
-                        {
-                            "name": param.name,
-                            "type": param_type,
-                            "description": getattr(param, "help", "") or "",
-                        }
-                    )
+                        args_str.append(f"[{arg_label}]")
+                        opt_args.append(arg_info)
                 elif isinstance(param, click.Option):
                     flag_name = param.opts[0]
                     flag_desc = param.help or ""
@@ -98,6 +100,8 @@ def collect_commands(root_cmd, prefix="", max_depth=10):
             cmd_info = {"description": cmd_help, "exact_usage": usage}
             if req_args:
                 cmd_info["required_arguments"] = req_args
+            if opt_args:
+                cmd_info["optional_arguments"] = opt_args
             if req_flags:
                 cmd_info["required_flags"] = req_flags
             if opt_flags:
