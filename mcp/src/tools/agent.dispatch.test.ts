@@ -36,9 +36,12 @@ describe("agent_dispatch with worktree-scoped sessions", () => {
     execSync("git add . && git commit -m 'initial'", { cwd: tmpWorktreeDir });
 
     SessionManager.getInstance().reset();
+    process.env.BOOMTICK_SESSION_EXEC = "0";
   });
 
   afterEach(async () => {
+    delete process.env.BOOMTICK_SESSION_EXEC;
+    delete process.env.BOOMTICK_EXECUTOR_CLI;
     try {
       await fs.rm(tmpRepoDir, { recursive: true, force: true });
     } catch {
@@ -137,5 +140,94 @@ describe("agent_dispatch with worktree-scoped sessions", () => {
 
     const finalStatus = await agentStatusHandler({ sessionId: dispatchRes.sessionId });
     expect(finalStatus.state).toBe("done");
+  });
+});
+
+describe("agent_dispatch real execution", () => {
+  let tmpRepoDir: string;
+  let tmpWorktreeDir: string;
+
+  async function waitForState(sessionId: string, states: string[], timeoutMs = 10000) {
+    const manager = SessionManager.getInstance();
+    const deadline = Date.now() + timeoutMs;
+    for (;;) {
+      const s = await manager.loadSession(sessionId);
+      if (s && states.includes(s.state)) {
+        return s;
+      }
+      if (Date.now() > deadline) {
+        throw new Error(`timed out waiting for ${states.join("/")}`);
+      }
+      await new Promise((r) => setTimeout(r, 50));
+    }
+  }
+
+  beforeEach(async () => {
+    tmpRepoDir = await fs.mkdtemp(path.join(os.tmpdir(), "bt-exec-"));
+    tmpWorktreeDir = path.join(tmpRepoDir, ".worktrees", "exec-wt");
+    await fs.mkdir(tmpWorktreeDir, { recursive: true });
+    const { execSync } = await import("child_process");
+    execSync("git init -b main", { cwd: tmpWorktreeDir });
+    execSync('git config user.email "test@example.com"', { cwd: tmpWorktreeDir });
+    execSync('git config user.name "Test Runner"', { cwd: tmpWorktreeDir });
+    SessionManager.getInstance().reset();
+    delete process.env.BOOMTICK_SESSION_EXEC;
+  });
+
+  afterEach(async () => {
+    delete process.env.BOOMTICK_SESSION_EXEC;
+    delete process.env.BOOMTICK_EXECUTOR_CLI;
+    try {
+      await fs.rm(tmpRepoDir, { recursive: true, force: true });
+    } catch {
+      // ignore
+    }
+  });
+
+  it("exit 0 flips the session to done", async () => {
+    process.env.BOOMTICK_EXECUTOR_CLI = "true";
+    const dispatchRes = await agentDispatchHandler({
+      worktreeId: tmpWorktreeDir,
+      brief: "no-op",
+    });
+    const s = await waitForState(dispatchRes.sessionId, ["done", "failed"]);
+    expect(s.state).toBe("done");
+    expect(s.lastCheckpoint).toBe("execution_done");
+  });
+
+  it("nonzero exit flips the session to failed", async () => {
+    process.env.BOOMTICK_EXECUTOR_CLI = "false";
+    const dispatchRes = await agentDispatchHandler({
+      worktreeId: tmpWorktreeDir,
+      brief: "no-op",
+    });
+    const s = await waitForState(dispatchRes.sessionId, ["done", "failed"]);
+    expect(s.state).toBe("failed");
+    expect(s.lastCheckpoint).toBe("execution_failed");
+  });
+
+  it("streams child output into session logs", async () => {
+    process.env.BOOMTICK_EXECUTOR_CLI = "echo";
+    const dispatchRes = await agentDispatchHandler({
+      worktreeId: tmpWorktreeDir,
+      brief: "stream-marker-xyz",
+    });
+    const s = await waitForState(dispatchRes.sessionId, ["done", "failed"]);
+    expect(s.state).toBe("done");
+    expect(s.logs.join("\n")).toContain("stream-marker-xyz");
+    expect(s.logs.join("\n")).toContain("-p --system-prompt");
+  });
+
+  it("exec disabled leaves bookkeeping-only behavior", async () => {
+    process.env.BOOMTICK_SESSION_EXEC = "0";
+    process.env.BOOMTICK_EXECUTOR_CLI = "false";
+    const dispatchRes = await agentDispatchHandler({
+      worktreeId: tmpWorktreeDir,
+      brief: "no-op",
+    });
+    await new Promise((r) => setTimeout(r, 300));
+    const statusRes = await agentStatusHandler({ sessionId: dispatchRes.sessionId });
+    expect(statusRes.state).toBe("running");
+    expect(statusRes.lastCheckpoint).toBe("worktree_setup");
   });
 });

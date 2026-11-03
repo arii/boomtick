@@ -2,9 +2,12 @@ import fs from "fs/promises";
 import * as syncFs from "fs";
 import path from "path";
 import crypto from "crypto";
+import { spawn } from "child_process";
 import { config } from "../config.js";
 import { resolveRepoPath, removeWorktree } from "./git.js";
 import { runCommand } from "./shell.js";
+
+const MAX_SESSION_LOG_LINES = 2000;
 
 export type SessionState = "running" | "done" | "failed" | "abandoned";
 
@@ -274,7 +277,92 @@ export class SessionManager {
     };
 
     await this.saveSession(session);
+    void this.runSessionProcess(session.sessionId);
     return session;
+  }
+
+  /**
+   * Spawns the executor CLI in the session worktree and streams its
+   * output into the session logs. Fire-and-forget: dispatch returns
+   * immediately; completion flips the checkpoint to done/failed.
+   * Set BOOMTICK_SESSION_EXEC=0 to disable (bookkeeping only).
+   */
+  public async runSessionProcess(sessionId: string): Promise<void> {
+    const session = await this.loadSession(sessionId);
+    if (!session) {
+      return;
+    }
+    if (process.env.BOOMTICK_SESSION_EXEC === "0") {
+      return;
+    }
+    const cli = process.env.BOOMTICK_EXECUTOR_CLI || "pi";
+    const model = session.model || process.env.BOOMTICK_EXECUTOR_MODEL || undefined;
+    const context = await this.loadAgentContext(session.worktreePath, session.brief);
+    const args = ["-p", "--system-prompt", context];
+    if (model) {
+      args.push("--model", model);
+    }
+    args.push(session.brief);
+
+    await this.updateCheckpoint(sessionId, "executing", "running");
+
+    await new Promise<void>((resolve) => {
+      let child;
+      try {
+        child = spawn(cli, args, { cwd: session.worktreePath });
+      } catch (err: any) {
+        void this.appendLogs(sessionId, [`[exec] spawn failed: ${err.message}`])
+          .then(() => this.updateCheckpoint(sessionId, "execution_failed", "failed"))
+          .then(() => resolve());
+        return;
+      }
+      let buffer = "";
+      const pushLines = (chunk: Buffer) => {
+        buffer += chunk.toString();
+        const lines = buffer.split("\n");
+        buffer = lines.pop() || "";
+        if (lines.length > 0) {
+          void this.appendSessionLines(sessionId, lines);
+        }
+      };
+      child.stdout.on("data", pushLines);
+      child.stderr.on("data", pushLines);
+      child.on("error", (err: Error) => {
+        void this.appendLogs(sessionId, [`[exec] spawn failed: ${err.message}`])
+          .then(() => this.updateCheckpoint(sessionId, "execution_failed", "failed"))
+          .then(() => resolve());
+      });
+      child.on("close", (code: number | null) => {
+        const tail = buffer.trim() ? [buffer.trim()] : [];
+        void this.appendSessionLines(sessionId, tail)
+          .then(() => this.updateCheckpoint(
+            sessionId,
+            code === 0 ? "execution_done" : "execution_failed",
+            code === 0 ? "done" : "failed"
+          ))
+          .then(() => resolve());
+      });
+    });
+  }
+
+  /**
+   * Appends streamed lines, capped so long runs cannot grow logs
+   * without bound.
+   */
+  private async appendSessionLines(sessionId: string, lines: string[]): Promise<void> {
+    const session = await this.loadSession(sessionId);
+    if (!session) {
+      return;
+    }
+    for (const line of lines) {
+      if (session.logs.length >= MAX_SESSION_LOG_LINES) {
+        session.logs.push("[exec] log truncated: line cap reached");
+        break;
+      }
+      session.logs.push(line);
+    }
+    session.updatedAt = Date.now();
+    await this.saveSession(session);
   }
 
   /**
