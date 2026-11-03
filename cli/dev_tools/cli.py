@@ -2122,6 +2122,80 @@ def skill_read(ctx, name, root_path):
         _handle_unexpected_error(ctx, "skill read", e)
 
 
+@cli.group(name="worktree")
+def worktree_group():
+    """Managed git worktrees under .worktrees (parity with MCP tools)."""
+
+
+@worktree_group.command(name="create")
+@click.argument("name", required=False)
+@click.option("--base", "base_branch", default="main",
+              help="Base branch for the new worktree branch")
+@click.option("--path", "root_path", default=None,
+              help="Repo root override (default: git root)")
+@click.pass_context
+def worktree_create(ctx, name, base_branch, root_path):
+    """Create a managed worktree on a new branch."""
+    from dev_tools.services import local_sessions as ls
+    from dev_tools.services import worktrees as wt
+    try:
+        root = ls.repo_root_for(root_path)
+        wid, path, branch = wt.create(root, name, base_branch)
+        if not ctx.obj["JSON"]:
+            click.echo(f"{wid} {branch} {path}")
+        out(ctx, f"Worktree {wid} created.",
+            data={"worktreeId": wid, "path": path, "branch": branch})
+    except wt.WorktreeError as e:
+        err(ctx, str(e), code=1)
+    except Exception as e:
+        _handle_unexpected_error(ctx, "worktree create", e)
+
+
+@worktree_group.command(name="list")
+@click.option("--path", "root_path", default=None,
+              help="Repo root override (default: git root)")
+@click.pass_context
+def worktree_list(ctx, root_path):
+    """List managed worktrees with branch, age and dirtiness."""
+    from dev_tools.services import local_sessions as ls
+    from dev_tools.services import worktrees as wt
+    try:
+        items = wt.list_worktrees(ls.repo_root_for(root_path))
+        if not ctx.obj["JSON"]:
+            for item in items:
+                click.echo(f"{item['worktreeId']} {item['branch']} "
+                           f"({item['changedFilesCount']} changed) "
+                           f"{item['path']}")
+        out(ctx, f"{len(items)} worktree(s).",
+            data={"worktrees": items})
+    except Exception as e:
+        _handle_unexpected_error(ctx, "worktree list", e)
+
+
+@worktree_group.command(name="remove")
+@click.argument("worktree_id")
+@click.option("--force", is_flag=True,
+              help="Remove even with uncommitted changes")
+@click.option("--path", "root_path", default=None,
+              help="Repo root override (default: git root)")
+@click.pass_context
+def worktree_remove(ctx, worktree_id, force, root_path):
+    """Remove a managed worktree (refuses dirty ones unless --force)."""
+    from dev_tools.services import local_sessions as ls
+    from dev_tools.services import worktrees as wt
+    try:
+        freed = wt.remove(ls.repo_root_for(root_path), worktree_id, force)
+        if not ctx.obj["JSON"]:
+            click.echo(f"removed {worktree_id}")
+        out(ctx, f"Worktree {worktree_id} removed.",
+            data={"status": "removed", "worktreeId": worktree_id,
+                  "freedBytes": freed})
+    except wt.WorktreeError as e:
+        err(ctx, str(e), code=1)
+    except Exception as e:
+        _handle_unexpected_error(ctx, "worktree remove", e)
+
+
 # --- Multi-Repository Ecosystem Commands ---
 
 
