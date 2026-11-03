@@ -59,6 +59,9 @@ def submit(worktree_path, title, body="", base="main", draft=True,
         raise SubmitError("Worktree has no current branch (detached?)")
     committed = changed_vs_base(worktree, base)
     dirty = ls.changed_files(worktree)
+    # Supervisor-owned session state is never PR content; it is always
+    # dirty in session worktrees and must not trip the scope gate.
+    dirty = [f for f in dirty if f != "session.json"]
     scope_files = sorted(set(committed) | set(dirty))
     if not scope_files:
         raise SubmitError("No changes to submit (branch matches base)")

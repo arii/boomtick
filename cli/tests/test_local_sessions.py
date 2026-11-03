@@ -112,6 +112,16 @@ def test_changed_files_parses_porcelain(repo, worktree):
     assert sorted(names) == ["README.md", "new.txt"]
 
 
+def test_changed_files_keeps_first_line_xy_space(repo, worktree):
+    # Unstaged-only change: first porcelain line is " M ..." and the
+    # leading XY space must survive (regression: strip() ate it and
+    # the fallback slice truncated the path).
+    (worktree / "README.md").write_text("changed-unstaged")
+    names = ls.changed_files(str(worktree))
+    assert "README.md" in names
+    assert not any(n == "EADME.md" for n in names)
+
+
 def test_status_summary_shape(repo, worktree):
     session = _session_in(worktree)
     summary = ls.status_summary(session)
