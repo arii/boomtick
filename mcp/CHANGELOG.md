@@ -1,5 +1,25 @@
 # Changelog
 
+## [0.10.0](https://github.com/arii/boomtick/compare/mcp-v0.9.0...mcp-v0.10.0) (2026-11-03)
+
+
+### Features
+
+* **cli:** local session parity — td agent run, session, skill ([#1102](https://github.com/arii/boomtick/issues/1102)) ([aa2e473](https://github.com/arii/boomtick/commit/aa2e47345bde1da4aa3be8685a7d010e8d2a9a63))
+* **mcp:** adopt pre-existing worktree schemas for lifecycle tools ([cbc0537](https://github.com/arii/boomtick/commit/cbc0537a2f1d8b9855154d883953b310356d1ca9))
+* **mcp:** agent_merge_approved → agent_submit_pr (no agent merge authority) ([#1105](https://github.com/arii/boomtick/issues/1105)) ([71d8393](https://github.com/arii/boomtick/commit/71d8393fe0b90a00113af9cba908f830c7ae4398))
+* **mcp:** real execution in agent_dispatch sessions ([129743b](https://github.com/arii/boomtick/commit/129743b0135c4a3129f3afd8fcd7a125acf26e59))
+* **mcp:** real execution in agent_dispatch sessions ([#1096](https://github.com/arii/boomtick/issues/1096)) ([523c957](https://github.com/arii/boomtick/commit/523c9570bf169ca17431ea54e54054afba63c04d))
+* **mcp:** skill_list/skill_read session tools ([#1101](https://github.com/arii/boomtick/issues/1101)) ([b9aeb67](https://github.com/arii/boomtick/commit/b9aeb671d0025b8452497045cb939d7969042036))
+* **mcp:** worktree_create/list/remove session tools ([66e05c3](https://github.com/arii/boomtick/commit/66e05c350b47e118926720e183723a9563f2f473))
+* **mcp:** worktree_create/list/remove session tools ([#1100](https://github.com/arii/boomtick/issues/1100)) ([a3d10a6](https://github.com/arii/boomtick/commit/a3d10a6c63b51716088a5ab71bb1faff0b6af96f))
+
+
+### Bug Fixes
+
+* **mcp:** wrap bare arrays in createSuccessResult ([537085d](https://github.com/arii/boomtick/commit/537085ddfe3eb57ea0d27063cb74c2a50d2f0271))
+* **mcp:** wrap bare arrays in createSuccessResult ([#1088](https://github.com/arii/boomtick/issues/1088)) ([a7d87ee](https://github.com/arii/boomtick/commit/a7d87ee088c91b26d96c7c1e844baee51f004e3c))
+
 ## [0.9.0](https://github.com/arii/boomtick/compare/mcp-v0.8.1...mcp-v0.9.0) (2026-11-02)
 
 

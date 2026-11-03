@@ -1,5 +1,25 @@
 # Changelog
 
+## [0.19.0](https://github.com/arii/boomtick/compare/cli-v0.18.0...cli-v0.19.0) (2026-11-03)
+
+
+### Features
+
+* **cli:** local session parity — td agent run, session, skill ([#1102](https://github.com/arii/boomtick/issues/1102)) ([aa2e473](https://github.com/arii/boomtick/commit/aa2e47345bde1da4aa3be8685a7d010e8d2a9a63))
+* **mcp:** adopt pre-existing worktree schemas for lifecycle tools ([cbc0537](https://github.com/arii/boomtick/commit/cbc0537a2f1d8b9855154d883953b310356d1ca9))
+* **mcp:** agent_merge_approved → agent_submit_pr (no agent merge authority) ([#1105](https://github.com/arii/boomtick/issues/1105)) ([71d8393](https://github.com/arii/boomtick/commit/71d8393fe0b90a00113af9cba908f830c7ae4398))
+* **mcp:** skill_list/skill_read session tools ([#1101](https://github.com/arii/boomtick/issues/1101)) ([b9aeb67](https://github.com/arii/boomtick/commit/b9aeb671d0025b8452497045cb939d7969042036))
+* **mcp:** worktree_create/list/remove session tools ([66e05c3](https://github.com/arii/boomtick/commit/66e05c350b47e118926720e183723a9563f2f473))
+
+
+### Bug Fixes
+
+* **cli:** pin token presence in dispatch precheck tests ([2876d0d](https://github.com/arii/boomtick/commit/2876d0df5bfa7590ec3c318ddf58cedc4e47891d))
+* **cli:** skip commands-schema write outside boomtick checkout ([573b25f](https://github.com/arii/boomtick/commit/573b25f5898fd18a1370202315ef00a95fcb10f5))
+* **cli:** skip commands-schema write outside boomtick checkout ([#1094](https://github.com/arii/boomtick/issues/1094)) ([7906717](https://github.com/arii/boomtick/commit/79067178ba6e5c992bf428a5095638e8dbee8987))
+* **cli:** skip Jules branch precheck without GitHub token ([b986681](https://github.com/arii/boomtick/commit/b98668104392779d8d8343a0bd3436e0d3ff182a))
+* **cli:** skip Jules branch precheck without GitHub token ([#1087](https://github.com/arii/boomtick/issues/1087)) ([316f8cb](https://github.com/arii/boomtick/commit/316f8cbda9e152ec9ce6bfd55e957e3ef4a29e38))
+
 ## [0.18.0](https://github.com/arii/boomtick/compare/cli-v0.17.1...cli-v0.18.0) (2026-11-02)
 
 
