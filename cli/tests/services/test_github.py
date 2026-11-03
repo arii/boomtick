@@ -282,6 +282,33 @@ class TestGitHubClientGraphQL(unittest.TestCase):
         self.assertEqual(mock_graphql.call_count, 3)
 
     @patch("dev_tools.services.github.GitHubClient.graphql")
+    def test_resolve_node_ids_query_is_valid_graphql(self, mock_graphql):
+        # Regression: the resolver sent labels(first: 100, names: ...)
+        # but Repository.labels accepts no `names` argument, so every
+        # GraphQL resolution failed and silently fell back to REST.
+        mock_graphql.return_value = {
+            "data": {
+                "repository": {
+                    "issueOrPullRequest": {"id": "issue_node_123"},
+                    "labels": {"nodes": [
+                        {"id": "label_node_bug", "name": "bug"},
+                        {"id": "label_node_ui", "name": "ui"},
+                    ]},
+                }
+            }
+        }
+        issue_id, resolved = self.client._resolve_node_ids(
+            123, ["bug", "ui"])
+        self.assertEqual(issue_id, "issue_node_123")
+        self.assertEqual(resolved, {"bug": "label_node_bug",
+                                    "ui": "label_node_ui"})
+        query, variables = mock_graphql.call_args.args
+        self.assertNotIn("names:", query)
+        self.assertNotIn("labelNames", query)
+        self.assertNotIn("labelNames", variables)
+        self.assertIn("labels(first: 100)", query)
+
+    @patch("dev_tools.services.github.GitHubClient.graphql")
     def test_remove_label_graphql_single_request_and_caching(self, mock_graphql):
         resolve_response = {
             "data": {
