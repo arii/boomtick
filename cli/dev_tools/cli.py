@@ -1706,6 +1706,45 @@ def run(ctx, worktree, brief, model, repo, root_path, detach):
         _handle_unexpected_error(ctx, "agent run", e)
 
 
+@agent_group.command(name="submit-pr")
+@click.option("--worktree", required=True, help="Worktree path holding the branch")
+@click.option("--title", required=True, help="PR title")
+@click.option("--body", default="", help="PR body")
+@click.option("--base", default="main", help="Base branch for the PR")
+@click.option("--draft/--no-draft", default=True,
+              help="Open as a draft for human review")
+@click.option("--issue", "issue_number", type=int, default=None,
+              help="Gate changed files against this issue's scope")
+@click.option("--repo", "-r", default=None,
+              help="Target GitHub repository (e.g. owner/repo)")
+@click.option("--skip-scope-check", is_flag=True,
+              help="Bypass the scope gate (mirrors CI's [skip-scope-check])")
+@click.pass_context
+def submit_pr(ctx, worktree, title, body, base, draft, issue_number,
+              repo, skip_scope_check):
+    """Push a worktree branch and open a PR (scope-gated with --issue)."""
+    from dev_tools.services import submit_pr as sp
+    try:
+        wt = worktree if os.path.isabs(worktree) \
+            else os.path.join(os.getcwd(), worktree)
+        issue_text = None
+        if issue_number is not None:
+            orch = ctx.obj["ORCHESTRATOR"]
+            extra = {"repo": repo} if repo else {}
+            details = orch.get_issue_details(issue_number, **extra)
+            issue_text = (details.get("title", "") + "\n"
+                          + (details.get("body") or ""))
+        res = sp.submit(wt, title, body, base, draft, repo,
+                        issue_text, skip_scope_check)
+        if not ctx.obj["JSON"]:
+            click.echo(f"submitted {res['branch']} -> {res['url']}")
+        out(ctx, f"PR submitted: {res['url']}.", data=res)
+    except sp.SubmitError as e:
+        err(ctx, str(e), code=1)
+    except Exception as e:
+        _handle_unexpected_error(ctx, "agent submit-pr", e)
+
+
 @agent_group.command(name="run-local")
 @click.option("--pr", "--pr-number", "pr_number", required=False, type=int, help="Pull Request number to evaluate.")
 @click.option("--issue", "issue_number", type=int, help="Optional linked Issue number.")
