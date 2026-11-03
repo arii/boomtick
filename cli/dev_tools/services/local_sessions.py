@@ -40,6 +40,9 @@ class SkillNotFound(ValueError):
 
 
 def _git(args, cwd):
+    # Raw stdout (unstripped): stripping here eats the first line's
+    # leading XY space in --porcelain output and corrupts parsing.
+    # Callers strip what they need.
     try:
         res = subprocess.run(
             ["git"] + args, cwd=cwd, capture_output=True, text=True,
@@ -49,7 +52,7 @@ def _git(args, cwd):
         return None
     if res.returncode != 0:
         return None
-    return res.stdout.strip()
+    return res.stdout or ""
 
 
 def repo_root_for(path=None):
@@ -60,8 +63,9 @@ def repo_root_for(path=None):
     ``--git-common-dir`` and preferred when it holds ``.worktrees``.
     """
     start = os.path.abspath(path or os.getcwd())
-    top = _git(["rev-parse", "--show-toplevel"], start) or start
-    common = _git(["rev-parse", "--git-common-dir"], start)
+    top = (_git(["rev-parse", "--show-toplevel"], start) or "").strip() \
+        or start
+    common = (_git(["rev-parse", "--git-common-dir"], start) or "").strip()
     if common:
         if not os.path.isabs(common):
             common = os.path.join(top, common)
@@ -123,7 +127,8 @@ def save_session(session):
 
 
 def _detect_branch(worktree_path):
-    branch = _git(["branch", "--show-current"], worktree_path)
+    branch = (_git(["branch", "--show-current"], worktree_path)
+              or "").strip()
     if branch:
         return branch
     return "agent/" + os.path.basename(os.path.abspath(worktree_path))
@@ -250,7 +255,7 @@ def build_system_prompt(worktree_path, brief):
 
 def executor_command(session):
     """Return (cli, args) for the session executor (mirrors TS spawn)."""
-    cli = os.environ.get("BOOMTICK_EXECUTOR_CLI", "pi")
+    cli = os.environ.get("BOOMTICK_EXECUTOR_CLI", "s5-coder")
     model = session.get("model") or os.environ.get("BOOMTICK_EXECUTOR_MODEL")
     args = ["-p", "--system-prompt",
             build_system_prompt(session["worktreePath"], session["brief"])]

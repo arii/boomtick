@@ -1783,7 +1783,8 @@ def submit_pr(ctx, worktree, title, body, base, draft, issue_number,
             issue_text = (details.get("title", "") + "\n"
                           + (details.get("body") or ""))
         res = sp.submit(wt, title, body, base, draft, repo,
-                        issue_text, skip_scope_check)
+                        issue_text, skip_scope_check,
+                        issue=issue_number)
         if not ctx.obj["JSON"]:
             click.echo(f"submitted {res['branch']} -> {res['url']}")
         out(ctx, f"PR submitted: {res['url']}.", data=res)

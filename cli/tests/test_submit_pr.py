@@ -111,6 +111,29 @@ def test_no_changes_refuses(worktree):
         sp.submit(str(worktree), "T")
 
 
+def test_dirty_work_committed_with_agent_message(worktree):
+    (worktree / "mcp" / "login.ts").write_text("v3-uncommitted\n")
+    real_run = sp._run
+
+    def router(args, cwd):
+        if args[:2] == ["git", "push"] or args[0] == "gh":
+            return _router(_ok_push_pr())(args, cwd)
+        return real_run(args, cwd)
+
+    with patch.object(sp, "_run", side_effect=router):
+        res = sp.submit(str(worktree), "Fix login", "", "main", True,
+                        None, ISSUE, issue=271)
+    assert res["status"] == "submitted"
+    assert res["commit"]
+    log = subprocess.run(["git", "log", "-1", "--format=%s"], cwd=worktree,
+                         capture_output=True, text=True, check=True)
+    assert log.stdout.strip() == "feat(agent): Fix login (#271)"
+    # Nothing left uncommitted (supervisor state aside).
+    status = subprocess.run(["git", "status", "--porcelain"], cwd=worktree,
+                            capture_output=True, text=True, check=True)
+    assert status.stdout.strip() == ""
+
+
 def test_push_failure_surfaces(worktree):
     real_run = sp._run
 
@@ -145,3 +168,21 @@ def test_session_json_stamped(worktree):
 def test_not_a_checkout_refuses(tmp_path):
     with pytest.raises(sp.SubmitError, match="Not a git checkout"):
         sp.submit(str(tmp_path), "T")
+
+
+def test_root_session_json_excluded_from_scope(worktree):
+    # Supervisor state is always dirty in session worktrees; it must
+    # not trip the scope gate (regression from the #271 loop proof).
+    (worktree / "session.json").write_text('{"sessionId": "sess_1"}')
+    real_run = sp._run
+
+    def router(args, cwd):
+        if args[:2] == ["git", "push"] or args[0] == "gh":
+            return _router(_ok_push_pr())(args, cwd)
+        return real_run(args, cwd)
+
+    with patch.object(sp, "_run", side_effect=router):
+        res = sp.submit(str(worktree), "T", "", "main", True, None,
+                        ISSUE)
+    assert res["status"] == "submitted"
+    assert "session.json" not in res["files"]

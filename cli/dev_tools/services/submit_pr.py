@@ -40,26 +40,31 @@ def changed_vs_base(worktree, base):
 
 
 def submit(worktree_path, title, body="", base="main", draft=True,
-           repo=None, issue_text=None, skip_scope=False):
-    """Push the worktree branch and open a PR. Returns a result dict.
+           repo=None, issue_text=None, skip_scope=False, issue=None):
+    """Commit, push the worktree branch and open a PR. Returns a dict.
 
-    Scope: when ``issue_text`` is given, committed-since-base plus
-    uncommitted files must all match the issue (CI rules); violations
-    refuse unless ``skip_scope`` (mirrors CI's [skip-scope-check]).
-    Records the PR url into session.json when one is present.
+    Uncommitted work is committed first with a fixed agent message
+    (mirrors MCP approve-merge's commit step); scope then covers the
+    branch diff plus any leftover dirt. When ``issue_text`` is given,
+    scope must match the issue (CI rules); violations refuse unless
+    ``skip_scope`` (mirrors CI's [skip-scope-check]). Records the PR
+    url into session.json when one is present.
     """
     worktree = os.path.abspath(worktree_path)
-    if not os.path.isdir(os.path.join(worktree, ".git")) \
-            and not os.path.isfile(os.path.join(worktree, ".git")):
-        # Worktrees carry .git as a file; plain dirs are not checkouts.
-        if not os.path.exists(os.path.join(worktree, ".git")):
-            raise SubmitError(f"Not a git checkout: {worktree_path}")
+    if not os.path.exists(os.path.join(worktree, ".git")):
+        raise SubmitError(f"Not a git checkout: {worktree_path}")
     branch = _branch(worktree)
     if not branch:
         raise SubmitError("Worktree has no current branch (detached?)")
+    dirty = [f for f in ls.changed_files(worktree) if f != "session.json"]
+    commit_sha = None
+    if dirty:
+        ref = f" (#{issue})" if issue is not None else ""
+        commit_sha = _commit(worktree, dirty, f"feat(agent): {title}{ref}")
     committed = changed_vs_base(worktree, base)
-    dirty = ls.changed_files(worktree)
-    scope_files = sorted(set(committed) | set(dirty))
+    leftover = [f for f in ls.changed_files(worktree)
+                if f != "session.json"]
+    scope_files = sorted(set(committed) | set(leftover))
     if not scope_files:
         raise SubmitError("No changes to submit (branch matches base)")
     scope = {"checked": False, "allowed": [], "disallowed": [],
@@ -97,7 +102,21 @@ def submit(worktree_path, title, body="", base="main", draft=True,
     _record_pr_url(worktree, url)
     return {"status": "submitted", "url": url, "branch": branch,
             "base": base, "draft": draft, "scope": scope,
-            "files": scope_files}
+            "files": scope_files, "commit": commit_sha}
+
+
+def _commit(worktree, files, message):
+    """Stage scope files and commit (mirrors commitPatchHandler)."""
+    add = _run(["git", "add", "--"] + files, worktree)
+    if add.returncode != 0:
+        raise SubmitError(
+            f"Failed to stage: {(add.stderr or '').strip()[:200]}")
+    done = _run(["git", "commit", "-m", message], worktree)
+    if done.returncode != 0:
+        raise SubmitError(
+            f"Failed to commit: {(done.stderr or '').strip()[:300]}")
+    sha = _run(["git", "rev-parse", "HEAD"], worktree)
+    return sha.stdout.strip() if sha.returncode == 0 else ""
 
 
 def _record_pr_url(worktree, url):

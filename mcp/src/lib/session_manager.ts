@@ -295,7 +295,7 @@ export class SessionManager {
     if (process.env.BOOMTICK_SESSION_EXEC === "0") {
       return;
     }
-    const cli = process.env.BOOMTICK_EXECUTOR_CLI || "pi";
+    const cli = process.env.BOOMTICK_EXECUTOR_CLI || "s5-coder";
     const model = session.model || process.env.BOOMTICK_EXECUTOR_MODEL || undefined;
     const context = await this.loadAgentContext(session.worktreePath, session.brief);
     const args = ["-p", "--system-prompt", context];

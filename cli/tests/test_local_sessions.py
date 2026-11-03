@@ -112,6 +112,16 @@ def test_changed_files_parses_porcelain(repo, worktree):
     assert sorted(names) == ["README.md", "new.txt"]
 
 
+def test_changed_files_keeps_first_line_xy_space(repo, worktree):
+    # Unstaged-only change: first porcelain line is " M ..." and the
+    # leading XY space must survive (regression: strip() ate it and
+    # the fallback slice truncated the path).
+    (worktree / "README.md").write_text("changed-unstaged")
+    names = ls.changed_files(str(worktree))
+    assert "README.md" in names
+    assert not any(n == "EADME.md" for n in names)
+
+
 def test_status_summary_shape(repo, worktree):
     session = _session_in(worktree)
     summary = ls.status_summary(session)
@@ -173,6 +183,16 @@ def test_executor_command_env_knobs(repo, worktree, monkeypatch):
     assert cli == "mycli"
     assert args[:2] == ["-p", "--system-prompt"]
     assert "--model" in args and "m9" in args
+    assert args[-1] == "b"
+
+
+def test_executor_defaults_to_s5_coder(repo, worktree, monkeypatch):
+    monkeypatch.delenv("BOOMTICK_EXECUTOR_CLI", raising=False)
+    monkeypatch.delenv("BOOMTICK_EXECUTOR_MODEL", raising=False)
+    session = ls.new_session(str(worktree), "b")
+    cli, args = ls.executor_command(session)
+    assert cli == "s5-coder"
+    assert args[:2] == ["-p", "--system-prompt"]
     assert args[-1] == "b"
 
 
