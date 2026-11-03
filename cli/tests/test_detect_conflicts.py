@@ -6,6 +6,7 @@ import pytest
 from click.testing import CliRunner
 from dev_tools.cli import cli
 from dev_tools.orchestrator import Orchestrator
+from dev_tools.utils import CLIError
 
 
 @pytest.fixture
@@ -83,6 +84,25 @@ def test_orchestrator_detect_conflicts_all_prs(orchestrator):
         assert len(res) == 2
         assert res[0]["type"] == "file_overlap"
         assert res[1]["type"] == "file_overlap"
+
+
+@pytest.mark.parametrize(
+    ("kwargs", "scope"),
+    [
+        ({"all_prs": True}, "all open PRs"),
+        ({"pr_num": 123}, "PR #123"),
+    ],
+)
+def test_detect_conflicts_missing_repo_name(orchestrator, kwargs, scope):
+    """Undetectable repo name must raise a precise CLIError, not PyGithub's bare assert (message "None")."""
+    with patch("dev_tools.orchestrator.get_repo_name", return_value=None):
+        with pytest.raises(CLIError) as excinfo:
+            orchestrator.handle_detect_conflicts(**kwargs)
+    assert str(excinfo.value) == (
+        f"Could not determine repository name for detect-conflicts scan of {scope}: "
+        "no GITHUB_REPOSITORY env var and no git origin remote found. "
+        "Set GITHUB_REPOSITORY=owner/repo or run inside a git checkout."
+    )
 
 
 def test_cli_detect_conflicts_all():
