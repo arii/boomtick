@@ -676,6 +676,54 @@ def scaffold_issue(ctx, file):
         click.echo(output)
 
 
+@gh.command(name="spec-issue")
+@click.argument("issue_number", type=int)
+@click.option("--repo", "-r", default=None,
+              help="Target GitHub repository (e.g. owner/repo)")
+@click.option("--path", "root_path", default=None,
+              help="Checkout for scope existence checks (default: git root)")
+@click.option("--write/--no-write", default=False,
+              help="Write the improved body back to the issue")
+@click.pass_context
+def spec_issue(ctx, issue_number, repo, root_path, write):
+    """Rewrite an issue as an agent-implementable spec (exit 0 iff ready).
+
+    Appends ## Agent scope (allowed files, scope-gate enforced) and
+    ## Validation (detected gate commands). Chain with && to dispatch
+    only issues that meet the bar.
+    """
+    from dev_tools.services import local_sessions as ls
+    from dev_tools.services import spec_issue as spec
+    try:
+        orch = ctx.obj["ORCHESTRATOR"]
+        extra = {"repo": repo} if repo else {}
+        details = orch.get_issue_details(issue_number, **extra)
+        title = details.get("title", "")
+        body = details.get("body") or ""
+        root = ls.repo_root_for(root_path)
+        improved, report = spec.render_body(title, body, root)
+        if write:
+            orch.update_issue(issueNumber=issue_number, body=improved,
+                              **extra)
+        if not ctx.obj["JSON"]:
+            if report["ready"]:
+                click.echo(f"issue #{issue_number} is agent-ready")
+            else:
+                click.echo(f"issue #{issue_number} NOT ready: "
+                           f"missing headers {report['missing_headers']}, "
+                           f"{len(report['scope'])} scope path(s)")
+            if not write:
+                click.echo("--- improved body ---")
+                click.echo(improved)
+        out(ctx, f"issue #{issue_number} ready: {report['ready']}.",
+            data={"issue": issue_number, "wrote": write,
+                  "body": improved, **report})
+        if not report["ready"]:
+            sys.exit(1)
+    except Exception as e:
+        _handle_unexpected_error(ctx, "gh spec-issue", e)
+
+
 @gh.command()
 @click.option("--title", required=True)
 @click.option("--body", required=True)
@@ -1706,6 +1754,45 @@ def run(ctx, worktree, brief, model, repo, root_path, detach):
         _handle_unexpected_error(ctx, "agent run", e)
 
 
+@agent_group.command(name="submit-pr")
+@click.option("--worktree", required=True, help="Worktree path holding the branch")
+@click.option("--title", required=True, help="PR title")
+@click.option("--body", default="", help="PR body")
+@click.option("--base", default="main", help="Base branch for the PR")
+@click.option("--draft/--no-draft", default=True,
+              help="Open as a draft for human review")
+@click.option("--issue", "issue_number", type=int, default=None,
+              help="Gate changed files against this issue's scope")
+@click.option("--repo", "-r", default=None,
+              help="Target GitHub repository (e.g. owner/repo)")
+@click.option("--skip-scope-check", is_flag=True,
+              help="Bypass the scope gate (mirrors CI's [skip-scope-check])")
+@click.pass_context
+def submit_pr(ctx, worktree, title, body, base, draft, issue_number,
+              repo, skip_scope_check):
+    """Push a worktree branch and open a PR (scope-gated with --issue)."""
+    from dev_tools.services import submit_pr as sp
+    try:
+        wt = worktree if os.path.isabs(worktree) \
+            else os.path.join(os.getcwd(), worktree)
+        issue_text = None
+        if issue_number is not None:
+            orch = ctx.obj["ORCHESTRATOR"]
+            extra = {"repo": repo} if repo else {}
+            details = orch.get_issue_details(issue_number, **extra)
+            issue_text = (details.get("title", "") + "\n"
+                          + (details.get("body") or ""))
+        res = sp.submit(wt, title, body, base, draft, repo,
+                        issue_text, skip_scope_check)
+        if not ctx.obj["JSON"]:
+            click.echo(f"submitted {res['branch']} -> {res['url']}")
+        out(ctx, f"PR submitted: {res['url']}.", data=res)
+    except sp.SubmitError as e:
+        err(ctx, str(e), code=1)
+    except Exception as e:
+        _handle_unexpected_error(ctx, "agent submit-pr", e)
+
+
 @agent_group.command(name="run-local")
 @click.option("--pr", "--pr-number", "pr_number", required=False, type=int, help="Pull Request number to evaluate.")
 @click.option("--issue", "issue_number", type=int, help="Optional linked Issue number.")
@@ -2120,6 +2207,80 @@ def skill_read(ctx, name, root_path):
         err(ctx, str(e), code=1)
     except Exception as e:
         _handle_unexpected_error(ctx, "skill read", e)
+
+
+@cli.group(name="worktree")
+def worktree_group():
+    """Managed git worktrees under .worktrees (parity with MCP tools)."""
+
+
+@worktree_group.command(name="create")
+@click.argument("name", required=False)
+@click.option("--base", "base_branch", default="main",
+              help="Base branch for the new worktree branch")
+@click.option("--path", "root_path", default=None,
+              help="Repo root override (default: git root)")
+@click.pass_context
+def worktree_create(ctx, name, base_branch, root_path):
+    """Create a managed worktree on a new branch."""
+    from dev_tools.services import local_sessions as ls
+    from dev_tools.services import worktrees as wt
+    try:
+        root = ls.repo_root_for(root_path)
+        wid, path, branch = wt.create(root, name, base_branch)
+        if not ctx.obj["JSON"]:
+            click.echo(f"{wid} {branch} {path}")
+        out(ctx, f"Worktree {wid} created.",
+            data={"worktreeId": wid, "path": path, "branch": branch})
+    except wt.WorktreeError as e:
+        err(ctx, str(e), code=1)
+    except Exception as e:
+        _handle_unexpected_error(ctx, "worktree create", e)
+
+
+@worktree_group.command(name="list")
+@click.option("--path", "root_path", default=None,
+              help="Repo root override (default: git root)")
+@click.pass_context
+def worktree_list(ctx, root_path):
+    """List managed worktrees with branch, age and dirtiness."""
+    from dev_tools.services import local_sessions as ls
+    from dev_tools.services import worktrees as wt
+    try:
+        items = wt.list_worktrees(ls.repo_root_for(root_path))
+        if not ctx.obj["JSON"]:
+            for item in items:
+                click.echo(f"{item['worktreeId']} {item['branch']} "
+                           f"({item['changedFilesCount']} changed) "
+                           f"{item['path']}")
+        out(ctx, f"{len(items)} worktree(s).",
+            data={"worktrees": items})
+    except Exception as e:
+        _handle_unexpected_error(ctx, "worktree list", e)
+
+
+@worktree_group.command(name="remove")
+@click.argument("worktree_id")
+@click.option("--force", is_flag=True,
+              help="Remove even with uncommitted changes")
+@click.option("--path", "root_path", default=None,
+              help="Repo root override (default: git root)")
+@click.pass_context
+def worktree_remove(ctx, worktree_id, force, root_path):
+    """Remove a managed worktree (refuses dirty ones unless --force)."""
+    from dev_tools.services import local_sessions as ls
+    from dev_tools.services import worktrees as wt
+    try:
+        freed = wt.remove(ls.repo_root_for(root_path), worktree_id, force)
+        if not ctx.obj["JSON"]:
+            click.echo(f"removed {worktree_id}")
+        out(ctx, f"Worktree {worktree_id} removed.",
+            data={"status": "removed", "worktreeId": worktree_id,
+                  "freedBytes": freed})
+    except wt.WorktreeError as e:
+        err(ctx, str(e), code=1)
+    except Exception as e:
+        _handle_unexpected_error(ctx, "worktree remove", e)
 
 
 # --- Multi-Repository Ecosystem Commands ---
