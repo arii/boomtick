@@ -676,6 +676,54 @@ def scaffold_issue(ctx, file):
         click.echo(output)
 
 
+@gh.command(name="spec-issue")
+@click.argument("issue_number", type=int)
+@click.option("--repo", "-r", default=None,
+              help="Target GitHub repository (e.g. owner/repo)")
+@click.option("--path", "root_path", default=None,
+              help="Checkout for scope existence checks (default: git root)")
+@click.option("--write/--no-write", default=False,
+              help="Write the improved body back to the issue")
+@click.pass_context
+def spec_issue(ctx, issue_number, repo, root_path, write):
+    """Rewrite an issue as an agent-implementable spec (exit 0 iff ready).
+
+    Appends ## Agent scope (allowed files, scope-gate enforced) and
+    ## Validation (detected gate commands). Chain with && to dispatch
+    only issues that meet the bar.
+    """
+    from dev_tools.services import local_sessions as ls
+    from dev_tools.services import spec_issue as spec
+    try:
+        orch = ctx.obj["ORCHESTRATOR"]
+        extra = {"repo": repo} if repo else {}
+        details = orch.get_issue_details(issue_number, **extra)
+        title = details.get("title", "")
+        body = details.get("body") or ""
+        root = ls.repo_root_for(root_path)
+        improved, report = spec.render_body(title, body, root)
+        if write:
+            orch.update_issue(issueNumber=issue_number, body=improved,
+                              **extra)
+        if not ctx.obj["JSON"]:
+            if report["ready"]:
+                click.echo(f"issue #{issue_number} is agent-ready")
+            else:
+                click.echo(f"issue #{issue_number} NOT ready: "
+                           f"missing headers {report['missing_headers']}, "
+                           f"{len(report['scope'])} scope path(s)")
+            if not write:
+                click.echo("--- improved body ---")
+                click.echo(improved)
+        out(ctx, f"issue #{issue_number} ready: {report['ready']}.",
+            data={"issue": issue_number, "wrote": write,
+                  "body": improved, **report})
+        if not report["ready"]:
+            sys.exit(1)
+    except Exception as e:
+        _handle_unexpected_error(ctx, "gh spec-issue", e)
+
+
 @gh.command()
 @click.option("--title", required=True)
 @click.option("--body", required=True)

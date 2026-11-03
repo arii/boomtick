@@ -149,13 +149,9 @@ def split_camel_case(s: str) -> list:
     return [w.lower() for w in re.findall(r'[A-Z]?[a-z]+|[A-Z]+(?=[A-Z][a-z]|\d|\b)|[0-9]+', s) if w]
 
 
-def check_scope(changed_files, issue_text, root=None):
-    if not issue_text:
-        # If no issue text is found, we warn and pass to prevent blocking if run locally without metadata
-        return True, [], []
-
-    issue_text_lower = issue_text.lower()
-
+def extract_mentions(issue_text):
+    """File/dir mentions per the CI gate's regexes (lowercased sets)."""
+    issue_text_lower = (issue_text or "").lower()
     # Extract everything that looks like a file name, file path, or directory path
     path_regex = r'[a-zA-Z0-9_\-\./]+\.[a-zA-Z0-9]+'
     mentioned_files = set(re.findall(path_regex, issue_text_lower))
@@ -163,6 +159,15 @@ def check_scope(changed_files, issue_text, root=None):
     # Extract directories
     dir_regex = r'[a-zA-Z0-9_\-\./]+/'
     mentioned_dirs = set(re.findall(dir_regex, issue_text_lower))
+    return mentioned_files, mentioned_dirs
+
+
+def check_scope(changed_files, issue_text, root=None):
+    if not issue_text:
+        # If no issue text is found, we warn and pass to prevent blocking if run locally without metadata
+        return True, [], []
+
+    mentioned_files, mentioned_dirs = extract_mentions(issue_text)
 
     # Extract single words/tokens
     word_regex = r'[a-zA-Z0-9_\-]+'
