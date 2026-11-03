@@ -63,6 +63,8 @@ import { agentLogsHandler, AgentLogsInputSchema } from "../tools/agent.logs.js";
 import { worktreeCreateHandler, WorktreeCreateInputSchema } from "../tools/worktree.create.js";
 import { worktreeListHandler, WorktreeListInputSchema } from "../tools/worktree.list.js";
 import { worktreeRemoveHandler, WorktreeRemoveInputSchema } from "../tools/worktree.remove.js";
+import { skillListHandler, SkillListInputSchema } from "../tools/skill.list.js";
+import { skillReadHandler, SkillReadInputSchema } from "../tools/skill.read.js";
 
 import fs from "fs/promises";
 import { existsSync, readFileSync } from "fs";
@@ -347,6 +349,10 @@ export class BoomtickMCPServer {
             return createSuccessResult(await worktreeListHandler(WorktreeListInputSchema.parse(normArgs)));
           case "worktree_remove":
             return createSuccessResult(await worktreeRemoveHandler(WorktreeRemoveInputSchema.parse(normArgs)));
+          case "skill_list":
+            return createSuccessResult(await skillListHandler(SkillListInputSchema.parse(normArgs)));
+          case "skill_read":
+            return createSuccessResult(await skillReadHandler(SkillReadInputSchema.parse(normArgs)));
           default:
             return createErrorResult(`Tool not found: ${request.params.name}`);
         }
