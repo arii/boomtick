@@ -869,6 +869,31 @@ class AgentLogsResponse(CamelCaseModel):
     total_lines: int
 
 
+class SkillInfo(CamelCaseModel):
+    name: str
+    description: str
+
+
+class SkillListInput(CamelCaseModel):
+    repo: Optional[str] = Field(None, description="Target repository override (e.g. org/repo or repo).")
+    path: Optional[str] = Field(None, description="Local filesystem override.")
+
+
+class SkillListResponse(CamelCaseModel):
+    skills: List[SkillInfo] = Field(default_factory=list)
+
+
+class SkillReadInput(CamelCaseModel):
+    name: str = Field(..., description="Skill name from skill_list.")
+    repo: Optional[str] = Field(None, description="Target repository override (e.g. org/repo or repo).")
+    path: Optional[str] = Field(None, description="Local filesystem override.")
+
+
+class SkillReadResponse(CamelCaseModel):
+    name: str
+    body: str
+
+
 class AgentDiscussInput(CamelCaseModel):
     session_id: str = Field(..., description="References active or completed session from agent_dispatch")
     topic: Literal["status", "review-diff", "request-changes", "approve-merge", "abandon"] = Field(

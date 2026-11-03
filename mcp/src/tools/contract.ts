@@ -6663,6 +6663,172 @@ export const SearchPRsResponseJsonSchema = {
   "type": "object"
 } as const;
 
+export const SkillInfoSchema = z.object({ "name": z.string(), "description": z.string() });
+
+export type SkillInfo = z.infer<typeof SkillInfoSchema>;
+
+export const SkillInfoJsonSchema = {
+  "properties": {
+    "name": {
+      "title": "Name",
+      "type": "string"
+    },
+    "description": {
+      "title": "Description",
+      "type": "string"
+    }
+  },
+  "required": [
+    "name",
+    "description"
+  ],
+  "title": "SkillInfo",
+  "type": "object"
+} as const;
+
+export const SkillListInputSchema = z.object({ "repo": z.union([z.string(), z.null()]).describe("Target repository override (e.g. org/repo or repo).").default(null), "path": z.union([z.string(), z.null()]).describe("Local filesystem override.").default(null) });
+
+export type SkillListInput = z.infer<typeof SkillListInputSchema>;
+
+export const SkillListInputJsonSchema = {
+  "properties": {
+    "repo": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Target repository override (e.g. org/repo or repo).",
+      "title": "Repo"
+    },
+    "path": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Local filesystem override.",
+      "title": "Path"
+    }
+  },
+  "title": "SkillListInput",
+  "type": "object"
+} as const;
+
+export const SkillListResponseSchema = z.object({ "skills": z.array(z.any()).optional() });
+
+export type SkillListResponse = z.infer<typeof SkillListResponseSchema>;
+
+export const SkillListResponseJsonSchema = {
+  "$defs": {
+    "SkillInfo": {
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "description": {
+          "title": "Description",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "description"
+      ],
+      "title": "SkillInfo",
+      "type": "object"
+    }
+  },
+  "properties": {
+    "skills": {
+      "items": {
+        "$ref": "#/$defs/SkillInfo"
+      },
+      "title": "Skills",
+      "type": "array"
+    }
+  },
+  "title": "SkillListResponse",
+  "type": "object"
+} as const;
+
+export const SkillReadInputSchema = z.object({ "name": z.string().describe("Skill name from skill_list."), "repo": z.union([z.string(), z.null()]).describe("Target repository override (e.g. org/repo or repo).").default(null), "path": z.union([z.string(), z.null()]).describe("Local filesystem override.").default(null) });
+
+export type SkillReadInput = z.infer<typeof SkillReadInputSchema>;
+
+export const SkillReadInputJsonSchema = {
+  "properties": {
+    "name": {
+      "description": "Skill name from skill_list.",
+      "title": "Name",
+      "type": "string"
+    },
+    "repo": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Target repository override (e.g. org/repo or repo).",
+      "title": "Repo"
+    },
+    "path": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Local filesystem override.",
+      "title": "Path"
+    }
+  },
+  "required": [
+    "name"
+  ],
+  "title": "SkillReadInput",
+  "type": "object"
+} as const;
+
+export const SkillReadResponseSchema = z.object({ "name": z.string(), "body": z.string() });
+
+export type SkillReadResponse = z.infer<typeof SkillReadResponseSchema>;
+
+export const SkillReadResponseJsonSchema = {
+  "properties": {
+    "name": {
+      "title": "Name",
+      "type": "string"
+    },
+    "body": {
+      "title": "Body",
+      "type": "string"
+    }
+  },
+  "required": [
+    "name",
+    "body"
+  ],
+  "title": "SkillReadResponse",
+  "type": "object"
+} as const;
+
 export const SuggestCountsSchema = z.object({ "openPrs": z.number().int().default(0), "failingRuns": z.number().int().default(0), "activeSessions": z.number().int().default(0) });
 
 export type SuggestCounts = z.infer<typeof SuggestCountsSchema>;

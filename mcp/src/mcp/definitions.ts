@@ -85,6 +85,10 @@ import {
   WorktreeListResponseJsonSchema,
   WorktreeRemoveInputJsonSchema,
   WorktreeRemoveResponseJsonSchema,
+  SkillListInputJsonSchema,
+  SkillListResponseJsonSchema,
+  SkillReadInputJsonSchema,
+  SkillReadResponseJsonSchema,
 } from "../tools/contract.js";
 
 export const MCP_PROMPTS: Prompt[] = [
@@ -508,6 +512,18 @@ const BASE_MCP_TOOLS: Tool[] = [
     description: "Remove a managed git worktree. Refuses dirty trees without force.",
     inputSchema: WorktreeRemoveInputJsonSchema as any,
     outputSchema: WorktreeRemoveResponseJsonSchema as any,
+  },
+  {
+    name: "skill_list",
+    description: "List playbook skills (.agents/skills) available to sessions.",
+    inputSchema: SkillListInputJsonSchema as any,
+    outputSchema: SkillListResponseJsonSchema as any,
+  },
+  {
+    name: "skill_read",
+    description: "Read one playbook skill body for a session.",
+    inputSchema: SkillReadInputJsonSchema as any,
+    outputSchema: SkillReadResponseJsonSchema as any,
   },
 ];
 
