@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.19.1](https://github.com/arii/boomtick/compare/cli-v0.19.0...cli-v0.19.1) (2026-11-03)
+
+
+### Bug Fixes
+
+* **td:** valid GraphQL label resolution (drop bogus names: arg) ([#1109](https://github.com/arii/boomtick/issues/1109)) ([dd1a479](https://github.com/arii/boomtick/commit/dd1a4797fe9a8097067452053cf924b299fcc17b))
+
 ## [0.19.0](https://github.com/arii/boomtick/compare/cli-v0.18.0...cli-v0.19.0) (2026-11-03)
 
 
