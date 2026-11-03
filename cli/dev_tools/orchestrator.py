@@ -504,7 +504,15 @@ class Orchestrator:
 
         This is NOT merge-conflict detection — for mergeability use GitHub mergeStateStatus/mergeable.
         """
-        repo = get_github_client().get_repo(get_repo_name())
+        repo_name = get_repo_name()
+        if not repo_name:
+            scope = f"PR #{target_pr_num}" if target_pr_num is not None else "all open PRs"
+            raise CLIError(
+                f"Could not determine repository name for detect-conflicts scan of {scope}: "
+                "no GITHUB_REPOSITORY env var and no git origin remote found. "
+                "Set GITHUB_REPOSITORY=owner/repo or run inside a git checkout."
+            )
+        repo = get_github_client().get_repo(repo_name)
         open_prs = list(repo.get_pulls(state="open"))
         file_to_prs = defaultdict(list)
         for pr in open_prs:
