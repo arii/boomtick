@@ -913,31 +913,23 @@ class AgentDiscussResponse(CamelCaseModel):
     message: Optional[str] = None
 
 
-class AgentMergeApprovedItem(CamelCaseModel):
-    pr_number: int
-    title: str
-    draft: bool
-    review_decision: Optional[str] = None
-    has_failing_checks: bool
-    mergeable: Optional[str] = None
-    is_eligible: bool
-    reason: Optional[str] = None
-    merged: Optional[bool] = None
-    message: Optional[str] = None
-
-
-class AgentMergeApprovedInput(CamelCaseModel):
+class AgentSubmitPrInput(CamelCaseModel):
     repo: Optional[str] = Field(None, description="Target repository override (e.g. owner/repo)")
-    execute: Optional[bool] = Field(False, description="Merge each ready PR instead of dry-run preview")
+    branch: str = Field(..., description="Branch to push and submit as a PR")
+    base_branch: str = Field("main", description="Base branch for the PR")
+    title: str = Field(..., description="PR title")
+    body: str = Field("", description="PR body")
+    draft: bool = Field(True, description="Open the PR as a draft for human review")
+    worktree_path: Optional[str] = Field(None, description="Worktree to push from")
+    push_mode: bool = Field(False, description="Safety gate: must be true to push and open the PR")
 
 
-class AgentMergeApprovedResponse(CamelCaseModel):
+class AgentSubmitPrResponse(CamelCaseModel):
     status: str = "success"
-    mode: Literal["dry-run", "execute"]
-    total_evaluated: int
-    eligible_count: int
-    merged_count: Optional[int] = None
-    results: List[AgentMergeApprovedItem] = Field(default_factory=list)
+    url: Optional[str] = None
+    branch: str = ""
+    base_branch: str = "main"
+    draft: bool = True
 
 
 class SuggestCounts(CamelCaseModel):
