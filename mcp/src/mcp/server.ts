@@ -60,6 +60,9 @@ import { AgentMergeApprovedInputSchema } from "../tools/contract.js";
 import { agentDispatchHandler, AgentDispatchInputSchema } from "../tools/agent.dispatch.js";
 import { agentStatusHandler, AgentStatusInputSchema } from "../tools/agent.status.js";
 import { agentLogsHandler, AgentLogsInputSchema } from "../tools/agent.logs.js";
+import { worktreeCreateHandler, WorktreeCreateInputSchema } from "../tools/worktree.create.js";
+import { worktreeListHandler, WorktreeListInputSchema } from "../tools/worktree.list.js";
+import { worktreeRemoveHandler, WorktreeRemoveInputSchema } from "../tools/worktree.remove.js";
 
 import fs from "fs/promises";
 import { existsSync, readFileSync } from "fs";
@@ -338,6 +341,12 @@ export class BoomtickMCPServer {
             return createSuccessResult(await agentDiscussHandler(AgentDiscussInputSchema.parse(normArgs)));
           case "agent_merge_approved":
             return createSuccessResult(await agentMergeApprovedHandler(AgentMergeApprovedInputSchema.parse(normArgs)));
+          case "worktree_create":
+            return createSuccessResult(await worktreeCreateHandler(WorktreeCreateInputSchema.parse(normArgs)));
+          case "worktree_list":
+            return createSuccessResult(await worktreeListHandler(WorktreeListInputSchema.parse(normArgs)));
+          case "worktree_remove":
+            return createSuccessResult(await worktreeRemoveHandler(WorktreeRemoveInputSchema.parse(normArgs)));
           default:
             return createErrorResult(`Tool not found: ${request.params.name}`);
         }
