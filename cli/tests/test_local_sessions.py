@@ -186,6 +186,16 @@ def test_executor_command_env_knobs(repo, worktree, monkeypatch):
     assert args[-1] == "b"
 
 
+def test_executor_defaults_to_s5_coder(repo, worktree, monkeypatch):
+    monkeypatch.delenv("BOOMTICK_EXECUTOR_CLI", raising=False)
+    monkeypatch.delenv("BOOMTICK_EXECUTOR_MODEL", raising=False)
+    session = ls.new_session(str(worktree), "b")
+    cli, args = ls.executor_command(session)
+    assert cli == "s5-coder"
+    assert args[:2] == ["-p", "--system-prompt"]
+    assert args[-1] == "b"
+
+
 def test_system_prompt_carries_contract_and_brief(repo, worktree):
     agents = worktree / ".agents"
     agents.mkdir()

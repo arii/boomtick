@@ -255,7 +255,7 @@ def build_system_prompt(worktree_path, brief):
 
 def executor_command(session):
     """Return (cli, args) for the session executor (mirrors TS spawn)."""
-    cli = os.environ.get("BOOMTICK_EXECUTOR_CLI", "pi")
+    cli = os.environ.get("BOOMTICK_EXECUTOR_CLI", "s5-coder")
     model = session.get("model") or os.environ.get("BOOMTICK_EXECUTOR_MODEL")
     args = ["-p", "--system-prompt",
             build_system_prompt(session["worktreePath"], session["brief"])]
