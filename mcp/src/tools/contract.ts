@@ -6805,23 +6805,12 @@ export const VisualReviewFindingJsonSchema = {
   "type": "object"
 } as const;
 
-export const WorktreeCreateInputSchema = z.object({ "branch": z.string().describe("Branch name for the new worktree"), "baseBranch": z.string().describe("Base branch to create from").default("main"), "repo": z.union([z.string(), z.null()]).describe("Target repository override").default(null) });
+export const WorktreeCreateInputSchema = z.object({ "repo": z.union([z.string(), z.null()]).describe("Target repository override (e.g. org/repo or repo).").default(null), "path": z.union([z.string(), z.null()]).describe("Local filesystem override.").default(null), "baseBranch": z.union([z.string(), z.null()]).describe("Base branch to branch off, defaults to agent contract's baseBranch or main.").default(null), "name": z.union([z.string(), z.null()]).describe("Slug descriptor for the worktree, sanitized [a-z0-9-].").default(null), "sparsePaths": z.union([z.array(z.string()), z.null()]).describe("Path prefixes for sparse checkout.").default(null), "writeMode": z.boolean().describe("Required true, following BoomTick mutating tool convention.") });
 
 export type WorktreeCreateInput = z.infer<typeof WorktreeCreateInputSchema>;
 
 export const WorktreeCreateInputJsonSchema = {
   "properties": {
-    "branch": {
-      "description": "Branch name for the new worktree",
-      "title": "Branch",
-      "type": "string"
-    },
-    "baseBranch": {
-      "default": "main",
-      "description": "Base branch to create from",
-      "title": "Basebranch",
-      "type": "string"
-    },
     "repo": {
       "anyOf": [
         {
@@ -6832,18 +6821,78 @@ export const WorktreeCreateInputJsonSchema = {
         }
       ],
       "default": null,
-      "description": "Target repository override",
+      "description": "Target repository override (e.g. org/repo or repo).",
       "title": "Repo"
+    },
+    "path": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Local filesystem override.",
+      "title": "Path"
+    },
+    "baseBranch": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Base branch to branch off, defaults to agent contract's baseBranch or main.",
+      "title": "Basebranch"
+    },
+    "name": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Slug descriptor for the worktree, sanitized [a-z0-9-].",
+      "title": "Name"
+    },
+    "sparsePaths": {
+      "anyOf": [
+        {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Path prefixes for sparse checkout.",
+      "title": "Sparsepaths"
+    },
+    "writeMode": {
+      "description": "Required true, following BoomTick mutating tool convention.",
+      "title": "Writemode",
+      "type": "boolean"
     }
   },
   "required": [
-    "branch"
+    "writeMode"
   ],
   "title": "WorktreeCreateInput",
   "type": "object"
 } as const;
 
-export const WorktreeCreateResponseSchema = z.object({ "worktreeId": z.string(), "path": z.string(), "branch": z.string() });
+export const WorktreeCreateResponseSchema = z.object({ "worktreeId": z.string(), "path": z.string(), "branch": z.string(), "baseBranch": z.string(), "createdAt": z.number().int() });
 
 export type WorktreeCreateResponse = z.infer<typeof WorktreeCreateResponseSchema>;
 
@@ -6860,42 +6909,24 @@ export const WorktreeCreateResponseJsonSchema = {
     "branch": {
       "title": "Branch",
       "type": "string"
+    },
+    "baseBranch": {
+      "title": "Basebranch",
+      "type": "string"
+    },
+    "createdAt": {
+      "title": "Createdat",
+      "type": "integer"
     }
   },
   "required": [
     "worktreeId",
     "path",
-    "branch"
+    "branch",
+    "baseBranch",
+    "createdAt"
   ],
   "title": "WorktreeCreateResponse",
-  "type": "object"
-} as const;
-
-export const WorktreeInfoSchema = z.object({ "worktreeId": z.string(), "path": z.string(), "branch": z.string() });
-
-export type WorktreeInfo = z.infer<typeof WorktreeInfoSchema>;
-
-export const WorktreeInfoJsonSchema = {
-  "properties": {
-    "worktreeId": {
-      "title": "Worktreeid",
-      "type": "string"
-    },
-    "path": {
-      "title": "Path",
-      "type": "string"
-    },
-    "branch": {
-      "title": "Branch",
-      "type": "string"
-    }
-  },
-  "required": [
-    "worktreeId",
-    "path",
-    "branch"
-  ],
-  "title": "WorktreeInfo",
   "type": "object"
 } as const;
 
@@ -6949,7 +6980,7 @@ export const WorktreeItemJsonSchema = {
   "type": "object"
 } as const;
 
-export const WorktreeListInputSchema = z.object({ "repo": z.union([z.string(), z.null()]).describe("Target repository override").default(null) });
+export const WorktreeListInputSchema = z.object({ "repo": z.union([z.string(), z.null()]).describe("Target repository override (e.g. org/repo or repo).").default(null), "path": z.union([z.string(), z.null()]).describe("Local filesystem override.").default(null) });
 
 export type WorktreeListInput = z.infer<typeof WorktreeListInputSchema>;
 
@@ -6965,8 +6996,21 @@ export const WorktreeListInputJsonSchema = {
         }
       ],
       "default": null,
-      "description": "Target repository override",
+      "description": "Target repository override (e.g. org/repo or repo).",
       "title": "Repo"
+    },
+    "path": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Local filesystem override.",
+      "title": "Path"
     }
   },
   "title": "WorktreeListInput",
@@ -6979,7 +7023,7 @@ export type WorktreeListResponse = z.infer<typeof WorktreeListResponseSchema>;
 
 export const WorktreeListResponseJsonSchema = {
   "$defs": {
-    "WorktreeInfo": {
+    "WorktreeItem": {
       "properties": {
         "worktreeId": {
           "title": "Worktreeid",
@@ -6992,21 +7036,43 @@ export const WorktreeListResponseJsonSchema = {
         "branch": {
           "title": "Branch",
           "type": "string"
+        },
+        "ageSeconds": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Ageseconds"
+        },
+        "changedFilesCount": {
+          "title": "Changedfilescount",
+          "type": "integer"
+        },
+        "diskUsageBytes": {
+          "title": "Diskusagebytes",
+          "type": "integer"
         }
       },
       "required": [
         "worktreeId",
         "path",
-        "branch"
+        "branch",
+        "ageSeconds",
+        "changedFilesCount",
+        "diskUsageBytes"
       ],
-      "title": "WorktreeInfo",
+      "title": "WorktreeItem",
       "type": "object"
     }
   },
   "properties": {
     "worktrees": {
       "items": {
-        "$ref": "#/$defs/WorktreeInfo"
+        "$ref": "#/$defs/WorktreeItem"
       },
       "title": "Worktrees",
       "type": "array"
@@ -7016,21 +7082,26 @@ export const WorktreeListResponseJsonSchema = {
   "type": "object"
 } as const;
 
-export const WorktreeRemoveInputSchema = z.object({ "worktreeId": z.string().describe("Worktree id from worktree_create"), "force": z.boolean().describe("Remove even with uncommitted changes").default(false), "repo": z.union([z.string(), z.null()]).describe("Target repository override").default(null) });
+export const WorktreeRemoveInputSchema = z.object({ "worktreeId": z.string().describe("The unique ID of the worktree to remove."), "force": z.boolean().describe("Whether to force remove worktree even with uncommitted changes.").default(false), "writeMode": z.boolean().describe("Required true, following BoomTick mutating tool convention."), "repo": z.union([z.string(), z.null()]).describe("Target repository override (e.g. org/repo or repo).").default(null), "path": z.union([z.string(), z.null()]).describe("Local filesystem override.").default(null) });
 
 export type WorktreeRemoveInput = z.infer<typeof WorktreeRemoveInputSchema>;
 
 export const WorktreeRemoveInputJsonSchema = {
   "properties": {
     "worktreeId": {
-      "description": "Worktree id from worktree_create",
+      "description": "The unique ID of the worktree to remove.",
       "title": "Worktreeid",
       "type": "string"
     },
     "force": {
       "default": false,
-      "description": "Remove even with uncommitted changes",
+      "description": "Whether to force remove worktree even with uncommitted changes.",
       "title": "Force",
+      "type": "boolean"
+    },
+    "writeMode": {
+      "description": "Required true, following BoomTick mutating tool convention.",
+      "title": "Writemode",
       "type": "boolean"
     },
     "repo": {
@@ -7043,35 +7114,61 @@ export const WorktreeRemoveInputJsonSchema = {
         }
       ],
       "default": null,
-      "description": "Target repository override",
+      "description": "Target repository override (e.g. org/repo or repo).",
       "title": "Repo"
+    },
+    "path": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Local filesystem override.",
+      "title": "Path"
     }
   },
   "required": [
-    "worktreeId"
+    "worktreeId",
+    "writeMode"
   ],
   "title": "WorktreeRemoveInput",
   "type": "object"
 } as const;
 
-export const WorktreeRemoveResponseSchema = z.object({ "worktreeId": z.string(), "removed": z.boolean() });
+export const WorktreeRemoveResponseSchema = z.object({ "status": z.string().default("removed"), "worktreeId": z.string(), "freedBytes": z.union([z.number().int(), z.null()]).default(null) });
 
 export type WorktreeRemoveResponse = z.infer<typeof WorktreeRemoveResponseSchema>;
 
 export const WorktreeRemoveResponseJsonSchema = {
   "properties": {
+    "status": {
+      "default": "removed",
+      "title": "Status",
+      "type": "string"
+    },
     "worktreeId": {
       "title": "Worktreeid",
       "type": "string"
     },
-    "removed": {
-      "title": "Removed",
-      "type": "boolean"
+    "freedBytes": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Freedbytes"
     }
   },
   "required": [
-    "worktreeId",
-    "removed"
+    "worktreeId"
   ],
   "title": "WorktreeRemoveResponse",
   "type": "object"

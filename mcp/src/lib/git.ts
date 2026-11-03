@@ -168,6 +168,26 @@ export interface SessionWorktree {
   branch: string;
 }
 
+export function dirSizeBytes(dir: string): number {
+  let total = 0;
+  const entries = syncFs.readdirSync(dir, { withFileTypes: true });
+  for (const entry of entries) {
+    const full = path.join(dir, entry.name);
+    if (entry.isSymbolicLink()) {
+      continue;
+    } else if (entry.isDirectory()) {
+      total += dirSizeBytes(full);
+    } else {
+      try {
+        total += syncFs.statSync(full).size;
+      } catch {
+        // Racy delete mid-walk: skip.
+      }
+    }
+  }
+  return total;
+}
+
 export async function createSessionWorktree(
   baseRepoPath: string,
   worktreeId: string,

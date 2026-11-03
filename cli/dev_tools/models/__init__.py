@@ -869,43 +869,6 @@ class AgentLogsResponse(CamelCaseModel):
     total_lines: int
 
 
-class WorktreeInfo(CamelCaseModel):
-    worktree_id: str
-    path: str
-    branch: str
-
-
-class WorktreeCreateInput(CamelCaseModel):
-    branch: str = Field(..., description="Branch name for the new worktree")
-    base_branch: str = Field("main", description="Base branch to create from")
-    repo: Optional[str] = Field(None, description="Target repository override")
-
-
-class WorktreeCreateResponse(CamelCaseModel):
-    worktree_id: str
-    path: str
-    branch: str
-
-
-class WorktreeListInput(CamelCaseModel):
-    repo: Optional[str] = Field(None, description="Target repository override")
-
-
-class WorktreeListResponse(CamelCaseModel):
-    worktrees: List[WorktreeInfo] = Field(default_factory=list)
-
-
-class WorktreeRemoveInput(CamelCaseModel):
-    worktree_id: str = Field(..., description="Worktree id from worktree_create")
-    force: bool = Field(False, description="Remove even with uncommitted changes")
-    repo: Optional[str] = Field(None, description="Target repository override")
-
-
-class WorktreeRemoveResponse(CamelCaseModel):
-    worktree_id: str
-    removed: bool
-
-
 class AgentDiscussInput(CamelCaseModel):
     session_id: str = Field(..., description="References active or completed session from agent_dispatch")
     topic: Literal["status", "review-diff", "request-changes", "approve-merge", "abandon"] = Field(
