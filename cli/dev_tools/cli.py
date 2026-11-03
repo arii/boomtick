@@ -1661,6 +1661,51 @@ def send(ctx, session_ids, message):
     out(ctx, summary, data=res)
 
 
+@agent_group.command(name="run")
+@click.option("--worktree", required=True, help="Existing worktree path for the session")
+@click.option("--brief", required=True, help="Task brief for the executor")
+@click.option("--model", default=None, help="Executor model override")
+@click.option("--repo", "-r", default=None, help="Target GitHub repository (e.g. owner/repo)")
+@click.option("--path", "root_path", default=None, help="Repo root override (default: git root)")
+@click.option("--detach/--foreground", default=False,
+              help="Return immediately and supervise in background")
+@click.pass_context
+def run(ctx, worktree, brief, model, repo, root_path, detach):
+    """Dispatch a local worktree session (no Jules API involved)."""
+    from dev_tools.services import local_sessions as ls
+    try:
+        root = ls.repo_root_for(root_path)
+        wt = worktree if os.path.isabs(worktree) else os.path.join(os.getcwd(), worktree)
+        if not os.path.isdir(wt):
+            err(ctx, f"Worktree path does not exist: {worktree}")
+            return
+        session = ls.new_session(wt, brief, model=model, repo=repo)
+        ls.save_session(session)
+        sid = session["sessionId"]
+        if ls.exec_disabled():
+            out(ctx, f"Session {sid} recorded (execution disabled).",
+                data={"session": ls.status_summary(session), "executed": False})
+            return
+        if detach:
+            pid = ls.spawn_detached(root, sid)
+            out(ctx, f"Session {sid} dispatched (supervisor pid {pid}).",
+                data={"session": ls.status_summary(session),
+                      "supervisor_pid": pid})
+            return
+        if not ctx.obj["JSON"]:
+            click.echo(f"Session {sid} running in {wt}")
+            code = ls.run_executor(root, session, stream=click.echo)
+            click.echo(f"Session {sid} finished: {session['state']}")
+        else:
+            code = ls.run_executor(root, session)
+        out(ctx, f"Session {sid} finished: {session['state']}.",
+            data={"session": ls.status_summary(session), "exit_code": code})
+        if code:
+            sys.exit(code)
+    except Exception as e:
+        _handle_unexpected_error(ctx, "agent run", e)
+
+
 @agent_group.command(name="run-local")
 @click.option("--pr", "--pr-number", "pr_number", required=False, type=int, help="Pull Request number to evaluate.")
 @click.option("--issue", "issue_number", type=int, help="Optional linked Issue number.")
@@ -1959,6 +2004,122 @@ def context_warm(ctx, force):
             _handle_unexpected_error(ctx, "context-warm", e)
     else:
         out(ctx, "✅ Context is up-to-date.", data={"path": context_file})
+
+
+# --- Local Session Commands (parity with MCP agent tools) ---
+
+
+@cli.group(name="session")
+def session_group():
+    """Local worktree session inspection and supervision."""
+
+
+@session_group.command(name="status")
+@click.argument("session_id")
+@click.option("--path", "root_path", default=None, help="Repo root override (default: git root)")
+@click.pass_context
+def session_status(ctx, session_id, root_path):
+    """Show state, checkpoint, changed files and verification."""
+    from dev_tools.services import local_sessions as ls
+    try:
+        root = ls.repo_root_for(root_path)
+        session = ls.load_session(root, session_id)
+        summary = ls.status_summary(session)
+        if not ctx.obj["JSON"]:
+            click.echo(f"Session {summary['sessionId']}: {summary['state']} "
+                       f"@ {summary['lastCheckpoint']}")
+            for name in summary["changedFiles"]:
+                click.echo(f"  M {name}")
+        out(ctx, f"Session {session_id}: {summary['state']}.",
+            data={"session": summary})
+    except ls.SessionNotFound as e:
+        err(ctx, str(e), code=1)
+    except Exception as e:
+        _handle_unexpected_error(ctx, "session status", e)
+
+
+@session_group.command(name="logs")
+@click.argument("session_id")
+@click.option("--tail", type=int, default=100, help="Lines of log to show")
+@click.option("--path", "root_path", default=None, help="Repo root override (default: git root)")
+@click.pass_context
+def session_logs(ctx, session_id, tail, root_path):
+    """Show the tail of a session's logs plus the total line count."""
+    from dev_tools.services import local_sessions as ls
+    try:
+        root = ls.repo_root_for(root_path)
+        session = ls.load_session(root, session_id)
+        lines, total = ls.tail_logs(session, tail)
+        if not ctx.obj["JSON"]:
+            for line in lines:
+                click.echo(line)
+            click.echo(f"--- {total} total line(s) ---")
+        out(ctx, f"Session {session_id} logs ({total} total).",
+            data={"sessionId": session_id, "logs": lines,
+                  "totalLines": total})
+    except ls.SessionNotFound as e:
+        err(ctx, str(e), code=1)
+    except Exception as e:
+        _handle_unexpected_error(ctx, "session logs", e)
+
+
+@session_group.command(name="supervise", hidden=True)
+@click.argument("session_id")
+@click.option("--path", "root_path", default=None, help="Repo root override (default: git root)")
+@click.pass_context
+def session_supervise(ctx, session_id, root_path):
+    """Run a session's executor detached (spawned by agent run --detach)."""
+    from dev_tools.services import local_sessions as ls
+    try:
+        root = ls.repo_root_for(root_path)
+        session = ls.load_session(root, session_id)
+        code = ls.run_executor(root, session)
+        if code:
+            sys.exit(code)
+    except ls.SessionNotFound as e:
+        err(ctx, str(e), code=1)
+    except Exception as e:
+        _handle_unexpected_error(ctx, "session supervise", e)
+
+
+@cli.group(name="skill")
+def skill_group():
+    """Read session playbooks from .agents/skills (no MCP needed)."""
+
+
+@skill_group.command(name="list")
+@click.option("--path", "root_path", default=None, help="Repo root override (default: git root)")
+@click.pass_context
+def skill_list(ctx, root_path):
+    """List available skill names."""
+    from dev_tools.services import local_sessions as ls
+    try:
+        names = ls.list_skills(ls.repo_root_for(root_path))
+        if not ctx.obj["JSON"]:
+            for name in names:
+                click.echo(name)
+        out(ctx, f"{len(names)} skill(s).", data={"skills": names})
+    except Exception as e:
+        _handle_unexpected_error(ctx, "skill list", e)
+
+
+@skill_group.command(name="read")
+@click.argument("name")
+@click.option("--path", "root_path", default=None, help="Repo root override (default: git root)")
+@click.pass_context
+def skill_read(ctx, name, root_path):
+    """Print a skill's SKILL.md content."""
+    from dev_tools.services import local_sessions as ls
+    try:
+        content = ls.read_skill(ls.repo_root_for(root_path), name)
+        if not ctx.obj["JSON"]:
+            click.echo(content)
+        out(ctx, f"Skill {name}.",
+            data={"skill": name, "content": content})
+    except ls.SkillNotFound as e:
+        err(ctx, str(e), code=1)
+    except Exception as e:
+        _handle_unexpected_error(ctx, "skill read", e)
 
 
 # --- Multi-Repository Ecosystem Commands ---
