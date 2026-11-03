@@ -68,6 +68,8 @@ def scope_status(body, checkout):
             "status": "in checkout" if os.path.isdir(full)
             else "NEW - confirm (not in checkout)",
         })
+    # Real scope first; prose artifacts and NEW paths last.
+    items.sort(key=lambda i: (i["status"] != "in checkout", i["path"]))
     return items
 
 
