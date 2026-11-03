@@ -162,6 +162,70 @@ export async function removeWorktree(worktreePath: string, baseRepoPath?: string
   await runCommand("git", ["worktree", "prune"], cwdOption);
 }
 
+export interface SessionWorktree {
+  worktreeId: string;
+  path: string;
+  branch: string;
+}
+
+export async function createSessionWorktree(
+  baseRepoPath: string,
+  worktreeId: string,
+  branch: string,
+  baseBranch: string
+): Promise<string> {
+  if (!/^[A-Za-z0-9_.-]+$/.test(worktreeId)) {
+    throw new Error(`Invalid worktree id: ${worktreeId}`);
+  }
+  const worktreePath = path.join(baseRepoPath, ".worktrees", worktreeId);
+  if (syncFs.existsSync(worktreePath)) {
+    throw new Error(`Worktree already exists: ${worktreePath}`);
+  }
+  await fs.mkdir(path.join(baseRepoPath, ".worktrees"), { recursive: true });
+  const res = await runCommand(
+    "git",
+    ["worktree", "add", worktreePath, "-b", branch, baseBranch],
+    { cwd: baseRepoPath }
+  );
+  if (res.exitCode !== 0) {
+    throw new Error(`git worktree add failed: ${res.stderr}`);
+  }
+  return worktreePath;
+}
+
+export async function listSessionWorktrees(baseRepoPath: string): Promise<SessionWorktree[]> {
+  const res = await runCommand("git", ["worktree", "list", "--porcelain"], { cwd: baseRepoPath });
+  if (res.exitCode !== 0) {
+    throw new Error(`git worktree list failed: ${res.stderr}`);
+  }
+  const managedRoot = path.join(baseRepoPath, ".worktrees") + path.sep;
+  const out: SessionWorktree[] = [];
+  let current: { path?: string; branch?: string } = {};
+  const flush = () => {
+    if (current.path && current.path.startsWith(managedRoot)) {
+      out.push({
+        worktreeId: path.basename(current.path),
+        path: current.path,
+        branch: (current.branch || "").replace(/^refs\/heads\//, ""),
+      });
+    }
+    current = {};
+  };
+  for (const raw of res.stdout.split("\n")) {
+    const line = raw.endsWith("\r") ? raw.slice(0, -1) : raw;
+    if (line.startsWith("worktree ")) {
+      if (current.path) flush();
+      current = { path: line.slice("worktree ".length) };
+    } else if (line.startsWith("branch ")) {
+      current.branch = line.slice("branch ".length);
+    } else if (line.trim() === "" && current.path) {
+      flush();
+    }
+  }
+  if (current.path) flush();
+  return out;
+}
+
 export interface ChangedFile {
   status: string;
   path: string;

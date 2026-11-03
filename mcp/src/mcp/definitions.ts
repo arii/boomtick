@@ -491,6 +491,24 @@ const BASE_MCP_TOOLS: Tool[] = [
     inputSchema: AgentMergeApprovedInputJsonSchema as any,
     outputSchema: AgentMergeApprovedResponseJsonSchema as any,
   },
+  {
+    name: "worktree_create",
+    description: "Create a managed git worktree under .worktrees for an agent session.",
+    inputSchema: WorktreeCreateInputJsonSchema as any,
+    outputSchema: WorktreeCreateResponseJsonSchema as any,
+  },
+  {
+    name: "worktree_list",
+    description: "List managed git worktrees under .worktrees.",
+    inputSchema: WorktreeListInputJsonSchema as any,
+    outputSchema: WorktreeListResponseJsonSchema as any,
+  },
+  {
+    name: "worktree_remove",
+    description: "Remove a managed git worktree. Refuses dirty trees without force.",
+    inputSchema: WorktreeRemoveInputJsonSchema as any,
+    outputSchema: WorktreeRemoveResponseJsonSchema as any,
+  },
 ];
 
 export const MCP_TOOLS: Tool[] = BASE_MCP_TOOLS;
