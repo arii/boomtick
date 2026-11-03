@@ -1121,292 +1121,6 @@ export const AgentLogsResponseJsonSchema = {
   "type": "object"
 } as const;
 
-export const AgentMergeApprovedInputSchema = z.object({ "repo": z.union([z.string(), z.null()]).describe("Target repository override (e.g. owner/repo)").default(null), "execute": z.union([z.boolean(), z.null()]).describe("Merge each ready PR instead of dry-run preview").default(false) });
-
-export type AgentMergeApprovedInput = z.infer<typeof AgentMergeApprovedInputSchema>;
-
-export const AgentMergeApprovedInputJsonSchema = {
-  "properties": {
-    "repo": {
-      "anyOf": [
-        {
-          "type": "string"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "description": "Target repository override (e.g. owner/repo)",
-      "title": "Repo"
-    },
-    "execute": {
-      "anyOf": [
-        {
-          "type": "boolean"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": false,
-      "description": "Merge each ready PR instead of dry-run preview",
-      "title": "Execute"
-    }
-  },
-  "title": "AgentMergeApprovedInput",
-  "type": "object"
-} as const;
-
-export const AgentMergeApprovedItemSchema = z.object({ "prNumber": z.number().int(), "title": z.string(), "draft": z.boolean(), "reviewDecision": z.union([z.string(), z.null()]).default(null), "hasFailingChecks": z.boolean(), "mergeable": z.union([z.string(), z.null()]).default(null), "isEligible": z.boolean(), "reason": z.union([z.string(), z.null()]).default(null), "merged": z.union([z.boolean(), z.null()]).default(null), "message": z.union([z.string(), z.null()]).default(null) });
-
-export type AgentMergeApprovedItem = z.infer<typeof AgentMergeApprovedItemSchema>;
-
-export const AgentMergeApprovedItemJsonSchema = {
-  "properties": {
-    "prNumber": {
-      "title": "Prnumber",
-      "type": "integer"
-    },
-    "title": {
-      "title": "Title",
-      "type": "string"
-    },
-    "draft": {
-      "title": "Draft",
-      "type": "boolean"
-    },
-    "reviewDecision": {
-      "anyOf": [
-        {
-          "type": "string"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "title": "Reviewdecision"
-    },
-    "hasFailingChecks": {
-      "title": "Hasfailingchecks",
-      "type": "boolean"
-    },
-    "mergeable": {
-      "anyOf": [
-        {
-          "type": "string"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "title": "Mergeable"
-    },
-    "isEligible": {
-      "title": "Iseligible",
-      "type": "boolean"
-    },
-    "reason": {
-      "anyOf": [
-        {
-          "type": "string"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "title": "Reason"
-    },
-    "merged": {
-      "anyOf": [
-        {
-          "type": "boolean"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "title": "Merged"
-    },
-    "message": {
-      "anyOf": [
-        {
-          "type": "string"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "title": "Message"
-    }
-  },
-  "required": [
-    "prNumber",
-    "title",
-    "draft",
-    "hasFailingChecks",
-    "isEligible"
-  ],
-  "title": "AgentMergeApprovedItem",
-  "type": "object"
-} as const;
-
-export const AgentMergeApprovedResponseSchema = z.object({ "status": z.string().default("success"), "mode": z.enum(["dry-run","execute"]), "totalEvaluated": z.number().int(), "eligibleCount": z.number().int(), "mergedCount": z.union([z.number().int(), z.null()]).default(null), "results": z.array(z.any()).optional() });
-
-export type AgentMergeApprovedResponse = z.infer<typeof AgentMergeApprovedResponseSchema>;
-
-export const AgentMergeApprovedResponseJsonSchema = {
-  "$defs": {
-    "AgentMergeApprovedItem": {
-      "properties": {
-        "prNumber": {
-          "title": "Prnumber",
-          "type": "integer"
-        },
-        "title": {
-          "title": "Title",
-          "type": "string"
-        },
-        "draft": {
-          "title": "Draft",
-          "type": "boolean"
-        },
-        "reviewDecision": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "title": "Reviewdecision"
-        },
-        "hasFailingChecks": {
-          "title": "Hasfailingchecks",
-          "type": "boolean"
-        },
-        "mergeable": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "title": "Mergeable"
-        },
-        "isEligible": {
-          "title": "Iseligible",
-          "type": "boolean"
-        },
-        "reason": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "title": "Reason"
-        },
-        "merged": {
-          "anyOf": [
-            {
-              "type": "boolean"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "title": "Merged"
-        },
-        "message": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "title": "Message"
-        }
-      },
-      "required": [
-        "prNumber",
-        "title",
-        "draft",
-        "hasFailingChecks",
-        "isEligible"
-      ],
-      "title": "AgentMergeApprovedItem",
-      "type": "object"
-    }
-  },
-  "properties": {
-    "status": {
-      "default": "success",
-      "title": "Status",
-      "type": "string"
-    },
-    "mode": {
-      "enum": [
-        "dry-run",
-        "execute"
-      ],
-      "title": "Mode",
-      "type": "string"
-    },
-    "totalEvaluated": {
-      "title": "Totalevaluated",
-      "type": "integer"
-    },
-    "eligibleCount": {
-      "title": "Eligiblecount",
-      "type": "integer"
-    },
-    "mergedCount": {
-      "anyOf": [
-        {
-          "type": "integer"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "title": "Mergedcount"
-    },
-    "results": {
-      "items": {
-        "$ref": "#/$defs/AgentMergeApprovedItem"
-      },
-      "title": "Results",
-      "type": "array"
-    }
-  },
-  "required": [
-    "mode",
-    "totalEvaluated",
-    "eligibleCount"
-  ],
-  "title": "AgentMergeApprovedResponse",
-  "type": "object"
-} as const;
-
 export const AgentStatusInputSchema = z.object({ "sessionId": z.string().describe("The ID of the session to check status for") });
 
 export type AgentStatusInput = z.infer<typeof AgentStatusInputSchema>;
@@ -1560,6 +1274,124 @@ export const AgentStatusVerificationJsonSchema = {
     "testsPassed"
   ],
   "title": "AgentStatusVerification",
+  "type": "object"
+} as const;
+
+export const AgentSubmitPrInputSchema = z.object({ "repo": z.union([z.string(), z.null()]).describe("Target repository override (e.g. owner/repo)").default(null), "branch": z.string().describe("Branch to push and submit as a PR"), "baseBranch": z.string().describe("Base branch for the PR").default("main"), "title": z.string().describe("PR title"), "body": z.string().describe("PR body").default(""), "draft": z.boolean().describe("Open the PR as a draft for human review").default(true), "worktreePath": z.union([z.string(), z.null()]).describe("Worktree to push from").default(null), "pushMode": z.boolean().describe("Safety gate: must be true to push and open the PR").default(false) });
+
+export type AgentSubmitPrInput = z.infer<typeof AgentSubmitPrInputSchema>;
+
+export const AgentSubmitPrInputJsonSchema = {
+  "properties": {
+    "repo": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Target repository override (e.g. owner/repo)",
+      "title": "Repo"
+    },
+    "branch": {
+      "description": "Branch to push and submit as a PR",
+      "title": "Branch",
+      "type": "string"
+    },
+    "baseBranch": {
+      "default": "main",
+      "description": "Base branch for the PR",
+      "title": "Basebranch",
+      "type": "string"
+    },
+    "title": {
+      "description": "PR title",
+      "title": "Title",
+      "type": "string"
+    },
+    "body": {
+      "default": "",
+      "description": "PR body",
+      "title": "Body",
+      "type": "string"
+    },
+    "draft": {
+      "default": true,
+      "description": "Open the PR as a draft for human review",
+      "title": "Draft",
+      "type": "boolean"
+    },
+    "worktreePath": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Worktree to push from",
+      "title": "Worktreepath"
+    },
+    "pushMode": {
+      "default": false,
+      "description": "Safety gate: must be true to push and open the PR",
+      "title": "Pushmode",
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "branch",
+    "title"
+  ],
+  "title": "AgentSubmitPrInput",
+  "type": "object"
+} as const;
+
+export const AgentSubmitPrResponseSchema = z.object({ "status": z.string().default("success"), "url": z.union([z.string(), z.null()]).default(null), "branch": z.string().default(""), "baseBranch": z.string().default("main"), "draft": z.boolean().default(true) });
+
+export type AgentSubmitPrResponse = z.infer<typeof AgentSubmitPrResponseSchema>;
+
+export const AgentSubmitPrResponseJsonSchema = {
+  "properties": {
+    "status": {
+      "default": "success",
+      "title": "Status",
+      "type": "string"
+    },
+    "url": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Url"
+    },
+    "branch": {
+      "default": "",
+      "title": "Branch",
+      "type": "string"
+    },
+    "baseBranch": {
+      "default": "main",
+      "title": "Basebranch",
+      "type": "string"
+    },
+    "draft": {
+      "default": true,
+      "title": "Draft",
+      "type": "boolean"
+    }
+  },
+  "title": "AgentSubmitPrResponse",
   "type": "object"
 } as const;
 
