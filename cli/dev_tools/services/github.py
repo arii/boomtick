@@ -127,8 +127,12 @@ class GitHubClient:
         if not self.repo:
             raise CLIError("Repository not configured.")
         owner, name = self.repo.split("/", 1)
+        # Repository.labels accepts no `names` argument (it only takes
+        # first/after/before/last/orderBy/query), so filter client-side
+        # from the first page; label counts are small and node IDs are
+        # cached after the first resolution.
         query = """
-        query($owner: String!, $name: String!, $number: Int!, $labelNames: [String!]!) {
+        query($owner: String!, $name: String!, $number: Int!) {
           repository(owner: $owner, name: $name) {
             issueOrPullRequest(number: $number) {
               __typename
@@ -139,7 +143,7 @@ class GitHubClient:
                 id
               }
             }
-            labels(first: 100, names: $labelNames) {
+            labels(first: 100) {
               nodes {
                 id
                 name
@@ -152,7 +156,6 @@ class GitHubClient:
             "owner": owner,
             "name": name,
             "number": number,
-            "labelNames": label_names,
         }
         res = self.graphql(query, variables)
         repo_data = res.get("data", {}).get("repository") or {}
