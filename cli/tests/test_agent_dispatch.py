@@ -91,9 +91,12 @@ def test_create_session_from_source_auto_extract_title(mock_post):
     assert payload["prompt"] == prompt
 
 
+@patch("dev_tools.orchestrator.get_github_token", return_value="fake-token")
 @patch("dev_tools.orchestrator.GitHubClient")
 @patch("dev_tools.orchestrator.JulesClient")
-def test_orchestrator_dispatch_jules_review_passes_title(mock_jules_cls, mock_gh_cls):
+def test_orchestrator_dispatch_jules_review_passes_title(
+    mock_jules_cls, mock_gh_cls, mock_token
+):
     orch = Orchestrator()
     orch.github.branch_exists.return_value = True
     orch.jules.discover_source_id.return_value = "clean-source-id"
@@ -111,9 +114,12 @@ def test_orchestrator_dispatch_jules_review_passes_title(mock_jules_cls, mock_gh
     )
 
 
+@patch("dev_tools.orchestrator.get_github_token", return_value="fake-token")
 @patch("dev_tools.orchestrator.GitHubClient")
 @patch("dev_tools.orchestrator.JulesClient")
-def test_orchestrator_dispatch_jules_review_with_target_repo(mock_jules_cls, mock_gh_cls):
+def test_orchestrator_dispatch_jules_review_with_target_repo(
+    mock_jules_cls, mock_gh_cls, mock_token
+):
     orch = Orchestrator()
     orch.github.branch_exists.return_value = True
     orch.jules.discover_source_id.return_value = "portfolio-source-id"
@@ -162,6 +168,29 @@ def test_cli_agent_dispatch_without_title_flag(mock_dispatch):
 
     assert result.exit_code == 0
     mock_dispatch.assert_called_once_with("main", "# Auto Extracted Title\n\nTask details", title=None, repo=None)
+
+
+@patch("dev_tools.orchestrator.JulesClient")
+@patch("dev_tools.orchestrator.get_github_token", return_value=None)
+def test_orchestrator_dispatch_skips_branch_check_without_token(
+    mock_token, mock_jules_cls
+):
+    # No GITHUB_TOKEN and no gh auth (e.g. MCP server env): the
+    # branch-exists precheck is skipped and Jules validates the
+    # branch itself. Must not raise ValueError. See #1086.
+    orch = Orchestrator()
+    orch.jules.discover_source_id.return_value = "src-id"
+    orch.jules.create_session_from_source.return_value = {
+        "name": "sessions/999"
+    }
+
+    res = orch.dispatch_jules_review(
+        branch="main", prompt="Fix thing", repo="arii/boomtick"
+    )
+
+    assert res == {"name": "sessions/999"}
+    assert orch._github is None
+    orch.jules.discover_source_id.assert_called_once_with("arii/boomtick")
 
 
 @patch("dev_tools.orchestrator.Orchestrator.dispatch_jules_review")

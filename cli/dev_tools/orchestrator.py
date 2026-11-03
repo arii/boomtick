@@ -35,6 +35,7 @@ from dev_tools.utils import (
     get_bundle_size,
     get_gha_variable,
     get_github_client,
+    get_github_token,
     get_or_create_log_dir,
     get_repo_name,
     get_stack_versions,
@@ -348,9 +349,16 @@ class Orchestrator:
         """
         Automates the creation of Jules sessions.
         """
-        target_repo = repo or self.github.repo or ""
-        if not self.github.branch_exists(branch, repo=target_repo):
-            raise CLIError(f"Branch '{branch}' does not exist in repository '{target_repo}'.")
+        # The branch-exists precheck needs the GitHub API. Without a
+        # token (e.g. MCP server env) skip it — Jules validates the
+        # branch itself. See #1086.
+        has_token = bool(get_github_token())
+        target_repo = repo or (self.github.repo if has_token else "") or ""
+        if has_token and target_repo:
+            if not self.github.branch_exists(branch, repo=target_repo):
+                raise CLIError(f"Branch '{branch}' does not exist in repository '{target_repo}'.")
+        elif not has_token:
+            log_warn("No GitHub token: skipping branch-exists precheck for Jules dispatch.")
 
         # Prevent dispatching Jules for consolidation/aggregation tasks
         if re.search(r"\b(consolidate|aggregate)\s+pr(s)?\b", prompt.lower()):
