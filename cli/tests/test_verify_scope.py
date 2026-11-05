@@ -102,11 +102,13 @@ def test_module_hierarchy_subfile():
 
 
 def test_refactor_import_heuristic():
-    issue_text = "Extract helper functions from mcp/src/tools/jules/cancel-session.ts into shared CLI helper."
-    # mcp/src/tools/jules/cancel-session.ts imports mcp/src/tools/jules/cli.ts
+    issue_text = ("Extract JSON schema parsing from "
+                  "mcp/src/tools/repo.read_agent_context.ts into shared "
+                  "schema helper.")
+    # mcp/src/tools/repo.read_agent_context.ts imports ./contract
     changed_files = [
-        "mcp/src/tools/jules/cancel-session.ts",
-        "mcp/src/tools/jules/cli.ts"
+        "mcp/src/tools/repo.read_agent_context.ts",
+        "mcp/src/tools/contract.ts"
     ]
 
     success, allowed, disallowed = verify_scope.check_scope(changed_files, issue_text)
@@ -156,10 +158,9 @@ Fixes #936"""
         "## Complexity\n- Refactor targets in `mcp/src/tools/jules/shared.ts` (64 LOC, 6 dependents), "
         "`mcp/src/config.ts` (144 LOC, 9 dependents).\n\n"
         "## Duplication\n- DRY up clone groups in the following files: "
-        "`mcp/src/tools/github.comment_triage_summary.ts`, `mcp/src/tools/github.get_pr_diff.ts`, "
-        "`mcp/src/tools/jules/cancel-session.ts`, `mcp/src/tools/jules/get-messages.ts`, "
-        "`mcp/src/tools/jules/list-sessions.ts`, `mcp/src/tools/jules/send-message.ts`, "
-        "`mcp/src/tools/jules/trigger-feedback.ts`."
+        "`mcp/src/tools/github.get_pr_diff.ts`, `mcp/src/tools/repo.logs.ts`, "
+        "`mcp/src/tools/repo.multi_exec.ts`, `mcp/src/tools/repo.read_ci_logs.ts`, "
+        "`mcp/src/lib/tdCli.ts`."
     )
 
     class MockCompletedProcess:  # pylint: disable=too-few-public-methods
@@ -185,16 +186,11 @@ Fixes #936"""
         "mcp/src/http.ts",
         "mcp/src/mcp/http.test.ts",
         "mcp/src/mcp/server.ts",
-        "mcp/src/tools/github.comment_triage_summary.ts",
         "mcp/src/tools/github.get_pr_diff.ts",
-        "mcp/src/tools/jules/cancel-session.ts",
-        "mcp/src/tools/jules/cli.ts",
-        "mcp/src/tools/jules/get-messages.ts",
-        "mcp/src/tools/jules/list-sessions.ts",
-        "mcp/src/tools/jules/send-message.ts",
-        "mcp/src/tools/jules/session.ts",
-        "mcp/src/tools/jules/shared.ts",
-        "mcp/src/tools/jules/trigger-feedback.ts",
+        "mcp/src/tools/repo.logs.ts",
+        "mcp/src/tools/repo.multi_exec.ts",
+        "mcp/src/tools/repo.read_ci_logs.ts",
+        "mcp/src/lib/tdCli.ts",
     ]
 
     success, allowed, disallowed = verify_scope.check_scope(changed_files, full_text)
