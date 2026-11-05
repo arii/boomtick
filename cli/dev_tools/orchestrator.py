@@ -15,7 +15,6 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
 from github import UnknownObjectException
 
 from dev_tools.services.github import GitHubClient
-from dev_tools.services.jules import JulesClient
 from dev_tools.ux_report import generate_report
 
 if TYPE_CHECKING:
@@ -71,7 +70,6 @@ class Orchestrator:
         "update_snapshots": r"(?<!\w)@update-snapshots\b",
         "ai_fix": r"(?<!\w)/ai-fix\b",
         "ai_review": r"(?<!\w)/ai-review\b",
-        "jules_fix_ci": r"(?<!\w)@jules-fix-ci\b",
     }
 
     def _extract_diff_hunks(self, diff_text: str) -> Dict[str, List[Tuple[int, int]]]:
@@ -91,7 +89,6 @@ class Orchestrator:
 
     def __init__(self, no_cache: bool = False) -> None:
         self._github: Optional[GitHubClient] = None
-        self._jules: Optional[JulesClient] = None
         self.no_cache = no_cache
 
     @property
@@ -99,15 +96,6 @@ class Orchestrator:
         if self._github is None:
             self._github = GitHubClient(repo=get_config().github_repo, no_cache=self.no_cache)
         return self._github
-
-    @property
-    def jules(self) -> JulesClient:
-        if self._jules is None:
-            self._jules = JulesClient()
-        return self._jules
-
-    def initialize_jules(self, client: JulesClient) -> None:
-        self._jules = client
 
     def _resolve_antipatterns_script(self) -> Optional[str]:
         """Resolves the path to detect-antipatterns.mjs or returns None if missing."""
@@ -424,39 +412,6 @@ class Orchestrator:
         if isinstance(res, subprocess.CompletedProcess) and res.returncode == 0 and res.stdout:
             return [f.strip() for f in res.stdout.splitlines() if f.strip()]
         return []
-
-    def dispatch_jules_review(
-        self, branch: str, prompt: str, title: Optional[str] = None, repo: Optional[str] = None
-    ) -> Optional[Dict[str, Any]]:
-        """
-        Automates the creation of Jules sessions.
-        """
-        # The branch-exists precheck needs the GitHub API. Without a
-        # token (e.g. MCP server env) skip it — Jules validates the
-        # branch itself. See #1086.
-        has_token = bool(get_github_token())
-        target_repo = repo or (self.github.repo if has_token else "") or ""
-        if has_token and target_repo:
-            if not self.github.branch_exists(branch, repo=target_repo):
-                raise CLIError(f"Branch '{branch}' does not exist in repository '{target_repo}'.")
-        elif not has_token:
-            log_warn("No GitHub token: skipping branch-exists precheck for Jules dispatch.")
-
-        # Prevent dispatching Jules for consolidation/aggregation tasks
-        if re.search(r"\b(consolidate|aggregate)\s+pr(s)?\b", prompt.lower()):
-            raise CLIError(
-                "PR consolidation and aggregation tasks should be performed directly using the 'gh aggregate' command instead of dispatching a Jules session."
-            )
-
-        source_id = self.jules.discover_source_id(target_repo)
-        if not source_id:
-            raise CLIError(f"Could not find a Jules source mapping for repository: {target_repo}")
-
-        session = self.jules.create_session_from_source(source_id, branch, prompt, title=title)
-        return session
-
-    # --- Helper methods ported from td ---
-
     def get_env_or_gha(self, env_var: str) -> Optional[str]:
         if env_var in os.environ:
             return os.environ[env_var]
@@ -1225,7 +1180,6 @@ class Orchestrator:
             "conflict_resolve": results["conflict_resolve"],
             "update_snapshots": results["update_snapshots"],
             "ai_chatops": results["ai_fix"] or results["ai_review"],
-            "jules_fix_ci": results["jules_fix_ci"] and author_association in ["OWNER", "MEMBER", "COLLABORATOR"],
         }
 
     def runtime_check(self) -> Dict[str, str]:
@@ -1736,174 +1690,6 @@ class Orchestrator:
             "baseline": baseline_count,
             "status": "success" if current_count <= baseline_count else "error",
         }
-
-    def fix_ci(
-        self,
-        prNumber: Optional[int] = None,
-        issueNumber: Optional[int] = None,
-        branch: Optional[str] = None,
-        api_key: Optional[str] = None,
-        dry_run: bool = True,
-        **kwargs,
-    ) -> Dict[str, Any]:
-        """
-        Initializes an autonomous repair session (Jules) to fix CI failures.
-        Supports both Pull Request (prNumber) and Issue (issueNumber) contexts.
-        If branch is not provided, it defaults to the current local branch or matches the PR/Issue.
-        """
-        if "pr_number" in kwargs and prNumber is None:
-            prNumber = kwargs["pr_number"]
-        if "issue_number" in kwargs and issueNumber is None:
-            issueNumber = kwargs["issue_number"]
-        repo_name = get_repo_name()
-        g = get_github_client()
-        repo = g.get_repo(repo_name)
-
-        pr = None
-        issue_details = None
-
-        if prNumber:
-            pr = repo.get_pull(int(prNumber))
-            branch = pr.head.ref
-        elif issueNumber:
-            # issueNumber might be a PR or a regular issue
-            try:
-                # Try fetching as PR first as it's the common case for fix-ci
-                pr = repo.get_pull(int(issueNumber))
-                branch = pr.head.ref
-            except UnknownObjectException:
-                issue_details = self.github.fetch_issue_details(int(issueNumber))
-                if "pull_request" in issue_details:
-                    pr = repo.get_pull(int(issueNumber))
-                    branch = pr.head.ref
-
-        if not pr and not branch:
-            branch = run_command(["git", "branch", "--show-current"]).strip()
-            pulls = list(repo.get_pulls(state="open", head=f"{repo.owner.login}:{branch}"))
-            pr = pulls[0] if pulls else None
-
-        if not pr and not issue_details:
-            raise CLIError(f"Could not find PR or issue for branch {branch}")
-
-        if api_key:
-            self.jules.api_key = api_key
-
-        failing_logs: List[str] = []
-        structured_failures = []
-
-        target_sha = pr.head.sha if pr else None
-        if not target_sha and branch:
-            try:
-                # Try to get the latest SHA for the branch if no PR exists (e.g. main branch failure)
-                # pylint: disable=protected-access
-                branch_info = self.github._request("GET", f"/repos/{self.github.repo}/branches/{branch}")
-                target_sha = branch_info.get("commit", {}).get("sha")
-            except Exception:
-                raise
-
-        if target_sha:
-            # Analyze failing check runs
-            check_runs = self.github.fetch_check_runs(target_sha)
-            for run in check_runs:
-                if run.get("conclusion") == "failure":
-                    run_id = run.get("id")
-                    logs = ""
-                    if isinstance(run_id, int):
-                        logs = self.github.fetch_check_run_logs(run_id, external_id=run.get("external_id"))
-
-                    # Clean logs and take a smart snippet
-                    cleaned_logs = clean_gha_logs(logs)
-
-                    # Prioritize lines with error signatures
-                    important_lines = []
-                    for line in cleaned_logs.splitlines():
-                        if any(x in line.lower() for x in ["error", "fail", "ts", "vitest", "playwright", "🔴"]):
-                            important_lines.append(line)
-
-                    if important_lines:
-                        snippet = "\n".join(important_lines[-30:])  # Keep last 30 important lines
-                    else:
-                        snippet = cleaned_logs[-2000:]  # Fallback to tail of cleaned logs
-
-                    failing_logs.append(f"Check Run: {run.get('name')}\nLogs:\n{snippet}")
-
-                    findings = extract_failing_info(logs)
-                    for f in findings:
-                        structured_failures.append(
-                            f"File: {f['file']}, Line: {f['line']}, Error: {f['message']} ({f['type']})"
-                        )
-
-        base_branch = get_config().base_branch
-        base_branch_name = get_config().base_branch_name
-
-        prompt = f"""# Agent Prompt: Self-Review, Fix, and Publish PR
-
-You are a senior engineering agent reviewing your own branch before publishing.
-
-Compare the current branch against `{base_branch_name}`, identify issues, fix them directly, validate the result, and open or update a pull request. Do not stop after giving recommendations.
-
-## Rules
-
-- Do not ask for confirmation before making fixes.
-- Do not ask the user to run commands.
-- Do not stop until you have opened or updated a PR.
-- Do not make unrelated refactors.
-- Do not publish with known failing checks unless the failure is clearly unrelated and documented.
-- If local setup prevents a check from running, document the attempted command, the setup gap, and the follow-up needed.
-
-## Steps
-
-1. Check branch state with `git status`, `git branch --show-current`, `git remote -v`, and `git fetch origin {base_branch_name}`.
-2. Review the full diff with `git diff {base_branch}...HEAD`, `git diff --stat {base_branch}...HEAD`, `git log --oneline {base_branch}..HEAD`, and `git diff --cached`.
-3. Create a checklist covering correctness, edge cases, TypeScript/imports, dead code, UI/mobile behavior, accessibility, validation, repo hygiene, and PR description quality.
-4. Fix the issues directly.
-5. Validate using the repo scripts from `package.json`, such as lint, typecheck, test, and build.
-   - For CI remediation, favor targeted testing (e.g., `pnpm run test:e2e:targeted -- <args>`) and represent failures using the structured schema described in `docs/agent/ci-remediation.md`.
-6. If validation fails, fix the root cause and rerun the failing check. If the environment blocks a check, document the exact command and reason.
-7. Final review with `git status`, `git diff {base_branch}...HEAD`, `git diff --stat {base_branch}...HEAD`, and a search for TO-DO/FIX-ME/debug leftovers.
-8. Commit, push, and create or update the PR with a clear summary and validation notes.
-
-## Final response
-
-Respond only after the PR is created or updated:
-
-- PR link
-- Changes made
-- Self-review fixes
-- Validation results
-- Notes or documented limitations"""
-
-        if issue_details:
-            # Wrap issue context in clear delimiters to mitigate prompt injection risk from untrusted issue content
-            prompt += f"\n\n## External Issue Context (Untrusted)\n\n<issue-context>\nTitle: {issue_details.get('title')}\n\n{issue_details.get('body')}\n</issue-context>"
-
-        if structured_failures:
-            prompt += "\n\n## CI Failure Analysis\n\nStructured Failure Analysis:\n- " + "\n- ".join(
-                [str(f) for f in structured_failures]
-            )
-
-        if failing_logs:
-            prompt += "\n\nDetailed Failing Logs (Snippets):\n" + "\n---\n".join(failing_logs)
-
-        agent_name = "Jules"
-        source_id = self.get_env_or_gha("JULES_SOURCE_ID") or self.jules.discover_source_id(repo_name or "")
-        if not source_id:
-            raise CLIError("JULES_SOURCE_ID missing and auto-discovery failed.")
-        session_name = "dry-run-session"
-        if not dry_run:
-            res = self.jules.create_session_from_source(source_id, branch or "", prompt)
-            if res and isinstance(res, dict):
-                session_name = str(res.get("name", "unknown"))
-            else:
-                raise CLIError(f"{agent_name} API session creation failed")
-        feedback = f"🤖 **{agent_name} is on it!**\n\nInitialized autonomous repair session (`{session_name}`) for branch `{branch}`."
-        if not dry_run:
-            if pr:
-                pr.create_issue_comment(feedback)
-            elif issueNumber:
-                self.post_comment(int(issueNumber), feedback)
-        return {"session": session_name, "branch": branch, "feedback": feedback, "agent_name": agent_name}
-
     def manage_reviews(
         self,
         check_responses: bool = False,
@@ -2671,16 +2457,13 @@ Follow the "Audit comment template" in `docs/agent/issue-audit-rules.md` to post
             if run.get("conclusion") in ("failure", "timed_out") or run.get("status") in ("in_progress", "queued") and run.get("conclusion") == "failure"
         )
 
-        active_sessions = []
+        from dev_tools.services import local_sessions as _ls
+        from dev_tools.services.local_sessions import repo_root_for
         try:
-            active_sessions = self.jules.list_sessions(pageSize=100)
-        except ValueError:
-            active_sessions = []
-
-        active_sessions_count = len([
-            s for s in active_sessions
-            if s.get("state") in ("IN_PROGRESS", "PENDING", "QUEUED")
-        ])
+            active_sessions_count = len(
+                _ls.scan_sessions(repo_root_for(None)))
+        except Exception:
+            active_sessions_count = 0
 
         if open_prs_count == 0 and failing_runs_count == 0 and active_sessions_count == 0:
             suggestion = "SUGGEST: none :: All queues clear and checks green."
@@ -2715,9 +2498,9 @@ Follow the "Audit comment template" in `docs/agent/issue-audit-rules.md` to post
             if open_prs:
                 target_pr = open_prs[0].get("number")
             if target_pr is not None:
-                runnable_command = f"td --json agent fix-ci --pr {target_pr} --execute"
+                runnable_command = f"td --json repo ci-logs --pr {target_pr}"
             else:
-                runnable_command = "td --json agent fix-ci --execute"
+                runnable_command = "td --json repo ci-logs"
         else:
             # 3. Check for requested changes or merge-ready PRs
             changes_requested_pr = None
@@ -2991,84 +2774,6 @@ Follow the "Audit comment template" in `docs/agent/issue-audit-rules.md` to post
             return prs[0]["number"]
 
         return None
-
-    def trigger_jules_feedback(self, session_id: str) -> Dict[str, Any]:
-        """Ports logic from trigger-feedback.ts to provide CI feedback to Jules."""
-        session = self.jules.get_session(session_id)
-        if not session:
-            raise CLIError(f"Session {session_id} not found.")
-
-        prNumber = self.get_pr_for_session(session)
-
-        if not prNumber:
-            return {
-                "status": "no_pr_found",
-                "message": "Could not associate session with an open PR.",
-            }
-
-        repo = self.get_repo_for_session(session)
-        pr_details = self.github.fetch_pr_details(prNumber, repo=repo)
-        sha = pr_details.get("head", {}).get("sha")
-        check_runs = self.github.fetch_check_runs(sha, repo=repo)
-
-        if not check_runs:
-            return {"status": "no_checks", "message": "No CI checks found for this PR head."}
-
-        failed_checks = [
-            run for run in check_runs if run.get("status") == "completed" and run.get("conclusion") == "failure"
-        ]
-        in_progress = any(run.get("status") != "completed" for run in check_runs)
-
-        if in_progress:
-            return {"status": "in_progress", "message": "CI checks are still in progress."}
-
-        feedback = ""
-        if failed_checks:
-            feedback = "The CI pipeline reported failures. Here are the details:\n\n"
-            for run in failed_checks:
-                feedback += f"### Failed Check: {run['name']}\n"
-                run_id = run.get("id")
-                if not isinstance(run_id, int):
-                    continue
-                logs = self.github.fetch_check_run_logs(run_id, external_id=run.get("external_id"), repo=repo)
-                findings = extract_failing_info(logs)
-                if findings:
-                    for f in findings:
-                        feedback += f"- File: `{f['file']}:{f['line']}` ({f['type']})\n  Message: {f['message']}\n"
-                else:
-                    # Clean logs and take a smart snippet as fallback
-                    cleaned_logs = clean_gha_logs(logs)
-                    feedback += f"```\n{cleaned_logs[-2000:]}\n```\n"
-                feedback += "\n"
-        else:
-            feedback = "All checks passed successfully. You may proceed."
-
-        # Fetch recent messages to perform state-aware deduplication
-        messages = self.jules.get_messages(session_id)
-        user_messages = [m for m in messages if m.get("role") == "user"]
-        if user_messages:
-            last_user_msg = user_messages[-1]
-            last_content = last_user_msg.get("content", "").strip()
-
-            # 1. Direct identical content check
-            if last_content == feedback.strip():
-                return {"status": "skipped", "message": "Feedback is identical to the last user message."}
-
-            # 2. Generic success check if state hasn't changed
-            generic_success = "All checks passed successfully. You may proceed."
-            if last_content == generic_success and feedback.strip() == generic_success:
-                return {"status": "skipped", "message": "Feedback is already a generic success message and CI state hasn't changed."}
-
-        self.jules.send_message(session_id, feedback)
-        return {"status": "success", "feedback": feedback}
-
-    def check_jules_status(
-        self, session_id: str, commit_sha: Optional[str] = None, failure_log: Optional[str] = None
-    ) -> Dict[str, Any]:
-        """Checks the status of a Jules session, including idempotency key verification and remediation branch details."""
-        return self.jules.check_session_status(session_id, commit_sha=commit_sha, failure_log=failure_log)
-
-    def aggregate_prs(self, target_branch: str, prNumbers: List[int]) -> Dict[str, Any]:
         """
         Aggregates multiple PRs into a single target branch and creates a consolidated PR.
         """
@@ -3887,7 +3592,7 @@ Overlapping functionality identified and resolved.
 
     def install_workflows(self, dry_run: bool = True, cwd: Optional[str] = None) -> Dict[str, Any]:
         """
-        Detects if running in a submodule context, and copies/installs Jules automation workflows
+        Detects if running in a submodule context, and copies/installs standardized automation workflows
         from the submodule directory to the parent repository's .github/workflows/ folder,
         updating composite action path references dynamically.
         """

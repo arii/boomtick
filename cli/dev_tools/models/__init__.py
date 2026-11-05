@@ -148,13 +148,6 @@ class GetPrDiffInput(CamelCaseModel):
         pattern=r"^[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+$",
         description="The target repository override (e.g. org/repo).",
     )
-
-
-class CheckoutBranchInput(CamelCaseModel):
-    branch: str = Field(..., description="The name of the branch to checkout.")
-    worktree_path: Optional[str] = Field(None, description="Optional path to the worktree to perform the checkout in.")
-
-
 class GetMergeConflictFilesInput(CamelCaseModel):
     pr_number: Optional[int] = Field(None, description="The number of the pull request to check for conflicts.")
     base_branch: str = Field("main", description="The base branch to check against (default: 'main').")
@@ -285,29 +278,6 @@ class WorktreeRemoveResponse(CamelCaseModel):
     status: str = "removed"
     worktree_id: str
     freed_bytes: Optional[int] = None
-
-
-class CreateBranchInput(CamelCaseModel):
-    branch_name: str = Field(..., description="The name of the new branch")
-    base_branch: str = Field("main", description="Branch to branch off from")
-    repo: Optional[str] = Field(None, description="Target repository override (e.g. org/repo or repo).")
-    path: Optional[str] = Field(None, description="Local filesystem path to target repository root.")
-    repo_path: Optional[str] = Field(None, description="Alias for path to target repository root.")
-
-
-class CreateRepairBranchInput(CamelCaseModel):
-    pr_number: int = Field(..., description="The original pull request number to repair.")
-    repair_branch_name: Optional[str] = Field(
-        None, description="Optional custom name for the new repair branch."
-    )
-    write_mode: bool = Field(
-        ..., description="Safety gate: Must be true to perform branch creation and worktree setup."
-    )
-    repo: Optional[str] = Field(None, description="Target repository override (e.g. org/repo or repo).")
-    path: Optional[str] = Field(None, description="Local filesystem path to target repository root.")
-    repo_path: Optional[str] = Field(None, description="Alias for path to target repository root.")
-
-
 class RunTestsInput(CamelCaseModel):
     commands: Optional[List[str]] = Field(
         None,
@@ -339,49 +309,6 @@ class CommitPatchInput(CamelCaseModel):
     message: str = Field(..., description="Commit message.")
     allowed_files: List[str] = Field(..., description="List of files that are allowed to be committed.")
     write_mode: bool = Field(..., description="Safety gate: Must be true to perform the commit.")
-
-
-class OpenReplacementPrInput(CamelCaseModel):
-    original_pr_number: int = Field(..., description="The number of the pull request being replaced.")
-    repair_branch: str = Field(..., description="The branch containing the fixes.")
-    base_branch: str = Field(..., description="The branch to merge the fixes into.")
-    title: str = Field(..., description="The title of the new PR.")
-    body: str = Field(..., description="The body/description of the new PR.")
-    draft: bool = Field(True, description="Whether to create the PR as a draft (default: true).")
-    worktree_path: Optional[str] = Field(
-        None, description="Optional path to the worktree where the PR is created from."
-    )
-    push_mode: bool = Field(..., description="Safety gate: Must be true to push the branch and open the PR.")
-    repo: Optional[str] = Field(
-        None,
-        pattern=r"^[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+$",
-        description="The target repository override (e.g. org/repo).",
-    )
-
-
-class CreatePullRequestInput(CamelCaseModel):
-    title: str = Field(..., description="PR Title.")
-    body: str = Field(..., description="Description of changes.")
-    head: str = Field(..., description="The branch containing changes to merge.")
-    base: str = Field("main", description="The target branch to merge into.")
-    draft: bool = Field(False, description="Whether to create the PR as a draft.")
-    repo: Optional[str] = Field(
-        None,
-        pattern=r"^[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+$",
-        description="The target repository override (e.g. org/repo).",
-    )
-
-
-class CommentTriageSummaryInput(CamelCaseModel):
-    pr_number: int = Field(..., description="The number of the original PR to comment on.")
-    body: str = Field(..., description="The content of the comment.")
-    repo: Optional[str] = Field(
-        None,
-        pattern=r"^[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+$",
-        description="The target repository override (e.g. org/repo).",
-    )
-
-
 class GetPrInput(CamelCaseModel):
     pr_number: int = Field(..., description="The number of the PR to view.")
     repo: Optional[str] = Field(
@@ -408,63 +335,6 @@ class IssueCommentInput(CamelCaseModel):
         pattern=r"^[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+$",
         description="The target repository override (e.g. org/repo).",
     )
-
-
-class CreateJulesSessionInput(CamelCaseModel):
-    task: str = Field(..., description="The instructions for Jules.")
-    branch: Optional[str] = Field(None, description="The base branch to start from (e.g., 'main').")
-    pr: Optional[int] = Field(None, description="The PR number to use as the base branch context.")
-    repo: Optional[str] = Field(
-        None,
-        pattern=r"^[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+$",
-        description="The target repository override (e.g. org/repo).",
-    )
-
-
-class JulesSessionIdInput(CamelCaseModel):
-    session_id: str = Field(..., description="The unique ID of the Jules session.")
-
-    @field_validator("session_id")
-    @classmethod
-    def validate_session_id(cls, v: str) -> str:
-        if not SESSION_ID_PATTERN.match(v):
-            raise ValueError("Invalid session ID format")
-        return v
-
-
-class JulesSendMessageInput(CamelCaseModel):
-    session_id: Union[str, List[str]] = Field(..., description="The unique ID or IDs of the Jules session(s).")
-    message: str = Field(..., min_length=1, description="The message content to send.")
-
-    @model_validator(mode="after")
-    def validate_send_message(self) -> "JulesSendMessageInput":
-        ids = [self.session_id] if isinstance(self.session_id, str) else self.session_id
-
-        # Enforce batch cap of 50
-        BATCH_CAP = 50
-        if not ids:
-            raise ValueError("session_id list cannot be empty")
-        if len(ids) > BATCH_CAP:
-            raise ValueError(f"Batch size exceeds maximum limit of {BATCH_CAP}")
-
-        # Allow alphanumeric, hyphens, underscores, and forward slashes (for sessions/ prefix)
-        for sid in ids:
-            if not sid.strip():
-                raise ValueError("Session ID cannot be empty or whitespace")
-            if not SESSION_ID_PATTERN.match(sid):
-                raise ValueError(f"Invalid characters in session ID: {sid}")
-
-        if not self.message.strip():
-            raise ValueError("Message cannot be empty or whitespace")
-
-        return self
-
-
-class JulesListSessionsInput(CamelCaseModel):
-    page_size: Optional[int] = Field(None, description="Maximum number of sessions to return.")
-    page_token: Optional[str] = Field(None, description="Token for pagination.")
-
-
 class SearchDdgsInput(CamelCaseModel):
     query: str = Field(..., description="The search query.")
     max_results: Optional[int] = Field(None, description="Maximum number of results to return.")
@@ -736,20 +606,6 @@ class CreateRepairBranchResponse(CamelCaseModel):
     base_sha: Optional[str] = None
     pr_head_sha: Optional[str] = None
     fetched: bool = False
-
-
-class CheckJulesStatusResponse(CamelCaseModel):
-    session_id: str
-    status: str
-    raw_state: Optional[str] = None
-    completed: bool = False
-    remediation_branch: Optional[str] = None
-    pull_request_url: Optional[str] = None
-    idempotency_hash: Optional[str] = None
-    is_duplicate: Optional[bool] = None
-    message: Optional[str] = None
-
-
 class CommitPatchResponse(CamelCaseModel):
     success: bool = True
     commit_sha: str
@@ -791,40 +647,6 @@ class IssueViewResponse(CamelCaseModel):
 class IssueCommentResponse(CamelCaseModel):
     status: str = "success"
     comment: Optional[Any] = None
-
-
-class JulesSessionResponse(CamelCaseModel):
-    id: str
-    status: str
-    created_at: Optional[Any] = None
-    pull_request_url: Optional[str] = None
-
-
-class JulesSendMessageResponse(CamelCaseModel):
-    id: Union[str, List[str]]
-    status: str = "success"
-    message: str
-
-
-class JulesGetMessagesResponse(CamelCaseModel):
-    id: str
-    messages: List[Dict[str, Any]] = Field(default_factory=list)
-
-
-class JulesListSessionsResponse(CamelCaseModel):
-    sessions: List[JulesSessionResponse] = Field(default_factory=list)
-
-
-class JulesGetPrResponse(CamelCaseModel):
-    id: str
-    pull_request_url: Optional[str] = None
-
-
-class JulesTriggerFeedbackResponse(CamelCaseModel):
-    status: Optional[str] = None
-    message: Optional[str] = None
-
-
 class AgentDispatchInput(CamelCaseModel):
     worktree_id: str = Field(..., description="References an active worktree from worktree_create")
     brief: str = Field(..., description="Task specification, instructions, expected verification")

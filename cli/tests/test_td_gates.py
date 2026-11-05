@@ -174,6 +174,39 @@ def test_audit_impact_clean_reports_blast_radius(tmp_path):
     assert "tests/widget.test.tsx" in data["dependent_tests"]
 
 
+def test_audit_impact_skips_heavy_dirs(tmp_path):
+    """Dependents walk must not descend into venvs/build output.
+
+    Regression: _impact_dependents walked .venv/, dist/, .tmp*/
+    (69k+ files on large repos). Heavy dirs are pruned, so a file
+    that imports the changed module from inside .venv/ or dist/ is
+    invisible to the blast radius — and the walk stays fast.
+    """
+    from dev_tools.cli import _prune_walk_dirs
+    assert _prune_walk_dirs(
+        [".git", "node_modules", ".venv", "venv", "dist", "build",
+         "__pycache__", ".tmp-cache", "pkg.egg-info", "src"]) == ["src"]
+    root = _impact_repo(tmp_path)
+    venv_mod = root / ".venv" / "lib" / "heavy.py"
+    venv_mod.parent.mkdir(parents=True)
+    venv_mod.write_text('from widget import Widget\n',
+                        encoding="utf-8")
+    dist_mod = root / "dist" / "bundle.py"
+    dist_mod.parent.mkdir()
+    dist_mod.write_text('from widget import Widget\n', encoding="utf-8")
+    with open(root / "src" / "widget.tsx", "a",
+              encoding="utf-8") as handle:
+        handle.write("export const v = 2;\n")
+    runner = CliRunner()
+    result = runner.invoke(cli, ["audit-impact", "--worktree",
+                                 str(root), "--json"])
+    assert result.exit_code == 0, result.output
+    data = json.loads(result.output)
+    assert ".venv/lib/heavy.py" not in data["impacted_files"]
+    assert "dist/bundle.py" not in data["impacted_files"]
+    assert "src/app.tsx" in data["impacted_files"]
+
+
 def test_audit_impact_violation_fails(tmp_path):
     root = _impact_repo(tmp_path)
     with open(root / "src" / "widget.tsx", "a",

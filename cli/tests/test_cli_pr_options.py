@@ -104,10 +104,10 @@ def test_gh_track_review_options():
         mock_lazy.return_value = mock_orch
         mock_orch.track_review.return_value = {"status": "ok"}
 
-        res_pr = runner.invoke(cli, ["gh", "track-review", "--pr", "42", "--status", "approved", "--auditor", "jules"])
+        res_pr = runner.invoke(cli, ["gh", "track-review", "--pr", "42", "--status", "approved", "--auditor", "bot"])
         assert res_pr.exit_code == 0, res_pr.output
 
-        res_pr_num = runner.invoke(cli, ["gh", "track-review", "--pr-number", "42", "--status", "approved", "--auditor", "jules"])
+        res_pr_num = runner.invoke(cli, ["gh", "track-review", "--pr-number", "42", "--status", "approved", "--auditor", "bot"])
         assert res_pr_num.exit_code == 0, res_pr_num.output
 
 

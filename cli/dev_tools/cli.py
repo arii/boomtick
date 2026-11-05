@@ -1149,7 +1149,7 @@ def schema_cmd(ctx, command_path, generate):
         msg = "Command path not found."
         if command_path and " " not in command_path:
             # Provide a small hint for common top-level groups
-            if command_path in ["gh", "repo", "config", "ux", "agent", "jules"]:
+            if command_path in ["gh", "repo", "config", "ux", "agent"]:
                 msg += f" Did you mean 'td schema {command_path}' to see subcommands?"
         err(ctx, msg)
         return
@@ -1525,101 +1525,6 @@ def agent_group():
 
 
 @agent_group.command()
-@click.argument("branch", required=False)
-@click.argument("task", required=False)
-@click.option("--title", "-t", help="Custom session title")
-@click.option("--repo", "-r", help="Target GitHub repository (e.g. arii/portfolio)")
-@click.option("--prompt", "prompt", default=None, help="Task text (alternative to the TASK argument)")
-@click.option("--branch", "branch_opt", default=None, help="Branch to work on (alternative to the BRANCH argument)")
-@click.pass_context
-def dispatch(ctx, branch, task, title, repo, prompt, branch_opt):
-    """
-    Initialize a Jules session for a specific branch and task.
-    Note: Use 'main' branch for PR consolidation tasks to avoid rebasing issues.
-    BRANCH and TASK may also be passed as --branch / --prompt flags.
-    """
-    branch = branch_opt or branch
-    task = prompt or task
-    if not branch or not task:
-        raise click.UsageError("Missing BRANCH and TASK (or --branch and --prompt).")
-    orch = ctx.obj["ORCHESTRATOR"]
-    res = orch.dispatch_jules_review(branch, task, title=title, repo=repo)
-
-    if not ctx.obj.get("JSON", False):
-        click.echo("\n" * 2)
-        click.echo("=" * 60)
-        click.echo("   🚀  JULES SESSION DISPATCHED SUCCESSFULLY  🚀   ")
-        click.echo("=" * 60)
-        click.echo("\n")
-        click.echo(f"  Branch : {branch}")
-        display_title = title or (res.get("title") if isinstance(res, dict) else None) or task[:60]
-        click.echo(f"  Title  : {display_title}")
-        click.echo(f"  Task   : {task[:60]}{'...' if len(task) > 60 else ''}")
-        click.echo("\n" * 2)
-
-    out(ctx, f"✅ Dispatched task on branch {branch}", data=res)
-
-
-@agent_group.command()
-@limit_option(help_text="Limit the number of sessions to retrieve")
-@click.pass_context
-def sync(ctx, limit):
-    """Sync active agent sessions."""
-    orch = ctx.obj["ORCHESTRATOR"]
-    try:
-        sessions = orch.jules.list_sessions(pageSize=limit)
-    except ValueError as e:
-        if "JULES_API_KEY" in str(e):
-            if not ctx.obj["JSON"]:
-                click.echo("⚠️ Warning: JULES_API_KEY unset")
-            out(ctx, "Agent sync complete (JULES_API_KEY unset).", data={"sessions": [], "warning": "JULES_API_KEY unset"})
-            return
-        raise e
-
-    if not ctx.obj["JSON"]:
-        if not sessions:
-            click.echo("No active agent sessions found.")
-        else:
-            click.echo(f"{'Session ID':<20} | {'Status':<15} | {'Created':<25}")
-            click.echo("-" * 65)
-            for s in sessions:
-                sid = s.get("name", "N/A").split("/")[-1]
-                state = s.get("state", "UNKNOWN")
-                created = s.get("createTime", "N/A")
-                click.echo(f"{sid:<20} | {state:<15} | {created:<25}")
-
-    out(ctx, "Agent sync complete.", data={"sessions": sessions})
-
-@agent_group.command()
-@click.option("--pr", "--pr-number", "pr_number", type=int, help="The PR number.")
-@click.option("--issue-number", type=int)
-@click.option("--branch")
-@click.option("--api-key")
-@click.option("--dry-run/--execute", default=True)
-@click.pass_context
-def fix_ci(ctx, pr_number, issue_number, branch, api_key, dry_run):
-    orch = ctx.obj["ORCHESTRATOR"]
-    res = orch.fix_ci(
-        pr_number=pr_number,
-        issue_number=issue_number,
-        branch=branch,
-        api_key=api_key,
-        dry_run=dry_run,
-    )
-    agent_name = res.get("agent_name", "Jules")
-    if not ctx.obj.get("JSON", False):
-        click.echo("\n" * 2)
-        click.echo("=" * 60)
-        click.echo(f"   🚀  {agent_name.upper()} SESSION INITIALIZED  🚀   ".center(60))
-        click.echo("=" * 60)
-        click.echo("\n")
-        click.echo(f"  Branch : {res.get('branch', branch)}")
-        click.echo("\n" * 2)
-
-    out(ctx, f"🚀 Initialized {agent_name} session for branch `{res['branch']}`", data=res)
-
-
-@agent_group.command()
 @click.option("--log")
 @click.option("--file")
 @click.option("--pr", "--pr-number", "pr", type=int, help="The PR number.")
@@ -1644,88 +1549,6 @@ def repair(ctx, logs, stdin, worktree):
         err(ctx, res["message"], data=res)
 
 
-@agent_group.command()
-@click.argument("session_id")
-@click.pass_context
-def cancel(ctx, session_id):
-    """Cancel a Jules session."""
-    orch = ctx.obj["ORCHESTRATOR"]
-    res = orch.jules.cancel_session(session_id)
-    out(ctx, f"✅ Session {session_id} cancelled", data=res)
-
-
-@agent_group.command()
-@click.argument("session_id")
-@click.pass_context
-def get_session(ctx, session_id):
-    """Get details of a Jules session."""
-    orch = ctx.obj["ORCHESTRATOR"]
-    session = orch.jules.get_session(session_id)
-    out(ctx, f"Session {session_id} details retrieved", data={"session": session})
-
-
-@agent_group.command()
-@click.argument("session_id")
-@click.pass_context
-def trigger_feedback(ctx, session_id):
-    """Trigger CI feedback for a Jules session."""
-    orch = ctx.obj["ORCHESTRATOR"]
-    res = orch.trigger_jules_feedback(session_id)
-    out(ctx, "Feedback triggered", data=res)
-
-
-@agent_group.command()
-@click.argument("session_id")
-@click.pass_context
-def messages(ctx, session_id):
-    """Get message history for a Jules session."""
-    orch = ctx.obj["ORCHESTRATOR"]
-    msgs = orch.jules.get_messages(session_id)
-    if not ctx.obj["JSON"]:
-        if not msgs:
-            click.echo(f"No messages found for session {session_id}")
-        else:
-            for m in msgs:
-                role = m["role"].upper()
-                click.echo(f"[{m['time']}] {role}:")
-                click.echo(m["content"])
-                click.echo("-" * 40)
-    out(ctx, f"Messages retrieved for {session_id}", data={"messages": msgs})
-
-
-@agent_group.command()
-@click.argument("session_ids")
-@click.argument("message")
-@click.pass_context
-def send(ctx, session_ids, message):
-    """Send a message to active Jules session(s) (supports comma-separated IDs)."""
-    orch = ctx.obj["ORCHESTRATOR"]
-
-    # Support comma-separated IDs for batching
-    target_ids = [s.strip() for s in session_ids.split(",")] if "," in session_ids else session_ids
-
-    from dev_tools.models import JulesSendMessageInput
-    from pydantic import ValidationError
-
-    try:
-        JulesSendMessageInput(sessionId=target_ids, message=message)
-    except ValidationError as e:
-        # Extract specific error message for better feedback
-        msg = f"Validation failed: {e.errors()[0]['msg']}"
-        err(ctx, msg, code=1)
-    except Exception as e:
-        _handle_unexpected_error(ctx, "agent send", e)
-
-    res = orch.jules.send_message(target_ids, message)
-
-    # Provide clear summary for batch operations
-    summary = res.get("message", f"Message sent to session(s) {session_ids}")
-    if not summary.startswith("✅"):
-        summary = f"✅ {summary}"
-
-    out(ctx, summary, data=res)
-
-
 @agent_group.command(name="run")
 @click.option("--worktree", required=True, help="Existing worktree path for the session")
 @click.option("--brief", required=True, help="Task brief for the executor")
@@ -1736,7 +1559,7 @@ def send(ctx, session_ids, message):
               help="Return immediately and supervise in background")
 @click.pass_context
 def run(ctx, worktree, brief, model, repo, root_path, detach):
-    """Dispatch a local worktree session (no Jules API involved)."""
+    """Dispatch a local worktree session (fully local, no cloud API)."""
     from dev_tools.services import local_sessions as ls
     try:
         root = ls.repo_root_for(root_path)
@@ -1984,64 +1807,6 @@ def suggest(ctx, repo):
         out(ctx, res.get("suggestion", ""), data=res)
     except Exception as e:
         _handle_unexpected_error(ctx, "agent suggest", e)
-
-
-@agent_group.command(name="run-feedback-check")
-@limit_option(help_text="Limit the number of active sessions to check")
-@click.pass_context
-def run_feedback_check(ctx, limit):
-    """Run a one-shot Automated Agent Feedback Check to trigger CI feedback for active sessions."""
-    try:
-        from dev_tools.daemon import JulesFeedbackDaemon
-
-        daemon_instance = JulesFeedbackDaemon()
-        daemon_instance.run(limit=limit)
-        out(ctx, "Feedback check execution completed.", data={"status": "success"})
-    except Exception as e:
-        _handle_unexpected_error(ctx, "agent run-feedback-check", e)
-
-
-@agent_group.command(name="run-triage")
-@click.option("--limit", type=int, default=10, help="Limit the number of sessions/PRs to inspect")
-@click.option("--concurrency", type=int, default=2, help="Maximum concurrent Jules sessions for backlog dispatch")
-@click.option("--repo", "-r", "repos", multiple=True, help="Target ecosystem repository override(s)")
-@click.option("--dry-run/--execute", default=False, help="Perform dry run without mutating actions")
-@click.pass_context
-def run_triage(ctx, limit, concurrency, repos, dry_run):
-    """Autonomous multi-repo triage pass (PR auto-merge, Jules plan nudging, backlog dispatch)."""
-    try:
-        from dev_tools.daemon import AutonomousTriageDaemon
-
-        repo_list = list(repos) if repos else None
-        daemon_instance = AutonomousTriageDaemon(repos=repo_list)
-        res = daemon_instance.run_triage(
-            limit=limit,
-            concurrency_limit=concurrency,
-            dry_run=dry_run,
-        )
-        if not ctx.obj.get("JSON", False):
-            click.echo("Autonomous Multi-Repo Triage Summary:")
-            click.echo(f"  • Sessions evaluated: {res.get('sessions_evaluated', 0)}")
-            click.echo(f"  • Sessions nudged:    {len(res.get('sessions_nudged', []))}")
-            click.echo(f"  • Empty PRs handled:  {len(res.get('empty_prs_handled', []))}")
-            click.echo(f"  • PRs auto-merged:    {len(res.get('prs_merged', []))}")
-            click.echo(f"  • Stale CI closed:    {len(res.get('stale_issues_closed', []))}")
-            click.echo(f"  • Backlog dispatched: {len(res.get('backlog_dispatched', []))}")
-
-        out(ctx, "Autonomous triage pass completed successfully.", data=res)
-    except Exception as e:
-        _handle_unexpected_error(ctx, "agent run-triage", e)
-
-
-@agent_group.command(name="triage-daemon")
-@click.option("--limit", type=int, default=10, help="Limit the number of sessions/PRs to inspect")
-@click.option("--concurrency", type=int, default=2, help="Maximum concurrent Jules sessions for backlog dispatch")
-@click.option("--repo", "-r", "repos", multiple=True, help="Target ecosystem repository override(s)")
-@click.option("--dry-run/--execute", default=False, help="Perform dry run without mutating actions")
-@click.pass_context
-def triage_daemon(ctx, limit, concurrency, repos, dry_run):
-    """Alias for 'td agent run-triage'."""
-    ctx.invoke(run_triage, limit=limit, concurrency=concurrency, repos=repos, dry_run=dry_run)
 
 
 @cli.command(name="context-warm")
@@ -2522,12 +2287,6 @@ _register_multi_repo_commands(multi_repo_group)
 _register_multi_repo_commands(repos_group)
 
 
-for group in [agent_group]:
-    group.add_command(get_session, name="session")
-    group.add_command(sync, name="list")
-    group.add_command(sync, name="list-sessions")
-
-
 def _read_spec_source(file):
     """Read spec text from a path, or stdin when file is '-'."""
     if file == "-":
@@ -2626,8 +2385,7 @@ def validate_issue_spec(ctx, file, repo_root):
         forbidden_lower = {p.lower() for p in forbidden_files}
         actual = set()
         for dirpath, dirnames, filenames in os.walk(root):
-            if ".git" in dirnames:
-                dirnames.remove(".git")
+            _prune_walk_dirs(dirnames)
             for filename in filenames:
                 actual.add(os.path.relpath(
                     os.path.join(dirpath, filename), root).lower())
@@ -2929,6 +2687,27 @@ def _is_test_path(path):
             or os.path.basename(lowered).startswith("test"))
 
 
+# Directories never worth walking for impact/scope analysis: VCS,
+# dependency installs, build output, caches, and test artifacts. Pruned
+# in place during os.walk (see _prune_walk_dirs) so large checkouts
+# (69k+ files under .venv/, dist/, test-results/) stay fast.
+SKIP_WALK_DIRS = frozenset({
+    ".git", "node_modules", ".venv", "venv", "dist", "build",
+    "__pycache__", ".tox", ".mypy_cache", ".pytest_cache",
+    ".ruff_cache", ".td_rag", ".worktrees", "test-results",
+    "test_results", ".nyc_output", "coverage",
+})
+
+
+def _prune_walk_dirs(dirnames):
+    """Drop heavy/irrelevant dirs from an os.walk traversal in place."""
+    dirnames[:] = [d for d in dirnames
+                   if d not in SKIP_WALK_DIRS
+                   and not d.startswith(".tmp")
+                   and not d.endswith(".egg-info")]
+    return dirnames
+
+
 def _impact_dependents(worktree, changed):
     """Files referencing a changed module (import/from/require).
 
@@ -2943,10 +2722,7 @@ def _impact_dependents(worktree, changed):
     if not stems:
         return dependents
     for dirpath, dirnames, filenames in os.walk(worktree):
-        if ".git" in dirnames:
-            dirnames.remove(".git")
-        if "node_modules" in dirnames:
-            dirnames.remove("node_modules")
+        _prune_walk_dirs(dirnames)
         for name in filenames:
             if not name.endswith((".py", ".ts", ".tsx", ".js",
                                    ".jsx", ".mjs")):
@@ -3046,15 +2822,6 @@ def audit_impact_gate(ctx, worktree, top_k):
             sys.exit(1)
     except Exception as e:
         _handle_unexpected_error(ctx, "audit-impact", e)
-
-
-@cli.group(name="jules")
-def jules_group():
-    """Jules session operations (alias of the matching `td agent` commands)."""
-
-
-jules_group.add_command(sync, name="list-sessions")
-jules_group.add_command(sync, name="list")
 
 
 def main():

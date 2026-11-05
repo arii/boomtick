@@ -143,10 +143,7 @@ class RepairService:
 
     def __init__(self, knowledge_base_path: Optional[str] = None):
         if knowledge_base_path is None:
-            if os.path.exists(".agents/knowledge/errors.json"):
-                knowledge_base_path = ".agents/knowledge/errors.json"
-            else:
-                knowledge_base_path = ".jules/knowledge/errors.json"
+            knowledge_base_path = ".agents/knowledge/errors.json"
         self.knowledge_base_path = knowledge_base_path
         self.knowledge_base = self._load_kb()
 

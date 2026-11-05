@@ -23,7 +23,7 @@ Agent tooling in this repository is structured into three tiers:
 | Fetch CI Logs | `repo.read_ci_logs` (`repo_read_ci_logs`) | `td repo ci-logs <PR>` | `gh run view --log` |
 | Resolve / Check Conflicts | `github.get_merge_conflict_files` (`github_get_merge_conflict_files`) | `td gh resolve` / `td gh merge-conflicts` | `git merge` |
 | Run UX / DOM Audits | N/A (Vitest suite) | `td ux audit` | `pnpm exec vitest` |
-| Create Jules Session | `jules.create_session` (`jules_create_session`) | `td agent dispatch` | N/A |
+| Dispatch Local Session | N/A (local worktree sessions) | `td agent run` | N/A |
 | Run Test Suites | `repo.run_tests` (`repo_run_tests`) | `td test` / `td test cli` | `pnpm test` / `pytest` |
 | Multi-Repo Context & Status | `repo.read_agent_context(all=true)` | `td multi-repo status` | N/A |
 | Sequential Multi-Repo Exec | `repo.multi_exec` (`repo_multi_exec`) | `td multi-repo exec "<cmd>"` | N/A |

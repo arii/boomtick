@@ -25,7 +25,6 @@ and git hook registration.
 | :--- | :--- | :--- |
 | `GITHUB_TOKEN` (string) | **Required** | Auth for `gh` and `td gh ...` commands (PR audits, comments, variables, status checks). Standard for GH Actions. |
 | `GITHUB_REPOSITORY` (`owner/repo`) | Recommended | Ensures deterministic `origin` remote auto-configuration. |
-| `JULES_API_KEY` | Optional | Enables `td agent ...` / `td jules ...` cloud workflows. |
 | `GEMINI_API_KEY` | Optional | Enables Gemini-backed review/audit workflows. |
 
 **Secret handling guidance**
@@ -194,6 +193,6 @@ Key subcommand groups:
 | `doctor` | Runtime consistency check |
 | `gh` | GitHub operations (PRs, issues, audits, conflicts) |
 | `repo` | Repository operations (CI logs, Playwright) |
-| `agent` / `jules` | Jules agent session management |
+| `agent` | Local agent sessions (run, submit-pr, suggest, plans) |
 | `mcp` | MCP server discovery, setup, and host registration |
 | `preflight` | Unified local preflight verification suite |

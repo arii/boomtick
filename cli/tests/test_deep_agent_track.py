@@ -2,8 +2,6 @@
 """Deep-agent track: td commands the deep agent relies on must exist and work.
 
 Covers:
-- `td jules list-sessions` (alias used by remote-server deep-agent fallbacks)
-- `td agent dispatch --prompt/--branch` (flag form used by buttons/server.py)
 - `td preflight` repo-awareness (audit skip, base-ref discovery)
 """
 from unittest.mock import MagicMock, patch
@@ -12,46 +10,6 @@ from click.testing import CliRunner
 
 from dev_tools.cli import cli
 from dev_tools.orchestrator import Orchestrator
-
-
-def test_cli_jules_list_sessions_without_api_key():
-    runner = CliRunner()
-    with patch.dict("os.environ", {"JULES_API_KEY": ""}):
-        result = runner.invoke(cli, ["jules", "list-sessions"])
-        assert result.exit_code == 0
-        assert '"warning": "JULES_API_KEY unset"' in result.output
-        assert '"sessions": []' in result.output
-
-
-def test_cli_jules_list_sessions_matches_agent():
-    runner = CliRunner()
-    with patch.dict("os.environ", {"JULES_API_KEY": ""}):
-        agent_res = runner.invoke(cli, ["agent", "list-sessions"])
-        jules_res = runner.invoke(cli, ["jules", "list-sessions"])
-        assert agent_res.exit_code == 0
-        assert jules_res.exit_code == 0
-        assert jules_res.output == agent_res.output
-
-
-@patch("dev_tools.orchestrator.Orchestrator.dispatch_jules_review")
-def test_cli_agent_dispatch_with_prompt_and_branch_flags(mock_dispatch):
-    mock_dispatch.return_value = {"name": "sessions/777", "title": "Flag task"}
-    runner = CliRunner()
-    result = runner.invoke(
-        cli,
-        ["agent", "dispatch", "--prompt", "Do the thing", "--branch", "main"],
-        obj={},
-    )
-    assert result.exit_code == 0
-    mock_dispatch.assert_called_once_with("main", "Do the thing", title=None, repo=None)
-
-
-@patch("dev_tools.orchestrator.Orchestrator.dispatch_jules_review")
-def test_cli_agent_dispatch_missing_branch_and_task_errors(mock_dispatch):
-    runner = CliRunner()
-    result = runner.invoke(cli, ["agent", "dispatch", "--prompt", "No branch"], obj={})
-    assert result.exit_code != 0
-    mock_dispatch.assert_not_called()
 
 
 def test_preflight_skips_audit_when_dirs_missing():
