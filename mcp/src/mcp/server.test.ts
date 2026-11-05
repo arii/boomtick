@@ -3,12 +3,12 @@ import { BoomtickMCPServer } from "./server.js";
 import { config } from "../config.js";
 import fs from "fs/promises";
 import * as healthModule from "./tools.js";
-import * as prDiffModule from "../tools/github.get_pr_diff.js";
+import * as getPrModule from "../tools/github.get_pr.js";
 import * as ciLogsModule from "../tools/repo.read_ci_logs.js";
-import * as prReviewsModule from "../tools/github.get_pr_reviews.js";
-import * as prCommitsModule from "../tools/github.get_pr_commits.js";
-import * as workflowRunsModule from "../tools/repo.get_workflow_runs.js";
+import * as gitLibModule from "../lib/git.js";
+import * as tdCliModule from "../lib/tdCli.js";
 import * as worktreeListModule from "../tools/worktree.list.js";
+import * as tdValidateModule from "../tools/td.validate_issue.js";
 
 vi.mock("fs/promises");
 vi.mock("../config.js", () => ({
@@ -183,7 +183,7 @@ describe("BoomtickMCPServer", () => {
 
     it("should handle repo://diff/:prNumber", async () => {
       const handler = requestHandlers.get("resources/read");
-      vi.spyOn(prDiffModule, "getPrDiffHandler").mockResolvedValue({ diffText: "diff --git a b" } as any);
+      vi.spyOn(getPrModule, "getPrHandler").mockResolvedValue({ diff: { diffText: "diff --git a b" } } as any);
 
       const result = await handler!({
         method: "resources/read",
@@ -210,8 +210,9 @@ describe("BoomtickMCPServer", () => {
 
     it("should handle mcp://git/changed-files", async () => {
       const handler = requestHandlers.get("resources/read");
-      const changedFilesModule = await import("../tools/repo.get_changed_files.js");
-      vi.spyOn(changedFilesModule, "getChangedFilesHandler").mockResolvedValue({ files: ["src/index.ts"] } as any);
+      vi.spyOn(gitLibModule, "getChangedFiles").mockResolvedValue([
+        { status: "M", path: "src/index.ts" },
+      ] as any);
 
       const result = await handler!({
         method: "resources/read",
@@ -220,7 +221,7 @@ describe("BoomtickMCPServer", () => {
 
       expect(result.contents[0].uri).toBe("mcp://git/changed-files");
       expect(result.contents[0].mimeType).toBe("application/json");
-      expect(JSON.parse(result.contents[0].text)).toEqual({ files: ["src/index.ts"] });
+      expect(JSON.parse(result.contents[0].text)).toEqual({ files: [{ status: "M", path: "src/index.ts" }] });
     });
 
     it("should handle mcp://workspace/project-config", async () => {
@@ -252,7 +253,7 @@ describe("BoomtickMCPServer", () => {
 
     it("should handle mcp://ci/latest-run", async () => {
       const handler = requestHandlers.get("resources/read");
-      vi.spyOn(workflowRunsModule, "getWorkflowRunsHandler").mockResolvedValue({ workflowRuns: [{ id: 1, status: "completed", conclusion: "success" }] } as any);
+      vi.spyOn(tdCliModule, "runTDCli").mockResolvedValue({ workflow_runs: [{ id: 1, status: "completed", conclusion: "success" }] } as any);
 
       const result = await handler!({
         method: "resources/read",
@@ -261,7 +262,7 @@ describe("BoomtickMCPServer", () => {
 
       expect(result.contents[0].uri).toBe("mcp://ci/latest-run");
       expect(result.contents[0].mimeType).toBe("application/json");
-      expect(JSON.parse(result.contents[0].text)).toEqual({ workflowRuns: [{ id: 1, status: "completed", conclusion: "success" }] });
+      expect(JSON.parse(result.contents[0].text)).toEqual({ workflow_runs: [{ id: 1, status: "completed", conclusion: "success" }] });
     });
 
     it("should handle boomtick:// URIs", async () => {
@@ -298,6 +299,31 @@ describe("BoomtickMCPServer", () => {
       expect(Array.isArray(result.tools)).toBe(true);
     });
 
+    it("should expose exactly the pruned worktree-safe toolset", async () => {
+      const handler = requestHandlers.get("tools/list");
+      const result = await handler!({ method: "tools/list" });
+      const names = result.tools.map((t: any) => t.name).sort();
+      expect(names).toEqual([
+        "agent_submit_pr",
+        "boomtick_health",
+        "github_create_issue",
+        "github_get_pr",
+        "github_issue_comment",
+        "github_issue_update",
+        "github_issue_view",
+        "repo_read_agent_context",
+        "repo_read_ci_logs",
+        "repo_run_tests",
+        "td_audit_worktree",
+        "td_init_and_rag",
+        "td_validate_issue",
+        "td_verify_scope",
+        "worktree_create",
+        "worktree_list",
+        "worktree_remove",
+      ]);
+    });
+
     it("should ensure all tools have typed outputSchema and none are empty or untyped DEFAULT_OUTPUT_SCHEMA", async () => {
       const handler = requestHandlers.get("tools/list");
       const result = await handler!({ method: "tools/list" });
@@ -326,29 +352,45 @@ describe("BoomtickMCPServer", () => {
       });
     });
 
-    it("should execute github_get_pr_reviews and github_get_pr_commits via underscore or dot name", async () => {
+    it("should execute folded github_get_pr includes via underscore or dot name", async () => {
       const handler = requestHandlers.get("tools/call");
-      vi.spyOn(prReviewsModule, "getPrReviewsHandler").mockResolvedValue({ reviews: [] } as any);
-      vi.spyOn(prCommitsModule, "getPrCommitsHandler").mockResolvedValue({ commits: [] } as any);
-      vi.spyOn(workflowRunsModule, "getWorkflowRunsHandler").mockResolvedValue({ runs: [] } as any);
+      vi.spyOn(getPrModule, "getPrHandler").mockResolvedValue({ pr: { number: 123 }, reviews: [] } as any);
 
-      const resReviews = await handler!({
+      const res = await handler!({
         method: "tools/call",
-        params: { name: "github_get_pr_reviews", arguments: { prNumber: 123 } },
+        params: { name: "github_get_pr", arguments: { prNumber: 123, includeReviews: true } },
       });
-      expect(resReviews.structuredContent).toEqual({ reviews: [] });
+      expect(res.structuredContent).toEqual({ pr: { number: 123 }, reviews: [] });
+    });
 
-      const resCommits = await handler!({
-        method: "tools/call",
-        params: { name: "github_get_pr_commits", arguments: { prNumber: 123 } },
-      });
-      expect(resCommits.structuredContent).toEqual({ commits: [] });
+    it("should return not-found for pruned legacy tools", async () => {
+      const handler = requestHandlers.get("tools/call");
+      for (const name of [
+        "github_get_pr_reviews",
+        "github_get_pr_commits",
+        "repo_get_workflow_runs",
+        "repo_commit_patch",
+        "repo_multi_exec",
+        "skill_list",
+        "skill_read",
+      ]) {
+        const result = await handler!({
+          method: "tools/call",
+          params: { name, arguments: {} },
+        });
+        expect(result.isError).toBe(true);
+      }
+    });
 
-      const resWorkflow = await handler!({
+    it("should execute td_validate_issue", async () => {
+      const handler = requestHandlers.get("tools/call");
+      vi.spyOn(tdValidateModule, "tdValidateIssueHandler").mockResolvedValue({ valid: true } as any);
+
+      const res = await handler!({
         method: "tools/call",
-        params: { name: "repo_get_workflow_runs", arguments: {} },
+        params: { name: "td_validate_issue", arguments: { file: "spec.md" } },
       });
-      expect(resWorkflow.structuredContent).toEqual({ runs: [] });
+      expect(res.structuredContent).toEqual({ valid: true });
     });
 
     it("should execute worktree_list and return structuredContent as a record object wrapping worktrees", async () => {
