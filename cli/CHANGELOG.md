@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.19.2](https://github.com/arii/boomtick/compare/cli-v0.19.1...cli-v0.19.2) (2026-11-05)
+
+
+### Bug Fixes
+
+* **review:** ground Tailwind rule, cite hunks, drop AI naming ([#1114](https://github.com/arii/boomtick/issues/1114)) ([9c905f7](https://github.com/arii/boomtick/commit/9c905f7a92064078cb8af3e1a4a0477229c6a7ea))
+
 ## [0.19.1](https://github.com/arii/boomtick/compare/cli-v0.19.0...cli-v0.19.1) (2026-11-03)
 
 
