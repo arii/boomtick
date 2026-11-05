@@ -2921,6 +2921,135 @@ def audit_code_gate(ctx, worktree):
         _handle_unexpected_error(ctx, "audit-code", e)
 
 
+TEST_PATH_HINTS = ("/test_", "/tests/", "test_", "_test.",
+                  ".test.", ".spec.")
+
+
+def _is_test_path(path):
+    lowered = path.lower()
+    return (any(hint in lowered for hint in TEST_PATH_HINTS)
+            or os.path.basename(lowered).startswith("test"))
+
+
+def _impact_dependents(worktree, changed):
+    """Files referencing a changed module (import/from/require).
+
+    Returns {changed_path: [dependent paths]}. Best effort, read-only.
+    """
+    dependents = {path: [] for path in changed}
+    stems = {}
+    for path in changed:
+        base = os.path.basename(path)
+        stem, _ = os.path.splitext(base)
+        stems.setdefault(stem, []).append(path)
+    if not stems:
+        return dependents
+    for dirpath, dirnames, filenames in os.walk(worktree):
+        if ".git" in dirnames:
+            dirnames.remove(".git")
+        if "node_modules" in dirnames:
+            dirnames.remove("node_modules")
+        for name in filenames:
+            if not name.endswith((".py", ".ts", ".tsx", ".js",
+                                   ".jsx", ".mjs")):
+                continue
+            full = os.path.join(dirpath, name)
+            rel = os.path.relpath(full, worktree)
+            if rel in dependents:
+                continue
+            try:
+                with open(full, encoding="utf-8",
+                          errors="ignore") as handle:
+                    content = handle.read()
+            except OSError:
+                continue
+            for stem, owners in stems.items():
+                if not stem or len(stem) < 3:
+                    continue
+                escaped = re.escape(stem)
+                import_ref = (
+                    r"(?:from|import|require)[^\n]{0,120}?" + escaped)
+                path_ref = (r"(?:^|[^a-zA-Z0-9_])" + escaped +
+                            r"(?:\.[a-zA-Z_]|/)")
+                if (re.search(import_ref, content)
+                        or re.search(path_ref, content)):
+                    for owner in owners:
+                        dependents[owner].append(rel)
+    for owner in dependents:
+        dependents[owner] = sorted(set(dependents[owner]))
+    return dependents
+
+
+@cli.command(name="audit-impact")
+@click.option("--worktree", "worktree", required=True,
+              help="Path to the worktree to analyze")
+@click.option("--top-k", "top_k", default=25, type=int,
+              help="Maximum impacted files to list")
+@_gate_json_option
+@click.pass_context
+def audit_impact_gate(ctx, worktree, top_k):
+    """Blast-radius analysis for worktree changes (exit 0 iff clean).
+
+    Emits {"impacted_files", "dependent_tests", "violations"} where
+    violations are AST findings on changed files. Nonzero exit when
+    any violation exists.
+    """
+    from dev_tools.services.ast_audit import ASTAuditor
+    try:
+        changed = [p for p in _worktree_changed_files(worktree)
+                   if not p.startswith((".td_rag/", ".worktrees/"))]
+        auditor = ASTAuditor()
+        violations = []
+        for rel in changed:
+            if not rel.endswith((".py", ".ts", ".tsx", ".js",
+                                  ".jsx", ".mjs")):
+                continue
+            full = os.path.join(worktree, rel)
+            if not os.path.isfile(full):
+                continue
+            try:
+                with open(full, encoding="utf-8",
+                          errors="ignore") as handle:
+                    code = handle.read()
+                for finding in auditor.audit_file(rel, code) or []:
+                    violations.append({
+                        "file": rel,
+                        "rule": finding.get("rule"),
+                        "message": finding.get("message"),
+                        "line": finding.get("line"),
+                        "severity": finding.get("severity"),
+                    })
+            except Exception:
+                continue
+        dependents = _impact_dependents(worktree, changed)
+        impacted = sorted(set(changed)
+                          | {d for deps in dependents.values()
+                             for d in deps})[:top_k]
+        dependent_tests = sorted(
+            {d for deps in dependents.values() for d in deps
+             if _is_test_path(d)}
+            | {p for p in changed if _is_test_path(p)})[:top_k]
+        passed = not violations
+        data = {"passed": passed,
+                "impacted_files": impacted,
+                "dependent_tests": dependent_tests,
+                "violations": violations}
+        if not ctx.obj["JSON"]:
+            if passed:
+                click.echo(
+                    f"✅ impact clean: {len(impacted)} file(s), "
+                    f"{len(dependent_tests)} test(s)")
+            else:
+                click.echo(
+                    f"❌ impact: {len(violations)} violation(s) in "
+                    f"{len(impacted)} file(s)")
+        out(ctx, f"impact clean: {passed}.", data=data)
+        if not passed:
+            sys.exit(1)
+    except Exception as e:
+        _handle_unexpected_error(ctx, "audit-impact", e)
+
+
 @cli.group(name="jules")
 def jules_group():
     """Jules session operations (alias of the matching `td agent` commands)."""
