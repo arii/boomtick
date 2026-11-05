@@ -3,9 +3,110 @@ import hashlib
 import json
 import os
 import re
-from typing import Any, Dict, List, Optional
+import subprocess
+from typing import Any, Dict, List, Optional, Tuple
 
 from dataclasses import dataclass, field
+
+TD_RAG_DIR = ".td_rag"
+META_FILENAME = "meta.json"
+
+INDEXABLE_EXTENSIONS = (
+    ".py", ".ts", ".tsx", ".js", ".jsx", ".mjs", ".mts",
+    ".md", ".markdown",
+)
+
+SKIP_DIRS = frozenset({
+    ".git", "node_modules", ".venv", "venv", "env",
+    "__pycache__", "dist", "build", ".worktrees", ".td_rag",
+    "chroma_db", "traces", "fixtures", ".mypy_cache", ".pytest_cache",
+})
+
+
+def default_store_paths(repo_root: str) -> Tuple[str, str]:
+    """(persist_directory, meta_file) for a repo root."""
+    base = os.path.join(os.path.abspath(repo_root), TD_RAG_DIR)
+    return os.path.join(base, "chroma_db"), os.path.join(base, META_FILENAME)
+
+
+def read_meta(meta_file: str) -> Dict[str, Any]:
+    """Last indexed state, or {} when no index exists yet."""
+    try:
+        with open(meta_file, "r", encoding="utf-8") as handle:
+            data = json.load(handle)
+            return data if isinstance(data, dict) else {}
+    except (OSError, ValueError):
+        return {}
+
+
+def write_meta(meta_file: str, meta: Dict[str, Any]) -> None:
+    """Persist last indexed state (best effort)."""
+    try:
+        os.makedirs(os.path.dirname(meta_file), exist_ok=True)
+        with open(meta_file, "w", encoding="utf-8") as handle:
+            json.dump(meta, handle, indent=2)
+    except OSError:
+        pass
+
+
+def git_head_sha(repo_root: str) -> str:
+    """HEAD commit SHA, or '' when git is unavailable."""
+    try:
+        proc = subprocess.run(
+            ["git", "rev-parse", "HEAD"], cwd=repo_root,
+            capture_output=True, text=True, check=False)
+        return proc.stdout.strip() if proc.returncode == 0 else ""
+    except OSError:
+        return ""
+
+
+def git_name_status(repo_root: str, base: str, head: str = "HEAD"
+                    ) -> List[Tuple[str, str, str]]:
+    """[(status, path, old_path)] for base..head (renames split out).
+
+    status is one of A/C/D/M/R/T/U/X; old_path is set for renames.
+    """
+    try:
+        proc = subprocess.run(
+            ["git", "diff", "--name-status", "-M",
+             f"{base}..{head}", "--", "."],
+            cwd=repo_root, capture_output=True, text=True, check=False)
+    except OSError:
+        return []
+    if proc.returncode != 0:
+        return []
+    out = []
+    for line in proc.stdout.splitlines():
+        parts = line.split("\t")
+        if len(parts) < 2:
+            continue
+        status, path = parts[0][:1], parts[1]
+        old_path = parts[2] if len(parts) > 2 and status == "R" else ""
+        out.append((status, path, old_path))
+    return out
+
+
+def iter_repo_files(repo_root: str):
+    """Sorted repo-relative paths of indexable files."""
+    root = os.path.abspath(repo_root)
+    found = []
+    for dirpath, dirnames, filenames in os.walk(root):
+        dirnames[:] = sorted(
+            d for d in dirnames
+            if d not in SKIP_DIRS and not d.startswith("."))
+        for name in sorted(filenames):
+            if name.startswith("."):
+                continue
+            if not name.endswith(INDEXABLE_EXTENSIONS):
+                continue
+            full = os.path.join(dirpath, name)
+            try:
+                if not os.path.isfile(full):
+                    continue
+            except OSError:
+                continue
+            found.append(os.path.relpath(full, root))
+    return found
 
 @dataclass
 class BM25State:  # pylint: disable=too-few-public-methods
@@ -201,11 +302,75 @@ class VectorStore:
                 return chunks
         return self._chunk_lines(code, filepath)
 
+    def _chunk_markdown(self, code: str, filepath: str) -> List[Dict[str, Any]]:
+        """Split markdown on ATX headers into ~120-line sections."""
+        chunks: List[Dict[str, Any]] = []
+        section_lines: List[str] = []
+        section_start = 1
+        section_title = ""
+        chunk_index = 0
+
+        def flush(end_line: int) -> None:
+            nonlocal chunk_index
+            text = "\n".join(section_lines).strip()
+            if text:
+                chunks.append({
+                    "content": text,
+                    "metadata": {
+                        "filepath": filepath,
+                        "start_line": section_start,
+                        "end_line": end_line,
+                        "node_type": "md_section",
+                        "chunk_index": chunk_index,
+                        "section": section_title,
+                    },
+                })
+                chunk_index += 1
+
+        for lineno, line in enumerate(code.splitlines(), start=1):
+            match = re.match(r"^(#{1,6})\s+(.+?)\s*$", line)
+            if match and section_lines and (
+                    len(section_lines) >= 120 or section_title):
+                flush(lineno - 1)
+                section_lines = []
+                section_start = lineno
+            if match:
+                section_title = match.group(2)
+            section_lines.append(line)
+            if len(section_lines) >= 150:
+                flush(lineno)
+                section_lines = []
+                section_start = lineno + 1
+        flush(len(code.splitlines()))
+        return chunks or self._chunk_lines(code, filepath)
+
+    def chunk_file(self, code: str, filepath: str) -> List[Dict[str, Any]]:
+        """Chunk by kind: AST for code, sections for markdown."""
+        if filepath.endswith((".md", ".markdown")):
+            return self._chunk_markdown(code, filepath)
+        return self.chunk_code_ast(code, filepath)
+
+    def delete_by_filepath(self, filepath: str) -> int:
+        """Delete every chunk for a filepath; returns removed estimate."""
+        removed = 0
+        prefix = f"{filepath}:"
+        for chunk_id in [cid for cid in self._cache if cid.startswith(prefix)]:
+            del self._cache[chunk_id]
+            removed += 1
+        self._save_cache()
+        collection = self.collection
+        if collection is not None:
+            try:
+                collection.delete(where={"filepath": filepath})
+            except Exception:
+                pass
+        return removed
+
     def add_file_incremental(self, filepath: str, code: str, force_reembed: bool = False) -> List[str]:
         """
         AST chunks a file, hashes each node content, and only embeds/updates new or modified chunks.
         """
-        chunks = self.chunk_code_ast(code, filepath)
+        chunks = self.chunk_file(code, filepath)
         ids_added = []
         documents_to_add = []
         metadatas_to_add = []
@@ -312,3 +477,109 @@ class VectorStore:
         if os.path.exists(self.cache_file):
             os.remove(self.cache_file)
         self._bm25 = BM25State()
+
+
+def _is_indexable(path: str) -> bool:
+    return path.endswith(INDEXABLE_EXTENSIONS)
+
+
+def update_index(repo_root: str, incremental: bool = True,
+                 persist_directory: str = "",
+                 meta_file: str = "") -> Dict[str, Any]:
+    """Incrementally update the vector index for a repo root.
+
+    Full pass on first run (or incremental=False): walks indexable
+    files, embeds new/modified chunks, deletes chunks for removed
+    files, and records HEAD in meta. Incremental pass: diffs
+    last_indexed_sha..HEAD, re-embeds A/C/M/T files, drops chunks for
+    D/R files, and advances the SHA. Returns a status dict.
+    """
+    repo_root = os.path.abspath(repo_root)
+    default_persist, default_meta = default_store_paths(repo_root)
+    persist_directory = persist_directory or default_persist
+    meta_file = meta_file or default_meta
+    os.makedirs(persist_directory, exist_ok=True)
+    store = VectorStore(persist_directory=persist_directory)
+    head_sha = git_head_sha(repo_root)
+    meta = read_meta(meta_file)
+    last_sha = meta.get("last_indexed_sha", "") if incremental else ""
+
+    updated_files: List[str] = []
+    removed_files: List[str] = []
+    added_chunks = 0
+
+    if last_sha and head_sha and last_sha != head_sha:
+        for status, path, old_path in git_name_status(
+                repo_root, last_sha, head_sha):
+            if old_path:
+                removed_files.append(old_path)
+                store.delete_by_filepath(old_path)
+            if status == "D":
+                removed_files.append(path)
+                store.delete_by_filepath(path)
+            elif _is_indexable(path):
+                full = os.path.join(repo_root, path)
+                if os.path.isfile(full):
+                    try:
+                        with open(full, encoding="utf-8",
+                                  errors="ignore") as handle:
+                            code = handle.read()
+                    except OSError:
+                        continue
+                    ids = store.add_file_incremental(path, code)
+                    if ids:
+                        added_chunks += len(ids)
+                    updated_files.append(path)
+    elif not last_sha or not head_sha or last_sha != head_sha:
+        for path in iter_repo_files(repo_root):
+            full = os.path.join(repo_root, path)
+            try:
+                with open(full, encoding="utf-8",
+                          errors="ignore") as handle:
+                    code = handle.read()
+            except OSError:
+                continue
+            ids = store.add_file_incremental(path, code)
+            if ids:
+                added_chunks += len(ids)
+            updated_files.append(path)
+        if head_sha:
+            removed_files = []
+
+    if head_sha:
+        meta["last_indexed_sha"] = head_sha
+        meta["updated_files"] = sorted(set(updated_files))
+        write_meta(meta_file, meta)
+    return {
+        "status": "ready",
+        "head_sha": head_sha,
+        "last_indexed_sha": meta.get("last_indexed_sha", ""),
+        "updated_files": sorted(set(updated_files)),
+        "removed_files": sorted(set(removed_files)),
+        "added_chunks": added_chunks,
+        "index_available": store.is_available(),
+    }
+
+
+def query_index(repo_root: str, query: str, top_k: int = 8,
+                persist_directory: str = "") -> List[Dict[str, Any]]:
+    """Hybrid query over the repo index; [] when nothing is indexed."""
+    repo_root = os.path.abspath(repo_root)
+    default_persist, _ = default_store_paths(repo_root)
+    store = VectorStore(persist_directory=persist_directory or default_persist)
+    try:
+        results = store.query(query, n_results=top_k, hybrid=True)
+    except Exception:
+        return []
+    hits = []
+    for item in results or []:
+        meta = item.get("metadata") or {}
+        hits.append({
+            "content": item.get("document", ""),
+            "filepath": meta.get("filepath", ""),
+            "start_line": meta.get("start_line"),
+            "end_line": meta.get("end_line"),
+            "score": item.get("bm25_score", 0.0),
+            "distance": item.get("distance"),
+        })
+    return hits

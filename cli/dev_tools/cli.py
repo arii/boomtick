@@ -151,6 +151,23 @@ def _handle_unexpected_error(ctx, command_name, error):
     err(ctx, message, code=1)
 
 
+
+def _gate_json_option(func):
+    """Per-command --json/--no-json passthrough (group flag is global)."""
+    import click as _click
+
+    @_click.option("--json/--no-json", "json_output", default=None,
+                   help="Override JSON output for this command")
+    @_click.pass_context
+    def wrapper(ctx, json_output, *args, **kwargs):
+        if json_output is not None:
+            ctx.obj["JSON"] = json_output
+        return ctx.invoke(func, *args, **kwargs)
+    wrapper.__name__ = func.__name__
+    wrapper.__doc__ = func.__doc__
+    return wrapper
+
+
 def _get_body_content(ctx, orch, file, body):
     if file and body:
         err(ctx, "Provide --file or --body, not both")
@@ -2221,13 +2238,29 @@ def worktree_group():
               help="Base branch for the new worktree branch")
 @click.option("--path", "root_path", default=None,
               help="Repo root override (default: git root)")
+@click.option("--repo-root", "root_path", default=None,
+              help="Repo root override (alias for --path)")
+@click.option("--issue", "issue_id", default=None,
+              help="Issue number: provision warm issue worktree instead")
+@_gate_json_option
 @click.pass_context
-def worktree_create(ctx, name, base_branch, root_path):
+def worktree_create(ctx, name, base_branch, root_path, issue_id):
     """Create a managed worktree on a new branch."""
     from dev_tools.services import local_sessions as ls
     from dev_tools.services import worktrees as wt
     try:
         root = ls.repo_root_for(root_path)
+        if issue_id is not None:
+            try:
+                status = wt.create_for_issue(root, issue_id)
+            except wt.WorktreeError as e:
+                err(ctx, str(e), code=1)
+            if not ctx.obj["JSON"]:
+                click.echo(f"{status['worktreeId']} "
+                           f"{status['branch']} {status['path']}")
+            out(ctx, f"Worktree {status['worktreeId']} created.",
+                data={"status": "ready", **status})
+            return
         wid, path, branch = wt.create(root, name, base_branch)
         if not ctx.obj["JSON"]:
             click.echo(f"{wid} {branch} {path}")
@@ -2282,6 +2315,98 @@ def worktree_remove(ctx, worktree_id, force, root_path):
         err(ctx, str(e), code=1)
     except Exception as e:
         _handle_unexpected_error(ctx, "worktree remove", e)
+
+
+@cli.group(name="rag")
+def rag_group():
+    """Vector index: build incrementally, query with hybrid ranking."""
+
+
+@rag_group.command(name="index")
+@click.option("--repo-root", "repo_root", default=None,
+              help="Repo root to index (default: git root)")
+@click.option("--incremental/--full", default=True,
+              help="Diff last indexed SHA (default) or rebuild everything")
+@_gate_json_option
+@click.pass_context
+def rag_index(ctx, repo_root, incremental):
+    """Index (or incrementally update) the repo vector store."""
+    from dev_tools.services import local_sessions as ls
+    from dev_tools.services import vector_store as vs
+    try:
+        root = ls.repo_root_for(repo_root)
+        if not os.path.isdir(os.path.join(root, ".git")):
+            err(ctx, f"not a git checkout: {root}", code=1)
+        data = vs.update_index(root, incremental=incremental)
+        if not ctx.obj["JSON"]:
+            click.echo(f"indexed {len(data['updated_files'])} file(s), "
+                       f"{data['added_chunks']} chunk(s) "
+                       f"at {data['head_sha'][:8]}")
+        out(ctx, "index ready.", data=data)
+    except Exception as e:
+        _handle_unexpected_error(ctx, "rag index", e)
+
+
+@rag_group.command(name="query")
+@click.option("--repo-root", "repo_root", default=None,
+              help="Repo root whose index to query (default: git root)")
+@click.option("--query", "query", required=True,
+              help="Natural-language query text")
+@click.option("--top-k", "top_k", default=8, type=int,
+              help="Maximum hits to return")
+@_gate_json_option
+@click.pass_context
+def rag_query(ctx, repo_root, query, top_k):
+    """Query the repo vector index with hybrid ranking."""
+    from dev_tools.services import local_sessions as ls
+    from dev_tools.services import vector_store as vs
+    try:
+        root = ls.repo_root_for(repo_root)
+        hits = vs.query_index(root, query, top_k=top_k)
+        data = {"status": "success", "query": query, "hits": hits,
+                "count": len(hits)}
+        if not ctx.obj["JSON"]:
+            for hit in hits:
+                click.echo(f"{hit['filepath']}:{hit['start_line']}: "
+                           f"{hit['content'][:120]}")
+        out(ctx, f"{len(hits)} hit(s).", data=data)
+    except Exception as e:
+        _handle_unexpected_error(ctx, "rag query", e)
+
+
+@cli.command(name="init")
+@click.option("--repo-root", "repo_root", default=None,
+              help="Repo root to initialize (default: git root)")
+@_gate_json_option
+@click.pass_context
+def init_repo(ctx, repo_root):
+    """Initialize a repo: fast-forward main, sync deps, index RAG.
+
+    Emits {"status", "head_sha", "deps_synced", "rag_indexed_sha",
+    "updated_files"}.
+    """
+    from dev_tools.services import local_sessions as ls
+    from dev_tools.services import vector_store as vs
+    from dev_tools.services import worktrees as wt
+    try:
+        root = ls.repo_root_for(repo_root)
+        if not os.path.isdir(os.path.join(root, ".git")):
+            err(ctx, f"not a git checkout: {root}", code=1)
+        _updated, head_sha, main_note = wt.fetch_main(root)
+        synced, deps_note = wt.warm_dependencies(root)
+        rag = vs.update_index(root, incremental=True)
+        data = {"status": "ready", "head_sha": head_sha,
+                "deps_synced": synced, "deps_note": deps_note,
+                "main_note": main_note,
+                "rag_indexed_sha": rag.get("last_indexed_sha", ""),
+                "updated_files": rag.get("updated_files", [])}
+        if not ctx.obj["JSON"]:
+            click.echo(f"ready at {head_sha[:8]} "
+                       f"(deps synced: {synced}, "
+                       f"{len(data['updated_files'])} file(s) indexed)")
+        out(ctx, "repo ready.", data=data)
+    except Exception as e:
+        _handle_unexpected_error(ctx, "init", e)
 
 
 # --- Multi-Repository Ecosystem Commands ---
@@ -2449,20 +2574,6 @@ def _spec_checklist_items(body):
     return items
 
 
-def _gate_json_option(func):
-    """Per-command --json/--no-json passthrough (group flag is global)."""
-    import click as _click
-
-    @_click.option("--json/--no-json", "json_output", default=None,
-                   help="Override JSON output for this command")
-    @_click.pass_context
-    def wrapper(ctx, json_output, *args, **kwargs):
-        if json_output is not None:
-            ctx.obj["JSON"] = json_output
-        return ctx.invoke(func, *args, **kwargs)
-    wrapper.__name__ = func.__name__
-    wrapper.__doc__ = func.__doc__
-    return wrapper
 
 
 def _spec_fenced_commands(body):

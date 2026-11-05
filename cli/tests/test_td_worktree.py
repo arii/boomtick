@@ -97,3 +97,69 @@ def test_cli_create_list_remove(repo):
     assert json.loads(removed.output)["status"] == "removed"
     listed = runner.invoke(cli, ["worktree", "list", "--path", str(repo)])
     assert json.loads(listed.output)["worktrees"] == []
+
+
+@pytest.fixture()
+def origin_repo(tmp_path):
+    root = tmp_path / "origin-repo"
+    root.mkdir()
+    _git(["init", "-q", "-b", "main"], root)
+    _git(["config", "user.email", "t@t"], root)
+    _git(["config", "user.name", "t"], root)
+    (root / "README.md").write_text("hi\n")
+    _git(["add", "."], root)
+    _git(["commit", "-qm", "init"], root)
+    _git(["remote", "add", "origin", str(root)], root)
+    _git(["fetch", "-q", "origin"], root)
+    return root
+
+
+def test_create_for_issue_provisions_branch(origin_repo):
+    status = wt.create_for_issue(str(origin_repo), 42)
+    assert status["worktreeId"] == "issue-42"
+    assert status["branch"] == "agent/issue-42"
+    assert status["path"] == str(origin_repo / ".worktrees" / "issue-42")
+    out = subprocess.run(["git", "branch", "--show-current"],
+                         cwd=status["path"], capture_output=True,
+                         text=True, check=True)
+    assert out.stdout.strip() == "agent/issue-42"
+    assert status["base_sha"]
+    assert "linked_deps" in status
+
+
+def test_create_for_issue_rejects_bad_id(origin_repo):
+    with pytest.raises(wt.WorktreeError, match="Invalid issue id"):
+        wt.create_for_issue(str(origin_repo), "nope")
+    with pytest.raises(wt.WorktreeError, match="already exists"):
+        wt.create_for_issue(str(origin_repo), 7)
+        wt.create_for_issue(str(origin_repo), 7)
+
+
+def test_link_warm_deps_symlinks_missing_only(tmp_path):
+    import os
+    root = tmp_path / "root"
+    wt_dir = tmp_path / "wt"
+    root.mkdir()
+    wt_dir.mkdir()
+    (root / "node_modules").mkdir()
+    (wt_dir / ".venv").mkdir()
+    linked = wt.link_warm_deps(str(root), str(wt_dir))
+    assert linked == ["node_modules"]
+    assert os.path.islink(str(wt_dir / "node_modules"))
+    # Second run links nothing new (already exists).
+    assert wt.link_warm_deps(str(root), str(wt_dir)) == []
+
+
+def test_fetch_main_reports_state(origin_repo):
+    _updated, _sha, note = wt.fetch_main(str(origin_repo))
+    assert isinstance(note, str) and note
+
+
+def test_cli_create_issue(origin_repo):
+    runner = CliRunner()
+    created = runner.invoke(cli, ["worktree", "create", "--issue", "99",
+                                  "--repo-root", str(origin_repo), "--json"])
+    assert created.exit_code == 0, created.output
+    payload = json.loads(created.output)
+    assert payload["worktreeId"] == "issue-99"
+    assert payload["status"] == "ready"

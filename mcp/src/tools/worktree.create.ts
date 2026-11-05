@@ -1,5 +1,6 @@
 import { WorktreeCreateInput, WorktreeCreateInputSchema } from "./contract.js";
 import { resolveRepoPath, createSessionWorktree } from "../lib/git.js";
+import { ensureSharedDependencies } from "../lib/dependency_cache.js";
 import { runCommand } from "../lib/shell.js";
 import crypto from "crypto";
 
@@ -32,11 +33,23 @@ export async function worktreeCreateHandler(args: WorktreeCreateInput) {
     }
   }
 
+  let depsWarmed = false;
+  let depsNote = "skipped";
+  try {
+    await ensureSharedDependencies({ repoPath: baseRepoPath, worktreePath, config: {} });
+    depsWarmed = true;
+    depsNote = "shared dependencies linked";
+  } catch (e) {
+    depsNote = `dependency warming failed: ${e instanceof Error ? e.message : String(e)}`;
+  }
+
   return {
     worktreeId,
     path: worktreePath,
     branch,
     baseBranch,
     createdAt: Date.now(),
+    depsWarmed,
+    depsNote,
   };
 }

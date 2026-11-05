@@ -31,6 +31,122 @@ def _git(args, cwd):
     return res
 
 
+LOCKFILE_NAMES = (
+    "pnpm-lock.yaml",
+    "package-lock.json",
+    "poetry.lock",
+    "requirements.txt",
+)
+
+WARM_LINK_DIRS = ("node_modules", ".venv", "venv")
+
+
+def lockfile_hash(root):
+    """SHA256 over repo lockfiles, or '' when none exist."""
+    import hashlib
+    digest = hashlib.sha256()
+    found = False
+    for name in LOCKFILE_NAMES:
+        path = os.path.join(root, name)
+        if os.path.isfile(path):
+            try:
+                with open(path, "rb") as handle:
+                    digest.update(name.encode("utf-8"))
+                    digest.update(handle.read())
+                found = True
+            except OSError:
+                continue
+    return digest.hexdigest() if found else ""
+
+
+def fetch_main(root):
+    """Fetch origin and fast-forward local main when clean.
+
+    Returns (updated: bool, head_sha: str, note: str).
+    """
+    res = _git(["fetch", "origin", "main"], root)
+    if res.returncode != 0:
+        return False, _head_sha(root), "fetch failed"
+    status = _git(["status", "--porcelain"], root)
+    if status.returncode == 0 and status.stdout.strip():
+        return False, _head_sha(root), "worktree dirty; not fast-forwarding"
+    res = _git(["merge", "--ff-only", "origin/main"], root)
+    if res.returncode != 0:
+        return False, _head_sha(root), "main diverged; not fast-forwarding"
+    return True, _head_sha(root), "fast-forwarded"
+
+
+def _head_sha(root):
+    res = _git(["rev-parse", "HEAD"], root)
+    return res.stdout.strip() if res.returncode == 0 else ""
+
+
+def warm_dependencies(root):
+    """Install/sync deps by lockfile hash; returns (synced: bool, note).
+
+    Runs the repo's own installers (pnpm frozen lockfile, pip) when
+    the corresponding lockfile exists. Best effort: failures are
+    reported, never raised.
+    """
+    notes = []
+    synced = True
+    pnpm_lock = os.path.join(root, "pnpm-lock.yaml")
+    pkg_lock = os.path.join(root, "package-lock.json")
+    requirements = os.path.join(root, "requirements.txt")
+    if os.path.isfile(pnpm_lock):
+        import subprocess as _sp
+        proc = _sp.run(["pnpm", "install", "--frozen-lockfile"],
+                       cwd=root, capture_output=True, text=True,
+                       check=False)
+        if proc.returncode == 0:
+            notes.append("pnpm install ok")
+        else:
+            synced = False
+            notes.append("pnpm install failed")
+    elif os.path.isfile(pkg_lock):
+        import subprocess as _sp
+        proc = _sp.run(["npm", "ci"], cwd=root, capture_output=True,
+                       text=True, check=False)
+        if proc.returncode == 0:
+            notes.append("npm ci ok")
+        else:
+            synced = False
+            notes.append("npm ci failed")
+    if os.path.isfile(requirements):
+        import subprocess as _sp
+        proc = _sp.run(["pip", "install", "-r", "requirements.txt"],
+                       cwd=root, capture_output=True, text=True,
+                       check=False)
+        if proc.returncode == 0:
+            notes.append("pip install ok")
+        else:
+            synced = False
+            notes.append("pip install failed")
+    if not notes:
+        notes.append("no lockfiles; nothing to sync")
+    return synced, "; ".join(notes)
+
+
+def link_warm_deps(root, worktree_path):
+    """Symlink warm dependency dirs from root into the worktree.
+
+    Returns the list of linked dir names. Skips names that already
+    exist in the worktree.
+    """
+    linked = []
+    for name in WARM_LINK_DIRS:
+        src = os.path.join(root, name)
+        dst = os.path.join(worktree_path, name)
+        if not os.path.isdir(src) or os.path.lexists(dst):
+            continue
+        try:
+            os.symlink(src, dst)
+            linked.append(name)
+        except OSError:
+            continue
+    return linked
+
+
 def sanitize_name(name):
     """Branch slug for a worktree name (mirrors TS sanitizeBranchName)."""
     slug = re.sub(r"[^a-z0-9-]+", "-", (name or "").lower()).strip("-")
@@ -87,6 +203,49 @@ def create(root, name=None, base_branch="main"):
         raise WorktreeError(
             f"git worktree add failed: {(res.stderr or '').strip()}")
     return worktree_id, path, branch
+
+
+def create_for_issue(root, issue_id):
+    """Provision a warm, dependency-linked worktree for an issue.
+
+    Ensures main is warm (fetch fast-forward + dependency sync),
+    then creates ``.worktrees/issue-<id>`` on branch
+    ``agent/issue-<id>`` from ``origin/main`` with the root's
+    dependency dirs symlinked in. Returns a status dict.
+    """
+    root = os.path.abspath(root)
+    try:
+        issue_num = int(str(issue_id))
+    except (TypeError, ValueError):
+        raise WorktreeError(f"Invalid issue id: {issue_id!r}")
+    _updated, head_sha, main_note = fetch_main(root)
+    synced, deps_note = warm_dependencies(root)
+    branch = f"agent/issue-{issue_num}"
+    path = os.path.join(worktrees_dir(root), f"issue-{issue_num}")
+    if os.path.exists(path):
+        raise WorktreeError(f"Worktree already exists: {path}")
+    os.makedirs(worktrees_dir(root), exist_ok=True)
+    res = _git(["fetch", "origin", "main"], root)
+    if res.returncode != 0:
+        raise WorktreeError(
+            f"git fetch origin/main failed: "
+            f"{(res.stderr or '').strip()}")
+    res = _git(["worktree", "add", path, "-b", branch, "origin/main"],
+               root)
+    if res.returncode != 0:
+        raise WorktreeError(
+            f"git worktree add failed: {(res.stderr or '').strip()}")
+    linked = link_warm_deps(root, path)
+    return {
+        "worktreeId": f"issue-{issue_num}",
+        "path": path,
+        "branch": branch,
+        "base_sha": _head_sha(path) or head_sha,
+        "deps_synced": synced,
+        "deps_note": deps_note,
+        "main_note": main_note,
+        "linked_deps": linked,
+    }
 
 
 def list_worktrees(root):

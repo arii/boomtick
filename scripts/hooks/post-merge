@@ -29,4 +29,11 @@ if printf '%s\n' "$changed" | grep -Eq '^(package\.json|pnpm-lock\.yaml)'; then
   fi
 fi
 
+# Unified init: fast-forward main, sync deps, refresh the RAG index.
+# Best effort — a missing/older td must never fail the merge.
+if command -v td >/dev/null 2>&1; then
+  td init --json >/dev/null 2>&1 \
+    || echo "[post-merge] td init failed (index may be stale)"
+fi
+
 exit 0
