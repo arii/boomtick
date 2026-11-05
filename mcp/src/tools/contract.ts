@@ -1880,76 +1880,6 @@ export const CommentTriageSummaryResponseJsonSchema = {
   "type": "object"
 } as const;
 
-export const CommitPatchInputSchema = z.object({ "worktreePath": z.string().describe("Path to the worktree where changes are made."), "message": z.string().describe("Commit message."), "allowedFiles": z.array(z.string()).describe("List of files that are allowed to be committed."), "writeMode": z.boolean().describe("Safety gate: Must be true to perform the commit.") });
-
-export type CommitPatchInput = z.infer<typeof CommitPatchInputSchema>;
-
-export const CommitPatchInputJsonSchema = {
-  "properties": {
-    "worktreePath": {
-      "description": "Path to the worktree where changes are made.",
-      "title": "Worktreepath",
-      "type": "string"
-    },
-    "message": {
-      "description": "Commit message.",
-      "title": "Message",
-      "type": "string"
-    },
-    "allowedFiles": {
-      "description": "List of files that are allowed to be committed.",
-      "items": {
-        "type": "string"
-      },
-      "title": "Allowedfiles",
-      "type": "array"
-    },
-    "writeMode": {
-      "description": "Safety gate: Must be true to perform the commit.",
-      "title": "Writemode",
-      "type": "boolean"
-    }
-  },
-  "required": [
-    "worktreePath",
-    "message",
-    "allowedFiles",
-    "writeMode"
-  ],
-  "title": "CommitPatchInput",
-  "type": "object"
-} as const;
-
-export const CommitPatchResponseSchema = z.object({ "success": z.boolean().default(true), "commitSha": z.string(), "changedFiles": z.array(z.string()).optional() });
-
-export type CommitPatchResponse = z.infer<typeof CommitPatchResponseSchema>;
-
-export const CommitPatchResponseJsonSchema = {
-  "properties": {
-    "success": {
-      "default": true,
-      "title": "Success",
-      "type": "boolean"
-    },
-    "commitSha": {
-      "title": "Commitsha",
-      "type": "string"
-    },
-    "changedFiles": {
-      "items": {
-        "type": "string"
-      },
-      "title": "Changedfiles",
-      "type": "array"
-    }
-  },
-  "required": [
-    "commitSha"
-  ],
-  "title": "CommitPatchResponse",
-  "type": "object"
-} as const;
-
 export const CreateBranchResponseSchema = z.object({ "success": z.boolean().default(true), "branchName": z.string(), "baseBranch": z.union([z.string(), z.null()]).default(null), "repo": z.union([z.string(), z.null()]).default(null), "path": z.union([z.string(), z.null()]).default(null) });
 
 export type CreateBranchResponse = z.infer<typeof CreateBranchResponseSchema>;
@@ -2261,141 +2191,6 @@ export const CreateRepairBranchResponseJsonSchema = {
   "type": "object"
 } as const;
 
-export const GetChangedFilesInputSchema = z.object({ "base": z.string().describe("The base ref to compare from (default: 'main').").default("main"), "head": z.string().describe("The head ref to compare to (default: 'HEAD').").default("HEAD"), "repo": z.union([z.string(), z.null()]).describe("Target GitHub repository override.").default(null), "path": z.union([z.string(), z.null()]).describe("Local filesystem path to target repository root.").default(null), "repoPath": z.union([z.string(), z.null()]).describe("Alias for path to target repository root.").default(null) });
-
-export type GetChangedFilesInput = z.infer<typeof GetChangedFilesInputSchema>;
-
-export const GetChangedFilesInputJsonSchema = {
-  "properties": {
-    "base": {
-      "default": "main",
-      "description": "The base ref to compare from (default: 'main').",
-      "title": "Base",
-      "type": "string"
-    },
-    "head": {
-      "default": "HEAD",
-      "description": "The head ref to compare to (default: 'HEAD').",
-      "title": "Head",
-      "type": "string"
-    },
-    "repo": {
-      "anyOf": [
-        {
-          "type": "string"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "description": "Target GitHub repository override.",
-      "title": "Repo"
-    },
-    "path": {
-      "anyOf": [
-        {
-          "type": "string"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "description": "Local filesystem path to target repository root.",
-      "title": "Path"
-    },
-    "repoPath": {
-      "anyOf": [
-        {
-          "type": "string"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "description": "Alias for path to target repository root.",
-      "title": "Repopath"
-    }
-  },
-  "title": "GetChangedFilesInput",
-  "type": "object"
-} as const;
-
-export const GetChangedFilesResponseSchema = z.object({ "files": z.array(z.string()).optional() });
-
-export type GetChangedFilesResponse = z.infer<typeof GetChangedFilesResponseSchema>;
-
-export const GetChangedFilesResponseJsonSchema = {
-  "properties": {
-    "files": {
-      "items": {
-        "type": "string"
-      },
-      "title": "Files",
-      "type": "array"
-    }
-  },
-  "title": "GetChangedFilesResponse",
-  "type": "object"
-} as const;
-
-export const GetCommandSchemaInputSchema = z.object({ "commandPath": z.string().describe("The CLI command path to retrieve the schema for (e.g. 'gh audit-pr')") });
-
-export type GetCommandSchemaInput = z.infer<typeof GetCommandSchemaInputSchema>;
-
-export const GetCommandSchemaInputJsonSchema = {
-  "properties": {
-    "commandPath": {
-      "description": "The CLI command path to retrieve the schema for (e.g. 'gh audit-pr')",
-      "title": "Commandpath",
-      "type": "string"
-    }
-  },
-  "required": [
-    "commandPath"
-  ],
-  "title": "GetCommandSchemaInput",
-  "type": "object"
-} as const;
-
-export const GetCommandSchemaResponseSchema = z.object({ "status": z.union([z.string(), z.null()]).default(null), "schema": z.union([z.record(z.string(), z.any()), z.null()]).default(null) });
-
-export type GetCommandSchemaResponse = z.infer<typeof GetCommandSchemaResponseSchema>;
-
-export const GetCommandSchemaResponseJsonSchema = {
-  "properties": {
-    "status": {
-      "anyOf": [
-        {
-          "type": "string"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "title": "Status"
-    },
-    "schema": {
-      "anyOf": [
-        {
-          "additionalProperties": true,
-          "type": "object"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "title": "Schema"
-    }
-  },
-  "title": "GetCommandSchemaResponse",
-  "type": "object"
-} as const;
-
 export const GetContextStatusInputSchema = z.object({ "path": z.union([z.string(), z.null()]).describe("Local filesystem path to target repository root").default(null), "repoPath": z.union([z.string(), z.null()]).describe("Alias for path (filesystem path to target workspace repository root).").default(null), "repo": z.union([z.string(), z.null()]).describe("Target GitHub repository string (e.g. org/repo).").default(null) });
 
 export type GetContextStatusInput = z.infer<typeof GetContextStatusInputSchema>;
@@ -2492,265 +2287,24 @@ export const GetContextStatusResponseJsonSchema = {
   "type": "object"
 } as const;
 
-export const GetMergeConflictFilesInputSchema = z.object({ "prNumber": z.union([z.number().int(), z.null()]).describe("The number of the pull request to check for conflicts.").default(null), "baseBranch": z.string().describe("The base branch to check against (default: 'main').").default("main"), "headRef": z.string().describe("The head ref or branch to check.").default("HEAD"), "repo": z.union([z.string(), z.null()]).describe("Target GitHub repository override.").default(null), "path": z.union([z.string(), z.null()]).describe("Local filesystem path to target repository root.").default(null), "repoPath": z.union([z.string(), z.null()]).describe("Alias for path to target repository root.").default(null) });
-
-export type GetMergeConflictFilesInput = z.infer<typeof GetMergeConflictFilesInputSchema>;
-
-export const GetMergeConflictFilesInputJsonSchema = {
-  "properties": {
-    "prNumber": {
-      "anyOf": [
-        {
-          "type": "integer"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "description": "The number of the pull request to check for conflicts.",
-      "title": "Prnumber"
-    },
-    "baseBranch": {
-      "default": "main",
-      "description": "The base branch to check against (default: 'main').",
-      "title": "Basebranch",
-      "type": "string"
-    },
-    "headRef": {
-      "default": "HEAD",
-      "description": "The head ref or branch to check.",
-      "title": "Headref",
-      "type": "string"
-    },
-    "repo": {
-      "anyOf": [
-        {
-          "type": "string"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "description": "Target GitHub repository override.",
-      "title": "Repo"
-    },
-    "path": {
-      "anyOf": [
-        {
-          "type": "string"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "description": "Local filesystem path to target repository root.",
-      "title": "Path"
-    },
-    "repoPath": {
-      "anyOf": [
-        {
-          "type": "string"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "description": "Alias for path to target repository root.",
-      "title": "Repopath"
-    }
-  },
-  "title": "GetMergeConflictFilesInput",
-  "type": "object"
-} as const;
-
-export const GetMergeConflictFilesResponseSchema = z.object({ "hasConflicts": z.boolean(), "conflictedFiles": z.array(z.string()).optional(), "prNumber": z.union([z.number().int(), z.null()]).default(null), "baseBranch": z.string(), "headRef": z.string() });
-
-export type GetMergeConflictFilesResponse = z.infer<typeof GetMergeConflictFilesResponseSchema>;
-
-export const GetMergeConflictFilesResponseJsonSchema = {
-  "properties": {
-    "hasConflicts": {
-      "title": "Hasconflicts",
-      "type": "boolean"
-    },
-    "conflictedFiles": {
-      "items": {
-        "type": "string"
-      },
-      "title": "Conflictedfiles",
-      "type": "array"
-    },
-    "prNumber": {
-      "anyOf": [
-        {
-          "type": "integer"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "title": "Prnumber"
-    },
-    "baseBranch": {
-      "title": "Basebranch",
-      "type": "string"
-    },
-    "headRef": {
-      "title": "Headref",
-      "type": "string"
-    }
-  },
-  "required": [
-    "hasConflicts",
-    "baseBranch",
-    "headRef"
-  ],
-  "title": "GetMergeConflictFilesResponse",
-  "type": "object"
-} as const;
-
-export const GetPackageScriptsInputSchema = z.object({ "filter": z.union([z.string(), z.null()]).describe("Optional glob pattern to filter script names.").default(null) });
-
-export type GetPackageScriptsInput = z.infer<typeof GetPackageScriptsInputSchema>;
-
-export const GetPackageScriptsInputJsonSchema = {
-  "properties": {
-    "filter": {
-      "anyOf": [
-        {
-          "type": "string"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "description": "Optional glob pattern to filter script names.",
-      "title": "Filter"
-    }
-  },
-  "title": "GetPackageScriptsInput",
-  "type": "object"
-} as const;
-
-export const GetPackageScriptsResponseSchema = z.object({ "scripts": z.record(z.string(), z.string()).optional() });
-
-export type GetPackageScriptsResponse = z.infer<typeof GetPackageScriptsResponseSchema>;
-
-export const GetPackageScriptsResponseJsonSchema = {
-  "properties": {
-    "scripts": {
-      "additionalProperties": {
-        "type": "string"
-      },
-      "title": "Scripts",
-      "type": "object"
-    }
-  },
-  "title": "GetPackageScriptsResponse",
-  "type": "object"
-} as const;
-
-export const GetPrCommitsInputSchema = z.object({ "prNumber": z.number().int().describe("The number of the PR to list commits for."), "repo": z.union([z.string().regex(new RegExp("^[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+$")), z.null()]).describe("The target repository override (e.g. org/repo).").default(null) });
-
-export type GetPrCommitsInput = z.infer<typeof GetPrCommitsInputSchema>;
-
-export const GetPrCommitsInputJsonSchema = {
-  "properties": {
-    "prNumber": {
-      "description": "The number of the PR to list commits for.",
-      "title": "Prnumber",
-      "type": "integer"
-    },
-    "repo": {
-      "anyOf": [
-        {
-          "pattern": "^[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+$",
-          "type": "string"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "description": "The target repository override (e.g. org/repo).",
-      "title": "Repo"
-    }
-  },
-  "required": [
-    "prNumber"
-  ],
-  "title": "GetPrCommitsInput",
-  "type": "object"
-} as const;
-
-export const GetPrCommitsResponseSchema = z.object({ "commits": z.array(z.record(z.string(), z.any())).optional() });
-
-export type GetPrCommitsResponse = z.infer<typeof GetPrCommitsResponseSchema>;
-
-export const GetPrCommitsResponseJsonSchema = {
-  "properties": {
-    "commits": {
-      "items": {
-        "additionalProperties": true,
-        "type": "object"
-      },
-      "title": "Commits",
-      "type": "array"
-    }
-  },
-  "title": "GetPrCommitsResponse",
-  "type": "object"
-} as const;
-
-export const GetPrDiffInputSchema = z.object({ "prNumber": z.number().int().describe("The number of the pull request to get the diff for."), "repo": z.union([z.string().regex(new RegExp("^[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+$")), z.null()]).describe("The target repository override (e.g. org/repo).").default(null) });
-
-export type GetPrDiffInput = z.infer<typeof GetPrDiffInputSchema>;
-
-export const GetPrDiffInputJsonSchema = {
-  "properties": {
-    "prNumber": {
-      "description": "The number of the pull request to get the diff for.",
-      "title": "Prnumber",
-      "type": "integer"
-    },
-    "repo": {
-      "anyOf": [
-        {
-          "pattern": "^[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+$",
-          "type": "string"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "description": "The target repository override (e.g. org/repo).",
-      "title": "Repo"
-    }
-  },
-  "required": [
-    "prNumber"
-  ],
-  "title": "GetPrDiffInput",
-  "type": "object"
-} as const;
-
-export const GetPrInputSchema = z.object({ "prNumber": z.number().int().describe("The number of the PR to view."), "repo": z.union([z.string().regex(new RegExp("^[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+$")), z.null()]).describe("The target repository override (e.g. org/repo).").default(null) });
+export const GetPrInputSchema = z.object({ "prNumber": z.union([z.number().int(), z.null()]).describe("The number of the PR to view. Omit to search PRs instead.").default(null), "repo": z.union([z.string().regex(new RegExp("^[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+$")), z.null()]).describe("The target repository override (e.g. org/repo).").default(null), "includeDiff": z.boolean().describe("Include the PR diff and changed files.").default(false), "includeReviews": z.boolean().describe("Include top-level reviews.").default(false), "includeCommits": z.boolean().describe("Include commit metadata.").default(false), "includeConflicts": z.boolean().describe("Include merge-conflict files.").default(false), "baseBranch": z.union([z.string(), z.null()]).describe("Conflict check only: base branch.").default(null), "headRef": z.union([z.string(), z.null()]).describe("Conflict check only: head ref.").default(null), "state": z.enum(["open","closed","all"]).describe("Search mode only: PR state filter.").default("open"), "includeDrafts": z.boolean().describe("Search mode only: include draft PRs.").default(true), "limit": z.number().int().gte(1).lte(100).describe("Search mode only: max PRs to return.").default(100), "labels": z.union([z.array(z.string()), z.null()]).describe("Search mode only: filter by labels.").default(null) });
 
 export type GetPrInput = z.infer<typeof GetPrInputSchema>;
 
 export const GetPrInputJsonSchema = {
   "properties": {
     "prNumber": {
-      "description": "The number of the PR to view.",
-      "title": "Prnumber",
-      "type": "integer"
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "The number of the PR to view. Omit to search PRs instead.",
+      "title": "Prnumber"
     },
     "repo": {
       "anyOf": [
@@ -2765,11 +2319,99 @@ export const GetPrInputJsonSchema = {
       "default": null,
       "description": "The target repository override (e.g. org/repo).",
       "title": "Repo"
+    },
+    "includeDiff": {
+      "default": false,
+      "description": "Include the PR diff and changed files.",
+      "title": "Includediff",
+      "type": "boolean"
+    },
+    "includeReviews": {
+      "default": false,
+      "description": "Include top-level reviews.",
+      "title": "Includereviews",
+      "type": "boolean"
+    },
+    "includeCommits": {
+      "default": false,
+      "description": "Include commit metadata.",
+      "title": "Includecommits",
+      "type": "boolean"
+    },
+    "includeConflicts": {
+      "default": false,
+      "description": "Include merge-conflict files.",
+      "title": "Includeconflicts",
+      "type": "boolean"
+    },
+    "baseBranch": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Conflict check only: base branch.",
+      "title": "Basebranch"
+    },
+    "headRef": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Conflict check only: head ref.",
+      "title": "Headref"
+    },
+    "state": {
+      "default": "open",
+      "description": "Search mode only: PR state filter.",
+      "enum": [
+        "open",
+        "closed",
+        "all"
+      ],
+      "title": "State",
+      "type": "string"
+    },
+    "includeDrafts": {
+      "default": true,
+      "description": "Search mode only: include draft PRs.",
+      "title": "Includedrafts",
+      "type": "boolean"
+    },
+    "limit": {
+      "default": 100,
+      "description": "Search mode only: max PRs to return.",
+      "maximum": 100,
+      "minimum": 1,
+      "title": "Limit",
+      "type": "integer"
+    },
+    "labels": {
+      "anyOf": [
+        {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Search mode only: filter by labels.",
+      "title": "Labels"
     }
   },
-  "required": [
-    "prNumber"
-  ],
   "title": "GetPrInput",
   "type": "object"
 } as const;
@@ -2790,70 +2432,6 @@ export const GetPrResponseJsonSchema = {
     "pr"
   ],
   "title": "GetPrResponse",
-  "type": "object"
-} as const;
-
-export const GetPrReviewsInputSchema = z.object({ "prNumber": z.number().int().describe("The number of the PR to view reviews for."), "repo": z.union([z.string().regex(new RegExp("^[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+$")), z.null()]).describe("The target repository override (e.g. org/repo).").default(null) });
-
-export type GetPrReviewsInput = z.infer<typeof GetPrReviewsInputSchema>;
-
-export const GetPrReviewsInputJsonSchema = {
-  "properties": {
-    "prNumber": {
-      "description": "The number of the PR to view reviews for.",
-      "title": "Prnumber",
-      "type": "integer"
-    },
-    "repo": {
-      "anyOf": [
-        {
-          "pattern": "^[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+$",
-          "type": "string"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "description": "The target repository override (e.g. org/repo).",
-      "title": "Repo"
-    }
-  },
-  "required": [
-    "prNumber"
-  ],
-  "title": "GetPrReviewsInput",
-  "type": "object"
-} as const;
-
-export const GetPrReviewsResponseSchema = z.object({ "reviews": z.array(z.record(z.string(), z.any())).optional(), "reviewCount": z.union([z.number().int(), z.null()]).default(null) });
-
-export type GetPrReviewsResponse = z.infer<typeof GetPrReviewsResponseSchema>;
-
-export const GetPrReviewsResponseJsonSchema = {
-  "properties": {
-    "reviews": {
-      "items": {
-        "additionalProperties": true,
-        "type": "object"
-      },
-      "title": "Reviews",
-      "type": "array"
-    },
-    "reviewCount": {
-      "anyOf": [
-        {
-          "type": "integer"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "title": "Reviewcount"
-    }
-  },
-  "title": "GetPrReviewsResponse",
   "type": "object"
 } as const;
 
@@ -2878,76 +2456,6 @@ export const GetRouteMapInputJsonSchema = {
     }
   },
   "title": "GetRouteMapInput",
-  "type": "object"
-} as const;
-
-export const GetWorkflowRunsInputSchema = z.object({ "branch": z.union([z.string(), z.null()]).describe("Filter workflow runs by branch name.").default(null), "event": z.union([z.string(), z.null()]).describe("Filter workflow runs by event (e.g. push, pull_request).").default(null), "repo": z.union([z.string().regex(new RegExp("^[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+$")), z.null()]).describe("The target GitHub repository in owner/repo format (e.g. 'arii/remote-server'). Omit or pass null to use the current repository context.").default(null) });
-
-export type GetWorkflowRunsInput = z.infer<typeof GetWorkflowRunsInputSchema>;
-
-export const GetWorkflowRunsInputJsonSchema = {
-  "properties": {
-    "branch": {
-      "anyOf": [
-        {
-          "type": "string"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "description": "Filter workflow runs by branch name.",
-      "title": "Branch"
-    },
-    "event": {
-      "anyOf": [
-        {
-          "type": "string"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "description": "Filter workflow runs by event (e.g. push, pull_request).",
-      "title": "Event"
-    },
-    "repo": {
-      "anyOf": [
-        {
-          "pattern": "^[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+$",
-          "type": "string"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "description": "The target GitHub repository in owner/repo format (e.g. 'arii/remote-server'). Omit or pass null to use the current repository context.",
-      "title": "Repo"
-    }
-  },
-  "title": "GetWorkflowRunsInput",
-  "type": "object"
-} as const;
-
-export const GetWorkflowRunsResponseSchema = z.object({ "workflowRuns": z.array(z.record(z.string(), z.any())).optional() });
-
-export type GetWorkflowRunsResponse = z.infer<typeof GetWorkflowRunsResponseSchema>;
-
-export const GetWorkflowRunsResponseJsonSchema = {
-  "properties": {
-    "workflowRuns": {
-      "items": {
-        "additionalProperties": true,
-        "type": "object"
-      },
-      "title": "Workflowruns",
-      "type": "array"
-    }
-  },
-  "title": "GetWorkflowRunsResponse",
   "type": "object"
 } as const;
 
@@ -3352,101 +2860,6 @@ export const IssueViewResponseJsonSchema = {
     }
   },
   "title": "IssueViewResponse",
-  "type": "object"
-} as const;
-
-export const MultiExecInputSchema = z.object({ "command": z.string().describe("Shell command to execute sequentially across repositories"), "repos": z.union([z.array(z.string()), z.null()]).describe("Optional list of repository names to target").default(null), "continueOnError": z.union([z.boolean(), z.null()]).describe("Whether to continue execution if a repo command fails").default(true) });
-
-export type MultiExecInput = z.infer<typeof MultiExecInputSchema>;
-
-export const MultiExecInputJsonSchema = {
-  "properties": {
-    "command": {
-      "description": "Shell command to execute sequentially across repositories",
-      "title": "Command",
-      "type": "string"
-    },
-    "repos": {
-      "anyOf": [
-        {
-          "items": {
-            "type": "string"
-          },
-          "type": "array"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "description": "Optional list of repository names to target",
-      "title": "Repos"
-    },
-    "continueOnError": {
-      "anyOf": [
-        {
-          "type": "boolean"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": true,
-      "description": "Whether to continue execution if a repo command fails",
-      "title": "Continueonerror"
-    }
-  },
-  "required": [
-    "command"
-  ],
-  "title": "MultiExecInput",
-  "type": "object"
-} as const;
-
-export const MultiExecResponseSchema = z.object({ "status": z.string().describe("Execution status").default("success"), "total": z.union([z.number().int(), z.null()]).describe("Total repositories executed against").default(null), "results": z.union([z.array(z.record(z.string(), z.any())), z.null()]).describe("Execution results per repository").default(null) });
-
-export type MultiExecResponse = z.infer<typeof MultiExecResponseSchema>;
-
-export const MultiExecResponseJsonSchema = {
-  "properties": {
-    "status": {
-      "default": "success",
-      "description": "Execution status",
-      "title": "Status",
-      "type": "string"
-    },
-    "total": {
-      "anyOf": [
-        {
-          "type": "integer"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "description": "Total repositories executed against",
-      "title": "Total"
-    },
-    "results": {
-      "anyOf": [
-        {
-          "items": {
-            "additionalProperties": true,
-            "type": "object"
-          },
-          "type": "array"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "description": "Execution results per repository",
-      "title": "Results"
-    }
-  },
-  "title": "MultiExecResponse",
   "type": "object"
 } as const;
 
@@ -3865,7 +3278,7 @@ export const PrViewResponseJsonSchema = {
   "type": "object"
 } as const;
 
-export const ReadAgentContextInputSchema = z.object({ "path": z.union([z.string(), z.null()]).describe("Local filesystem path to target repository root").default(null), "repoPath": z.union([z.string(), z.null()]).describe("Alias for path (filesystem path to target workspace repository root).").default(null), "repo": z.union([z.string(), z.null()]).describe("Target GitHub repository string (e.g. org/repo).").default(null), "repos": z.union([z.array(z.string()), z.null()]).describe("List of repository names to fetch context for").default(null), "all": z.union([z.boolean(), z.null()]).describe("Whether to fetch context across all discovered ecosystem repositories").default(null) });
+export const ReadAgentContextInputSchema = z.object({ "path": z.union([z.string(), z.null()]).describe("Local filesystem path to target repository root").default(null), "repoPath": z.union([z.string(), z.null()]).describe("Alias for path (filesystem path to target workspace repository root).").default(null), "repo": z.union([z.string(), z.null()]).describe("Target GitHub repository string (e.g. org/repo).").default(null), "repos": z.union([z.array(z.string()), z.null()]).describe("List of repository names to fetch context for").default(null), "all": z.union([z.boolean(), z.null()]).describe("Whether to fetch context across all discovered ecosystem repositories").default(null), "skillName": z.union([z.string(), z.null()]).describe("Optional skill name: return its SKILL.md body too.").default(null) });
 
 export type ReadAgentContextInput = z.infer<typeof ReadAgentContextInputSchema>;
 
@@ -3938,6 +3351,19 @@ export const ReadAgentContextInputJsonSchema = {
       "default": null,
       "description": "Whether to fetch context across all discovered ecosystem repositories",
       "title": "All"
+    },
+    "skillName": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Optional skill name: return its SKILL.md body too.",
+      "title": "Skillname"
     }
   },
   "title": "ReadAgentContextInput",
@@ -4200,16 +3626,24 @@ export const ReadAgentContractResponseJsonSchema = {
   "type": "object"
 } as const;
 
-export const ReadCiLogsInputSchema = z.object({ "prNumber": z.number().int().describe("The number of the pull request to read logs for."), "all": z.boolean().describe("Include logs for successful runs (default: false).").default(false), "repo": z.union([z.string().regex(new RegExp("^[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+$")), z.null()]).describe("The target repository override (e.g. org/repo).").default(null) });
+export const ReadCiLogsInputSchema = z.object({ "prNumber": z.union([z.number().int(), z.null()]).describe("PR number for CI logs. Omit to list workflow runs instead.").default(null), "all": z.boolean().describe("Include logs for successful runs (default: false).").default(false), "repo": z.union([z.string().regex(new RegExp("^[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+$")), z.null()]).describe("The target repository override (e.g. org/repo).").default(null), "includeRuns": z.boolean().describe("Include recent workflow runs (absorbs repo_get_workflow_runs).").default(false), "branch": z.union([z.string(), z.null()]).describe("Filter workflow runs by branch name.").default(null), "event": z.union([z.string(), z.null()]).describe("Filter workflow runs by event (e.g. push, pull_request).").default(null) });
 
 export type ReadCiLogsInput = z.infer<typeof ReadCiLogsInputSchema>;
 
 export const ReadCiLogsInputJsonSchema = {
   "properties": {
     "prNumber": {
-      "description": "The number of the pull request to read logs for.",
-      "title": "Prnumber",
-      "type": "integer"
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "PR number for CI logs. Omit to list workflow runs instead.",
+      "title": "Prnumber"
     },
     "all": {
       "default": false,
@@ -4230,11 +3664,40 @@ export const ReadCiLogsInputJsonSchema = {
       "default": null,
       "description": "The target repository override (e.g. org/repo).",
       "title": "Repo"
+    },
+    "includeRuns": {
+      "default": false,
+      "description": "Include recent workflow runs (absorbs repo_get_workflow_runs).",
+      "title": "Includeruns",
+      "type": "boolean"
+    },
+    "branch": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Filter workflow runs by branch name.",
+      "title": "Branch"
+    },
+    "event": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Filter workflow runs by event (e.g. push, pull_request).",
+      "title": "Event"
     }
   },
-  "required": [
-    "prNumber"
-  ],
   "title": "ReadCiLogsInput",
   "type": "object"
 } as const;
@@ -4460,73 +3923,6 @@ export const ReadPRCommentsResponseJsonSchema = {
     "pr"
   ],
   "title": "ReadPRCommentsResponse",
-  "type": "object"
-} as const;
-
-export const RepoLogsInputSchema = z.object({ "prNumber": z.number().int().describe("The number of the pull request to stream logs for."), "grep": z.union([z.string(), z.null()]).describe("Optional pattern to filter log lines.").default(null), "repo": z.union([z.string().regex(new RegExp("^[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+$")), z.null()]).describe("The target repository override (e.g. org/repo).").default(null) });
-
-export type RepoLogsInput = z.infer<typeof RepoLogsInputSchema>;
-
-export const RepoLogsInputJsonSchema = {
-  "properties": {
-    "prNumber": {
-      "description": "The number of the pull request to stream logs for.",
-      "title": "Prnumber",
-      "type": "integer"
-    },
-    "grep": {
-      "anyOf": [
-        {
-          "type": "string"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "description": "Optional pattern to filter log lines.",
-      "title": "Grep"
-    },
-    "repo": {
-      "anyOf": [
-        {
-          "pattern": "^[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+$",
-          "type": "string"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "description": "The target repository override (e.g. org/repo).",
-      "title": "Repo"
-    }
-  },
-  "required": [
-    "prNumber"
-  ],
-  "title": "RepoLogsInput",
-  "type": "object"
-} as const;
-
-export const RepoLogsResponseSchema = z.object({ "logs": z.union([z.any(), z.null()]).default(null) });
-
-export type RepoLogsResponse = z.infer<typeof RepoLogsResponseSchema>;
-
-export const RepoLogsResponseJsonSchema = {
-  "properties": {
-    "logs": {
-      "anyOf": [
-        {},
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "title": "Logs"
-    }
-  },
-  "title": "RepoLogsResponse",
   "type": "object"
 } as const;
 
@@ -5456,209 +4852,6 @@ export const SearchDdgsInputJsonSchema = {
   "type": "object"
 } as const;
 
-export const SearchPRsInputSchema = z.object({ "state": z.enum(["open","closed","all"]).describe("The state of the PRs to search for.").default("open"), "limit": z.number().int().gte(1).lte(100).describe("The maximum number of PRs to return (default: 100, range: 1-100).").default(100), "includeDrafts": z.boolean().describe("Whether to include draft PRs in the results.").default(true), "labels": z.union([z.array(z.string()), z.null()]).describe("Filter PRs by labels.").default(null), "repo": z.union([z.string().regex(new RegExp("^[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+$")), z.null()]).describe("The target repository override (e.g. org/repo).").default(null) });
-
-export type SearchPRsInput = z.infer<typeof SearchPRsInputSchema>;
-
-export const SearchPRsInputJsonSchema = {
-  "properties": {
-    "state": {
-      "default": "open",
-      "description": "The state of the PRs to search for.",
-      "enum": [
-        "open",
-        "closed",
-        "all"
-      ],
-      "title": "State",
-      "type": "string"
-    },
-    "limit": {
-      "default": 100,
-      "description": "The maximum number of PRs to return (default: 100, range: 1-100).",
-      "maximum": 100,
-      "minimum": 1,
-      "title": "Limit",
-      "type": "integer"
-    },
-    "includeDrafts": {
-      "default": true,
-      "description": "Whether to include draft PRs in the results.",
-      "title": "Includedrafts",
-      "type": "boolean"
-    },
-    "labels": {
-      "anyOf": [
-        {
-          "items": {
-            "type": "string"
-          },
-          "type": "array"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "description": "Filter PRs by labels.",
-      "title": "Labels"
-    },
-    "repo": {
-      "anyOf": [
-        {
-          "pattern": "^[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+$",
-          "type": "string"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "description": "The target repository override (e.g. org/repo).",
-      "title": "Repo"
-    }
-  },
-  "title": "SearchPRsInput",
-  "type": "object"
-} as const;
-
-export const SearchPRsResponseSchema = z.object({ "status": z.string().default("success"), "message": z.union([z.string(), z.null()]).default(null), "data": z.union([z.any(), z.null()]).default(null), "prs": z.array(z.any()).optional() });
-
-export type SearchPRsResponse = z.infer<typeof SearchPRsResponseSchema>;
-
-export const SearchPRsResponseJsonSchema = {
-  "$defs": {
-    "PRSummary": {
-      "properties": {
-        "number": {
-          "title": "Number",
-          "type": "integer"
-        },
-        "title": {
-          "title": "Title",
-          "type": "string"
-        },
-        "author": {
-          "additionalProperties": {
-            "type": "string"
-          },
-          "title": "Author",
-          "type": "object"
-        },
-        "headRefName": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "title": "Headrefname"
-        },
-        "baseRefName": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "title": "Baserefname"
-        },
-        "isDraft": {
-          "default": false,
-          "title": "Isdraft",
-          "type": "boolean"
-        },
-        "mergeStateStatus": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "title": "Mergestatestatus"
-        },
-        "updatedAt": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "title": "Updatedat"
-        },
-        "url": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "title": "Url"
-        }
-      },
-      "required": [
-        "number",
-        "title"
-      ],
-      "title": "PRSummary",
-      "type": "object"
-    }
-  },
-  "properties": {
-    "status": {
-      "default": "success",
-      "title": "Status",
-      "type": "string"
-    },
-    "message": {
-      "anyOf": [
-        {
-          "type": "string"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "title": "Message"
-    },
-    "data": {
-      "anyOf": [
-        {},
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "title": "Data"
-    },
-    "prs": {
-      "items": {
-        "$ref": "#/$defs/PRSummary"
-      },
-      "title": "Prs",
-      "type": "array"
-    }
-  },
-  "title": "SearchPRsResponse",
-  "type": "object"
-} as const;
-
 export const SkillInfoSchema = z.object({ "name": z.string(), "description": z.string() });
 
 export type SkillInfo = z.infer<typeof SkillInfoSchema>;
@@ -5679,149 +4872,6 @@ export const SkillInfoJsonSchema = {
     "description"
   ],
   "title": "SkillInfo",
-  "type": "object"
-} as const;
-
-export const SkillListInputSchema = z.object({ "repo": z.union([z.string(), z.null()]).describe("Target repository override (e.g. org/repo or repo).").default(null), "path": z.union([z.string(), z.null()]).describe("Local filesystem override.").default(null) });
-
-export type SkillListInput = z.infer<typeof SkillListInputSchema>;
-
-export const SkillListInputJsonSchema = {
-  "properties": {
-    "repo": {
-      "anyOf": [
-        {
-          "type": "string"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "description": "Target repository override (e.g. org/repo or repo).",
-      "title": "Repo"
-    },
-    "path": {
-      "anyOf": [
-        {
-          "type": "string"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "description": "Local filesystem override.",
-      "title": "Path"
-    }
-  },
-  "title": "SkillListInput",
-  "type": "object"
-} as const;
-
-export const SkillListResponseSchema = z.object({ "skills": z.array(z.any()).optional() });
-
-export type SkillListResponse = z.infer<typeof SkillListResponseSchema>;
-
-export const SkillListResponseJsonSchema = {
-  "$defs": {
-    "SkillInfo": {
-      "properties": {
-        "name": {
-          "title": "Name",
-          "type": "string"
-        },
-        "description": {
-          "title": "Description",
-          "type": "string"
-        }
-      },
-      "required": [
-        "name",
-        "description"
-      ],
-      "title": "SkillInfo",
-      "type": "object"
-    }
-  },
-  "properties": {
-    "skills": {
-      "items": {
-        "$ref": "#/$defs/SkillInfo"
-      },
-      "title": "Skills",
-      "type": "array"
-    }
-  },
-  "title": "SkillListResponse",
-  "type": "object"
-} as const;
-
-export const SkillReadInputSchema = z.object({ "name": z.string().describe("Skill name from skill_list."), "repo": z.union([z.string(), z.null()]).describe("Target repository override (e.g. org/repo or repo).").default(null), "path": z.union([z.string(), z.null()]).describe("Local filesystem override.").default(null) });
-
-export type SkillReadInput = z.infer<typeof SkillReadInputSchema>;
-
-export const SkillReadInputJsonSchema = {
-  "properties": {
-    "name": {
-      "description": "Skill name from skill_list.",
-      "title": "Name",
-      "type": "string"
-    },
-    "repo": {
-      "anyOf": [
-        {
-          "type": "string"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "description": "Target repository override (e.g. org/repo or repo).",
-      "title": "Repo"
-    },
-    "path": {
-      "anyOf": [
-        {
-          "type": "string"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "description": "Local filesystem override.",
-      "title": "Path"
-    }
-  },
-  "required": [
-    "name"
-  ],
-  "title": "SkillReadInput",
-  "type": "object"
-} as const;
-
-export const SkillReadResponseSchema = z.object({ "name": z.string(), "body": z.string() });
-
-export type SkillReadResponse = z.infer<typeof SkillReadResponseSchema>;
-
-export const SkillReadResponseJsonSchema = {
-  "properties": {
-    "name": {
-      "title": "Name",
-      "type": "string"
-    },
-    "body": {
-      "title": "Body",
-      "type": "string"
-    }
-  },
-  "required": [
-    "name",
-    "body"
-  ],
-  "title": "SkillReadResponse",
   "type": "object"
 } as const;
 
@@ -5915,6 +4965,289 @@ export const SuggestNextActionResponseJsonSchema = {
     "counts"
   ],
   "title": "SuggestNextActionResponse",
+  "type": "object"
+} as const;
+
+export const TdAuditWorktreeInputSchema = z.object({ "worktree": z.string().describe("Path to the worktree to audit."), "includeImpact": z.boolean().describe("Also run blast-radius impact analysis.").default(false), "topK": z.union([z.number().int(), z.null()]).describe("Maximum impacted files to list.").default(null) });
+
+export type TdAuditWorktreeInput = z.infer<typeof TdAuditWorktreeInputSchema>;
+
+export const TdAuditWorktreeInputJsonSchema = {
+  "properties": {
+    "worktree": {
+      "description": "Path to the worktree to audit.",
+      "title": "Worktree",
+      "type": "string"
+    },
+    "includeImpact": {
+      "default": false,
+      "description": "Also run blast-radius impact analysis.",
+      "title": "Includeimpact",
+      "type": "boolean"
+    },
+    "topK": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Maximum impacted files to list.",
+      "title": "Topk"
+    }
+  },
+  "required": [
+    "worktree"
+  ],
+  "title": "TdAuditWorktreeInput",
+  "type": "object"
+} as const;
+
+export const TdAuditWorktreeResponseSchema = z.object({ "status": z.union([z.string(), z.null()]).default(null), "data": z.union([z.any(), z.null()]).default(null) });
+
+export type TdAuditWorktreeResponse = z.infer<typeof TdAuditWorktreeResponseSchema>;
+
+export const TdAuditWorktreeResponseJsonSchema = {
+  "properties": {
+    "status": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Status"
+    },
+    "data": {
+      "anyOf": [
+        {},
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Data"
+    }
+  },
+  "title": "TdAuditWorktreeResponse",
+  "type": "object"
+} as const;
+
+export const TdInitAndRagInputSchema = z.object({ "repoRoot": z.union([z.string(), z.null()]).describe("Repo root to initialize (default: git root).").default(null), "query": z.union([z.string(), z.null()]).describe("Optional natural-language query to run after init.").default(null), "topK": z.union([z.number().int(), z.null()]).describe("Maximum RAG hits to return.").default(null) });
+
+export type TdInitAndRagInput = z.infer<typeof TdInitAndRagInputSchema>;
+
+export const TdInitAndRagInputJsonSchema = {
+  "properties": {
+    "repoRoot": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Repo root to initialize (default: git root).",
+      "title": "Reporoot"
+    },
+    "query": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Optional natural-language query to run after init.",
+      "title": "Query"
+    },
+    "topK": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Maximum RAG hits to return.",
+      "title": "Topk"
+    }
+  },
+  "title": "TdInitAndRagInput",
+  "type": "object"
+} as const;
+
+export const TdInitAndRagResponseSchema = z.object({ "status": z.union([z.string(), z.null()]).default(null), "data": z.union([z.any(), z.null()]).default(null) });
+
+export type TdInitAndRagResponse = z.infer<typeof TdInitAndRagResponseSchema>;
+
+export const TdInitAndRagResponseJsonSchema = {
+  "properties": {
+    "status": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Status"
+    },
+    "data": {
+      "anyOf": [
+        {},
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Data"
+    }
+  },
+  "title": "TdInitAndRagResponse",
+  "type": "object"
+} as const;
+
+export const TdValidateIssueInputSchema = z.object({ "file": z.string().describe("Path to the design spec file (or - for stdin)."), "repoRoot": z.union([z.string(), z.null()]).describe("Repo root for file existence checks.").default(null) });
+
+export type TdValidateIssueInput = z.infer<typeof TdValidateIssueInputSchema>;
+
+export const TdValidateIssueInputJsonSchema = {
+  "properties": {
+    "file": {
+      "description": "Path to the design spec file (or - for stdin).",
+      "title": "File",
+      "type": "string"
+    },
+    "repoRoot": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Repo root for file existence checks.",
+      "title": "Reporoot"
+    }
+  },
+  "required": [
+    "file"
+  ],
+  "title": "TdValidateIssueInput",
+  "type": "object"
+} as const;
+
+export const TdValidateIssueResponseSchema = z.object({ "status": z.union([z.string(), z.null()]).default(null), "data": z.union([z.any(), z.null()]).default(null) });
+
+export type TdValidateIssueResponse = z.infer<typeof TdValidateIssueResponseSchema>;
+
+export const TdValidateIssueResponseJsonSchema = {
+  "properties": {
+    "status": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Status"
+    },
+    "data": {
+      "anyOf": [
+        {},
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Data"
+    }
+  },
+  "title": "TdValidateIssueResponse",
+  "type": "object"
+} as const;
+
+export const TdVerifyScopeInputSchema = z.object({ "specFile": z.string().describe("Path to the validated design spec markdown file."), "worktree": z.string().describe("Path to the worktree to gate."), "autoRevert": z.boolean().describe("Revert files outside the allowed scope.").default(false) });
+
+export type TdVerifyScopeInput = z.infer<typeof TdVerifyScopeInputSchema>;
+
+export const TdVerifyScopeInputJsonSchema = {
+  "properties": {
+    "specFile": {
+      "description": "Path to the validated design spec markdown file.",
+      "title": "Specfile",
+      "type": "string"
+    },
+    "worktree": {
+      "description": "Path to the worktree to gate.",
+      "title": "Worktree",
+      "type": "string"
+    },
+    "autoRevert": {
+      "default": false,
+      "description": "Revert files outside the allowed scope.",
+      "title": "Autorevert",
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "specFile",
+    "worktree"
+  ],
+  "title": "TdVerifyScopeInput",
+  "type": "object"
+} as const;
+
+export const TdVerifyScopeResponseSchema = z.object({ "status": z.union([z.string(), z.null()]).default(null), "data": z.union([z.any(), z.null()]).default(null) });
+
+export type TdVerifyScopeResponse = z.infer<typeof TdVerifyScopeResponseSchema>;
+
+export const TdVerifyScopeResponseJsonSchema = {
+  "properties": {
+    "status": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Status"
+    },
+    "data": {
+      "anyOf": [
+        {},
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Data"
+    }
+  },
+  "title": "TdVerifyScopeResponse",
   "type": "object"
 } as const;
 

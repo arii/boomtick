@@ -14,26 +14,18 @@ import { createSuccessResult, createErrorResult } from "../lib/result.js";
 import { MCP_TOOLS, MCP_PROMPTS, MCP_RESOURCES, MCP_RESOURCE_TEMPLATES } from "./definitions.js";
 import { normalizeArguments } from "../lib/param_utils.js";
 import { healthHandler, HealthCheckInputSchema } from "./tools.js";
-import { searchOpenPrsHandler, SearchOpenPrsInputSchema } from "../tools/github.search_open_prs.js";
-import { getPrDiffHandler, GetPrDiffInputSchema } from "../tools/github.get_pr_diff.js";
-import { getMergeConflictFilesHandler, GetMergeConflictFilesInputSchema } from "../tools/github.get_merge_conflict_files.js";
-import { getChangedFilesHandler, GetChangedFilesInputSchema } from "../tools/repo.get_changed_files.js";
 import { readAgentContextHandler, ReadAgentContextInputSchema } from "../tools/repo.read_agent_context.js";
-import { multiExecHandler, MultiExecInputSchema } from "../tools/repo.multi_exec.js";
-import { getCommandSchemaHandler, GetCommandSchemaInputSchema } from "../tools/repo.get_command_schema.js";
-import { getPackageScriptsHandler, GetPackageScriptsInputSchema } from "../tools/repo.get_package_scripts.js";
 import { readCiLogsHandler, ReadCiLogsInputSchema } from "../tools/repo.read_ci_logs.js";
-import { repoLogsHandler, RepoLogsInputSchema } from "../tools/repo.logs.js";
-import { getWorkflowRunsHandler, GetWorkflowRunsInputSchema } from "../tools/repo.get_workflow_runs.js";
 import { runTestsHandler, RunTestsInputSchema } from "../tools/repo.run_tests.js";
-import { commitPatchHandler, CommitPatchInputSchema } from "../tools/repo.commit_patch.js";
 import { getPrHandler, GetPrInputSchema } from "../tools/github.get_pr.js";
-import { getPrReviewsHandler, GetPrReviewsInputSchema } from "../tools/github.get_pr_reviews.js";
-import { getPrCommitsHandler, GetPrCommitsInputSchema } from "../tools/github.get_pr_commits.js";
 import { issueViewHandler, IssueViewInputSchema } from "../tools/github.issue_view.js";
 import { issueUpdateHandler, IssueUpdateInputSchema } from "../tools/github.issue_update.js";
 import { issueCommentHandler, IssueCommentInputSchema } from "../tools/github.issue_comment.js";
 import { createIssueHandler, CreateIssueInputSchema } from "../tools/github.create_issue.js";
+import { tdInitAndRagHandler, TdInitAndRagInputSchema } from "../tools/td.init_and_rag.js";
+import { tdValidateIssueHandler, TdValidateIssueInputSchema } from "../tools/td.validate_issue.js";
+import { tdVerifyScopeHandler, TdVerifyScopeInputSchema } from "../tools/td.verify_scope.js";
+import { tdAuditWorktreeHandler, TdAuditWorktreeInputSchema } from "../tools/td.audit_worktree.js";
 
 
 import { agentSubmitPrHandler } from "../tools/agent.submit_pr.js";
@@ -42,8 +34,8 @@ import { AgentSubmitPrInputSchema } from "../tools/contract.js";
 import { worktreeCreateHandler, WorktreeCreateInputSchema } from "../tools/worktree.create.js";
 import { worktreeListHandler, WorktreeListInputSchema } from "../tools/worktree.list.js";
 import { worktreeRemoveHandler, WorktreeRemoveInputSchema } from "../tools/worktree.remove.js";
-import { skillListHandler, SkillListInputSchema } from "../tools/skill.list.js";
-import { skillReadHandler, SkillReadInputSchema } from "../tools/skill.read.js";
+import { getChangedFiles } from "../lib/git.js";
+import { runTDCli } from "../lib/tdCli.js";
 
 import fs from "fs/promises";
 import { existsSync, readFileSync } from "fs";
@@ -158,9 +150,9 @@ export class BoomtickMCPServer {
         uri === "mcp://git/changed-files" ||
         uri === "repo://changed-files"
       ) {
-        const changedFiles = await getChangedFilesHandler(GetChangedFilesInputSchema.parse({}));
+        const changedFiles = await getChangedFiles("main", "HEAD", config.repoPath);
         return {
-          contents: [{ uri, mimeType: "application/json", text: JSON.stringify(changedFiles, null, 2) }],
+          contents: [{ uri, mimeType: "application/json", text: JSON.stringify({ files: changedFiles }, null, 2) }],
         };
       }
       if (
@@ -186,7 +178,7 @@ export class BoomtickMCPServer {
         uri === "repo://ci/latest-run" ||
         uri === "repo://ci-latest-run"
       ) {
-        const workflowRuns = await getWorkflowRunsHandler(GetWorkflowRunsInputSchema.parse({}));
+        const workflowRuns = await runTDCli(["repo", "workflow-runs"], "fetch workflow runs");
         return {
           contents: [{ uri, mimeType: "application/json", text: JSON.stringify(workflowRuns, null, 2) }],
         };
@@ -206,9 +198,10 @@ export class BoomtickMCPServer {
       }
       if (uri.startsWith("mcp://git/diff/") || uri.startsWith("repo://diff/")) {
         const prNumber = parseInt(uri.split("/").pop() || "");
-        const diff = await getPrDiffHandler({ prNumber });
+        const diff = await getPrHandler({ prNumber, includeDiff: true });
+        const diffPayload = (diff as Record<string, unknown>).diff as { diffText?: string } | undefined;
         return {
-          contents: [{ uri, mimeType: "text/plain", text: diff.diffText }],
+          contents: [{ uri, mimeType: "text/plain", text: diffPayload?.diffText ?? "" }],
         };
       }
       if (uri.startsWith("mcp://ci/logs/") || uri.startsWith("repo://ci/")) {
@@ -237,38 +230,14 @@ export class BoomtickMCPServer {
         switch (normalizedToolName) {
           case "boomtick_health":
             return createSuccessResult(await healthHandler(HealthCheckInputSchema.parse(normArgs)));
-          case "github_search_open_prs":
-            return createSuccessResult(await searchOpenPrsHandler(SearchOpenPrsInputSchema.parse(normArgs)));
           case "repo_read_agent_context":
             return createSuccessResult(await readAgentContextHandler(ReadAgentContextInputSchema.parse(normArgs)));
-          case "repo_multi_exec":
-            return createSuccessResult(await multiExecHandler(MultiExecInputSchema.parse(normArgs)));
-          case "github_get_pr_diff":
-            return createSuccessResult(await getPrDiffHandler(GetPrDiffInputSchema.parse(normArgs)));
-          case "github_get_merge_conflict_files":
-            return createSuccessResult(await getMergeConflictFilesHandler(GetMergeConflictFilesInputSchema.parse(normArgs)));
-          case "repo_get_changed_files":
-            return createSuccessResult(await getChangedFilesHandler(GetChangedFilesInputSchema.parse(normArgs)));
-          case "repo_get_command_schema":
-            return createSuccessResult(await getCommandSchemaHandler(GetCommandSchemaInputSchema.parse(normArgs)));
-          case "repo_get_package_scripts":
-            return createSuccessResult(await getPackageScriptsHandler(GetPackageScriptsInputSchema.parse(normArgs)));
           case "repo_read_ci_logs":
             return createSuccessResult(await readCiLogsHandler(ReadCiLogsInputSchema.parse(normArgs)));
-          case "repo_logs":
-            return createSuccessResult(await repoLogsHandler(RepoLogsInputSchema.parse(normArgs)));
-          case "repo_get_workflow_runs":
-            return createSuccessResult(await getWorkflowRunsHandler(GetWorkflowRunsInputSchema.parse(normArgs)));
           case "repo_run_tests":
             return createSuccessResult(await runTestsHandler(RunTestsInputSchema.parse(normArgs)));
-          case "repo_commit_patch":
-            return createSuccessResult(await commitPatchHandler(CommitPatchInputSchema.parse(normArgs)));
           case "github_get_pr":
             return createSuccessResult(await getPrHandler(GetPrInputSchema.parse(normArgs)));
-          case "github_get_pr_reviews":
-            return createSuccessResult(await getPrReviewsHandler(GetPrReviewsInputSchema.parse(normArgs)));
-          case "github_get_pr_commits":
-            return createSuccessResult(await getPrCommitsHandler(GetPrCommitsInputSchema.parse(normArgs)));
           case "github_issue_view":
             return createSuccessResult(await issueViewHandler(IssueViewInputSchema.parse(normArgs)));
           case "github_issue_update":
@@ -277,6 +246,14 @@ export class BoomtickMCPServer {
             return createSuccessResult(await issueCommentHandler(IssueCommentInputSchema.parse(normArgs)));
           case "github_create_issue":
             return createSuccessResult(await createIssueHandler(CreateIssueInputSchema.parse(normArgs)));
+          case "td_init_and_rag":
+            return createSuccessResult(await tdInitAndRagHandler(TdInitAndRagInputSchema.parse(normArgs)));
+          case "td_validate_issue":
+            return createSuccessResult(await tdValidateIssueHandler(TdValidateIssueInputSchema.parse(normArgs)));
+          case "td_verify_scope":
+            return createSuccessResult(await tdVerifyScopeHandler(TdVerifyScopeInputSchema.parse(normArgs)));
+          case "td_audit_worktree":
+            return createSuccessResult(await tdAuditWorktreeHandler(TdAuditWorktreeInputSchema.parse(normArgs)));
 
           case "agent_submit_pr":
             return createSuccessResult(await agentSubmitPrHandler(AgentSubmitPrInputSchema.parse(normArgs)));
@@ -286,10 +263,6 @@ export class BoomtickMCPServer {
             return createSuccessResult(await worktreeListHandler(WorktreeListInputSchema.parse(normArgs)));
           case "worktree_remove":
             return createSuccessResult(await worktreeRemoveHandler(WorktreeRemoveInputSchema.parse(normArgs)));
-          case "skill_list":
-            return createSuccessResult(await skillListHandler(SkillListInputSchema.parse(normArgs)));
-          case "skill_read":
-            return createSuccessResult(await skillReadHandler(SkillReadInputSchema.parse(normArgs)));
           default:
             return createErrorResult(`Tool not found: ${request.params.name}`);
         }

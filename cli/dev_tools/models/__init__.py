@@ -46,20 +46,6 @@ class CreateIssueInput(CamelCaseModel):
         return self
 
 
-class SearchPRsInput(CamelCaseModel):
-    state: Literal["open", "closed", "all"] = Field("open", description="The state of the PRs to search for.")
-    limit: int = Field(
-        100, ge=1, le=100, description="The maximum number of PRs to return (default: 100, range: 1-100)."
-    )
-    include_drafts: bool = Field(True, description="Whether to include draft PRs in the results.")
-    labels: Optional[List[str]] = Field(None, description="Filter PRs by labels.")
-    repo: Optional[str] = Field(
-        None,
-        pattern=r"^[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+$",
-        description="The target repository override (e.g. org/repo).",
-    )
-
-
 class IssueUpdateInput(CamelCaseModel):
     issue_number: int = Field(..., description="The number of the issue to update.")
     body: Optional[str] = Field(None, description="The new body content for the issue.")
@@ -100,10 +86,6 @@ class CreateIssueResponse(CLIResponse):
     issue: Optional[IssueSummary] = None
 
 
-class SearchPRsResponse(CLIResponse):
-    prs: List[PRSummary] = Field(default_factory=list)
-
-
 class IssueUpdateResponse(CLIResponse):
     issue: Optional[IssueSummary] = None
 
@@ -141,92 +123,21 @@ class HealthCheckInput(CamelCaseModel):
     )
 
 
-class GetPrDiffInput(CamelCaseModel):
-    pr_number: int = Field(..., description="The number of the pull request to get the diff for.")
-    repo: Optional[str] = Field(
-        None,
-        pattern=r"^[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+$",
-        description="The target repository override (e.g. org/repo).",
-    )
-class GetMergeConflictFilesInput(CamelCaseModel):
-    pr_number: Optional[int] = Field(None, description="The number of the pull request to check for conflicts.")
-    base_branch: str = Field("main", description="The base branch to check against (default: 'main').")
-    head_ref: str = Field("HEAD", description="The head ref or branch to check.")
-    repo: Optional[str] = Field(None, description="Target GitHub repository override.")
-    path: Optional[str] = Field(None, description="Local filesystem path to target repository root.")
-    repo_path: Optional[str] = Field(None, description="Alias for path to target repository root.")
-
-
-class GetMergeConflictFilesResponse(CamelCaseModel):
-    has_conflicts: bool
-    conflicted_files: List[str] = Field(default_factory=list)
-    pr_number: Optional[int] = None
-    base_branch: str
-    head_ref: str
-
-
-class GetChangedFilesInput(CamelCaseModel):
-    base: str = Field("main", description="The base ref to compare from (default: 'main').")
-    head: str = Field("HEAD", description="The head ref to compare to (default: 'HEAD').")
-    repo: Optional[str] = Field(None, description="Target GitHub repository override.")
-    path: Optional[str] = Field(None, description="Local filesystem path to target repository root.")
-    repo_path: Optional[str] = Field(None, description="Alias for path to target repository root.")
-
-
-class GetPackageScriptsInput(CamelCaseModel):
-    filter: Optional[str] = Field(None, description="Optional glob pattern to filter script names.")
-
-
 class GetRouteMapInput(CamelCaseModel):
     include_static: Optional[bool] = Field(None, description="Whether to include static assets in the route map.")
 
 
 class ReadCiLogsInput(CamelCaseModel):
-    pr_number: int = Field(..., description="The number of the pull request to read logs for.")
+    pr_number: Optional[int] = Field(None, description="PR number for CI logs. Omit to list workflow runs instead.")
     all: bool = Field(False, description="Include logs for successful runs (default: false).")
     repo: Optional[str] = Field(
         None,
         pattern=r"^[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+$",
         description="The target repository override (e.g. org/repo).",
     )
-
-
-class RepoLogsInput(CamelCaseModel):
-    pr_number: int = Field(..., description="The number of the pull request to stream logs for.")
-    grep: Optional[str] = Field(None, description="Optional pattern to filter log lines.")
-    repo: Optional[str] = Field(
-        None,
-        pattern=r"^[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+$",
-        description="The target repository override (e.g. org/repo).",
-    )
-
-
-class GetPrReviewsInput(CamelCaseModel):
-    pr_number: int = Field(..., description="The number of the PR to view reviews for.")
-    repo: Optional[str] = Field(
-        None,
-        pattern=r"^[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+$",
-        description="The target repository override (e.g. org/repo).",
-    )
-
-
-class GetPrCommitsInput(CamelCaseModel):
-    pr_number: int = Field(..., description="The number of the PR to list commits for.")
-    repo: Optional[str] = Field(
-        None,
-        pattern=r"^[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+$",
-        description="The target repository override (e.g. org/repo).",
-    )
-
-
-class GetWorkflowRunsInput(CamelCaseModel):
+    include_runs: bool = Field(False, description="Include recent workflow runs (absorbs repo_get_workflow_runs).")
     branch: Optional[str] = Field(None, description="Filter workflow runs by branch name.")
     event: Optional[str] = Field(None, description="Filter workflow runs by event (e.g. push, pull_request).")
-    repo: Optional[str] = Field(
-        None,
-        pattern=r"^[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+$",
-        description="The target GitHub repository in owner/repo format (e.g. 'arii/remote-server'). Omit or pass null to use the current repository context.",
-    )
 
 
 class WorktreeCreateInput(CamelCaseModel):
@@ -304,18 +215,23 @@ class RunPlaywrightInput(CamelCaseModel):
     worktree_path: Optional[str] = Field(None, description="Optional path to the worktree to run tests in.")
 
 
-class CommitPatchInput(CamelCaseModel):
-    worktree_path: str = Field(..., description="Path to the worktree where changes are made.")
-    message: str = Field(..., description="Commit message.")
-    allowed_files: List[str] = Field(..., description="List of files that are allowed to be committed.")
-    write_mode: bool = Field(..., description="Safety gate: Must be true to perform the commit.")
 class GetPrInput(CamelCaseModel):
-    pr_number: int = Field(..., description="The number of the PR to view.")
+    pr_number: Optional[int] = Field(None, description="The number of the PR to view. Omit to search PRs instead.")
     repo: Optional[str] = Field(
         None,
         pattern=r"^[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+$",
         description="The target repository override (e.g. org/repo).",
     )
+    include_diff: bool = Field(False, description="Include the PR diff and changed files.")
+    include_reviews: bool = Field(False, description="Include top-level reviews.")
+    include_commits: bool = Field(False, description="Include commit metadata.")
+    include_conflicts: bool = Field(False, description="Include merge-conflict files.")
+    base_branch: Optional[str] = Field(None, description="Conflict check only: base branch.")
+    head_ref: Optional[str] = Field(None, description="Conflict check only: head ref.")
+    state: Literal["open", "closed", "all"] = Field("open", description="Search mode only: PR state filter.")
+    include_drafts: bool = Field(True, description="Search mode only: include draft PRs.")
+    limit: int = Field(100, ge=1, le=100, description="Search mode only: max PRs to return.")
+    labels: Optional[List[str]] = Field(None, description="Search mode only: filter by labels.")
 
 
 class IssueViewInput(CamelCaseModel):
@@ -364,6 +280,7 @@ class ReadAgentContextInput(CamelCaseModel):
     all: Optional[bool] = Field(
         None, description="Whether to fetch context across all discovered ecosystem repositories"
     )
+    skill_name: Optional[str] = Field(None, description="Optional skill name: return its SKILL.md body too.")
 
 
 class GetContextStatusInput(CamelCaseModel):
@@ -377,22 +294,47 @@ class GetContextStatusInput(CamelCaseModel):
     )
 
 
-class MultiExecInput(CamelCaseModel):
-    command: str = Field(..., description="Shell command to execute sequentially across repositories")
-    repos: Optional[List[str]] = Field(None, description="Optional list of repository names to target")
-    continue_on_error: Optional[bool] = Field(True, description="Whether to continue execution if a repo command fails")
+class TdInitAndRagInput(CamelCaseModel):
+    repo_root: Optional[str] = Field(None, description="Repo root to initialize (default: git root).")
+    query: Optional[str] = Field(None, description="Optional natural-language query to run after init.")
+    top_k: Optional[int] = Field(None, description="Maximum RAG hits to return.")
 
 
-class MultiExecResponse(CamelCaseModel):
-    status: str = Field("success", description="Execution status")
-    total: Optional[int] = Field(None, description="Total repositories executed against")
-    results: Optional[List[Dict[str, Any]]] = Field(None, description="Execution results per repository")
+class TdValidateIssueInput(CamelCaseModel):
+    file: str = Field(..., description="Path to the design spec file (or - for stdin).")
+    repo_root: Optional[str] = Field(None, description="Repo root for file existence checks.")
 
 
-class GetCommandSchemaInput(CamelCaseModel):
-    command_path: str = Field(
-        ..., description="The CLI command path to retrieve the schema for (e.g. 'gh audit-pr')"
-    )
+class TdVerifyScopeInput(CamelCaseModel):
+    spec_file: str = Field(..., description="Path to the validated design spec markdown file.")
+    worktree: str = Field(..., description="Path to the worktree to gate.")
+    auto_revert: bool = Field(False, description="Revert files outside the allowed scope.")
+
+
+class TdAuditWorktreeInput(CamelCaseModel):
+    worktree: str = Field(..., description="Path to the worktree to audit.")
+    include_impact: bool = Field(False, description="Also run blast-radius impact analysis.")
+    top_k: Optional[int] = Field(None, description="Maximum impacted files to list.")
+
+
+class TdInitAndRagResponse(CamelCaseModel):
+    status: Optional[str] = None
+    data: Optional[Any] = None
+
+
+class TdValidateIssueResponse(CamelCaseModel):
+    status: Optional[str] = None
+    data: Optional[Any] = None
+
+
+class TdVerifyScopeResponse(CamelCaseModel):
+    status: Optional[str] = None
+    data: Optional[Any] = None
+
+
+class TdAuditWorktreeResponse(CamelCaseModel):
+    status: Optional[str] = None
+    data: Optional[Any] = None
 
 
 # AI Review Models
@@ -560,31 +502,10 @@ class CheckoutBranchResponse(CamelCaseModel):
     branch: str
 
 
-class GetChangedFilesResponse(CamelCaseModel):
-    files: List[str] = Field(default_factory=list)
-
-
-class GetCommandSchemaResponse(CamelCaseModel):
-    status: Optional[str] = None
-    cmd_schema: Optional[Dict[str, Any]] = Field(None, alias="schema")
-
-
-class GetPackageScriptsResponse(CamelCaseModel):
-    scripts: Dict[str, str] = Field(default_factory=dict)
-
-
 class ReadCiLogsResponse(CamelCaseModel):
     checks: Optional[List[Dict[str, Any]]] = None
     failed_checks: Optional[List[Dict[str, Any]]] = None
     logs: Optional[Any] = None
-
-
-class RepoLogsResponse(CamelCaseModel):
-    logs: Optional[Any] = None
-
-
-class GetWorkflowRunsResponse(CamelCaseModel):
-    workflow_runs: List[Dict[str, Any]] = Field(default_factory=list)
 
 
 class CreateBranchResponse(CamelCaseModel):
@@ -606,12 +527,6 @@ class CreateRepairBranchResponse(CamelCaseModel):
     base_sha: Optional[str] = None
     pr_head_sha: Optional[str] = None
     fetched: bool = False
-class CommitPatchResponse(CamelCaseModel):
-    success: bool = True
-    commit_sha: str
-    changed_files: List[str] = Field(default_factory=list)
-
-
 class OpenReplacementPrResponse(CamelCaseModel):
     success: bool = True
     url: str
@@ -629,15 +544,6 @@ class CommentTriageSummaryResponse(CamelCaseModel):
 
 class GetPrResponse(CamelCaseModel):
     pr: Dict[str, Any]
-
-
-class GetPrReviewsResponse(CamelCaseModel):
-    reviews: List[Dict[str, Any]] = Field(default_factory=list)
-    review_count: Optional[int] = None
-
-
-class GetPrCommitsResponse(CamelCaseModel):
-    commits: List[Dict[str, Any]] = Field(default_factory=list)
 
 
 class IssueViewResponse(CamelCaseModel):
@@ -694,26 +600,6 @@ class AgentLogsResponse(CamelCaseModel):
 class SkillInfo(CamelCaseModel):
     name: str
     description: str
-
-
-class SkillListInput(CamelCaseModel):
-    repo: Optional[str] = Field(None, description="Target repository override (e.g. org/repo or repo).")
-    path: Optional[str] = Field(None, description="Local filesystem override.")
-
-
-class SkillListResponse(CamelCaseModel):
-    skills: List[SkillInfo] = Field(default_factory=list)
-
-
-class SkillReadInput(CamelCaseModel):
-    name: str = Field(..., description="Skill name from skill_list.")
-    repo: Optional[str] = Field(None, description="Target repository override (e.g. org/repo or repo).")
-    path: Optional[str] = Field(None, description="Local filesystem override.")
-
-
-class SkillReadResponse(CamelCaseModel):
-    name: str
-    body: str
 
 
 class AgentDiscussInput(CamelCaseModel):

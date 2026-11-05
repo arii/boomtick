@@ -5,6 +5,7 @@ import * as fs from "fs";
 import * as path from "path";
 import * as yaml from "yaml";
 import { runTDCli } from "../lib/tdCli.js";
+import { listSkills, readSkill } from "../lib/skills.js";
 import { AgentContractConfigSchema } from "./contract.js";
 
 export interface AgentContext {
@@ -198,6 +199,7 @@ export const ReadAgentContextInputSchema = z.object({
   repo: z.string().optional().describe("Repository name override (e.g. arii/portfolio or portfolio)"),
   repos: z.array(z.string()).optional().describe("List of repository names to fetch context for"),
   all: z.boolean().optional().describe("Whether to fetch context across all discovered ecosystem repositories"),
+  skillName: z.string().optional().describe("Optional skill name: return its SKILL.md body too (absorbs skill_read)."),
 });
 
 export async function readAgentContextHandler(args: z.infer<typeof ReadAgentContextInputSchema>) {
@@ -223,15 +225,20 @@ export async function readAgentContextHandler(args: z.infer<typeof ReadAgentCont
     const matchedPath = await resolveTargetRepoPath({ repo: args.repo });
     if (matchedPath && matchedPath !== config.repoPath) {
       const context = loadStandaloneAgentContext(matchedPath);
-      return {
+      const named: any = {
         status: "success",
         repo: args.repo,
         path: matchedPath,
         ...context,
         agent_contract: readAgentContractSection(matchedPath),
         package_scripts: getPackageScriptsSection(matchedPath),
-        vector_index: getVectorIndexStatus(matchedPath)
+        vector_index: getVectorIndexStatus(matchedPath),
+        skills: await listSkills(matchedPath)
       };
+      if (args.skillName) {
+        named.skill = { name: args.skillName, body: await readSkill(matchedPath, args.skillName) };
+      }
+      return named;
     }
   }
 
@@ -244,8 +251,12 @@ export async function readAgentContextHandler(args: z.infer<typeof ReadAgentCont
     ...context,
     agent_contract: readAgentContractSection(targetPath),
     package_scripts: getPackageScriptsSection(targetPath),
-    vector_index: getVectorIndexStatus(targetPath)
+    vector_index: getVectorIndexStatus(targetPath),
+    skills: await listSkills(targetPath)
   };
+  if (args.skillName) {
+    result.skill = { name: args.skillName, body: await readSkill(targetPath, args.skillName) };
+  }
   if (args?.repo) {
     result.repo = args.repo;
   }
