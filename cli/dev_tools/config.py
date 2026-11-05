@@ -14,7 +14,6 @@ class ProjectConfig:
     github_repo: str | None = None
     package_name: str | None = None
     github_token_env: str = "GITHUB_TOKEN"
-    jules_api_url: str | None = None
     core_dirs: List[str] = field(default_factory=lambda: ["src/layouts/", "src/components/"])
     monolithic_pr_threshold: int = 3
     base_branch: str = "origin/main"
@@ -210,8 +209,6 @@ def load_project_config(path: str | Path = "project_config.json") -> ProjectConf
         kwargs["gh_path"] = raw["gh_path"]
     if "github_token_env" in raw:
         kwargs["github_token_env"] = raw["github_token_env"]
-    if "jules_api_url" in raw:
-        kwargs["jules_api_url"] = raw["jules_api_url"]
     if "monolithic_pr_threshold" in raw:
         kwargs["monolithic_pr_threshold"] = int(raw["monolithic_pr_threshold"])
     if "base_branch" in raw:
