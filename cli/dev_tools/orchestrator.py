@@ -1201,12 +1201,11 @@ class Orchestrator:
         actual_node_res = run_command(["node", "-v"])
         actual_node = str(actual_node_res).strip().replace("v", "")
         is_ci = os.environ.get("CI") == "true"
-        is_jules = "jules" in os.environ.get("USER", "").lower() or os.environ.get("JULES_API_KEY")
 
         expected_prefix = ".".join(expected_node.split(".")[:2]) + "."
-        node_matches = (actual_node.startswith(expected_prefix) or is_jules) if is_ci else actual_node == expected_node
+        node_matches = actual_node.startswith(expected_prefix) if is_ci else actual_node == expected_node
 
-        if not node_matches and not is_jules:
+        if not node_matches:
             log_error(f"Node version mismatch\nExpected: {expected_node}\nActual:   {actual_node}")
             raise CLIError("Node version mismatch. Do not switch versions manually.")
 
