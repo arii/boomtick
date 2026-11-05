@@ -2574,8 +2574,6 @@ def _spec_checklist_items(body):
     return items
 
 
-
-
 def _spec_fenced_commands(body):
     """Bash commands from fenced blocks in the Verification section."""
     lines = _spec_section_lines(
