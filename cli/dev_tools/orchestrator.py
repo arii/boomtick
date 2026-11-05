@@ -2774,6 +2774,8 @@ Follow the "Audit comment template" in `docs/agent/issue-audit-rules.md` to post
             return prs[0]["number"]
 
         return None
+
+    def aggregate_prs(self, target_branch: str, prNumbers: List[int]) -> Dict[str, Any]:
         """
         Aggregates multiple PRs into a single target branch and creates a consolidated PR.
         """
