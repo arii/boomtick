@@ -213,3 +213,6 @@ failed-run/
 # `pnpm verify:schemas`. Never edit by hand; never commit.
 cli/dev_tools/cli-schema.json
 cli/dev_tools/cli-commands-schema.json
+
+# td RAG index + lockfile hashes — local build artifacts, never commit.
+.td_rag/

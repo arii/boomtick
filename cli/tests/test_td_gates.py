@@ -136,6 +136,58 @@ def test_verify_scope_auto_revert(tmp_path):
     assert "bad" not in (root / "src" / "admin.py").read_text()
 
 
+def _impact_repo(tmp_path):
+    root = tmp_path / "impact"
+    root.mkdir()
+    _git(root, "init", "-q", "-b", "main", ".")
+    _git(root, "config", "user.email", "t@t")
+    _git(root, "config", "user.name", "t")
+    (root / "src").mkdir()
+    (root / "src" / "widget.tsx").write_text(
+        "export function Widget() { return 1; }\n")
+    (root / "src" / "app.tsx").write_text(
+        'import { Widget } from "./widget";\n'
+        "export function App() { return Widget(); }\n")
+    (root / "tests").mkdir()
+    (root / "tests" / "widget.test.tsx").write_text(
+        'import { Widget } from "../src/widget";\n')
+    _git(root, "add", "-A")
+    _git(root, "commit", "-qm", "init")
+    _git(root, "remote", "add", "origin", str(root))
+    _git(root, "fetch", "-q", "origin")
+    return root
+
+
+def test_audit_impact_clean_reports_blast_radius(tmp_path):
+    root = _impact_repo(tmp_path)
+    with open(root / "src" / "widget.tsx", "a",
+              encoding="utf-8") as handle:
+        handle.write("export const v = 2;\n")
+    runner = CliRunner()
+    result = runner.invoke(cli, ["audit-impact", "--worktree",
+                                 str(root), "--json"])
+    assert result.exit_code == 0, result.output
+    data = json.loads(result.output)
+    assert data["violations"] == []
+    assert "src/widget.tsx" in data["impacted_files"]
+    assert "src/app.tsx" in data["impacted_files"]
+    assert "tests/widget.test.tsx" in data["dependent_tests"]
+
+
+def test_audit_impact_violation_fails(tmp_path):
+    root = _impact_repo(tmp_path)
+    with open(root / "src" / "widget.tsx", "a",
+              encoding="utf-8") as handle:
+        handle.write("// @ts-ignore\n")
+    runner = CliRunner()
+    result = runner.invoke(cli, ["audit-impact", "--worktree",
+                                 str(root), "--json"])
+    assert result.exit_code == 1, result.output
+    data = json.loads(result.output)
+    assert data["violations"]
+    assert data["violations"][0]["file"] == "src/widget.tsx"
+
+
 def test_audit_code_skips_slang_without_config(tmp_path):
     """Slop audit must not run under another repo's config.
 

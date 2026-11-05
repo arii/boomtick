@@ -151,6 +151,23 @@ def _handle_unexpected_error(ctx, command_name, error):
     err(ctx, message, code=1)
 
 
+
+def _gate_json_option(func):
+    """Per-command --json/--no-json passthrough (group flag is global)."""
+    import click as _click
+
+    @_click.option("--json/--no-json", "json_output", default=None,
+                   help="Override JSON output for this command")
+    @_click.pass_context
+    def wrapper(ctx, json_output, *args, **kwargs):
+        if json_output is not None:
+            ctx.obj["JSON"] = json_output
+        return ctx.invoke(func, *args, **kwargs)
+    wrapper.__name__ = func.__name__
+    wrapper.__doc__ = func.__doc__
+    return wrapper
+
+
 def _get_body_content(ctx, orch, file, body):
     if file and body:
         err(ctx, "Provide --file or --body, not both")
@@ -2221,13 +2238,29 @@ def worktree_group():
               help="Base branch for the new worktree branch")
 @click.option("--path", "root_path", default=None,
               help="Repo root override (default: git root)")
+@click.option("--repo-root", "root_path", default=None,
+              help="Repo root override (alias for --path)")
+@click.option("--issue", "issue_id", default=None,
+              help="Issue number: provision warm issue worktree instead")
+@_gate_json_option
 @click.pass_context
-def worktree_create(ctx, name, base_branch, root_path):
+def worktree_create(ctx, name, base_branch, root_path, issue_id):
     """Create a managed worktree on a new branch."""
     from dev_tools.services import local_sessions as ls
     from dev_tools.services import worktrees as wt
     try:
         root = ls.repo_root_for(root_path)
+        if issue_id is not None:
+            try:
+                status = wt.create_for_issue(root, issue_id)
+            except wt.WorktreeError as e:
+                err(ctx, str(e), code=1)
+            if not ctx.obj["JSON"]:
+                click.echo(f"{status['worktreeId']} "
+                           f"{status['branch']} {status['path']}")
+            out(ctx, f"Worktree {status['worktreeId']} created.",
+                data={"status": "ready", **status})
+            return
         wid, path, branch = wt.create(root, name, base_branch)
         if not ctx.obj["JSON"]:
             click.echo(f"{wid} {branch} {path}")
@@ -2282,6 +2315,98 @@ def worktree_remove(ctx, worktree_id, force, root_path):
         err(ctx, str(e), code=1)
     except Exception as e:
         _handle_unexpected_error(ctx, "worktree remove", e)
+
+
+@cli.group(name="rag")
+def rag_group():
+    """Vector index: build incrementally, query with hybrid ranking."""
+
+
+@rag_group.command(name="index")
+@click.option("--repo-root", "repo_root", default=None,
+              help="Repo root to index (default: git root)")
+@click.option("--incremental/--full", default=True,
+              help="Diff last indexed SHA (default) or rebuild everything")
+@_gate_json_option
+@click.pass_context
+def rag_index(ctx, repo_root, incremental):
+    """Index (or incrementally update) the repo vector store."""
+    from dev_tools.services import local_sessions as ls
+    from dev_tools.services import vector_store as vs
+    try:
+        root = ls.repo_root_for(repo_root)
+        if not os.path.isdir(os.path.join(root, ".git")):
+            err(ctx, f"not a git checkout: {root}", code=1)
+        data = vs.update_index(root, incremental=incremental)
+        if not ctx.obj["JSON"]:
+            click.echo(f"indexed {len(data['updated_files'])} file(s), "
+                       f"{data['added_chunks']} chunk(s) "
+                       f"at {data['head_sha'][:8]}")
+        out(ctx, "index ready.", data=data)
+    except Exception as e:
+        _handle_unexpected_error(ctx, "rag index", e)
+
+
+@rag_group.command(name="query")
+@click.option("--repo-root", "repo_root", default=None,
+              help="Repo root whose index to query (default: git root)")
+@click.option("--query", "query", required=True,
+              help="Natural-language query text")
+@click.option("--top-k", "top_k", default=8, type=int,
+              help="Maximum hits to return")
+@_gate_json_option
+@click.pass_context
+def rag_query(ctx, repo_root, query, top_k):
+    """Query the repo vector index with hybrid ranking."""
+    from dev_tools.services import local_sessions as ls
+    from dev_tools.services import vector_store as vs
+    try:
+        root = ls.repo_root_for(repo_root)
+        hits = vs.query_index(root, query, top_k=top_k)
+        data = {"status": "success", "query": query, "hits": hits,
+                "count": len(hits)}
+        if not ctx.obj["JSON"]:
+            for hit in hits:
+                click.echo(f"{hit['filepath']}:{hit['start_line']}: "
+                           f"{hit['content'][:120]}")
+        out(ctx, f"{len(hits)} hit(s).", data=data)
+    except Exception as e:
+        _handle_unexpected_error(ctx, "rag query", e)
+
+
+@cli.command(name="init")
+@click.option("--repo-root", "repo_root", default=None,
+              help="Repo root to initialize (default: git root)")
+@_gate_json_option
+@click.pass_context
+def init_repo(ctx, repo_root):
+    """Initialize a repo: fast-forward main, sync deps, index RAG.
+
+    Emits {"status", "head_sha", "deps_synced", "rag_indexed_sha",
+    "updated_files"}.
+    """
+    from dev_tools.services import local_sessions as ls
+    from dev_tools.services import vector_store as vs
+    from dev_tools.services import worktrees as wt
+    try:
+        root = ls.repo_root_for(repo_root)
+        if not os.path.isdir(os.path.join(root, ".git")):
+            err(ctx, f"not a git checkout: {root}", code=1)
+        _updated, head_sha, main_note = wt.fetch_main(root)
+        synced, deps_note = wt.warm_dependencies(root)
+        rag = vs.update_index(root, incremental=True)
+        data = {"status": "ready", "head_sha": head_sha,
+                "deps_synced": synced, "deps_note": deps_note,
+                "main_note": main_note,
+                "rag_indexed_sha": rag.get("last_indexed_sha", ""),
+                "updated_files": rag.get("updated_files", [])}
+        if not ctx.obj["JSON"]:
+            click.echo(f"ready at {head_sha[:8]} "
+                       f"(deps synced: {synced}, "
+                       f"{len(data['updated_files'])} file(s) indexed)")
+        out(ctx, "repo ready.", data=data)
+    except Exception as e:
+        _handle_unexpected_error(ctx, "init", e)
 
 
 # --- Multi-Repository Ecosystem Commands ---
@@ -2447,22 +2572,6 @@ def _spec_checklist_items(body):
         if match:
             items.append(match.group(1))
     return items
-
-
-def _gate_json_option(func):
-    """Per-command --json/--no-json passthrough (group flag is global)."""
-    import click as _click
-
-    @_click.option("--json/--no-json", "json_output", default=None,
-                   help="Override JSON output for this command")
-    @_click.pass_context
-    def wrapper(ctx, json_output, *args, **kwargs):
-        if json_output is not None:
-            ctx.obj["JSON"] = json_output
-        return ctx.invoke(func, *args, **kwargs)
-    wrapper.__name__ = func.__name__
-    wrapper.__doc__ = func.__doc__
-    return wrapper
 
 
 def _spec_fenced_commands(body):
@@ -2808,6 +2917,135 @@ def audit_code_gate(ctx, worktree):
             sys.exit(1)
     except Exception as e:
         _handle_unexpected_error(ctx, "audit-code", e)
+
+
+TEST_PATH_HINTS = ("/test_", "/tests/", "test_", "_test.",
+                  ".test.", ".spec.")
+
+
+def _is_test_path(path):
+    lowered = path.lower()
+    return (any(hint in lowered for hint in TEST_PATH_HINTS)
+            or os.path.basename(lowered).startswith("test"))
+
+
+def _impact_dependents(worktree, changed):
+    """Files referencing a changed module (import/from/require).
+
+    Returns {changed_path: [dependent paths]}. Best effort, read-only.
+    """
+    dependents = {path: [] for path in changed}
+    stems = {}
+    for path in changed:
+        base = os.path.basename(path)
+        stem, _ = os.path.splitext(base)
+        stems.setdefault(stem, []).append(path)
+    if not stems:
+        return dependents
+    for dirpath, dirnames, filenames in os.walk(worktree):
+        if ".git" in dirnames:
+            dirnames.remove(".git")
+        if "node_modules" in dirnames:
+            dirnames.remove("node_modules")
+        for name in filenames:
+            if not name.endswith((".py", ".ts", ".tsx", ".js",
+                                   ".jsx", ".mjs")):
+                continue
+            full = os.path.join(dirpath, name)
+            rel = os.path.relpath(full, worktree)
+            if rel in dependents:
+                continue
+            try:
+                with open(full, encoding="utf-8",
+                          errors="ignore") as handle:
+                    content = handle.read()
+            except OSError:
+                continue
+            for stem, owners in stems.items():
+                if not stem or len(stem) < 3:
+                    continue
+                escaped = re.escape(stem)
+                import_ref = (
+                    r"(?:from|import|require)[^\n]{0,120}?" + escaped)
+                path_ref = (r"(?:^|[^a-zA-Z0-9_])" + escaped +
+                            r"(?:\.[a-zA-Z_]|/)")
+                if (re.search(import_ref, content)
+                        or re.search(path_ref, content)):
+                    for owner in owners:
+                        dependents[owner].append(rel)
+    for owner in dependents:
+        dependents[owner] = sorted(set(dependents[owner]))
+    return dependents
+
+
+@cli.command(name="audit-impact")
+@click.option("--worktree", "worktree", required=True,
+              help="Path to the worktree to analyze")
+@click.option("--top-k", "top_k", default=25, type=int,
+              help="Maximum impacted files to list")
+@_gate_json_option
+@click.pass_context
+def audit_impact_gate(ctx, worktree, top_k):
+    """Blast-radius analysis for worktree changes (exit 0 iff clean).
+
+    Emits {"impacted_files", "dependent_tests", "violations"} where
+    violations are AST findings on changed files. Nonzero exit when
+    any violation exists.
+    """
+    from dev_tools.services.ast_audit import ASTAuditor
+    try:
+        changed = [p for p in _worktree_changed_files(worktree)
+                   if not p.startswith((".td_rag/", ".worktrees/"))]
+        auditor = ASTAuditor()
+        violations = []
+        for rel in changed:
+            if not rel.endswith((".py", ".ts", ".tsx", ".js",
+                                  ".jsx", ".mjs")):
+                continue
+            full = os.path.join(worktree, rel)
+            if not os.path.isfile(full):
+                continue
+            try:
+                with open(full, encoding="utf-8",
+                          errors="ignore") as handle:
+                    code = handle.read()
+                for finding in auditor.audit_file(rel, code) or []:
+                    violations.append({
+                        "file": rel,
+                        "rule": finding.get("rule"),
+                        "message": finding.get("message"),
+                        "line": finding.get("line"),
+                        "severity": finding.get("severity"),
+                    })
+            except Exception:
+                continue
+        dependents = _impact_dependents(worktree, changed)
+        impacted = sorted(set(changed)
+                          | {d for deps in dependents.values()
+                             for d in deps})[:top_k]
+        dependent_tests = sorted(
+            {d for deps in dependents.values() for d in deps
+             if _is_test_path(d)}
+            | {p for p in changed if _is_test_path(p)})[:top_k]
+        passed = not violations
+        data = {"passed": passed,
+                "impacted_files": impacted,
+                "dependent_tests": dependent_tests,
+                "violations": violations}
+        if not ctx.obj["JSON"]:
+            if passed:
+                click.echo(
+                    f"✅ impact clean: {len(impacted)} file(s), "
+                    f"{len(dependent_tests)} test(s)")
+            else:
+                click.echo(
+                    f"❌ impact: {len(violations)} violation(s) in "
+                    f"{len(impacted)} file(s)")
+        out(ctx, f"impact clean: {passed}.", data=data)
+        if not passed:
+            sys.exit(1)
+    except Exception as e:
+        _handle_unexpected_error(ctx, "audit-impact", e)
 
 
 @cli.group(name="jules")
