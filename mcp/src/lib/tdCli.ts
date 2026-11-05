@@ -1,5 +1,4 @@
-import { runCommand } from "../../lib/shell.js";
-import { resolveStackEnvPath } from "../../config.js";
+import { runCommand } from "./shell.js";
 
 export interface TDCliResponse {
   status?: string;
@@ -21,10 +20,7 @@ export async function runTDCli(args: string[], actionName?: string): Promise<TDC
   const output = stdout.startsWith("{") ? tryParseJson(stdout) : null;
 
   if (output?.status === "error") {
-    let errorMsg = output.message ?? "Unknown error";
-    if (errorMsg.includes("JULES_API_KEY is not set or empty")) {
-      errorMsg = `${errorMsg} (checked in environment and ${resolveStackEnvPath()})`;
-    }
+    const errorMsg = output.message ?? "Unknown error";
     if (actionName) {
       throw new Error(`Failed to ${actionName}: ${errorMsg}`);
     }

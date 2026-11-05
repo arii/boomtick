@@ -17,25 +17,16 @@ import { healthHandler, HealthCheckInputSchema } from "./tools.js";
 import { searchOpenPrsHandler, SearchOpenPrsInputSchema } from "../tools/github.search_open_prs.js";
 import { getPrDiffHandler, GetPrDiffInputSchema } from "../tools/github.get_pr_diff.js";
 import { getMergeConflictFilesHandler, GetMergeConflictFilesInputSchema } from "../tools/github.get_merge_conflict_files.js";
-import { checkoutBranchHandler, CheckoutBranchInputSchema } from "../tools/github.checkout_branch.js";
 import { getChangedFilesHandler, GetChangedFilesInputSchema } from "../tools/repo.get_changed_files.js";
-import { readAgentContractHandler, ReadAgentContractInputSchema } from "../tools/repo.read_agent_contract.js";
 import { readAgentContextHandler, ReadAgentContextInputSchema } from "../tools/repo.read_agent_context.js";
-import { getContextStatusHandler, GetContextStatusInputSchema } from "../tools/repo.get_context_status.js";
 import { multiExecHandler, MultiExecInputSchema } from "../tools/repo.multi_exec.js";
 import { getCommandSchemaHandler, GetCommandSchemaInputSchema } from "../tools/repo.get_command_schema.js";
 import { getPackageScriptsHandler, GetPackageScriptsInputSchema } from "../tools/repo.get_package_scripts.js";
 import { readCiLogsHandler, ReadCiLogsInputSchema } from "../tools/repo.read_ci_logs.js";
 import { repoLogsHandler, RepoLogsInputSchema } from "../tools/repo.logs.js";
 import { getWorkflowRunsHandler, GetWorkflowRunsInputSchema } from "../tools/repo.get_workflow_runs.js";
-import { createRepairBranchHandler, CreateRepairBranchInputSchema } from "../tools/repo.create_repair_branch.js";
-import { createBranchHandler, CreateBranchInputSchema } from "../tools/repo.create_branch.js";
 import { runTestsHandler, RunTestsInputSchema } from "../tools/repo.run_tests.js";
-import { checkJulesStatusHandler, CheckJulesStatusInputSchema } from "../tools/repo.check_jules_status.js";
 import { commitPatchHandler, CommitPatchInputSchema } from "../tools/repo.commit_patch.js";
-import { openReplacementPrHandler, OpenReplacementPrInputSchema } from "../tools/github.open_replacement_pr.js";
-import { commentTriageSummaryHandler, CommentTriageSummaryInputSchema } from "../tools/github.comment_triage_summary.js";
-import { createPullRequestHandler, CreatePullRequestInputSchema } from "../tools/github.create_pull_request.js";
 import { getPrHandler, GetPrInputSchema } from "../tools/github.get_pr.js";
 import { getPrReviewsHandler, GetPrReviewsInputSchema } from "../tools/github.get_pr_reviews.js";
 import { getPrCommitsHandler, GetPrCommitsInputSchema } from "../tools/github.get_pr_commits.js";
@@ -45,21 +36,9 @@ import { issueCommentHandler, IssueCommentInputSchema } from "../tools/github.is
 import { createIssueHandler, CreateIssueInputSchema } from "../tools/github.create_issue.js";
 
 
-import { createJulesSessionHandler, CreateJulesSessionInputSchema } from "../tools/jules/create-session.js";
-import { getJulesSessionHandler, GetJulesSessionInputSchema } from "../tools/jules/get-session.js";
-import { sendJulesMessageHandler, SendJulesMessageInputSchema } from "../tools/jules/send-message.js";
-import { getJulesMessagesHandler, GetJulesMessagesInputSchema } from "../tools/jules/get-messages.js";
-import { listJulesSessionsHandler, ListJulesSessionsInputSchema } from "../tools/jules/list-sessions.js";
-import { cancelJulesSessionHandler, CancelJulesSessionInputSchema } from "../tools/jules/cancel-session.js";
-import { getJulesPullRequestHandler, GetJulesPullRequestInputSchema } from "../tools/jules/get-pr.js";
-import { triggerJulesFeedbackHandler, TriggerJulesFeedbackInputSchema } from "../tools/jules/trigger-feedback.js";
-import { agentDiscussHandler, AgentDiscussInputSchema } from "../tools/agent.discuss.js";
 import { agentSubmitPrHandler } from "../tools/agent.submit_pr.js";
 import { AgentSubmitPrInputSchema } from "../tools/contract.js";
 
-import { agentDispatchHandler, AgentDispatchInputSchema } from "../tools/agent.dispatch.js";
-import { agentStatusHandler, AgentStatusInputSchema } from "../tools/agent.status.js";
-import { agentLogsHandler, AgentLogsInputSchema } from "../tools/agent.logs.js";
 import { worktreeCreateHandler, WorktreeCreateInputSchema } from "../tools/worktree.create.js";
 import { worktreeListHandler, WorktreeListInputSchema } from "../tools/worktree.list.js";
 import { worktreeRemoveHandler, WorktreeRemoveInputSchema } from "../tools/worktree.remove.js";
@@ -260,20 +239,14 @@ export class BoomtickMCPServer {
             return createSuccessResult(await healthHandler(HealthCheckInputSchema.parse(normArgs)));
           case "github_search_open_prs":
             return createSuccessResult(await searchOpenPrsHandler(SearchOpenPrsInputSchema.parse(normArgs)));
-          case "repo_read_agent_contract":
-            return createSuccessResult(await readAgentContractHandler(ReadAgentContractInputSchema.parse(normArgs)));
           case "repo_read_agent_context":
             return createSuccessResult(await readAgentContextHandler(ReadAgentContextInputSchema.parse(normArgs)));
-          case "repo_get_context_status":
-            return createSuccessResult(await getContextStatusHandler(GetContextStatusInputSchema.parse(normArgs)));
           case "repo_multi_exec":
             return createSuccessResult(await multiExecHandler(MultiExecInputSchema.parse(normArgs)));
           case "github_get_pr_diff":
             return createSuccessResult(await getPrDiffHandler(GetPrDiffInputSchema.parse(normArgs)));
           case "github_get_merge_conflict_files":
             return createSuccessResult(await getMergeConflictFilesHandler(GetMergeConflictFilesInputSchema.parse(normArgs)));
-          case "github_checkout_branch":
-            return createSuccessResult(await checkoutBranchHandler(CheckoutBranchInputSchema.parse(normArgs)));
           case "repo_get_changed_files":
             return createSuccessResult(await getChangedFilesHandler(GetChangedFilesInputSchema.parse(normArgs)));
           case "repo_get_command_schema":
@@ -286,22 +259,10 @@ export class BoomtickMCPServer {
             return createSuccessResult(await repoLogsHandler(RepoLogsInputSchema.parse(normArgs)));
           case "repo_get_workflow_runs":
             return createSuccessResult(await getWorkflowRunsHandler(GetWorkflowRunsInputSchema.parse(normArgs)));
-          case "repo_create_branch":
-            return createSuccessResult(await createBranchHandler(CreateBranchInputSchema.parse(normArgs)));
-          case "repo_create_repair_branch":
-            return createSuccessResult(await createRepairBranchHandler(CreateRepairBranchInputSchema.parse(normArgs)));
-          case "repo_check_jules_status":
-            return createSuccessResult(await checkJulesStatusHandler(CheckJulesStatusInputSchema.parse(normArgs)));
           case "repo_run_tests":
             return createSuccessResult(await runTestsHandler(RunTestsInputSchema.parse(normArgs)));
           case "repo_commit_patch":
             return createSuccessResult(await commitPatchHandler(CommitPatchInputSchema.parse(normArgs)));
-          case "github_open_replacement_pr":
-            return createSuccessResult(await openReplacementPrHandler(OpenReplacementPrInputSchema.parse(normArgs)));
-          case "github_comment_triage_summary":
-            return createSuccessResult(await commentTriageSummaryHandler(CommentTriageSummaryInputSchema.parse(normArgs)));
-          case "github_create_pull_request":
-            return createSuccessResult(await createPullRequestHandler(CreatePullRequestInputSchema.parse(normArgs)));
           case "github_get_pr":
             return createSuccessResult(await getPrHandler(GetPrInputSchema.parse(normArgs)));
           case "github_get_pr_reviews":
@@ -317,30 +278,6 @@ export class BoomtickMCPServer {
           case "github_create_issue":
             return createSuccessResult(await createIssueHandler(CreateIssueInputSchema.parse(normArgs)));
 
-          case "jules_create_session":
-            return createSuccessResult(await createJulesSessionHandler(CreateJulesSessionInputSchema.parse(normArgs)));
-          case "jules_get_session":
-            return createSuccessResult(await getJulesSessionHandler(GetJulesSessionInputSchema.parse(normArgs)));
-          case "jules_send_message":
-            return createSuccessResult(await sendJulesMessageHandler(SendJulesMessageInputSchema.parse(normArgs)));
-          case "jules_get_messages":
-            return createSuccessResult(await getJulesMessagesHandler(GetJulesMessagesInputSchema.parse(normArgs)));
-          case "jules_list_sessions":
-            return createSuccessResult(await listJulesSessionsHandler(ListJulesSessionsInputSchema.parse(normArgs)));
-          case "jules_cancel_session":
-            return createSuccessResult(await cancelJulesSessionHandler(CancelJulesSessionInputSchema.parse(normArgs)));
-          case "jules_get_pr":
-            return createSuccessResult(await getJulesPullRequestHandler(GetJulesPullRequestInputSchema.parse(normArgs)));
-          case "jules_trigger_feedback":
-            return createSuccessResult(await triggerJulesFeedbackHandler(TriggerJulesFeedbackInputSchema.parse(normArgs)));
-          case "agent_dispatch":
-            return createSuccessResult(await agentDispatchHandler(AgentDispatchInputSchema.parse(normArgs)));
-          case "agent_status":
-            return createSuccessResult(await agentStatusHandler(AgentStatusInputSchema.parse(normArgs)));
-          case "agent_logs":
-            return createSuccessResult(await agentLogsHandler(AgentLogsInputSchema.parse(normArgs)));
-          case "agent_discuss":
-            return createSuccessResult(await agentDiscussHandler(AgentDiscussInputSchema.parse(normArgs)));
           case "agent_submit_pr":
             return createSuccessResult(await agentSubmitPrHandler(AgentSubmitPrInputSchema.parse(normArgs)));
           case "worktree_create":

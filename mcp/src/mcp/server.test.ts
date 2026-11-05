@@ -8,7 +8,7 @@ import * as ciLogsModule from "../tools/repo.read_ci_logs.js";
 import * as prReviewsModule from "../tools/github.get_pr_reviews.js";
 import * as prCommitsModule from "../tools/github.get_pr_commits.js";
 import * as workflowRunsModule from "../tools/repo.get_workflow_runs.js";
-import * as listJulesSessionsModule from "../tools/jules/list-sessions.js";
+import * as worktreeListModule from "../tools/worktree.list.js";
 
 vi.mock("fs/promises");
 vi.mock("../config.js", () => ({
@@ -351,19 +351,19 @@ describe("BoomtickMCPServer", () => {
       expect(resWorkflow.structuredContent).toEqual({ runs: [] });
     });
 
-    it("should execute jules_list_sessions and return structuredContent as a record object wrapping sessions", async () => {
+    it("should execute worktree_list and return structuredContent as a record object wrapping worktrees", async () => {
       const handler = requestHandlers.get("tools/call");
-      vi.spyOn(listJulesSessionsModule, "listJulesSessionsHandler").mockResolvedValue({
-        sessions: [{ id: "sess-1", status: "completed" }],
-      });
+      vi.spyOn(worktreeListModule, "worktreeListHandler").mockResolvedValue({
+        worktrees: [{ path: "/tmp/wt-1", branch: "agent/1" }],
+      } as any);
 
       const res = await handler!({
         method: "tools/call",
-        params: { name: "jules_list_sessions", arguments: {} },
+        params: { name: "worktree_list", arguments: {} },
       });
 
       expect(res.structuredContent).toEqual({
-        sessions: [{ id: "sess-1", status: "completed" }],
+        worktrees: [{ path: "/tmp/wt-1", branch: "agent/1" }],
       });
       expect(Array.isArray(res.structuredContent)).toBe(false);
       expect(typeof res.structuredContent).toBe("object");
