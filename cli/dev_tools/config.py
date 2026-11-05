@@ -42,6 +42,12 @@ class ProjectConfig:
         ]
     )
     tailwind_indicators: List[str] = field(default_factory=lambda: ["px-", "py-", "mt-", "flex", "grid", "text-["])
+    # File/content signals that a repo actually uses Tailwind (#1113).
+    # The primitives advisory only fires on class-attribute usage or one
+    # of these signals — never on bare CSS like `display: flex`.
+    tailwind_config_indicators: List[str] = field(
+        default_factory=lambda: ["tailwind.config.", "tailwindcss", "@tailwind", "@apply"]
+    )
     audit_check_dirs: List[str] = field(
         default_factory=lambda: [
             "src/features",
@@ -229,6 +235,7 @@ def load_project_config(path: str | Path = "project_config.json") -> ProjectConf
         "core_dirs",
         "ui_indicators",
         "tailwind_indicators",
+        "tailwind_config_indicators",
         "audit_check_dirs",
         "allowed_bots",
         "spec_sections",

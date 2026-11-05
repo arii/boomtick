@@ -158,6 +158,86 @@ class Orchestrator:
         if os.path.exists(worktree_path):
             raise CLIError(f"Failed to clean up worktree directory: {worktree_path}")
 
+    # class="..." / className="..." attribute matcher (#1113). A bare
+    # `flex` in a stylesheet (`display: flex`) is not Tailwind usage;
+    # a `flex` token inside a class attribute is.
+    _CLASS_ATTR_RE = re.compile(r"\bclass(?:Name)?\s*=\s*[\"'{`]([^\"'`}]*)")
+
+    def _tailwind_evidence(self, diff: str) -> List[Tuple[str, str]]:
+        """Grounded Tailwind usage evidence (#1113).
+
+        Returns (file, added_line) pairs, limited to added (`+`) diff lines:
+        a class attribute carrying a utility token, or a Tailwind
+        config/dependency signal. Empty when the diff shows no real
+        Tailwind usage, so plain-CSS repos never get the advisory.
+        """
+        cfg = get_config()
+        evidence: List[Tuple[str, str]] = []
+        path = ""
+        for line in (diff or "").splitlines():
+            if line.startswith("+++ b/"):
+                path = line[6:]
+                continue
+            if not line.startswith("+") or line.startswith("+++"):
+                continue
+            added = line[1:]
+            if any(sig in path or sig in added for sig in cfg.tailwind_config_indicators):
+                evidence.append((path, added.strip()))
+                continue
+            for classes in self._CLASS_ATTR_RE.findall(added):
+                for token in classes.split():
+                    if self._is_tailwind_token(token, cfg.tailwind_indicators):
+                        evidence.append((path, added.strip()))
+                        break
+                else:
+                    continue
+                break
+        return evidence
+
+    @staticmethod
+    def _is_tailwind_token(token: str, indicators: List[str]) -> bool:
+        for ind in indicators:
+            # Prefix/arbitrary-value indicators match inside a token
+            # (`px-4`, `text-[12px]`); bare words match whole tokens only
+            # so `flex` never matches inside an unrelated word.
+            if ind.endswith("-") or "[" in ind:
+                if ind in token:
+                    return True
+            elif token == ind:
+                return True
+        return False
+
+    def collect_pr_findings(self, pr: Dict[str, Any], diff: str, checks: Dict[str, Any]) -> List[Dict[str, Any]]:
+        """Structured hunk-cited findings for a PR (#1113).
+
+        Each finding names the rule, the file, and the added diff lines
+        that triggered it — no fact without a cited hunk.
+        """
+        findings: List[Dict[str, Any]] = []
+        for path, added in self._tailwind_evidence(diff or ""):
+            existing = next((f for f in findings if f["rule"] == "tailwind-primitives" and f["file"] == path), None)
+            if existing is None:
+                existing = {
+                    "rule": "tailwind-primitives",
+                    "severity": "warning",
+                    "file": path,
+                    "evidence": [],
+                    "message": "Raw Tailwind classes; prefer Stack/Box/Grid primitives with design tokens.",
+                }
+                findings.append(existing)
+            if added not in existing["evidence"] and len(existing["evidence"]) < 5:
+                existing["evidence"].append(added)
+        fails = [c["name"] for c in (checks or {}).get("check_runs", []) if c.get("conclusion") == "failure"]
+        if fails:
+            findings.append({
+                "rule": "ci-failure",
+                "severity": "error",
+                "file": "",
+                "evidence": sorted(fails),
+                "message": f"Failing checks: {', '.join(sorted(fails))}.",
+            })
+        return findings
+
     def evaluate_pr_heuristics(self, pr: Dict[str, Any], diff: str, checks: Dict[str, Any]) -> str:
         """Applies heuristic rules to a PR diff and checks, returning specific feedback."""
         # Pre-process diff to get unique files for faster heuristic matching
@@ -196,9 +276,11 @@ class Orchestrator:
                 feedback += "  - *Fix:* Verify that the `dist` directory compiles correctly without TypeScript or Vite errors.\n"
 
         if is_ui:
-            tailwind_indicators = get_config().tailwind_indicators
-            if any(ind in diff for ind in tailwind_indicators):
-                feedback += "- **Design System Anti-patterns:** The diff contains raw Tailwind classes (e.g. padding/margin utility classes, arbitrary values).\n"
+            tw_evidence = self._tailwind_evidence(diff)
+            if tw_evidence:
+                feedback += "- **Design System Anti-patterns:** The diff adds raw Tailwind classes (e.g. padding/margin utility classes, arbitrary values).\n"
+                for path, added in tw_evidence[:3]:
+                    feedback += f"  - `{path}`: `+{added[:120]}`\n"
                 feedback += "  - *Fix:* Replace raw Tailwind layout classes with `Stack`, `Box`, or `Grid` primitives using design tokens (e.g., `gap={4}`, `paddingY={{ base: 4, md: 1.5 }}`). Verify by running `td gh audit-gate`.\n"
 
             feedback += "- **Mobile UX Verification:** For any UI additions, ensure horizontal layout does not overflow a 390px viewport.\n"
@@ -250,7 +332,7 @@ class Orchestrator:
             "prNumber": prNumber,
             "recommendation": verdict,
             "reviewComment": feedback,
-            "findings": [],
+            "findings": self.collect_pr_findings(pr_details, pr_diff, {"check_runs": check_runs}),
         }
 
     def resolve_conflict(self, file_path: str, strategy: Optional[str] = None) -> bool:

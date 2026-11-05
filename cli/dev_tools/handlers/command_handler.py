@@ -30,7 +30,9 @@ class CommandHandler:
         elif recommendation == "Not Approved":
             event = "REQUEST_CHANGES"
 
-        comment_body = f"## 🤖 AI Code Review\n\n{review_data.get('reviewComment', 'No comment provided.')}\n\n**Recommendation:** {recommendation}"
+        # #1113: the review below is deterministic heuristics, not a model
+        # call — say so in the posted header instead of claiming "AI".
+        comment_body = f"## Automated Code Review (heuristic rules — no model)\n\n{review_data.get('reviewComment', 'No comment provided.')}\n\n**Recommendation:** {recommendation}"
 
         self.orchestrator.github.create_review(pr_number, comment_body, [], event)
 
