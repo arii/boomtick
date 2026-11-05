@@ -3,7 +3,9 @@ import { config } from "../config.js";
 import { execSync } from "child_process";
 import * as fs from "fs";
 import * as path from "path";
-import { runTDCli } from "./jules/shared.js";
+import * as yaml from "yaml";
+import { runTDCli } from "../lib/tdCli.js";
+import { AgentContractConfigSchema } from "./contract.js";
 
 export interface AgentContext {
   packageName: string;
@@ -79,6 +81,117 @@ export async function resolveTargetRepoPath(args: {
   return config.repoPath;
 }
 
+export function readAgentContractSection(targetPath: string): {
+  found: boolean;
+  path: string;
+  content: string | null;
+  config: Record<string, unknown> | null;
+} {
+  const contractPath = path.join(targetPath, ".agents", "AGENT_CONTRACT.md");
+  if (!fs.existsSync(contractPath)) {
+    return { found: false, path: contractPath, content: null, config: null };
+  }
+  const rawContent = fs.readFileSync(contractPath, "utf-8");
+  const frontMatterMatch = rawContent.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n?/);
+  let parsedConfigRaw: Record<string, unknown> | null = null;
+  let markdownBody = rawContent;
+  if (frontMatterMatch) {
+    markdownBody = rawContent.slice(frontMatterMatch[0].length);
+    try {
+      const parsedYaml = yaml.parse(frontMatterMatch[1]);
+      if (parsedYaml && typeof parsedYaml === "object") {
+        parsedConfigRaw = parsedYaml as Record<string, unknown>;
+      }
+    } catch {
+      // Fall through to raw body with default config
+    }
+  }
+  if (!parsedConfigRaw) {
+    const jsonConfigPath = path.join(targetPath, ".agents", "agent-config.json");
+    if (fs.existsSync(jsonConfigPath)) {
+      try {
+        const parsedJson = JSON.parse(fs.readFileSync(jsonConfigPath, "utf-8"));
+        if (parsedJson && typeof parsedJson === "object") {
+          parsedConfigRaw = parsedJson as Record<string, unknown>;
+        }
+      } catch {
+        // Fall through to default config
+      }
+    }
+  }
+  const parsed = AgentContractConfigSchema.parse(parsedConfigRaw || {});
+  return { found: true, path: contractPath, content: markdownBody, config: parsed };
+}
+
+export function getPackageScriptsSection(targetPath: string): Record<string, string> {
+  const packageJsonPath = path.join(targetPath, "package.json");
+  if (!fs.existsSync(packageJsonPath)) {
+    return {};
+  }
+  try {
+    const pkg = JSON.parse(fs.readFileSync(packageJsonPath, "utf-8"));
+    return (pkg.scripts && typeof pkg.scripts === "object" ? pkg.scripts : {}) as Record<string, string>;
+  } catch {
+    return {};
+  }
+}
+
+export function getVectorIndexStatus(targetPath: string): {
+  warm: boolean;
+  lastWarmedAt: string | null;
+  path: string;
+  staleFiles: string[];
+} {
+  const contextFile = path.join(targetPath, ".agent-context.json");
+  if (!fs.existsSync(contextFile)) {
+    return { warm: false, lastWarmedAt: null, path: contextFile, staleFiles: [".agent-context.json missing"] };
+  }
+  let lastWarmedAt: string | null = null;
+  let contextMtime = 0;
+  try {
+    const stats = fs.statSync(contextFile);
+    contextMtime = stats.mtimeMs;
+    lastWarmedAt = stats.mtime.toISOString();
+  } catch {
+    // stat failed
+  }
+  let isStale = false;
+  const staleFiles: string[] = [];
+  try {
+    const gitRes = execSync("git log -1 --format=%ct -- .agent-context.json", {
+      cwd: targetPath, encoding: "utf-8", stdio: ["pipe", "pipe", "ignore"],
+    }).trim();
+    const contextCommitTs = parseInt(gitRes || "0", 10);
+    const headRes = execSync("git log -1 --format=%ct HEAD", {
+      cwd: targetPath, encoding: "utf-8", stdio: ["pipe", "pipe", "ignore"],
+    }).trim();
+    const headTs = parseInt(headRes || "0", 10);
+    if (headTs > contextCommitTs) {
+      isStale = true;
+      staleFiles.push("HEAD commit is newer than .agent-context.json commit");
+    }
+  } catch {
+    // Git check fallback
+  }
+  const keyFiles = ["package.json", "project_config.json", "cli/dev_tools/cli-schema.json", "cli/dev_tools/cli-commands-schema.json"];
+  for (const keyFile of keyFiles) {
+    const fullPath = path.join(targetPath, keyFile);
+    if (fs.existsSync(fullPath)) {
+      try {
+        if (fs.statSync(fullPath).mtimeMs > contextMtime) {
+          isStale = true;
+          if (!staleFiles.includes(keyFile)) {
+            staleFiles.push(keyFile);
+          }
+        }
+      } catch {
+        // ignore
+      }
+    }
+  }
+  return { warm: !isStale, lastWarmedAt, path: contextFile, staleFiles };
+}
+
 export const ReadAgentContextInputSchema = z.object({
   path: z.string().optional().describe("Local filesystem path to target repository root"),
   repoPath: z.string().optional().describe("Alias for path to target repository root"),
@@ -114,7 +227,10 @@ export async function readAgentContextHandler(args: z.infer<typeof ReadAgentCont
         status: "success",
         repo: args.repo,
         path: matchedPath,
-        ...context
+        ...context,
+        agent_contract: readAgentContractSection(matchedPath),
+        package_scripts: getPackageScriptsSection(matchedPath),
+        vector_index: getVectorIndexStatus(matchedPath)
       };
     }
   }
@@ -125,7 +241,10 @@ export async function readAgentContextHandler(args: z.infer<typeof ReadAgentCont
   const result: any = {
     status: "success",
     path: targetPath,
-    ...context
+    ...context,
+    agent_contract: readAgentContractSection(targetPath),
+    package_scripts: getPackageScriptsSection(targetPath),
+    vector_index: getVectorIndexStatus(targetPath)
   };
   if (args?.repo) {
     result.repo = args.repo;

@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { resolveRepo } from "../lib/git.js";
-import { runTDCli } from "./jules/cli.js";
+import { runTDCli } from "../lib/tdCli.js";
 
 export const GetPrDiffInputSchema = z.object({
   prNumber: z.number().describe("The number of the pull request to get the diff for."),

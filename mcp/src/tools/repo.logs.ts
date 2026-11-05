@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { runTDCli } from "./jules/shared.js";
+import { runTDCli } from "../lib/tdCli.js";
 
 export const RepoLogsInputSchema = z.object({
   prNumber: z.number(),
