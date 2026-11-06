@@ -74,3 +74,60 @@ describe("cdp_client", () => {
     expect(argv).not.toContain("--preview-url");
   });
 });
+
+describe("cdp cursor and input dispatch (#1144)", () => {
+  function fakeSender(center: { x: number; y: number } | null = { x: 10, y: 20 }) {
+    const calls: Array<{ method: string; params?: Record<string, unknown> }> = [];
+    const send = async (method: string, params?: Record<string, unknown>) => {
+      calls.push({ method, params });
+      if (method === "Runtime.evaluate" && params && typeof params.expression === "string" && params.expression.includes("getBoundingClientRect")) {
+        return { result: center ? { value: center } : {} };
+      }
+      return {};
+    };
+    return { calls, send };
+  }
+
+  it("overlays the cursor before clicking", async () => {
+    const { cdpClick } = await import("./cdp_client.js");
+    const { calls, send } = fakeSender();
+    const pt = await cdpClick(send, { selector: "button" });
+    expect(pt).toEqual({ x: 10, y: 20 });
+    const methods = calls.map((c) => c.method);
+    expect(methods).toContain("Page.addScriptToEvaluateOnNewDocument");
+    expect(methods).toContain("Input.dispatchMouseEvent");
+    const pressed = calls.find((c) => c.method === "Input.dispatchMouseEvent" && (c.params as any)?.type === "mousePressed");
+    expect((pressed?.params as any)?.button).toBe("left");
+  });
+
+  it("clicks coordinates without a selector", async () => {
+    const { cdpClick } = await import("./cdp_client.js");
+    const { calls, send } = fakeSender();
+    const pt = await cdpClick(send, { x: 5, y: 6 });
+    expect(pt).toEqual({ x: 5, y: 6 });
+    expect(calls.some((c) => (c.params as any)?.expression?.includes("getBoundingClientRect"))).toBe(false);
+  });
+
+  it("throws on a missing selector", async () => {
+    const { resolveSelectorCenter } = await import("./cdp_client.js");
+    const { send } = fakeSender(null);
+    await expect(resolveSelectorCenter(send, ".nope")).rejects.toThrow("Element not found");
+  });
+
+  it("types per-character key events with optional enter", async () => {
+    const { cdpTypeText } = await import("./cdp_client.js");
+    const { calls, send } = fakeSender();
+    await cdpTypeText(send, { selector: "input", text: "hi", pressEnter: true });
+    const keys = calls.filter((c) => c.method === "Input.dispatchKeyEvent");
+    expect(keys.filter((c) => (c.params as any)?.type === "keyDown")).toHaveLength(2);
+    // two per-character keyUps plus the Enter keyUp
+    expect(keys.filter((c) => (c.params as any)?.type === "keyUp")).toHaveLength(3);
+    expect(keys.some((c) => (c.params as any)?.key === "Enter")).toBe(true);
+  });
+
+  it("injection script is a single self-contained payload", async () => {
+    const { CURSOR_INJECTION_SCRIPT } = await import("./cdp_client.js");
+    expect(CURSOR_INJECTION_SCRIPT).toContain("__agent_cdp_cursor");
+    expect(CURSOR_INJECTION_SCRIPT).not.toMatch(/'\s*'/);
+  });
+});
