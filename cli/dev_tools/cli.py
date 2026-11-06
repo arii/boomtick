@@ -2759,14 +2759,21 @@ def _impact_dependents(worktree, changed):
               help="Path to the worktree to analyze")
 @click.option("--top-k", "top_k", default=25, type=int,
               help="Maximum impacted files to list")
+@click.option("--preview-url", "preview_url", default=None,
+              help="Base URL of a live preview for the visual/DOM audit "
+                   "of UI changes. Falls back to PREVIEW_URL.")
 @_gate_json_option
 @click.pass_context
-def audit_impact_gate(ctx, worktree, top_k):
+def audit_impact_gate(ctx, worktree, top_k, preview_url):
     """Blast-radius analysis for worktree changes (exit 0 iff clean).
 
-    Emits {"impacted_files", "dependent_tests", "violations"} where
-    violations are AST findings on changed files. Nonzero exit when
-    any violation exists.
+    Emits {"impacted_files", "dependent_tests", "violations",
+    "ui_changed", "visual_diff"} where violations are AST findings
+    on changed files. When changed files touch UI templates/styles
+    and a preview URL is available, a remote-CDP snapshot is captured
+    via browserless (never a local Chrome) and attached as
+    "visual_diff"; an unreachable browser fails the gate. Nonzero
+    exit when any violation exists.
     """
     from dev_tools.services.ast_audit import ASTAuditor
     try:
@@ -2803,11 +2810,32 @@ def audit_impact_gate(ctx, worktree, top_k):
             {d for deps in dependents.values() for d in deps
              if _is_test_path(d)}
             | {p for p in changed if _is_test_path(p)})[:top_k]
-        passed = not violations
+        ui_extensions = {".tsx", ".jsx", ".vue", ".html",
+                         ".css", ".scss"}
+        ui_changed = any(Path(f).suffix in ui_extensions
+                         for f in changed)
+        preview = preview_url or os.environ.get("PREVIEW_URL")
+        visual_diff = None
+        visual_error = None
+        if ui_changed and preview:
+            from dev_tools.services.browser_cdp import (
+                capture_dom_and_visual_snapshot)
+            snap = capture_dom_and_visual_snapshot(
+                target_url=preview,
+                output_dir=Path(worktree) / ".td_rag" / "snapshots",
+            )
+            visual_diff = snap.to_dict()
+            if not snap.reachable:
+                visual_error = snap.error or "BROWSERLESS_UNREACHABLE"
+        passed = not violations and visual_error is None
         data = {"passed": passed,
                 "impacted_files": impacted,
                 "dependent_tests": dependent_tests,
-                "violations": violations}
+                "violations": violations,
+                "ui_changed": ui_changed,
+                "visual_diff": visual_diff}
+        if visual_error:
+            data["error"] = visual_error
         if not ctx.obj["JSON"]:
             if passed:
                 click.echo(
