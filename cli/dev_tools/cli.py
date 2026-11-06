@@ -2826,7 +2826,7 @@ def audit_impact_gate(ctx, worktree, top_k, preview_url):
             )
             visual_diff = snap.to_dict()
             if not snap.reachable:
-                visual_error = snap.error or "BROWSERLESS_UNREACHABLE"
+                visual_error = snap.error or "BROWSER_UNREACHABLE"
         passed = not violations and visual_error is None
         data = {"passed": passed,
                 "impacted_files": impacted,
