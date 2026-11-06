@@ -2,6 +2,7 @@ import { z } from "zod";
 import { recordToolReceipt } from "../lib/session_manager.js";
 import { runTDCli } from "../lib/tdCli.js";
 
+/** @deprecated Prefer td_init + td_rag so queries skip rebuilds (#1139 item 2). */
 export const TdInitAndRagInputSchema = z.object({
   repoRoot: z.string().optional().describe("Repo root to initialize (default: git root)."),
   query: z.string().optional().describe("Optional natural-language query to run after init."),

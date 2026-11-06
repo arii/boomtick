@@ -7,8 +7,8 @@ import * as getPrModule from "../tools/github.get_pr.js";
 import * as ciLogsModule from "../tools/repo.read_ci_logs.js";
 import * as gitLibModule from "../lib/git.js";
 import * as tdCliModule from "../lib/tdCli.js";
-import * as worktreeListModule from "../tools/worktree.list.js";
 import * as tdValidateModule from "../tools/td.validate_issue.js";
+import * as tdInitModule from "../tools/td.init.js";
 
 vi.mock("fs/promises");
 vi.mock("../config.js", () => ({
@@ -315,12 +315,11 @@ describe("BoomtickMCPServer", () => {
         "repo_read_ci_logs",
         "repo_run_tests",
         "td_audit_worktree",
+        "td_init",
         "td_init_and_rag",
+        "td_rag",
         "td_validate_issue",
         "td_verify_scope",
-        "worktree_create",
-        "worktree_list",
-        "worktree_remove",
       ]);
     });
 
@@ -373,6 +372,10 @@ describe("BoomtickMCPServer", () => {
         "repo_multi_exec",
         "skill_list",
         "skill_read",
+        // #1139 item 1: worktree lifecycle moved to the orchestrator.
+        "worktree_create",
+        "worktree_list",
+        "worktree_remove",
       ]) {
         const result = await handler!({
           method: "tools/call",
@@ -393,22 +396,18 @@ describe("BoomtickMCPServer", () => {
       expect(res.structuredContent).toEqual({ valid: true });
     });
 
-    it("should execute worktree_list and return structuredContent as a record object wrapping worktrees", async () => {
+    it("should execute td_init split tool (#1139 item 2)", async () => {
       const handler = requestHandlers.get("tools/call");
-      vi.spyOn(worktreeListModule, "worktreeListHandler").mockResolvedValue({
-        worktrees: [{ path: "/tmp/wt-1", branch: "agent/1" }],
+      vi.spyOn(tdInitModule, "tdInitHandler").mockResolvedValue({
+        status: "ready",
       } as any);
 
       const res = await handler!({
         method: "tools/call",
-        params: { name: "worktree_list", arguments: {} },
+        params: { name: "td_init", arguments: {} },
       });
 
-      expect(res.structuredContent).toEqual({
-        worktrees: [{ path: "/tmp/wt-1", branch: "agent/1" }],
-      });
-      expect(Array.isArray(res.structuredContent)).toBe(false);
-      expect(typeof res.structuredContent).toBe("object");
+      expect(res.structuredContent).toEqual({ status: "ready" });
     });
 
     it("should return error result for unknown tool", async () => {

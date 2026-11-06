@@ -1,8 +1,10 @@
-"""Local worktree session bookkeeping, mirroring the MCP session tools.
+"""Local worktree session bookkeeping: the single owner of td session lifecycle.
 
-File layout mirrors ``mcp/src/lib/session_manager.ts`` and
-``mcp/src/lib/skills.ts`` so ``td`` and the MCP tools read and write the
-same state:
+``td agent run`` + ``td session`` own dispatch/execute/supervise/teardown
+end to end (#1139 item 3); ``mcp/src/lib/session_manager.ts`` keeps only
+MCP tool telemetry (receipts) plus the confined dispatch path pinned by
+#1099/#1112. Both sides share the file layout below so ``td`` and the MCP
+tools read and write the same state:
 
 - ``<repo>/.worktrees/<name>/session.json`` (AgentSession schema)
 - ``<repo>/.agents/skills/<name>/SKILL.md``
@@ -111,6 +113,27 @@ def load_session(root, session_id):
         if session.get("sessionId") == session_id:
             return session
     raise SessionNotFound(f"Session {session_id} not found")
+
+
+def abandon_sessions_in_worktree(root, worktree_path):
+    """Mark sessions bound to ``worktree_path`` abandoned; return their ids.
+
+    Single-owner session teardown (#1139 item 3): worktree removal calls
+    this instead of the MCP SessionManager path, so ``td`` (via
+    local_sessions.py) owns session lifecycle end to end.
+    """
+    target = os.path.abspath(worktree_path)
+    abandoned = []
+    for session in scan_sessions(root):
+        bound = session.get("worktreePath")
+        if bound and os.path.abspath(bound) == target:
+            session["state"] = "abandoned"
+            session["status"] = "abandoned"
+            session["updatedAt"] = int(time.time() * 1000)
+            save_session(session)
+            if session.get("sessionId"):
+                abandoned.append(session["sessionId"])
+    return abandoned
 
 
 def save_session(session):

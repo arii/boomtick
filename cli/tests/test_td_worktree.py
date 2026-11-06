@@ -150,9 +150,70 @@ def test_link_warm_deps_symlinks_missing_only(tmp_path):
     assert wt.link_warm_deps(str(root), str(wt_dir)) == []
 
 
+def test_remove_abandons_bound_sessions(repo):
+    # #1139 item 3: removal abandons bound sessions via local_sessions
+    # (single owner) before unregistering the worktree.
+    from unittest.mock import patch
+    from dev_tools.services import local_sessions as ls
+    wid, path, _branch = wt.create(str(repo), "demo")
+    with patch.object(ls, "abandon_sessions_in_worktree",
+                      return_value=["sess_x"]) as abandon:
+        wt.remove(str(repo), wid)
+    abandon.assert_called_once_with(str(repo), path)
+
+
 def test_fetch_main_reports_state(origin_repo):
     _updated, _sha, note = wt.fetch_main(str(origin_repo))
     assert isinstance(note, str) and note
+
+
+def _clone_to(tmp_path, origin_repo, name):
+    work = tmp_path / name
+    subprocess.run(["git", "clone", "-q", str(origin_repo), str(work)],
+                   cwd=str(tmp_path), capture_output=True, check=True)
+    _git(["config", "user.email", "t@t"], work)
+    _git(["config", "user.name", "t"], work)
+    return work
+
+
+def _rev(root, ref):
+    out = subprocess.run(["git", "rev-parse", ref], cwd=str(root),
+                         capture_output=True, text=True, check=True)
+    return out.stdout.strip()
+
+
+def _advance_origin(origin_repo):
+    (origin_repo / "bump.txt").write_text("bump\n")
+    _git(["add", "."], origin_repo)
+    _git(["commit", "-qm", "bump"], origin_repo)
+
+
+def test_fast_forward_main_ref_without_checkout(tmp_path, origin_repo):
+    # #1139 item 6: local main advances via update-ref while a feature
+    # branch (not main) is checked out; the feature branch is untouched.
+    work = _clone_to(tmp_path, origin_repo, "work")
+    stale_main = _rev(work, "refs/heads/main")
+    _git(["checkout", "-qb", "feature"], work)
+    _advance_origin(origin_repo)
+    updated, note = wt.fast_forward_main_ref(str(work))
+    assert updated is True
+    assert _rev(work, "refs/heads/main") == _rev(origin_repo, "HEAD") != stale_main
+    assert _rev(work, "HEAD") != _rev(work, "refs/heads/main")
+    assert "main ref" in note
+
+
+def test_fast_forward_main_ref_refuses_diverged(tmp_path, origin_repo):
+    work = _clone_to(tmp_path, origin_repo, "work2")
+    _git(["checkout", "-qb", "feature"], work)
+    _advance_origin(origin_repo)
+    (work / "local.txt").write_text("local\n")
+    _git(["checkout", "-q", "main"], work)
+    _git(["add", "."], work)
+    _git(["commit", "-qm", "local-diverged"], work)
+    _git(["checkout", "-q", "feature"], work)
+    updated, note = wt.fast_forward_main_ref(str(work))
+    assert updated is False
+    assert "diverged" in note
 
 
 def test_cli_create_issue(origin_repo):

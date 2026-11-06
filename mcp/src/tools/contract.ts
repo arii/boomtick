@@ -5122,6 +5122,141 @@ export const TdInitAndRagResponseJsonSchema = {
   "type": "object"
 } as const;
 
+export const TdInitInputSchema = z.object({ "repoRoot": z.union([z.string(), z.null()]).describe("Repo root to initialize (default: git root).").default(null) });
+
+export type TdInitInput = z.infer<typeof TdInitInputSchema>;
+
+export const TdInitInputJsonSchema = {
+  "properties": {
+    "repoRoot": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Repo root to initialize (default: git root).",
+      "title": "Reporoot"
+    }
+  },
+  "title": "TdInitInput",
+  "type": "object"
+} as const;
+
+export const TdInitResponseSchema = z.object({ "status": z.union([z.string(), z.null()]).default(null), "data": z.union([z.any(), z.null()]).default(null) });
+
+export type TdInitResponse = z.infer<typeof TdInitResponseSchema>;
+
+export const TdInitResponseJsonSchema = {
+  "properties": {
+    "status": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Status"
+    },
+    "data": {
+      "anyOf": [
+        {},
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Data"
+    }
+  },
+  "title": "TdInitResponse",
+  "type": "object"
+} as const;
+
+export const TdRagInputSchema = z.object({ "repoRoot": z.union([z.string(), z.null()]).describe("Repo root for the RAG index (default: git root).").default(null), "query": z.string().describe("Natural-language query to run (no rebuild)."), "topK": z.union([z.number().int(), z.null()]).describe("Maximum RAG hits to return.").default(null) });
+
+export type TdRagInput = z.infer<typeof TdRagInputSchema>;
+
+export const TdRagInputJsonSchema = {
+  "properties": {
+    "repoRoot": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Repo root for the RAG index (default: git root).",
+      "title": "Reporoot"
+    },
+    "query": {
+      "description": "Natural-language query to run (no rebuild).",
+      "title": "Query",
+      "type": "string"
+    },
+    "topK": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Maximum RAG hits to return.",
+      "title": "Topk"
+    }
+  },
+  "required": [
+    "query"
+  ],
+  "title": "TdRagInput",
+  "type": "object"
+} as const;
+
+export const TdRagResponseSchema = z.object({ "status": z.union([z.string(), z.null()]).default(null), "data": z.union([z.any(), z.null()]).default(null) });
+
+export type TdRagResponse = z.infer<typeof TdRagResponseSchema>;
+
+export const TdRagResponseJsonSchema = {
+  "properties": {
+    "status": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Status"
+    },
+    "data": {
+      "anyOf": [
+        {},
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Data"
+    }
+  },
+  "title": "TdRagResponse",
+  "type": "object"
+} as const;
+
 export const TdValidateIssueInputSchema = z.object({ "file": z.string().describe("Path to the design spec file (or - for stdin)."), "repoRoot": z.union([z.string(), z.null()]).describe("Repo root for file existence checks.").default(null) });
 
 export type TdValidateIssueInput = z.infer<typeof TdValidateIssueInputSchema>;

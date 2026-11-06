@@ -2,15 +2,15 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import fs from "fs/promises";
 import os from "os";
 import path from "path";
-import { execSync } from "child_process";
-import { config } from "../config.js";
 import { SessionManager } from "./session_manager.js";
 import {
   EXECUTOR_PROMPT_TEMPLATE,
   fillExecutorPrompt,
 } from "./executor_prompt.js";
-import { worktreeCreateHandler } from "../tools/worktree.create.js";
-import { worktreeRemoveHandler } from "../tools/worktree.remove.js";
+// NOTE (#1139 item 1): the worktree.* MCP tools were deleted with the
+// orchestrator (`td worktree` / worktrees.py) owning lifecycle, including
+// remove-side session abandonment (see test_remove_abandons_bound_sessions
+// in cli/tests/test_td_worktree.py).
 
 function fakeSession(over: Record<string, unknown> = {}) {
   return {
@@ -111,57 +111,6 @@ describe("session machinery confinement (#1099, #1112)", () => {
     expect(out).toEqual(["s1"]);
     expect(mgr.getSession("s1").state).toBe("abandoned");
     expect(mgr.getSession("s2").state).toBe("running");
-  });
-});
-
-describe("worktree remove ends sessions (#1099)", () => {
-  let tmpRepoDir: string;
-
-  beforeEach(async () => {
-    SessionManager.resetInstance();
-    tmpRepoDir = await fs.mkdtemp(path.join(os.tmpdir(), "bt-wt-"));
-    execSync("git init -b main", { cwd: tmpRepoDir });
-    execSync('git config user.email "test@example.com"', { cwd: tmpRepoDir });
-    execSync('git config user.name "Test Runner"', { cwd: tmpRepoDir });
-    await fs.writeFile(path.join(tmpRepoDir, "README.md"), "# test\n");
-    execSync("git add README.md && git commit -m init", { cwd: tmpRepoDir });
-    vi.spyOn(config, "repoPath", "get").mockReturnValue(tmpRepoDir);
-  });
-
-  afterEach(async () => {
-    vi.restoreAllMocks();
-    SessionManager.resetInstance();
-    try {
-      await fs.rm(tmpRepoDir, { recursive: true, force: true });
-    } catch {
-      // ignore
-    }
-  });
-
-  it("remove abandons the bound session and reports it", async () => {
-    const created = await worktreeCreateHandler({
-      name: "Wt Test",
-      baseBranch: "main",
-      writeMode: true,
-      repo: null,
-      path: null,
-    } as any);
-    const mgr = SessionManager.getInstance();
-    mgr.registerSession(fakeSession({
-      sessionId: "sess_bound",
-      worktreeId: created.worktreeId,
-      worktreePath: created.path,
-    }));
-    const removed = await worktreeRemoveHandler({
-      worktreeId: created.worktreeId,
-      force: false,
-      writeMode: true,
-      repo: null,
-      path: null,
-    } as any);
-    expect(removed.status).toBe("removed");
-    expect(removed.abandonedSessions).toContain("sess_bound");
-    expect(mgr.getSession("sess_bound").state).toBe("abandoned");
   });
 });
 

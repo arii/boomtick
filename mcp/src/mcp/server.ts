@@ -23,6 +23,8 @@ import { issueUpdateHandler, IssueUpdateInputSchema } from "../tools/github.issu
 import { issueCommentHandler, IssueCommentInputSchema } from "../tools/github.issue_comment.js";
 import { createIssueHandler, CreateIssueInputSchema } from "../tools/github.create_issue.js";
 import { tdInitAndRagHandler, TdInitAndRagInputSchema } from "../tools/td.init_and_rag.js";
+import { tdInitHandler, TdInitInputSchema } from "../tools/td.init.js";
+import { tdRagHandler, TdRagInputSchema } from "../tools/td.rag.js";
 import { tdValidateIssueHandler, TdValidateIssueInputSchema } from "../tools/td.validate_issue.js";
 import { tdVerifyScopeHandler, TdVerifyScopeInputSchema } from "../tools/td.verify_scope.js";
 import { tdAuditWorktreeHandler, TdAuditWorktreeInputSchema } from "../tools/td.audit_worktree.js";
@@ -31,9 +33,9 @@ import { tdAuditWorktreeHandler, TdAuditWorktreeInputSchema } from "../tools/td.
 import { agentSubmitPrHandler } from "../tools/agent.submit_pr.js";
 import { AgentSubmitPrInputSchema } from "../tools/contract.js";
 
-import { worktreeCreateHandler, WorktreeCreateInputSchema } from "../tools/worktree.create.js";
-import { worktreeListHandler, WorktreeListInputSchema } from "../tools/worktree.list.js";
-import { worktreeRemoveHandler, WorktreeRemoveInputSchema } from "../tools/worktree.remove.js";
+// NOTE (#1139 item 1): worktree lifecycle moved to the orchestrator
+// (`td worktree` / cli/dev_tools/services/worktrees.py). The worktree.*
+// MCP tools were deleted; do not re-add them here.
 import { getChangedFiles } from "../lib/git.js";
 import { runTDCli } from "../lib/tdCli.js";
 
@@ -248,6 +250,10 @@ export class BoomtickMCPServer {
             return createSuccessResult(await createIssueHandler(CreateIssueInputSchema.parse(normArgs)));
           case "td_init_and_rag":
             return createSuccessResult(await tdInitAndRagHandler(TdInitAndRagInputSchema.parse(normArgs)));
+          case "td_init":
+            return createSuccessResult(await tdInitHandler(TdInitInputSchema.parse(normArgs)));
+          case "td_rag":
+            return createSuccessResult(await tdRagHandler(TdRagInputSchema.parse(normArgs)));
           case "td_validate_issue":
             return createSuccessResult(await tdValidateIssueHandler(TdValidateIssueInputSchema.parse(normArgs)));
           case "td_verify_scope":
@@ -257,12 +263,6 @@ export class BoomtickMCPServer {
 
           case "agent_submit_pr":
             return createSuccessResult(await agentSubmitPrHandler(AgentSubmitPrInputSchema.parse(normArgs)));
-          case "worktree_create":
-            return createSuccessResult(await worktreeCreateHandler(WorktreeCreateInputSchema.parse(normArgs)));
-          case "worktree_list":
-            return createSuccessResult(await worktreeListHandler(WorktreeListInputSchema.parse(normArgs)));
-          case "worktree_remove":
-            return createSuccessResult(await worktreeRemoveHandler(WorktreeRemoveInputSchema.parse(normArgs)));
           default:
             return createErrorResult(`Tool not found: ${request.params.name}`);
         }

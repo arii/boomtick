@@ -20,12 +20,10 @@ import {
   ReadAgentContextResponseJsonSchema,
   AgentSubmitPrInputJsonSchema,
   AgentSubmitPrResponseJsonSchema,
-  WorktreeCreateInputJsonSchema,
-  WorktreeCreateResponseJsonSchema,
-  WorktreeListInputJsonSchema,
-  WorktreeListResponseJsonSchema,
-  WorktreeRemoveInputJsonSchema,
-  WorktreeRemoveResponseJsonSchema,
+  TdInitInputJsonSchema,
+  TdInitResponseJsonSchema,
+  TdRagInputJsonSchema,
+  TdRagResponseJsonSchema,
   TdInitAndRagInputJsonSchema,
   TdInitAndRagResponseJsonSchema,
   TdValidateIssueInputJsonSchema,
@@ -171,7 +169,8 @@ export const MCP_RESOURCE_TEMPLATES: ResourceTemplate[] = [
   },
 ];
 
-const BASE_MCP_TOOLS: Tool[] = [
+// Primary toolset for the Issue/Coder/Auditor lane roles.
+const CORE_MCP_TOOLS: Tool[] = [
   {
     name: "boomtick_health",
     description: "Check the health and configuration of the MCP server.",
@@ -185,22 +184,10 @@ const BASE_MCP_TOOLS: Tool[] = [
     outputSchema: ReadAgentContextResponseJsonSchema as any,
   },
   {
-    name: "repo_read_ci_logs",
-    description: "Read CI logs for a given pull request.",
-    inputSchema: ReadCiLogsInputJsonSchema as any,
-    outputSchema: ReadCiLogsResponseJsonSchema as any,
-  },
-  {
     name: "repo_run_tests",
     description: "Run repository tests and checks.",
     inputSchema: RunTestsInputJsonSchema as any,
     outputSchema: RunTestsResponseJsonSchema as any,
-  },
-  {
-    name: "github_get_pr",
-    description: "Get details of a GitHub PR including title, state, and URLs.",
-    inputSchema: GetPrInputJsonSchema as any,
-    outputSchema: GetPrResponseJsonSchema as any,
   },
   {
     name: "github_issue_view",
@@ -215,12 +202,6 @@ const BASE_MCP_TOOLS: Tool[] = [
     outputSchema: IssueUpdateResponseJsonSchema as any,
   },
   {
-    name: "github_issue_comment",
-    description: "Add a new comment to a GitHub issue.",
-    inputSchema: IssueCommentInputJsonSchema as any,
-    outputSchema: IssueCommentResponseJsonSchema as any,
-  },
-  {
     name: "github_create_issue",
     description: "Create a new GitHub issue.",
     inputSchema: CreateIssueInputJsonSchema as any,
@@ -228,31 +209,25 @@ const BASE_MCP_TOOLS: Tool[] = [
   },
   {
     name: "agent_submit_pr",
-    description: "Submit a branch as a pull request (push + open, draft by default). Agents submit; humans merge.",
+    description: "Submit a branch as a pull request via the deterministic td agent submit-pr exit node (push + open, draft by default). Agents submit; humans merge.",
     inputSchema: AgentSubmitPrInputJsonSchema as any,
     outputSchema: AgentSubmitPrResponseJsonSchema as any,
   },
   {
-    name: "worktree_create",
-    description: "Create a managed git worktree under .worktrees for an agent session.",
-    inputSchema: WorktreeCreateInputJsonSchema as any,
-    outputSchema: WorktreeCreateResponseJsonSchema as any,
+    name: "td_init",
+    description: "Initialize a repo (fast-forward main, sync deps, index RAG). Query separately with td_rag.",
+    inputSchema: TdInitInputJsonSchema as any,
+    outputSchema: TdInitResponseJsonSchema as any,
   },
   {
-    name: "worktree_list",
-    description: "List managed git worktrees under .worktrees.",
-    inputSchema: WorktreeListInputJsonSchema as any,
-    outputSchema: WorktreeListResponseJsonSchema as any,
-  },
-  {
-    name: "worktree_remove",
-    description: "Remove a managed git worktree. Refuses dirty trees without force.",
-    inputSchema: WorktreeRemoveInputJsonSchema as any,
-    outputSchema: WorktreeRemoveResponseJsonSchema as any,
+    name: "td_rag",
+    description: "Query the RAG vector index without re-running init builds.",
+    inputSchema: TdRagInputJsonSchema as any,
+    outputSchema: TdRagResponseJsonSchema as any,
   },
   {
     name: "td_init_and_rag",
-    description: "Initialize a repo (fast-forward main, sync deps, index RAG) and optionally query the vector index.",
+    description: "[Deprecated: use td_init + td_rag] Initialize a repo and optionally query the vector index.",
     inputSchema: TdInitAndRagInputJsonSchema as any,
     outputSchema: TdInitAndRagResponseJsonSchema as any,
   },
@@ -276,4 +251,29 @@ const BASE_MCP_TOOLS: Tool[] = [
   },
 ];
 
-export const MCP_TOOLS: Tool[] = BASE_MCP_TOOLS;
+// Demoted surface (#1139 item 1): kept on the wire for diagnostics, but
+// out of the primary Issue/Coder/Auditor toolsets. Worktree lifecycle
+// moved to the orchestrator (`td worktree` / worktrees.py); do not
+// re-add worktree_create/list/remove here.
+const EXTENDED_MCP_TOOLS: Tool[] = [
+  {
+    name: "repo_read_ci_logs",
+    description: "[Demoted] Read CI logs for a given pull request.",
+    inputSchema: ReadCiLogsInputJsonSchema as any,
+    outputSchema: ReadCiLogsResponseJsonSchema as any,
+  },
+  {
+    name: "github_get_pr",
+    description: "[Demoted] Get details of a GitHub PR including title, state, and URLs.",
+    inputSchema: GetPrInputJsonSchema as any,
+    outputSchema: GetPrResponseJsonSchema as any,
+  },
+  {
+    name: "github_issue_comment",
+    description: "[Demoted] Add a new comment to a GitHub issue.",
+    inputSchema: IssueCommentInputJsonSchema as any,
+    outputSchema: IssueCommentResponseJsonSchema as any,
+  },
+];
+
+export const MCP_TOOLS: Tool[] = [...CORE_MCP_TOOLS, ...EXTENDED_MCP_TOOLS];
