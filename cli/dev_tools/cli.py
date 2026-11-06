@@ -1634,6 +1634,36 @@ def submit_pr(ctx, worktree, title, body, base, draft, issue_number,
         _handle_unexpected_error(ctx, "agent submit-pr", e)
 
 
+@agent_group.command(name="verify-fleet")
+@click.option("--repos", multiple=True, default=None,
+              help="Partner repositories to audit (default: tech-dancer, hrm, glossy)")
+@click.option("--json", "as_json", is_flag=True,
+              help="Output machine-readable JSON status")
+@click.pass_context
+def verify_fleet(ctx, repos, as_json):
+    """Verify deep-agent assignment across partner repos."""
+    from dev_tools import multi_repo as mr
+    from dev_tools.services import local_sessions as ls
+    try:
+        from dev_tools.utils import get_github_client
+        report = mr.verify_partner_deep_agents(
+            get_github_client(), ls.repo_root_for(None), list(repos) or None)
+        if not ctx.obj["JSON"] and not as_json:
+            for name, info in report.items():
+                click.echo(
+                    f"{name}: reachable={info['reachable']} "
+                    f"registered={info['registered']} "
+                    f"issues={info['open_issues_count']} "
+                    f"agent={info['agent_assigned_issues']} "
+                    f"prs={info['open_agent_prs']} "
+                    f"worktrees={info['active_worktrees']} "
+                    f"healthy={info['healthy']}")
+        out(ctx, f"Verified {len(report)} partner repo(s).",
+            data={"repos": report})
+    except Exception as e:
+        _handle_unexpected_error(ctx, "agent verify-fleet", e)
+
+
 @agent_group.command(name="run-local")
 @click.option("--pr", "--pr-number", "pr_number", required=False, type=int, help="Pull Request number to evaluate.")
 @click.option("--issue", "issue_number", type=int, help="Optional linked Issue number.")

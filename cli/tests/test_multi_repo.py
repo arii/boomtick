@@ -134,3 +134,92 @@ def test_cli_multi_repo_exec():
     data = json.loads(res.output)
     assert data["status"] == "success"
     assert data["total_passed"] >= 1
+
+
+class _FakeLabel:
+    def __init__(self, name):
+        self.name = name
+
+
+class _FakeIssue:
+    def __init__(self, number, labels):
+        self.number = number
+        self._labels = [_FakeLabel(n) for n in labels]
+
+    def get_labels(self):
+        return list(self._labels)
+
+
+class _FakePR:
+    def __init__(self, number):
+        self.number = number
+
+
+class _FakeRepo:
+    def __init__(self, issues, pulls):
+        self._issues = issues
+        self._pulls = pulls
+
+    def get_issues(self, state="open"):
+        return list(self._issues)
+
+    def get_pulls(self, state="open"):
+        return list(self._pulls)
+
+
+class _FakeGithub:
+    def __init__(self, repos):
+        self._repos = repos
+
+    def get_repo(self, name):
+        if name not in self._repos:
+            raise ValueError(f"unknown repo {name}")
+        return self._repos[name]
+
+
+def test_verify_partner_deep_agents_reports_assignment(tmp_path):
+    from dev_tools import multi_repo as mr
+
+    (tmp_path / "project_config.json").write_text(json.dumps({
+        "ecosystem_repos": {"arii/tech-dancer": "../tech-dancer"},
+    }))
+    github = _FakeGithub({
+        "arii/tech-dancer": _FakeRepo(
+            [_FakeIssue(1, ["deep-agent"]), _FakeIssue(2, ["bug"])],
+            [_FakePR(10)],
+        ),
+        "arii/hrm": _FakeRepo([], []),
+    })
+    worktrees = [
+        {"path": "/wt/tech-dancer-1", "branch": "feat/x"},
+        {"path": "/wt/other", "branch": "feat/y"},
+    ]
+    report = mr.verify_partner_deep_agents(
+        github, tmp_path, ["arii/tech-dancer", "arii/hrm", "arii/missing"],
+        worktree_lister=lambda root: worktrees)
+
+    tech = report["arii/tech-dancer"]
+    assert tech["reachable"] is True
+    assert tech["registered"] is True
+    assert tech["open_issues_count"] == 2
+    assert tech["agent_assigned_issues"] == [1]
+    assert tech["open_agent_prs"] == [10]
+    assert tech["active_worktrees"] == ["feat/x"]
+    assert tech["healthy"] is True
+
+    hrm = report["arii/hrm"]
+    assert hrm["reachable"] is True
+    assert hrm["registered"] is False
+    assert hrm["healthy"] is False
+
+    missing = report["arii/missing"]
+    assert missing["reachable"] is False
+    assert missing["healthy"] is False
+
+
+def test_verify_fleet_cli_registered():
+    runner = CliRunner()
+    result = runner.invoke(cli, ["agent", "verify-fleet", "--help"])
+    assert result.exit_code == 0, result.output
+    assert "--repos" in result.output
+    assert "--json" in result.output
