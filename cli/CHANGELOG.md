@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.19.3](https://github.com/arii/boomtick/compare/cli-v0.19.2...cli-v0.19.3) (2026-11-06)
+
+
+### Bug Fixes
+
+* **cli:** validate-issue passes mixed-case paths and existing dirs ([#1147](https://github.com/arii/boomtick/issues/1147)) ([c61e647](https://github.com/arii/boomtick/commit/c61e647cac7b61f7335ab0512877b6aecb3ece18))
+
 ## [0.19.2](https://github.com/arii/boomtick/compare/cli-v0.19.1...cli-v0.19.2) (2026-11-05)
 
 
