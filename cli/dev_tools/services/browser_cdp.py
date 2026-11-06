@@ -143,15 +143,15 @@ def capture_dom_and_visual_snapshot(
                 page.set_viewport_size(vp)
                 page.goto(target_url, wait_until="domcontentloaded",
                           timeout=20000)
+                # Single JS string literal: JS has no Python-style
+                # implicit literal concatenation ('a,' 'b' is a
+                # SyntaxError in the page).
                 dom = page.evaluate(
-                    """() => ({
-                        dom_node_count:
-                            document.querySelectorAll('*').length,
-                        interactive_elements:
-                            document.querySelectorAll(
-                                'a, button, input, select, textarea,'
-                                ' [role="button"]').length
-                    })""")
+                    "() => ({dom_node_count: "
+                    "document.querySelectorAll('*').length, "
+                    "interactive_elements: document.querySelectorAll("
+                    "'a, button, input, select, textarea, "
+                    "[role=\"button\"]').length})")
                 page.screenshot(path=str(candidate_png), full_page=False)
             finally:
                 page.close()

@@ -4,6 +4,7 @@ No live browser needed: the grid session helpers and Playwright are
 faked via monkeypatch. Run: python3 scripts/run-python-tool.py pytest
 cli/tests/test_browser_cdp.py
 """
+import re
 import sys
 import types
 
@@ -20,6 +21,8 @@ from dev_tools.services.browser_cdp import (
 
 
 class _FakePage:
+    last_evaluate = None
+
     def __init__(self):
         self.viewport = None
 
@@ -29,7 +32,8 @@ class _FakePage:
     def goto(self, url, wait_until=None, timeout=None):
         pass
 
-    def evaluate(self, _js):
+    def evaluate(self, js):
+        _FakePage.last_evaluate = js
         return {"dom_node_count": 42, "interactive_elements": 7}
 
     def screenshot(self, path=None, full_page=False):
@@ -184,6 +188,20 @@ def test_capture_unreachable_grid(tmp_path, monkeypatch):
     assert result.reachable is False
     assert result.error.startswith("BROWSER_UNREACHABLE")
     assert deleted == []
+
+
+def test_evaluate_js_has_no_adjacent_string_literals(tmp_path, monkeypatch):
+    """Regression: JS has no Python-style implicit literal
+    concatenation, so two adjacent string literals ('a,' 'b') are a
+    page-side SyntaxError. The selector must ship as one literal."""
+    deleted = []
+    _install_fake_grid(monkeypatch, deleted)
+    _install_fake_playwright(monkeypatch)
+    capture_dom_and_visual_snapshot("http://example.test/", tmp_path)
+    expr = _FakePage.last_evaluate
+    assert "'a, button, input, select, textarea, " \
+        '[role="button"]\'' in expr
+    assert re.search(r"'[^'\n]*'\s*'", expr) is None
 
 
 def test_capture_without_playwright(tmp_path, monkeypatch):
