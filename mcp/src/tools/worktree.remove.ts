@@ -1,5 +1,6 @@
 import { WorktreeRemoveInput, WorktreeRemoveInputSchema } from "./contract.js";
 import { resolveRepoPath, removeWorktree, dirSizeBytes } from "../lib/git.js";
+import { SessionManager } from "../lib/session_manager.js";
 import { runCommand } from "../lib/shell.js";
 import path from "path";
 import * as syncFs from "fs";
@@ -31,11 +32,16 @@ export async function worktreeRemoveHandler(args: WorktreeRemoveInput) {
   } catch {
     // Best effort; removal proceeds.
   }
+  // Sessions bound to this worktree end first: no live executor may
+  // outlive its root (#1099).
+  const abandoned = await SessionManager.getInstance()
+    .abandonSessionsInWorktree(worktreePath);
   await removeWorktree(worktreePath, baseRepoPath);
 
   return {
     status: "removed",
     worktreeId: parsed.worktreeId,
     freedBytes,
+    abandonedSessions: abandoned,
   };
 }

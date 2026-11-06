@@ -6,6 +6,10 @@ import { spawn } from "child_process";
 import { config } from "../config.js";
 import { resolveRepoPath, removeWorktree } from "./git.js";
 import { runCommand } from "./shell.js";
+import {
+  EXECUTOR_PROMPT_TEMPLATE,
+  fillExecutorPrompt,
+} from "./executor_prompt.js";
 
 const MAX_SESSION_LOG_LINES = 2000;
 
@@ -28,6 +32,8 @@ export interface AgentSession {
   baseBranch: string;
   repo?: string | null;
   brief: string;
+  proposal?: string | null;
+  dispatcher?: string | null;
   model?: string | null;
   state: SessionState;
   status?: "running" | "ready";
@@ -51,6 +57,8 @@ export interface DispatchOptions {
   brief: string;
   model?: string | null;
   repo?: string | null;
+  proposal?: string | null;
+  dispatcher?: string | null;
 }
 
 export interface ContainmentCheckResult {
@@ -233,6 +241,14 @@ export class SessionManager {
    * Spawns an isolated agent session locked to the given worktree.
    */
   public async dispatch(options: DispatchOptions): Promise<AgentSession> {
+    // Fail closed: with execution disabled there is no executor to
+    // advance the session, so refuse instead of recording a session
+    // that sits "running" forever (#1099, #1112).
+    if (process.env.BOOMTICK_SESSION_EXEC === "0") {
+      throw new Error(
+        "BOOMTICK_SESSION_EXEC=0 refuses dispatch: enable execution to dispatch",
+      );
+    }
     const worktreePath = this.resolveWorktreePath(options.worktreeId, options.repo);
 
     if (!syncFs.existsSync(worktreePath)) {
@@ -261,6 +277,8 @@ export class SessionManager {
       baseBranch,
       repo: options.repo,
       brief: options.brief,
+      proposal: options.proposal ?? null,
+      dispatcher: options.dispatcher ?? null,
       model: options.model,
       state: "running",
       status: "running",
@@ -287,6 +305,31 @@ export class SessionManager {
    * immediately; completion flips the checkpoint to done/failed.
    * Set BOOMTICK_SESSION_EXEC=0 to disable (bookkeeping only).
    */
+  /**
+   * Executor system prompt: the shared template with every
+   * placeholder filled from the session (#1112). No proposal on
+   * file means the brief is the whole scope; no dispatcher means
+   * the session id is the report-back address.
+   */
+  public async buildExecutorPrompt(session: AgentSession): Promise<string> {
+    const contractPath = path.join(
+      session.worktreePath, ".agents", "AGENT_CONTRACT.md");
+    let contract = "(no worktree agent contract found)";
+    if (syncFs.existsSync(contractPath)) {
+      contract = await fs.readFile(contractPath, "utf-8");
+    }
+    return fillExecutorPrompt(EXECUTOR_PROMPT_TEMPLATE, {
+      repo: session.repo || path.basename(session.worktreePath),
+      worktreePath: session.worktreePath,
+      branch: session.branch,
+      baseBranch: session.baseBranch,
+      agentContract: contract.trim(),
+      proposal: (session.proposal || session.brief).trim(),
+      taskBrief: session.brief.trim(),
+      dispatcher: (session.dispatcher || `session:${session.sessionId}`).trim(),
+    });
+  }
+
   public async runSessionProcess(sessionId: string): Promise<void> {
     const session = await this.loadSession(sessionId);
     if (!session) {
@@ -297,7 +340,7 @@ export class SessionManager {
     }
     const cli = process.env.BOOMTICK_EXECUTOR_CLI || "s5-coder";
     const model = session.model || process.env.BOOMTICK_EXECUTOR_MODEL || undefined;
-    const context = await this.loadAgentContext(session.worktreePath, session.brief);
+    const context = await this.buildExecutorPrompt(session);
     const args = ["-p", "--system-prompt", context];
     if (model) {
       args.push("--model", model);
@@ -309,7 +352,13 @@ export class SessionManager {
     await new Promise<void>((resolve) => {
       let child;
       try {
-        child = spawn(cli, args, { cwd: session.worktreePath });
+        // Confined spawn: pinned cwd, explicit env allowlist, session
+        // root pinned. The child sees its worktree and nothing else
+        // by construction — never by instruction alone.
+        child = spawn(cli, args, {
+          cwd: session.worktreePath,
+          env: this.buildExecutorEnv(session),
+        });
       } catch (err: any) {
         void this.appendLogs(sessionId, [`[exec] spawn failed: ${err.message}`])
           .then(() => this.updateCheckpoint(sessionId, "execution_failed", "failed"))
@@ -711,6 +760,70 @@ export class SessionManager {
     session.transcript.push(`[System]: Session completed successfully.`);
     await this.persistSession(sessionId);
     return session;
+  }
+
+  /**
+   * Marks every session bound to a worktree abandoned without
+   * touching the worktree itself (the remover owns deletion).
+   * Returns the abandoned session ids.
+   */
+  public async abandonSessionsInWorktree(worktreePath: string): Promise<string[]> {
+    const canonical = path.resolve(worktreePath);
+    const abandoned: string[] = [];
+    for (const [id, session] of this.sessions) {
+      if (session.worktreePath && path.resolve(session.worktreePath) === canonical
+          && session.state !== "done" && session.state !== "abandoned") {
+        session.state = "abandoned";
+        session.updatedAt = Date.now();
+        session.transcript.push(
+          "[System]: Session abandoned: its worktree is being removed.");
+        abandoned.push(id);
+      }
+    }
+    // Sessions persisted only on disk (session.json dies with the
+    // directory, so nothing to persist — the id is reported).
+    const sessionFile = path.join(canonical, "session.json");
+    if (syncFs.existsSync(sessionFile)) {
+      try {
+        const data = JSON.parse(await fs.readFile(sessionFile, "utf-8")) as AgentSession;
+        if (data.sessionId && !abandoned.includes(data.sessionId)
+            && !this.sessions.has(data.sessionId)) {
+          abandoned.push(data.sessionId);
+        }
+      } catch {
+        // Corrupt session file meters nothing.
+      }
+    }
+    return abandoned;
+  }
+
+  /**
+   * Environment for a spawned executor: an explicit allowlist, not
+   * the whole server environment. The child gets its session root
+   * pinned (BOOMTICK_SESSION_ROOT), the model variables it needs,
+   * and standard tool/terminal variables — nothing else. Anything
+   * not on this list is not visible inside the session.
+   */
+  public buildExecutorEnv(session: AgentSession): NodeJS.ProcessEnv {
+    const allowExact = new Set([
+      "PATH", "HOME", "USER", "LOGNAME", "TERM", "LANG", "LC_ALL",
+      "LC_CTYPE", "TZ", "TMPDIR",
+      "BOOMTICK_SESSION_ROOT", "BOOMTICK_SESSION_ID",
+    ]);
+    const allowPrefix = ["GIT_", "SSH_", "BOOMTICK_", "NEBIUS_",
+      "OLLAMA_", "ASK_MODEL", "OPENAI_", "ANTHROPIC_"];
+    const env: NodeJS.ProcessEnv = {};
+    for (const [key, value] of Object.entries(process.env)) {
+      if (value === undefined) continue;
+      if (allowExact.has(key)
+        || (key.endsWith("_PROXY") || key.endsWith("_proxy"))
+        || allowPrefix.some((p) => key === p || key.startsWith(p))) {
+        env[key] = value;
+      }
+    }
+    env.BOOMTICK_SESSION_ROOT = session.worktreePath;
+    env.BOOMTICK_SESSION_ID = session.sessionId;
+    return env;
   }
 
   /**
