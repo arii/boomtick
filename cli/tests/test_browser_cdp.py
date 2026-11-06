@@ -15,6 +15,7 @@ from dev_tools.services.browser_cdp import (
     VisualDiffResult,
     _cdp_ws_url,
     _compare_png_bytes,
+    _session_capabilities,
     capture_dom_and_visual_snapshot,
     get_grid_base,
 )
@@ -188,6 +189,13 @@ def test_capture_unreachable_grid(tmp_path, monkeypatch):
     assert result.reachable is False
     assert result.error.startswith("BROWSER_UNREACHABLE")
     assert deleted == []
+
+
+def test_session_capabilities_pin_profile_and_webmcp():
+    caps = _session_capabilities()
+    args = caps["goog:chromeOptions"]["args"]
+    assert "--user-data-dir=/data/shared-browser/agent" in args
+    assert "--enable-features=WebMCP" in args
 
 
 def test_evaluate_js_has_no_adjacent_string_literals(tmp_path, monkeypatch):
