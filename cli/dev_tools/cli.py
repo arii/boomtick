@@ -2384,8 +2384,12 @@ def validate_issue_spec(ctx, file, repo_root):
             body, "forbidden files", "forbidden")
         forbidden_lower = {p.lower() for p in forbidden_files}
         actual = set()
+        actual_dirs = set()
         for dirpath, dirnames, filenames in os.walk(root):
             _prune_walk_dirs(dirnames)
+            for dirname in dirnames:
+                actual_dirs.add(os.path.relpath(
+                    os.path.join(dirpath, dirname), root).lower())
             for filename in filenames:
                 actual.add(os.path.relpath(
                     os.path.join(dirpath, filename), root).lower())
@@ -2403,9 +2407,13 @@ def validate_issue_spec(ctx, file, repo_root):
         for item in scope:
             if item["path"] in forbidden_lower:
                 continue
-            if item["path"] not in actual:
-                if item["path"] in command_refs:
+            if item["kind"] == "dir":
+                if item["path"].strip("/").lower() in actual_dirs:
                     continue
+            elif item["path"].lower() in actual:
+                continue
+            if item["path"] in command_refs:
+                continue
                 same_line_created = any(
                     item["path"] in line.lower()
                     and "(create)" in line.lower()

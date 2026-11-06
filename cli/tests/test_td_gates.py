@@ -102,6 +102,26 @@ def test_validate_issue_invalid(tmp_path):
     assert any("TODO" in e for e in data["errors"])
 
 
+def test_validate_issue_mixed_case_and_dirs(tmp_path):
+    root = tmp_path / "co"
+    (root / "src").mkdir(parents=True)
+    (root / "src" / "Widget.py").write_text("ok\n")
+    spec = tmp_path / "spec.md"
+    spec.write_text(
+        "# Mixed case\n\n## Problem Statement\n\nFix it.\n\n"
+        "## Goal\n\nDone.\n\n## Scope\n\nTouched: `src/Widget.py`.\n\n"
+        "## Definition of Done\n\nWorks.\n\n"
+        "## Acceptance Criteria\n- [ ] Widget fixed\n\n"
+        "## Verification Commands\n```bash\n"
+        "test -f src/Widget.py\n"
+        "```\n"
+    )
+    result = CliRunner().invoke(cli, ["validate-issue", "--file", str(spec),
+                                      "--repo-root", str(root), "--json"])
+    assert result.exit_code == 0, result.output
+    assert json.loads(result.output)["valid"] is True
+
+
 def test_verify_scope_pass_and_violation(tmp_path):
     root = _worktree(tmp_path)
     with open(root / "src" / "widget.py", "a", encoding="utf-8") as handle:
