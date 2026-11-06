@@ -62,8 +62,15 @@ AGENT_PROFILE_ARGS = [
 
 
 def _session_capabilities() -> dict:
-    """W3C alwaysMatch block for a headed agent session."""
+    """W3C alwaysMatch block for a headed agent session.
+
+    The boomtick:agentSession marker lets the shared-autonomy viewer
+    tell agent sessions apart from human/viewer ones (attaching to a
+    viewer session mirrors it recursively). Custom vendor caps
+    round-trip through Grid /status slot capabilities.
+    """
     return {"browserName": "chrome",
+            "boomtick:agentSession": True,
             "goog:chromeOptions": {"args": list(AGENT_PROFILE_ARGS)}}
 
 

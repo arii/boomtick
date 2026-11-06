@@ -198,6 +198,12 @@ def test_session_capabilities_pin_profile_and_webmcp():
     assert "--enable-features=WebMCP" in args
 
 
+def test_session_capabilities_marks_agent_session():
+    # The shared-autonomy viewer attaches only to marked agent
+    # sessions; unmarked viewer/human sessions get their own.
+    assert _session_capabilities()["boomtick:agentSession"] is True
+
+
 def test_evaluate_js_has_no_adjacent_string_literals(tmp_path, monkeypatch):
     """Regression: JS has no Python-style implicit literal
     concatenation, so two adjacent string literals ('a,' 'b') are a
