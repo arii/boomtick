@@ -150,15 +150,20 @@ def split_camel_case(s: str) -> list:
 
 
 def extract_mentions(issue_text):
-    """File/dir mentions per the CI gate's regexes (lowercased sets)."""
-    issue_text_lower = (issue_text or "").lower()
+    """File/dir mentions per the CI gate's regexes (original-case sets).
+
+    Matching in check_scope is case-insensitive (it lowercases both
+    sides), but existence checks in spec_issue.scope_status need the
+    original case to hit the case-sensitive checkout.
+    """
+    issue_text = issue_text or ""
     # Extract everything that looks like a file name, file path, or directory path
     path_regex = r'[a-zA-Z0-9_\-\./]+\.[a-zA-Z0-9]+'
-    mentioned_files = set(re.findall(path_regex, issue_text_lower))
+    mentioned_files = set(re.findall(path_regex, issue_text))
 
     # Extract directories
     dir_regex = r'[a-zA-Z0-9_\-\./]+/'
-    mentioned_dirs = set(re.findall(dir_regex, issue_text_lower))
+    mentioned_dirs = set(re.findall(dir_regex, issue_text))
     return mentioned_files, mentioned_dirs
 
 
@@ -201,11 +206,11 @@ def check_scope(changed_files, issue_text, root=None):
             continue
 
         # 2. Exact match in mentioned files
-        if any(mf in filepath_lower or filepath_lower in mf for mf in mentioned_files):
+        if any(mf.lower() in filepath_lower or filepath_lower in mf.lower() for mf in mentioned_files):
             allowed_files.append((filepath, "Exact path/pattern mentioned in issue"))
             continue
 
-        if any(mf in filename_lower or filename_lower in mf for mf in mentioned_files):
+        if any(mf.lower() in filename_lower or filename_lower in mf.lower() for mf in mentioned_files):
             allowed_files.append((filepath, "Filename mentioned in issue"))
             continue
 
@@ -213,7 +218,7 @@ def check_scope(changed_files, issue_text, root=None):
         is_in_mentioned_dir = False
         matched_dir = None
         for md in mentioned_dirs:
-            md_clean = md.strip("/")
+            md_clean = md.strip("/").lower()
             if md_clean and any(part == md_clean for part in filepath_lower.split("/")):
                 is_in_mentioned_dir = True
                 matched_dir = md
