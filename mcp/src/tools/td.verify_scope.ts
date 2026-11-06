@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { recordToolReceipt } from "../lib/session_manager.js";
 import { runTDCli } from "../lib/tdCli.js";
 
 export const TdVerifyScopeInputSchema = z.object({
@@ -14,5 +15,7 @@ export async function tdVerifyScopeHandler(args: z.infer<typeof TdVerifyScopeInp
     cliArgs.push("--auto-revert");
   }
   cliArgs.push("--json");
-  return runTDCli(cliArgs, "verify worktree scope");
+  const result = await runTDCli(cliArgs, "verify worktree scope");
+  recordToolReceipt(params.worktree, "td.verify_scope");
+  return result;
 }

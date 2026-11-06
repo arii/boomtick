@@ -164,3 +164,24 @@ describe("worktree remove ends sessions (#1099)", () => {
     expect(mgr.getSession("sess_bound").state).toBe("abandoned");
   });
 });
+
+describe("mandatory tooling receipts (#1146)", () => {
+  it("prepends the low-token protocol to the executor prompt", async () => {
+    const mgr = SessionManager.getInstance();
+    const prompt = await mgr.buildExecutorPrompt(fakeSession());
+    expect(prompt.startsWith("[MANDATORY LOW-TOKEN PROTOCOL FOR CLI AGENTS]")).toBe(true);
+    expect(prompt).toContain("td init-and-rag");
+    expect(prompt).toContain("td verify-scope");
+  });
+
+  it("recordToolReceipt appends timestamped entries per worktree", async () => {
+    const { recordToolReceipt } = await import("./session_manager.js");
+    const dir = await fs.mkdtemp(path.join(os.tmpdir(), "receipt-"));
+    recordToolReceipt(dir, "td.init_and_rag", { query: "x" });
+    recordToolReceipt(dir, "td.verify_scope");
+    const entries = JSON.parse(await fs.readFile(path.join(dir, ".agent_tool_receipt.json"), "utf8"));
+    expect(entries.map((e: any) => e.tool)).toEqual(["td.init_and_rag", "td.verify_scope"]);
+    expect(entries[0].timestamp).toBeTruthy();
+    await fs.rm(dir, { recursive: true, force: true });
+  });
+});

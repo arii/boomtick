@@ -237,10 +237,21 @@ def tail_logs(session, tail=100):
     return logs[-tail:], total
 
 
+MANDATORY_TOOLING_PREAMBLE = """\
+[MANDATORY LOW-TOKEN PROTOCOL FOR CLI AGENTS]
+1. FIRST ACTION REQUIRED: call td init-and-rag (or td rag query) and
+repo read-agent-context BEFORE reading any raw source files.
+2. DO NOT run recursive grep or read more than 3 full files without
+first narrowing target symbols via td init-and-rag.
+3. BEFORE SUBMITTING: call td verify-scope and td audit-worktree.
+Submissions without a recorded td init-and-rag and td verify-scope
+call in session telemetry are rejected by the scope gate."""
+
+
 def build_system_prompt(worktree_path, brief):
     """Contract + brief system prompt (mirrors loadAgentContext minus the
     MCP-server-local repair prompt asset)."""
-    sections = []
+    sections = [MANDATORY_TOOLING_PREAMBLE]
     contract = os.path.join(worktree_path, ".agents", "AGENT_CONTRACT.md")
     if os.path.isfile(contract):
         try:

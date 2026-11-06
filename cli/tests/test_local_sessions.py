@@ -231,3 +231,11 @@ def test_repo_root_prefers_main_with_worktrees(repo):
     wt_dir = repo / ".worktrees"
     wt_dir.mkdir()
     assert ls.repo_root_for(str(repo)) == str(repo)
+
+
+def test_system_prompt_starts_with_mandatory_protocol(repo, worktree):
+    prompt = ls.build_system_prompt(str(worktree), "the brief")
+    assert prompt.startswith("[MANDATORY LOW-TOKEN PROTOCOL FOR CLI AGENTS]")
+    assert "td init-and-rag" in prompt
+    assert "td verify-scope" in prompt
+    assert "the brief" in prompt

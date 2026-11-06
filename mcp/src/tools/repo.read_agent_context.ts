@@ -5,6 +5,7 @@ import * as fs from "fs";
 import * as path from "path";
 import * as yaml from "yaml";
 import { runTDCli } from "../lib/tdCli.js";
+import { recordToolReceipt } from "../lib/session_manager.js";
 import { listSkills, readSkill } from "../lib/skills.js";
 import { AgentContractConfigSchema } from "./contract.js";
 
@@ -212,6 +213,10 @@ export async function readAgentContextHandler(args: z.infer<typeof ReadAgentCont
       }
     }
     const output = await runTDCli(cliArgs, "fetch multi-repo context");
+    recordToolReceipt(process.cwd(), "repo.read_agent_context", {
+      repos: args.repos ?? [],
+      all: args.all ?? false,
+    });
     return {
       status: "success",
       ecosystem: true,
@@ -238,6 +243,9 @@ export async function readAgentContextHandler(args: z.infer<typeof ReadAgentCont
       if (args.skillName) {
         named.skill = { name: args.skillName, body: await readSkill(matchedPath, args.skillName) };
       }
+      recordToolReceipt(matchedPath, "repo.read_agent_context", {
+        repo: args.repo,
+      });
       return named;
     }
   }
@@ -264,5 +272,8 @@ export async function readAgentContextHandler(args: z.infer<typeof ReadAgentCont
   if (result.config) {
     delete result.config.submodules;
   }
+  recordToolReceipt(targetPath, "repo.read_agent_context", {
+    path: targetPath,
+  });
   return result;
 }

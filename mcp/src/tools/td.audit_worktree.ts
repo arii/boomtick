@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { recordToolReceipt } from "../lib/session_manager.js";
 import { runTDCli } from "../lib/tdCli.js";
 
 export const TdAuditWorktreeInputSchema = z.object({
@@ -10,6 +11,7 @@ export const TdAuditWorktreeInputSchema = z.object({
 export async function tdAuditWorktreeHandler(args: z.infer<typeof TdAuditWorktreeInputSchema>) {
   const params = TdAuditWorktreeInputSchema.parse(args);
   const audit = await runTDCli(["audit-code", "--worktree", params.worktree, "--json"], "audit worktree code");
+  recordToolReceipt(params.worktree, "td.audit_worktree");
   if (!params.includeImpact) {
     return audit;
   }
