@@ -4,6 +4,7 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { agentSubmitPrHandler } from "./agent.submit_pr.js";
 import * as shellModule from "../lib/shell.js";
+import type { ShellResult } from "../lib/shell.js";
 
 function mkWorktree(tools: string[] = ["td.init_and_rag", "td.verify_scope"]): string {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "submit-pr-"));
@@ -15,41 +16,56 @@ function mkWorktree(tools: string[] = ["td.init_and_rag", "td.verify_scope"]): s
   return dir;
 }
 
+function tdResponse(over: Record<string, unknown> = {}): ShellResult {
+  return {
+    exitCode: 0,
+    stdout: JSON.stringify({
+      status: "success",
+      url: "https://github.com/o/r/pull/1",
+      branch: "feat/x",
+      base: "main",
+      draft: true,
+      ...over,
+    }),
+    stderr: "",
+    durationMs: 0,
+    command: "td",
+  };
+}
+
 describe("agent_submit_pr MCP tool handler", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
   });
 
-  it("pushes the branch and opens a draft PR", async () => {
+  it("delegates push and PR open to td agent submit-pr (issue 1139)", async () => {
+    const dir = mkWorktree();
     const runSpy = vi
       .spyOn(shellModule, "runCommand")
-      .mockResolvedValueOnce({ exitCode: 0, stdout: "", stderr: "" } as any)
-      .mockResolvedValueOnce({
-        exitCode: 0,
-        stdout: "https://github.com/o/r/pull/1\n",
-        stderr: "",
-      } as any);
+      .mockResolvedValueOnce(tdResponse());
 
     const res = await agentSubmitPrHandler({
       branch: "feat/x",
       title: "T",
       body: "B",
       pushMode: true,
-      worktreePath: mkWorktree(),
+      worktreePath: dir,
     });
 
-    expect(runSpy).toHaveBeenNthCalledWith(
-      1,
-      "git",
-      ["push", "origin", "feat/x"],
-      { cwd: expect.any(String) }
-    );
-    expect(runSpy).toHaveBeenNthCalledWith(
-      2,
-      "gh",
-      ["pr", "create", "--base", "main", "--head", "feat/x", "--title", "T", "--body", "B", "--draft"],
-      { cwd: expect.any(String) }
-    );
+    expect(runSpy).toHaveBeenCalledTimes(1);
+    expect(runSpy).toHaveBeenCalledWith("td", [
+      "agent",
+      "submit-pr",
+      "--worktree",
+      dir,
+      "--title",
+      "T",
+      "--body",
+      "B",
+      "--base",
+      "main",
+      "--json",
+    ]);
     expect(res).toEqual({
       status: "success",
       url: "https://github.com/o/r/pull/1",
@@ -62,8 +78,7 @@ describe("agent_submit_pr MCP tool handler", () => {
   it("honours base branch, repo and non-draft", async () => {
     const runSpy = vi
       .spyOn(shellModule, "runCommand")
-      .mockResolvedValueOnce({ exitCode: 0, stdout: "", stderr: "" } as any)
-      .mockResolvedValueOnce({ exitCode: 0, stdout: "url", stderr: "" } as any);
+      .mockResolvedValueOnce(tdResponse({ base: "dev", draft: false }));
 
     await agentSubmitPrHandler({
       repo: "o/r",
@@ -75,12 +90,36 @@ describe("agent_submit_pr MCP tool handler", () => {
       worktreePath: mkWorktree(["repo.read_agent_context", "td.audit_worktree"]),
     });
 
-    expect(runSpy).toHaveBeenNthCalledWith(
-      2,
-      "gh",
-      ["pr", "create", "--base", "dev", "--head", "feat/x", "--title", "T", "--body", "", "--repo", "o/r"],
-      { cwd: expect.any(String) }
-    );
+    expect(runSpy).toHaveBeenCalledWith("td", [
+      "agent",
+      "submit-pr",
+      "--worktree",
+      expect.any(String),
+      "--title",
+      "T",
+      "--body",
+      "",
+      "--base",
+      "dev",
+      "--repo",
+      "o/r",
+      "--no-draft",
+      "--json",
+    ]);
+  });
+
+  it("accepts td.init / td.rag receipts as RAG proof", async () => {
+    const runSpy = vi
+      .spyOn(shellModule, "runCommand")
+      .mockResolvedValueOnce(tdResponse());
+
+    await agentSubmitPrHandler({
+      branch: "feat/x",
+      title: "T",
+      pushMode: true,
+      worktreePath: mkWorktree(["td.init", "td.verify_scope"]),
+    });
+    expect(runSpy).toHaveBeenCalledTimes(1);
   });
 
   it("refuses without pushMode", async () => {
@@ -89,28 +128,32 @@ describe("agent_submit_pr MCP tool handler", () => {
     ).rejects.toThrow("pushMode must be true");
   });
 
-  it("surfaces push failures without opening a PR", async () => {
-    const runSpy = vi
-      .spyOn(shellModule, "runCommand")
-      .mockResolvedValueOnce({ exitCode: 1, stdout: "", stderr: "denied" } as any);
+  it("refuses when the worktree branch differs from the request", async () => {
+    vi.spyOn(shellModule, "runCommand").mockResolvedValueOnce(
+      tdResponse({ branch: "feat/other" })
+    );
 
     await expect(
       agentSubmitPrHandler({ branch: "feat/x", title: "T", pushMode: true, worktreePath: mkWorktree() })
-    ).rejects.toThrow("Failed to push branch feat/x");
+    ).rejects.toThrow("Refusing to submit");
+  });
+
+  it("surfaces td CLI failures without opening a PR", async () => {
+    const runSpy = vi.spyOn(shellModule, "runCommand").mockResolvedValueOnce({
+      exitCode: 1,
+      stdout: "",
+      stderr: "denied",
+      durationMs: 0,
+      command: "td",
+    });
+
+    await expect(
+      agentSubmitPrHandler({ branch: "feat/x", title: "T", pushMode: true, worktreePath: mkWorktree() })
+    ).rejects.toThrow("Failed to submit PR via td agent submit-pr");
     expect(runSpy).toHaveBeenCalledTimes(1);
   });
 
-  it("surfaces gh failures", async () => {
-    vi.spyOn(shellModule, "runCommand")
-      .mockResolvedValueOnce({ exitCode: 0, stdout: "", stderr: "" } as any)
-      .mockResolvedValueOnce({ exitCode: 1, stdout: "", stderr: "boom" } as any);
-
-    await expect(
-      agentSubmitPrHandler({ branch: "feat/x", title: "T", pushMode: true, worktreePath: mkWorktree() })
-    ).rejects.toThrow("Failed to open PR");
-  });
-
-  it("blocks submission without tool receipts (#1146)", async () => {
+  it("blocks submission without tool receipts (issue 1146)", async () => {
     const runSpy = vi.spyOn(shellModule, "runCommand");
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), "submit-pr-"));
     await expect(
@@ -119,7 +162,7 @@ describe("agent_submit_pr MCP tool handler", () => {
     expect(runSpy).not.toHaveBeenCalled();
   });
 
-  it("blocks submission with RAG receipts but no scope receipts (#1146)", async () => {
+  it("blocks submission with RAG receipts but no scope receipts (issue 1146)", async () => {
     const runSpy = vi.spyOn(shellModule, "runCommand");
     await expect(
       agentSubmitPrHandler({

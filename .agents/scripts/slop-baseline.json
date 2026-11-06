@@ -1,0 +1,67 @@
+{
+  "version": 1,
+  "note": "#1143 slop fail-gate ratchet: grandfathered hits stay green until a follow-up triages them; any NEW entry fails the gate. Reseed with --update-baseline.",
+  "swallow_exceptions": {
+    ".agents/scripts/audit-ai-slop.py": {
+      "AISlopAuditor.search_violations:expr": 1,
+      "_tracked_files:OSError": 1
+    },
+    "cli/dev_tools/multi_repo.py": {
+      "_get_repo_name_from_dir:Exception": 3,
+      "get_repo_summary:Exception": 2,
+      "warm_ecosystem_context:Exception": 1
+    },
+    "cli/dev_tools/orchestrator.py": {
+      "Orchestrator.doctor_check:Exception": 1,
+      "Orchestrator.get_audit_results:Exception": 2,
+      "Orchestrator.runtime_check:Exception": 1
+    },
+    "cli/dev_tools/services/ast_audit.py": {
+      "ASTAuditor.audit_directory:Exception": 1
+    },
+    "cli/dev_tools/services/github.py": {
+      "GitHubClient.__init__:Exception": 1,
+      "GitHubClient.fetch_pr_review_decision:Exception": 2
+    },
+    "cli/dev_tools/services/local_sessions.py": {
+      "build_system_prompt:OSError": 1,
+      "save_session:OSError,ValueError,TypeError": 1
+    },
+    "cli/dev_tools/services/repair_service.py": {
+      "resolve_file_path:ValueError": 1
+    },
+    "cli/dev_tools/services/spec_issue.py": {
+      "detect_gates:OSError": 1
+    },
+    "cli/dev_tools/services/submit_pr.py": {
+      "_record_pr_url:OSError,ValueError": 1
+    },
+    "cli/dev_tools/services/vector_store.py": {
+      "VectorStore._save_cache:Exception": 1,
+      "VectorStore.delete_by_filepath:Exception": 1,
+      "write_meta:OSError": 1
+    },
+    "cli/dev_tools/services/worktrees.py": {
+      "_dir_size:OSError": 1
+    },
+    "cli/dev_tools/workflows/runner.py": {
+      "WorkflowRunner.__del__:Exception": 1
+    },
+    "scripts/verify-scope.py": {
+      "check_override:Exception": 3,
+      "fetch_issue_description:Exception": 2,
+      "fetch_linked_issue_bodies:Exception": 1
+    }
+  },
+  "unreferenced_wrappers": [
+    "cli/setup-python.sh",
+    "cli/snapshot.sh",
+    "cli/verify-ai-resolve.sh",
+    "cli/verify-workflows.sh",
+    "cli/verify.sh",
+    "mcp/start_browsermcp.sh",
+    "mcp/start_github_mcp.sh",
+    "scripts/finalize-extraction.sh",
+    "scripts/verify-ci-workflows.sh"
+  ]
+}

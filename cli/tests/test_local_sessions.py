@@ -239,3 +239,41 @@ def test_system_prompt_starts_with_mandatory_protocol(repo, worktree):
     assert "td init-and-rag" in prompt
     assert "td verify-scope" in prompt
     assert "the brief" in prompt
+
+
+def test_abandon_sessions_in_worktree_marks_bound_only(repo, worktree):
+    # #1139 item 3: teardown owned by td; bound sessions abandoned, others kept.
+    other = repo / ".worktrees" / "wt2"
+    other.mkdir(parents=True)
+    bound = _session_in(worktree)
+    unbound = _session_in(other)
+    abandoned = ls.abandon_sessions_in_worktree(str(repo), str(worktree))
+    assert abandoned == [bound["sessionId"]]
+    assert ls.load_session(str(repo), bound["sessionId"])["state"] == "abandoned"
+    assert ls.load_session(str(repo), unbound["sessionId"])["state"] == "running"
+
+
+def test_new_session_contract_matches_agent_session_schema(repo, worktree):
+    # #1139 item 3 conformance: local_sessions is the single owner of the
+    # session file contract, so new_session output must carry every
+    # AgentSession field (mcp/src/lib/session_manager.ts) with the
+    # expected types; drift here breaks both td and MCP readers.
+    session = ls.new_session(str(worktree), "brief text")
+    assert isinstance(session["sessionId"], str)
+    assert isinstance(session["worktreeId"], str)
+    assert isinstance(session["worktreePath"], str)
+    assert isinstance(session["branch"], str)
+    assert session["baseBranch"] == "main"
+    assert session["brief"] == "brief text"
+    assert isinstance(session["state"], str)
+    assert isinstance(session["status"], str)
+    assert isinstance(session["startedAt"], int)
+    assert isinstance(session["createdAt"], int)
+    assert isinstance(session["updatedAt"], int)
+    assert session["lastCheckpoint"] == "worktree_setup"
+    assert isinstance(session["changedFiles"], list)
+    assert isinstance(session["retries"], int)
+    assert session["maxRetries"] == 3
+    assert isinstance(session["transcript"], list)
+    assert isinstance(session["logs"], list)
+    assert session["lastVerification"] is None

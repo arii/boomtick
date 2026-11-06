@@ -20,12 +20,10 @@ import {
   ReadAgentContextResponseJsonSchema,
   AgentSubmitPrInputJsonSchema,
   AgentSubmitPrResponseJsonSchema,
-  WorktreeCreateInputJsonSchema,
-  WorktreeCreateResponseJsonSchema,
-  WorktreeListInputJsonSchema,
-  WorktreeListResponseJsonSchema,
-  WorktreeRemoveInputJsonSchema,
-  WorktreeRemoveResponseJsonSchema,
+  TdInitInputJsonSchema,
+  TdInitResponseJsonSchema,
+  TdRagInputJsonSchema,
+  TdRagResponseJsonSchema,
   TdInitAndRagInputJsonSchema,
   TdInitAndRagResponseJsonSchema,
   TdValidateIssueInputJsonSchema,
@@ -171,109 +169,48 @@ export const MCP_RESOURCE_TEMPLATES: ResourceTemplate[] = [
   },
 ];
 
-const BASE_MCP_TOOLS: Tool[] = [
-  {
-    name: "boomtick_health",
-    description: "Check the health and configuration of the MCP server.",
-    inputSchema: HealthCheckInputJsonSchema as any,
-    outputSchema: HealthCheckResponseJsonSchema as any,
-  },
-  {
-    name: "repo_read_agent_context",
-    description: "Read the repository index including metadata, model review chains, or multi-repo ecosystem status.",
-    inputSchema: ReadAgentContextSchema as any,
-    outputSchema: ReadAgentContextResponseJsonSchema as any,
-  },
-  {
-    name: "repo_read_ci_logs",
-    description: "Read CI logs for a given pull request.",
-    inputSchema: ReadCiLogsInputJsonSchema as any,
-    outputSchema: ReadCiLogsResponseJsonSchema as any,
-  },
-  {
-    name: "repo_run_tests",
-    description: "Run repository tests and checks.",
-    inputSchema: RunTestsInputJsonSchema as any,
-    outputSchema: RunTestsResponseJsonSchema as any,
-  },
-  {
-    name: "github_get_pr",
-    description: "Get details of a GitHub PR including title, state, and URLs.",
-    inputSchema: GetPrInputJsonSchema as any,
-    outputSchema: GetPrResponseJsonSchema as any,
-  },
-  {
-    name: "github_issue_view",
-    description: "View details of a GitHub issue including title, body, and state.",
-    inputSchema: IssueViewInputJsonSchema as any,
-    outputSchema: IssueViewResponseJsonSchema as any,
-  },
-  {
-    name: "github_issue_update",
-    description: "Update a GitHub issue's body, labels, and/or state.",
-    inputSchema: IssueUpdateInputJsonSchema as any,
-    outputSchema: IssueUpdateResponseJsonSchema as any,
-  },
-  {
-    name: "github_issue_comment",
-    description: "Add a new comment to a GitHub issue.",
-    inputSchema: IssueCommentInputJsonSchema as any,
-    outputSchema: IssueCommentResponseJsonSchema as any,
-  },
-  {
-    name: "github_create_issue",
-    description: "Create a new GitHub issue.",
-    inputSchema: CreateIssueInputJsonSchema as any,
-    outputSchema: CreateIssueResponseJsonSchema as any,
-  },
-  {
-    name: "agent_submit_pr",
-    description: "Submit a branch as a pull request (push + open, draft by default). Agents submit; humans merge.",
-    inputSchema: AgentSubmitPrInputJsonSchema as any,
-    outputSchema: AgentSubmitPrResponseJsonSchema as any,
-  },
-  {
-    name: "worktree_create",
-    description: "Create a managed git worktree under .worktrees for an agent session.",
-    inputSchema: WorktreeCreateInputJsonSchema as any,
-    outputSchema: WorktreeCreateResponseJsonSchema as any,
-  },
-  {
-    name: "worktree_list",
-    description: "List managed git worktrees under .worktrees.",
-    inputSchema: WorktreeListInputJsonSchema as any,
-    outputSchema: WorktreeListResponseJsonSchema as any,
-  },
-  {
-    name: "worktree_remove",
-    description: "Remove a managed git worktree. Refuses dirty trees without force.",
-    inputSchema: WorktreeRemoveInputJsonSchema as any,
-    outputSchema: WorktreeRemoveResponseJsonSchema as any,
-  },
-  {
-    name: "td_init_and_rag",
-    description: "Initialize a repo (fast-forward main, sync deps, index RAG) and optionally query the vector index.",
-    inputSchema: TdInitAndRagInputJsonSchema as any,
-    outputSchema: TdInitAndRagResponseJsonSchema as any,
-  },
-  {
-    name: "td_validate_issue",
-    description: "Validate a design spec file deterministically (exit 0 iff valid).",
-    inputSchema: TdValidateIssueInputJsonSchema as any,
-    outputSchema: TdValidateIssueResponseJsonSchema as any,
-  },
-  {
-    name: "td_verify_scope",
-    description: "Gate worktree changes against a spec file (exit 0 iff in scope).",
-    inputSchema: TdVerifyScopeInputJsonSchema as any,
-    outputSchema: TdVerifyScopeResponseJsonSchema as any,
-  },
-  {
-    name: "td_audit_worktree",
-    description: "Audit worktree changes for slop/AST violations with optional blast-radius impact analysis.",
-    inputSchema: TdAuditWorktreeInputJsonSchema as any,
-    outputSchema: TdAuditWorktreeResponseJsonSchema as any,
-  },
+// The generated contract schemas carry readonly tuples where the MCP
+// Tool type wants mutable fields, so every entry funnels through this
+// one narrowly-typed adapter instead of a blanket `as any` cast.
+function toolEntry(
+  name: string,
+  description: string,
+  inputSchema: unknown,
+  outputSchema: unknown,
+): Tool {
+  return {
+    name,
+    description,
+    inputSchema: inputSchema as Tool["inputSchema"],
+    outputSchema: outputSchema as Tool["outputSchema"],
+  };
+}
+
+// Primary toolset for the Issue/Coder/Auditor lane roles.
+const CORE_MCP_TOOLS: Tool[] = [
+  toolEntry("boomtick_health", "Check the health and configuration of the MCP server.", HealthCheckInputJsonSchema, HealthCheckResponseJsonSchema),
+  toolEntry("repo_read_agent_context", "Read the repository index including metadata, model review chains, or multi-repo ecosystem status.", ReadAgentContextSchema, ReadAgentContextResponseJsonSchema),
+  toolEntry("repo_run_tests", "Run repository tests and checks.", RunTestsInputJsonSchema, RunTestsResponseJsonSchema),
+  toolEntry("github_issue_view", "View details of a GitHub issue including title, body, and state.", IssueViewInputJsonSchema, IssueViewResponseJsonSchema),
+  toolEntry("github_issue_update", "Update a GitHub issue's body, labels, and/or state.", IssueUpdateInputJsonSchema, IssueUpdateResponseJsonSchema),
+  toolEntry("github_create_issue", "Create a new GitHub issue.", CreateIssueInputJsonSchema, CreateIssueResponseJsonSchema),
+  toolEntry("agent_submit_pr", "Submit a branch as a pull request via the deterministic td agent submit-pr exit node (push + open, draft by default). Agents submit; humans merge.", AgentSubmitPrInputJsonSchema, AgentSubmitPrResponseJsonSchema),
+  toolEntry("td_init", "Initialize a repo (fast-forward main, sync deps, index RAG). Query separately with td_rag.", TdInitInputJsonSchema, TdInitResponseJsonSchema),
+  toolEntry("td_rag", "Query the RAG vector index without re-running init builds.", TdRagInputJsonSchema, TdRagResponseJsonSchema),
+  toolEntry("td_init_and_rag", "[Deprecated: use td_init + td_rag] Initialize a repo and optionally query the vector index.", TdInitAndRagInputJsonSchema, TdInitAndRagResponseJsonSchema),
+  toolEntry("td_validate_issue", "Validate a design spec file deterministically (exit 0 iff valid).", TdValidateIssueInputJsonSchema, TdValidateIssueResponseJsonSchema),
+  toolEntry("td_verify_scope", "Gate worktree changes against a spec file (exit 0 iff in scope).", TdVerifyScopeInputJsonSchema, TdVerifyScopeResponseJsonSchema),
+  toolEntry("td_audit_worktree", "Audit worktree changes for slop/AST violations with optional blast-radius impact analysis.", TdAuditWorktreeInputJsonSchema, TdAuditWorktreeResponseJsonSchema),
 ];
 
-export const MCP_TOOLS: Tool[] = BASE_MCP_TOOLS;
+// Demoted surface (#1139 item 1): kept on the wire for diagnostics, but
+// out of the primary Issue/Coder/Auditor toolsets. Worktree lifecycle
+// moved to the orchestrator (`td worktree` / worktrees.py); do not
+// re-add worktree_create/list/remove here.
+const EXTENDED_MCP_TOOLS: Tool[] = [
+  toolEntry("repo_read_ci_logs", "[Demoted] Read CI logs for a given pull request.", ReadCiLogsInputJsonSchema, ReadCiLogsResponseJsonSchema),
+  toolEntry("github_get_pr", "[Demoted] Get details of a GitHub PR including title, state, and URLs.", GetPrInputJsonSchema, GetPrResponseJsonSchema),
+  toolEntry("github_issue_comment", "[Demoted] Add a new comment to a GitHub issue.", IssueCommentInputJsonSchema, IssueCommentResponseJsonSchema),
+];
+
+export const MCP_TOOLS: Tool[] = [...CORE_MCP_TOOLS, ...EXTENDED_MCP_TOOLS];

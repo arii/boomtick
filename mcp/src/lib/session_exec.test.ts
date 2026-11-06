@@ -2,17 +2,18 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import fs from "fs/promises";
 import os from "os";
 import path from "path";
-import { execSync } from "child_process";
-import { config } from "../config.js";
 import { SessionManager } from "./session_manager.js";
+import type { AgentSession } from "./session_manager.js";
 import {
   EXECUTOR_PROMPT_TEMPLATE,
   fillExecutorPrompt,
 } from "./executor_prompt.js";
-import { worktreeCreateHandler } from "../tools/worktree.create.js";
-import { worktreeRemoveHandler } from "../tools/worktree.remove.js";
+// NOTE (issue 1139, item 1): the worktree.* MCP tools were deleted with the
+// orchestrator (`td worktree` / worktrees.py) owning lifecycle, including
+// remove-side session abandonment (see test_remove_abandons_bound_sessions
+// in cli/tests/test_td_worktree.py).
 
-function fakeSession(over: Record<string, unknown> = {}) {
+function fakeSession(over: Partial<AgentSession> = {}): AgentSession {
   return {
     sessionId: "sess_test",
     worktreeId: "wt-test",
@@ -33,10 +34,10 @@ function fakeSession(over: Record<string, unknown> = {}) {
     logs: [],
     lastVerification: null,
     ...over,
-  } as any;
+  };
 }
 
-describe("session machinery confinement (#1099, #1112)", () => {
+describe("session machinery confinement (issues 1099 and 1112)", () => {
   beforeEach(() => {
     SessionManager.resetInstance();
   });
@@ -114,58 +115,7 @@ describe("session machinery confinement (#1099, #1112)", () => {
   });
 });
 
-describe("worktree remove ends sessions (#1099)", () => {
-  let tmpRepoDir: string;
-
-  beforeEach(async () => {
-    SessionManager.resetInstance();
-    tmpRepoDir = await fs.mkdtemp(path.join(os.tmpdir(), "bt-wt-"));
-    execSync("git init -b main", { cwd: tmpRepoDir });
-    execSync('git config user.email "test@example.com"', { cwd: tmpRepoDir });
-    execSync('git config user.name "Test Runner"', { cwd: tmpRepoDir });
-    await fs.writeFile(path.join(tmpRepoDir, "README.md"), "# test\n");
-    execSync("git add README.md && git commit -m init", { cwd: tmpRepoDir });
-    vi.spyOn(config, "repoPath", "get").mockReturnValue(tmpRepoDir);
-  });
-
-  afterEach(async () => {
-    vi.restoreAllMocks();
-    SessionManager.resetInstance();
-    try {
-      await fs.rm(tmpRepoDir, { recursive: true, force: true });
-    } catch {
-      // ignore
-    }
-  });
-
-  it("remove abandons the bound session and reports it", async () => {
-    const created = await worktreeCreateHandler({
-      name: "Wt Test",
-      baseBranch: "main",
-      writeMode: true,
-      repo: null,
-      path: null,
-    } as any);
-    const mgr = SessionManager.getInstance();
-    mgr.registerSession(fakeSession({
-      sessionId: "sess_bound",
-      worktreeId: created.worktreeId,
-      worktreePath: created.path,
-    }));
-    const removed = await worktreeRemoveHandler({
-      worktreeId: created.worktreeId,
-      force: false,
-      writeMode: true,
-      repo: null,
-      path: null,
-    } as any);
-    expect(removed.status).toBe("removed");
-    expect(removed.abandonedSessions).toContain("sess_bound");
-    expect(mgr.getSession("sess_bound").state).toBe("abandoned");
-  });
-});
-
-describe("mandatory tooling receipts (#1146)", () => {
+describe("mandatory tooling receipts (issue 1146)", () => {
   it("prepends the low-token protocol to the executor prompt", async () => {
     const mgr = SessionManager.getInstance();
     const prompt = await mgr.buildExecutorPrompt(fakeSession());
@@ -179,8 +129,10 @@ describe("mandatory tooling receipts (#1146)", () => {
     const dir = await fs.mkdtemp(path.join(os.tmpdir(), "receipt-"));
     recordToolReceipt(dir, "td.init_and_rag", { query: "x" });
     recordToolReceipt(dir, "td.verify_scope");
-    const entries = JSON.parse(await fs.readFile(path.join(dir, ".agent_tool_receipt.json"), "utf8"));
-    expect(entries.map((e: any) => e.tool)).toEqual(["td.init_and_rag", "td.verify_scope"]);
+    const entries: Array<{ tool: string; timestamp: string }> = JSON.parse(
+      await fs.readFile(path.join(dir, ".agent_tool_receipt.json"), "utf8"),
+    );
+    expect(entries.map((e) => e.tool)).toEqual(["td.init_and_rag", "td.verify_scope"]);
     expect(entries[0].timestamp).toBeTruthy();
     await fs.rm(dir, { recursive: true, force: true });
   });

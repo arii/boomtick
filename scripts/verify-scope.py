@@ -318,6 +318,55 @@ def split_camel_case(s: str) -> list:
     """Splits camelCase or PascalCase strings into lowercased component tokens."""
     return [w.lower() for w in re.findall(r'[A-Z]?[a-z]+|[A-Z]+(?=[A-Z][a-z]|\d|\b)|[0-9]+', s) if w]
 
+# File extensions that count as "known file context" for a bare
+# `name.ext` mention (no path separator). Anything else shaped like
+# `word.word` is prose or code (``os.path.isfile``, ``issue_text.lower``,
+# ``e.g``). Must stay identical to cli/dev_tools/services/scope_gate.py;
+# cli/tests/test_scope_gate_conformance.py enforces parity.
+KNOWN_FILE_EXTENSIONS = frozenset(
+    {name.rsplit(".", 1)[1].lower() for name in EXEMPT_FILES if "." in name}
+    | {
+        "py", "pyi", "ts", "tsx", "mts", "cts", "js", "jsx", "mjs", "cjs",
+        "json", "jsonc", "yml", "yaml", "toml", "cfg", "ini", "conf",
+        "md", "mdx", "rst", "txt", "sh", "bash", "css", "scss",
+        "html", "xml", "svg", "sql", "go", "rs", "rb", "java",
+        "c", "h", "cc", "cpp", "hpp", "cs", "swift", "php",
+        "vue", "graphql", "proto", "lock",
+    }
+)
+
+def _is_phantom_file_match(match: str) -> bool:
+    """True when a path_regex hit is prose/code, not a deliberate mention."""
+    stem, _dot, ext = match.rpartition(".")
+    if "/" in match:
+        segments = [seg for seg in match.split("/") if seg not in ("", ".", "..")]
+        return any(len(seg) <= 1 for seg in segments)
+    if "." in stem or len(stem) <= 1:
+        return True
+    return ext.lower() not in KNOWN_FILE_EXTENSIONS
+
+STOP_WORDS = {
+    "with", "this", "that", "from", "your", "have", "will", "mode", "flag", "test", "file", "spec",
+    "tool", "mode", "strict", "scope", "hook", "hooks", "commit", "issue", "branch", "main", "origin",
+    "unrequested", "modification", "modifications", "unrelated", "runner", "release", "publish",
+    "build", "docker", "setup", "buildx", "workflow", "workflows", "verification", "mechanism"
+}
+
+def _is_phantom_dir_match(match: str) -> bool:
+    """True when a dir_regex hit is prose, not a deliberate mention."""
+    segments = [seg for seg in match.strip("/").split("/") if seg not in ("", ".", "..")]
+    # Single-letter paths (``i/``, ``a/b/``) are never deliberate.
+    if any(len(seg) <= 1 for seg in segments):
+        return True
+    if len(segments) >= 2:
+        return False
+    # Bare `word/`: generic vocabulary (STOP_WORDS: ``file/``, ``test/``)
+    # is prose; a proper-noun word (``scripts/``, ``cli/``) is kept as a
+    # deliberate dir mention (see test_directory_match). It is
+    # structurally indistinguishable from prose lookalikes (``arii/``),
+    # which callers confirm via checkout existence checks.
+    return segments[0].lower() in STOP_WORDS
+
 def check_scope(changed_files, issue_text):
     if not issue_text:
         # If no issue text is found, we warn and pass to prevent blocking if run locally without metadata
@@ -326,12 +375,16 @@ def check_scope(changed_files, issue_text):
     issue_text_lower = issue_text.lower()
 
     # Extract everything that looks like a file name, file path, or directory path
+    # (prose/code lookalikes filtered: dotted identifiers, bare word/
+    # fragments, and single-letter paths never become scope entries)
     path_regex = r'[a-zA-Z0-9_\-\./]+\.[a-zA-Z0-9]+'
-    mentioned_files = set(re.findall(path_regex, issue_text_lower))
+    mentioned_files = {m for m in re.findall(path_regex, issue_text_lower)
+                       if not _is_phantom_file_match(m)}
 
     # Extract directories
     dir_regex = r'[a-zA-Z0-9_\-\./]+/'
-    mentioned_dirs = set(re.findall(dir_regex, issue_text_lower))
+    mentioned_dirs = {m for m in re.findall(dir_regex, issue_text_lower)
+                      if not _is_phantom_dir_match(m)}
 
     # Extract single words/tokens
     word_regex = r'[a-zA-Z0-9_\-]+'
@@ -342,13 +395,7 @@ def check_scope(changed_files, issue_text):
         for sub_w in split_camel_case(w):
             mentioned_words.add(sub_w)
 
-    stop_words = {
-        "with", "this", "that", "from", "your", "have", "will", "mode", "flag", "test", "file", "spec",
-        "tool", "mode", "strict", "scope", "hook", "hooks", "commit", "issue", "branch", "main", "origin",
-        "unrequested", "modification", "modifications", "unrelated", "runner", "release", "publish",
-        "build", "docker", "setup", "buildx", "workflow", "workflows", "verification", "mechanism"
-    }
-    mentioned_words = {w for w in mentioned_words if len(w) > 3 and w not in stop_words}
+    mentioned_words = {w for w in mentioned_words if len(w) > 3 and w not in STOP_WORDS}
 
     allowed_base_names = set()
     for f in mentioned_files:

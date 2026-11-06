@@ -322,6 +322,26 @@ class TdInitAndRagResponse(CamelCaseModel):
     data: Optional[Any] = None
 
 
+class TdInitInput(CamelCaseModel):
+    repo_root: Optional[str] = Field(None, description="Repo root to initialize (default: git root).")
+
+
+class TdInitResponse(CamelCaseModel):
+    status: Optional[str] = None
+    data: Optional[Any] = None
+
+
+class TdRagInput(CamelCaseModel):
+    repo_root: Optional[str] = Field(None, description="Repo root for the RAG index (default: git root).")
+    query: str = Field(..., description="Natural-language query to run (no rebuild).")
+    top_k: Optional[int] = Field(None, description="Maximum RAG hits to return.")
+
+
+class TdRagResponse(CamelCaseModel):
+    status: Optional[str] = None
+    data: Optional[Any] = None
+
+
 class TdValidateIssueResponse(CamelCaseModel):
     status: Optional[str] = None
     data: Optional[Any] = None

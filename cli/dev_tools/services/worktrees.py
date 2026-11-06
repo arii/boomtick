@@ -12,6 +12,8 @@ import secrets
 import subprocess
 import time
 
+from dev_tools.services import local_sessions
+
 WORKTREES_DIR = ".worktrees"
 ID_RE = re.compile(r"^[A-Za-z0-9_.-]+$")
 
@@ -59,21 +61,46 @@ def lockfile_hash(root):
     return digest.hexdigest() if found else ""
 
 
+def fast_forward_main_ref(root):
+    """Fetch origin/main and advance the local main ref without checkout.
+
+    Uses ``git update-ref refs/heads/main origin/main`` so the local main
+    is current before branching, even when another branch (or another
+    worktree) is checked out (#1139 item 6). Refuses to move a diverged
+    main; falls back to ``merge --ff-only`` when main itself is checked
+    out here. Returns (updated: bool, note: str).
+    """
+    res = _git(["fetch", "origin", "main"], root)
+    if res.returncode != 0:
+        return False, "fetch failed"
+    current = _git(["branch", "--show-current"], root)
+    if current.returncode == 0 and current.stdout.strip() == "main":
+        status = _git(["status", "--porcelain"], root)
+        if status.returncode == 0 and status.stdout.strip():
+            return False, "worktree dirty; not fast-forwarding"
+        merged = _git(["merge", "--ff-only", "origin/main"], root)
+        return (merged.returncode == 0,
+                "fast-forwarded" if merged.returncode == 0
+                else "main diverged; not fast-forwarding")
+    ancestor = _git(
+        ["merge-base", "--is-ancestor", "refs/heads/main", "origin/main"],
+        root)
+    local_missing = _git(["rev-parse", "--verify", "refs/heads/main"], root)
+    if ancestor.returncode == 0 or local_missing.returncode != 0:
+        moved = _git(["update-ref", "refs/heads/main", "origin/main"], root)
+        return (moved.returncode == 0,
+                "fast-forwarded main ref" if moved.returncode == 0
+                else "update-ref failed")
+    return False, "main diverged; not fast-forwarding"
+
+
 def fetch_main(root):
     """Fetch origin and fast-forward local main when clean.
 
     Returns (updated: bool, head_sha: str, note: str).
     """
-    res = _git(["fetch", "origin", "main"], root)
-    if res.returncode != 0:
-        return False, _head_sha(root), "fetch failed"
-    status = _git(["status", "--porcelain"], root)
-    if status.returncode == 0 and status.stdout.strip():
-        return False, _head_sha(root), "worktree dirty; not fast-forwarding"
-    res = _git(["merge", "--ff-only", "origin/main"], root)
-    if res.returncode != 0:
-        return False, _head_sha(root), "main diverged; not fast-forwarding"
-    return True, _head_sha(root), "fast-forwarded"
+    updated, note = fast_forward_main_ref(root)
+    return updated, _head_sha(root), note
 
 
 def _head_sha(root):
@@ -194,6 +221,11 @@ def create(root, name=None, base_branch="main"):
     branch = sanitize_name(name) if name else ""
     if not branch:
         branch = worktree_id
+    if base_branch == "main":
+        # Best-effort: local main current before branching (#1139 item 6).
+        # Fetch/divergence failures return a note (never raise), so an
+        # offline or diverged main cannot break creation.
+        fast_forward_main_ref(root)
     path = os.path.join(worktrees_dir(root), worktree_id)
     if os.path.exists(path):
         raise WorktreeError(f"Worktree already exists: {path}")
@@ -280,8 +312,9 @@ def list_worktrees(root):
 def remove(root, worktree_id, force=False):
     """Remove a managed worktree; returns freed bytes (best effort).
 
-    Refuses dirty worktrees unless ``force`` (mirrors the MCP tool),
-    then unregisters via git and prunes stale metadata.
+    Abandons sessions bound to the worktree first (single owner: td via
+    local_sessions, #1139 item 3), refuses dirty worktrees unless
+    ``force``, then unregisters via git and prunes stale metadata.
     """
     if not ID_RE.match(worktree_id or ""):
         raise WorktreeError(f"Invalid worktree id: {worktree_id}")
@@ -293,6 +326,9 @@ def remove(root, worktree_id, force=False):
         raise WorktreeError(
             f"Worktree {worktree_id} has uncommitted changes; "
             "pass --force to remove anyway")
+    # Single owner (td via local_sessions, #1139 item 3). Total function:
+    # corrupt sessions are skipped, persistence never raises.
+    local_sessions.abandon_sessions_in_worktree(root, path)
     try:
         freed = _dir_size(path)
     except OSError:
