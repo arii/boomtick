@@ -3,16 +3,17 @@ import fs from "fs/promises";
 import os from "os";
 import path from "path";
 import { SessionManager } from "./session_manager.js";
+import type { AgentSession } from "./session_manager.js";
 import {
   EXECUTOR_PROMPT_TEMPLATE,
   fillExecutorPrompt,
 } from "./executor_prompt.js";
-// NOTE (#1139 item 1): the worktree.* MCP tools were deleted with the
+// NOTE (issue 1139, item 1): the worktree.* MCP tools were deleted with the
 // orchestrator (`td worktree` / worktrees.py) owning lifecycle, including
 // remove-side session abandonment (see test_remove_abandons_bound_sessions
 // in cli/tests/test_td_worktree.py).
 
-function fakeSession(over: Record<string, unknown> = {}) {
+function fakeSession(over: Partial<AgentSession> = {}): AgentSession {
   return {
     sessionId: "sess_test",
     worktreeId: "wt-test",
@@ -33,10 +34,10 @@ function fakeSession(over: Record<string, unknown> = {}) {
     logs: [],
     lastVerification: null,
     ...over,
-  } as any;
+  };
 }
 
-describe("session machinery confinement (#1099, #1112)", () => {
+describe("session machinery confinement (issues 1099 and 1112)", () => {
   beforeEach(() => {
     SessionManager.resetInstance();
   });
@@ -114,7 +115,7 @@ describe("session machinery confinement (#1099, #1112)", () => {
   });
 });
 
-describe("mandatory tooling receipts (#1146)", () => {
+describe("mandatory tooling receipts (issue 1146)", () => {
   it("prepends the low-token protocol to the executor prompt", async () => {
     const mgr = SessionManager.getInstance();
     const prompt = await mgr.buildExecutorPrompt(fakeSession());
@@ -128,8 +129,10 @@ describe("mandatory tooling receipts (#1146)", () => {
     const dir = await fs.mkdtemp(path.join(os.tmpdir(), "receipt-"));
     recordToolReceipt(dir, "td.init_and_rag", { query: "x" });
     recordToolReceipt(dir, "td.verify_scope");
-    const entries = JSON.parse(await fs.readFile(path.join(dir, ".agent_tool_receipt.json"), "utf8"));
-    expect(entries.map((e: any) => e.tool)).toEqual(["td.init_and_rag", "td.verify_scope"]);
+    const entries: Array<{ tool: string; timestamp: string }> = JSON.parse(
+      await fs.readFile(path.join(dir, ".agent_tool_receipt.json"), "utf8"),
+    );
+    expect(entries.map((e) => e.tool)).toEqual(["td.init_and_rag", "td.verify_scope"]);
     expect(entries[0].timestamp).toBeTruthy();
     await fs.rm(dir, { recursive: true, force: true });
   });

@@ -126,7 +126,9 @@ def abandon_sessions_in_worktree(root, worktree_path):
     abandoned = []
     for session in scan_sessions(root):
         bound = session.get("worktreePath")
-        if bound and os.path.abspath(bound) == target:
+        if not bound or not isinstance(bound, str):
+            continue
+        if os.path.abspath(bound) == target:
             session["state"] = "abandoned"
             session["status"] = "abandoned"
             session["updatedAt"] = int(time.time() * 1000)

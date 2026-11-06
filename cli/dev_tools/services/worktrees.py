@@ -223,11 +223,9 @@ def create(root, name=None, base_branch="main"):
         branch = worktree_id
     if base_branch == "main":
         # Best-effort: local main current before branching (#1139 item 6).
-        # Offline or diverged mains must not break creation.
-        try:
-            fast_forward_main_ref(root)
-        except WorktreeError:
-            pass
+        # Fetch/divergence failures return a note (never raise), so an
+        # offline or diverged main cannot break creation.
+        fast_forward_main_ref(root)
     path = os.path.join(worktrees_dir(root), worktree_id)
     if os.path.exists(path):
         raise WorktreeError(f"Worktree already exists: {path}")
@@ -328,10 +326,9 @@ def remove(root, worktree_id, force=False):
         raise WorktreeError(
             f"Worktree {worktree_id} has uncommitted changes; "
             "pass --force to remove anyway")
-    try:
-        local_sessions.abandon_sessions_in_worktree(root, path)
-    except (OSError, ValueError):
-        pass
+    # Single owner (td via local_sessions, #1139 item 3). Total function:
+    # corrupt sessions are skipped, persistence never raises.
+    local_sessions.abandon_sessions_in_worktree(root, path)
     try:
         freed = _dir_size(path)
     except OSError:

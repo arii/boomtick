@@ -17,17 +17,46 @@ vi.mock("../config.js", () => ({
   },
 }));
 
+type TestTool = {
+  name: string;
+  outputSchema: { type: string; properties: Record<string, unknown> };
+};
+
+type TestContent = { uri: string; mimeType: string; text: string };
+
+type TestResult = {
+  prompts: Array<{ name: string }>;
+  resources: Array<{ uri: string }>;
+  resourceTemplates: Array<unknown>;
+  contents: TestContent[];
+  messages: Array<{ role: string; content: { type: string; text: string } }>;
+  tools: TestTool[];
+  structuredContent: Record<string, unknown>;
+  content: Array<{ type: string; text: string }>;
+  isError: boolean;
+};
+
+type TestHandler = (request: {
+  method: string;
+  params?: Record<string, unknown>;
+}) => Promise<TestResult>;
+
+type TestServerInstance = {
+  _requestHandlers?: Map<string, TestHandler>;
+  requestHandlers?: Map<string, TestHandler>;
+};
+
 describe("BoomtickMCPServer", () => {
   let mcpServer: BoomtickMCPServer;
-  let serverInstance: any;
-  let requestHandlers: Map<string, Function>;
+  let serverInstance: TestServerInstance;
+  let requestHandlers: Map<string, TestHandler>;
 
   beforeEach(() => {
     vi.resetAllMocks();
-    requestHandlers = new Map();
+    requestHandlers = new Map<string, TestHandler>();
 
     mcpServer = new BoomtickMCPServer();
-    serverInstance = (mcpServer as any).server;
+    serverInstance = (mcpServer as unknown as { server: TestServerInstance }).server;
 
     // Retrieve registered request handlers from SDK Server instance
     // SDK Server stores request handlers in server._requestHandlers or server.requestHandlers
@@ -107,7 +136,7 @@ describe("BoomtickMCPServer", () => {
       const result = await handler!({ method: "resources/list" });
       expect(result.resources).toBeDefined();
       expect(Array.isArray(result.resources)).toBe(true);
-      const uris = result.resources.map((r: any) => r.uri);
+      const uris = result.resources.map((r: { uri: string }) => r.uri);
       expect(uris).toContain("mcp://workspace/agent-contract");
       expect(uris).toContain("mcp://git/changed-files");
       expect(uris).toContain("mcp://ci/latest-run");
@@ -183,7 +212,7 @@ describe("BoomtickMCPServer", () => {
 
     it("should handle repo://diff/:prNumber", async () => {
       const handler = requestHandlers.get("resources/read");
-      vi.spyOn(getPrModule, "getPrHandler").mockResolvedValue({ diff: { diffText: "diff --git a b" } } as any);
+      vi.spyOn(getPrModule, "getPrHandler").mockResolvedValue({ diff: { diffText: "diff --git a b" } });
 
       const result = await handler!({
         method: "resources/read",
@@ -197,7 +226,7 @@ describe("BoomtickMCPServer", () => {
 
     it("should handle repo://ci/:prNumber", async () => {
       const handler = requestHandlers.get("resources/read");
-      vi.spyOn(ciLogsModule, "readCiLogsHandler").mockResolvedValue({ status: "success" } as any);
+      vi.spyOn(ciLogsModule, "readCiLogsHandler").mockResolvedValue({ status: "success" });
 
       const result = await handler!({
         method: "resources/read",
@@ -212,7 +241,7 @@ describe("BoomtickMCPServer", () => {
       const handler = requestHandlers.get("resources/read");
       vi.spyOn(gitLibModule, "getChangedFiles").mockResolvedValue([
         { status: "M", path: "src/index.ts" },
-      ] as any);
+      ]);
 
       const result = await handler!({
         method: "resources/read",
@@ -253,7 +282,7 @@ describe("BoomtickMCPServer", () => {
 
     it("should handle mcp://ci/latest-run", async () => {
       const handler = requestHandlers.get("resources/read");
-      vi.spyOn(tdCliModule, "runTDCli").mockResolvedValue({ workflow_runs: [{ id: 1, status: "completed", conclusion: "success" }] } as any);
+      vi.spyOn(tdCliModule, "runTDCli").mockResolvedValue({ workflow_runs: [{ id: 1, status: "completed", conclusion: "success" }] });
 
       const result = await handler!({
         method: "resources/read",
@@ -302,7 +331,7 @@ describe("BoomtickMCPServer", () => {
     it("should expose exactly the pruned worktree-safe toolset", async () => {
       const handler = requestHandlers.get("tools/list");
       const result = await handler!({ method: "tools/list" });
-      const names = result.tools.map((t: any) => t.name).sort();
+      const names = result.tools.map((t: { name: string }) => t.name).sort();
       expect(names).toEqual([
         "agent_submit_pr",
         "boomtick_health",
@@ -338,7 +367,16 @@ describe("BoomtickMCPServer", () => {
   describe("CallTool", () => {
     it("should execute registered tool handler successfully", async () => {
       const handler = requestHandlers.get("tools/call");
-      vi.spyOn(healthModule, "healthHandler").mockResolvedValue({ status: "ok" } as any);
+      vi.spyOn(healthModule, "healthHandler").mockResolvedValue({
+        status: "ok",
+        config: {
+          githubOwner: "o",
+          githubRepo: "r",
+          repoPath: "/mock/repo",
+          readOnly: true,
+          ghPath: "gh",
+        },
+      });
 
       const result = await handler!({
         method: "tools/call",
@@ -346,14 +384,14 @@ describe("BoomtickMCPServer", () => {
       });
 
       expect(result).toEqual({
-        content: [{ type: "text", text: JSON.stringify({ status: "ok" }, null, 2) }],
-        structuredContent: { status: "ok" },
+        content: [{ type: "text", text: JSON.stringify({ status: "ok", config: { githubOwner: "o", githubRepo: "r", repoPath: "/mock/repo", readOnly: true, ghPath: "gh" } }, null, 2) }],
+        structuredContent: { status: "ok", config: { githubOwner: "o", githubRepo: "r", repoPath: "/mock/repo", readOnly: true, ghPath: "gh" } },
       });
     });
 
     it("should execute folded github_get_pr includes via underscore or dot name", async () => {
       const handler = requestHandlers.get("tools/call");
-      vi.spyOn(getPrModule, "getPrHandler").mockResolvedValue({ pr: { number: 123 }, reviews: [] } as any);
+      vi.spyOn(getPrModule, "getPrHandler").mockResolvedValue({ pr: { number: 123 }, reviews: [] });
 
       const res = await handler!({
         method: "tools/call",
@@ -372,7 +410,7 @@ describe("BoomtickMCPServer", () => {
         "repo_multi_exec",
         "skill_list",
         "skill_read",
-        // #1139 item 1: worktree lifecycle moved to the orchestrator.
+        // Worktree lifecycle moved to the orchestrator (issue 1139, item 1).
         "worktree_create",
         "worktree_list",
         "worktree_remove",
@@ -387,7 +425,7 @@ describe("BoomtickMCPServer", () => {
 
     it("should execute td_validate_issue", async () => {
       const handler = requestHandlers.get("tools/call");
-      vi.spyOn(tdValidateModule, "tdValidateIssueHandler").mockResolvedValue({ valid: true } as any);
+      vi.spyOn(tdValidateModule, "tdValidateIssueHandler").mockResolvedValue({ valid: true });
 
       const res = await handler!({
         method: "tools/call",
@@ -396,11 +434,11 @@ describe("BoomtickMCPServer", () => {
       expect(res.structuredContent).toEqual({ valid: true });
     });
 
-    it("should execute td_init split tool (#1139 item 2)", async () => {
+    it("should execute td_init split tool (issue 1139, item 2)", async () => {
       const handler = requestHandlers.get("tools/call");
       vi.spyOn(tdInitModule, "tdInitHandler").mockResolvedValue({
         status: "ready",
-      } as any);
+      });
 
       const res = await handler!({
         method: "tools/call",
