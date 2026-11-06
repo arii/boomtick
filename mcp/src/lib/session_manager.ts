@@ -24,6 +24,44 @@ export interface LastVerification {
 
 export type SessionVerification = LastVerification;
 
+export const RECEIPT_FILENAME = ".agent_tool_receipt.json";
+
+export const MANDATORY_TOOLING_PREAMBLE = [
+  "[MANDATORY LOW-TOKEN PROTOCOL FOR CLI AGENTS]",
+  "1. FIRST ACTION REQUIRED: call td init-and-rag (or td rag query) and",
+  "repo read-agent-context BEFORE reading any raw source files.",
+  "2. DO NOT run recursive grep or read more than 3 full files without",
+  "first narrowing target symbols via td init-and-rag.",
+  "3. BEFORE SUBMITTING: call td verify-scope and td audit-worktree.",
+  "Submissions without a recorded td init-and-rag and td verify-scope",
+  "call in session telemetry are rejected by the scope gate.",
+].join("\n");
+
+export function recordToolReceipt(
+  worktreePath: string,
+  toolName: string,
+  metadata: Record<string, unknown> = {},
+): void {
+  const receiptFile = path.join(worktreePath, RECEIPT_FILENAME);
+  let existing: Array<Record<string, unknown>> = [];
+  if (syncFs.existsSync(receiptFile)) {
+    try {
+      const parsed: unknown = JSON.parse(syncFs.readFileSync(receiptFile, "utf8"));
+      if (Array.isArray(parsed)) {
+        existing = parsed as Array<Record<string, unknown>>;
+      }
+    } catch {
+      existing = [];
+    }
+  }
+  existing.push({
+    tool: toolName,
+    timestamp: new Date().toISOString(),
+    ...metadata,
+  });
+  syncFs.writeFileSync(receiptFile, JSON.stringify(existing, null, 2), "utf8");
+}
+
 export interface AgentSession {
   sessionId: string;
   worktreeId: string;
@@ -318,7 +356,7 @@ export class SessionManager {
     if (syncFs.existsSync(contractPath)) {
       contract = await fs.readFile(contractPath, "utf-8");
     }
-    return fillExecutorPrompt(EXECUTOR_PROMPT_TEMPLATE, {
+    const filled = fillExecutorPrompt(EXECUTOR_PROMPT_TEMPLATE, {
       repo: session.repo || path.basename(session.worktreePath),
       worktreePath: session.worktreePath,
       branch: session.branch,
@@ -328,6 +366,7 @@ export class SessionManager {
       taskBrief: session.brief.trim(),
       dispatcher: (session.dispatcher || `session:${session.sessionId}`).trim(),
     });
+    return `${MANDATORY_TOOLING_PREAMBLE}\n\n${filled}`;
   }
 
   public async runSessionProcess(sessionId: string): Promise<void> {
