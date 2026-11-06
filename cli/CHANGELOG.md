@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.20.0](https://github.com/arii/boomtick/compare/cli-v0.19.3...cli-v0.20.0) (2026-11-06)
+
+
+### Features
+
+* mega rollup — close [#1142](https://github.com/arii/boomtick/issues/1142), [#1143](https://github.com/arii/boomtick/issues/1143), [#1139](https://github.com/arii/boomtick/issues/1139), [#1140](https://github.com/arii/boomtick/issues/1140) ([#1154](https://github.com/arii/boomtick/issues/1154)) ([f409dbc](https://github.com/arii/boomtick/commit/f409dbc91076be0ea4903ae6d45c0e8bdd8a2957))
+
 ## [0.19.3](https://github.com/arii/boomtick/compare/cli-v0.19.2...cli-v0.19.3) (2026-11-06)
 
 
