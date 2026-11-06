@@ -332,3 +332,113 @@ def warm_ecosystem_context(
         "total_failed": total_failed,
         "results": results,
     }
+
+
+PARTNER_REPOS = [
+    "arii/tech-dancer",
+    "arii/hrm",
+    "arii/glossy",
+]
+
+AGENT_LABELS = frozenset({
+    "agent:in-progress",
+    "deep-agent",
+    "lane:coder",
+    "lane:auditor",
+})
+
+
+def _label_names(issue: Any) -> List[str]:
+    """Label names for a PyGithub (or fake) issue."""
+    try:
+        labels = issue.get_labels()
+    except Exception:
+        labels = getattr(issue, "labels", []) or []
+    names = []
+    for label in labels:
+        names.append(getattr(label, "name", label))
+    return [n for n in names if isinstance(n, str)]
+
+
+def _registered_repos(root: Optional[pathlib.Path] = None) -> Dict[str, str]:
+    """Ecosystem registry from project_config.json (repo -> local path)."""
+    if root is None:
+        root = pathlib.Path.cwd()
+    config_path = pathlib.Path(root) / "project_config.json"
+    try:
+        data = json.loads(config_path.read_text(encoding="utf-8"))
+    except Exception:
+        return {}
+    repos = data.get("ecosystem_repos", {})
+    return dict(repos) if isinstance(repos, dict) else {}
+
+
+def verify_partner_deep_agents(
+    github_client: Any = None,
+    root: Any = None,
+    repos: Optional[List[str]] = None,
+    worktree_lister: Any = None,
+) -> Dict[str, Dict[str, Any]]:
+    """Audit deep-agent assignment across partner repos.
+
+    For each repo reports reachability, registration, open issue/PR
+    counts, agent-assigned issue numbers, open agent PR numbers, active
+    worktree branches, and overall health. Never raises for a single
+    repo: unreachable repos report reachable False.
+    """
+    if repos is None:
+        repos = list(PARTNER_REPOS)
+    if root is None:
+        root = pathlib.Path.cwd()
+    if github_client is None:
+        from dev_tools.utils import get_github_client
+        github_client = get_github_client()
+    if worktree_lister is None:
+        from dev_tools.services import worktrees as worktree_service
+        worktree_lister = worktree_service.list_worktrees
+    try:
+        managed = worktree_lister(root)
+    except Exception:
+        managed = []
+    registered = _registered_repos(pathlib.Path(root) if not isinstance(root, pathlib.Path) else root)
+    report: Dict[str, Dict[str, Any]] = {}
+    for name in repos:
+        short = name.split("/")[-1]
+        entry: Dict[str, Any] = {
+            "reachable": False,
+            "registered": name in registered,
+            "open_issues_count": 0,
+            "agent_assigned_issues": [],
+            "open_agent_prs": [],
+            "active_worktrees": [],
+            "healthy": False,
+        }
+        try:
+            repo = github_client.get_repo(name)
+            issues = list(repo.get_issues(state="open"))
+            pulls = list(repo.get_pulls(state="open"))
+        except Exception:
+            report[name] = entry
+            continue
+        assigned = []
+        for issue in issues:
+            try:
+                number = issue.number
+            except Exception:
+                continue
+            if AGENT_LABELS.intersection(_label_names(issue)):
+                assigned.append(number)
+        entry.update({
+            "reachable": True,
+            "open_issues_count": len(issues),
+            "agent_assigned_issues": sorted(assigned),
+            "open_agent_prs": sorted(getattr(pr, "number", -1) for pr in pulls),
+        })
+        entry["active_worktrees"] = sorted({
+            wt.get("branch", "") for wt in (managed or [])
+            if isinstance(wt, dict) and short in str(wt.get("path", ""))
+            and wt.get("branch")
+        })
+        entry["healthy"] = bool(issues or pulls or entry["active_worktrees"])
+        report[name] = entry
+    return report
