@@ -62,6 +62,41 @@ jobs:
           issue_number: ${{ github.event.issue.number }}
           github_token: ${{ steps.app-token.outputs.token }}
 
+  validate-spec:
+    name: Validate Design Spec
+    if: |
+      github.event_name == 'issues' &&
+      (contains(toJSON(github.event.issue.body), '## Agent scope') ||
+       contains(github.event.issue.labels.*.name, 'spec')) &&
+      !startsWith(github.event.issue.title, 'fix(ci):') &&
+      !contains(github.event.issue.title, 'CI failure') &&
+      !contains(github.event.issue.labels.*.name, 'automated') &&
+      !contains(github.event.issue.labels.*.name, 'ci-failure') &&
+      github.event.issue.user.login != 'github-actions[bot]' &&
+      github.event.issue.user.login != 'google-labs-jules[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v7 # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
+        with:
+          fetch-depth: 1
+
+      # Standardized to use generate-token for App token authentication
+      - name: Generate App Token
+        id: app-token
+        uses: ./.github/actions/generate-token
+        with:
+          app_id: ${{ secrets.APP_ID }}
+          app_private_key: ${{ secrets.APP_PRIVATE_KEY }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Run Issue Operations - Validate Spec
+        uses: arii/boomtick/.github/actions/issue-operations@main # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
+        with:
+          operation: 'validate-spec'
+          issue_number: ${{ github.event.issue.number }}
+          github_token: ${{ steps.app-token.outputs.token }}
+
   create-pr:
     name: Issue to Content PR
     if: |

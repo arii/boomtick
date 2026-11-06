@@ -2,7 +2,7 @@ name: 'Issue Operations'
 description: 'Unified action for validating issues, creating PRs, AI review, and auto-resolving conflicts/snapshots'
 inputs:
   operation:
-    description: 'The operation to perform: validate-quality, create-pr, ai-review, resolve-conflicts, update-snapshots'
+    description: 'The operation to perform: validate-quality, validate-spec, create-pr, ai-review, resolve-conflicts, update-snapshots'
     required: true
   issue_number:
     description: 'The issue or PR number'
@@ -54,7 +54,7 @@ runs:
 
     # --- VALIDATE QUALITY ---
     - name: Configure Git Safe Directory
-      if: inputs.operation == 'validate-quality' || inputs.operation == 'resolve-conflicts'
+      if: inputs.operation == 'validate-quality' || inputs.operation == 'validate-spec' || inputs.operation == 'resolve-conflicts'
       run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
       shell: bash
 
@@ -70,6 +70,61 @@ runs:
         ISSUE_NUM: ${{ inputs.issue_number }}
       run: |
         td gh validate-issue --issue-number "$ISSUE_NUM" --post-comments --execute
+      shell: bash
+
+    # --- VALIDATE SPEC ---
+    - name: Setup Workspace for Spec Validation
+      if: inputs.operation == 'validate-spec'
+      uses: arii/boomtick/.github/actions/setup-workspace@main # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
+      with:
+        setup-node: 'false'
+
+    - name: Validate Design Spec and Report
+      if: inputs.operation == 'validate-spec'
+      env:
+        ISSUE_NUM: ${{ inputs.issue_number }}
+      run: |
+        set -u
+        MARKER='<!-- boomtick-validate-spec -->'
+        SPEC_FILE="$(mktemp "/tmp/spec-${ISSUE_NUM}-XXXX.md")"
+        VALID_JSON="$(mktemp "/tmp/spec-valid-${ISSUE_NUM}-XXXX.json")"
+        gh issue view "$ISSUE_NUM" --json title,body \
+          --jq '"# \(.title)\n\n\(.body)"' > "$SPEC_FILE"
+        if td validate-issue --file "$SPEC_FILE" --json > "$VALID_JSON" 2>/dev/null; then
+          VALID=true
+        else
+          VALID="$(python3 -c "import json; print('true' if json.load(open('$VALID_JSON')).get('valid') else 'false')" 2>/dev/null || echo false)"
+        fi
+        if [ "$VALID" = "true" ]; then
+          GOOD_LABEL='spec-valid'
+          BAD_LABEL='spec-invalid'
+          HEADLINE='### Design-spec validation: valid'
+        else
+          GOOD_LABEL='spec-invalid'
+          BAD_LABEL='spec-valid'
+          HEADLINE='### Design-spec validation: invalid'
+        fi
+        ERRORS="$(python3 -c "import json; print('\n'.join('- ' + e for e in json.load(open('$VALID_JSON')).get('errors', [])))" 2>/dev/null || true)"
+        BODY="$(printf '%s\n%s\n\n%s\n\n%s' "$MARKER" "$HEADLINE" "${ERRORS:-No errors.}" '_Reported by the validate-spec check (td validate-issue)._')"
+        gh label create spec-valid --color 0E8A16 \
+          --description 'Design spec passed validation' 2>/dev/null || true
+        gh label create spec-invalid --color B60205 \
+          --description 'Design spec failed validation' 2>/dev/null || true
+        gh issue edit "$ISSUE_NUM" --add-label "$GOOD_LABEL" --remove-label "$BAD_LABEL" 2>/dev/null || \
+          gh issue edit "$ISSUE_NUM" --add-label "$GOOD_LABEL"
+        EXISTING="$(gh api "repos/{owner}/{repo}/issues/${ISSUE_NUM}/comments" --paginate \
+          --jq ".[] | select(.body | contains(\"$MARKER\")) | .id" | head -n 1)"
+        if [ -n "$EXISTING" ]; then
+          gh api --method PATCH "repos/{owner}/{repo}/issues/comments/${EXISTING}" \
+            -f body="$BODY" >/dev/null
+        else
+          gh issue comment "$ISSUE_NUM" --body "$BODY"
+        fi
+        rm -f "$SPEC_FILE" "$VALID_JSON"
+        if [ "$VALID" != "true" ]; then
+          echo "::error::Design spec failed validation (see $GOOD_LABEL label and issue comment)."
+          exit 1
+        fi
       shell: bash
 
     # --- CREATE PR ---
