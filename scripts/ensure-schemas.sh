@@ -10,6 +10,11 @@
 set -u
 cd "$(git rev-parse --show-toplevel 2>/dev/null || echo .)" || exit 0
 
+# Sync canonical visual_guidelines.json from cli resources into lib/resources (#1143)
+if [ -f "cli/dev_tools/resources/visual_guidelines.json" ]; then
+  cp cli/dev_tools/resources/visual_guidelines.json lib/resources/visual_guidelines.json
+fi
+
 MODELS_SCHEMA="cli/dev_tools/cli-schema.json"
 if [ -f "$MODELS_SCHEMA" ]; then
   exit 0
