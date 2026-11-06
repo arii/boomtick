@@ -97,8 +97,12 @@ def test_scope_status_mixed_case_paths(tmp_path):
 
 
 def test_extract_mentions_ignores_prose_and_code_fragments():
-    # Regression test for #1142: dotted identifiers, bare word/ fragments,
-    # and single-letter paths must not become scope entries.
+    # Regression test for #1142: dotted identifiers, generic word/
+    # fragments, and single-letter paths must not become scope entries.
+    # Proper-noun single-segment dirs (arii/) still extract: they are
+    # structurally identical to deliberate mentions (scripts/, cli/),
+    # which test_directory_match requires; callers confirm via checkout
+    # existence checks (scope_status NEW vs in-checkout).
     from dev_tools.services.scope_gate import extract_mentions
 
     body = ("Revalidation reported: os.path.isfile, os.path.isdir, "
@@ -106,7 +110,7 @@ def test_extract_mentions_ignores_prose_and_code_fragments():
             "arii/, file/, i/ - all flagged NEW - confirm (not in checkout).")
     files, dirs = extract_mentions(body)
     assert files == set()
-    assert dirs == set()
+    assert dirs == {"arii/"}
 
 
 def test_extract_mentions_keeps_deliberate_mentions():

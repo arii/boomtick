@@ -345,12 +345,27 @@ def _is_phantom_file_match(match: str) -> bool:
         return True
     return ext.lower() not in KNOWN_FILE_EXTENSIONS
 
+STOP_WORDS = {
+    "with", "this", "that", "from", "your", "have", "will", "mode", "flag", "test", "file", "spec",
+    "tool", "mode", "strict", "scope", "hook", "hooks", "commit", "issue", "branch", "main", "origin",
+    "unrequested", "modification", "modifications", "unrelated", "runner", "release", "publish",
+    "build", "docker", "setup", "buildx", "workflow", "workflows", "verification", "mechanism"
+}
+
 def _is_phantom_dir_match(match: str) -> bool:
-    """True when a dir_regex hit is a prose fragment, not a dir mention."""
+    """True when a dir_regex hit is prose, not a deliberate mention."""
     segments = [seg for seg in match.strip("/").split("/") if seg not in ("", ".", "..")]
-    if len(segments) < 2:
+    # Single-letter paths (``i/``, ``a/b/``) are never deliberate.
+    if any(len(seg) <= 1 for seg in segments):
         return True
-    return any(len(seg) <= 1 for seg in segments)
+    if len(segments) >= 2:
+        return False
+    # Bare `word/`: generic vocabulary (STOP_WORDS: ``file/``, ``test/``)
+    # is prose; a proper-noun word (``scripts/``, ``cli/``) is kept as a
+    # deliberate dir mention (see test_directory_match). It is
+    # structurally indistinguishable from prose lookalikes (``arii/``),
+    # which callers confirm via checkout existence checks.
+    return segments[0].lower() in STOP_WORDS
 
 def check_scope(changed_files, issue_text):
     if not issue_text:
@@ -380,13 +395,7 @@ def check_scope(changed_files, issue_text):
         for sub_w in split_camel_case(w):
             mentioned_words.add(sub_w)
 
-    stop_words = {
-        "with", "this", "that", "from", "your", "have", "will", "mode", "flag", "test", "file", "spec",
-        "tool", "mode", "strict", "scope", "hook", "hooks", "commit", "issue", "branch", "main", "origin",
-        "unrequested", "modification", "modifications", "unrelated", "runner", "release", "publish",
-        "build", "docker", "setup", "buildx", "workflow", "workflows", "verification", "mechanism"
-    }
-    mentioned_words = {w for w in mentioned_words if len(w) > 3 and w not in stop_words}
+    mentioned_words = {w for w in mentioned_words if len(w) > 3 and w not in STOP_WORDS}
 
     allowed_base_names = set()
     for f in mentioned_files:

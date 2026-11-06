@@ -185,13 +185,19 @@ def _is_phantom_file_match(match: str) -> bool:
 
 
 def _is_phantom_dir_match(match: str) -> bool:
-    """True when a dir_regex hit is a prose fragment, not a dir mention."""
+    """True when a dir_regex hit is prose, not a deliberate mention."""
     segments = [seg for seg in match.strip("/").split("/") if seg not in ("", ".", "..")]
-    # Bare `word/` fragments are prose (``arii/``, ``file/``, ``i/``):
-    # a deliberate dir mention names a multi-segment path.
-    if len(segments) < 2:
+    # Single-letter paths (``i/``, ``a/b/``) are never deliberate.
+    if any(len(seg) <= 1 for seg in segments):
         return True
-    return any(len(seg) <= 1 for seg in segments)
+    if len(segments) >= 2:
+        return False
+    # Bare `word/`: generic vocabulary (STOP_WORDS: ``file/``, ``test/``)
+    # is prose; a proper-noun word (``scripts/``, ``cli/``) is kept as a
+    # deliberate dir mention (see test_directory_match). It is
+    # structurally indistinguishable from prose lookalikes (``arii/``),
+    # which callers confirm via checkout existence checks.
+    return segments[0].lower() in STOP_WORDS
 
 
 def extract_mentions(issue_text):

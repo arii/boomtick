@@ -12,6 +12,8 @@ import secrets
 import subprocess
 import time
 
+from dev_tools.services import local_sessions
+
 WORKTREES_DIR = ".worktrees"
 ID_RE = re.compile(r"^[A-Za-z0-9_.-]+$")
 
@@ -77,18 +79,18 @@ def fast_forward_main_ref(root):
         if status.returncode == 0 and status.stdout.strip():
             return False, "worktree dirty; not fast-forwarding"
         merged = _git(["merge", "--ff-only", "origin/main"], root)
-        if merged.returncode != 0:
-            return False, "main diverged; not fast-forwarding"
-        return True, "fast-forwarded"
+        return (merged.returncode == 0,
+                "fast-forwarded" if merged.returncode == 0
+                else "main diverged; not fast-forwarding")
     ancestor = _git(
         ["merge-base", "--is-ancestor", "refs/heads/main", "origin/main"],
         root)
     local_missing = _git(["rev-parse", "--verify", "refs/heads/main"], root)
     if ancestor.returncode == 0 or local_missing.returncode != 0:
         moved = _git(["update-ref", "refs/heads/main", "origin/main"], root)
-        if moved.returncode != 0:
-            return False, "update-ref failed"
-        return True, "fast-forwarded main ref"
+        return (moved.returncode == 0,
+                "fast-forwarded main ref" if moved.returncode == 0
+                else "update-ref failed")
     return False, "main diverged; not fast-forwarding"
 
 
@@ -326,9 +328,8 @@ def remove(root, worktree_id, force=False):
         raise WorktreeError(
             f"Worktree {worktree_id} has uncommitted changes; "
             "pass --force to remove anyway")
-    from dev_tools.services import local_sessions as _ls
     try:
-        _ls.abandon_sessions_in_worktree(root, path)
+        local_sessions.abandon_sessions_in_worktree(root, path)
     except (OSError, ValueError):
         pass
     try:
