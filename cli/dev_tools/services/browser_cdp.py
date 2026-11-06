@@ -50,10 +50,27 @@ def _cdp_ws_url(grid_base: str, session_id: str) -> str:
     return f"{ws_base}/session/{session_id}/se/cdp"
 
 
+# Agent profile on the shared host dir: logins and localStorage
+# survive session and container restarts. ChromeDriver yields to a
+# user-supplied --user-data-dir (its temp dir would otherwise win).
+# WebMCP testing flag lets agents consume document.modelContext tools
+# where sites offer them (verified live: undefined without it).
+AGENT_PROFILE_ARGS = [
+    "--user-data-dir=/data/shared-browser/agent",
+    "--enable-features=WebMCP",
+]
+
+
+def _session_capabilities() -> dict:
+    """W3C alwaysMatch block for a headed agent session."""
+    return {"browserName": "chrome",
+            "goog:chromeOptions": {"args": list(AGENT_PROFILE_ARGS)}}
+
+
 def _create_grid_session(grid_base: str, timeout: int = 60) -> str:
     """Start a headed Chromium session; returns its sessionId."""
-    body = json.dumps({"capabilities": {"alwaysMatch": {
-        "browserName": "chrome"}}}).encode()
+    body = json.dumps({"capabilities": {"alwaysMatch":
+                                        _session_capabilities()}}).encode()
     req = urllib.request.Request(grid_base + "/session", data=body,
                                  headers={"Content-Type": "application/json"})
     with urllib.request.urlopen(req, timeout=timeout) as resp:
