@@ -96,6 +96,34 @@ def test_scope_status_mixed_case_paths(tmp_path):
     assert by_path["utils/missingDir/missingFile.ts"] == "NEW - confirm (not in checkout)"
 
 
+def test_extract_mentions_ignores_prose_and_code_fragments():
+    # Regression test for #1142: dotted identifiers, bare word/ fragments,
+    # and single-letter paths must not become scope entries.
+    from dev_tools.services.scope_gate import extract_mentions
+
+    body = ("Revalidation reported: os.path.isfile, os.path.isdir, "
+            "issue_text.lower, scope_gate.extract, spec_issue.scope, e.g, "
+            "arii/, file/, i/ - all flagged NEW - confirm (not in checkout).")
+    files, dirs = extract_mentions(body)
+    assert files == set()
+    assert dirs == set()
+
+
+def test_extract_mentions_keeps_deliberate_mentions():
+    # Deliberate mentions still extract: slashed paths, multi-segment
+    # dirs, and bare filenames with known file context.
+    from dev_tools.services.scope_gate import extract_mentions
+
+    body = ("Touches cli/dev_tools/services/scope_gate.py and the "
+            "mcp/src/tools/ registry, plus action.yml and "
+            "cli/dev_tools/resources/visual_guidelines.json")
+    files, dirs = extract_mentions(body)
+    assert "cli/dev_tools/services/scope_gate.py" in files
+    assert "cli/dev_tools/resources/visual_guidelines.json" in files
+    assert "action.yml" in files
+    assert "mcp/src/tools/" in dirs
+
+
 def test_cli_validate_issue_file(tmp_path):
     runner = CliRunner()
     draft = tmp_path / "draft.md"

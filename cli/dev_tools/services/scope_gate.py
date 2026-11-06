@@ -149,21 +149,72 @@ def split_camel_case(s: str) -> list:
     return [w.lower() for w in re.findall(r'[A-Z]?[a-z]+|[A-Z]+(?=[A-Z][a-z]|\d|\b)|[0-9]+', s) if w]
 
 
+# File extensions that count as "known file context" for a bare
+# `name.ext` mention (no path separator). Anything else shaped like
+# `word.word` is prose or code (``os.path.isfile``, ``issue_text.lower``,
+# ``e.g``). Grounded in this repo: every dotted EXEMPT_FILES entry plus
+# the source/config/doc extensions used across the monorepo.
+KNOWN_FILE_EXTENSIONS = frozenset(
+    {name.rsplit(".", 1)[1].lower() for name in EXEMPT_FILES if "." in name}
+    | {
+        "py", "pyi", "ts", "tsx", "mts", "cts", "js", "jsx", "mjs", "cjs",
+        "json", "jsonc", "yml", "yaml", "toml", "cfg", "ini", "conf",
+        "md", "mdx", "rst", "txt", "sh", "bash", "css", "scss",
+        "html", "xml", "svg", "sql", "go", "rs", "rb", "java",
+        "c", "h", "cc", "cpp", "hpp", "cs", "swift", "php",
+        "vue", "graphql", "proto", "lock",
+    }
+)
+
+
+def _is_phantom_file_match(match: str) -> bool:
+    """True when a path_regex hit is prose/code, not a deliberate mention."""
+    stem, _dot, ext = match.rpartition(".")
+    if "/" in match:
+        # Real path context: deliberate unless a segment is trivially
+        # short (``i/x.py``) or empty/dot navigation noise.
+        segments = [seg for seg in match.split("/") if seg not in ("", ".", "..")]
+        return any(len(seg) <= 1 for seg in segments)
+    # Bare `name.ext`: require known file context, a single dot, and a
+    # non-trivial stem. Drops ``os.path.isfile`` (multi-dot),
+    # ``issue_text.lower`` / ``scope_gate.extract`` / ``spec_issue.scope``
+    # (unknown extensions) and ``e.g`` (trivial stem, unknown ext).
+    if "." in stem or len(stem) <= 1:
+        return True
+    return ext.lower() not in KNOWN_FILE_EXTENSIONS
+
+
+def _is_phantom_dir_match(match: str) -> bool:
+    """True when a dir_regex hit is a prose fragment, not a dir mention."""
+    segments = [seg for seg in match.strip("/").split("/") if seg not in ("", ".", "..")]
+    # Bare `word/` fragments are prose (``arii/``, ``file/``, ``i/``):
+    # a deliberate dir mention names a multi-segment path.
+    if len(segments) < 2:
+        return True
+    return any(len(seg) <= 1 for seg in segments)
+
+
 def extract_mentions(issue_text):
     """File/dir mentions per the CI gate's regexes (original-case sets).
 
     Matching in check_scope is case-insensitive (it lowercases both
     sides), but existence checks in spec_issue.scope_status need the
     original case to hit the case-sensitive checkout.
+
+    Prose and inline-code lookalikes are filtered: dotted identifiers
+    (``os.path.isfile``), bare ``word/`` fragments, and single-letter
+    paths never become scope entries. check_scope itself is unchanged.
     """
     issue_text = issue_text or ""
     # Extract everything that looks like a file name, file path, or directory path
     path_regex = r'[a-zA-Z0-9_\-\./]+\.[a-zA-Z0-9]+'
-    mentioned_files = set(re.findall(path_regex, issue_text))
+    mentioned_files = {m for m in re.findall(path_regex, issue_text)
+                       if not _is_phantom_file_match(m)}
 
     # Extract directories
     dir_regex = r'[a-zA-Z0-9_\-\./]+/'
-    mentioned_dirs = set(re.findall(dir_regex, issue_text))
+    mentioned_dirs = {m for m in re.findall(dir_regex, issue_text)
+                      if not _is_phantom_dir_match(m)}
     return mentioned_files, mentioned_dirs
 
 
