@@ -6,12 +6,13 @@ vi.mock("./shell.js", () => ({
   runCommand: vi.fn(),
 }));
 
-function mockTd(payload: unknown) {
+function mockTd(payload: unknown, argv: string[] = []) {
   vi.mocked(shell.runCommand).mockResolvedValue({
     stdout: JSON.stringify(payload),
     stderr: "",
     exitCode: 0,
     durationMs: 5,
+    command: ["td", ...argv].join(" "),
   });
 }
 

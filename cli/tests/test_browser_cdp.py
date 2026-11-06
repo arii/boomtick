@@ -40,7 +40,7 @@ class _FakeContext:
 
 
 class _FakeBrowser:
-    contexts = []
+    contexts: list = []
 
     def new_context(self, viewport=None):
         return _FakeContext()
