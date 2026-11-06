@@ -195,6 +195,51 @@ class Orchestrator:
                 return True
         return False
 
+    # Fixed-width signals that risk 390px-viewport overflow (#1116).
+    _OVERFLOW_RE = re.compile(r"w-\[\d+(?:\.\d+)?px\]|min-w-\[|whitespace-nowrap")
+    # Fixed sub-48px dimensions on a button line: below the minimum
+    # touch target (#1116).
+    _SMALL_PX_RE = re.compile(
+        r"(?:h|w|min-h|min-w)-\[(\d+(?:\.\d+)?)px\]|"
+        r"(?:height|width)\s*:\s*(\d+(?:\.\d+)?)px")
+    _BUTTON_RE = re.compile(r"<button\b|role=[\"']button[\"']")
+
+    def _overflow_evidence(self, diff: str) -> List[Tuple[str, str]]:
+        """(file, added_line) pairs with fixed-width overflow signals."""
+        evidence: List[Tuple[str, str]] = []
+        path = ""
+        for line in (diff or "").splitlines():
+            if line.startswith("+++ b/"):
+                path = line[6:]
+                continue
+            if not line.startswith("+") or line.startswith("+++"):
+                continue
+            added = line[1:]
+            if self._OVERFLOW_RE.search(added):
+                evidence.append((path, added.strip()))
+        return evidence
+
+    def _touch_evidence(self, diff: str) -> List[Tuple[str, str]]:
+        """(file, added_line) pairs with sub-48px button dimensions."""
+        evidence: List[Tuple[str, str]] = []
+        path = ""
+        for line in (diff or "").splitlines():
+            if line.startswith("+++ b/"):
+                path = line[6:]
+                continue
+            if not line.startswith("+") or line.startswith("+++"):
+                continue
+            added = line[1:]
+            if not self._BUTTON_RE.search(added):
+                continue
+            small = any(
+                float(n) < 48
+                for pair in self._SMALL_PX_RE.findall(added)
+                for n in pair if n)
+            if small:
+                evidence.append((path, added.strip()))
+        return evidence
+
     def collect_pr_findings(self, pr: Dict[str, Any], diff: str, checks: Dict[str, Any]) -> List[Dict[str, Any]]:
         """Structured hunk-cited findings for a PR (#1113).
 
@@ -223,6 +268,40 @@ class Orchestrator:
                 "file": "",
                 "evidence": sorted(fails),
                 "message": f"Failing checks: {', '.join(sorted(fails))}.",
+            })
+        for path, added in self._overflow_evidence(diff or ""):
+            existing = next((f for f in findings if f["rule"] == "mobile-overflow" and f["file"] == path), None)
+            if existing is None:
+                existing = {
+                    "rule": "mobile-overflow",
+                    "severity": "warning",
+                    "file": path,
+                    "evidence": [],
+                    "message": "Fixed-width content risks overflowing a 390px viewport; prefer fluid widths with wrapping.",
+                }
+                findings.append(existing)
+            if added not in existing["evidence"] and len(existing["evidence"]) < 5:
+                existing["evidence"].append(added)
+        for path, added in self._touch_evidence(diff or ""):
+            existing = next((f for f in findings if f["rule"] == "touch-target" and f["file"] == path), None)
+            if existing is None:
+                existing = {
+                    "rule": "touch-target",
+                    "severity": "warning",
+                    "file": path,
+                    "evidence": [],
+                    "message": "Interactive element below the 48x48px minimum touch target; enforce min-h/min-w 48px.",
+                }
+                findings.append(existing)
+            if added not in existing["evidence"] and len(existing["evidence"]) < 5:
+                existing["evidence"].append(added)
+        if pr.get("mergeable") is False:
+            findings.append({
+                "rule": "merge-conflict",
+                "severity": "error",
+                "file": "",
+                "evidence": [get_config().base_branch_name],
+                "message": f"PR conflicts with the {get_config().base_branch_name} base branch.",
             })
         return findings
 
