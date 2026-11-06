@@ -225,3 +225,94 @@ def test_capture_without_playwright(tmp_path, monkeypatch):
     assert result.reachable is False
     assert result.error.startswith("BROWSER_UNREACHABLE")
     assert "PLAYWRIGHT_NOT_INSTALLED" in result.error
+
+
+class _FakeMouse:
+    def __init__(self):
+        self.calls = []
+
+    def move(self, x, y):
+        self.calls.append(("move", x, y))
+
+    def click(self, x, y, button="left"):
+        self.calls.append(("click", x, y, button))
+
+
+class _FakeKeyboard:
+    def __init__(self):
+        self.typed = []
+        self.pressed = []
+
+    def type(self, text):
+        self.typed.append(text)
+
+    def press(self, key):
+        self.pressed.append(key)
+
+
+class _InputFakePage:
+    """Duck-typed Playwright page for input-dispatch tests."""
+
+    _DEFAULT_CENTER = {"x": 10, "y": 20}
+
+    def __init__(self, center=_DEFAULT_CENTER):
+        self.evaluated = []
+        self.mouse = _FakeMouse()
+        self.keyboard = _FakeKeyboard()
+        self._center = dict(center) if center is not None else None
+
+    def evaluate(self, js):
+        self.evaluated.append(js)
+        if "getBoundingClientRect" in js:
+            return self._center
+        return None
+
+
+def test_inject_cursor_installs_overlay_once():
+    page = _InputFakePage()
+    browser_cdp.inject_cursor(page)
+    browser_cdp.inject_cursor(page)
+    installs = [js for js in page.evaluated if "__agent_cdp_cursor" in js]
+    assert len(installs) == 2
+    assert "__agentCursorInstalled" in installs[0]
+
+
+def test_click_by_selector_moves_cursor_and_clicks():
+    page = _InputFakePage()
+    point = browser_cdp.click(page, selector="button.submit")
+    assert point == {"x": 10, "y": 20}
+    assert ("move", 10, 20) in page.mouse.calls
+    assert ("click", 10, 20, "left") in page.mouse.calls
+    assert any("__moveAgentCursor(10, 20)" in js for js in page.evaluated)
+
+
+def test_click_by_coordinates_skips_lookup():
+    page = _InputFakePage()
+    point = browser_cdp.click(page, x=5, y=6)
+    assert point == {"x": 5, "y": 6}
+    assert not any("getBoundingClientRect" in js for js in page.evaluated)
+
+
+def test_click_missing_selector_raises():
+    page = _InputFakePage(center=None)
+    with pytest.raises(ValueError, match="Selector not found"):
+        browser_cdp.click(page, selector=".nope")
+
+
+def test_click_requires_target():
+    page = _InputFakePage()
+    with pytest.raises(ValueError, match="selector or"):
+        browser_cdp.click(page)
+
+
+def test_type_text_clears_types_and_enters():
+    page = _InputFakePage()
+    result = browser_cdp.type_text(page, "hi", selector="input", press_enter=True)
+    assert result == {"typed": 2, "selector": "input"}
+    assert page.keyboard.typed == ["hi"]
+    assert page.keyboard.pressed == ["Enter"]
+    assert any("dispatchEvent" in js for js in page.evaluated)
+
+
+def test_cursor_js_has_no_adjacent_string_literals():
+    assert re.search(r"'[^'\n]*'\s*'", browser_cdp.CURSOR_INJECTION_JS) is None

@@ -195,3 +195,74 @@ def capture_dom_and_visual_snapshot(
         interactive_elements=int(dom.get("interactive_elements", 0)),
         screenshot_path=str(candidate_png),
     )
+
+
+CURSOR_INJECTION_JS = (
+    "(() => { if (window.__agentCursorInstalled) return;"
+    " window.__agentCursorInstalled = true;"
+    " const c = document.createElement('div');"
+    " c.id = '__agent_cdp_cursor';"
+    " c.style.cssText = 'position:fixed;top:0;left:0;width:18px;height:18px;'"
+    " + 'border-radius:50%;background:rgba(255,59,48,0.85);border:2px solid #fff;'"
+    " + 'box-shadow:0 0 8px rgba(0,0,0,0.6);pointer-events:none;z-index:2147483647;'"
+    " + 'transform:translate(-50%,-50%);transition:top 0.08s,left 0.08s;';"
+    " document.documentElement.appendChild(c);"
+    " window.__moveAgentCursor = (x, y) => {"
+    " const el = document.getElementById('__agent_cdp_cursor');"
+    " if (el) { el.style.left = x + 'px'; el.style.top = y + 'px'; } }; })();"
+)
+
+
+def inject_cursor(page) -> None:
+    """Inject the visible cobrowsing cursor (idempotent per page)."""
+    page.evaluate(CURSOR_INJECTION_JS)
+
+
+def resolve_selector_center(page, selector: str) -> dict:
+    """Viewport center of the first element matching selector."""
+    point = page.evaluate(
+        "(() => { const el = document.querySelector("
+        + json.dumps(selector)
+        + "); if (!el) return null;"
+        + " el.scrollIntoView({block: 'center', inline: 'center'});"
+        + " const r = el.getBoundingClientRect();"
+        + " return {x: Math.round(r.left + r.width / 2),"
+        + " y: Math.round(r.top + r.height / 2)}; })()"
+    )
+    if not point:
+        raise ValueError(f"Selector not found: {selector}")
+    return {"x": int(point["x"]), "y": int(point["y"])}
+
+
+def click(page, selector: str | None = None,
+          x: int | None = None, y: int | None = None) -> dict:
+    """Move the visual cursor and dispatch a left click."""
+    inject_cursor(page)
+    if selector is not None:
+        center = resolve_selector_center(page, selector)
+        x, y = center["x"], center["y"]
+    if x is None or y is None:
+        raise ValueError("Must provide selector or (x, y) coordinates")
+    page.evaluate(f"window.__moveAgentCursor({int(x)}, {int(y)})")
+    page.mouse.move(int(x), int(y))
+    page.mouse.click(int(x), int(y), button="left")
+    return {"x": int(x), "y": int(y)}
+
+
+def type_text(page, text: str, selector: str | None = None,
+              clear_first: bool = True, press_enter: bool = False) -> dict:
+    """Click an optional selector, clear it, and type via key events."""
+    if selector is not None:
+        click(page, selector=selector)
+        if clear_first:
+            page.evaluate(
+                "(() => { const el = document.querySelector("
+                + json.dumps(selector)
+                + "); if (el && 'value' in el) { el.value = '';"
+                + " el.dispatchEvent(new Event('input', {bubbles: true}));"
+                + " } })()"
+            )
+    page.keyboard.type(text)
+    if press_enter:
+        page.keyboard.press("Enter")
+    return {"typed": len(text), "selector": selector}
