@@ -105,6 +105,62 @@ class TestOrchestratorHeuristics(unittest.TestCase):
         # Should NOT flag package.json
         self.assertNotIn("package.json", feedback)
 
+    def test_mobile_overflow_finding_cites_hunk(self):
+        # Issue #1116: fixed-pixel widths render the Mobile UX
+        # advisory but left findings empty. The finding must cite
+        # the file plus the added line.
+        pr = {"number": 8, "head": {"ref": "ui-branch"}, "title": "UI change"}
+        diff = (
+            "+++ b/src/components/Panel.tsx\n"
+            "@@ -1,1 +1,1 @@\n"
+            '-<div className="panel">\n'
+            '+<div className="w-[480px] whitespace-nowrap">'
+        )
+        checks = {"check_runs": []}
+
+        feedback = self.orchestrator.evaluate_pr_heuristics(pr, diff, checks)
+        self.assertIn("Mobile UX Verification", feedback)
+
+        findings = self.orchestrator.collect_pr_findings(pr, diff, checks)
+        ov = [f for f in findings if f["rule"] == "mobile-overflow"]
+        self.assertEqual(len(ov), 1)
+        self.assertEqual(ov[0]["file"], "src/components/Panel.tsx")
+        self.assertTrue(any("w-[480px]" in line for line in ov[0]["evidence"]))
+
+    def test_touch_target_finding_cites_hunk(self):
+        # Issue #1116: sub-48px fixed-size buttons render the touch
+        # target advisory but left findings empty.
+        pr = {"number": 9, "head": {"ref": "ui-branch"}, "title": "UI change"}
+        diff = (
+            "+++ b/src/components/Icon.tsx\n"
+            "@@ -1,1 +1,1 @@\n"
+            '-<span>x</span>\n'
+            '+<button className="h-[24px] w-[24px]">x</button>'
+        )
+        checks = {"check_runs": []}
+
+        findings = self.orchestrator.collect_pr_findings(pr, diff, checks)
+        tt = [f for f in findings if f["rule"] == "touch-target"]
+        self.assertEqual(len(tt), 1)
+        self.assertEqual(tt[0]["file"], "src/components/Icon.tsx")
+        self.assertTrue(any("h-[24px]" in line for line in tt[0]["evidence"]))
+
+    def test_merge_conflict_finding_when_unmergeable(self):
+        # Issue #1116: the merge-conflict advisory rendered with no
+        # matching findings entry.
+        pr = {"number": 10, "head": {"ref": "ui-branch"},
+              "title": "UI change", "mergeable": False}
+        diff = "+++ b/src/App.tsx\n+<br/>"
+        checks = {"check_runs": []}
+
+        feedback = self.orchestrator.evaluate_pr_heuristics(pr, diff, checks)
+        self.assertIn("Merge Conflicts", feedback)
+
+        findings = self.orchestrator.collect_pr_findings(pr, diff, checks)
+        mc = [f for f in findings if f["rule"] == "merge-conflict"]
+        self.assertEqual(len(mc), 1)
+        self.assertEqual(mc[0]["severity"], "error")
+
 
 if __name__ == "__main__":
     unittest.main()
