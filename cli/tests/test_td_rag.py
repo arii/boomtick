@@ -137,6 +137,17 @@ def test_full_rebuild_recovers_diverged_cache(repo, tmp_path):
     assert fresh.collection.count() == total
 
 
+def test_update_index_no_backend_raises(repo, tmp_path, monkeypatch):
+    # #1167 degraded-env hole: added>0 with no collection must fail
+    # loud instead of reporting ready on zero persisted vectors.
+    # Runs with or without the backend installed (property mocked).
+    monkeypatch.setattr(vs.VectorStore, "collection",
+                        property(lambda self: None))
+    with pytest.raises(RuntimeError, match="no embedding backend"):
+        vs.update_index(str(repo), incremental=False,
+                        persist_directory=str(tmp_path / "chroma"))
+
+
 def test_query_index_broken_store_raises(repo, tmp_path):
     # #1165: exceptions fail loud instead of returning [] silently.
     def broken(self, query_text, n_results=8, hybrid=True):

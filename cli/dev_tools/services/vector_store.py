@@ -565,6 +565,15 @@ def update_index(repo_root: str, incremental: bool = True,
                     f"rag index shortfall: embedded {added_chunks} "
                     f"chunks but collection holds {actual}")
 
+    # Degraded-env hole (#1167): with no embedding backend the walk
+    # above still counts chunks while persisting zero vectors. Fail
+    # loud instead of reporting ready on an empty collection.
+    if added_chunks > 0 and store.collection is None:
+        raise RuntimeError(
+            f"rag index has no embedding backend: counted {added_chunks} "
+            "chunks but the collection is unavailable (install chromadb "
+            "+ sentence-transformers)")
+
     if head_sha:
         meta["last_indexed_sha"] = head_sha
         meta["updated_files"] = sorted(set(updated_files))
