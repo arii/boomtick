@@ -54,7 +54,6 @@ exclude = ["*__pycache__*"]
     "dist/config.js",
     "dist/mcp/*.js",
     "dist/tools/*.js",
-    "dist/tools/jules/*.js",
     "dist/lib/*.js",
     "resources/*",
     "pr_overlap.py"

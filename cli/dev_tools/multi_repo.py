@@ -9,6 +9,8 @@ import subprocess
 import time
 from typing import Any, Dict, List, Optional
 
+from dev_tools.utils import log_warn
+
 
 def discover_ecosystem_repos(
     root_dir: Optional[pathlib.Path] = None,
@@ -103,8 +105,8 @@ def _get_repo_name_from_dir(d: pathlib.Path) -> str:
                 return str(data["github_repo"])
             if data.get("packageName"):
                 return str(data["packageName"])
-        except Exception:
-            pass
+        except Exception as e:
+            log_warn(f"multi_repo: ignoring unreadable {cfg}: {e}")
 
     pkg = d / "package.json"
     if pkg.exists():
@@ -112,8 +114,8 @@ def _get_repo_name_from_dir(d: pathlib.Path) -> str:
             data = json.loads(pkg.read_text(encoding="utf-8"))
             if data.get("name"):
                 return str(data["name"])
-        except Exception:
-            pass
+        except Exception as e:
+            log_warn(f"multi_repo: ignoring unreadable {pkg}: {e}")
 
     try:
         res = subprocess.run(
@@ -128,8 +130,8 @@ def _get_repo_name_from_dir(d: pathlib.Path) -> str:
             match = re.search(r"[:/]([^/]+/[^/.]+)(\.git)?$", url)
             if match:
                 return match.group(1)
-    except Exception:
-        pass
+    except Exception as e:
+        log_warn(f"multi_repo: git remote probe failed for {d}: {e}")
 
     return d.name
 
@@ -170,8 +172,8 @@ def get_repo_summary(repo_name: str, repo_path: pathlib.Path) -> Dict[str, Any]:
         )
         if res_s.returncode == 0:
             is_dirty = bool(res_s.stdout.strip())
-    except Exception:
-        pass
+    except Exception as e:
+        log_warn(f"multi_repo: git status probe failed for {repo_path}: {e}")
 
     context_file = repo_path / ".agent-context.json"
     has_context = context_file.exists()
@@ -181,8 +183,8 @@ def get_repo_summary(repo_name: str, repo_path: pathlib.Path) -> Dict[str, Any]:
     if config_path.exists():
         try:
             config_info = json.loads(config_path.read_text(encoding="utf-8"))
-        except Exception:
-            pass
+        except Exception as e:
+            log_warn(f"multi_repo: ignoring unreadable {config_path}: {e}")
 
     return {
         "repo": repo_name,
@@ -288,8 +290,8 @@ def warm_ecosystem_context(
             try:
                 pkg_data = json.loads(pkg.read_text(encoding="utf-8"))
                 has_agent_prime = "agent:prime" in pkg_data.get("scripts", {})
-            except Exception:
-                pass
+            except Exception as e:
+                log_warn(f"multi_repo: ignoring unreadable {pkg}: {e}")
 
         if has_agent_prime:
             cmd = "pnpm run agent:prime"

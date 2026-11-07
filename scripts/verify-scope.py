@@ -83,8 +83,8 @@ def fetch_linked_issue_bodies(text: str, fetched_nums=None) -> str:
                 title = data.get('title', '')
                 body = data.get('body', '')
                 extra_texts.append(f"\n--- Linked Issue #{num} ---\n{title}\n\n{body}")
-        except Exception:
-            pass
+        except Exception as e:
+            print(f"verify-scope: linked issue #{num} unreadable: {e}", file=sys.stderr)
 
     if extra_texts:
         return text + "\n" + "\n".join(extra_texts)
@@ -117,8 +117,8 @@ def fetch_issue_description(issue_file=None, issue_body=None, issue_number=None)
 
                 if body or title:
                     raw_text = f"{title}\n\n{body}"
-            except Exception:
-                pass
+            except Exception as e:
+                print(f"verify-scope: event payload unreadable: {e}", file=sys.stderr)
 
     # Try using gh CLI if issue_number is provided
     if not raw_text and issue_number:
@@ -130,8 +130,8 @@ def fetch_issue_description(issue_file=None, issue_body=None, issue_number=None)
             if res.returncode == 0:
                 data = json.loads(res.stdout)
                 raw_text = f"{data.get('title', '')}\n\n{data.get('body', '')}"
-        except Exception:
-            pass
+        except Exception as e:
+            print(f"verify-scope: issue #{issue_number} unreadable: {e}", file=sys.stderr)
 
     # Try looking for task_description.md or similar files in workspace
     if not raw_text:
@@ -187,8 +187,8 @@ def check_override():
             branch_name = res.stdout.strip().lower()
             if any(k in branch_name for k in release_branch_keywords):
                 return True
-    except Exception:
-        pass
+    except Exception as e:
+        print(f"verify-scope: branch probe failed: {e}", file=sys.stderr)
 
     # Check GITHUB_EVENT_PATH for release-please branch, title, or bot user
     event_path = os.environ.get("GITHUB_EVENT_PATH")
@@ -214,8 +214,8 @@ def check_override():
                 or "chore(deps" in pr_title
             ):
                 return True
-        except Exception:
-            pass
+        except Exception as e:
+            print(f"verify-scope: event file unreadable: {e}", file=sys.stderr)
 
     # Check git commit message for bypass tags or release-please commit messages
     try:
@@ -226,8 +226,8 @@ def check_override():
                 return True
             if any(tag in msg for tag in ["chore: release", "chore(main): release", "chore: release main"]):
                 return True
-    except Exception:
-        pass
+    except Exception as e:
+        print(f"verify-scope: commit log probe failed: {e}", file=sys.stderr)
 
     return False
 

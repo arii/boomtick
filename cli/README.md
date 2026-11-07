@@ -29,7 +29,7 @@ and git hook registration.
 
 **Secret handling guidance**
 
-- GitHub Actions / agent runners: store `GITHUB_TOKEN`, `JULES_API_KEY`, and
+- GitHub Actions / agent runners: store `GITHUB_TOKEN` and
   `GEMINI_API_KEY` in repository or org Secrets.
 - Dev containers / local shells: export secrets before running setup/CLI:
 
@@ -37,7 +37,6 @@ and git hook registration.
 export GITHUB_TOKEN="<token>"
 export GITHUB_REPOSITORY="owner/repo"
 # optional
-export JULES_API_KEY="<key>"
 export GEMINI_API_KEY="<key>"
 ```
 
@@ -62,17 +61,7 @@ After `./setup-agent.sh`, use the following workflow-specific setup:
 - Pre-submit quality gate before push/merge:
   - `td gh pre-submit`
 
-#### 2) Jules Workflows
-
-- Required secret: `JULES_API_KEY`.
-- Optional context env var: `JULES_SOURCE_ID` (if your environment already
-  knows the source mapping).
-- Typical commands:
-  - `td agent dispatch <BRANCH> "<TASK>"`
-  - `td agent fix-ci --pr-number <PR> --execute`
-  - `td agent sync`
-
-#### 3) Headless / Bot Auditing
+#### 2) Headless / Bot Auditing
 
 - For batch auditing open PRs:
   - `td gh audit-pr <PR_NUMBER> --fetch --audit --submit --execute`
@@ -101,11 +90,11 @@ pnpm run agent:prime
 
 If the index is stale, MCP tools fall back to raw filesystem calls, bypassing
 the index and increasing token usage. Always refresh before running reviews or
-dispatching Jules sessions.
+dispatching agent sessions.
 
 ---
 
-## 🤖 Agent / Jules GitHub Command Pattern
+## 🤖 Agent GitHub Command Pattern
 
 Always use `boomtick-mcp` Tier 1 tools first. `td` is the fallback
 when MCP is unavailable — not the default. See `AGENTS.md` for the

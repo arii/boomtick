@@ -123,10 +123,6 @@ class HealthCheckInput(CamelCaseModel):
     )
 
 
-class GetRouteMapInput(CamelCaseModel):
-    include_static: Optional[bool] = Field(None, description="Whether to include static assets in the route map.")
-
-
 class ReadCiLogsInput(CamelCaseModel):
     pr_number: Optional[int] = Field(None, description="PR number for CI logs. Omit to list workflow runs instead.")
     all: bool = Field(False, description="Include logs for successful runs (default: false).")
@@ -140,25 +136,6 @@ class ReadCiLogsInput(CamelCaseModel):
     event: Optional[str] = Field(None, description="Filter workflow runs by event (e.g. push, pull_request).")
 
 
-class WorktreeCreateInput(CamelCaseModel):
-    repo: Optional[str] = Field(None, description="Target repository override (e.g. org/repo or repo).")
-    path: Optional[str] = Field(None, description="Local filesystem override.")
-    base_branch: Optional[str] = Field(
-        None, description="Base branch to branch off, defaults to agent contract's baseBranch or main."
-    )
-    name: Optional[str] = Field(None, description="Slug descriptor for the worktree, sanitized [a-z0-9-].")
-    sparse_paths: Optional[List[str]] = Field(None, description="Path prefixes for sparse checkout.")
-    write_mode: bool = Field(..., description="Required true, following BoomTick mutating tool convention.")
-
-
-class WorktreeCreateResponse(CamelCaseModel):
-    worktree_id: str
-    path: str
-    branch: str
-    base_branch: str
-    created_at: int
-
-
 class WorktreeItem(CamelCaseModel):
     worktree_id: str
     path: str
@@ -168,27 +145,6 @@ class WorktreeItem(CamelCaseModel):
     disk_usage_bytes: int
 
 
-class WorktreeListInput(CamelCaseModel):
-    repo: Optional[str] = Field(None, description="Target repository override (e.g. org/repo or repo).")
-    path: Optional[str] = Field(None, description="Local filesystem override.")
-
-
-class WorktreeListResponse(CamelCaseModel):
-    worktrees: List[WorktreeItem] = Field(default_factory=list)
-
-
-class WorktreeRemoveInput(CamelCaseModel):
-    worktree_id: str = Field(..., description="The unique ID of the worktree to remove.")
-    force: bool = Field(False, description="Whether to force remove worktree even with uncommitted changes.")
-    write_mode: bool = Field(..., description="Required true, following BoomTick mutating tool convention.")
-    repo: Optional[str] = Field(None, description="Target repository override (e.g. org/repo or repo).")
-    path: Optional[str] = Field(None, description="Local filesystem override.")
-
-
-class WorktreeRemoveResponse(CamelCaseModel):
-    status: str = "removed"
-    worktree_id: str
-    freed_bytes: Optional[int] = None
 class RunTestsInput(CamelCaseModel):
     commands: Optional[List[str]] = Field(
         None,
@@ -203,16 +159,6 @@ class RunTestsResponse(CamelCaseModel):
     exit_code: int
     failed_tests: List[str] = Field(default_factory=list)
     results: List[Dict[str, Any]] = Field(default_factory=list)
-
-
-class RunLighthouseInput(CamelCaseModel):
-    route: str = Field("/", description="The route to audit (default: '/').")
-    worktree_path: Optional[str] = Field(None, description="Optional path to the worktree to run the audit in.")
-
-
-class RunPlaywrightInput(CamelCaseModel):
-    grep: Optional[str] = Field(None, description="Optional pattern to filter tests by name.")
-    worktree_path: Optional[str] = Field(None, description="Optional path to the worktree to run tests in.")
 
 
 class GetPrInput(CamelCaseModel):
@@ -251,11 +197,6 @@ class IssueCommentInput(CamelCaseModel):
         pattern=r"^[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+$",
         description="The target repository override (e.g. org/repo).",
     )
-class SearchDdgsInput(CamelCaseModel):
-    query: str = Field(..., description="The search query.")
-    max_results: Optional[int] = Field(None, description="Maximum number of results to return.")
-
-
 class ReadAgentContractInput(CamelCaseModel):
     path: Optional[str] = Field(None, description="Local filesystem path to target repository root")
     repo_path: Optional[str] = Field(
@@ -294,12 +235,6 @@ class GetContextStatusInput(CamelCaseModel):
     )
 
 
-class TdInitAndRagInput(CamelCaseModel):
-    repo_root: Optional[str] = Field(None, description="Repo root to initialize (default: git root).")
-    query: Optional[str] = Field(None, description="Optional natural-language query to run after init.")
-    top_k: Optional[int] = Field(None, description="Maximum RAG hits to return.")
-
-
 class TdValidateIssueInput(CamelCaseModel):
     file: str = Field(..., description="Path to the design spec file (or - for stdin).")
     repo_root: Optional[str] = Field(None, description="Repo root for file existence checks.")
@@ -315,11 +250,6 @@ class TdAuditWorktreeInput(CamelCaseModel):
     worktree: str = Field(..., description="Path to the worktree to audit.")
     include_impact: bool = Field(False, description="Also run blast-radius impact analysis.")
     top_k: Optional[int] = Field(None, description="Maximum impacted files to list.")
-
-
-class TdInitAndRagResponse(CamelCaseModel):
-    status: Optional[str] = None
-    data: Optional[Any] = None
 
 
 class TdInitInput(CamelCaseModel):
@@ -573,20 +503,6 @@ class IssueViewResponse(CamelCaseModel):
 class IssueCommentResponse(CamelCaseModel):
     status: str = "success"
     comment: Optional[Any] = None
-class AgentDispatchInput(CamelCaseModel):
-    worktree_id: str = Field(..., description="References an active worktree from worktree_create")
-    brief: str = Field(..., description="Task specification, instructions, expected verification")
-    model: Optional[str] = Field(None, description="Target execution model, e.g. local Ollama qwen2.5-coder:7b or Gemini API")
-    repo: Optional[str] = Field(None, description="Target repository override")
-
-
-class AgentDispatchResponse(CamelCaseModel):
-    session_id: str
-    worktree_id: str
-    status: Literal["running", "ready"]
-    started_at: int
-
-
 class AgentStatusInput(CamelCaseModel):
     session_id: str = Field(..., description="The ID of the session to check status for")
 
@@ -604,17 +520,6 @@ class AgentStatusResponse(CamelCaseModel):
     last_checkpoint: str
     changed_files: List[str] = Field(default_factory=list)
     last_verification: Optional[AgentStatusVerification] = None
-
-
-class AgentLogsInput(CamelCaseModel):
-    session_id: str = Field(..., description="The ID of the session to fetch logs for")
-    tail: int = Field(100, description="Number of tail lines to retrieve")
-
-
-class AgentLogsResponse(CamelCaseModel):
-    session_id: str
-    logs: List[str] = Field(default_factory=list)
-    total_lines: int
 
 
 class SkillInfo(CamelCaseModel):

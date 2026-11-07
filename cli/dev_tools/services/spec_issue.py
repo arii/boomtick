@@ -13,6 +13,7 @@ import os
 import re
 
 from dev_tools.services import scope_gate
+from dev_tools.utils import log_warn
 
 # Headers an agent needs to implement without follow-up questions.
 REQUIRED_HEADERS = (
@@ -87,8 +88,8 @@ def detect_gates(checkout):
                 content = handle.read()
             if "[tool.pytest" in content or "pytest" in content:
                 has_pytest = True
-        except OSError:
-            pass
+        except OSError as e:
+            log_warn(f"spec_issue: skipping unreadable {pyproject}: {e}")
     if has_pytest:
         gates.append("python3 -m pytest <touched-test-paths>")
     pkg = os.path.join(checkout, "package.json")

@@ -4,6 +4,8 @@ import os
 import re
 from typing import Any, Dict, List, Set
 
+from dev_tools.utils import log_warn
+
 APPROVED_DESIGN_PRIMITIVES: Set[str] = {
     "Box",
     "Stack",
@@ -326,8 +328,8 @@ class ASTAuditor:
                         f_findings = self.audit_file(filepath, code)
                         if f_findings:
                             dir_findings[filepath] = f_findings
-                    except Exception:
-                        pass
+                    except Exception as e:
+                        log_warn(f"ast_audit: skipping unreadable {filepath}: {e}")
 
         return dir_findings
 

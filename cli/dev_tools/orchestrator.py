@@ -545,8 +545,8 @@ class Orchestrator:
                                     "severity": finding["severity"],
                                     "line": finding["line"],
                                 })
-                    except Exception:
-                        pass
+                    except Exception as e:
+                        log_warn(f"orchestrator: AST audit failed for {target_path}: {e}")
                 elif os.path.isdir(target_path):
                     try:
                         dir_findings = ast_auditor.audit_directory(target_path)
@@ -562,8 +562,8 @@ class Orchestrator:
                                     "severity": finding["severity"],
                                     "line": finding["line"],
                                 })
-                    except Exception:
-                        pass
+                    except Exception as e:
+                        log_warn(f"orchestrator: AST audit failed for {rel_path}: {e}")
         elif content is not None:
             findings = ast_auditor.audit_file("stdin.tsx", content)
             if findings:
@@ -1322,8 +1322,8 @@ class Orchestrator:
                     ver = importlib_metadata.version(pkg_name)
                     if ver != "1.37.0":
                         otel_issues.append(f"{pkg_name} ({ver})")
-                except Exception:
-                    pass
+                except Exception as e:
+                    log_warn(f"orchestrator: cannot read version for {pkg_name}: {e}")
 
             if otel_issues:
                 print("\n" + "=" * 80)
@@ -1417,8 +1417,8 @@ class Orchestrator:
                         if not rel.startswith("..") and not os.path.isabs(rel):
                             is_safe = True
                             break
-                    except Exception:
-                        pass
+                    except Exception as e:
+                        log_warn(f"orchestrator: path safety probe failed for {d}: {e}")
 
             is_owner = False
             if hasattr(os, "getuid"):

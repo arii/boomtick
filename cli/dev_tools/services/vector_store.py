@@ -8,6 +8,8 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from dataclasses import dataclass, field
 
+from dev_tools.utils import log_warn
+
 TD_RAG_DIR = ".td_rag"
 META_FILENAME = "meta.json"
 
@@ -45,8 +47,8 @@ def write_meta(meta_file: str, meta: Dict[str, Any]) -> None:
         os.makedirs(os.path.dirname(meta_file), exist_ok=True)
         with open(meta_file, "w", encoding="utf-8") as handle:
             json.dump(meta, handle, indent=2)
-    except OSError:
-        pass
+    except OSError as e:
+        log_warn(f"vector_store: meta write failed for {meta_file}: {e}")
 
 
 def git_head_sha(repo_root: str) -> str:
@@ -143,8 +145,8 @@ class VectorStore:
         try:
             with open(self.cache_file, "w", encoding="utf-8") as f:
                 json.dump(self._cache, f, indent=2)
-        except Exception:
-            pass
+        except Exception as e:
+            log_warn(f"vector_store: cache save failed for {self.cache_file}: {e}")
 
     @property
     def client(self):
@@ -362,8 +364,8 @@ class VectorStore:
         if collection is not None:
             try:
                 collection.delete(where={"filepath": filepath})
-            except Exception:
-                pass
+            except Exception as e:
+                log_warn(f"vector_store: vector delete failed for {filepath}: {e}")
         return removed
 
     def add_file_incremental(self, filepath: str, code: str, force_reembed: bool = False) -> List[str]:
@@ -483,8 +485,8 @@ class VectorStore:
 
         try:
             client.delete_collection(self.collection_name)
-        except Exception:
-            pass
+        except Exception as e:
+            log_warn(f"vector_store: collection delete failed for {self.collection_name}: {e}")
         self._collection = client.create_collection(name=self.collection_name, embedding_function=embedding_fn)
         # Only purge caches after the replacement collection exists,
         # so a failed create leaves the prior state intact.
