@@ -171,6 +171,8 @@ def test_merge_approved_execute_refused_without_console_credential():
         assert res["results"] == []
         assert "S5_CONSOLE_MERGE_TOKEN" in res["reason"]
         orch.github.merge_pull_request.assert_not_called()
+        orch.list_prs.assert_not_called()
+        orch.evaluate_pr_merge_readiness.assert_not_called()
 
 
 def test_cli_agent_merge_approved():
