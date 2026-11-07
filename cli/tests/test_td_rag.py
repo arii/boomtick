@@ -1,5 +1,6 @@
 # pylint: disable=missing-docstring,line-too-long
 """Tests for td rag index/query/init (SHA-tracked incremental indexing)."""
+import importlib.util
 import json
 import os
 import subprocess
@@ -108,6 +109,14 @@ def test_add_file_incremental_counts_embeds_only(tmp_path):
     assert store.add_file_incremental("src/a.py", code) == []
 
 
+HAS_CHROMA = (
+    importlib.util.find_spec("chromadb") is not None
+    and importlib.util.find_spec("sentence_transformers") is not None
+)
+
+
+@pytest.mark.skipif(not HAS_CHROMA,
+                    reason="needs chromadb + sentence-transformers")
 def test_full_rebuild_recovers_diverged_cache(repo, tmp_path):
     # #1167: hashes cached but vectors missing (wiped collection).
     # --full must rebuild everything and reconcile, not report
