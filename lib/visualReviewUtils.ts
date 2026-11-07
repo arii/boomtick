@@ -242,57 +242,6 @@ ${costLine}${modelLine}${sections}
 `;
 }
 
-export async function getJulesSessionIdFromPR(): Promise<string | null> {
-  const token = process.env.GITHUB_TOKEN;
-  const repo = process.env.GITHUB_REPOSITORY;
-  const prNumber = process.env.PR_NUMBER;
-
-  if (!token || !repo || !prNumber) return null;
-
-  const url = `https://api.github.com/repos/${repo}/pulls/${prNumber}`;
-  const response = await fetch(url, {
-    headers: { Authorization: `Bearer ${token}`, Accept: 'application/vnd.github+json' },
-  });
-
-  if (!response.ok) return null;
-
-  const prData = await response.json() as { body?: string | null } | null;
-  if (!prData || typeof prData !== 'object' || !prData.body) return null;
-
-  const match = prData.body.match(/jules\.google\.com\/task\/([0-9]+)/);
-  return match ? match[1] : null;
-}
-
-export async function sendJulesMessage(taskId: string, message: string): Promise<void> {
-  const apiKey = process.env.JULES_API_KEY;
-  if (!apiKey) {
-    console.warn('⚠️  Skipping sending message to Jules session — JULES_API_KEY not set.');
-    return;
-  }
-
-  const url = `https://jules.googleapis.com/v1alpha/sessions/${taskId}:sendMessage`;
-  try {
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-goog-api-key': apiKey,
-      },
-      body: JSON.stringify({ prompt: message }),
-    });
-
-    if (!response.ok) {
-      const text = await response.text();
-      console.warn(`⚠️  Failed to send message to Jules API (${response.status}): ${text}`);
-      return;
-    }
-
-    console.log(`✅ Sent message to Jules session ${taskId}`);
-  } catch (error) {
-    console.warn(`⚠️  Error sending message to Jules API:`, error);
-  }
-}
-
 interface GitHubItem {
   body?: string;
   user?: { type: string };

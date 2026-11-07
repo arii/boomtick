@@ -22,7 +22,6 @@ import { issueViewHandler, IssueViewInputSchema } from "../tools/github.issue_vi
 import { issueUpdateHandler, IssueUpdateInputSchema } from "../tools/github.issue_update.js";
 import { issueCommentHandler, IssueCommentInputSchema } from "../tools/github.issue_comment.js";
 import { createIssueHandler, CreateIssueInputSchema } from "../tools/github.create_issue.js";
-import { tdInitAndRagHandler, TdInitAndRagInputSchema } from "../tools/td.init_and_rag.js";
 import { tdInitHandler, TdInitInputSchema } from "../tools/td.init.js";
 import { tdRagHandler, TdRagInputSchema } from "../tools/td.rag.js";
 import { tdValidateIssueHandler, TdValidateIssueInputSchema } from "../tools/td.validate_issue.js";
@@ -248,8 +247,6 @@ export class BoomtickMCPServer {
             return createSuccessResult(await issueCommentHandler(IssueCommentInputSchema.parse(normArgs)));
           case "github_create_issue":
             return createSuccessResult(await createIssueHandler(CreateIssueInputSchema.parse(normArgs)));
-          case "td_init_and_rag":
-            return createSuccessResult(await tdInitAndRagHandler(TdInitAndRagInputSchema.parse(normArgs)));
           case "td_init":
             return createSuccessResult(await tdInitHandler(TdInitInputSchema.parse(normArgs)));
           case "td_rag":

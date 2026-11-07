@@ -61,7 +61,7 @@ let cachedModels: string[] | null = null;
 async function resolveAvailableGeminiModels(): Promise<string[]> {
   if (cachedModels) return cachedModels;
 
-  const apiKey = process.env.GEMINI_API_KEY || process.env.JULES_API_KEY;
+  const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
     console.warn("⚠️ No API key found for Gemini model resolution.");
     return [];
