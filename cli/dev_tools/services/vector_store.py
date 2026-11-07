@@ -486,7 +486,11 @@ class VectorStore:
         try:
             client.delete_collection(self.collection_name)
         except Exception as e:
-            log_warn(f"vector_store: collection delete failed for {self.collection_name}: {e}")
+            # Deleting a collection that was never created is an expected
+            # no-op (first index), not a warning. Machine-output commands
+            # (e.g. rag index --json) must stay parseable.
+            if "does not exist" not in str(e).lower():
+                log_warn(f"vector_store: collection delete failed for {self.collection_name}: {e}")
         self._collection = client.create_collection(name=self.collection_name, embedding_function=embedding_fn)
         # Only purge caches after the replacement collection exists,
         # so a failed create leaves the prior state intact.
