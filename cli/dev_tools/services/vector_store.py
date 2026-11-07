@@ -468,6 +468,13 @@ class VectorStore:
 
     def reset(self):
         """Resets the collection and cache."""
+        # Clear the hash cache unconditionally: a cache without
+        # vectors is the poison — it makes later walks cache-skip
+        # everything even when the collection was never rebuilt
+        # (issue #1167, warm-cache + no-backend hole).
+        self._cache = {}
+        if os.path.exists(self.cache_file):
+            os.remove(self.cache_file)
         client = self.client
         embedding_fn = self.embedding_fn
         if not client or not embedding_fn:
@@ -478,9 +485,6 @@ class VectorStore:
         except Exception:
             pass
         self._collection = client.create_collection(name=self.collection_name, embedding_function=embedding_fn)
-        self._cache = {}
-        if os.path.exists(self.cache_file):
-            os.remove(self.cache_file)
         self._bm25 = BM25State()
 
 
@@ -567,14 +571,17 @@ def update_index(repo_root: str, incremental: bool = True,
 
     # Degraded-env hole (#1167): with no embedding backend the walk
     # above still counts chunks while persisting zero vectors. Fail
-    # loud instead of reporting ready on an empty collection.
-    if added_chunks > 0 and store.collection is None:
+    # loud instead of reporting ready on an empty collection. Key on
+    # visited files, not embedded-this-run: a warm cache with no
+    # backend embeds nothing (added_chunks == 0) yet would still
+    # stamp a SHA over an unverifiable index.
+    if updated_files and store.collection is None:
         raise RuntimeError(
-            f"rag index has no embedding backend: counted {added_chunks} "
-            "chunks but the collection is unavailable (install chromadb "
-            "+ sentence-transformers)")
+            f"rag index has no embedding backend: visited "
+            f"{len(updated_files)} files but the collection is "
+            "unavailable (install chromadb + sentence-transformers)")
 
-    if head_sha:
+    if head_sha and store.collection is not None:
         meta["last_indexed_sha"] = head_sha
         meta["updated_files"] = sorted(set(updated_files))
         write_meta(meta_file, meta)

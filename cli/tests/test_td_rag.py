@@ -148,6 +148,68 @@ def test_update_index_no_backend_raises(repo, tmp_path, monkeypatch):
                         persist_directory=str(tmp_path / "chroma"))
 
 
+@pytest.mark.skipif(not HAS_CHROMA,
+                    reason="needs chromadb + sentence-transformers")
+def test_update_index_warm_cache_no_backend_raises(repo, tmp_path,
+                                                   monkeypatch):
+    # #1167 follow-up: a pre-existing hash cache + no embedding
+    # backend must fail loud. reset() early-returns without a
+    # backend, so the --full walk cache-skips everything
+    # (added_chunks == 0) and the old added_chunks-keyed guard never
+    # fired — the run reported ready and stamped a fresh SHA over a
+    # zero-vector index.
+    #
+    # Seed a REAL warm cache: run a genuine full index first (no
+    # mocks) so the cache holds true chunk_ids the product computes
+    # (filepath:start-end:sha256[:8]). A fabricated key matches no
+    # real chunk, the walk embeds everything anyway, and the test
+    # would pass without the fix.
+    persist = str(tmp_path / "chroma")
+    cache_file = os.path.join(persist, "ast_hash_cache.json")
+    first = vs.update_index(str(repo), incremental=False,
+                            persist_directory=persist)
+    assert first["added_chunks"] > 0
+    with open(cache_file, "r", encoding="utf-8") as handle:
+        warm_cache = json.load(handle)
+    assert warm_cache, "full index must write real chunk_ids to cache"
+
+    # Phase 1 (silence-pin): with ZERO file changes, the pure warm
+    # cache must still fail loud. added_chunks == 0 here, so the old
+    # added_chunks-keyed guard stayed silent and the run reported
+    # ready while stamping a fresh SHA over a zero-vector index.
+    monkeypatch.setattr(vs.VectorStore, "client", None)
+    monkeypatch.setattr(vs.VectorStore, "embedding_fn", None)
+    with pytest.raises(RuntimeError, match="no embedding backend"):
+        vs.update_index(str(repo), incremental=False,
+                        persist_directory=persist)
+
+    # Phase 2 (purge-pin): change a file so its warm-cache chunk_ids
+    # cannot legitimately reappear: if reset() failed to clear the
+    # cache, the stale ids for the OLD content would survive the
+    # no-backend run. (The mocks persist within this test.)
+    stale_ids = [cid for cid in warm_cache
+                 if cid.startswith("src/widget.py:")]
+    assert stale_ids
+    (repo / "src" / "widget.py").write_text(
+        "def widget():\n    return 3\n")
+
+    # Now degrade the environment: the client and embedding_fn are
+    # mocked away (faithfully simulating "no embedding backend
+    # installed"), not the collection.
+    monkeypatch.setattr(vs.VectorStore, "client", None)
+    monkeypatch.setattr(vs.VectorStore, "embedding_fn", None)
+    with pytest.raises(RuntimeError, match="no embedding backend"):
+        vs.update_index(str(repo), incremental=False,
+                        persist_directory=persist)
+    # The warm cache entries must be gone even though reset()
+    # early-returned (the walk may repopulate with fresh hashes).
+    if os.path.exists(cache_file):
+        with open(cache_file, "r", encoding="utf-8") as handle:
+            remaining = json.load(handle)
+        for chunk_id in stale_ids:
+            assert chunk_id not in remaining
+
+
 def test_query_index_broken_store_raises(repo, tmp_path):
     # #1165: exceptions fail loud instead of returning [] silently.
     def broken(self, query_text, n_results=8, hybrid=True):
