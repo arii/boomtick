@@ -66,6 +66,5 @@ jobs:
         with:
           github_token: ${{ steps.app-token.outputs.token }}
           gemini_api_key: "MOCK_KEY"
-          jules_api_key: "MOCK_KEY"
           pr-number: ${{ inputs.pr-number }}
           container_image: ghcr.io/arii/boomtick:${{ github.sha }}
