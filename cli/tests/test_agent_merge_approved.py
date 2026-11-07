@@ -1,4 +1,5 @@
 """Unit tests for agent merge-approved command and eligibility checks."""
+import os
 from unittest.mock import MagicMock, patch
 from click.testing import CliRunner
 from dev_tools.cli import cli
@@ -136,8 +137,9 @@ def test_merge_approved_dry_run_and_execute():
     assert dry_res["results"][1]["is_eligible"] is False
     orch.github.merge_pull_request.assert_not_called()
 
-    # Test Execute
-    exec_res = orch.merge_approved(repo="owner/repo", execute=True)
+    # Test Execute (console credential present)
+    with patch.dict("os.environ", {"S5_CONSOLE_MERGE_TOKEN": "console-test"}):
+        exec_res = orch.merge_approved(repo="owner/repo", execute=True)
     assert exec_res["mode"] == "execute"
     assert exec_res["total_evaluated"] == 2
     assert exec_res["eligible_count"] == 1
@@ -149,6 +151,28 @@ def test_merge_approved_dry_run_and_execute():
         commit_title="Merge pull request #10 from owner/repo",
         repo="owner/repo",
     )
+
+
+def test_merge_approved_execute_refused_without_console_credential():
+    """Execute without S5_CONSOLE_MERGE_TOKEN merges nothing (#1163)."""
+    with patch.dict("os.environ", {"GITHUB_TOKEN": "fake_token"}):
+        orch = Orchestrator()
+        orch.list_prs = MagicMock(return_value={"prs": [{"number": 10}]})
+        orch.evaluate_pr_merge_readiness = MagicMock(return_value={
+            "pr_number": 10,
+            "is_eligible": True,
+            "reason": None,
+        })
+        orch.github.merge_pull_request = MagicMock()
+        os.environ.pop("S5_CONSOLE_MERGE_TOKEN", None)
+        res = orch.merge_approved(repo="owner/repo", execute=True)
+        assert res["status"] == "refused"
+        assert res["merged_count"] == 0
+        assert res["results"] == []
+        assert "S5_CONSOLE_MERGE_TOKEN" in res["reason"]
+        orch.github.merge_pull_request.assert_not_called()
+        orch.list_prs.assert_not_called()
+        orch.evaluate_pr_merge_readiness.assert_not_called()
 
 
 def test_cli_agent_merge_approved():

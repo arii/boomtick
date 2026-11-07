@@ -2671,7 +2671,26 @@ Follow the "Audit comment template" in `docs/agent/issue-audit-rules.md` to post
         Deterministic merge gate:
         - dry-run: list merge-ready PRs
         - --execute: re-check eligibility immediately before each merge and merge each ready PR
+
+        --execute additionally requires the console credential
+        (S5_CONSOLE_MERGE_TOKEN set): agent sessions run without the
+        human console env, so a bare --execute from an agent context
+        is refused. This is a speed bump, not a sandbox — prompt rules
+        remain the primary bar; it stops one-command accidents, not a
+        determined shell.
         """
+        if execute and not os.environ.get("S5_CONSOLE_MERGE_TOKEN"):
+            return {
+                "status": "refused",
+                "mode": "execute",
+                "total_evaluated": 0,
+                "eligible_count": 0,
+                "merged_count": 0,
+                "results": [],
+                "reason": ("merge-approved --execute requires the console "
+                           "credential (S5_CONSOLE_MERGE_TOKEN); refusing "
+                           "agent-context execution"),
+            }
         open_prs_res = self.list_prs(state="open", limit=100, repo=repo)
         open_prs = open_prs_res.get("prs", [])
 
