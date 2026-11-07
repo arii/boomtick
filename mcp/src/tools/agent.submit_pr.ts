@@ -3,6 +3,7 @@ import * as path from "node:path";
 import { z } from "zod";
 import { AgentSubmitPrInputSchema } from "./contract.js";
 import { RECEIPT_FILENAME } from "../lib/session_manager.js";
+import { emitToolTelemetry } from "../lib/tool_telemetry.js";
 import { runTDCli } from "../lib/tdCli.js";
 
 const RAG_TOOLS = new Set(["td.init_and_rag", "td.init", "td.rag", "repo.read_agent_context"]);
@@ -41,18 +42,29 @@ export async function agentSubmitPrHandler(
   draft: boolean;
 }> {
   const parsed = AgentSubmitPrInputSchema.parse(input);
+  const started = Date.now();
+  const cwd = parsed.worktreePath ?? process.cwd();
+  // Telemetry attributes to an explicit session locus only: with no
+  // worktreePath the line would land in the server cwd as stray
+  // clutter next to no receipts, so it is skipped (issue #1157).
+  const done = (ok: boolean, detail?: string) => {
+    if (parsed.worktreePath) {
+      emitToolTelemetry(cwd, "agent.submit_pr", ok, Date.now() - started, detail);
+    }
+  };
   if (!parsed.pushMode) {
+    done(false, "pushMode must be true");
     throw new Error("pushMode must be true to push and open the PR.");
   }
-  const cwd = parsed.worktreePath ?? process.cwd();
   const receipts = readToolReceipts(parsed.worktreePath ?? process.cwd());
   const usedRag = receipts.some((r) => RAG_TOOLS.has(r.tool));
   const usedScope = receipts.some((r) => SCOPE_TOOLS.has(r.tool));
   if (!usedRag || !usedScope) {
-    throw new Error(
-      `PR submission blocked: missing mandatory tool receipts (usedRag=${usedRag}, usedScope=${usedScope}). ` +
-        "Run td init (or init-and-rag) or repo read-agent-context first, then td verify-scope and td audit-worktree.",
-    );
+    const detail =
+      `missing mandatory tool receipts (usedRag=${usedRag}, usedScope=${usedScope}). ` +
+      "Run td init (or init-and-rag) or repo read-agent-context first, then td verify-scope and td audit-worktree.";
+    done(false, detail);
+    throw new Error(`PR submission blocked: ${detail}`);
   }
   const cliArgs = [
     "agent",
@@ -73,12 +85,20 @@ export async function agentSubmitPrHandler(
     cliArgs.push("--no-draft");
   }
   cliArgs.push("--json");
-  const res = await runTDCli(cliArgs, "submit PR via td agent submit-pr");
+  let res;
+  try {
+    res = await runTDCli(cliArgs, "submit PR via td agent submit-pr");
+  } catch (err) {
+    done(false, err instanceof Error ? err.message : String(err));
+    throw err;
+  }
   if (res.branch && res.branch !== parsed.branch) {
+    done(false, `worktree is on ${res.branch}, request asked for ${parsed.branch}`);
     throw new Error(
       `Refusing to submit: worktree is on ${res.branch}, request asked for ${parsed.branch}.`,
     );
   }
+  done(true);
   return {
     status: "success",
     url: res.url,

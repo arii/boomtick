@@ -98,6 +98,51 @@ def test_query_index_empty_graceful(repo, tmp_path):
     assert hits == []
 
 
+def test_add_file_incremental_counts_embeds_only(tmp_path):
+    # #1167: cache-skipped chunks are visited, not added — the
+    # returned ids (reported as added_chunks) must exclude them.
+    store = vs.VectorStore(persist_directory=str(tmp_path / "chroma"))
+    code = "def f():\n    return 1\n"
+    first = store.add_file_incremental("src/a.py", code)
+    assert len(first) > 0
+    assert store.add_file_incremental("src/a.py", code) == []
+
+
+def test_full_rebuild_recovers_diverged_cache(repo, tmp_path):
+    # #1167: hashes cached but vectors missing (wiped collection).
+    # --full must rebuild everything and reconcile, not report
+    # cache-skips as added on a thin index.
+    persist = str(tmp_path / "chroma")
+    first = vs.update_index(str(repo), incremental=False,
+                            persist_directory=persist)
+    total = first["added_chunks"]
+    assert total > 0
+    store = vs.VectorStore(persist_directory=persist)
+    assert store.collection.count() == total
+    store.collection.delete(ids=store.collection.get()["ids"])
+    assert store.collection.count() == 0
+    second = vs.update_index(str(repo), incremental=False,
+                             persist_directory=persist)
+    assert second["added_chunks"] == total
+    fresh = vs.VectorStore(persist_directory=persist)
+    assert fresh.collection.count() == total
+
+
+def test_query_index_broken_store_raises(repo, tmp_path):
+    # #1165: exceptions fail loud instead of returning [] silently.
+    def broken(self, query_text, n_results=8, hybrid=True):
+        raise RuntimeError("index unreadable")
+
+    orig = vs.VectorStore.query
+    vs.VectorStore.query = broken
+    try:
+        with pytest.raises(RuntimeError, match="index unreadable"):
+            vs.query_index(str(repo), "widget",
+                           persist_directory=str(tmp_path / "chroma"))
+    finally:
+        vs.VectorStore.query = orig
+
+
 def test_cli_rag_index_query_init(repo, tmp_path):
     runner = CliRunner()
     indexed = runner.invoke(cli, ["rag", "index", "--repo-root",

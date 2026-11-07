@@ -128,6 +128,17 @@ describe("agent_submit_pr MCP tool handler", () => {
     ).rejects.toThrow("pushMode must be true");
   });
 
+  it("skips telemetry without an explicit worktreePath (issue 1157)", async () => {
+    const cwdFile = path.join(process.cwd(), ".agent_tool_telemetry.jsonl");
+    if (fs.existsSync(cwdFile)) {
+      fs.rmSync(cwdFile);
+    }
+    await expect(
+      agentSubmitPrHandler({ branch: "feat/x", title: "T" })
+    ).rejects.toThrow("pushMode must be true");
+    expect(fs.existsSync(cwdFile)).toBe(false);
+  });
+
   it("refuses when the worktree branch differs from the request", async () => {
     vi.spyOn(shellModule, "runCommand").mockResolvedValueOnce(
       tdResponse({ branch: "feat/other" })
@@ -173,5 +184,39 @@ describe("agent_submit_pr MCP tool handler", () => {
       })
     ).rejects.toThrow("usedScope=false");
     expect(runSpy).not.toHaveBeenCalled();
+  });
+
+  it("emits telemetry lines on success and on block (issue 1157)", async () => {
+    vi.spyOn(shellModule, "runCommand").mockResolvedValueOnce(tdResponse());
+    const okDir = mkWorktree();
+    await agentSubmitPrHandler({
+      branch: "feat/x",
+      title: "T",
+      pushMode: true,
+      worktreePath: okDir,
+    });
+    const okLines = fs
+      .readFileSync(path.join(okDir, ".agent_tool_telemetry.jsonl"), "utf8")
+      .split("\n")
+      .filter((l) => l.trim().length > 0)
+      .map((l) => JSON.parse(l));
+    expect(okLines).toHaveLength(1);
+    expect(okLines[0].tool).toBe("agent.submit_pr");
+    expect(okLines[0].session).toBe(okDir);
+    expect(okLines[0].ok).toBe(true);
+    expect(okLines[0].ms).toBeGreaterThanOrEqual(0);
+
+    const blockedDir = fs.mkdtempSync(path.join(os.tmpdir(), "submit-pr-"));
+    await expect(
+      agentSubmitPrHandler({ branch: "feat/x", title: "T", pushMode: true, worktreePath: blockedDir })
+    ).rejects.toThrow("missing mandatory tool receipts");
+    const blockedLines = fs
+      .readFileSync(path.join(blockedDir, ".agent_tool_telemetry.jsonl"), "utf8")
+      .split("\n")
+      .filter((l) => l.trim().length > 0)
+      .map((l) => JSON.parse(l));
+    expect(blockedLines).toHaveLength(1);
+    expect(blockedLines[0].ok).toBe(false);
+    expect(blockedLines[0].detail).toMatch("missing mandatory tool receipts");
   });
 });

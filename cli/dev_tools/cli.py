@@ -2442,16 +2442,16 @@ def validate_issue_spec(ctx, file, repo_root):
                     continue
             elif item["path"].lower() in actual:
                 continue
-            if item["path"] in command_refs:
+            if item["path"].lower() in command_refs:
                 continue
-                same_line_created = any(
-                    item["path"] in line.lower()
-                    and "(create)" in line.lower()
-                    for line in body.splitlines())
-                if not same_line_created:
-                    errors.append(
-                        f"allowed path not in checkout: {item['path']} "
-                        "(mark with (CREATE) if it is a new file)")
+            same_line_created = any(
+                item["path"].lower() in line.lower()
+                and "(create)" in line.lower()
+                for line in body.splitlines())
+            if not same_line_created:
+                errors.append(
+                    f"allowed path not in checkout: {item['path']} "
+                    "(mark with (CREATE) if it is a new file)")
         if re.search(r"\bTODO\b|\bTBD\b", body):
             errors.append("spec contains TODO/TBD placeholders")
         if not verification_commands:

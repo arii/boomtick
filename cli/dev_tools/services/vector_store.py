@@ -388,8 +388,10 @@ class VectorStore:
                 metadatas_to_add.append(meta)
                 ids_to_add.append(chunk_id)
                 self._cache[chunk_id] = content_hash
-
-            ids_added.append(chunk_id)
+                # Count embedded chunks only: cache-skipped chunks are
+                # visited, not added, and callers report this length
+                # as added_chunks (issue #1167).
+                ids_added.append(chunk_id)
 
         if documents_to_add:
             self.add_documents(documents=documents_to_add, metadatas=metadatas_to_add, ids=ids_to_add)
@@ -471,7 +473,10 @@ class VectorStore:
         if not client or not embedding_fn:
             return
 
-        client.delete_collection(self.collection_name)
+        try:
+            client.delete_collection(self.collection_name)
+        except Exception:
+            pass
         self._collection = client.create_collection(name=self.collection_name, embedding_function=embedding_fn)
         self._cache = {}
         if os.path.exists(self.cache_file):
@@ -531,6 +536,10 @@ def update_index(repo_root: str, incremental: bool = True,
                         added_chunks += len(ids)
                     updated_files.append(path)
     elif not last_sha or not head_sha or last_sha != head_sha:
+        # Full rebuild: drop collection + hash cache first so a
+        # diverged cache (hashes recorded, vectors missing) cannot
+        # skip files and report them as added (issue #1167).
+        store.reset()
         for path in iter_repo_files(repo_root):
             full = os.path.join(repo_root, path)
             try:
@@ -545,6 +554,16 @@ def update_index(repo_root: str, incremental: bool = True,
             updated_files.append(path)
         if head_sha:
             removed_files = []
+        # Reconcile: after a reset rebuild the collection must hold
+        # exactly what was embedded; a shortfall fails loud naming
+        # the gap instead of exiting 0 on a thin index (issue #1167).
+        collection = store.collection
+        if collection is not None:
+            actual = collection.count()
+            if actual != added_chunks:
+                raise RuntimeError(
+                    f"rag index shortfall: embedded {added_chunks} "
+                    f"chunks but collection holds {actual}")
 
     if head_sha:
         meta["last_indexed_sha"] = head_sha
@@ -563,14 +582,17 @@ def update_index(repo_root: str, incremental: bool = True,
 
 def query_index(repo_root: str, query: str, top_k: int = 8,
                 persist_directory: str = "") -> List[Dict[str, Any]]:
-    """Hybrid query over the repo index; [] when nothing is indexed."""
+    """Hybrid query over the repo index; [] when nothing is indexed.
+
+    Fail-loud on exception (issue #1165): an empty index returns []
+    via store.query itself, so anything raised here is a broken query
+    the caller must see. Matches the fail-loud update_index behavior
+    from #1094.
+    """
     repo_root = os.path.abspath(repo_root)
     default_persist, _ = default_store_paths(repo_root)
     store = VectorStore(persist_directory=persist_directory or default_persist)
-    try:
-        results = store.query(query, n_results=top_k, hybrid=True)
-    except Exception:
-        return []
+    results = store.query(query, n_results=top_k, hybrid=True)
     hits = []
     for item in results or []:
         meta = item.get("metadata") or {}
