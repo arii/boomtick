@@ -58,6 +58,9 @@ def _cdp_ws_url(grid_base: str, session_id: str) -> str:
 AGENT_PROFILE_ARGS = [
     "--user-data-dir=/data/shared-browser/agent",
     "--enable-features=WebMCP",
+    # Small-/dev/shm containers crash renderer tabs without this
+    # (issue #1159; mirrors remote-server browser_view.py).
+    "--disable-dev-shm-usage",
 ]
 
 

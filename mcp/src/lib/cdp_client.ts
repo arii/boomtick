@@ -147,9 +147,12 @@ export async function cdpTypeText(
       });
     }
   }
-  for (const ch of options.text) {
-    await sendCdp("Input.dispatchKeyEvent", { type: "keyDown", text: ch, unmodifiedText: ch });
-    await sendCdp("Input.dispatchKeyEvent", { type: "keyUp", text: ch, unmodifiedText: ch });
+  // Atomic text input (issue #1159): one insertText call delivers the
+  // whole string — the old per-character keyDown/keyUp loop dropped
+  // chars and multiplied round trips. Raw key events remain only for
+  // the Enter chord below.
+  if (options.text) {
+    await sendCdp("Input.insertText", { text: options.text });
   }
   if (options.pressEnter) {
     await sendCdp("Input.dispatchKeyEvent", {
