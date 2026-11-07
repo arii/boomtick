@@ -2,7 +2,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { IMPACT_CONFIG } from '../scripts/impact-analysis.config';
 import { ARTIFACTS_DIR } from './visualReviewConstants';
-import { postPRComment, countExistingReviews, getJulesSessionIdFromPR, sendJulesMessage, getPreviousReviewState } from './visualReviewUtils';
+import { postPRComment, countExistingReviews, getPreviousReviewState } from './visualReviewUtils';
 import { runWithConcurrencyLimit, checkReviewQuota, writeVerdictJson, writeGracefulExitVerdict, createTaskErrorResult } from './sharedUtils';
 import { calculateEstimatedTokens, cleanupFeedback, batchFiles, calculateReviewHash, pruneCache, filterLowImpactFiles, filterUnifiedDiffByAST } from './codeReviewUtils';
 import type { CodeReviewSummary, CodeReviewResult, CodeReviewState, CodeReviewRole } from './codeReviewTypes';
@@ -692,14 +692,6 @@ export async function orchestrateCodeReview(
   const finalSkipReason = finalResult.skipReason;
   let report = generateCodeReviewMarkdown(finalResult, client, iteration);
 
-  const julesSessionId = await getJulesSessionIdFromPR();
-
-  if (julesSessionId) {
-    const taskIdMatch = julesSessionId.match(/sessions\/([a-zA-Z0-9-]+)/);
-    const taskId = taskIdMatch ? taskIdMatch[1] : julesSessionId.replace('sessions/', '');
-    report += `\n\n---\n🤖 **Jules Automated Remediation:** Session created. [View tracking link](https://jules.google.com/task/${taskId})\n`;
-  }
-
   await fs.promises.writeFile(agentReportPath, report);
   console.log(`✅ Local report written to ${agentReportPath}`);
 
@@ -708,11 +700,6 @@ export async function orchestrateCodeReview(
   const openHighFindings = finalResult.state?.findings?.filter(f => f.status === 'open' && (f.severity === 'HIGH' || f.severity === 'error')) || [];
   const isFail = finalResult.llmVerdict === 'fail';
 
-  if (julesSessionId && (isFail || openHighFindings.length > 0)) {
-    const passFailMsg = isFail ? "FAIL ❌" : "WARN ⚠️";
-    const julesMessage = `[${client.reportTitle}] posted an aggregated code review (${passFailMsg}). Please read the review comments on the PR, analyze the diff context provided, and fix any failed or warned areas.\n\n<details><summary>Overview</summary>\n\n${report}\n</details>`;
-    await sendJulesMessage(julesSessionId, julesMessage);
-  }
   const safeReportFileName = path.basename(client.reportFileName);
   const verdictPath = path.join(ARTIFACTS_DIR, `${safeReportFileName.replace('.md', '')}-verdict.json`);
   await writeVerdictJson(verdictPath, {
@@ -936,7 +923,7 @@ function restoreOmittedCodeFindings(
       if (finding.status === 'open' && finding.snippet) {
         if (!diffToVerify.includes(finding.snippet)) {
           finding.status = 'resolved';
-          finding.fixSummary = 'Jules response: snippet no longer present in diff.';
+          finding.fixSummary = 'Auto-resolved: snippet no longer present in diff.';
           console.log(`✅ Auto-resolved finding: ${finding.issue}`);
         }
       }

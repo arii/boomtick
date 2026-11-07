@@ -345,7 +345,6 @@ describe("BoomtickMCPServer", () => {
         "repo_run_tests",
         "td_audit_worktree",
         "td_init",
-        "td_init_and_rag",
         "td_rag",
         "td_validate_issue",
         "td_verify_scope",

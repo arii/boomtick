@@ -1,7 +1,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { ARTIFACTS_DIR, VISUAL_SUMMARY_PATH, MAX_ROUTES_TO_REVIEW } from './visualReviewConstants';
-import { generateMarkdownReport, postPRComment, countExistingReviews, getJulesSessionIdFromPR, sendJulesMessage, getPreviousReviewState } from './visualReviewUtils';
+import { generateMarkdownReport, postPRComment, countExistingReviews, getPreviousReviewState } from './visualReviewUtils';
 import { runWithConcurrencyLimit, checkReviewQuota, writeVerdictJson, writeGracefulExitVerdict, createTaskErrorResult } from './sharedUtils';
 import type { RouteReview, VisualRouteSummary, VisualSummary, VisualReviewState } from './visualReviewTypes';
 import { logReviewExecution } from './aiLogger';
@@ -39,7 +39,7 @@ function autoResolvePreviousVisualFindings(
       for (const finding of relevantFindings) {
         if (finding.status === 'open') {
           finding.status = 'resolved';
-          finding.fixSummary = 'Jules response: pixel difference is now below threshold (1.5%).';
+          finding.fixSummary = 'Auto-resolved: pixel difference is now below threshold (1.5%).';
           console.log(`✅ Auto-resolved visual finding for ${routeSummary.route}: ${finding.issue}`);
         }
       }
@@ -120,24 +120,12 @@ async function executeVisualReviewTasks(
   return reviews;
 }
 
-async function notifyJulesAndSaveVerdict(
+async function saveVerdict(
   client: LLMClientStrategy,
   reviews: RouteReview[],
-  report: string,
   state: VisualReviewState,
   hasBlockingIssues: boolean
 ): Promise<void> {
-  const julesSessionId = await getJulesSessionIdFromPR();
-  if (julesSessionId) {
-    const hasWarnings = reviews.some(r => r.llmVerdict === 'warn');
-    const passFailMsg = hasBlockingIssues ? "FAIL ❌" : ((hasWarnings || reviews.length === 0) ? "NEUTRAL ⚪" : "PASS ✅");
-    const highCount = reviews.filter(r => r.severity === 'HIGH').length;
-    const medCount = reviews.filter(r => r.severity === 'MEDIUM').length;
-    const lowCount = reviews.filter(r => r.severity === 'LOW').length;
-    const julesMessage = `[${client.reportTitle}] posted a visual UI review (${passFailMsg}). Summary: 🔴 ${highCount} high · 🟡 ${medCount} medium · 🟢 ${lowCount} low. Please read the review comments on the PR, analyze the diff context provided, and fix any failed or warned areas.\n\n<details><summary>Overview</summary>\n\n${report}\n</details>`;
-    await sendJulesMessage(julesSessionId, julesMessage);
-  }
-
   const safeReportFileName = path.basename(client.reportFileName);
   const verdictPath = path.join(ARTIFACTS_DIR, `${safeReportFileName.replace('.md', '')}-verdict.json`);
   await writeVerdictJson(verdictPath, {
@@ -218,9 +206,9 @@ export async function orchestrateVisualReview(
     }
   }
 
-  // If there are no findings, gracefully exit without posting comment or notifying Jules
+  // If there are no findings, gracefully exit without posting a comment
   if (state.findings.length === 0) {
-    console.log("No visual findings found. Gracefully exiting without posting PR comment or notifying Jules.");
+    console.log("No visual findings found. Gracefully exiting without posting PR comment.");
     await writeGracefulExitVerdict(client.reportFileName, ARTIFACTS_DIR, state);
     return;
   }
@@ -233,7 +221,7 @@ export async function orchestrateVisualReview(
     r.llmVerdict === 'fail' || (r.severity === 'HIGH' && r.llmVerdict !== 'pass')
   );
 
-  await notifyJulesAndSaveVerdict(client, reviews, report, state, hasBlockingIssues);
+  await saveVerdict(client, reviews, state, hasBlockingIssues);
 
   if (hasBlockingIssues) {
     console.error(`❌ Visual review found HIGH severity issues — failing CI.`);
