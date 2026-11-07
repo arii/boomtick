@@ -241,6 +241,87 @@ def test_audit_impact_violation_fails(tmp_path):
     assert data["violations"][0]["file"] == "src/widget.tsx"
 
 
+def test_validate_issue_nested_allowed_path(tmp_path):
+    # #1168: a nested allowed file validates on its own existence —
+    # the parent-dir prefix the dir regex also matches must not fail
+    # the spec when the directory exists.
+    root = tmp_path / "co"
+    comp = root / "frontend" / "src" / "components"
+    comp.mkdir(parents=True)
+    (comp / "RepoPicker.tsx").write_text("ok\n")
+    spec = tmp_path / "spec.md"
+    spec.write_text(
+        "# Nested scope\n\n## Problem Statement\n\nFix it.\n\n"
+        "## Goal\n\nDone.\n\n## Scope\n\nTouched: "
+        "`frontend/src/components/RepoPicker.tsx`.\n\n"
+        "## Definition of Done\n\nWorks.\n\n"
+        "## Scope & File Boundaries\n### Allowed Files\n"
+        "- `frontend/src/components/RepoPicker.tsx`\n\n"
+        "## Acceptance Criteria\n- [ ] Picker fixed\n\n"
+        "## Verification Commands\n```bash\n"
+        "pnpm vitest run picker\n"
+        "```\n"
+    )
+    result = CliRunner().invoke(cli, ["validate-issue", "--file", str(spec),
+                                      "--repo-root", str(root), "--json"])
+    assert result.exit_code == 0, result.output
+    data = json.loads(result.output)
+    assert data["valid"] is True, data["errors"]
+    assert data["errors"] == []
+
+
+def test_validate_issue_missing_file_errors(tmp_path):
+    # #1168 follow-through: with the dead tail restored, a genuinely
+    # missing file (no CREATE marker) fails with the named error.
+    root = tmp_path / "co"
+    (root / "src").mkdir(parents=True)
+    (root / "src" / "widget.py").write_text("ok\n")
+    spec = tmp_path / "spec.md"
+    spec.write_text(
+        "# Missing file\n\n## Problem Statement\n\nFix it.\n\n"
+        "## Goal\n\nDone.\n\n## Scope\n\nTouched: `src/widget.py`, "
+        "`src/gone.py`.\n\n"
+        "## Definition of Done\n\nWorks.\n\n"
+        "## Scope & File Boundaries\n### Allowed Files\n"
+        "- `src/widget.py`\n- `src/gone.py`\n\n"
+        "## Acceptance Criteria\n- [ ] Widget fixed\n\n"
+        "## Verification Commands\n```bash\n"
+        "pytest tests/test_widget.py\n"
+        "```\n"
+    )
+    result = CliRunner().invoke(cli, ["validate-issue", "--file", str(spec),
+                                      "--repo-root", str(root), "--json"])
+    assert result.exit_code == 1, result.output
+    data = json.loads(result.output)
+    assert data["valid"] is False
+    assert any("allowed path not in checkout: src/gone.py" in e
+               for e in data["errors"]), data["errors"]
+
+
+def test_validate_issue_mixed_case_create_marker(tmp_path):
+    # The CREATE escape must compare case-insensitively: a new
+    # mixed-case file marked (CREATE) on its own line validates.
+    root = tmp_path / "co"
+    (root / "src").mkdir(parents=True)
+    spec = tmp_path / "spec.md"
+    spec.write_text(
+        "# New file\n\n## Problem Statement\n\nAdd it.\n\n"
+        "## Goal\n\nDone.\n\n## Scope\n\nTouched: `src/NewWidget.py` "
+        "(CREATE).\n\n"
+        "## Definition of Done\n\nWorks.\n\n"
+        "## Scope & File Boundaries\n### Allowed Files\n"
+        "- `src/NewWidget.py` (CREATE)\n\n"
+        "## Acceptance Criteria\n- [ ] Widget added\n\n"
+        "## Verification Commands\n```bash\n"
+        "pytest tests/test_new_widget.py\n"
+        "```\n"
+    )
+    result = CliRunner().invoke(cli, ["validate-issue", "--file", str(spec),
+                                      "--repo-root", str(root), "--json"])
+    assert result.exit_code == 0, result.output
+    assert json.loads(result.output)["valid"] is True
+
+
 def test_audit_code_skips_slang_without_config(tmp_path):
     """Slop audit must not run under another repo's config.
 
