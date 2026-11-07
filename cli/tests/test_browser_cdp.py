@@ -196,6 +196,7 @@ def test_session_capabilities_pin_profile_and_webmcp():
     args = caps["goog:chromeOptions"]["args"]
     assert "--user-data-dir=/data/shared-browser/agent" in args
     assert "--enable-features=WebMCP" in args
+    assert "--disable-dev-shm-usage" in args
 
 
 def test_session_capabilities_marks_agent_session():

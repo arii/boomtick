@@ -114,15 +114,29 @@ describe("cdp cursor and input dispatch (#1144)", () => {
     await expect(resolveSelectorCenter(send, ".nope")).rejects.toThrow("Element not found");
   });
 
-  it("types per-character key events with optional enter", async () => {
+  it("types atomically with one insertText plus optional enter", async () => {
     const { cdpTypeText } = await import("./cdp_client.js");
     const { calls, send } = fakeSender();
     await cdpTypeText(send, { selector: "input", text: "hi", pressEnter: true });
+    const inserts = calls.filter((c) => c.method === "Input.insertText");
+    expect(inserts).toHaveLength(1);
+    expect((inserts[0].params as any)?.text).toBe("hi");
+    // raw key events remain only for the Enter chord
     const keys = calls.filter((c) => c.method === "Input.dispatchKeyEvent");
-    expect(keys.filter((c) => (c.params as any)?.type === "keyDown")).toHaveLength(2);
-    // two per-character keyUps plus the Enter keyUp
-    expect(keys.filter((c) => (c.params as any)?.type === "keyUp")).toHaveLength(3);
+    expect(keys.filter((c) => (c.params as any)?.type === "keyDown")).toHaveLength(0);
+    expect(keys.filter((c) => (c.params as any)?.type === "keyUp")).toHaveLength(1);
     expect(keys.some((c) => (c.params as any)?.key === "Enter")).toBe(true);
+  });
+
+  it("delivers a representative string intact in one call (issue 1159)", async () => {
+    const { cdpTypeText } = await import("./cdp_client.js");
+    const { calls, send } = fakeSender();
+    const text = "Hello, World! 123 @#é — quote: \"hi\"";
+    await cdpTypeText(send, { text });
+    const inserts = calls.filter((c) => c.method === "Input.insertText");
+    expect(inserts).toHaveLength(1);
+    expect((inserts[0].params as any)?.text).toBe(text);
+    expect(calls.some((c) => c.method === "Input.dispatchKeyEvent")).toBe(false);
   });
 
   it("injection script is a single self-contained payload", async () => {
