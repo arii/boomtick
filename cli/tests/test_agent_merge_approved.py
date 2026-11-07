@@ -155,22 +155,22 @@ def test_merge_approved_dry_run_and_execute():
 
 def test_merge_approved_execute_refused_without_console_credential():
     """Execute without S5_CONSOLE_MERGE_TOKEN merges nothing (#1163)."""
-    orch = Orchestrator()
-    orch.list_prs = MagicMock(return_value={"prs": [{"number": 10}]})
-    orch.evaluate_pr_merge_readiness = MagicMock(return_value={
-        "pr_number": 10,
-        "is_eligible": True,
-        "reason": None,
-    })
-    orch.github.merge_pull_request = MagicMock()
-    with patch.dict("os.environ", {}, clear=False):
+    with patch.dict("os.environ", {"GITHUB_TOKEN": "fake_token"}):
+        orch = Orchestrator()
+        orch.list_prs = MagicMock(return_value={"prs": [{"number": 10}]})
+        orch.evaluate_pr_merge_readiness = MagicMock(return_value={
+            "pr_number": 10,
+            "is_eligible": True,
+            "reason": None,
+        })
+        orch.github.merge_pull_request = MagicMock()
         os.environ.pop("S5_CONSOLE_MERGE_TOKEN", None)
         res = orch.merge_approved(repo="owner/repo", execute=True)
-    assert res["status"] == "refused"
-    assert res["merged_count"] == 0
-    assert res["results"] == []
-    assert "S5_CONSOLE_MERGE_TOKEN" in res["reason"]
-    orch.github.merge_pull_request.assert_not_called()
+        assert res["status"] == "refused"
+        assert res["merged_count"] == 0
+        assert res["results"] == []
+        assert "S5_CONSOLE_MERGE_TOKEN" in res["reason"]
+        orch.github.merge_pull_request.assert_not_called()
 
 
 def test_cli_agent_merge_approved():
