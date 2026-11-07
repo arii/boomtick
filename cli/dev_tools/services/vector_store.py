@@ -468,16 +468,17 @@ class VectorStore:
 
     def reset(self):
         """Resets the collection and cache."""
-        # Clear the hash cache unconditionally: a cache without
-        # vectors is the poison — it makes later walks cache-skip
-        # everything even when the collection was never rebuilt
-        # (issue #1167, warm-cache + no-backend hole).
-        self._cache = {}
-        if os.path.exists(self.cache_file):
-            os.remove(self.cache_file)
         client = self.client
         embedding_fn = self.embedding_fn
         if not client or not embedding_fn:
+            # Clear the hash cache unconditionally: a cache without
+            # vectors is the poison — it makes later walks cache-skip
+            # everything even when the collection was never rebuilt
+            # (issue #1167, warm-cache + no-backend hole).
+            self._cache = {}
+            if os.path.exists(self.cache_file):
+                os.remove(self.cache_file)
+            self._bm25 = BM25State()
             return
 
         try:
@@ -485,6 +486,11 @@ class VectorStore:
         except Exception:
             pass
         self._collection = client.create_collection(name=self.collection_name, embedding_function=embedding_fn)
+        # Only purge caches after the replacement collection exists,
+        # so a failed create leaves the prior state intact.
+        self._cache = {}
+        if os.path.exists(self.cache_file):
+            os.remove(self.cache_file)
         self._bm25 = BM25State()
 
 

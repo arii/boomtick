@@ -35,7 +35,9 @@ export async function tdInitAndRagHandler(args: z.infer<typeof TdInitAndRagInput
   }
 
   if (!params.query) {
-    recordToolReceipt(cwd, "td.init_and_rag");
+    if (params.repoRoot) {
+      recordToolReceipt(cwd, "td.init_and_rag");
+    }
     done(true);
     return init;
   }
@@ -54,9 +56,11 @@ export async function tdInitAndRagHandler(args: z.infer<typeof TdInitAndRagInput
     done(false, err instanceof Error ? err.message : String(err));
     throw err;
   }
-  recordToolReceipt(cwd, "td.init_and_rag", {
-    query: params.query,
-  });
+  if (params.repoRoot) {
+    recordToolReceipt(cwd, "td.init_and_rag", {
+      query: params.query,
+    });
+  }
   done(true);
   return { init, rag };
 }
