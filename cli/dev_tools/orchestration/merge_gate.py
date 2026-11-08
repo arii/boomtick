@@ -83,12 +83,17 @@ class MergeGateMixin(CIOpsMixin):
         from dev_tools.services import local_sessions as _ls
         from dev_tools.services.local_sessions import repo_root_for
         try:
-            active_sessions_count = len(
+            active_sessions_count: Optional[int] = len(
                 _ls.scan_sessions(repo_root_for(None)))
+            sessions_unknown = False
         except Exception:
-            active_sessions_count = 0
+            # A failed scan means the sessions dimension is UNKNOWN —
+            # never default to 0, which would read as healthy.
+            active_sessions_count = None
+            sessions_unknown = True
 
-        if open_prs_count == 0 and failing_runs_count == 0 and active_sessions_count == 0:
+        if (open_prs_count == 0 and failing_runs_count == 0
+                and not sessions_unknown and active_sessions_count == 0):
             suggestion = "SUGGEST: none :: All queues clear and checks green."
             return {
                 "status": "success",
@@ -99,6 +104,7 @@ class MergeGateMixin(CIOpsMixin):
                     "failing_runs": failing_runs_count,
                     "active_sessions": active_sessions_count,
                 },
+                "sessions_unknown": sessions_unknown,
                 "runnable_command": None,
             }
 
@@ -145,6 +151,7 @@ class MergeGateMixin(CIOpsMixin):
             else:
                 runnable_command = "td --json preflight"
 
+        sessions_label = "UNKNOWN" if sessions_unknown else active_sessions_count
         suggestion = (
             f"SUGGEST: "
             f"triage :: "
@@ -153,8 +160,10 @@ class MergeGateMixin(CIOpsMixin):
             f"PRs: {open_prs_count}, "
             f"Failing Runs: "
             f"{failing_runs_count}, Active "
-            f"Sessions: {active_sessions_count})."
+            f"Sessions: {sessions_label})."
         )
+        if sessions_unknown:
+            suggestion += " Sessions scan unavailable; sessions count unknown."
         return {
             "status": "success",
             "suggestion": suggestion,
@@ -164,6 +173,7 @@ class MergeGateMixin(CIOpsMixin):
                 "failing_runs": failing_runs_count,
                 "active_sessions": active_sessions_count,
             },
+            "sessions_unknown": sessions_unknown,
             "runnable_command": runnable_command,
         }
 
