@@ -91,6 +91,9 @@ jobs:
       - name: Run Scope Verification Check
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # verify-scope.py re-exports cli/dev_tools scope rules: the
+          # entry point declares the path (no in-code sys.path hacks).
+          PYTHONPATH: cli
         run: |
           python3 scripts/verify-scope.py --strict-scope
 

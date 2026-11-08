@@ -1,17 +1,12 @@
 # pylint: disable=missing-docstring,protected-access,unused-import
 import sys
-import os
 import json
 import importlib.util
 import pytest
 
-# Add repository root to sys.path
-repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
-if repo_root not in sys.path:
-    sys.path.insert(0, repo_root)
-
 # Dynamically import the hyphenated script file 'verify-scope.py'
-script_path = os.path.join(repo_root, "scripts", "verify-scope.py")
+# (run from the repo root, so this is a root-relative path)
+script_path = "scripts/verify-scope.py"
 spec = importlib.util.spec_from_file_location("verify_scope", script_path)
 assert spec is not None
 verify_scope = importlib.util.module_from_spec(spec)
@@ -22,7 +17,7 @@ spec.loader.exec_module(verify_scope)
 
 @pytest.fixture(autouse=True)
 def chdir_to_repo_root(monkeypatch):
-    monkeypatch.chdir(repo_root)
+    monkeypatch.chdir(".")
 
 
 
