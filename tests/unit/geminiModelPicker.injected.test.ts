@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 // Catalog visible to the picker in these tests only: one model that exists
 // nowhere in the shipped data file, plus a distinctive default. If the picker
 // consulted anything but the data file, neither value could surface here.
-vi.mock('../../data/gemini-models.json', () => ({
+vi.mock('../../lib/gemini-models.json', () => ({
   default: {
     version: 1,
     updated: '2026-11-08',

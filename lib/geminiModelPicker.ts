@@ -1,4 +1,4 @@
-import modelsData from '../data/gemini-models.json';
+import modelsData from './gemini-models.json';
 
 interface GeminiModelEntry {
   id: string;
@@ -18,7 +18,7 @@ const DEPRECATED_MODELS: string[] = (modelsData.deprecated as { id: string }[]).
 // Surface catalog rot as a build signal instead of a runtime surprise.
 for (const model of GEMINI_MODELS_METADATA) {
   if (model.reviewAfter && Date.now() > Date.parse(model.reviewAfter)) {
-    console.warn(`⚠️ Gemini model catalog entry is stale: ${model.id} (review date ${model.reviewAfter}). Refresh data/gemini-models.json.`);
+    console.warn(`⚠️ Gemini model catalog entry is stale: ${model.id} (review date ${model.reviewAfter}). Refresh lib/gemini-models.json.`);
   }
   if (model.deprecatedAfter && Date.now() > Date.parse(model.deprecatedAfter)) {
     console.warn(`⚠️ Gemini model is past its deprecation date: ${model.id} (${model.deprecatedAfter}).`);
@@ -101,7 +101,7 @@ export async function pickGeminiModel(
 
 /**
  * Returns the pricing per 1 million tokens for the given Gemini model.
- * Values come from data/gemini-models.json; unknown ids use its default.
+ * Values come from lib/gemini-models.json; unknown ids use its default.
  */
 export function getGeminiPricing(modelId: string): { inputCostPerM: number; outputCostPerM: number } {
   const entry = GEMINI_MODELS_METADATA.find((model) => model.id === modelId);

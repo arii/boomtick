@@ -7,7 +7,7 @@ import { getGeminiPricing } from '../../lib/geminiModelPicker';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const REPO_ROOT = path.resolve(__dirname, '../..');
-const DATA_PATH = path.join(REPO_ROOT, 'data/gemini-models.json');
+const DATA_PATH = path.join(REPO_ROOT, 'lib/gemini-models.json');
 const PICKER_PATH = path.join(REPO_ROOT, 'lib/geminiModelPicker.ts');
 
 interface CatalogModel {
@@ -34,7 +34,7 @@ describe('geminiModelPicker file-driven catalog (issue #1227)', () => {
     vi.restoreAllMocks();
   });
 
-  it('resolves pricing from data/gemini-models.json entries', () => {
+  it('resolves pricing from lib/gemini-models.json entries', () => {
     const catalog = readCatalog();
     expect(catalog.models.length).toBeGreaterThan(0);
     for (const model of catalog.models) {
