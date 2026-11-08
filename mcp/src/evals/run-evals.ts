@@ -17,7 +17,7 @@ async function runEvals() {
     console.log("\n2. Repository Scripts:");
     try {
       const context = await readAgentContextHandler({});
-      const scripts = context.package_scripts ?? {};
+      const scripts = ("package_scripts" in context ? context.package_scripts : undefined) ?? {};
       console.log(`Found ${Object.keys(scripts).length} scripts.`);
     } catch (e) {
       console.log("Repository scripts fetch failed:", e instanceof Error ? e.message : String(e));

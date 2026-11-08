@@ -98,6 +98,10 @@ export async function agentSubmitPrHandler(
       `Refusing to submit: worktree is on ${res.branch}, request asked for ${parsed.branch}.`,
     );
   }
+  if (typeof res.url !== "string" || res.url.length === 0) {
+    done(false, "td agent submit-pr returned no PR url");
+    throw new Error("Submit failed: td agent submit-pr returned no PR url.");
+  }
   done(true);
   return {
     status: "success",

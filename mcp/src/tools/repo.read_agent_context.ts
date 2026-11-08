@@ -5,14 +5,34 @@ import * as fs from "fs";
 import * as path from "path";
 import * as yaml from "yaml";
 import { runTDCli } from "../lib/tdCli.js";
+import type { TDMultiRepoEntry } from "../lib/tdCli.js";
 import { recordToolReceipt } from "../lib/session_manager.js";
 import { listSkills, readSkill } from "../lib/skills.js";
+import type { SkillSummary } from "../lib/skills.js";
 import { AgentContractConfigSchema } from "./contract.js";
 
 export interface AgentContext {
   packageName: string;
   gitCommit: string;
   config: Record<string, unknown>;
+}
+
+export interface AgentContextResult extends AgentContext {
+  status: "success";
+  path: string;
+  repo?: string;
+  agent_contract: ReturnType<typeof readAgentContractSection>;
+  package_scripts: Record<string, string>;
+  vector_index: ReturnType<typeof getVectorIndexStatus>;
+  skills: SkillSummary[];
+  skill?: { name: string; body: string };
+}
+
+export interface EcosystemAgentContextResult {
+  status: "success";
+  ecosystem: true;
+  repos: TDMultiRepoEntry[];
+  total: number;
 }
 
 export const loadStandaloneAgentContext = (repoRoot: string = process.cwd()): AgentContext => {
@@ -34,8 +54,10 @@ export const loadStandaloneAgentContext = (repoRoot: string = process.cwd()): Ag
     // Fallback if git is unavailable
   }
 
+  const packageName =
+    typeof projectConfig.packageName === "string" ? projectConfig.packageName : "boomtick";
   return {
-    packageName: (projectConfig.packageName as string) ?? "boomtick",
+    packageName,
     gitCommit,
     config: projectConfig,
   };
@@ -203,7 +225,9 @@ export const ReadAgentContextInputSchema = z.object({
   skillName: z.string().optional().describe("Optional skill name: return its SKILL.md body too (absorbs skill_read)."),
 });
 
-export async function readAgentContextHandler(args: z.infer<typeof ReadAgentContextInputSchema>) {
+export async function readAgentContextHandler(
+  args: z.infer<typeof ReadAgentContextInputSchema>
+): Promise<EcosystemAgentContextResult | AgentContextResult> {
   // 1. Ecosystem / Multi-repo request
   if (args.all || (args.repos && args.repos.length > 0)) {
     const cliArgs = ["multi-repo", "status"];
@@ -230,7 +254,7 @@ export async function readAgentContextHandler(args: z.infer<typeof ReadAgentCont
     const matchedPath = await resolveTargetRepoPath({ repo: args.repo });
     if (matchedPath && matchedPath !== config.repoPath) {
       const context = loadStandaloneAgentContext(matchedPath);
-      const named: any = {
+      const named: AgentContextResult = {
         status: "success",
         repo: args.repo,
         path: matchedPath,
@@ -253,7 +277,7 @@ export async function readAgentContextHandler(args: z.infer<typeof ReadAgentCont
   // 3. Specific filesystem path or default
   const targetPath = await resolveTargetRepoPath(args);
   const context = loadStandaloneAgentContext(targetPath);
-  const result: any = {
+  const result: AgentContextResult = {
     status: "success",
     path: targetPath,
     ...context,
@@ -268,7 +292,6 @@ export async function readAgentContextHandler(args: z.infer<typeof ReadAgentCont
   if (args?.repo) {
     result.repo = args.repo;
   }
-  delete result.submodules;
   if (result.config) {
     delete result.config.submodules;
   }

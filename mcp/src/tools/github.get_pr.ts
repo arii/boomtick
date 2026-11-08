@@ -80,9 +80,9 @@ export async function getPrHandler(args: z.infer<typeof GetPrInputSchema>): Prom
         "--json", "headRefName,baseRefName", "--repo", targetRepo,
       ]);
       if (meta.exitCode === 0 && meta.stdout.trim()) {
-        const info = JSON.parse(meta.stdout);
-        if (info.headRefName) headRef = info.headRefName;
-        if (info.baseRefName) baseBranch = info.baseRefName;
+        const info: { headRefName?: unknown; baseRefName?: unknown } = JSON.parse(meta.stdout);
+        if (typeof info.headRefName === "string" && info.headRefName) headRef = info.headRefName;
+        if (typeof info.baseRefName === "string" && info.baseRefName) baseBranch = info.baseRefName;
       }
       headRef ??= "HEAD";
     }

@@ -1,9 +1,27 @@
 import { execSync } from "child_process";
+import { z } from "zod";
 import { findRepoRoot } from "./repo.js";
 
-let cachedDynamicConfig: any = null;
+const DynamicConfigSchema = z
+  .object({
+    github_repo: z.string().optional(),
+    package_name: z.string().optional(),
+    base_branch: z.string().optional(),
+    vite_base_path: z.string().optional(),
+    gh_path: z.string().optional(),
+  })
+  .catchall(z.unknown());
 
-export function initializeConfig(targetCwd?: string) {
+export type DynamicConfig = z.infer<typeof DynamicConfigSchema>;
+
+let cachedDynamicConfig: DynamicConfig | null = null;
+let dynamicConfigDegraded = false;
+
+export function isDynamicConfigDegraded(): boolean {
+  return dynamicConfigDegraded;
+}
+
+export function initializeConfig(targetCwd?: string): DynamicConfig {
   if (cachedDynamicConfig !== null) {
     return cachedDynamicConfig;
   }
@@ -16,7 +34,7 @@ export function initializeConfig(targetCwd?: string) {
       encoding: "utf-8",
       stdio: ["ignore", "pipe", "ignore"],
     });
-    cachedDynamicConfig = JSON.parse(output);
+    cachedDynamicConfig = DynamicConfigSchema.parse(JSON.parse(output));
     return cachedDynamicConfig;
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e);
@@ -27,11 +45,12 @@ export function initializeConfig(targetCwd?: string) {
     } else {
       console.warn(errorPrefix);
     }
+    dynamicConfigDegraded = true;
     cachedDynamicConfig = {};
   }
   return cachedDynamicConfig;
 }
 
-export function getCachedDynamicConfig(): any {
+export function getCachedDynamicConfig(): DynamicConfig | null {
   return cachedDynamicConfig;
 }

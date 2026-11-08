@@ -8,13 +8,28 @@ export const IssueCommentInputSchema = z.object({
   repo: z.string().optional().describe("The target repository override (e.g. org/repo)."),
 });
 
+const IssueCommentSchema = z
+  .object({
+    id: z.number().optional(),
+    html_url: z.string().optional(),
+    body: z.string().optional(),
+    user: z.object({ login: z.string() }).catchall(z.unknown()).optional(),
+    created_at: z.string().optional(),
+    updated_at: z.string().optional(),
+  })
+  .catchall(z.unknown());
+
+export type IssueComment = z.infer<typeof IssueCommentSchema>;
+
 const IssueCommentOutputSchema = z.object({
   status: z.string(),
-  comment: z.any().optional(),
+  comment: IssueCommentSchema.optional(),
   message: z.string().optional(),
 });
 
-export async function issueCommentHandler(args: z.infer<typeof IssueCommentInputSchema>) {
+export async function issueCommentHandler(
+  args: z.infer<typeof IssueCommentInputSchema>
+): Promise<{ status: "success"; comment: IssueComment | undefined }> {
   const params = IssueCommentInputSchema.parse(args);
   const targetRepo = resolveRepo(params.repo);
 
