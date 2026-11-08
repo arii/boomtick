@@ -39,3 +39,12 @@ def test_no_semgrep_runtime_dependency():
     # where the scanner is actually needed.
     names = [re.split(r"[<>=!~\s\[]", dep, maxsplit=1)[0] for dep in _dependencies()]
     assert "semgrep" not in names, "semgrep must not anchor runtime OTEL versions"
+
+
+def test_rag_backend_deps_declared():
+    names = [re.split(r"[<>=!~\s\[]", dep, maxsplit=1)[0] for dep in _dependencies()]
+    missing = [p for p in ("chromadb", "sentence-transformers") if p not in names]
+    assert not missing, (
+        "vector_store imports these unconditionally; undeclared, fresh "
+        "installs resolve RAG to a silent no-backend: " + ", ".join(missing)
+    )
