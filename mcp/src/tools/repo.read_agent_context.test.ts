@@ -38,6 +38,7 @@ describe("Standalone Agent Context Loader", () => {
   it("should handle multi-repo context querying when all: true is passed", async () => {
     const res = await readAgentContextHandler({ all: true });
     expect(res.status).toBe("success");
+    if (!("ecosystem" in res)) throw new Error("expected ecosystem response");
     expect(res.ecosystem).toBe(true);
     expect(Array.isArray(res.repos)).toBe(true);
     expect(res.repos.length).toBeGreaterThan(0);

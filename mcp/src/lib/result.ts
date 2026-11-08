@@ -4,10 +4,10 @@ export interface ToolResult extends CallToolResult {
   isError?: boolean;
 }
 
-export function createSuccessResult(data: any): ToolResult {
-  const structuredContent =
+export function createSuccessResult(data: unknown): ToolResult {
+  const structuredContent: Record<string, unknown> =
     typeof data === "object" && data !== null && !Array.isArray(data)
-      ? data
+      ? (data as Record<string, unknown>)
       : { result: data };
 
   return {
