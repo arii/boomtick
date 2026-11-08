@@ -25,7 +25,9 @@ dependencies = [
     "importlib-resources",
     "tree-sitter>=0.22.0",
     "tree-sitter-typescript>=0.23.0",
-    "rank-bm25>=0.2.2"
+    "rank-bm25>=0.2.2",
+    "chromadb",
+    "sentence-transformers"
 ]
 
 [project.urls]
