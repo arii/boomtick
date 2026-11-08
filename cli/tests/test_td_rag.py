@@ -217,6 +217,36 @@ def test_update_index_warm_cache_no_backend_raises(repo, tmp_path,
             assert chunk_id not in remaining
 
 
+def test_update_index_incremental_empty_collection_raises(
+        repo, tmp_path, monkeypatch):
+    # #1181: diverged cache (hashes recorded, vectors missing) +
+    # unchanged files must fail loud instead of stamping
+    # last_indexed_sha over an unverified (empty) collection.
+    # Backend-independent: the collection is stubbed, so this
+    # runs with or without chromadb installed.
+    persist = str(tmp_path / "chroma")
+    os.makedirs(persist, exist_ok=True)
+    with open(os.path.join(persist, "ast_hash_cache.json"), "w",
+              encoding="utf-8") as handle:
+        json.dump({"src/widget.py:1-2:deadbeef": "0" * 64}, handle)
+    meta = str(tmp_path / "meta.json")
+    head = _head(repo)
+    with open(meta, "w", encoding="utf-8") as handle:
+        json.dump({"last_indexed_sha": head}, handle)
+
+    class _EmptyCollection:
+        def count(self):
+            return 0
+
+    monkeypatch.setattr(vs.VectorStore, "collection",
+                        property(lambda self: _EmptyCollection()))
+    with pytest.raises(RuntimeError, match="unverified"):
+        vs.update_index(str(repo), incremental=True,
+                        persist_directory=persist, meta_file=meta)
+    with open(meta, "r", encoding="utf-8") as handle:
+        assert json.load(handle)["last_indexed_sha"] == head
+
+
 def test_query_index_broken_store_raises(repo, tmp_path):
     # #1165: exceptions fail loud instead of returning [] silently.
     def broken(self, query_text, n_results=8, hybrid=True):
