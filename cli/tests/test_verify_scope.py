@@ -318,3 +318,112 @@ def test_override_release_please_commit_msg(monkeypatch):
     )
 
     assert verify_scope.check_override() is True
+
+
+def _clear_override_env(monkeypatch):
+    """Neutralize every check_override() early-return path except the commit-log probe."""
+    monkeypatch.delenv("SCOPE_OVERRIDE", raising=False)
+    monkeypatch.delenv("GITHUB_HEAD_REF", raising=False)
+    monkeypatch.delenv("GITHUB_REF", raising=False)
+    monkeypatch.delenv("GITHUB_EVENT_PATH", raising=False)
+
+
+class _Proc:  # pylint: disable=too-few-public-methods
+    def __init__(self, returncode=0, stdout="", stderr=""):
+        self.returncode = returncode
+        self.stdout = stdout
+        self.stderr = stderr
+
+
+def test_log_probe_scopes_to_pr_range_not_last_10(monkeypatch):
+    """With GITHUB_BASE_REF=main the log probe queries origin/main..HEAD, never -n 10 (#1206)."""
+    _clear_override_env(monkeypatch)
+    monkeypatch.setenv("GITHUB_BASE_REF", "main")
+
+    calls = []
+
+    def fake_run(args, **kwargs):
+        calls.append(list(args))
+        if list(args)[:2] == ["git", "rev-parse"]:
+            return _Proc(returncode=0, stdout="feature/fix-thing\n")
+        return _Proc(returncode=0, stdout="feat: fix unrelated thing\n")
+
+    monkeypatch.setattr("subprocess.run", fake_run)
+
+    assert verify_scope.check_override() is False
+
+    log_calls = [c for c in calls if c[:2] == ["git", "log"]]
+    assert log_calls, "expected check_override() to probe git log"
+    assert any("origin/main..HEAD" in c for c in log_calls)
+    for call in log_calls:
+        assert not ("-n" in call and "10" in call), f"probe must not read history: {call}"
+
+
+def test_old_history_release_does_not_bypass(monkeypatch):
+    """Release text visible only in older history must not bypass strict scope (#1206)."""
+    _clear_override_env(monkeypatch)
+    monkeypatch.setenv("GITHUB_BASE_REF", "main")
+
+    def fake_run(args, **kwargs):
+        argv = list(args)
+        if argv[:2] == ["git", "rev-parse"]:
+            return _Proc(returncode=0, stdout="feature/fix-thing\n")
+        if "origin/main..HEAD" in argv:
+            # The PR's own commits contain no release text.
+            return _Proc(returncode=0, stdout="feat: fix unrelated thing\n")
+        # Anything else (e.g. the old `-n 10` history probe) would see
+        # an old release in history and wrongly bypass.
+        return _Proc(returncode=0, stdout="chore: release main (#942)\n")
+
+    monkeypatch.setattr("subprocess.run", fake_run)
+
+    assert verify_scope.check_override() is False
+
+
+def test_log_probe_tip_only_without_base_ref(monkeypatch):
+    """Without GITHUB_BASE_REF the probe falls back to the tip commit only."""
+    _clear_override_env(monkeypatch)
+    monkeypatch.delenv("GITHUB_BASE_REF", raising=False)
+
+    calls = []
+
+    def fake_run(args, **kwargs):
+        calls.append(list(args))
+        if list(args)[:2] == ["git", "rev-parse"]:
+            return _Proc(returncode=0, stdout="feature/fix-thing\n")
+        return _Proc(returncode=0, stdout="feat: fix unrelated thing\n")
+
+    monkeypatch.setattr("subprocess.run", fake_run)
+
+    assert verify_scope.check_override() is False
+
+    log_calls = [c for c in calls if c[:2] == ["git", "log"]]
+    assert ["git", "log", "-n", "1", "HEAD", "--pretty=%B"] in log_calls
+
+
+def test_log_probe_falls_back_to_tip_when_no_origin_ref(monkeypatch):
+    """When the range query fails (no origin ref) the probe reads the tip commit only."""
+    _clear_override_env(monkeypatch)
+    monkeypatch.setenv("GITHUB_BASE_REF", "main")
+
+    calls = []
+
+    def fake_run(args, **kwargs):
+        argv = list(args)
+        calls.append(argv)
+        if argv[:2] == ["git", "rev-parse"]:
+            return _Proc(returncode=0, stdout="feature/fix-thing\n")
+        if "origin/main..HEAD" in argv:
+            return _Proc(returncode=1, stdout="", stderr="unknown revision")
+        if argv == ["git", "log", "-n", "1", "HEAD", "--pretty=%B"]:
+            return _Proc(returncode=0, stdout="feat: fix thing [skip-scope-check]\n")
+        return _Proc(returncode=0, stdout="feat: fix unrelated thing\n")
+
+    monkeypatch.setattr("subprocess.run", fake_run)
+
+    assert verify_scope.check_override() is True
+
+    log_calls = [c for c in calls if c[:2] == ["git", "log"]]
+    assert len(log_calls) == 2
+    assert "origin/main..HEAD" in log_calls[0]
+    assert log_calls[1] == ["git", "log", "-n", "1", "HEAD", "--pretty=%B"]
