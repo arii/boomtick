@@ -1,57 +1,29 @@
-interface GeminiModel {
+import modelsData from '../data/gemini-models.json';
+
+interface GeminiModelEntry {
   id: string;
   name: string;
   tier: 'pro' | 'flash' | 'lite';
   maxInputTokens: number;
   maxOutputTokens: number;
+  inputCostPerM: number;
+  outputCostPerM: number;
+  reviewAfter: string | null;
+  deprecatedAfter: string | null;
 }
 
-const GEMINI_MODELS_METADATA: GeminiModel[] = [
-  {
-    id: 'gemini-3.1-pro-preview',
-    name: 'Gemini 3.1 Pro (Preview)',
-    tier: 'pro',
-    maxInputTokens: 2000000,
-    maxOutputTokens: 8192
-  },
-  {
-    id: 'gemini-3.5-flash',
-    name: 'Gemini 3.5 Flash',
-    tier: 'flash',
-    maxInputTokens: 1000000,
-    maxOutputTokens: 8192
-  },
-  {
-    id: 'gemini-3.1-flash-lite',
-    name: 'Gemini 3.1 Flash Lite',
-    tier: 'lite',
-    maxInputTokens: 1000000,
-    maxOutputTokens: 8192
-  },
-  {
-    id: 'gemini-2.5-flash',
-    name: 'Gemini 2.5 Flash',
-    tier: 'flash',
-    maxInputTokens: 1000000,
-    maxOutputTokens: 8192
-  },
-  {
-    id: 'gemini-2.5-flash-lite',
-    name: 'Gemini 2.5 Flash Lite',
-    tier: 'lite',
-    maxInputTokens: 1000000,
-    maxOutputTokens: 8192
-  }
-];
+const GEMINI_MODELS_METADATA: GeminiModelEntry[] = modelsData.models as GeminiModelEntry[];
+const DEPRECATED_MODELS: string[] = (modelsData.deprecated as { id: string }[]).map((entry) => entry.id);
 
-const DEPRECATED_MODELS = [
-  'gemini-1.5-flash',
-  'gemini-1.5-pro',
-  'gemini-pro',
-  'gemini-2.0-flash',
-  'gemini-2.0-pro',
-  'gemini-2.0-flash-thinking'
-];
+// Surface catalog rot as a build signal instead of a runtime surprise.
+for (const model of GEMINI_MODELS_METADATA) {
+  if (model.reviewAfter && Date.now() > Date.parse(model.reviewAfter)) {
+    console.warn(`⚠️ Gemini model catalog entry is stale: ${model.id} (review date ${model.reviewAfter}). Refresh data/gemini-models.json.`);
+  }
+  if (model.deprecatedAfter && Date.now() > Date.parse(model.deprecatedAfter)) {
+    console.warn(`⚠️ Gemini model is past its deprecation date: ${model.id} (${model.deprecatedAfter}).`);
+  }
+}
 
 let cachedModels: string[] | null = null;
 
@@ -129,24 +101,12 @@ export async function pickGeminiModel(
 
 /**
  * Returns the pricing per 1 million tokens for the given Gemini model.
- * Values are based on Gemini 3.x estimates.
+ * Values come from data/gemini-models.json; unknown ids use its default.
  */
 export function getGeminiPricing(modelId: string): { inputCostPerM: number; outputCostPerM: number } {
-  if (modelId.includes('gemini-3.5-flash')) {
-    return { inputCostPerM: 1.50, outputCostPerM: 9.00 };
+  const entry = GEMINI_MODELS_METADATA.find((model) => model.id === modelId);
+  if (entry) {
+    return { inputCostPerM: entry.inputCostPerM, outputCostPerM: entry.outputCostPerM };
   }
-  if (modelId.includes('gemini-3.1-flash-lite')) {
-    return { inputCostPerM: 0.25, outputCostPerM: 1.50 };
-  }
-  if (modelId.includes('gemini-2.5-flash-lite')) {
-    return { inputCostPerM: 0.10, outputCostPerM: 0.40 };
-  }
-  if (modelId.includes('gemini-2.5-flash')) {
-    return { inputCostPerM: 0.30, outputCostPerM: 2.50 };
-  }
-  if (modelId.includes('pro')) {
-    return { inputCostPerM: 2.00, outputCostPerM: 12.00 };
-  }
-  // Default fallback
-  return { inputCostPerM: 0.10, outputCostPerM: 0.40 };
+  return { ...modelsData.defaultPricing };
 }

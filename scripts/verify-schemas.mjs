@@ -9,8 +9,12 @@ import { join, delimiter } from 'node:path';
 async function verifySchemas() {
   console.log('🔍 Starting schema validation pipeline...');
 
-  // 1. Identify Python interpreter
-  const pythonPath = existsSync('.venv/bin/python3') ? '.venv/bin/python3' : 'python3';
+  // 1. Identify Python interpreter (pinned venv path only; fail closed when absent).
+  const pythonPath = '.venv/bin/python3';
+  if (!existsSync(pythonPath)) {
+    console.error(`❌ Missing required toolchain binary: ${pythonPath}. Run ./setup-agent.sh to provision the venv, then retry.`);
+    process.exit(254);
+  }
   console.log(`🐍 Using Python: ${pythonPath}`);
 
   // 2. Generate CLI schema from Python models
@@ -22,35 +26,18 @@ async function verifySchemas() {
       ? `${existingPythonPath}${delimiter}${cliDir}`
       : cliDir;
 
-    let hasTd = existsSync('.venv/bin/td');
-    if (!hasTd) {
-      try {
-        execSync('command -v td', { stdio: 'ignore' });
-        hasTd = true;
-      } catch (_) {}
+    const tdPath = '.venv/bin/td';
+    if (!existsSync(tdPath)) {
+      console.error(`❌ Missing required toolchain binary: ${tdPath}. Run ./setup-agent.sh to provision the venv, then retry.`);
+      process.exit(254);
     }
-
-    if (hasTd) {
-      const tdPath = existsSync('.venv/bin/td') ? '.venv/bin/td' : 'td';
-      if (!/^[a-zA-Z0-9/._-]+$/.test(tdPath)) {
-        throw new Error("Invalid td path detected.");
-      }
-      execFileSync(tdPath, ['schema', '--generate'], {
-        stdio: 'inherit',
-        env: {
-          ...process.env,
-          PYTHONPATH: newPythonPath,
-        },
-      });
-    } else {
-      execFileSync(pythonPath, ['-m', 'dev_tools.schema_gen'], {
-        stdio: 'inherit',
-        env: {
-          ...process.env,
-          PYTHONPATH: newPythonPath,
-        },
-      });
-    }
+    execFileSync(tdPath, ['schema', '--generate'], {
+      stdio: 'inherit',
+      env: {
+        ...process.env,
+        PYTHONPATH: newPythonPath,
+      },
+    });
   } catch (_error) {
     console.error('❌ Failed to generate CLI schema.');
     process.exit(254);
