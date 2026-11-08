@@ -7,7 +7,20 @@ from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Tuple
 from dev_tools.ux_report import generate_report
 from dev_tools.handlers.command_handler import CommandHandler
-from dev_tools.utils import log_info, CLIError, clean_gha_logs, extract_failing_info, find_patterns_in_file, get_any_count, get_bundle_size, get_github_client, log_warn, resolve_resource_path, set_gha_variable, verify_pr_scope, walk_tsx
+from dev_tools.utils import (
+    log_info,
+    CLIError,
+    clean_gha_logs,
+    extract_failing_info,
+    find_patterns_in_file,
+    get_any_count,
+    get_bundle_size,
+    get_github_client,
+    log_warn,
+    resolve_resource_path,
+    set_gha_variable,
+    verify_pr_scope,
+    walk_tsx)
 from dev_tools.orchestration.issues import IssueMixin
 import dev_tools.orchestrator
 
@@ -163,7 +176,11 @@ class QualityMixin(IssueMixin):
                     else "❌" if run.get("conclusion") == "failure" else "⏳"
                 )
                 context_lines.append(
-                    f"- {status_icon} **{run.get('name')}**: {run.get('status')} ({run.get('conclusion') or 'in_progress'})"
+                    (
+                        f"- "
+                        f"{status_icon} **{run.get('name')}**: "
+                        f"{run.get('status')} ({run.get('conclusion') or 'in_progress'})"
+                    )
                 )
                 if run.get("conclusion") == "failure":
                     failed_check_names.append(run.get("name"))
@@ -295,7 +312,11 @@ class QualityMixin(IssueMixin):
                                         auto_findings.append(
                                             {
                                                 "path": str(filepath),
-                                                "issue": f"{v.get('pattern', 'N/A')}: {v.get('message', 'No message')} (value: {v.get('value', 'N/A')})",
+                                                "issue": (
+                                                    f"{v.get('pattern', 'N/A')}: "
+                                                    f"{v.get('message', 'No message')} (value: "
+                                                    f"{v.get('value', 'N/A')})"
+                                                ),
                                                 "severity": str(v.get("severity", "minor")),
                                             }
                                         )
@@ -328,7 +349,8 @@ class QualityMixin(IssueMixin):
         current_count = int(dev_tools.orchestrator.run_command(["node", script_path, "--count-only"]) or 0)
         baseline_count = self.resolve_baseline(None, "AUDIT_BASELINE", -1)
 
-        is_shallow = dev_tools.orchestrator.run_command(["git", "rev-parse", "--is-shallow-repository"], check=False).stdout.strip() == "true"
+        is_shallow = dev_tools.orchestrator.run_command(["git", "rev-parse", "--is-shallow-repository"],
+            check=False).stdout.strip() == "true"
 
         if baseline_count == -1 or is_shallow:
             val = self.get_env_or_gha("AUDIT_BASELINE")
@@ -355,7 +377,9 @@ class QualityMixin(IssueMixin):
             for cand in base_candidates:
                 if (
                     cand
-                    and dev_tools.orchestrator.run_command(["git", "rev-parse", "--verify", cand], check=False, log_on_error=False).returncode
+                    and dev_tools.orchestrator.run_command(["git", "rev-parse", "--verify", cand],
+                        check=False,
+                        log_on_error=False).returncode
                     == 0
                 ):
                     base_ref = cand
@@ -369,7 +393,11 @@ class QualityMixin(IssueMixin):
                     "status": "success" if current_count <= 0 else "error",
                 }
 
-            base_files = dev_tools.orchestrator.run_command(["git", "ls-tree", "-r", base_ref, "--name-only"]).splitlines()
+            base_files = dev_tools.orchestrator.run_command(["git",
+                "ls-tree",
+                "-r",
+                base_ref,
+                "--name-only"]).splitlines()
             # Ensure AUDIT_CHECK_DIRS are handled as a list of prefixes
             relevant = [
                 mf
@@ -378,7 +406,9 @@ class QualityMixin(IssueMixin):
                 and any(mf == d or mf.startswith(d + "/") for d in dev_tools.orchestrator.get_config().audit_check_dirs)
             ]
             for mf in relevant:
-                res_show = dev_tools.orchestrator.run_command(["git", "show", f"{base_ref}:{mf}"], check=False, log_on_error=False)
+                res_show = dev_tools.orchestrator.run_command(["git", "show", f"{base_ref}:{mf}"],
+                    check=False,
+                    log_on_error=False)
                 if res_show.returncode == 0:
                     baseline_count += int(
                         dev_tools.orchestrator.run_command(
@@ -441,7 +471,15 @@ class QualityMixin(IssueMixin):
         content = (
             open(tracking_file, encoding="utf-8").read()
             if os.path.exists(tracking_file)
-            else "# PR Review Tracking\n\n| PR | Status | Auditor | Last Updated |\n|----|--------|---------|--------------|\n"
+            else (
+                "# "
+                "PR Review "
+                "Tracking\n\n| PR "
+                "| Status "
+                "| Auditor "
+                "| Last "
+                "Updated |\n|----|--------|---------|--------------|\n"
+            )
         )
         lines = content.splitlines()
         new_lines = []

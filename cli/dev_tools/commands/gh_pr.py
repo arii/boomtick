@@ -279,7 +279,19 @@ def verify_versions(ctx, diff_input):
 @click.option("--all", "all_prs", is_flag=True, help="Detect file overlap for all open PRs")
 @click.pass_context
 def detect_conflicts(ctx, pr, all_prs):
-    """Detect file overlap between open PRs (shared touched paths). This is NOT merge-conflict detection — for mergeability use GitHub mergeStateStatus/mergeable."""
+    (
+        """Detect """
+        """file overlap """
+        """between open """
+        """PRs (shared """
+        """touched paths). """
+        """This is """
+        """NOT merge-conflict """
+        """detection — """
+        """for mergeability """
+        """use GitHub """
+        """mergeStateStatus/mergeable."""
+    )
     if pr is not None and all_prs:
         err(ctx, "Provide either --pr or --all, not both")
     if pr is None and not all_prs:
@@ -291,7 +303,12 @@ def detect_conflicts(ctx, pr, all_prs):
 
 
 @gh.command(name="read-pr-reviews")
-@click.option("--pr", "--pr-number", "pr_number", required=True, type=int, help="The PR number to fetch top-level reviews for.")
+@click.option("--pr",
+    "--pr-number",
+    "pr_number",
+    required=True,
+    type=int,
+    help="The PR number to fetch top-level reviews for.")
 @click.option("--repo", help="Target repository override (e.g. owner/repo)")
 @click.pass_context
 def read_pr_reviews(ctx, pr_number, repo):
@@ -301,7 +318,9 @@ def read_pr_reviews(ctx, pr_number, repo):
     orch = ctx.obj["ORCHESTRATOR"]
     extra_kwargs = {"repo": repo} if repo else {}
     reviews = orch.github.fetch_reviews(pr_number, **extra_kwargs)
-    out(ctx, f"Fetched {len(reviews)} reviews for PR #{pr_number}", data={"reviews": reviews, "review_count": len(reviews)})
+    out(ctx,
+        f"Fetched {len(reviews)} reviews for PR #{pr_number}",
+        data={"reviews": reviews, "review_count": len(reviews)})
 
 
 @gh.command(name="list-pr-commits")

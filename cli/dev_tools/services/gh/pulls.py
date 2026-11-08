@@ -218,7 +218,9 @@ class PullsMixin(GitHubCoreMixin):
             }
             """
             try:
-                res = self._request("POST", "/graphql", json_data={"query": query, "variables": {"owner": owner, "repo": repo_name, "prNumber": number}})
+                res = self._request("POST",
+                    "/graphql",
+                    json_data={"query": query, "variables": {"owner": owner, "repo": repo_name, "prNumber": number}})
                 pr_node = res.get("data", {}).get("repository", {}).get("pullRequest")
                 if pr_node and "reviewDecision" in pr_node:
                     return pr_node.get("reviewDecision")

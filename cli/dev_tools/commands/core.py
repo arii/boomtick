@@ -151,7 +151,11 @@ def _get_body_content(ctx, orch, file, body):
 
 
 def _handle_gate(ctx, res, label):
-    msg = f"{label}: Current={res.get('current', res.get('size_kb'))}, Baseline={res.get('baseline', res.get('baseline_kb'))}"
+    msg = (
+        f"{label}: "
+        f"Current={res.get('current', res.get('size_kb'))}, "
+        f"Baseline={res.get('baseline', res.get('baseline_kb'))}"
+    )
     if res["status"] == "error":
         err(ctx, msg, data=res)
     else:

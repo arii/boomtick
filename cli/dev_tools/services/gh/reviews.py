@@ -303,13 +303,15 @@ class ReviewsMixin(IssuesMixin):
 
                     if code == 422:
                         error_data = getattr(e, "data", None)
-                        if error_data is None and isinstance(e, requests.exceptions.HTTPError) and e.response is not None:
+                        if error_data is None and isinstance(e,
+                            requests.exceptions.HTTPError) and e.response is not None:
                             try:
                                 error_data = e.response.json()
                             except Exception as inner_e:
                                 log_warn(f"Failed to parse error response JSON: {inner_e}")
 
-                        error_msg = json.dumps(error_data) if error_data else (e.response.text if hasattr(e, "response") and e.response else str(e))
+                        error_msg = json.dumps(error_data) if error_data else (e.response.text if hasattr(e,
+                            "response") and e.response else str(e))
 
                         if "Can not approve your own pull request" in error_msg and review_event != "COMMENT":
                             log_warn("Cannot approve own PR. Retrying as COMMENT...")
@@ -318,7 +320,15 @@ class ReviewsMixin(IssuesMixin):
                         # Handle individual comment failures if possible, or fallback to body
                         if review_comments:
                             log_warn(
-                                f"Failed to post {len(review_comments)} inline comments. Retrying as body comments. Error: {error_msg[:200]}"
+                                (
+                                    f"Failed "
+                                    f"to post "
+                                    f"{len(review_comments)} inline "
+                                    f"comments. Retrying "
+                                    f"as body "
+                                    f"comments. Error: "
+                                    f"{error_msg[:200]}"
+                                )
                             )
                             fallback_body = review_body
                             fallback_body += "\n\n### Inline Comments (Fallback due to line resolution errors)\n"
@@ -438,7 +448,10 @@ class ReviewsMixin(IssuesMixin):
         except Exception as e:
             log_warn(f"Failed to generate diff mapping for PR #{pr_number}: {e}")
 
-    def _determine_review_event(self, payload: Dict[str, Any], failing_checks: List[str], event_override: Optional[str] = None) -> str:
+    def _determine_review_event(self,
+        payload: Dict[str, Any],
+        failing_checks: List[str],
+        event_override: Optional[str] = None) -> str:
         recommendation = payload.get("recommendation", "")
         if event_override:
             event = event_override
@@ -457,7 +470,20 @@ class ReviewsMixin(IssuesMixin):
 
         if failing_checks and event == "APPROVE":
             event = "COMMENT"
-            warning = f"> ⚠️ **BLOCKING CI FAILURE**: Approval overridden to COMMENT because the following checks are failing: {', '.join(failing_checks)}. Please resolve CI issues before approval.\n\n"
+            warning = (
+                f"> "
+                f"⚠️ **BLOCKING "
+                f"CI FAILURE**: "
+                f"Approval overridden "
+                f"to COMMENT "
+                f"because the "
+                f"following checks "
+                f"are failing: "
+                f"{', '.join(failing_checks)}. Please "
+                f"resolve CI "
+                f"issues before "
+                f"approval.\n\n"
+            )
             payload["body"] = warning + payload.get("body", "")
 
         return event

@@ -147,7 +147,15 @@ class ReviewMixin(OrchestratorBase):
                     "severity": "warning",
                     "file": path,
                     "evidence": [],
-                    "message": "Fixed-width content risks overflowing a 390px viewport; prefer fluid widths with wrapping.",
+                    "message": (
+                        "Fixed-width "
+                        "content risks "
+                        "overflowing a "
+                        "390px viewport; "
+                        "prefer fluid "
+                        "widths with "
+                        "wrapping."
+                    ),
                 }
                 findings.append(existing)
             if added not in existing["evidence"] and len(existing["evidence"]) < 5:
@@ -206,26 +214,114 @@ class ReviewMixin(OrchestratorBase):
         feedback += "\n**Specific Issues & Actionable Fixes:**\n"
 
         if fails:
-            feedback += f"- **CI Failure:** The following checks are failing: {', '.join(fails)}. Please investigate the logs for these jobs.\n"
+            feedback += (
+                f"- "
+                f"**CI Failure:** "
+                f"The following "
+                f"checks are "
+                f"failing: {', '.join(fails)}. "
+                f"Please investigate "
+                f"the logs "
+                f"for these "
+                f"jobs.\n"
+            )
             if "Build & E2E" in fails:
-                feedback += "  - *Fix:* Ensure `pnpm run build` passes locally and all `playwright` tests succeed via `pnpm test:e2e`.\n"
+                feedback += (
+                    "  "
+                    "- *Fix:* "
+                    "Ensure `pnpm "
+                    "run build` "
+                    "passes locally "
+                    "and all "
+                    "`playwright` tests "
+                    "succeed via "
+                    "`pnpm test:e2e`.\n"
+                )
             elif "deploy" in fails:
-                feedback += "  - *Fix:* Verify that the `dist` directory compiles correctly without TypeScript or Vite errors.\n"
+                feedback += (
+                    "  "
+                    "- *Fix:* "
+                    "Verify that "
+                    "the `dist` "
+                    "directory compiles "
+                    "correctly without "
+                    "TypeScript or "
+                    "Vite errors.\n"
+                )
 
         if is_ui:
             tw_evidence = self._tailwind_evidence(diff)
             if tw_evidence:
-                feedback += "- **Design System Anti-patterns:** The diff adds raw Tailwind classes (e.g. padding/margin utility classes, arbitrary values).\n"
+                feedback += (
+                    "- "
+                    "**Design System "
+                    "Anti-patterns:** The "
+                    "diff adds "
+                    "raw Tailwind "
+                    "classes (e.g. "
+                    "padding/margin utility "
+                    "classes, arbitrary "
+                    "values).\n"
+                )
                 for path, added in tw_evidence[:3]:
                     feedback += f"  - `{path}`: `+{added[:120]}`\n"
-                feedback += "  - *Fix:* Replace raw Tailwind layout classes with `Stack`, `Box`, or `Grid` primitives using design tokens (e.g., `gap={4}`, `paddingY={{ base: 4, md: 1.5 }}`). Verify by running `td gh audit-gate`.\n"
+                feedback += (
+                    "  "
+                    "- *Fix:* "
+                    "Replace raw "
+                    "Tailwind layout "
+                    "classes with "
+                    "`Stack`, `Box`, "
+                    "or `Grid` "
+                    "primitives using "
+                    "design tokens "
+                    "(e.g., `gap={4}`, "
+                    "`paddingY={{ base: "
+                    "4, md: "
+                    "1.5 }}`). "
+                    "Verify by "
+                    "running `td "
+                    "gh audit-gate`.\n"
+                )
 
-            feedback += "- **Mobile UX Verification:** For any UI additions, ensure horizontal layout does not overflow a 390px viewport.\n"
-            feedback += "  - *Fix:* If adding interactive elements, wrap them to enforce a minimum 48x48px touch target for accessibility.\n"
+            feedback += (
+                "- "
+                "**Mobile UX "
+                "Verification:** For "
+                "any UI "
+                "additions, ensure "
+                "horizontal layout "
+                "does not "
+                "overflow a "
+                "390px viewport.\n"
+            )
+            feedback += (
+                "  "
+                "- *Fix:* "
+                "If adding "
+                "interactive elements, "
+                "wrap them "
+                "to enforce "
+                "a minimum "
+                "48x48px touch "
+                "target for "
+                "accessibility.\n"
+            )
 
         if is_python:
             feedback += "- **Python Scripting:** Python changes detected.\n"
-            feedback += "  - *Fix:* Ensure `python3 -m pytest tests/` passes. Update `test_td` or equivalent test files if extending `dev-tools`.\n"
+            feedback += (
+                "  "
+                "- *Fix:* "
+                "Ensure `python3 "
+                "-m pytest "
+                "tests/` passes. "
+                "Update `test_td` "
+                "or equivalent "
+                "test files "
+                "if extending "
+                "`dev-tools`.\n"
+            )
 
         if is_infra:
             feedback += dev_tools.orchestrator.get_config().infra_feedback
@@ -238,15 +334,48 @@ class ReviewMixin(OrchestratorBase):
         if pr.get("mergeable") is False:
             base_branch_name = dev_tools.orchestrator.get_config().base_branch_name
             feedback += f"- **Merge Conflicts:** This PR has conflicts with the `{base_branch_name}` base branch.\n"
-            feedback += f"  - *Fix:* Pull `{base_branch_name}` into your branch, resolve the conflicts (e.g., via `{dev_tools.orchestrator.get_config().cli_alias} gh resolve-conflicts --pr {pr.get('number', '')}`), and force push.\n"
+            feedback += (
+                f"  "
+                f"- *Fix:* "
+                f"Pull `{base_branch_name}` "
+                f"into your "
+                f"branch, resolve "
+                f"the conflicts "
+                f"(e.g., via "
+                f"`{dev_tools.orchestrator.get_config().cli_alias} gh "
+                f"resolve-conflicts --pr "
+                f"{pr.get('number', '')}`), and "
+                f"force push.\n"
+            )
 
         if "overlap" in pr.get("title", "").lower() or "cli" in pr.get("title", "").lower():
             feedback += "- **Overlap / Interdependency:** This PR touches dev-tools or overlap logic.\n"
-            feedback += f"  - *Fix:* Ensure this is rebased against recent changes in the `{dev_tools.orchestrator.get_config().base_branch_name}` branch to avoid overlapping functionality.\n"
+            feedback += (
+                f"  "
+                f"- *Fix:* "
+                f"Ensure this "
+                f"is rebased "
+                f"against recent "
+                f"changes in "
+                f"the `{dev_tools.orchestrator.get_config().base_branch_name}` "
+                f"branch to "
+                f"avoid overlapping "
+                f"functionality.\n"
+            )
 
         # Default if no specific issues caught by heuristics
         if feedback.endswith("**Specific Issues & Actionable Fixes:**\n"):
-            feedback += "- Review the diff against `audit` guidelines. Ensure no console errors exist in the target components.\n"
+            feedback += (
+                "- "
+                "Review the "
+                "diff against "
+                "`audit` guidelines. "
+                "Ensure no "
+                "console errors "
+                "exist in "
+                "the target "
+                "components.\n"
+            )
 
         return feedback
 
@@ -287,7 +416,10 @@ class ReviewMixin(OrchestratorBase):
             except json.JSONDecodeError:
                 node_results = {"violations": {}, "config": {}}
         else:
-            node_results = {"violations": {}, "config": {}, "status": "skipped", "reason": "detect-antipatterns.mjs not found"}
+            node_results = {"violations": {},
+                "config": {},
+                "status": "skipped",
+                "reason": "detect-antipatterns.mjs not found"}
 
         # Integrate Python ASTAuditor deterministic checks
         from dev_tools.services.ast_audit import ASTAuditor

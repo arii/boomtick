@@ -73,7 +73,9 @@ class MergeGateMixin(CIOpsMixin):
         workflow_runs = self.github.fetch_workflow_runs(**extra_kwargs)
         failing_runs_count = sum(
             1 for run in workflow_runs
-            if run.get("conclusion") in ("failure", "timed_out") or run.get("status") in ("in_progress", "queued") and run.get("conclusion") == "failure"
+            if run.get("conclusion") in ("failure",
+                "timed_out") or run.get("status") in ("in_progress",
+                "queued") and run.get("conclusion") == "failure"
         )
 
         from dev_tools.services import local_sessions as _ls
@@ -141,7 +143,16 @@ class MergeGateMixin(CIOpsMixin):
             else:
                 runnable_command = "td --json preflight"
 
-        suggestion = f"SUGGEST: triage :: Action items found (Open PRs: {open_prs_count}, Failing Runs: {failing_runs_count}, Active Sessions: {active_sessions_count})."
+        suggestion = (
+            f"SUGGEST: "
+            f"triage :: "
+            f"Action items "
+            f"found (Open "
+            f"PRs: {open_prs_count}, "
+            f"Failing Runs: "
+            f"{failing_runs_count}, Active "
+            f"Sessions: {active_sessions_count})."
+        )
         return {
             "status": "success",
             "suggestion": suggestion,

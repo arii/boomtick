@@ -50,11 +50,20 @@ class WorkflowMixin(PlanningMixin):
                 os.chdir(worktree_path)
 
                 # Check for unmerged paths
-                res_diff = dev_tools.orchestrator.run_command(["git", "diff", "--name-only", "--diff-filter=U"], check=False)
+                res_diff = dev_tools.orchestrator.run_command(["git", "diff", "--name-only", "--diff-filter=U"],
+                    check=False)
                 unmerged = res_diff.stdout.strip()
                 if unmerged:
                     raise CLIError(
-                        f"Unresolved conflicts remain in PR #{prNumber}:\n{unmerged}\n\nPlease resolve them in {worktree_path} before continuing."
+                        (
+                            f"Unresolved "
+                            f"conflicts remain "
+                            f"in PR "
+                            f"#{prNumber}:\n{unmerged}\n\nPlease resolve "
+                            f"them in "
+                            f"{worktree_path} before "
+                            f"continuing."
+                        )
                     )
 
                 # Stage all changes
@@ -73,7 +82,8 @@ class WorkflowMixin(PlanningMixin):
                 self._cleanup_worktree(worktree_path)
 
                 # 3. Fetch PR branch and create worktree directly on it
-                dev_tools.orchestrator.run_command(["git", "fetch", "origin", f"+pull/{prNumber}/head:{head_ref}"], check=True)
+                dev_tools.orchestrator.run_command(["git", "fetch", "origin", f"+pull/{prNumber}/head:{head_ref}"],
+                    check=True)
                 dev_tools.orchestrator.run_command(["git", "worktree", "add", worktree_path, head_ref], check=True)
 
                 # 4. Switch to worktree and perform git operations
@@ -107,7 +117,8 @@ class WorkflowMixin(PlanningMixin):
                         log_warn(
                             f"Disjoint history detected for PR #{prNumber}. Retrying with --allow-unrelated-histories"
                         )
-                        res = dev_tools.orchestrator.run_command(merge_cmd + ["--allow-unrelated-histories"], check=False)
+                        res = dev_tools.orchestrator.run_command(merge_cmd + ["--allow-unrelated-histories"],
+                            check=False)
                         if not isinstance(res, subprocess.CompletedProcess):
                             raise CLIError("Retry merge with --allow-unrelated-histories failed execution")
 
@@ -129,7 +140,8 @@ class WorkflowMixin(PlanningMixin):
                         # Use authenticated URL if token is available to avoid terminal prompts
                         if self.github.token and self.github.repo:
                             auth_url = f"https://x-access-token:{self.github.token}@github.com/{self.github.repo}.git"
-                            dev_tools.orchestrator.run_command(["git", "push", auth_url, f"HEAD:{head_branch}"], check=True)
+                            dev_tools.orchestrator.run_command(["git", "push", auth_url, f"HEAD:{head_branch}"],
+                                check=True)
                         else:
                             dev_tools.orchestrator.run_command(["git", "push", "origin", head_branch], check=True)
                         message += f"\n🚀 Successfully pushed resolution to {head_branch}"
@@ -144,7 +156,18 @@ class WorkflowMixin(PlanningMixin):
                     self._cleanup_worktree(worktree_path)
                     message += "\n🧹 Temporary worktree cleaned up."
             else:
-                message = f"⚠️  Conflicts detected in PR #{prNumber} when merging {base_branch}.\nAction Required: Resolve them manually in the worktree.\nCommand: cd {worktree_path}"
+                message = (
+                    f"⚠️ "
+                    f" Conflicts "
+                    f"detected in "
+                    f"PR #{prNumber} "
+                    f"when merging "
+                    f"{base_branch}.\nAction Required: "
+                    f"Resolve them "
+                    f"manually in "
+                    f"the worktree.\nCommand: "
+                    f"cd {worktree_path}"
+                )
                 status = "conflict"
 
             return {
@@ -224,7 +247,14 @@ class WorkflowMixin(PlanningMixin):
         plan_lines = []
         plan_lines.append(f"# Aggregation Workflow Plan: {escape_md(target_branch)}\n")
         plan_lines.append("## Agent Instructions")
-        plan_lines.append(f"- **Environment Check**: Ensure Python dependencies and pnpm {dev_tools.orchestrator.get_config().pnpm_version} are available.")
+        plan_lines.append((
+            f"- "
+            f"**Environment Check**: "
+            f"Ensure Python "
+            f"dependencies and "
+            f"pnpm {dev_tools.orchestrator.get_config().pnpm_version} "
+            f"are available."
+        ))
         plan_lines.append("- setup complete")
         plan_lines.append("- validation complete")
         plan_lines.append("- context collected")
@@ -272,8 +302,21 @@ class WorkflowMixin(PlanningMixin):
 
         plan_lines.append("\n## Sequential Execution Plan")
         plan_lines.append("### Base Branch Setup")
-        plan_lines.append(f"1. Checkout base branch (`{dev_tools.orchestrator.get_config().base_branch_name}`) and pull latest changes.")
-        plan_lines.append(f"2. Create and checkout target aggregation branch: `git checkout -b {escape_md(target_branch)}`.")
+        plan_lines.append((
+            f"1. "
+            f"Checkout base "
+            f"branch (`{dev_tools.orchestrator.get_config().base_branch_name}`) "
+            f"and pull "
+            f"latest changes."
+        ))
+        plan_lines.append((
+            f"2. "
+            f"Create and "
+            f"checkout target "
+            f"aggregation branch: "
+            f"`git checkout "
+            f"-b {escape_md(target_branch)}`."
+        ))
 
         plan_lines.append("\n### Step-by-Step Merge Sequence")
         step_idx = 1
@@ -284,12 +327,57 @@ class WorkflowMixin(PlanningMixin):
             step_idx += 1
 
         plan_lines.append("\n### Conflict Resolution & Fallbacks")
-        plan_lines.append("- **Unrelated Histories Fallback**: If git fails with `fatal: refusing to merge unrelated histories`, retry with `--allow-unrelated-histories`.")
-        plan_lines.append("- **Heavy Conflicts Fallback**: If standard merging creates excessive noise or fails, generate a patch (`git diff target...head > pr_patch.patch`) and apply manually (`git apply pr_patch.patch`).")
+        plan_lines.append((
+            "- "
+            "**Unrelated Histories "
+            "Fallback**: If "
+            "git fails "
+            "with `fatal: "
+            "refusing to "
+            "merge unrelated "
+            "histories`, retry "
+            "with `--allow-unrelated-histories`."
+        ))
+        plan_lines.append((
+            "- "
+            "**Heavy Conflicts "
+            "Fallback**: If "
+            "standard merging "
+            "creates excessive "
+            "noise or "
+            "fails, generate "
+            "a patch "
+            "(`git diff "
+            "target...head > "
+            "pr_patch.patch`) and "
+            "apply manually "
+            "(`git apply "
+            "pr_patch.patch`)."
+        ))
 
         plan_lines.append("\n## Verification & Completion Checklist")
-        plan_lines.append("- [ ] **Local Validation**: Run `pnpm run lint`, `pnpm run type-check`, and relevant test suites.")
-        plan_lines.append("- [ ] **Merge Marker Check**: Ensure no remaining git conflict markers (`grep -rn \"^<<<<<<<\" .`).")
+        plan_lines.append((
+            "- "
+            "[ ] "
+            "**Local Validation**: "
+            "Run `pnpm "
+            "run lint`, "
+            "`pnpm run "
+            "type-check`, and "
+            "relevant test "
+            "suites."
+        ))
+        plan_lines.append((
+            "- "
+            "[ ] "
+            "**Merge Marker "
+            "Check**: Ensure "
+            "no remaining "
+            "git conflict "
+            "markers (`grep "
+            "-rn \"^<<<<<<<\" "
+            ".`)."
+        ))
         plan_lines.append("- [ ] **Final Status Sign-off**: Verify overall stability of the aggregated branch.")
 
         with open(workflow_plan_path, "w", encoding="utf-8") as f:

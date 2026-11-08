@@ -11,3 +11,4 @@ click
 pydantic
 PyGithub
 build
+Pillow
