@@ -45,7 +45,8 @@ class OrchestratorBase:
     @property
     def github(self) -> GitHubClient:
         if self._github is None:
-            self._github = dev_tools.orchestrator.GitHubClient(repo=dev_tools.orchestrator.get_config().github_repo, no_cache=self.no_cache)
+            self._github = dev_tools.orchestrator.GitHubClient(repo=dev_tools.orchestrator.get_config().github_repo,
+                no_cache=self.no_cache)
         return self._github
 
     def _resolve_antipatterns_script(self) -> Optional[str]:
@@ -84,7 +85,9 @@ class OrchestratorBase:
     def _cleanup_worktree(self, worktree_path: str) -> None:
         """Robustly cleans up a git worktree and its directory."""
         # Unregister and attempt to remove the worktree via git
-        dev_tools.orchestrator.run_command(["git", "worktree", "remove", "-f", worktree_path], check=False, log_on_error=False)
+        dev_tools.orchestrator.run_command(["git", "worktree", "remove", "-f", worktree_path],
+            check=False,
+            log_on_error=False)
 
         # Forcefully delete the directory if it still exists
         if os.path.exists(worktree_path):

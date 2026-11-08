@@ -281,7 +281,12 @@ Follow the "Audit comment template" in `docs/agent/issue-audit-rules.md` to post
             "branch": head_ref,
         }
 
-    def get_ci_logs(self, prNumber: int, include_all: bool = False, repo: Optional[str] = None, **kwargs) -> Dict[str, Any]:
+    def get_ci_logs(self,
+        prNumber: int,
+        include_all: bool = False,
+        repo: Optional[str] = None,
+        **kwargs) -> Dict[str,
+        Any]:
         if "pr_number" in kwargs:
             prNumber = kwargs["pr_number"]
         if "repo" in kwargs and repo is None:
@@ -322,7 +327,9 @@ Follow the "Audit comment template" in `docs/agent/issue-audit-rules.md` to post
             try:
                 run_id = run.get("id")
                 if isinstance(run_id, int):
-                    return run["name"], self.github.fetch_check_run_logs(run_id, external_id=run.get("external_id"), repo=repo)
+                    return run["name"], self.github.fetch_check_run_logs(run_id,
+                        external_id=run.get("external_id"),
+                        repo=repo)
             except Exception as e:
                 log_warn(f"Failed to fetch log for run {run.get('id')}: {e}")
             return None, None
@@ -402,9 +409,19 @@ Follow the "Audit comment template" in `docs/agent/issue-audit-rules.md` to post
                 # Detect and retry unrelated histories
                 if "unrelated histories" in command_log.lower():
                     log_warn(
-                        f"Disjoint history detected for conflict check of PR #{prNumber}. Retrying with --allow-unrelated-histories"
+                        (
+                            f"Disjoint "
+                            f"history detected "
+                            f"for conflict "
+                            f"check of "
+                            f"PR #{prNumber}. "
+                            f"Retrying with "
+                            f"--allow-unrelated-histories"
+                        )
                     )
-                    res = dev_tools.orchestrator.run_command(merge_cmd + ["--allow-unrelated-histories"], cwd=worktree_path, check=False)
+                    res = dev_tools.orchestrator.run_command(merge_cmd + ["--allow-unrelated-histories"],
+                        cwd=worktree_path,
+                        check=False)
                     command_log += "\n--- RETRY WITH --allow-unrelated-histories ---\n"
                     command_log += (res.stdout or "") + (res.stderr or "")
 

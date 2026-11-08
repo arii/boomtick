@@ -36,7 +36,16 @@ def schema_cmd(ctx, command_path, generate):
         if not re.match(pattern, command_path):
             err(
                 ctx,
-                "Invalid command path. Only lowercase alphanumeric, hyphens, and underscores separated by single spaces are allowed.",
+                (
+                    "Invalid "
+                    "command path. "
+                    "Only lowercase "
+                    "alphanumeric, hyphens, "
+                    "and underscores "
+                    "separated by "
+                    "single spaces "
+                    "are allowed."
+                ),
             )
 
     from dev_tools.schema_utils import collect_commands, get_command_by_path

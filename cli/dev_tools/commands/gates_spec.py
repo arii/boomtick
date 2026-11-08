@@ -192,7 +192,7 @@ def verify_scope_gate(ctx, spec_file, worktree, auto_revert):
         with open(spec_file, encoding="utf-8") as handle:
             spec_text = handle.read()
         changed = _worktree_changed_files(worktree)
-        passed, allowed, disallowed = scope_gate.check_scope(
+        passed, _allowed, disallowed = scope_gate.check_scope(
             changed, spec_text, root=worktree)
         violations = sorted(set(disallowed))
         forbidden = _spec_backtick_paths(

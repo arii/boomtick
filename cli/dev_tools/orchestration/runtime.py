@@ -6,7 +6,14 @@ import sys
 import tempfile
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Tuple
-from dev_tools.utils import log_info, CLIError, get_gha_variable, log_error, log_warn, verify_ci_metrics, verify_pr_scope
+from dev_tools.utils import (
+    log_info,
+    CLIError,
+    get_gha_variable,
+    log_error,
+    log_warn,
+    verify_ci_metrics,
+    verify_pr_scope)
 from dev_tools.orchestration.quality import QualityMixin
 import dev_tools.orchestrator
 
@@ -100,7 +107,15 @@ class RuntimeMixin(QualityMixin):
         return {"node": actual_node, "pnpm": actual_pnpm}
 
     def doctor_check(self) -> Dict[str, Any]:
-        """Comprehensive full-stack diagnostic check covering Node/pnpm, credentials, API keys, and Git configuration."""
+        (
+            """Comprehensive """
+            """full-stack diagnostic """
+            """check covering """
+            """Node/pnpm, credentials, """
+            """API keys, """
+            """and Git """
+            """configuration."""
+        )
         results: Dict[str, Any] = {
             "node": "unknown",
             "pnpm": "unknown",
@@ -142,10 +157,12 @@ class RuntimeMixin(QualityMixin):
                 results["checks"]["app_private_key"] = {"status": "ok"}
             else:
                 results["app_private_key"] = "invalid"
-                results["checks"]["app_private_key"] = {"status": "warning", "message": "APP_PRIVATE_KEY format invalid"}
+                results["checks"]["app_private_key"] = {"status": "warning",
+                    "message": "APP_PRIVATE_KEY format invalid"}
         else:
             results["app_private_key"] = "missing"
-            results["checks"]["app_private_key"] = {"status": "warning", "message": "APP_PRIVATE_KEY / GITHUB_APP_PRIVATE_KEY not set"}
+            results["checks"]["app_private_key"] = {"status": "warning",
+                "message": "APP_PRIVATE_KEY / GITHUB_APP_PRIVATE_KEY not set"}
 
         # 3. Gemini API Key
         gemini_key = os.environ.get("GEMINI_API_KEY") or os.environ.get("GEMINI_KEY")
@@ -159,7 +176,9 @@ class RuntimeMixin(QualityMixin):
         # 4. Git Safe Directory Configuration
         try:
             cwd = os.getcwd()
-            safe_dirs_res = dev_tools.orchestrator.run_command(["git", "config", "--get-all", "safe.directory"], check=False, log_on_error=False)
+            safe_dirs_res = dev_tools.orchestrator.run_command(["git", "config", "--get-all", "safe.directory"],
+                check=False,
+                log_on_error=False)
             safe_dirs_out = safe_dirs_res.stdout if hasattr(safe_dirs_res, "stdout") else str(safe_dirs_res)
             raw_safe_dirs = [d.strip() for d in safe_dirs_out.splitlines() if d.strip()]
             safe_dirs = list(dict.fromkeys(raw_safe_dirs))
@@ -194,7 +213,8 @@ class RuntimeMixin(QualityMixin):
                 results["checks"]["git_safe_directory"] = {"status": "ok", "configured_directories": safe_dirs}
             else:
                 results["git_safe_directory"] = "unconfigured"
-                results["checks"]["git_safe_directory"] = {"status": "warning", "message": "Git dubious ownership or safe.directory missing"}
+                results["checks"]["git_safe_directory"] = {"status": "warning",
+                    "message": "Git dubious ownership or safe.directory missing"}
         except Exception as e:
             results["git_safe_directory"] = "error"
             results["checks"]["git_safe_directory"] = {"status": "warning", "message": str(e)}
@@ -325,7 +345,8 @@ class RuntimeMixin(QualityMixin):
                 }
             else:
                 curr_branch = dev_tools.orchestrator.run_command(["git", "branch", "--show-current"]).strip() or "HEAD"
-                merge_tree_res = dev_tools.orchestrator.run_command(["git", "merge-tree", merge_base, curr_branch], check=False)
+                merge_tree_res = dev_tools.orchestrator.run_command(["git", "merge-tree", merge_base, curr_branch],
+                    check=False)
                 stdout_text = merge_tree_res.stdout or ""
                 has_conflicts = "<<<<<<<" in stdout_text
                 results["merge_simulation"] = {
@@ -365,7 +386,8 @@ class RuntimeMixin(QualityMixin):
         steps: List[Tuple[str, List[str]]] = []
         if script_path and os.path.exists(script_path):
             steps.append(("Anti-Pattern Audit", ["node", script_path]))
-        steps.append(("Version Downgrade Check", [dev_tools.orchestrator.get_config().cli_alias, "gh", "verify-versions"]))
+        steps.append(("Version Downgrade Check",
+            [dev_tools.orchestrator.get_config().cli_alias, "gh", "verify-versions"]))
         if self._pnpm_has_script("type-check"):
             steps.append(("TypeScript", ["pnpm", "run", "type-check"]))
         if self._pnpm_has_script("lint"):
@@ -449,8 +471,7 @@ class RuntimeMixin(QualityMixin):
                     "worktree": worktree_path,
                     "branch": branch_name,
                 }
-            else:
-                return {"status": "error", "message": f"Repair failed with code {proc.returncode}"}
+            return {"status": "error", "message": f"Repair failed with code {proc.returncode}"}
         finally:
             os.chdir(original_cwd)
 

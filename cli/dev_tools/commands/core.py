@@ -86,8 +86,8 @@ def cli(ctx, json_output, no_cache):
 
         return Orchestrator(no_cache=no_cache)
 
-    from dev_tools.cli import LazyOrchestrator
-    ctx.obj["ORCHESTRATOR"] = LazyOrchestrator(orchestrator_factory)
+    from dev_tools.cli import LazyOrchestrator as lazy_orchestrator_cls
+    ctx.obj["ORCHESTRATOR"] = lazy_orchestrator_cls(orchestrator_factory)
 
 
 # --- Utility Helpers ---
@@ -151,7 +151,11 @@ def _get_body_content(ctx, orch, file, body):
 
 
 def _handle_gate(ctx, res, label):
-    msg = f"{label}: Current={res.get('current', res.get('size_kb'))}, Baseline={res.get('baseline', res.get('baseline_kb'))}"
+    msg = (
+        f"{label}: "
+        f"Current={res.get('current', res.get('size_kb'))}, "
+        f"Baseline={res.get('baseline', res.get('baseline_kb'))}"
+    )
     if res["status"] == "error":
         err(ctx, msg, data=res)
     else:
@@ -162,4 +166,3 @@ def get_config():
     """Active project config via the CLI shim."""
     from dev_tools.cli import get_config as _get_config
     return _get_config()
-

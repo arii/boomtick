@@ -77,10 +77,35 @@ class ChecksMixin(PullsMixin):
         """Helper to log warning and return a warning string for missing logs."""
         label = "check run" if is_fallback else "job"
         log_warn(f"Logs for {label} {identifier} {'also ' if is_fallback else ''}not found (404).")
-        return f"WARNING: Logs not available for {identifier} (GitHub returned 404). They may have expired or the job is still pending."
+        return (
+            f"WARNING: "
+            f"Logs not "
+            f"available for "
+            f"{identifier} (GitHub "
+            f"returned 404). "
+            f"They may "
+            f"have expired "
+            f"or the "
+            f"job is "
+            f"still pending."
+        )
 
-    def fetch_check_run_logs(self, check_run_id: int, external_id: Optional[str] = None, repo: Optional[str] = None) -> str:
-        """Fetches logs for a specific check run, using external_id (job_id) if available. Gracefully fallback to check_run_id if external_id 404s."""
+    def fetch_check_run_logs(self,
+        check_run_id: int,
+        external_id: Optional[str] = None,
+        repo: Optional[str] = None) -> str:
+        (
+            """Fetches """
+            """logs for """
+            """a specific """
+            """check run, """
+            """using external_id """
+            """(job_id) if """
+            """available. Gracefully """
+            """fallback to """
+            """check_run_id if """
+            """external_id 404s."""
+        )
         target_repo = repo or self.repo
         # Ensure we have a valid ID and it's a string for the URL path
         job_id = str(external_id) if external_id is not None else str(check_run_id)
@@ -108,7 +133,15 @@ class ChecksMixin(PullsMixin):
             if code == 404 or is_transient:
                 if external_id is not None:
                     # Fallback to query by raw check_run_id
-                    log_warn(f"Logs for job {external_id} not found ({code}). Falling back to check run {check_run_id}...")
+                    log_warn((
+                        f"Logs "
+                        f"for job "
+                        f"{external_id} not "
+                        f"found ({code}). "
+                        f"Falling back "
+                        f"to check "
+                        f"run {check_run_id}..."
+                    ))
                     try:
                         return self._request(
                             "GET",

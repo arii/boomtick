@@ -104,7 +104,7 @@ def repo():
 def run_playwright(ctx, grep, worktree):
     orch = ctx.obj["ORCHESTRATOR"]
     res = orch.run_playwright(grep=grep, worktree_path=worktree)
-    out(ctx, f"Playwright run complete.", data=res)
+    out(ctx, "Playwright run complete.", data=res)
 
 
 @repo.command()

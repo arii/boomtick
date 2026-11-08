@@ -18,7 +18,11 @@ class GitHubCoreMixin:
 
     BRANCH_NAME_PATTERN = re.compile(r"^[a-zA-Z0-9._/-]+$")
 
-    def __init__(self, token: Optional[str] = None, repo: Optional[str] = None, no_cache: bool = False, use_graphql: bool = True):
+    def __init__(self,
+        token: Optional[str] = None,
+        repo: Optional[str] = None,
+        no_cache: bool = False,
+        use_graphql: bool = True):
         from dev_tools.config import get_config
         from dev_tools.utils import get_github_token
 
@@ -181,7 +185,10 @@ class GitHubCoreMixin:
 
     def _detect_repo(self) -> str:
         try:
-            proc = subprocess.run(["git", "config", "--get", "remote.origin.url"], capture_output=True, text=True, check=False)
+            proc = subprocess.run(["git", "config", "--get", "remote.origin.url"],
+                capture_output=True,
+                text=True,
+                check=False)
             url = proc.stdout.strip()
 
             match = re.search(r"[:/]([^/]+/[^/.]+)(\.git)?$", url)
