@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.20.2](https://github.com/arii/boomtick/compare/cli-v0.20.1...cli-v0.20.2) (2026-11-08)
+
+
+### Bug Fixes
+
+* cwd-independent verify-scope test paths (closes [#1217](https://github.com/arii/boomtick/issues/1217)) ([#1221](https://github.com/arii/boomtick/issues/1221)) ([178a2a3](https://github.com/arii/boomtick/commit/178a2a3f1369f49578a67947b8883a938bdf1173))
+* declare RAG backend deps (chromadb + sentence-transformers) ([#1212](https://github.com/arii/boomtick/issues/1212)) ([037c8fc](https://github.com/arii/boomtick/commit/037c8fcb1b3ca182194c600118ae9d7a35ac01ef))
+* fail loud on repo-resolve and sessions-unknown gate + provider scorecard ([#1216](https://github.com/arii/boomtick/issues/1216)) ([1aae0ba](https://github.com/arii/boomtick/commit/1aae0ba3a90270eb330c28396bebdd825649f78f))
+* mark audit downgrades loudly (closes [#1215](https://github.com/arii/boomtick/issues/1215)) ([#1220](https://github.com/arii/boomtick/issues/1220)) ([051c5db](https://github.com/arii/boomtick/commit/051c5db057363cc5221a262c5a79cb8b433f5840))
+* python best-practices batch (td_cli guard, f-strings, dead code, availability probe) ([#1219](https://github.com/arii/boomtick/issues/1219)) ([c76b009](https://github.com/arii/boomtick/commit/c76b009fe31c4a966390854b2f84b09a868b81cc))
+* RAG backend skew from transitive OTEL pins ([#1207](https://github.com/arii/boomtick/issues/1207)) ([f6691bd](https://github.com/arii/boomtick/commit/f6691bd72945bd8f9d9baf0a8f09ce09c94dad17))
+* scope gate bypass window (closes [#1206](https://github.com/arii/boomtick/issues/1206)) ([#1209](https://github.com/arii/boomtick/issues/1209)) ([6f7e841](https://github.com/arii/boomtick/commit/6f7e8417d6317987f3fc48139f36541b0e9df1e4))
+* scope probe single range, fail closed (no retry) ([#1214](https://github.com/arii/boomtick/issues/1214)) ([002eeeb](https://github.com/arii/boomtick/commit/002eeeb44e8b5413bad044ef91ebfa039cfa54e3))
+
 ## [0.20.1](https://github.com/arii/boomtick/compare/cli-v0.20.0...cli-v0.20.1) (2026-11-08)
 
 
