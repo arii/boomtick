@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.20.1](https://github.com/arii/boomtick/compare/cli-v0.20.0...cli-v0.20.1) (2026-11-08)
+
+
+### Bug Fixes
+
+* **rag:** fail loud on unverified empty index in incremental path ([#1199](https://github.com/arii/boomtick/issues/1199)) ([7beb5e4](https://github.com/arii/boomtick/commit/7beb5e4154af872c89f4959b1fdf8ad40cb983cd))
+* **tests:** gate RAG backend tests on real import, not find_spec ([#1193](https://github.com/arii/boomtick/issues/1193)) ([fc53afd](https://github.com/arii/boomtick/commit/fc53afd4fbfd0e42b6bca376322e6e799832e21e))
+
 ## [0.20.0](https://github.com/arii/boomtick/compare/cli-v0.19.3...cli-v0.20.0) (2026-11-06)
 
 
