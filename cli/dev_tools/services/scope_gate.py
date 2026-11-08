@@ -183,6 +183,8 @@ def _is_phantom_file_match(match: str) -> bool:
 def _is_phantom_dir_match(match: str) -> bool:
     """True when a dir_regex hit is prose, not a deliberate mention."""
     segments = [seg for seg in match.strip("/").split("/") if seg not in ("", ".", "..")]
+    if not segments:
+        return True
     # Single-letter paths (``i/``, ``a/b/``) are never deliberate.
     if any(len(seg) <= 1 for seg in segments):
         return True
