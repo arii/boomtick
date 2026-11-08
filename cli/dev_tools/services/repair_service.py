@@ -174,12 +174,12 @@ class RepairService:
         filepath = resolve_file_path(extracted["file"])
         context = ASTContextualizer.extract_context(filepath, extracted["line"]) if filepath else None
 
-        prompt = f"### Error Report\n"
+        prompt = "### Error Report\n"
         prompt += f"- **File**: `{extracted['file']}`\n"
         prompt += f"- **Line**: {extracted['line']}\n"
         prompt += f"- **Error**: `{extracted['signature']}`: {extracted['message']}\n\n"
 
-        prompt += f"### Fix Strategy\n"
+        prompt += "### Fix Strategy\n"
         prompt += f"{strategy}\n\n"
 
         if examples:

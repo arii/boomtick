@@ -100,3 +100,12 @@ def test_script_reexports_single_implementation():
     assert REF.EXEMPT_FILES is scope_gate.EXEMPT_FILES
     assert REF.STOP_WORDS is scope_gate.STOP_WORDS
     assert REF.KNOWN_FILE_EXTENSIONS is scope_gate.KNOWN_FILE_EXTENSIONS
+
+
+@pytest.mark.parametrize("token", ["./", "../", "../..", "//"])
+def test_navigation_only_dir_tokens_are_phantom(token):
+    # #1219: dir tokens made only of navigation noise must not crash
+    # the gate and must never count as deliberate scope mentions.
+    assert scope_gate._is_phantom_dir_match(token) is True
+    files, dirs = scope_gate.extract_mentions(f"run with PYTHONPATH={token}cli pytest")
+    assert token not in dirs

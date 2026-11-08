@@ -113,7 +113,6 @@ def check_file_imports_target(importer_path: str, target_path: str, root=None) -
     py_imports = re.findall(r'(?:from|import)\s+([\.\w]+)', content)
     for imp in py_imports:
         imp_parts = imp.lstrip('.').split('.')
-        target_parts = os.path.splitext(target_path)[0].split(os.sep)
         if imp_parts and imp_parts[-1] == target_stem:
             return True
 
@@ -184,6 +183,8 @@ def _is_phantom_file_match(match: str) -> bool:
 def _is_phantom_dir_match(match: str) -> bool:
     """True when a dir_regex hit is prose, not a deliberate mention."""
     segments = [seg for seg in match.strip("/").split("/") if seg not in ("", ".", "..")]
+    if not segments:
+        return True
     # Single-letter paths (``i/``, ``a/b/``) are never deliberate.
     if any(len(seg) <= 1 for seg in segments):
         return True

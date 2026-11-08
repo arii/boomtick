@@ -187,8 +187,7 @@ class WorkflowMixin(PlanningMixin):
     def generate_aggregation_workflow(self, prNumbers: List[int], target_branch: str) -> Dict[str, Any]:
         """Generates a deterministic aggregation workflow plan for an agent."""
         # 1. Environment Validation
-        env_res = self.runtime_check()
-        __env_output = f"Runtime OK: node {env_res['node']}, pnpm {env_res['pnpm']}"
+        self.runtime_check()
 
         # 2. Fetch PR Metadata and Overlaps
         pr_details = {}
