@@ -17,6 +17,7 @@ export function resolveRepo(explicitRepo?: string | null, cwd?: string): string 
     return repoCache.get(targetCwd)!;
   }
 
+  let gitFailure: string;
   try {
     const url = execSync("git remote get-url origin", {
       cwd: targetCwd,
@@ -29,13 +30,14 @@ export function resolveRepo(explicitRepo?: string | null, cwd?: string): string 
       repoCache.set(targetCwd, match[1]);
       return match[1];
     }
+    gitFailure = `could not parse repo from git remote url ${JSON.stringify(url)}`;
   } catch (e) {
-    // Ignore error and fall back to static config
+    gitFailure = e instanceof Error ? e.message : String(e);
   }
 
-  const fallback = `${config.githubOwner}/${config.githubRepo}`;
-  repoCache.set(targetCwd, fallback);
-  return fallback;
+  throw new Error(
+    `Cannot resolve repo: no explicit repo was given and git remote detection failed for cwd ${JSON.stringify(targetCwd)} (${gitFailure}). Run inside a git checkout with an 'origin' remote, or pass an explicit repo (e.g. "owner/name").`
+  );
 }
 
 export interface RepoPathOptions {
