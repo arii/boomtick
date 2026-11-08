@@ -1,6 +1,5 @@
 # pylint: disable=missing-docstring,line-too-long
 """Tests for td rag index/query/init (SHA-tracked incremental indexing)."""
-import importlib.util
 import json
 import os
 import subprocess
@@ -10,6 +9,14 @@ from click.testing import CliRunner
 
 from dev_tools.cli import cli
 from dev_tools.services import vector_store as vs
+
+
+try:
+    import chromadb  # noqa: F401
+    import sentence_transformers  # noqa: F401
+    HAS_CHROMA = True
+except ImportError:
+    HAS_CHROMA = False
 
 
 def _git(args, cwd):
@@ -41,6 +48,8 @@ def _head(root):
     return out.stdout.strip()
 
 
+@pytest.mark.skipif(not HAS_CHROMA,
+                    reason="needs chromadb + sentence-transformers")
 def test_update_index_full_and_meta(repo, tmp_path):
     meta = str(tmp_path / "meta.json")
     persist = str(tmp_path / "chroma")
@@ -55,6 +64,8 @@ def test_update_index_full_and_meta(repo, tmp_path):
     assert os.path.isfile(meta)
 
 
+@pytest.mark.skipif(not HAS_CHROMA,
+                    reason="needs chromadb + sentence-transformers")
 def test_update_index_incremental(repo, tmp_path):
     meta = str(tmp_path / "meta.json")
     persist = str(tmp_path / "chroma")
@@ -71,6 +82,8 @@ def test_update_index_incremental(repo, tmp_path):
     assert data["last_indexed_sha"] == _head(repo)
 
 
+@pytest.mark.skipif(not HAS_CHROMA,
+                    reason="needs chromadb + sentence-transformers")
 def test_update_index_no_changes_is_empty(repo, tmp_path):
     meta = str(tmp_path / "meta.json")
     persist = str(tmp_path / "chroma")
@@ -107,12 +120,6 @@ def test_add_file_incremental_counts_embeds_only(tmp_path):
     first = store.add_file_incremental("src/a.py", code)
     assert len(first) > 0
     assert store.add_file_incremental("src/a.py", code) == []
-
-
-HAS_CHROMA = (
-    importlib.util.find_spec("chromadb") is not None
-    and importlib.util.find_spec("sentence_transformers") is not None
-)
 
 
 @pytest.mark.skipif(not HAS_CHROMA,
@@ -225,6 +232,8 @@ def test_query_index_broken_store_raises(repo, tmp_path):
         vs.VectorStore.query = orig
 
 
+@pytest.mark.skipif(not HAS_CHROMA,
+                    reason="needs chromadb + sentence-transformers")
 def test_cli_rag_index_query_init(repo, tmp_path):
     runner = CliRunner()
     indexed = runner.invoke(cli, ["rag", "index", "--repo-root",
