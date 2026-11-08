@@ -35,8 +35,6 @@ on:
         required: false
       OPENAI_API_KEY:
         required: false
-      JULES_API_KEY:
-        required: false
       APP_ID:
         required: false
       APP_PRIVATE_KEY:
@@ -246,7 +244,6 @@ jobs:
           github_token: ${{ steps.app-token.outputs.token }}
           gemini_api_key: ${{ secrets.GEMINI_API_KEY }}
           openai_api_key: ${{ secrets.OPENAI_API_KEY }}
-          jules_api_key: ${{ secrets.JULES_API_KEY }}
           pr-number: ${{ inputs.pr-number }}
           container_image: ghcr.io/arii/boomtick:${{ github.sha }}
 
@@ -307,6 +304,5 @@ jobs:
           github_token: ${{ steps.app-token.outputs.token }}
           gemini_api_key: ${{ secrets.GEMINI_API_KEY }}
           openai_api_key: ${{ secrets.OPENAI_API_KEY }}
-          jules_api_key: ${{ secrets.JULES_API_KEY }}
           pr-number: ${{ inputs.pr-number }}
           container_image: ghcr.io/arii/boomtick:${{ github.sha }}

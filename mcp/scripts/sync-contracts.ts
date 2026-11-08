@@ -248,11 +248,6 @@ async function syncContracts() {
   let outputPath = path.join(process.cwd(), 'mcp/src/tools/contract.ts');
 
   if (!fs.existsSync(schemaPath)) {
-    schemaPath = path.join(process.cwd(), 'cli/dev_tools/cli-schema.json');
-    outputPath = path.join(process.cwd(), 'mcp/src/tools/contract.ts');
-  }
-
-  if (!fs.existsSync(schemaPath)) {
     schemaPath = path.join(process.cwd(), '../cli/dev_tools/cli-schema.json');
     outputPath = path.join(process.cwd(), 'src/tools/contract.ts');
   }
@@ -269,7 +264,7 @@ async function syncContracts() {
   tsContent += `import { z } from "zod";\n\n`;
 
   for (const [name, schema] of Object.entries(models)) {
-    const zodExpression = jsonSchemaToZod(schema as any, { module: 'none' });
+    const zodExpression = jsonSchemaToZod(schema, { module: 'none' });
 
     tsContent += `export const ${name}Schema = ${zodExpression};\n\n`;
     tsContent += `export type ${name} = z.infer<typeof ${name}Schema>;\n\n`;

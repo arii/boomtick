@@ -13,6 +13,7 @@ import subprocess
 import time
 
 from dev_tools.services import local_sessions
+from dev_tools.utils import log_warn
 
 WORKTREES_DIR = ".worktrees"
 ID_RE = re.compile(r"^[A-Za-z0-9_.-]+$")
@@ -201,12 +202,16 @@ def _changed_count(path):
 
 def _dir_size(path):
     total = 0
+    skipped = 0
     for base, _dirs, files in os.walk(path):
         for name in files:
             try:
                 total += os.path.getsize(os.path.join(base, name))
             except OSError:
-                pass
+                # Files can vanish mid-walk; count once, warn once.
+                skipped += 1
+    if skipped:
+        log_warn(f"worktrees: skipped {skipped} unreadable files under {path}")
     return total
 
 

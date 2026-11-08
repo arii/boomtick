@@ -20,8 +20,8 @@ def resolve_file_path(path: str) -> Optional[str]:
             rel = os.path.relpath(path)
             if not rel.startswith(".."):
                 return rel
-        except ValueError:
-            pass
+        except ValueError as e:
+            log_warn(f"repair_service: relpath failed for {path}: {e}")
 
     # 2. Try stripping leading common absolute paths (like /app/ or /workspace/)
     # We look for the first part that actually exists in the current directory relative to CWD

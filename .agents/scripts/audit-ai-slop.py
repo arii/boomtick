@@ -23,13 +23,18 @@ import sys
 from collections import Counter
 from datetime import datetime
 from pathlib import Path
-from typing import List, Dict
-import yaml
+from typing import List, Dict, Optional
+try:
+    import yaml
+except ImportError:
+    yaml = None  # type: ignore[assignment]
 
 BASELINE_PATH = Path(__file__).with_name("slop-baseline.json")
 
 class AISlopAuditor:
-    def __init__(self, root_dir: str = ".", config_path: str = ".agents/audit.config.yaml"):
+    def __init__(self, root_dir: Optional[str] = None, config_path: str = ".agents/audit.config.yaml"):
+        if root_dir is None:
+            root_dir = str(Path(__file__).resolve().parent.parent.parent)
         self.root_dir = Path(root_dir)
         self.config_path = self.root_dir / config_path
         self.violations: List[Dict] = []
@@ -38,6 +43,11 @@ class AISlopAuditor:
         self.load_config()
 
     def load_config(self):
+        if yaml is None:
+            print("Warning: PyYAML unavailable; banned-term categories disabled.",
+                  file=sys.stderr)
+            self.config = {"categories": {}}
+            return
         try:
             with open(self.config_path, 'r', encoding="utf-8") as f:
                 self.config = yaml.safe_load(f)
@@ -87,7 +97,8 @@ class AISlopAuditor:
                                 })
 
                 except subprocess.CalledProcessError:
-                    pass  # No matches for this term
+                    # grep exit 1 = no matches for this term: expected, keep scanning.
+                    continue
 
     def prioritize_violations(self) -> None:
         """Sort violations by priority"""
@@ -220,8 +231,8 @@ def _tracked_files(root: Path, pattern: str) -> List[str]:
         )
         if res.returncode == 0 and res.stdout.strip():
             return sorted(res.stdout.split())
-    except OSError:
-        pass
+    except OSError as e:
+        print(f"audit-ai-slop: git ls-files failed ({e}); falling back to walk", file=sys.stderr)
     return sorted(str(p.relative_to(root)) for p in root.glob(f"**/{pattern}")
                   if ".git" not in p.parts and "node_modules" not in p.parts)
 
@@ -322,7 +333,7 @@ def main(argv=None) -> int:
         write_baseline(root)
         return 0
 
-    auditor = AISlopAuditor()
+    auditor = AISlopAuditor(root_dir=str(root))
     report = auditor.run()
 
     # Output report
@@ -330,7 +341,7 @@ def main(argv=None) -> int:
 
     # Save to file
     timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
-    output_dir = Path(".agents/workflows")
+    output_dir = auditor.root_dir / ".agents/workflows"
     output_dir.mkdir(parents=True, exist_ok=True)
     output_file = output_dir / f"ai-slop-audit-{timestamp}.md"
     output_file.write_text(report)

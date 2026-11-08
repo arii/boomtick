@@ -12,6 +12,7 @@ import subprocess
 
 from dev_tools.services import local_sessions as ls
 from dev_tools.services import scope_gate
+from dev_tools.utils import log_warn
 
 
 class SubmitError(ValueError):
@@ -132,5 +133,5 @@ def _record_pr_url(worktree, url):
         session["pullRequestUrl"] = url
         with open(path, "w", encoding="utf-8") as handle:
             json.dump(session, handle, indent=2)
-    except (OSError, ValueError):
-        pass
+    except (OSError, ValueError) as e:
+        log_warn(f"submit_pr: PR URL record failed for {path}: {e}")

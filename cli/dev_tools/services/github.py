@@ -7,6 +7,7 @@ from typing import Any, Dict, List, Optional, Tuple
 from urllib.parse import quote
 
 import requests  # type: ignore[import-untyped]
+
 from dev_tools.constants import REVIEW_PLACEHOLDERS
 from dev_tools.utils import CLIError, DiskCache, log_warn
 from dev_tools.utils.git import GitUtility
@@ -30,8 +31,8 @@ class GitHubClient:
             cfg_repo = None
             try:
                 cfg_repo = get_config().github_repo
-            except Exception:
-                pass
+            except Exception as e:
+                log_warn(f"github: config repo lookup failed: {e}")
             detected_repo = cfg_repo or self._detect_repo() or os.environ.get("GITHUB_REPOSITORY") or os.environ.get("GH_REPO") or ""
             self.repo = detected_repo
         self.base_url = "https://api.github.com"
@@ -569,8 +570,8 @@ class GitHubClient:
                 pr_node = res.get("data", {}).get("repository", {}).get("pullRequest")
                 if pr_node and "reviewDecision" in pr_node:
                     return pr_node.get("reviewDecision")
-            except Exception:
-                pass
+            except Exception as e:
+                log_warn(f"github: review-decision query failed for PR #{number}: {e}")
 
         # Fallback to REST reviews
         try:
@@ -588,8 +589,8 @@ class GitHubClient:
                 return "CHANGES_REQUESTED"
             if any(s == "APPROVED" for s in states):
                 return "APPROVED"
-        except Exception:
-            pass
+        except Exception as e:
+            log_warn(f"github: review-states query failed: {e}")
         return None
 
     def create_pull_request(
@@ -1203,6 +1204,7 @@ class GitHubClient:
     def _extract_review_payload(self, content: str) -> Dict[str, Any]:
         import json
         import re
+
         from dev_tools.utils import CLIError
 
         json_blocks = list(re.finditer(r"```json\n(.*?)\n```", content, re.DOTALL))

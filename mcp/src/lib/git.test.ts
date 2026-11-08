@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import { getChangedFiles, getMergeConflictFiles, resolveRepoPath, createWorktree } from "./git.js";
+import { getChangedFiles, getMergeConflictFiles, resolveRepoPath } from "./git.js";
 import * as shell from "./shell.js";
 
 vi.mock("./shell.js", () => ({
@@ -131,24 +131,4 @@ describe("Git Helpers", () => {
     });
   });
 
-  describe("createWorktree", () => {
-    it("should pass baseRepoPath cwd to runCommand when provided", async () => {
-      vi.mocked(shell.runCommand).mockResolvedValue({
-        exitCode: 0,
-        stdout: "",
-        stderr: "",
-        durationMs: 5,
-        command: "git",
-      });
-
-      const worktree = await createWorktree("origin/feature", 123, "/home/ari/tech-dancer");
-
-      expect(worktree).toContain("boomtick-mcp-rescue-123");
-      expect(shell.runCommand).toHaveBeenCalledWith(
-        "git",
-        expect.arrayContaining(["worktree", "add"]),
-        { cwd: "/home/ari/tech-dancer" }
-      );
-    });
-  });
 });

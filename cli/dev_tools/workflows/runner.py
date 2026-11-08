@@ -1,5 +1,6 @@
 # pylint: disable=missing-docstring,too-few-public-methods,too-many-locals
 import concurrent.futures
+import sys
 import time
 from datetime import datetime, timezone
 from typing import Any, Callable, Dict, Optional
@@ -43,8 +44,9 @@ class WorkflowRunner:
     def __del__(self) -> None:
         try:
             self.shutdown(wait=False)
-        except Exception:
-            pass
+        except Exception as e:
+            # Best effort: __del__ must never raise (GC context).
+            print(f"WorkflowRunner shutdown failed: {e}", file=sys.stderr)
 
     def run(
         self,

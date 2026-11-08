@@ -27,6 +27,8 @@ import subprocess
 import sys
 import time
 
+from dev_tools.utils import log_warn
+
 SESSION_FILE = "session.json"
 WORKTREES_DIR = ".worktrees"
 SKILLS_DIR = os.path.join(".agents", "skills")
@@ -147,8 +149,8 @@ def save_session(session):
         with open(os.path.join(worktree, SESSION_FILE), "w",
                   encoding="utf-8") as handle:
             json.dump(session, handle, indent=2)
-    except (OSError, ValueError, TypeError):
-        pass
+    except (OSError, ValueError, TypeError) as e:
+        log_warn(f"local_sessions: session save failed for {worktree}: {e}")
 
 
 def _detect_branch(worktree_path):
@@ -283,8 +285,8 @@ def build_system_prompt(worktree_path, brief):
             with open(contract, encoding="utf-8") as handle:
                 sections.append("# Worktree Agent Contract\n\n" +
                                 handle.read())
-        except OSError:
-            pass
+        except OSError as e:
+            log_warn(f"local_sessions: skipping unreadable {contract}: {e}")
     sections.append("# Task Brief\n\n" + brief)
     return "\n\n---\n\n".join(sections)
 
