@@ -209,9 +209,18 @@ def check_override():
         except Exception as e:
             print(f"verify-scope: event file unreadable: {e}", file=sys.stderr)
 
-    # Check git commit message for bypass tags or release-please commit messages
+    # Check git commit messages for bypass tags or release-please commit
+    # messages. Scoped to the PR's own commits only (#1206): probing the
+    # last 10 commits matched old release notes in history, so every PR
+    # bypassed strict scope for 10 commits after any release.
+    base_ref = os.environ.get("GITHUB_BASE_REF", "").strip()
+    rev_args = [f"origin/{base_ref}..HEAD"] if base_ref else ["-n", "1", "HEAD"]
     try:
-        res = subprocess.run(["git", "log", "-n", "10", "--pretty=%B"], capture_output=True, text=True, check=False)
+        res = subprocess.run(["git", "log", *rev_args, "--pretty=%B"], capture_output=True, text=True, check=False)
+        if res.returncode != 0 and base_ref:
+            # No origin ref locally (shallow/dev checkout): fall back to
+            # the tip commit only, never to history.
+            res = subprocess.run(["git", "log", "-n", "1", "HEAD", "--pretty=%B"], capture_output=True, text=True, check=False)
         if res.returncode == 0:
             msg = res.stdout.lower()
             if any(tag in msg for tag in ["[skip-scope-check]", "[scope-override]", "skip-scope", "release-please"]):
