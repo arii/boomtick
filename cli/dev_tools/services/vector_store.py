@@ -175,13 +175,9 @@ class VectorStore:
 
     def is_available(self) -> bool:
         """Checks if ChromaDB and dependencies are available."""
-        try:
-            # pylint: disable=unused-import
-            import chromadb  # pylint: disable=import-error
-            import sentence_transformers  # pylint: disable=import-error
-            return True
-        except ImportError:
-            return False
+        from importlib.util import find_spec
+
+        return find_spec("chromadb") is not None and find_spec("sentence_transformers") is not None
 
     def tokenize_text(self, text: str) -> List[str]:
         """Tokenize text into lowercased identifiers/symbols for BM25 search."""

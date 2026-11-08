@@ -7,7 +7,7 @@ from pydantic import Field, field_validator, model_validator
 from .base import CamelCaseModel
 
 # Import auto-generated models (fail fast if not generated)
-from .contracts import *
+from .contracts import IssueSummary
 
 # Pre-compiled secure regex (whitelists characters and blocks leading/trailing/consecutive slashes)
 SESSION_ID_PATTERN = re.compile(r"^[a-zA-Z0-9_-]+(?:/[a-zA-Z0-9_-]+)*$")

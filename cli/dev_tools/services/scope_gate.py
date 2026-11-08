@@ -113,7 +113,6 @@ def check_file_imports_target(importer_path: str, target_path: str, root=None) -
     py_imports = re.findall(r'(?:from|import)\s+([\.\w]+)', content)
     for imp in py_imports:
         imp_parts = imp.lstrip('.').split('.')
-        target_parts = os.path.splitext(target_path)[0].split(os.sep)
         if imp_parts and imp_parts[-1] == target_stem:
             return True
 
