@@ -1,7 +1,6 @@
 import { z } from "zod";
-import { runCommand } from "../lib/shell.js";
 import { resolveRepo } from "../lib/git.js";
-import { sanitizeError } from "../lib/error_utils.js";
+import { runTDCli } from "../lib/tdCli.js";
 import { IssueUpdateInputSchema, IssueUpdateResponseSchema } from "./contract.js";
 
 export { IssueUpdateInputSchema };
@@ -19,16 +18,7 @@ export async function issueUpdateHandler(args: z.infer<typeof IssueUpdateInputSc
   if (params.state) cmdArgs.push("--state", params.state);
   cmdArgs.push("--repo", targetRepo);
 
-  const result = await runCommand("td", cmdArgs);
-
-  if (result.exitCode !== 0) {
-    throw new Error(`Failed to update issue: ${sanitizeError(result.stderr)}`);
-  }
-
-  const output = IssueUpdateResponseSchema.parse(JSON.parse(result.stdout));
-  if (output.status === "error") {
-    throw new Error(`Failed to update issue: ${output.message}`);
-  }
+  const output = IssueUpdateResponseSchema.parse(await runTDCli(cmdArgs, "update issue"));
 
   return { status: "success", issue: output.issue };
 }

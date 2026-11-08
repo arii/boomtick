@@ -2432,8 +2432,6 @@ def validate_issue_spec(ctx, file, repo_root):
         errors = []
         for header in missing:
             errors.append(f"missing required section: {header}")
-        command_refs = " ".join(
-            verification_commands).lower()
         for item in scope:
             if item["path"] in forbidden_lower:
                 continue
@@ -2442,8 +2440,9 @@ def validate_issue_spec(ctx, file, repo_root):
                     continue
             elif item["path"].lower() in actual:
                 continue
-            if item["path"].lower() in command_refs:
-                continue
+            # A command mention never excuses a missing file: only a
+            # same-line (CREATE) marking (or real checkout existence)
+            # clears the error.
             same_line_created = any(
                 item["path"].lower() in line.lower()
                 and "(create)" in line.lower()
