@@ -8,7 +8,6 @@ A Model Context Protocol (MCP) server designed to empower AI agents with structu
 - **GitHub Ops**: Search PRs, get diffs, detect merge conflicts, open replacement PRs, and triage comments.
 - **Repo Ops**: Inspect changed files, extract package scripts, map application routes, and read CI logs.
 - **Validation**: Isolated repair branch creation, and running verification suites (Tests, Lighthouse, Playwright).
-- **Jules Operations**: Create, monitor, and interact with macro-agent Jules sessions.
 
 ### 📄 Resources
 - `repo://package-json`: Access root package manifest.

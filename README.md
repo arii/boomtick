@@ -29,7 +29,7 @@ node mcp/dist/index.js
 ## Repository Architecture
 
 The codebase is split into two primary operational layers:
-* **`mcp/` (Model Context Protocol Server):** Empowers AI agents with structured access to GitHub Pull Requests, repository state, CI logs, and validation tools. Facilitates conflict resolution, branch creation, and interaction with the Jules macro-agent.
+* **`mcp/` (Model Context Protocol Server):** Empowers AI agents with structured access to GitHub Pull Requests, repository state, CI logs, and validation tools. Facilitates conflict resolution and branch creation.
 * **`cli/` (`td`):** A terminal-based fallback and local automation toolkit. Integrates directly with the GitHub CLI (`gh`) to handle manual PR audits, conflict detection, and runtime consistency checks.
 
 ### Zero-Submodule Integration
