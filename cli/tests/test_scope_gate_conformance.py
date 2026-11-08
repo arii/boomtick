@@ -1,9 +1,10 @@
 # pylint: disable=missing-docstring,line-too-long,protected-access
-"""Conformance: scope_gate.py matches scripts/verify-scope.py verdicts.
+"""Conformance: scope_gate.py and scripts/verify-scope.py agree.
 
-Both implementations run over shared fixtures and must agree on
-(success, allowed set, disallowed set). Change matching rules in BOTH
-files; this test keeps them honest.
+scripts/verify-scope.py re-exports scope_gate's matching core, so
+both entry points run over shared fixtures and must agree on
+(success, allowed set, disallowed set). This test keeps the single
+source of truth honest, including the script's re-export wiring.
 """
 import importlib.util
 import os
@@ -89,3 +90,13 @@ def test_root_anchors_import_reads(tmp_path):
         files, issue, root=str(tmp_path))
     assert ok is True
     assert disallowed == []
+
+
+def test_script_reexports_single_implementation():
+    # #1178: one implementation of the matching rules — the script
+    # must re-export scope_gate's core, not carry its own copy.
+    assert REF.check_scope is scope_gate.check_scope
+    assert REF.extract_mentions is scope_gate.extract_mentions
+    assert REF.EXEMPT_FILES is scope_gate.EXEMPT_FILES
+    assert REF.STOP_WORDS is scope_gate.STOP_WORDS
+    assert REF.KNOWN_FILE_EXTENSIONS is scope_gate.KNOWN_FILE_EXTENSIONS

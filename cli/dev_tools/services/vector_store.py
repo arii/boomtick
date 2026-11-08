@@ -593,6 +593,22 @@ def update_index(repo_root: str, incremental: bool = True,
             f"{len(updated_files)} files but the collection is "
             "unavailable (install chromadb + sentence-transformers)")
 
+    # Incremental-path emptiness guard (#1181): the changed-files
+    # walk above never reconciles, so a diverged cache (hashes
+    # recorded, vectors missing) embeds nothing while the stamp
+    # below would launder the thin index. When indexable files
+    # exist but the collection holds no vectors, fail loud
+    # instead of advancing last_indexed_sha over an unverified
+    # index; a full rebuild (rag index --full) repairs it.
+    if incremental and last_sha and head_sha:
+        _collection = store.collection
+        if _collection is not None and _collection.count() == 0 \
+                and iter_repo_files(repo_root):
+            raise RuntimeError(
+                "rag index unverified: collection holds 0 vectors "
+                "but indexable files exist; refusing to advance "
+                "last_indexed_sha (rebuild with rag index --full)")
+
     if head_sha and store.collection is not None:
         meta["last_indexed_sha"] = head_sha
         meta["updated_files"] = sorted(set(updated_files))
