@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.1](https://github.com/arii/boomtick/compare/mcp-v0.11.0...mcp-v0.11.1) (2026-11-08)
+
+
+### Bug Fixes
+
+* fail loud on repo-resolve and sessions-unknown gate + provider scorecard ([#1216](https://github.com/arii/boomtick/issues/1216)) ([1aae0ba](https://github.com/arii/boomtick/commit/1aae0ba3a90270eb330c28396bebdd825649f78f))
+
 ## [0.11.0](https://github.com/arii/boomtick/compare/mcp-v0.10.0...mcp-v0.11.0) (2026-11-06)
 
 
