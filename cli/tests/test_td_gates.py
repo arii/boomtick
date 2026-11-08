@@ -75,6 +75,11 @@ def test_validate_issue_valid(tmp_path):
     root = tmp_path / "co"
     (root / "src").mkdir(parents=True)
     (root / "src" / "widget.py").write_text("ok\n")
+    # The verification command names tests/test_widget.py, which must
+    # exist (or be CREATE-marked) since #1182 removed the
+    # command-mention existence bypass.
+    (root / "tests").mkdir(parents=True)
+    (root / "tests" / "test_widget.py").write_text("ok\n")
     spec = tmp_path / "spec.md"
     spec.write_text(VALID_SPEC)
     result = CliRunner().invoke(cli, ["validate-issue", "--file", str(spec),
@@ -298,11 +303,44 @@ def test_validate_issue_missing_file_errors(tmp_path):
                for e in data["errors"]), data["errors"]
 
 
+def test_validate_issue_command_mention_still_requires_existence(tmp_path):
+    # #1182: an Allowed Scope path named in a verification command
+    # (e.g. pytest tests/test_new_module.py) must still fail the
+    # checkout-existence check unless marked (CREATE).
+    root = tmp_path / "co"
+    (root / "src").mkdir(parents=True)
+    (root / "src" / "widget.py").write_text("ok\n")
+    spec = tmp_path / "spec.md"
+    spec.write_text(
+        "# Command-mentioned file\n\n## Problem Statement\n\nFix it.\n\n"
+        "## Goal\n\nDone.\n\n## Scope\n\nTouched: `src/widget.py`, "
+        "`tests/test_new_module.py`.\n\n"
+        "## Definition of Done\n\nWorks.\n\n"
+        "## Scope & File Boundaries\n### Allowed Files\n"
+        "- `src/widget.py`\n- `tests/test_new_module.py`\n\n"
+        "## Acceptance Criteria\n- [ ] Widget fixed\n\n"
+        "## Verification Commands\n```bash\n"
+        "pytest tests/test_new_module.py\n"
+        "```\n"
+    )
+    result = CliRunner().invoke(cli, ["validate-issue", "--file", str(spec),
+                                      "--repo-root", str(root), "--json"])
+    assert result.exit_code == 1, result.output
+    data = json.loads(result.output)
+    assert data["valid"] is False
+    assert any("allowed path not in checkout: tests/test_new_module.py" in e
+               for e in data["errors"]), data["errors"]
+
+
 def test_validate_issue_mixed_case_create_marker(tmp_path):
     # The CREATE escape must compare case-insensitively: a new
     # mixed-case file marked (CREATE) on its own line validates.
     root = tmp_path / "co"
     (root / "src").mkdir(parents=True)
+    # Command-mentioned tests/test_new_widget.py exists; only the
+    # CREATE-marked src/NewWidget.py is new.
+    (root / "tests").mkdir(parents=True)
+    (root / "tests" / "test_new_widget.py").write_text("ok\n")
     spec = tmp_path / "spec.md"
     spec.write_text(
         "# New file\n\n## Problem Statement\n\nAdd it.\n\n"

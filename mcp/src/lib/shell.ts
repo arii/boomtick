@@ -3,21 +3,53 @@ import { config } from "../config.js";
 import path from "path";
 import fs from "fs";
 
+// Commands tools actually invoke: version control and td/gh entry
+// points, plus the JS/Python test runners reachable via
+// repo_run_tests. No shell builtins, no file destructive ops.
 export const ALLOWED_COMMANDS = {
   git: "git",
   gh: "gh",
   td: "td",
   pnpm: "pnpm",
   npm: "npm",
-  sh: "sh",
-  ls: "ls",
-  rm: "rm",
-  mkdir: "mkdir",
-  cp: "cp",
   python3: "python3"
 } as const;
 
 export type AllowedCommand = keyof typeof ALLOWED_COMMANDS;
+
+// Resolved td binary, computed once per process. The .venv probes
+// hit the filesystem, so cache the winner instead of re-probing on
+// every tool call.
+let cachedTdPath: string | null = null;
+
+export function resolveTdPath(): string {
+  if (cachedTdPath !== null) {
+    return cachedTdPath;
+  }
+  const candidates = [
+    path.join(config.repoPath, ".venv", "bin", "td"),
+    path.join(process.cwd(), ".venv", "bin", "td"),
+    path.join(config.repoPath, "..", ".venv", "bin", "td"),
+  ];
+  for (const candidate of candidates) {
+    let found = false;
+    try {
+      found = fs.existsSync(candidate);
+    } catch {
+      found = false;
+    }
+    if (found) {
+      cachedTdPath = candidate;
+      return cachedTdPath;
+    }
+  }
+  cachedTdPath = "td";
+  return cachedTdPath;
+}
+
+export function resetTdPathForTests(): void {
+  cachedTdPath = null;
+}
 
 export interface ShellResult {
   stdout: string;
@@ -46,20 +78,10 @@ export async function runCommand(
   if (safeCmd === "gh") {
     finalCmd = config.ghPath;
   } else if (safeCmd === "td") {
-    // If we have a repo-relative .venv, prioritize it
-    const venvBin = path.join(config.repoPath, ".venv", "bin", "td");
-    const localVenvBin = path.join(process.cwd(), ".venv", "bin", "td");
-    const parentVenvBin = path.join(config.repoPath, "..", ".venv", "bin", "td");
-
     // In standalone mode, config.repoPath is the boomtick-pkg root.
-    // We check common venv locations to ensure we call the isolated binary.
-    if (fs.existsSync(venvBin)) {
-      finalCmd = venvBin;
-    } else if (fs.existsSync(localVenvBin)) {
-      finalCmd = localVenvBin;
-    } else if (fs.existsSync(parentVenvBin)) {
-      finalCmd = parentVenvBin;
-    }
+    // The isolated .venv binary wins when present; resolved once per
+    // process via resolveTdPath().
+    finalCmd = resolveTdPath();
   }
 
   const env = {

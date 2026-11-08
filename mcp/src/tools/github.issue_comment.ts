@@ -1,7 +1,6 @@
 import { z } from "zod";
-import { runCommand } from "../lib/shell.js";
 import { resolveRepo } from "../lib/git.js";
-import { sanitizeError } from "../lib/error_utils.js";
+import { runTDCli } from "../lib/tdCli.js";
 
 export const IssueCommentInputSchema = z.object({
   issueNumber: z.number().describe("The number of the issue to comment on."),
@@ -19,20 +18,16 @@ export async function issueCommentHandler(args: z.infer<typeof IssueCommentInput
   const params = IssueCommentInputSchema.parse(args);
   const targetRepo = resolveRepo(params.repo);
 
-  const result = await runCommand("td", [
-    "gh", "issue-comment", params.issueNumber.toString(),
-    "--body", params.body,
-    "--repo", targetRepo
-  ]);
-
-  if (result.exitCode !== 0) {
-    throw new Error(`Failed to post comment: ${sanitizeError(result.stderr)}`);
-  }
-
-  const output = IssueCommentOutputSchema.parse(JSON.parse(result.stdout));
-  if (output.status === "error") {
-    throw new Error(`Failed to post comment: ${output.message}`);
-  }
+  const output = IssueCommentOutputSchema.parse(
+    await runTDCli(
+      [
+        "gh", "issue-comment", params.issueNumber.toString(),
+        "--body", params.body,
+        "--repo", targetRepo
+      ],
+      "post comment"
+    )
+  );
 
   return { status: "success", comment: output.comment };
 }

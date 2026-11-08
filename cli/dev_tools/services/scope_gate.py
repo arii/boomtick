@@ -1,12 +1,9 @@
-"""Shipped port of scripts/verify-scope.py's matching core for td.
+"""Single source of truth for the scope-matching rules.
 
-The CI gate script is not importable from installed td (hyphenated
-filename outside the package), so the pure matching logic lives here
-too. Behavioral parity is enforced by
-cli/tests/test_scope_gate_conformance.py, which runs both
-implementations over shared fixtures and asserts identical verdicts.
-If you change matching rules, change BOTH files and keep the
-conformance test green.
+scripts/verify-scope.py imports this module and re-exports the
+matching core, so CI and td enforce identical verdicts.
+cli/tests/test_scope_gate_conformance.py exercises both entry
+points over shared fixtures.
 
 One principled extension: ``root`` anchors the import-heuristic file
 reads (the script reads relative to cwd). ``root=None`` behaves

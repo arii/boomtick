@@ -3,6 +3,8 @@ import { runCommand } from "../lib/shell.js";
 import { resolveRepo, getMergeConflictFiles } from "../lib/git.js";
 import { sanitizeError } from "../lib/error_utils.js";
 import { runTDCli } from "../lib/tdCli.js";
+// runCommand("gh", ...) below is a direct gh call for PR metadata, not
+// a td call: it intentionally stays on runCommand.
 
 export const GetPrInputSchema = z.object({
   prNumber: z.number().optional().describe("The number of the PR to view. Omit to search open PRs instead."),
@@ -36,27 +38,14 @@ export async function getPrHandler(args: z.infer<typeof GetPrInputSchema>): Prom
     if (params.labels && params.labels.length > 0) {
       tdArgs.push("--labels", params.labels.join(","));
     }
-    const result = await runCommand("td", tdArgs);
-    if (result.exitCode !== 0) {
-      throw new Error(`Failed to list PRs: ${sanitizeError(result.stderr)}`);
-    }
-    const output = JSON.parse(result.stdout);
-    if (output.status === "error") {
-      throw new Error(`Failed to list PRs: ${output.message}`);
-    }
+    const output = await runTDCli(tdArgs, "list PRs");
     return { prs: output.prs };
   }
 
-  const result = await runCommand("td", ["gh", "view", params.prNumber.toString(), "--repo", targetRepo]);
-
-  if (result.exitCode !== 0) {
-    throw new Error(`Failed to get PR details: ${sanitizeError(result.stderr)}`);
-  }
-
-  const output = JSON.parse(result.stdout);
-  if (output.status === "error") {
-    throw new Error(`Failed to get PR details: ${output.message}`);
-  }
+  const output = await runTDCli(
+    ["gh", "view", params.prNumber.toString(), "--repo", targetRepo],
+    "get PR details"
+  );
 
   const response: Record<string, unknown> = { pr: output.pr };
 
