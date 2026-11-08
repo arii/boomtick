@@ -32,16 +32,14 @@ class TestOpenTelemetryCheck(unittest.TestCase):
     @patch("dev_tools.orchestrator.run_command")
     @patch("builtins.open")
     @patch("os.path.exists")
-    @patch("importlib.metadata.version")
-    def test_opentelemetry_versions_compatible(self, mock_version, mock_exists, mock_open, mock_run):
-        # Setup mocks for standard runtime check to succeed with contract files
+    def test_no_otel_gate_for_any_version(self, mock_exists, mock_open, mock_run):
+        # No OpenTelemetry version gate: latest-only policy, telemetry deps
+        # float transitively. runtime_check must stay silent whatever the
+        # installed OTEL set is (the old 1.37.0 gate prescribed downgrades
+        # that skewed the resolver and broke the RAG backend).
         mock_run.side_effect = lambda cmd, **kwargs: "24.16.0" if "node" in cmd else "10.28.2"
         _contract_files_present(mock_exists, mock_open)
 
-        # Mock opentelemetry versions to be compatible
-        mock_version.side_effect = lambda name: "1.37.0"
-
-        # Capture output
         captured_output = io.StringIO()
         sys.stdout = captured_output
         try:
@@ -52,32 +50,7 @@ class TestOpenTelemetryCheck(unittest.TestCase):
             sys.stdout = sys.__stdout__
 
         output = captured_output.getvalue()
-        self.assertNotIn("OpenTelemetry version conflict detected", output)
-
-    @patch("dev_tools.orchestrator.run_command")
-    @patch("builtins.open")
-    @patch("os.path.exists")
-    @patch("importlib.metadata.version")
-    def test_opentelemetry_versions_incompatible(self, mock_version, mock_exists, mock_open, mock_run):
-        # Setup mocks for standard runtime check to succeed with contract files
-        mock_run.side_effect = lambda cmd, **kwargs: "24.16.0" if "node" in cmd else "10.28.2"
-        _contract_files_present(mock_exists, mock_open)
-
-        # Mock opentelemetry versions to be incompatible
-        mock_version.side_effect = lambda name: "1.44.0"
-
-        # Capture output
-        captured_output = io.StringIO()
-        sys.stdout = captured_output
-        try:
-            self.orchestrator.runtime_check()
-        finally:
-            sys.stdout = sys.__stdout__
-
-        output = captured_output.getvalue()
-        self.assertIn("WARNING: OpenTelemetry version conflict detected!", output)
-        self.assertIn("opentelemetry-api (1.44.0)", output)
-        self.assertIn("opentelemetry-sdk (1.44.0)", output)
+        self.assertNotIn("OpenTelemetry", output)
 
     @patch("dev_tools.orchestrator.run_command")
     @patch("builtins.open")

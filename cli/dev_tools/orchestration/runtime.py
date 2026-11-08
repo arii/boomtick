@@ -75,35 +75,6 @@ class RuntimeMixin(QualityMixin):
             log_error(f"pnpm version mismatch\nExpected: {expected_pnpm}\nActual:   {actual_pnpm}")
             raise CLIError(f"Run: corepack enable && corepack prepare pnpm@{expected_pnpm} --activate")
 
-        # OpenTelemetry compatibility check for semgrep
-        try:
-            import importlib.metadata as importlib_metadata
-        except ImportError:
-            try:
-                import importlib_metadata  # type: ignore
-            except ImportError:
-                importlib_metadata = None  # type: ignore[assignment]
-
-        if importlib_metadata:
-            otel_issues = []
-            for pkg_name in ["opentelemetry-api", "opentelemetry-sdk"]:
-                try:
-                    ver = importlib_metadata.version(pkg_name)
-                    if ver != "1.37.0":
-                        otel_issues.append(f"{pkg_name} ({ver})")
-                except Exception as e:
-                    log_warn(f"orchestrator: cannot read version for {pkg_name}: {e}")
-
-            if otel_issues:
-                print("\n" + "=" * 80)
-                print("⚠️  WARNING: OpenTelemetry version conflict detected! ⚠️")
-                print(f"Installed versions: {', '.join(otel_issues)}")
-                print("Semgrep requires exactly version 1.37.0 of opentelemetry-api and opentelemetry-sdk.")
-                print("Using other versions may cause semgrep to crash with ImportError.")
-                print("To fix this, please run:")
-                print("    pip install opentelemetry-api==1.37.0 opentelemetry-sdk==1.37.0")
-                print("=" * 80 + "\n")
-
         return {"node": actual_node, "pnpm": actual_pnpm}
 
     def doctor_check(self) -> Dict[str, Any]:
