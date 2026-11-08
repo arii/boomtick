@@ -9,11 +9,6 @@
       "package-name": "@arii/boomtick-mcp",
       "release-type": "node",
       "component": "mcp"
-    },
-    ".github/actions/setup-all": {
-      "package-name": "boomtick-setup-action",
-      "release-type": "node",
-      "component": "action"
     }
   },
   "pull-request-title-pattern": "chore${scope}: release ${component} ${version}"

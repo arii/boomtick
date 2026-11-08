@@ -104,39 +104,45 @@ def compare_versions(v1: str, v2: str) -> int:
         return 0
 
 
+# NOTE (config-hygiene #1172): .node-version is the single source of truth
+# for the required Node version. There is no hardcoded fallback: a missing
+# file fails instead of silently pinning a stale version.
+def read_node_version() -> str:
+    """Reads the required Node version from .node-version. Fails if absent."""
+    with open(".node-version", "r", encoding="utf-8") as f:
+        v = f.read().strip().lstrip("v")
+    if not v:
+        raise ValueError(".node-version is empty; it must contain the required Node version.")
+    return v
+
+
+# NOTE (config-hygiene #1172): package.json (packageManager, then
+# engines.pnpm) is the single source of truth for the required pnpm
+# version. There is no hardcoded fallback: a missing declaration fails.
+def read_pnpm_version() -> str:
+    """Reads the required pnpm version from package.json. Fails if absent."""
+    with open("package.json", "r", encoding="utf-8") as f:
+        pkg = json.load(f)
+    if "packageManager" in pkg:
+        return pkg["packageManager"].replace("pnpm@", "")
+    if "engines" in pkg and "pnpm" in pkg["engines"]:
+        return pkg["engines"]["pnpm"]
+    raise ValueError("package.json must declare the pnpm version via packageManager or engines.pnpm.")
+
+
 def get_stack_versions(fetch_latest: bool = False) -> Dict[str, str]:
     """Extracts core versions (Node, pnpm, GHA) from the repository."""
+    # NOTE (config-hygiene #1172): canonical reads happen up front so a
+    # missing contract file fails instead of falling back to hardcoded versions.
     versions = {
-        "node": "24.16.0",
-        "pnpm": "10.28.2",
+        "node": read_node_version(),
+        "pnpm": read_pnpm_version(),
         "actions/checkout": "v4",
         "actions/setup-node": "v4",
         "actions/upload-artifact": "v4",
     }
 
     try:
-        if os.path.exists(".node-version"):
-            with open(".node-version", "r", encoding="utf-8") as f:
-                v = f.read().strip().lstrip("v")
-                if v:
-                    versions["node"] = v
-        elif os.path.exists(".nvmrc"):
-            with open(".nvmrc", "r", encoding="utf-8") as f:
-                v = f.read().strip().lstrip("v")
-                if v:
-                    versions["node"] = v
-
-        if os.path.exists("package.json"):
-            with open("package.json", "r", encoding="utf-8") as f:
-                pkg = json.load(f)
-                if "packageManager" in pkg:
-                    versions["pnpm"] = pkg["packageManager"].replace("pnpm@", "")
-                elif "engines" in pkg and "pnpm" in pkg["engines"]:
-                    versions["pnpm"] = pkg["engines"]["pnpm"]
-
-                if "engines" in pkg and "node" in pkg["engines"] and not os.path.exists(".node-version"):
-                    versions["node"] = pkg["engines"]["node"]
-
         workflow_dir = ".github/workflows"
         if os.path.exists(workflow_dir):
             for filename in os.listdir(workflow_dir):

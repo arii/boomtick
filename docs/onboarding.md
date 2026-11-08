@@ -172,7 +172,7 @@ Boomtick exposes the following Composite Actions under `arii/boomtick/.github/ac
 
 4. **`ai-review`**: Runs AI review audits on pull requests.
    ```yaml
-   uses: arii/boomtick/.github/actions/ai-review@main # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
+   uses: arii/boomtick/mcp/actions/ai-review@main # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
    with:
      pr_number: ${{ inputs.pr_number }}
    ```

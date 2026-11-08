@@ -101,7 +101,7 @@ jobs:
           fetch-depth: 0
 
       - name: Setup Environment
-        uses: arii/boomtick/.github/actions/setup-all@main # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
+        uses: arii/boomtick/.github/actions/setup-workspace@main # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
         with:
           setup-python: 'true'
 
