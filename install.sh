@@ -27,8 +27,6 @@ validate_env() {
     echo "Validating workspace configuration..."
     if [ -f "scripts/validate_workspace.py" ]; then
         ENGINES_JSON=$(python3 scripts/validate_workspace.py --get-engines | sed -n '/ENGINES_START/,/ENGINES_END/p' | sed '1d;$d')
-    elif [ -f "scripts/validate_workspace.py" ]; then
-        ENGINES_JSON=$(python3 scripts/validate_workspace.py --get-engines | sed -n '/ENGINES_START/,/ENGINES_END/p' | sed '1d;$d')
     fi
 
     # Extract versions from JSON if possible, otherwise use defaults
@@ -92,23 +90,24 @@ else
     python3 -m venv "$VENV_PATH"
 fi
 
-PIP_OPTS=""
+# Arrays avoid word-splitting on paths and opts.
+PIP_OPTS=()
 if [ -n "$VENV_PATH" ]; then
     PYTHON_BIN="$VENV_PATH/bin/python3"
-    PIP_CMD="$VENV_PATH/bin/pip"
+    PIP_CMD=("$VENV_PATH/bin/pip")
     echo "Using virtual environment: $VENV_PATH"
 else
     PYTHON_BIN="python3"
-    PIP_CMD="pip"
-    PIP_OPTS="--break-system-packages"
+    PIP_CMD=(pip)
+    PIP_OPTS=(--break-system-packages)
 fi
 
 # Idempotency for CLI
 if [ "$FORCE" -eq 1 ] || ! command -v td >/dev/null 2>&1 || [ -n "$VENV_PATH" ]; then
     echo "Installing BoomTick CLI..."
-    timeout 600 $PIP_CMD install -e "${CLI_ROOT}" $PIP_OPTS
+    timeout 600 "${PIP_CMD[@]}" install -e "${CLI_ROOT}" "${PIP_OPTS[@]}"
     if [ -f "${CLI_ROOT}/requirements-dev.txt" ]; then
-        timeout 600 $PIP_CMD install -r "${CLI_ROOT}/requirements-dev.txt" $PIP_OPTS
+        timeout 600 "${PIP_CMD[@]}" install -r "${CLI_ROOT}/requirements-dev.txt" "${PIP_OPTS[@]}"
     fi
 else
     echo "BoomTick CLI already installed. Skipping (use --force to reinstall)."
