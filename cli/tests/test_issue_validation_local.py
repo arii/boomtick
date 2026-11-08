@@ -81,6 +81,21 @@ def test_validate_content_ci_failure_exempt(orchestrator):
     res3 = orchestrator.validate_content("Task [skip-spec-check]", "Just a quick bug description.")
     assert not any("Missing spec-driven sections" in f for f in res3["findings"])
 
+def test_scope_status_mixed_case_paths(tmp_path):
+    from dev_tools.services.spec_issue import scope_status
+
+    checkout = tmp_path / "checkout"
+    (checkout / "utils").mkdir(parents=True)
+    (checkout / "utils" / "clientId.ts").write_text("export const id = 1;\n")
+
+    body = "Scope: touch utils/clientId.ts and utils/missingDir/missingFile.ts"
+    items = scope_status(body, str(checkout))
+    by_path = {i["path"]: i["status"] for i in items}
+
+    assert by_path["utils/clientId.ts"] == "in checkout"
+    assert by_path["utils/missingDir/missingFile.ts"] == "NEW - confirm (not in checkout)"
+
+
 def test_cli_validate_issue_file(tmp_path):
     runner = CliRunner()
     draft = tmp_path / "draft.md"

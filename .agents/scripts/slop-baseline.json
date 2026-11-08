@@ -1,0 +1,6 @@
+{
+  "version": 1,
+  "note": "#1143 slop fail-gate ratchet: grandfathered hits stay green until a follow-up triages them; any NEW entry fails the gate. Reseed with --update-baseline.",
+  "swallow_exceptions": {},
+  "unreferenced_wrappers": []
+}

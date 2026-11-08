@@ -45,7 +45,7 @@ describe("cdp_client", () => {
     expect(argv).toContain("http://preview:3000/");
   });
 
-  it("surfaces BROWSERLESS_UNREACHABLE as a failed gate", async () => {
+  it("surfaces BROWSER_UNREACHABLE as a failed gate", async () => {
     mockTd({
       passed: false,
       ui_changed: true,
@@ -56,14 +56,14 @@ describe("cdp_client", () => {
         dom_node_count: 0,
         interactive_elements: 0,
         screenshot_path: null,
-        error: "BROWSERLESS_UNREACHABLE: refused",
+        error: "BROWSER_UNREACHABLE: refused",
       },
-      error: "BROWSERLESS_UNREACHABLE: refused",
+      error: "BROWSER_UNREACHABLE: refused",
     });
     const result = await getVisualDiff("/wt", "http://preview:3000/");
     expect(result.passed).toBe(false);
     expect(result.visual_diff?.reachable).toBe(false);
-    expect(result.error).toContain("BROWSERLESS_UNREACHABLE");
+    expect(result.error).toContain("BROWSER_UNREACHABLE");
   });
 
   it("omits --preview-url when no preview is given", async () => {
