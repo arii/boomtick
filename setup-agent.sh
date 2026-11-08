@@ -89,36 +89,19 @@ run_sudo() {
 }
 
 pip_install() {
-  # Ubuntu/Debian images may enable PEP 668.
-  # Use a 600s timeout to prevent hangs while allowing for slow networks.
-  local PIP_CMD="python3 -m pip"
-  local PIP_OPTS=""
+  # Single attempt; transient failures surface as hard errors.
+  # Arrays avoid word-splitting; 600s timeout guards slow networks.
+  local -a PIP_CMD=(python3 -m pip)
+  local -a PIP_OPTS=()
   if [ -n "${VENV_PATH:-}" ]; then
-    PIP_CMD="${VENV_PATH}/bin/pip"
+    PIP_CMD=("${VENV_PATH}/bin/pip")
   else
-    PIP_OPTS="--break-system-packages"
+    # Ubuntu/Debian images may enable PEP 668.
+    PIP_OPTS=(--break-system-packages)
   fi
 
-  local max_retries=3
-  local attempt=1
-  while [ $attempt -le $max_retries ]; do
-    log "pip install attempt $attempt/$max_retries: $*"
-    if timeout 600 $PIP_CMD install --disable-pip-version-check "$@"; then
-      return 0
-    fi
-
-    if [ -z "${VENV_PATH:-}" ]; then
-      if timeout 600 $PIP_CMD install --disable-pip-version-check $PIP_OPTS "$@"; then
-        return 0
-      fi
-    fi
-
-    warn "pip install failed on attempt $attempt"
-    attempt=$((attempt + 1))
-    [ $attempt -le $max_retries ] && sleep 5
-  done
-
-  return 1
+  log "pip install: $*"
+  timeout 600 "${PIP_CMD[@]}" install --disable-pip-version-check "${PIP_OPTS[@]}" "$@"
 }
 
 # -------- install steps --------
@@ -257,7 +240,8 @@ install_node_deps() {
 
   log "Installing Node dependencies..."
   if [ -f "pnpm-lock.yaml" ]; then
-    pnpm install --frozen-lockfile || pnpm install --no-frozen-lockfile
+    # Frozen lockfile only; drift fails loudly instead of silently updating.
+    pnpm install --frozen-lockfile
   else
     pnpm install
   fi
@@ -276,7 +260,8 @@ install_playwright() {
   fi
 
   log "Installing Playwright browsers..."
-  if pnpm exec playwright install --with-deps 2>/dev/null || npx --yes playwright install --with-deps 2>/dev/null; then
+  # No npx fallback; a broken pnpm setup must fail loudly.
+  if pnpm exec playwright install --with-deps 2>/dev/null; then
     STATUS_PLAYWRIGHT="INSTALLED"
   else
     STATUS_PLAYWRIGHT="FAILED"
