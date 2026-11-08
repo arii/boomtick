@@ -1263,19 +1263,38 @@ class Orchestrator:
 
     def runtime_check(self) -> Dict[str, str]:
         """Ensures the runtime environment matches the contract."""
-        run_command(["corepack", "enable"], check=False)
-        run_command(["corepack", "prepare", "pnpm@10.28.2", "--activate"], check=False)
-
-        # Mirror scripts/check-runtime.mjs logic in Python
+        # NOTE (config-hygiene #1172): single source of truth — .node-version
+        # for Node, package.json (packageManager, then engines.pnpm) for pnpm.
+        # No hardcoded fallbacks; a missing contract file fails here. This
+        # check intentionally mirrors scripts/check-runtime-files.mjs. Kept
+        # minimal for the #1177 split — see that issue before restructuring.
         try:
             with open(".node-version", "r", encoding="utf-8") as f:
                 expected_node = f.read().strip().replace("v", "")
         except FileNotFoundError:
-            try:
-                with open(".nvmrc", "r", encoding="utf-8") as f:
-                    expected_node = f.read().strip().replace("v", "")
-            except FileNotFoundError:
-                expected_node = "24.16.0"
+            raise CLIError("Missing .node-version: it is the single source of truth for the required Node version.")
+        if not expected_node:
+            raise CLIError("Empty .node-version: it must contain the required Node version.")
+
+        manifest_path = "package.json"
+        if not os.path.exists(manifest_path) and os.path.exists("workspace.json"):
+            manifest_path = "workspace.json"
+
+        try:
+            with open(manifest_path, "r", encoding="utf-8") as f:
+                pkg = json.load(f)
+        except FileNotFoundError:
+            raise CLIError(
+                f"Missing {manifest_path}: it is the single source of truth for the required pnpm version."
+            )
+        expected_pnpm = pkg.get("packageManager", "").replace("pnpm@", "") or (pkg.get("engines") or {}).get(
+            "pnpm", ""
+        )
+        if not expected_pnpm:
+            raise CLIError(f"{manifest_path} must declare the pnpm version via packageManager or engines.pnpm.")
+
+        run_command(["corepack", "enable"], check=False)
+        run_command(["corepack", "prepare", f"pnpm@{expected_pnpm}", "--activate"], check=False)
 
         actual_node_res = run_command(["node", "-v"])
         actual_node = str(actual_node_res).strip().replace("v", "")
@@ -1287,17 +1306,6 @@ class Orchestrator:
         if not node_matches:
             log_error(f"Node version mismatch\nExpected: {expected_node}\nActual:   {actual_node}")
             raise CLIError("Node version mismatch. Do not switch versions manually.")
-
-        manifest_path = "package.json"
-        if not os.path.exists(manifest_path) and os.path.exists("workspace.json"):
-            manifest_path = "workspace.json"
-
-        if os.path.exists(manifest_path):
-            with open(manifest_path, "r", encoding="utf-8") as f:
-                pkg = json.load(f)
-            expected_pnpm = pkg.get("packageManager", "").replace("pnpm@", "") or "10.28.2"
-        else:
-            expected_pnpm = "10.28.2"
 
         actual_pnpm_res = run_command(["pnpm", "--version"])
         actual_pnpm = str(actual_pnpm_res).strip()

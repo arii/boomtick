@@ -8,17 +8,14 @@ const ROOT = path.resolve(__dirname, '..');
 
 /**
  * Default list of directories or individual files to audit.
+ * NOTE (#1175): these must be paths that exist in this repo (BoomTick's
+ * real sources), so a bare run actually checks code instead of passing
+ * vacuously over missing Next.js-layout directories.
  */
 const CHECK_PATHS = [
-  'src/features',
-  'src/pages',
-  'src/components',
-  'src/layouts',
-  'src/styles',
-  'src/providers',
-  'src/hooks',
-  'src/lib',
-  'src/App.tsx',
+  'src',
+  'mcp/src',
+  'scripts',
   '.github/workflows',
   '.npmrc'
 ];
@@ -48,7 +45,12 @@ function collectAuditFiles(targets) {
 
   for (const target of resolvedTargets) {
     const absoluteTarget = path.isAbsolute(target) ? target : path.join(ROOT, target);
-    if (!fs.existsSync(absoluteTarget)) continue;
+    // NOTE (#1175): warn instead of silently skipping, so a vacuous
+    // pass over missing paths is visible.
+    if (!fs.existsSync(absoluteTarget)) {
+      console.warn(`⚠️  Audit target not found, skipping: ${target}`);
+      continue;
+    }
     const stat = fs.statSync(absoluteTarget);
 
     if (stat.isDirectory()) {

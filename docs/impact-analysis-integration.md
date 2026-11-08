@@ -7,12 +7,11 @@ To use the Boomtick Impact Analysis composite action in a consumer repository, f
 Reference the action in your workflow:
 
 ```yaml
-- uses: arii/boomtick/mcp/actions/impact-analysis@main # or a specific version
+- uses: arii/boomtick/.github/actions/impact-analysis@main # or a specific version
   with:
     github_token: ${{ secrets.GITHUB_TOKEN }}
     gemini_api_key: ${{ secrets.GEMINI_API_KEY }}
-    pr_number: ${{ github.event.pull_request.number }}
-    jules_api_key: ${{ secrets.JULES_API_KEY }}
+    pr-number: ${{ github.event.pull_request.number }}
 ```
 
 ## Required package.json Scripts

@@ -1,10 +1,28 @@
 # pylint: disable=missing-docstring
 import io
+import json
 import sys
 import unittest
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 from dev_tools.orchestrator import Orchestrator
+from dev_tools.utils import CLIError
+
+
+def _contract_files_present(mock_exists, mock_open):
+    """Simulate present .node-version / package.json contract files (#1172)."""
+    mock_exists.return_value = True
+
+    def _open(path, *args, **kwargs):
+        mock_file = MagicMock()
+        mock_file.__enter__.return_value = mock_file
+        if str(path) == ".node-version":
+            mock_file.read.return_value = "24.16.0\n"
+        else:
+            mock_file.read.return_value = json.dumps({"packageManager": "pnpm@10.28.2"})
+        return mock_file
+
+    mock_open.side_effect = _open
 
 
 class TestOpenTelemetryCheck(unittest.TestCase):
@@ -16,10 +34,9 @@ class TestOpenTelemetryCheck(unittest.TestCase):
     @patch("os.path.exists")
     @patch("importlib.metadata.version")
     def test_opentelemetry_versions_compatible(self, mock_version, mock_exists, mock_open, mock_run):
-        # Setup mocks for standard runtime check to succeed with defaults
+        # Setup mocks for standard runtime check to succeed with contract files
         mock_run.side_effect = lambda cmd, **kwargs: "24.16.0" if "node" in cmd else "10.28.2"
-        mock_exists.return_value = False
-        mock_open.side_effect = FileNotFoundError
+        _contract_files_present(mock_exists, mock_open)
 
         # Mock opentelemetry versions to be compatible
         mock_version.side_effect = lambda name: "1.37.0"
@@ -42,10 +59,9 @@ class TestOpenTelemetryCheck(unittest.TestCase):
     @patch("os.path.exists")
     @patch("importlib.metadata.version")
     def test_opentelemetry_versions_incompatible(self, mock_version, mock_exists, mock_open, mock_run):
-        # Setup mocks for standard runtime check to succeed with defaults
+        # Setup mocks for standard runtime check to succeed with contract files
         mock_run.side_effect = lambda cmd, **kwargs: "24.16.0" if "node" in cmd else "10.28.2"
-        mock_exists.return_value = False
-        mock_open.side_effect = FileNotFoundError
+        _contract_files_present(mock_exists, mock_open)
 
         # Mock opentelemetry versions to be incompatible
         mock_version.side_effect = lambda name: "1.44.0"
@@ -62,6 +78,17 @@ class TestOpenTelemetryCheck(unittest.TestCase):
         self.assertIn("WARNING: OpenTelemetry version conflict detected!", output)
         self.assertIn("opentelemetry-api (1.44.0)", output)
         self.assertIn("opentelemetry-sdk (1.44.0)", output)
+
+    @patch("dev_tools.orchestrator.run_command")
+    @patch("builtins.open")
+    @patch("os.path.exists")
+    def test_runtime_check_fails_without_node_version_file(self, mock_exists, mock_open, mock_run):
+        # No hardcoded fallback (#1172): a missing .node-version must fail.
+        mock_exists.return_value = False
+        mock_open.side_effect = FileNotFoundError
+        with self.assertRaises(CLIError):
+            self.orchestrator.runtime_check()
+        mock_run.assert_not_called()
 
 
 if __name__ == "__main__":
