@@ -402,7 +402,7 @@ def test_log_probe_tip_only_without_base_ref(monkeypatch):
 
 
 def test_log_probe_falls_back_to_tip_when_no_origin_ref(monkeypatch):
-    """When the range query fails (no origin ref) the probe reads the tip commit only."""
+    """When the range query fails (no origin ref) the probe denies bypass (fail closed)."""
     _clear_override_env(monkeypatch)
     monkeypatch.setenv("GITHUB_BASE_REF", "main")
 
@@ -421,9 +421,8 @@ def test_log_probe_falls_back_to_tip_when_no_origin_ref(monkeypatch):
 
     monkeypatch.setattr("subprocess.run", fake_run)
 
-    assert verify_scope.check_override() is True
+    assert verify_scope.check_override() is False
 
     log_calls = [c for c in calls if c[:2] == ["git", "log"]]
-    assert len(log_calls) == 2
+    assert len(log_calls) == 1
     assert "origin/main..HEAD" in log_calls[0]
-    assert log_calls[1] == ["git", "log", "-n", "1", "HEAD", "--pretty=%B"]
