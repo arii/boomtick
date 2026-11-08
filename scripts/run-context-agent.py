@@ -7,13 +7,9 @@ and a persistent Agent Scratch Pad to save and carry over intermediate observati
 """
 
 import sys
-import os
 import subprocess
 import traceback
 from typing import Optional
-
-# Ensure the cli/ directory is on the PYTHONPATH
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "cli"))
 
 from dev_tools.workflows import WorkflowGraph, WorkflowNode, WorkflowContext
 from dev_tools.workflows.nodes import DeploymentImpactCheckNode, FinalSynthesisNode

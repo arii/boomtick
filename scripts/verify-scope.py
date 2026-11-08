@@ -19,9 +19,6 @@ import json
 # cli/dev_tools/services/scope_gate.py (importable by the td package
 # and its test suite). This script re-exports that implementation so
 # CI and td enforce identical verdicts.
-sys.path.insert(
-    0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "cli")
-)
 from dev_tools.services import scope_gate as _scope_gate
 
 EXEMPT_FILES = _scope_gate.EXEMPT_FILES

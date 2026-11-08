@@ -7,8 +7,6 @@ import os
 import sys
 import subprocess
 
-# Ensure we can import from the local scripts package
-sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
 from lib.env_utils import get_venv_paths
 
 def is_tool_available(python_exe, tool_module):
@@ -27,7 +25,8 @@ def main():
     tool_module = sys.argv[1]
     args = sys.argv[2:]
 
-    repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+    # Run from the repo root, so the repo root is the current directory.
+    repo_root = "."
 
     # 1. Check if local .venv has the tool (prioritize local repository venv)
     venv_path, python_bin = get_venv_paths(repo_root)
