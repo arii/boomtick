@@ -303,8 +303,17 @@ class ASTAuditor:
 
             visit(tree.root_node)
 
-        except Exception:
+        except Exception as exc:
+            log_warn(f"ast_audit: tree-sitter parse failed for {filepath}: {exc}; using regex fallback")
             findings = self._fallback_regex_audit(code)
+            findings.insert(0, {
+                "type": "parser_downgrade",
+                "severity": "warning",
+                "line": 1,
+                "rule": "ast-parser-downgrade",
+                "message": f"tree-sitter parse failed ({exc}); results are regex fallback, not a full AST pass",
+                "value": filepath,
+            })
 
         return findings
 

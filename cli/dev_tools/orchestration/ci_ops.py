@@ -309,6 +309,7 @@ Follow the "Audit comment template" in `docs/agent/issue-audit-rules.md` to post
         check_suites = self.github.fetch_check_suites(head_sha, repo=repo)
 
         all_runs = []
+        failed_suites: list = []
         from dev_tools.utils.concurrency import run_concurrently
         if check_suites:
             def fetch_suite_runs(suite):
@@ -316,6 +317,7 @@ Follow the "Audit comment template" in `docs/agent/issue-audit-rules.md` to post
                     return self.github.fetch_check_runs_for_suite(suite["id"], repo=repo)
                 except Exception as e:
                     log_warn(f"Failed to fetch runs for suite {suite.get('id')}: {e}")
+                    failed_suites.append(suite.get("id"))
                     return []
 
             results = run_concurrently(fetch_suite_runs, check_suites, max_workers=4, ignore_exceptions=True)
@@ -324,6 +326,7 @@ Follow the "Audit comment template" in `docs/agent/issue-audit-rules.md` to post
 
         runs_to_fetch = [run for run in all_runs if include_all or run.get("conclusion") == "failure"]
 
+        failed_logs: list = []
         def fetch_log(run):
             try:
                 run_id = run.get("id")
@@ -333,6 +336,7 @@ Follow the "Audit comment template" in `docs/agent/issue-audit-rules.md` to post
                         repo=repo)
             except Exception as e:
                 log_warn(f"Failed to fetch log for run {run.get('id')}: {e}")
+                failed_logs.append(run.get("id"))
             return None, None
 
         if runs_to_fetch:
@@ -341,7 +345,8 @@ Follow the "Audit comment template" in `docs/agent/issue-audit-rules.md` to post
                 if name and isinstance(name, str) and log_content and isinstance(log_content, str):
                     logs[name] = log_content[:10000]
 
-        return {"checks": checks, "failedChecks": failed_checks, "logs": logs}
+        return {"checks": checks, "failedChecks": failed_checks, "logs": logs,
+                "failedSuites": failed_suites, "failedLogs": failed_logs}
 
     def stream_ci_logs(self, prNumber: int, grep: Optional[str] = None, repo: Optional[str] = None) -> str:
         """Fetches and combines all CI logs for the latest workflow run of a PR."""
