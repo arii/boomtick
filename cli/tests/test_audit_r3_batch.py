@@ -239,6 +239,14 @@ def test_no_remote_server_literal_in_source():
     for rel in out.stdout.splitlines():
         if rel.startswith("docs/"):
             continue  # audit evidence record, not source coupling
+        base = rel.rsplit("/", 1)[-1]
+        if (
+            "/tests/" in rel
+            or "/test/" in rel
+            or base.startswith("test_")
+            or ".test." in base
+        ):
+            continue  # the tests asserting this property, not product coupling
         if not (rel.endswith(src_suffixes) or rel.endswith(".json")):
             continue
         if rel.endswith("pnpm-lock.yaml"):
