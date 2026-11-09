@@ -1,0 +1,70 @@
+{
+  "version": 1,
+  "updated": "2026-11-08",
+  "defaultPricing": { "inputCostPerM": 0.1, "outputCostPerM": 0.4 },
+  "models": [
+    {
+      "id": "gemini-3.1-pro-preview",
+      "name": "Gemini 3.1 Pro (Preview)",
+      "tier": "pro",
+      "maxInputTokens": 2000000,
+      "maxOutputTokens": 8192,
+      "inputCostPerM": 2.0,
+      "outputCostPerM": 12.0,
+      "reviewAfter": "2027-05-08",
+      "deprecatedAfter": null
+    },
+    {
+      "id": "gemini-3.5-flash",
+      "name": "Gemini 3.5 Flash",
+      "tier": "flash",
+      "maxInputTokens": 1000000,
+      "maxOutputTokens": 8192,
+      "inputCostPerM": 1.5,
+      "outputCostPerM": 9.0,
+      "reviewAfter": "2027-05-08",
+      "deprecatedAfter": null
+    },
+    {
+      "id": "gemini-3.1-flash-lite",
+      "name": "Gemini 3.1 Flash Lite",
+      "tier": "lite",
+      "maxInputTokens": 1000000,
+      "maxOutputTokens": 8192,
+      "inputCostPerM": 0.25,
+      "outputCostPerM": 1.5,
+      "reviewAfter": "2027-05-08",
+      "deprecatedAfter": null
+    },
+    {
+      "id": "gemini-2.5-flash",
+      "name": "Gemini 2.5 Flash",
+      "tier": "flash",
+      "maxInputTokens": 1000000,
+      "maxOutputTokens": 8192,
+      "inputCostPerM": 0.3,
+      "outputCostPerM": 2.5,
+      "reviewAfter": "2027-05-08",
+      "deprecatedAfter": null
+    },
+    {
+      "id": "gemini-2.5-flash-lite",
+      "name": "Gemini 2.5 Flash Lite",
+      "tier": "lite",
+      "maxInputTokens": 1000000,
+      "maxOutputTokens": 8192,
+      "inputCostPerM": 0.1,
+      "outputCostPerM": 0.4,
+      "reviewAfter": "2027-05-08",
+      "deprecatedAfter": null
+    }
+  ],
+  "deprecated": [
+    { "id": "gemini-1.5-flash", "deprecatedAfter": "2025-09-30" },
+    { "id": "gemini-1.5-pro", "deprecatedAfter": "2025-09-30" },
+    { "id": "gemini-pro", "deprecatedAfter": "2025-04-30" },
+    { "id": "gemini-2.0-flash", "deprecatedAfter": "2026-03-31" },
+    { "id": "gemini-2.0-pro", "deprecatedAfter": "2026-03-31" },
+    { "id": "gemini-2.0-flash-thinking", "deprecatedAfter": "2026-03-31" }
+  ]
+}

@@ -9,6 +9,21 @@ import * as syncFs from "fs";
 
 export const RECEIPT_FILENAME = ".agent_tool_receipt.json";
 
+// Bound receipt history so long-lived sessions cannot grow the file without bound.
+export const MAX_TOOL_RECEIPTS = 500;
+const RECEIPT_CAP_ENV_VAR = "BOOMTICK_RECEIPT_CAP";
+
+function resolveReceiptCap(): number {
+  const raw = process.env[RECEIPT_CAP_ENV_VAR];
+  if (raw === undefined || raw.trim() === "") return MAX_TOOL_RECEIPTS;
+  const parsed = Number(raw);
+  if (!Number.isInteger(parsed) || parsed < 1) {
+    console.warn(`Invalid ${RECEIPT_CAP_ENV_VAR} value "${raw}"; using default cap ${MAX_TOOL_RECEIPTS}.`);
+    return MAX_TOOL_RECEIPTS;
+  }
+  return parsed;
+}
+
 export function recordToolReceipt(
   worktreePath: string,
   toolName: string,
@@ -31,5 +46,7 @@ export function recordToolReceipt(
     timestamp: new Date().toISOString(),
     ...metadata,
   });
-  syncFs.writeFileSync(receiptFile, JSON.stringify(existing, null, 2), "utf8");
+  const cap = resolveReceiptCap();
+  const trimmed = existing.length > cap ? existing.slice(-cap) : existing;
+  syncFs.writeFileSync(receiptFile, JSON.stringify(trimmed, null, 2), "utf8");
 }
