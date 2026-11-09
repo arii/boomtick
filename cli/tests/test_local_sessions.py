@@ -1,5 +1,6 @@
 # pylint: disable=missing-docstring,line-too-long
 """Unit tests for local worktree session + skill parity (no Jules, no network)."""
+
 import json
 import os
 import subprocess
@@ -41,8 +42,7 @@ def _session_in(worktree, **over):
 
 
 def test_new_session_schema_matches_mcp(repo, worktree):
-    session = ls.new_session(str(worktree), "brief text", model="m1",
-                             repo="o/r")
+    session = ls.new_session(str(worktree), "brief text", model="m1", repo="o/r")
     assert session["sessionId"].startswith("sess_")
     assert session["state"] == "running"
     assert session["status"] == "running"

@@ -57,7 +57,9 @@ class TestGitHubClientPagination(unittest.TestCase):
             if any("/search/issues" in str(arg) for arg in call.args):
                 found_search_call = True
                 break
-        self.assertTrue(found_search_call, "Search API call not found in mock_request calls")
+        self.assertTrue(
+            found_search_call, "Search API call not found in mock_request calls"
+        )
 
 
 def test_validate_review_payload_boilerplate_rejection():
@@ -96,11 +98,11 @@ def test_validate_review_payload_boilerplate_rejection():
     assert "Comment contains boilerplate placeholder" in str(excinfo.value)
 
 
-
 def test_fetch_pr_info_graphql():
-    with patch("dev_tools.utils.get_github_token", return_value="dummy_token"), patch(
-        "dev_tools.services.github.DiskCache"
-    ) as mock_cache:
+    with (
+        patch("dev_tools.utils.get_github_token", return_value="dummy_token"),
+        patch("dev_tools.services.github.DiskCache") as mock_cache,
+    ):
         mock_cache.return_value.get.return_value = None
         client = GitHubClient(repo="owner/repo")
 
@@ -111,24 +113,21 @@ def test_fetch_pr_info_graphql():
                     "pullRequest": {
                         "title": "My GraphQL PR",
                         "body": "This is body",
-                        "author": {
-                            "login": "testauthor"
-                        },
+                        "author": {"login": "testauthor"},
                         "headRefName": "my-head-branch",
                         "headRefOid": "head-sha-123",
                         "baseRefName": "main",
                         "files": {
-                            "nodes": [
-                                {"path": "file1.py"},
-                                {"path": "file2.py"}
-                            ]
-                        }
+                            "nodes": [{"path": "file1.py"}, {"path": "file2.py"}]
+                        },
                     }
                 }
             }
         }
 
-        with patch.object(client, "_request", return_value=graphql_response) as mock_request:
+        with patch.object(
+            client, "_request", return_value=graphql_response
+        ) as mock_request:
             result = client.fetch_pr_info_graphql(123)
 
             # Verify _request was called
@@ -147,13 +146,17 @@ def test_fetch_pr_info_graphql():
             assert result["pr"]["head"]["ref"] == "my-head-branch"
             assert result["pr"]["head"]["sha"] == "head-sha-123"
             assert result["pr"]["base"]["ref"] == "main"
-            assert result["files"] == [{"filename": "file1.py"}, {"filename": "file2.py"}]
+            assert result["files"] == [
+                {"filename": "file1.py"},
+                {"filename": "file2.py"},
+            ]
 
 
 def test_create_issue_repo_override():
-    with patch("dev_tools.utils.get_github_token", return_value="dummy_token"), patch(
-        "dev_tools.services.github.DiskCache"
-    ) as mock_cache:
+    with (
+        patch("dev_tools.utils.get_github_token", return_value="dummy_token"),
+        patch("dev_tools.services.github.DiskCache") as mock_cache,
+    ):
         mock_cache.return_value.get.return_value = None
         client = GitHubClient(repo="owner/repo")
 
@@ -161,23 +164,36 @@ def test_create_issue_repo_override():
         with patch.object(client, "_request", return_value=mock_ret) as mock_request:
             res = client.create_issue("Title", "Body", repo="org/other-repo")
             mock_request.assert_called_once_with(
-                "POST", "/repos/org/other-repo/issues", json_data={"title": "Title", "body": "Body"}
+                "POST",
+                "/repos/org/other-repo/issues",
+                json_data={"title": "Title", "body": "Body"},
             )
             assert res["number"] == 42
 
 
 def test_create_pull_request_repo_override():
-    with patch("dev_tools.utils.get_github_token", return_value="dummy_token"), patch(
-        "dev_tools.services.github.DiskCache"
-    ) as mock_cache:
+    with (
+        patch("dev_tools.utils.get_github_token", return_value="dummy_token"),
+        patch("dev_tools.services.github.DiskCache") as mock_cache,
+    ):
         mock_cache.return_value.get.return_value = None
         client = GitHubClient(repo="owner/repo")
 
-        with patch.object(client, "branch_exists", return_value=True) as mock_branch_exists, patch.object(
-            client, "_request", return_value={"number": 99, "html_url": "pr_url"}
-        ) as mock_request:
+        with (
+            patch.object(
+                client, "branch_exists", return_value=True
+            ) as mock_branch_exists,
+            patch.object(
+                client, "_request", return_value={"number": 99, "html_url": "pr_url"}
+            ) as mock_request,
+        ):
             res = client.create_pull_request(
-                "PR Title", "PR Body", "feature", "main", draft=False, repo="org/other-repo"
+                "PR Title",
+                "PR Body",
+                "feature",
+                "main",
+                draft=False,
+                repo="org/other-repo",
             )
             mock_branch_exists.assert_called_once_with("feature", repo="org/other-repo")
             expected_data = {
@@ -187,16 +203,20 @@ def test_create_pull_request_repo_override():
                 "base": "main",
                 "draft": False,
             }
-            mock_request.assert_called_once_with("POST", "/repos/org/other-repo/pulls", json_data=expected_data)
+            mock_request.assert_called_once_with(
+                "POST", "/repos/org/other-repo/pulls", json_data=expected_data
+            )
             assert res["number"] == 99
 
 
 def test_github_client_repo_resolution_priority(monkeypatch):
     monkeypatch.setenv("GITHUB_REPOSITORY", "stale-org/stale-repo")
     monkeypatch.setenv("GH_REPO", "stale-org/stale-repo")
-    with patch("dev_tools.utils.get_github_token", return_value="dummy_token"), patch(
-        "dev_tools.services.github.DiskCache"
-    ), patch("dev_tools.config.get_config") as mock_get_config:
+    with (
+        patch("dev_tools.utils.get_github_token", return_value="dummy_token"),
+        patch("dev_tools.services.github.DiskCache"),
+        patch("dev_tools.config.get_config") as mock_get_config,
+    ):
         mock_cfg = MagicMock()
         mock_cfg.github_repo = "workspace-org/workspace-repo"
         mock_get_config.return_value = mock_cfg
@@ -226,13 +246,17 @@ class TestGitHubClientGraphQL(unittest.TestCase):
         mock_post.assert_called_once()
         args, kwargs = mock_post.call_args
         self.assertIn("/graphql", args[0])
-        self.assertEqual(kwargs["json"], {"query": "query { id }", "variables": {"var": "val"}})
+        self.assertEqual(
+            kwargs["json"], {"query": "query { id }", "variables": {"var": "val"}}
+        )
         self.assertEqual(kwargs["headers"], {"Accept": "application/json"})
 
     @patch("dev_tools.services.github.requests.Session.post")
     def test_graphql_query_errors(self, mock_post):
         mock_response = MagicMock()
-        mock_response.json.return_value = {"errors": [{"message": "Field 'invalid' doesn't exist"}]}
+        mock_response.json.return_value = {
+            "errors": [{"message": "Field 'invalid' doesn't exist"}]
+        }
         mock_response.raise_for_status.return_value = None
         mock_post.return_value = mock_response
 
@@ -264,7 +288,11 @@ class TestGitHubClientGraphQL(unittest.TestCase):
                 }
             }
         }
-        mock_graphql.side_effect = [resolve_response, mutation_response, mutation_response]
+        mock_graphql.side_effect = [
+            resolve_response,
+            mutation_response,
+            mutation_response,
+        ]
 
         # First call: should query then mutate
         res1 = self.client.add_labels(123, ["bug"])
@@ -290,18 +318,18 @@ class TestGitHubClientGraphQL(unittest.TestCase):
             "data": {
                 "repository": {
                     "issueOrPullRequest": {"id": "issue_node_123"},
-                    "labels": {"nodes": [
-                        {"id": "label_node_bug", "name": "bug"},
-                        {"id": "label_node_ui", "name": "ui"},
-                    ]},
+                    "labels": {
+                        "nodes": [
+                            {"id": "label_node_bug", "name": "bug"},
+                            {"id": "label_node_ui", "name": "ui"},
+                        ]
+                    },
                 }
             }
         }
-        issue_id, resolved = self.client._resolve_node_ids(
-            123, ["bug", "ui"])
+        issue_id, resolved = self.client._resolve_node_ids(123, ["bug", "ui"])
         self.assertEqual(issue_id, "issue_node_123")
-        self.assertEqual(resolved, {"bug": "label_node_bug",
-                                    "ui": "label_node_ui"})
+        self.assertEqual(resolved, {"bug": "label_node_bug", "ui": "label_node_ui"})
         query, variables = mock_graphql.call_args.args
         self.assertNotIn("names:", query)
         self.assertNotIn("labelNames", query)
@@ -330,7 +358,11 @@ class TestGitHubClientGraphQL(unittest.TestCase):
                 }
             }
         }
-        mock_graphql.side_effect = [resolve_response, mutation_response, mutation_response]
+        mock_graphql.side_effect = [
+            resolve_response,
+            mutation_response,
+            mutation_response,
+        ]
 
         # First call: should query then mutate
         res1 = self.client.remove_label(123, "bug")
@@ -380,7 +412,9 @@ class TestGitHubClientGraphQL(unittest.TestCase):
 
     @patch("dev_tools.services.github.GitHubClient.graphql")
     @patch("dev_tools.services.github.requests.Session.request")
-    def test_graphql_remove_label_fallback_to_rest(self, mock_rest_request, mock_graphql):
+    def test_graphql_remove_label_fallback_to_rest(
+        self, mock_rest_request, mock_graphql
+    ):
         mock_graphql.side_effect = Exception("GraphQL failure")
 
         mock_delete_response = MagicMock()
@@ -407,53 +441,71 @@ class TestGitHubClientGraphQL(unittest.TestCase):
 
 
 def test_fetch_reviews():
-    with patch("dev_tools.utils.get_github_token", return_value="dummy_token"), patch(
-        "dev_tools.services.github.DiskCache"
-    ) as mock_cache:
+    with (
+        patch("dev_tools.utils.get_github_token", return_value="dummy_token"),
+        patch("dev_tools.services.github.DiskCache") as mock_cache,
+    ):
         mock_cache.return_value.get.return_value = None
         client = GitHubClient(repo="owner/repo")
 
         mock_reviews = [{"id": 1, "state": "APPROVED", "body": "Looks good"}]
-        with patch.object(client, "_request", return_value=mock_reviews) as mock_request:
+        with patch.object(
+            client, "_request", return_value=mock_reviews
+        ) as mock_request:
             res = client.fetch_reviews(819, repo="arii/boomtick")
-            mock_request.assert_called_once_with("GET", "/repos/arii/boomtick/pulls/819/reviews")
+            mock_request.assert_called_once_with(
+                "GET", "/repos/arii/boomtick/pulls/819/reviews"
+            )
             assert res == mock_reviews
 
 
 def test_fetch_pr_commits():
-    with patch("dev_tools.utils.get_github_token", return_value="dummy_token"), patch(
-        "dev_tools.services.github.DiskCache"
-    ) as mock_cache:
+    with (
+        patch("dev_tools.utils.get_github_token", return_value="dummy_token"),
+        patch("dev_tools.services.github.DiskCache") as mock_cache,
+    ):
         mock_cache.return_value.get.return_value = None
         client = GitHubClient(repo="owner/repo")
 
         mock_commits = [{"sha": "abc1234", "commit": {"message": "feat: test"}}]
-        with patch.object(client, "_request", return_value=mock_commits) as mock_request:
+        with patch.object(
+            client, "_request", return_value=mock_commits
+        ) as mock_request:
             res = client.fetch_pr_commits(819, repo="arii/boomtick")
-            mock_request.assert_called_once_with("GET", "/repos/arii/boomtick/pulls/819/commits")
+            mock_request.assert_called_once_with(
+                "GET", "/repos/arii/boomtick/pulls/819/commits"
+            )
             assert res == mock_commits
 
 
 def test_fetch_workflow_runs():
-    with patch("dev_tools.utils.get_github_token", return_value="dummy_token"), patch(
-        "dev_tools.services.github.DiskCache"
-    ) as mock_cache:
+    with (
+        patch("dev_tools.utils.get_github_token", return_value="dummy_token"),
+        patch("dev_tools.services.github.DiskCache") as mock_cache,
+    ):
         mock_cache.return_value.get.return_value = None
         client = GitHubClient(repo="owner/repo")
 
         mock_runs_resp = {"workflow_runs": [{"id": 10, "name": "CI"}]}
-        with patch.object(client, "_request", return_value=mock_runs_resp) as mock_request:
-            res = client.fetch_workflow_runs(branch="main", event="push", repo="arii/boomtick")
+        with patch.object(
+            client, "_request", return_value=mock_runs_resp
+        ) as mock_request:
+            res = client.fetch_workflow_runs(
+                branch="main", event="push", repo="arii/boomtick"
+            )
             mock_request.assert_called_once_with(
-                "GET", "/repos/arii/boomtick/actions/runs", params={"branch": "main", "event": "push"}
+                "GET",
+                "/repos/arii/boomtick/actions/runs",
+                params={"branch": "main", "event": "push"},
             )
             assert res == [{"id": 10, "name": "CI"}]
 
 
 def test_fetch_workflow_run_jobs():
-    with patch("dev_tools.utils.get_github_token", return_value="dummy_token"), patch(
-        "dev_tools.services.github.DiskCache"
-    ) as mock_cache:
+    with (
+        patch("dev_tools.utils.get_github_token", return_value="dummy_token"),
+        patch("dev_tools.services.github.DiskCache") as mock_cache,
+    ):
         mock_cache.return_value.get.return_value = None
         client = GitHubClient(repo="owner/repo")
 
@@ -479,9 +531,13 @@ def test_fetch_workflow_run_jobs():
                 }
             ],
         }
-        with patch.object(client, "_request", return_value=mock_jobs_resp) as mock_request:
+        with patch.object(
+            client, "_request", return_value=mock_jobs_resp
+        ) as mock_request:
             res = client.fetch_workflow_run_jobs(123, repo="arii/boomtick")
-            mock_request.assert_called_once_with("GET", "/repos/arii/boomtick/actions/runs/123/jobs")
+            mock_request.assert_called_once_with(
+                "GET", "/repos/arii/boomtick/actions/runs/123/jobs"
+            )
             assert res == [
                 {
                     "id": 111,
@@ -489,21 +545,33 @@ def test_fetch_workflow_run_jobs():
                     "status": "completed",
                     "conclusion": "success",
                     "html_url": "http://example.com/job/111",
-                    "steps": [{"number": 1, "name": "checkout", "status": "completed", "conclusion": "success"}],
+                    "steps": [
+                        {
+                            "number": 1,
+                            "name": "checkout",
+                            "status": "completed",
+                            "conclusion": "success",
+                        }
+                    ],
                 }
             ]
 
 
 def test_fetch_workflow_run_jobs_empty():
-    with patch("dev_tools.utils.get_github_token", return_value="dummy_token"), patch(
-        "dev_tools.services.github.DiskCache"
-    ) as mock_cache:
+    with (
+        patch("dev_tools.utils.get_github_token", return_value="dummy_token"),
+        patch("dev_tools.services.github.DiskCache") as mock_cache,
+    ):
         mock_cache.return_value.get.return_value = None
         client = GitHubClient(repo="owner/repo")
 
-        with patch.object(client, "_request", return_value={"total_count": 0, "jobs": []}) as mock_request:
+        with patch.object(
+            client, "_request", return_value={"total_count": 0, "jobs": []}
+        ) as mock_request:
             res = client.fetch_workflow_run_jobs(999)
-            mock_request.assert_called_once_with("GET", "/repos/owner/repo/actions/runs/999/jobs")
+            mock_request.assert_called_once_with(
+                "GET", "/repos/owner/repo/actions/runs/999/jobs"
+            )
             assert res == []
 
 

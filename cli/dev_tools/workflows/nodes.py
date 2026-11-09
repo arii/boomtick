@@ -72,7 +72,9 @@ class IssueValidationNode(WorkflowNode):
 
         # Read from the shared single-agent scratchpad to adjust logic
         node_version = context.read_scratchpad("verified_node_version")
-        context.write_scratchpad("validation_focus", f"Validating under Node {node_version}")
+        context.write_scratchpad(
+            "validation_focus", f"Validating under Node {node_version}"
+        )
 
         orchestrator = Orchestrator()
         res = orchestrator.validate_issue(
@@ -83,6 +85,7 @@ class IssueValidationNode(WorkflowNode):
         )
         context.set("issue_validation_results", res)
         return res
+
 
 class DeploymentImpactCheckNode(WorkflowNode):
     """
@@ -109,6 +112,7 @@ class DeploymentImpactCheckNode(WorkflowNode):
         if context.builder.pr_diff:
             from dev_tools.services.dependency_graph import DependencyGraph
             from dev_tools.utils import log_warn
+
             try:
                 # Performance optimization: extract from cached diff rather than a new network call
                 ctx_data = context.builder.build_structured_context("generic")
@@ -117,12 +121,16 @@ class DeploymentImpactCheckNode(WorkflowNode):
                     graph = DependencyGraph()
                     affected = list(graph.find_affected_files(changed_files))
                     if affected:
-                        context.builder.add_extra_context("Affected Files (Impact Analysis)", sorted(affected))
+                        context.builder.add_extra_context(
+                            "Affected Files (Impact Analysis)", sorted(affected)
+                        )
             except Exception as e:
                 log_warn(f"Could not calculate affected files: {e}")
 
         # Write risk assessment to scratchpad
-        risk_level = "HIGH" if len(affected) > 5 else ("MEDIUM" if len(affected) > 0 else "LOW")
+        risk_level = (
+            "HIGH" if len(affected) > 5 else ("MEDIUM" if len(affected) > 0 else "LOW")
+        )
         note = f"Deployment risk assessment: {risk_level} risk. {len(affected)} files affected."
         context.write_scratchpad("deployment_risk", note, role=self.role)
 
@@ -151,6 +159,8 @@ class FinalSynthesisNode(WorkflowNode):
         response = f"Synthesis Complete:\n\n{markdown_context}"
 
         context.set("final_synthesis_report", response)
-        context.write_scratchpad("synthesis_complete", "Final report generated successfully.", role=self.role)
+        context.write_scratchpad(
+            "synthesis_complete", "Final report generated successfully.", role=self.role
+        )
 
         return response

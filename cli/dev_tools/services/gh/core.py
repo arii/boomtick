@@ -1,4 +1,5 @@
 """GitHub client core: auth, transport, and repo helpers."""
+
 import json
 import os
 import re
@@ -9,20 +10,23 @@ from dev_tools.utils import CLIError, log_warn
 import dev_tools.services.github
 
 
-
 class GitHubCoreMixin:
     """GitHub client core: auth, transport, and repo helpers."""
 
     # --- Constants ---
-    ERROR_AUTO_PUSH_FAILED = "PR creation for '{head}' will likely fail because auto-push was unsuccessful."
+    ERROR_AUTO_PUSH_FAILED = (
+        "PR creation for '{head}' will likely fail because auto-push was unsuccessful."
+    )
 
     BRANCH_NAME_PATTERN = re.compile(r"^[a-zA-Z0-9._/-]+$")
 
-    def __init__(self,
+    def __init__(
+        self,
         token: Optional[str] = None,
         repo: Optional[str] = None,
         no_cache: bool = False,
-        use_graphql: bool = True):
+        use_graphql: bool = True,
+    ):
         from dev_tools.config import get_config
         from dev_tools.utils import get_github_token
 
@@ -38,8 +42,11 @@ class GitHubCoreMixin:
             except Exception as e:
                 log_warn(f"github: config repo lookup failed: {e}")
             detected_repo = (
-                cfg_repo or self._detect_repo() or os.environ.get("GITHUB_REPOSITORY")
-                or os.environ.get("GH_REPO") or ""
+                cfg_repo
+                or self._detect_repo()
+                or os.environ.get("GITHUB_REPOSITORY")
+                or os.environ.get("GH_REPO")
+                or ""
             )
             self.repo = detected_repo
         self.base_url = "https://api.github.com"
@@ -50,9 +57,15 @@ class GitHubCoreMixin:
                 "Accept": "application/vnd.github.v3+json",
             }
         )
-        self._branch_cache : Dict[str, bool] = {}
-        self._cache = dev_tools.services.github.DiskCache(subdir="github", no_cache=no_cache)
-        disable_gql_env = os.environ.get("TD_DISABLE_GRAPHQL", "").lower() in ("true", "1", "yes")
+        self._branch_cache: Dict[str, bool] = {}
+        self._cache = dev_tools.services.github.DiskCache(
+            subdir="github", no_cache=no_cache
+        )
+        disable_gql_env = os.environ.get("TD_DISABLE_GRAPHQL", "").lower() in (
+            "true",
+            "1",
+            "yes",
+        )
         self.use_graphql = use_graphql and not disable_gql_env
         self._node_id_cache: Dict[str, str] = {}
 
@@ -78,7 +91,9 @@ class GitHubCoreMixin:
                 return False
             raise e
 
-    def invalidate_branch_cache(self, branch_name: str, repo: Optional[str] = None) -> None:
+    def invalidate_branch_cache(
+        self, branch_name: str, repo: Optional[str] = None
+    ) -> None:
         """Invalidates the branch existence cache for a specific branch."""
         target_repo = repo or self.repo
         cache_key = f"{target_repo}:{branch_name}"
@@ -87,11 +102,15 @@ class GitHubCoreMixin:
         if branch_name in self._branch_cache:
             del self._branch_cache[branch_name]
 
-    def graphql(self, query: str, variables: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    def graphql(
+        self, query: str, variables: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
         """Executes a GraphQL query/mutation against the GitHub API."""
         return self.graphql_query(query, variables)
 
-    def graphql_query(self, query: str, variables: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    def graphql_query(
+        self, query: str, variables: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
         """Executes a GraphQL query/mutation against the GitHub API."""
         url = f"{self.base_url}/graphql"
         payload: Dict[str, Any] = {"query": query}
@@ -110,22 +129,32 @@ class GitHubCoreMixin:
             res_json = response.json()
             if "errors" in res_json:
                 errors_msg = json.dumps(res_json["errors"])
-                raise CLIError(f"GitHub GraphQL Error: {errors_msg}", code=200, data=res_json)
+                raise CLIError(
+                    f"GitHub GraphQL Error: {errors_msg}", code=200, data=res_json
+                )
             return res_json
         except requests.exceptions.HTTPError as e:
             status_code = e.response.status_code if e.response is not None else 500
-            raise CLIError(f"GitHub GraphQL Request failed: {str(e)}", code=status_code) from e
+            raise CLIError(
+                f"GitHub GraphQL Request failed: {str(e)}", code=status_code
+            ) from e
         except Exception as e:
             if isinstance(e, CLIError):
                 raise
             raise CLIError(f"GitHub GraphQL Request failed: {str(e)}", code=500) from e
 
-    def _resolve_node_ids(self, number: int, label_names: List[str]) -> Tuple[Optional[str], Dict[str, str]]:
+    def _resolve_node_ids(
+        self, number: int, label_names: List[str]
+    ) -> Tuple[Optional[str], Dict[str, str]]:
         """Resolves the GraphQL node ID of the issue/PR and the given labels with caching."""
         issue_cache_key = f"{self.repo}:issue:{number}"
         issue_node_id = self._node_id_cache.get(issue_cache_key)
 
-        missing_labels = [l for l in label_names if f"{self.repo}:label:{l}" not in self._node_id_cache]
+        missing_labels = [
+            l
+            for l in label_names
+            if f"{self.repo}:label:{l}" not in self._node_id_cache
+        ]
         resolved_labels = {
             l: self._node_id_cache[f"{self.repo}:label:{l}"]
             for l in label_names
@@ -192,10 +221,12 @@ class GitHubCoreMixin:
 
     def _detect_repo(self) -> str:
         try:
-            proc = subprocess.run(["git", "config", "--get", "remote.origin.url"],
+            proc = subprocess.run(
+                ["git", "config", "--get", "remote.origin.url"],
                 capture_output=True,
                 text=True,
-                check=False)
+                check=False,
+            )
             url = proc.stdout.strip()
 
             match = re.search(r"[:/]([^/]+/[^/.]+)(\.git)?$", url)
@@ -261,7 +292,7 @@ class GitHubCoreMixin:
             raise CLIError(
                 f"GitHub Request failed: {method} {path} - {str(e)}",
                 code=status_code,
-                data={"method": method, "path": path}
+                data={"method": method, "path": path},
             ) from e
 
     def _parse_github_error(self, e: requests.exceptions.HTTPError) -> None:

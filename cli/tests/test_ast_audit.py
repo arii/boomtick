@@ -1,4 +1,5 @@
 """Unit tests for ASTAuditor (Tree-sitter semantic AST linting & anti-slop audits)."""
+
 import importlib.util
 
 import pytest
@@ -11,7 +12,9 @@ HAS_TREE_SITTER = (
 )
 
 
-@pytest.mark.skipif(not HAS_TREE_SITTER, reason="tree-sitter or tree-sitter-typescript not installed")
+@pytest.mark.skipif(
+    not HAS_TREE_SITTER, reason="tree-sitter or tree-sitter-typescript not installed"
+)
 def test_typography_token_bypasses(tmp_path):
     """Test detection of raw HTML typography elements bypassing design typography tokens."""
     auditor = ASTAuditor(baseline_file=str(tmp_path / "baseline.json"))
@@ -32,7 +35,9 @@ export function BadTypography() {
     assert len(findings) >= 2
 
 
-@pytest.mark.skipif(not HAS_TREE_SITTER, reason="tree-sitter or tree-sitter-typescript not installed")
+@pytest.mark.skipif(
+    not HAS_TREE_SITTER, reason="tree-sitter or tree-sitter-typescript not installed"
+)
 def test_design_system_and_token_bypasses(tmp_path):
     """Test detection of raw JSX tags with inline style or className bypassing layout primitives."""
     auditor = ASTAuditor(baseline_file=str(tmp_path / "baseline.json"))
@@ -53,7 +58,9 @@ export function BadLayout() {
     assert len(findings) >= 2
 
 
-@pytest.mark.skipif(not HAS_TREE_SITTER, reason="tree-sitter or tree-sitter-typescript not installed")
+@pytest.mark.skipif(
+    not HAS_TREE_SITTER, reason="tree-sitter or tree-sitter-typescript not installed"
+)
 def test_type_bypasses_and_baseline_inventory(tmp_path):
     """Test detection of @ts-ignore, @ts-expect-error, and explicit any casts against baseline."""
     auditor = ASTAuditor(baseline_file=str(tmp_path / "baseline.json"))
@@ -76,7 +83,9 @@ const y = x as any;
     assert res["total_violations"] > 0
 
 
-@pytest.mark.skipif(not HAS_TREE_SITTER, reason="tree-sitter or tree-sitter-typescript not installed")
+@pytest.mark.skipif(
+    not HAS_TREE_SITTER, reason="tree-sitter or tree-sitter-typescript not installed"
+)
 def test_dead_code_and_ai_scaffolding(tmp_path):
     """Test detection of placeholder comments and AI scaffolding mock stubs."""
     auditor = ASTAuditor(baseline_file=str(tmp_path / "baseline.json"))
@@ -96,7 +105,9 @@ function getStubResponse() {
     assert "no-ai-scaffolding" in rules
 
 
-@pytest.mark.skipif(not HAS_TREE_SITTER, reason="tree-sitter or tree-sitter-typescript not installed")
+@pytest.mark.skipif(
+    not HAS_TREE_SITTER, reason="tree-sitter or tree-sitter-typescript not installed"
+)
 def test_audit_directory(tmp_path):
     """Test recursive directory auditing with ASTAuditor."""
     auditor = ASTAuditor(baseline_file=str(tmp_path / "baseline.json"))
@@ -105,10 +116,14 @@ def test_audit_directory(tmp_path):
     subdir.mkdir()
 
     file_a = subdir / "ComponentA.tsx"
-    file_a.write_text("// TODO: implement later\nexport const mockData = {};\n", encoding="utf-8")
+    file_a.write_text(
+        "// TODO: implement later\nexport const mockData = {};\n", encoding="utf-8"
+    )
 
     file_b = subdir / "ComponentB.tsx"
-    file_b.write_text("export function Clean() { return <button>Click</button>; }\n", encoding="utf-8")
+    file_b.write_text(
+        "export function Clean() { return <button>Click</button>; }\n", encoding="utf-8"
+    )
 
     results = auditor.audit_directory(str(subdir))
     assert str(file_a) in results
@@ -123,21 +138,32 @@ def test_orchestrator_get_audit_results_directory_integration(tmp_path, mocker):
     subdir.mkdir()
 
     feature_file = subdir / "Feature.tsx"
-    feature_file.write_text("""
+    feature_file.write_text(
+        """
 // @ts-ignore
 const mockData = [];
 export function Feature() {
     return <div style={{ margin: 0 }}>Feature</div>;
 }
-""", encoding="utf-8")
+""",
+        encoding="utf-8",
+    )
 
-    mocker.patch.object(orch, "_resolve_antipatterns_script", return_value="scripts/detect-antipatterns.mjs")
-    mocker.patch("dev_tools.orchestrator.run_command", return_value=mocker.MagicMock(
-        returncode=0,
-        stdout='{"violations": {}, "config": {}}'
-    ))
+    mocker.patch.object(
+        orch,
+        "_resolve_antipatterns_script",
+        return_value="scripts/detect-antipatterns.mjs",
+    )
+    mocker.patch(
+        "dev_tools.orchestrator.run_command",
+        return_value=mocker.MagicMock(
+            returncode=0, stdout='{"violations": {}, "config": {}}'
+        ),
+    )
 
     res = orch.get_audit_results(targets=[str(subdir)])
     assert "violations" in res
     rel_path = str(feature_file)
-    assert any(rel_path in key or "Feature.tsx" in key for key in res["violations"].keys())
+    assert any(
+        rel_path in key or "Feature.tsx" in key for key in res["violations"].keys()
+    )

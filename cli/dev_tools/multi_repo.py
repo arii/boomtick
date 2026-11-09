@@ -67,15 +67,22 @@ def discover_ecosystem_repos(
             for sibling in sorted(parent.iterdir()):
                 if not sibling.is_dir():
                     continue
-                if sibling.name.startswith(".") or sibling.name in ("node_modules", ".venv", "dist"):
+                if sibling.name.startswith(".") or sibling.name in (
+                    "node_modules",
+                    ".venv",
+                    "dist",
+                ):
                     continue
                 # Skip transient worktree / baseline directories
-                if sibling.name.endswith("-baseline") or sibling.name.endswith("-worktree"):
+                if sibling.name.endswith("-baseline") or sibling.name.endswith(
+                    "-worktree"
+                ):
                     continue
 
                 # A valid repository candidate has a .git directory and project_config.json or package.json
                 if (sibling / ".git").exists() and (
-                    (sibling / "project_config.json").exists() or (sibling / "package.json").exists()
+                    (sibling / "project_config.json").exists()
+                    or (sibling / "package.json").exists()
                 ):
                     sibling_name = _get_repo_name_from_dir(sibling)
                     if sibling_name not in discovered:
@@ -263,7 +270,9 @@ def exec_in_repos(
                 break
 
     return {
-        "status": "success" if total_failed == 0 else ("partial_success" if total_passed > 0 else "error"),
+        "status": "success"
+        if total_failed == 0
+        else ("partial_success" if total_passed > 0 else "error"),
         "total_repos": len(repos),
         "total_passed": total_passed,
         "total_failed": total_failed,
@@ -319,7 +328,9 @@ def warm_ecosystem_context(
             {
                 "repo": name,
                 "path": str(path),
-                "strategy": "pnpm run agent:prime" if has_agent_prime else "td context-warm",
+                "strategy": "pnpm run agent:prime"
+                if has_agent_prime
+                else "td context-warm",
                 "exit_code": proc.returncode,
                 "passed": passed,
                 "duration_seconds": duration,
@@ -342,12 +353,14 @@ PARTNER_REPOS = [
     "arii/glossy",
 ]
 
-AGENT_LABELS = frozenset({
-    "agent:in-progress",
-    "deep-agent",
-    "lane:coder",
-    "lane:auditor",
-})
+AGENT_LABELS = frozenset(
+    {
+        "agent:in-progress",
+        "deep-agent",
+        "lane:coder",
+        "lane:auditor",
+    }
+)
 
 
 def _label_names(issue: Any) -> List[str]:
@@ -394,15 +407,19 @@ def verify_partner_deep_agents(
         root = pathlib.Path.cwd()
     if github_client is None:
         from dev_tools.utils import get_github_client
+
         github_client = get_github_client()
     if worktree_lister is None:
         from dev_tools.services import worktrees as worktree_service
+
         worktree_lister = worktree_service.list_worktrees
     try:
         managed = worktree_lister(root)
     except Exception:
         managed = []
-    registered = _registered_repos(pathlib.Path(root) if not isinstance(root, pathlib.Path) else root)
+    registered = _registered_repos(
+        pathlib.Path(root) if not isinstance(root, pathlib.Path) else root
+    )
     report: Dict[str, Dict[str, Any]] = {}
     for name in repos:
         short = name.split("/")[-1]
@@ -430,17 +447,23 @@ def verify_partner_deep_agents(
                 continue
             if AGENT_LABELS.intersection(_label_names(issue)):
                 assigned.append(number)
-        entry.update({
-            "reachable": True,
-            "open_issues_count": len(issues),
-            "agent_assigned_issues": sorted(assigned),
-            "open_agent_prs": sorted(getattr(pr, "number", -1) for pr in pulls),
-        })
-        entry["active_worktrees"] = sorted({
-            wt.get("branch", "") for wt in (managed or [])
-            if isinstance(wt, dict) and short in str(wt.get("path", ""))
-            and wt.get("branch")
-        })
+        entry.update(
+            {
+                "reachable": True,
+                "open_issues_count": len(issues),
+                "agent_assigned_issues": sorted(assigned),
+                "open_agent_prs": sorted(getattr(pr, "number", -1) for pr in pulls),
+            }
+        )
+        entry["active_worktrees"] = sorted(
+            {
+                wt.get("branch", "")
+                for wt in (managed or [])
+                if isinstance(wt, dict)
+                and short in str(wt.get("path", ""))
+                and wt.get("branch")
+            }
+        )
         entry["healthy"] = bool(issues or pulls or entry["active_worktrees"])
         report[name] = entry
     return report

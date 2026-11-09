@@ -4,6 +4,7 @@ A failed local-session scan must surface as UNKNOWN (active_sessions None)
 instead of defaulting to 0, and the all-clear fast path requires a
 known-zero session count — never an unknown one.
 """
+
 from unittest.mock import MagicMock, patch
 
 from dev_tools.orchestrator import Orchestrator
@@ -33,8 +34,9 @@ def _patch_scan(monkeypatch_side_effect=None, return_value=None):
 def test_scan_failure_yields_unknown_not_zero():
     """Scan failure reports sessions_unknown True with active_sessions None."""
     orch = _make_orch()
-    with _patch_scan(monkeypatch_side_effect=RuntimeError("scan blew up")), patch(
-        "dev_tools.services.local_sessions.repo_root_for", return_value="/tmp/x"
+    with (
+        _patch_scan(monkeypatch_side_effect=RuntimeError("scan blew up")),
+        patch("dev_tools.services.local_sessions.repo_root_for", return_value="/tmp/x"),
     ):
         res = orch.suggest_next_action()
     assert res["sessions_unknown"] is True
@@ -45,8 +47,9 @@ def test_scan_failure_yields_unknown_not_zero():
 def test_scan_failure_blocks_all_clear_fast_path():
     """Zero PRs + zero failing runs + unknown sessions must NOT fast-path."""
     orch = _make_orch(open_prs=[], failing_runs=[])
-    with _patch_scan(monkeypatch_side_effect=OSError("no worktrees")), patch(
-        "dev_tools.services.local_sessions.repo_root_for", return_value="/tmp/x"
+    with (
+        _patch_scan(monkeypatch_side_effect=OSError("no worktrees")),
+        patch("dev_tools.services.local_sessions.repo_root_for", return_value="/tmp/x"),
     ):
         res = orch.suggest_next_action()
     assert res["fast_path"] is False
@@ -57,8 +60,9 @@ def test_scan_failure_blocks_all_clear_fast_path():
 def test_known_zero_sessions_still_takes_fast_path():
     """Control: a successful scan with zero sessions keeps the all-clear."""
     orch = _make_orch(open_prs=[], failing_runs=[])
-    with _patch_scan(return_value=[]), patch(
-        "dev_tools.services.local_sessions.repo_root_for", return_value="/tmp/x"
+    with (
+        _patch_scan(return_value=[]),
+        patch("dev_tools.services.local_sessions.repo_root_for", return_value="/tmp/x"),
     ):
         res = orch.suggest_next_action()
     assert res["fast_path"] is True
@@ -70,8 +74,9 @@ def test_known_zero_sessions_still_takes_fast_path():
 def test_triage_suggestion_flags_unknown_sessions():
     """Triage suggestion labels the session count UNKNOWN and says why."""
     orch = _make_orch(open_prs=[], failing_runs=[])
-    with _patch_scan(monkeypatch_side_effect=RuntimeError("scan blew up")), patch(
-        "dev_tools.services.local_sessions.repo_root_for", return_value="/tmp/x"
+    with (
+        _patch_scan(monkeypatch_side_effect=RuntimeError("scan blew up")),
+        patch("dev_tools.services.local_sessions.repo_root_for", return_value="/tmp/x"),
     ):
         res = orch.suggest_next_action()
     assert "UNKNOWN" in res["suggestion"]
@@ -82,8 +87,9 @@ def test_known_sessions_reported_numerically_without_unknown_flag():
     """Control: a healthy scan reports a real count and no unknown warning."""
     orch = _make_orch(open_prs=[], failing_runs=[])
     sessions = [{"sessionId": "sess_a"}, {"sessionId": "sess_b"}]
-    with _patch_scan(return_value=sessions), patch(
-        "dev_tools.services.local_sessions.repo_root_for", return_value="/tmp/x"
+    with (
+        _patch_scan(return_value=sessions),
+        patch("dev_tools.services.local_sessions.repo_root_for", return_value="/tmp/x"),
     ):
         res = orch.suggest_next_action()
     assert res["sessions_unknown"] is False

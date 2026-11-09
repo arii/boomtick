@@ -1,9 +1,11 @@
 """Test install workflows."""
+
 import os
 import tempfile
 from unittest.mock import MagicMock, patch
 
 from dev_tools.orchestrator import Orchestrator
+
 
 def test_install_workflows_standalone():
     """Test workflow installation in standalone mode."""
@@ -13,13 +15,20 @@ def test_install_workflows_standalone():
         os.makedirs(source_dir, exist_ok=True)
 
         # Write dummy workflow files
-        for name in ["chatops-trigger.yml", "issue-operations.yml", "agent-orchestrator.yml"]:
+        for name in [
+            "chatops-trigger.yml",
+            "issue-operations.yml",
+            "agent-orchestrator.yml",
+        ]:
             with open(os.path.join(source_dir, name), "w", encoding="utf-8") as f:
-                f.write("uses: ./mcp/actions/setup\nuses: ./.github/actions/setup-all\n$GITHUB_WORKSPACE/cli\n")
+                f.write(
+                    "uses: ./mcp/actions/setup\nuses: ./.github/actions/setup-all\n$GITHUB_WORKSPACE/cli\n"
+                )
 
-        with patch("os.getcwd", return_value=temp_dir), \
-             patch("subprocess.run") as mock_run:
-
+        with (
+            patch("os.getcwd", return_value=temp_dir),
+            patch("subprocess.run") as mock_run,
+        ):
             # Mock subprocess run to simulate non-submodule (empty result)
             mock_res = MagicMock()
             mock_res.returncode = 0
@@ -41,6 +50,7 @@ def test_install_workflows_standalone():
                     assert "uses: ./.github/actions/setup-all" in content
                     assert "$GITHUB_WORKSPACE/cli" in content
 
+
 def test_install_workflows_submodule():
     """Test workflow installation in submodule layout."""
     with tempfile.TemporaryDirectory() as temp_dir:
@@ -52,13 +62,20 @@ def test_install_workflows_submodule():
         os.makedirs(source_dir, exist_ok=True)
 
         # Write dummy workflow files
-        for name in ["chatops-trigger.yml", "issue-operations.yml", "agent-orchestrator.yml"]:
+        for name in [
+            "chatops-trigger.yml",
+            "issue-operations.yml",
+            "agent-orchestrator.yml",
+        ]:
             with open(os.path.join(source_dir, name), "w", encoding="utf-8") as f:
-                f.write("uses: ./mcp/actions/setup\nuses: ./.github/actions/setup-all\n$GITHUB_WORKSPACE/cli\n")
+                f.write(
+                    "uses: ./mcp/actions/setup\nuses: ./.github/actions/setup-all\n$GITHUB_WORKSPACE/cli\n"
+                )
 
-        with patch("os.getcwd", return_value=sub_dir), \
-             patch("subprocess.run") as mock_run:
-
+        with (
+            patch("os.getcwd", return_value=sub_dir),
+            patch("subprocess.run") as mock_run,
+        ):
             # Mock subprocess run to simulate submodule (returns parent root temp_dir)
             mock_res = MagicMock()
             mock_res.returncode = 0
@@ -74,7 +91,9 @@ def test_install_workflows_submodule():
 
             # Verify paths were correctly rewritten
             for dest_file in res["copied_files"]:
-                assert os.path.dirname(dest_file) == os.path.join(temp_dir, ".github", "workflows")
+                assert os.path.dirname(dest_file) == os.path.join(
+                    temp_dir, ".github", "workflows"
+                )
                 with open(dest_file, "r", encoding="utf-8") as f:
                     content = f.read()
                     assert "uses: ./boomtick-pkg/mcp/actions/setup" in content

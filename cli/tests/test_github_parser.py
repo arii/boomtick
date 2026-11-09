@@ -10,7 +10,9 @@ class TestGitHubParser(unittest.TestCase):
     @patch("dev_tools.services.github.GitHubClient.fetch_check_runs")
     @patch("dev_tools.services.github.GitHubClient.create_review")
     @patch("os.path.exists", return_value=True)
-    def test_submit_pr_review_multiple_json_blocks(self, mock_exists, mock_create, mock_checks, mock_details):
+    def test_submit_pr_review_multiple_json_blocks(
+        self, mock_exists, mock_create, mock_checks, mock_details
+    ):
         mock_details.return_value = {"head": {"sha": "dummy"}, "labels": []}
         mock_checks.return_value = []
 
@@ -51,7 +53,9 @@ Some more text.
     @patch("dev_tools.services.github.GitHubClient.fetch_check_runs")
     @patch("dev_tools.services.github.GitHubClient.create_review")
     @patch("os.path.exists", return_value=True)
-    def test_submit_pr_review_missing_keys(self, mock_exists, mock_create, mock_checks, mock_details):
+    def test_submit_pr_review_missing_keys(
+        self, mock_exists, mock_create, mock_checks, mock_details
+    ):
         mock_details.return_value = {"head": {"sha": "dummy"}, "labels": []}
         mock_checks.return_value = []
 
@@ -71,13 +75,17 @@ Some more text.
             with self.assertRaises(CLIError) as context:
                 client.submit_pr_review(1, "fake_path")
 
-            self.assertIn("Could not find a valid JSON metadata block", str(context.exception))
+            self.assertIn(
+                "Could not find a valid JSON metadata block", str(context.exception)
+            )
 
     @patch("dev_tools.services.github.GitHubClient.fetch_pr_details")
     @patch("dev_tools.services.github.GitHubClient.fetch_check_runs")
     @patch("dev_tools.services.github.GitHubClient.create_review")
     @patch("os.path.exists", return_value=True)
-    def test_submit_pr_review_missing_keys_but_valid(self, mock_exists, mock_create, mock_checks, mock_details):
+    def test_submit_pr_review_missing_keys_but_valid(
+        self, mock_exists, mock_create, mock_checks, mock_details
+    ):
         mock_details.return_value = {"head": {"sha": "dummy"}, "labels": []}
         mock_checks.return_value = []
 

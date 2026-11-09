@@ -1,4 +1,5 @@
 """GitHub reviews, comments, and labels."""
+
 import json
 import os
 import re
@@ -10,21 +11,26 @@ from dev_tools.utils import CLIError, log_info, log_warn
 from dev_tools.services.gh.issues import IssuesMixin
 
 
-
 class ReviewsMixin(IssuesMixin):
     """GitHub reviews, comments, and labels."""
 
-    def fetch_reviews(self, number: int, repo: Optional[str] = None) -> List[Dict[str, Any]]:
+    def fetch_reviews(
+        self, number: int, repo: Optional[str] = None
+    ) -> List[Dict[str, Any]]:
         """Fetches top-level PR reviews for a pull request."""
         target_repo = repo or self.repo
         return self._request("GET", f"/repos/{target_repo}/pulls/{number}/reviews")
 
-    def fetch_pr_commits(self, number: int, repo: Optional[str] = None) -> List[Dict[str, Any]]:
+    def fetch_pr_commits(
+        self, number: int, repo: Optional[str] = None
+    ) -> List[Dict[str, Any]]:
         """Fetches commits for a pull request."""
         target_repo = repo or self.repo
         return self._request("GET", f"/repos/{target_repo}/pulls/{number}/commits")
 
-    def fetch_review_comments(self, number: int, repo: Optional[str] = None) -> List[Dict[str, Any]]:
+    def fetch_review_comments(
+        self, number: int, repo: Optional[str] = None
+    ) -> List[Dict[str, Any]]:
         """Fetches the review comments on a pull request."""
         target_repo = repo or self.repo
         return self._request("GET", f"/repos/{target_repo}/pulls/{number}/comments")
@@ -85,12 +91,18 @@ class ReviewsMixin(IssuesMixin):
                     new_line_num += 1
         return mapping
 
-    def create_review(self, number: int, body: str, comments: List[Dict[str, Any]], event: str) -> Dict[str, Any]:
+    def create_review(
+        self, number: int, body: str, comments: List[Dict[str, Any]], event: str
+    ) -> Dict[str, Any]:
         """Create a pull request review."""
         data = {"body": body, "event": event, "comments": comments}
-        return self._request("POST", f"/repos/{self.repo}/pulls/{number}/reviews", json_data=data)
+        return self._request(
+            "POST", f"/repos/{self.repo}/pulls/{number}/reviews", json_data=data
+        )
 
-    def add_labels(self, number: int, labels: List[str], repo: Optional[str] = None) -> Dict[str, Any]:
+    def add_labels(
+        self, number: int, labels: List[str], repo: Optional[str] = None
+    ) -> Dict[str, Any]:
         """Adds labels to an issue or pull request and returns the normalized issue dictionary."""
         target_repo = repo or self.repo
         if self.use_graphql:
@@ -124,7 +136,12 @@ class ReviewsMixin(IssuesMixin):
                         "labelIds": label_ids,
                     }
                     res = self.graphql(query, variables)
-                    labelable = res.get("data", {}).get("addLabelsToLabelable", {}).get("labelable") or {}
+                    labelable = (
+                        res.get("data", {})
+                        .get("addLabelsToLabelable", {})
+                        .get("labelable")
+                        or {}
+                    )
                     state = labelable.get("state")
                     if isinstance(state, str):
                         state = state.lower()
@@ -134,21 +151,31 @@ class ReviewsMixin(IssuesMixin):
                         "html_url": labelable.get("url"),
                         "state": state,
                     }
-                log_warn("Could not resolve all node IDs for GraphQL add_labels. Falling back to REST.")
+                log_warn(
+                    "Could not resolve all node IDs for GraphQL add_labels. Falling back to REST."
+                )
             except Exception as e:
                 log_warn(f"GraphQL add_labels failed: {e}. Falling back to REST.")
 
         # Fallback to REST
-        self._request("POST", f"/repos/{target_repo}/issues/{number}/labels", json_data={"labels": labels})
+        self._request(
+            "POST",
+            f"/repos/{target_repo}/issues/{number}/labels",
+            json_data={"labels": labels},
+        )
         issue_data = self.fetch_issue_details(number, repo=target_repo)
         return self._normalize_issue_response(issue_data)
 
-    def remove_label(self, number: int, label_name: str, repo: Optional[str] = None) -> Dict[str, Any]:
+    def remove_label(
+        self, number: int, label_name: str, repo: Optional[str] = None
+    ) -> Dict[str, Any]:
         """Removes a label from an issue or pull request and returns the normalized issue dictionary."""
         target_repo = repo or self.repo
         if self.use_graphql:
             try:
-                issue_node_id, resolved_labels = self._resolve_node_ids(number, [label_name])
+                issue_node_id, resolved_labels = self._resolve_node_ids(
+                    number, [label_name]
+                )
                 if issue_node_id and label_name in resolved_labels:
                     label_id = resolved_labels[label_name]
                     query = """
@@ -177,7 +204,12 @@ class ReviewsMixin(IssuesMixin):
                         "labelIds": [label_id],
                     }
                     res = self.graphql(query, variables)
-                    labelable = res.get("data", {}).get("removeLabelsFromLabelable", {}).get("labelable") or {}
+                    labelable = (
+                        res.get("data", {})
+                        .get("removeLabelsFromLabelable", {})
+                        .get("labelable")
+                        or {}
+                    )
                     state = labelable.get("state")
                     if isinstance(state, str):
                         state = state.lower()
@@ -187,13 +219,17 @@ class ReviewsMixin(IssuesMixin):
                         "html_url": labelable.get("url"),
                         "state": state,
                     }
-                log_warn(f"Could not resolve label node ID for '{label_name}' under GraphQL. Falling back to REST.")
+                log_warn(
+                    f"Could not resolve label node ID for '{label_name}' under GraphQL. Falling back to REST."
+                )
             except Exception as e:
                 log_warn(f"GraphQL remove_label failed: {e}. Falling back to REST.")
 
         # Fallback to REST
         encoded_label = quote(label_name)
-        self._request("DELETE", f"/repos/{target_repo}/issues/{number}/labels/{encoded_label}")
+        self._request(
+            "DELETE", f"/repos/{target_repo}/issues/{number}/labels/{encoded_label}"
+        )
         issue_data = self.fetch_issue_details(number, repo=target_repo)
         return self._normalize_issue_response(issue_data)
 
@@ -202,7 +238,6 @@ class ReviewsMixin(IssuesMixin):
         """
         Validates that the review payload is not just boilerplate or empty.
         """
-
 
         if not isinstance(payload, dict):
             raise CLIError("Review rejected: Invalid payload format (expected dict).")
@@ -222,7 +257,9 @@ class ReviewsMixin(IssuesMixin):
         # Check recommendation for placeholders (should be explicit)
         for p in REVIEW_PLACEHOLDERS:
             if re.search(p, recommendation, re.IGNORECASE):
-                raise CLIError(f"Review rejected: Recommendation contains boilerplate placeholder matching '{p}'")
+                raise CLIError(
+                    f"Review rejected: Recommendation contains boilerplate placeholder matching '{p}'"
+                )
 
         # Check for real comments (not placeholders)
         real_comments = []
@@ -236,14 +273,20 @@ class ReviewsMixin(IssuesMixin):
             # Check if comment fields contain placeholders
             is_placeholder = False
             for p in REVIEW_PLACEHOLDERS:
-                if re.search(p, c_body, re.IGNORECASE) or re.search(p, c_path, re.IGNORECASE):
+                if re.search(p, c_body, re.IGNORECASE) or re.search(
+                    p, c_path, re.IGNORECASE
+                ):
                     is_placeholder = True
                     break
 
             if is_placeholder:
-                raise CLIError("Review rejected: Comment contains boilerplate placeholder.")
+                raise CLIError(
+                    "Review rejected: Comment contains boilerplate placeholder."
+                )
 
-            if c_body.strip() and not re.search(r"<filename\s*/?>", c_path, re.IGNORECASE):
+            if c_body.strip() and not re.search(
+                r"<filename\s*/?>", c_path, re.IGNORECASE
+            ):
                 real_comments.append(c)
 
         # Check for empty/meaningless body
@@ -256,7 +299,9 @@ class ReviewsMixin(IssuesMixin):
         clean_body = clean_body.strip()
 
         if not clean_body and not real_comments:
-            raise CLIError("Review rejected: No meaningful content found in body or comments.")
+            raise CLIError(
+                "Review rejected: No meaningful content found in body or comments."
+            )
 
     def submit_pr_review(
         self,
@@ -285,7 +330,11 @@ class ReviewsMixin(IssuesMixin):
 
         pr_details = self.fetch_pr_details(pr_number)
         check_runs = self.fetch_check_runs(pr_details.get("head", {}).get("sha"))
-        failing_checks = [str(run.get("name")) for run in check_runs if run.get("conclusion") == "failure"]
+        failing_checks = [
+            str(run.get("name"))
+            for run in check_runs
+            if run.get("conclusion") == "failure"
+        ]
 
         event = self._determine_review_event(payload, failing_checks, event_override)
 
@@ -293,27 +342,50 @@ class ReviewsMixin(IssuesMixin):
 
             def try_create_review(review_body, review_comments, review_event):
                 try:
-                    return self.create_review(pr_number, review_body, review_comments, review_event)
+                    return self.create_review(
+                        pr_number, review_body, review_comments, review_event
+                    )
                 except (requests.exceptions.HTTPError, CLIError) as e:
                     code = getattr(e, "code", None)
-                    if code is None and isinstance(e, requests.exceptions.HTTPError) and e.response is not None:
+                    if (
+                        code is None
+                        and isinstance(e, requests.exceptions.HTTPError)
+                        and e.response is not None
+                    ):
                         code = e.response.status_code
 
                     if code == 422:
                         error_data = getattr(e, "data", None)
-                        if error_data is None and isinstance(e,
-                            requests.exceptions.HTTPError) and e.response is not None:
+                        if (
+                            error_data is None
+                            and isinstance(e, requests.exceptions.HTTPError)
+                            and e.response is not None
+                        ):
                             try:
                                 error_data = e.response.json()
                             except Exception as inner_e:
-                                log_warn(f"Failed to parse error response JSON: {inner_e}")
+                                log_warn(
+                                    f"Failed to parse error response JSON: {inner_e}"
+                                )
 
-                        error_msg = json.dumps(error_data) if error_data else (e.response.text if hasattr(e,
-                            "response") and e.response else str(e))
+                        error_msg = (
+                            json.dumps(error_data)
+                            if error_data
+                            else (
+                                e.response.text
+                                if hasattr(e, "response") and e.response
+                                else str(e)
+                            )
+                        )
 
-                        if "Can not approve your own pull request" in error_msg and review_event != "COMMENT":
+                        if (
+                            "Can not approve your own pull request" in error_msg
+                            and review_event != "COMMENT"
+                        ):
                             log_warn("Cannot approve own PR. Retrying as COMMENT...")
-                            return try_create_review(review_body, review_comments, "COMMENT")
+                            return try_create_review(
+                                review_body, review_comments, "COMMENT"
+                            )
 
                         # Handle individual comment failures if possible, or fallback to body
                         if review_comments:
@@ -331,15 +403,24 @@ class ReviewsMixin(IssuesMixin):
                             fallback_body = review_body
                             fallback_body += "\n\n### Inline Comments (Fallback due to line resolution errors)\n"
                             for comment in review_comments:
-                                line_info = f":{comment.get('line')}" if comment.get("line") else ""
+                                line_info = (
+                                    f":{comment.get('line')}"
+                                    if comment.get("line")
+                                    else ""
+                                )
                                 fallback_body += f"- **{comment.get('path')}{line_info}**: {comment.get('body')}\n"
                             return try_create_review(fallback_body, [], review_event)
                     raise e
 
-            try_create_review(payload.get("body", ""), payload.get("comments", []), event)
+            try_create_review(
+                payload.get("body", ""), payload.get("comments", []), event
+            )
 
             if event == "REQUEST_CHANGES":
-                labels = [l.get("name") if isinstance(l, dict) else l for l in pr_details.get("labels", [])]
+                labels = [
+                    l.get("name") if isinstance(l, dict) else l
+                    for l in pr_details.get("labels", [])
+                ]
                 if "needs-design-system-fix" not in labels and any(
                     k in payload.get("body", "").lower() for k in ["tailwind", "token"]
                 ):
@@ -362,7 +443,6 @@ class ReviewsMixin(IssuesMixin):
 
     def _extract_review_payload(self, content: str) -> Dict[str, Any]:
 
-
         json_blocks = list(re.finditer(r"```json\n(.*?)\n```", content, re.DOTALL))
         if not json_blocks:
             raise CLIError("Could not find any JSON block in review document")
@@ -374,7 +454,9 @@ class ReviewsMixin(IssuesMixin):
         for match in reversed(json_blocks):
             try:
                 candidate = json.loads(match.group(1))
-                if isinstance(candidate, dict) and any(k in candidate for k in METADATA_IDENTIFIER_KEYS):
+                if isinstance(candidate, dict) and any(
+                    k in candidate for k in METADATA_IDENTIFIER_KEYS
+                ):
                     payload = candidate
                     metadata_match = match
                     break
@@ -393,14 +475,18 @@ class ReviewsMixin(IssuesMixin):
             body = re.sub(p, "", body, flags=re.IGNORECASE | re.DOTALL).strip()
 
         if not body:
-            raise CLIError("Review body (Markdown section) is empty. Provide findings before the JSON block.")
+            raise CLIError(
+                "Review body (Markdown section) is empty. Provide findings before the JSON block."
+            )
 
         json_body = payload.get("body", "").strip()
 
         if json_body:
             stripped_body = json_body
             for p in REVIEW_PLACEHOLDERS:
-                stripped_body = re.sub(p, "", stripped_body, flags=re.IGNORECASE | re.DOTALL).strip()
+                stripped_body = re.sub(
+                    p, "", stripped_body, flags=re.IGNORECASE | re.DOTALL
+                ).strip()
 
             if not stripped_body:
                 raise CLIError(
@@ -436,16 +522,20 @@ class ReviewsMixin(IssuesMixin):
             if unmapped_comments:
                 extra_body = "\n\n### Additional Feedback (Lines not found in diff)\n"
                 for c in unmapped_comments:
-                    extra_body += f"- **{c.get('path')}:{c.get('line')}**: {c.get('body')}\n"
+                    extra_body += (
+                        f"- **{c.get('path')}:{c.get('line')}**: {c.get('body')}\n"
+                    )
                 payload["body"] = payload.get("body", "") + extra_body
 
         except Exception as e:
             log_warn(f"Failed to generate diff mapping for PR #{pr_number}: {e}")
 
-    def _determine_review_event(self,
+    def _determine_review_event(
+        self,
         payload: Dict[str, Any],
         failing_checks: List[str],
-        event_override: Optional[str] = None) -> str:
+        event_override: Optional[str] = None,
+    ) -> str:
         recommendation = payload.get("recommendation", "")
         if event_override:
             event = event_override
@@ -459,7 +549,9 @@ class ReviewsMixin(IssuesMixin):
             event = (
                 "REQUEST_CHANGES"
                 if "Not Approved" in payload.get("body", "")
-                else "APPROVE" if "Approved" in payload.get("body", "") else "COMMENT"
+                else "APPROVE"
+                if "Approved" in payload.get("body", "")
+                else "COMMENT"
             )
 
         if failing_checks and event == "APPROVE":
@@ -482,8 +574,9 @@ class ReviewsMixin(IssuesMixin):
 
         return event
 
-
-    def fetch_pr_review_decision(self, number: int, repo: Optional[str] = None) -> Optional[str]:
+    def fetch_pr_review_decision(
+        self, number: int, repo: Optional[str] = None
+    ) -> Optional[str]:
         """
         Determines the review decision ('APPROVED', 'CHANGES_REQUESTED', 'REVIEW_REQUIRED', or None).
         Attempts to query GraphQL for reviewDecision first, falling back to REST reviews.
@@ -501,9 +594,18 @@ class ReviewsMixin(IssuesMixin):
             }
             """
             try:
-                res = self._request("POST",
+                res = self._request(
+                    "POST",
                     "/graphql",
-                    json_data={"query": query, "variables": {"owner": owner, "repo": repo_name, "prNumber": number}})
+                    json_data={
+                        "query": query,
+                        "variables": {
+                            "owner": owner,
+                            "repo": repo_name,
+                            "prNumber": number,
+                        },
+                    },
+                )
                 pr_node = res.get("data", {}).get("repository", {}).get("pullRequest")
                 if pr_node and "reviewDecision" in pr_node:
                     return pr_node.get("reviewDecision")
@@ -518,7 +620,12 @@ class ReviewsMixin(IssuesMixin):
             for r in reviews:
                 user = r.get("user", {}).get("login")
                 state = r.get("state")
-                if user and state in ("APPROVED", "CHANGES_REQUESTED", "COMMENTED", "DISMISSED"):
+                if user and state in (
+                    "APPROVED",
+                    "CHANGES_REQUESTED",
+                    "COMMENTED",
+                    "DISMISSED",
+                ):
                     if state != "COMMENTED":
                         user_reviews[user] = state
             states = list(user_reviews.values())

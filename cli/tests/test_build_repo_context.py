@@ -8,7 +8,9 @@ import pathlib
 import pytest
 
 # Load the build-repo-context module dynamically due to dashes in filename
-build_repo_context_module = importlib.import_module("dev_tools.resources.build-repo-context")
+build_repo_context_module = importlib.import_module(
+    "dev_tools.resources.build-repo-context"
+)
 safe_read_and_minify = build_repo_context_module.safe_read_and_minify
 build_repo_context = build_repo_context_module.build_repo_context
 
@@ -16,16 +18,21 @@ build_repo_context = build_repo_context_module.build_repo_context
 def test_safe_read_and_minify_success(tmp_path):
     """Test valid code with comments and whitespace to ensure it is minified correctly."""
     test_file = tmp_path / "test.ts"
-    test_file.write_text("""
+    test_file.write_text(
+        """
     // This is a single-line comment
     export const x = {
         key: 'value', /* This is a block comment */
         nested: 'http://example.com' // Ensure URLs with // are not stripped
     };
-    """, encoding="utf-8")
+    """,
+        encoding="utf-8",
+    )
 
     minified = safe_read_and_minify(test_file, tmp_path)
-    assert minified == "export const x = { key: 'value', nested: 'http://example.com' };"
+    assert (
+        minified == "export const x = { key: 'value', nested: 'http://example.com' };"
+    )
 
 
 def test_safe_read_and_minify_path_traversal(tmp_path):
@@ -57,7 +64,9 @@ def test_build_repo_context_schema_separation():
     """
     repo_root = pathlib.Path(__file__).resolve().parent.parent.parent
     cli_schema_path = repo_root / "cli" / "dev_tools" / "cli-schema.json"
-    cli_commands_schema_path = repo_root / "cli" / "dev_tools" / "cli-commands-schema.json"
+    cli_commands_schema_path = (
+        repo_root / "cli" / "dev_tools" / "cli-commands-schema.json"
+    )
 
     initial_cli_schema = cli_schema_path.read_text(encoding="utf-8")
 

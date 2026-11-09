@@ -16,7 +16,10 @@ from dev_tools.orchestrator import Orchestrator
 
 @pytest.fixture
 def orchestrator():
-    with patch("dev_tools.orchestrator.GitHubClient"), patch("dev_tools.orchestrator.get_config"):
+    with (
+        patch("dev_tools.orchestrator.GitHubClient"),
+        patch("dev_tools.orchestrator.get_config"),
+    ):
         orch = Orchestrator()
         orch._github = MagicMock()
         return orch
@@ -31,7 +34,13 @@ def _pr_view_payload():
         "reviewDecision": "APPROVED",
         "mergeable": "MERGEABLE",
         "checks": [{"name": "ci", "status": "completed", "conclusion": "success"}],
-        "checksSummary": {"total": 1, "passed": 1, "failed": 0, "pending": 0, "skipped": 0},
+        "checksSummary": {
+            "total": 1,
+            "passed": 1,
+            "failed": 0,
+            "pending": 0,
+            "skipped": 0,
+        },
     }
 
 
@@ -46,7 +55,14 @@ def _run_jobs_payload():
                 "status": "completed",
                 "conclusion": "success",
                 "html_url": "http://example.com",
-                "steps": [{"number": 1, "name": "checkout", "status": "completed", "conclusion": "success"}],
+                "steps": [
+                    {
+                        "number": 1,
+                        "name": "checkout",
+                        "status": "completed",
+                        "conclusion": "success",
+                    }
+                ],
             }
         ],
     }
@@ -127,7 +143,9 @@ def test_gh_run_jobs_repo_passthrough():
         mock_lazy.return_value = mock_orch
         mock_orch.get_run_jobs_shapen.return_value = _run_jobs_payload()
 
-        res = runner.invoke(cli, ["gh", "run-jobs", "--run", "123", "--repo", "org/repo"])
+        res = runner.invoke(
+            cli, ["gh", "run-jobs", "--run", "123", "--repo", "org/repo"]
+        )
         assert res.exit_code == 0, res.output
         mock_orch.get_run_jobs_shapen.assert_called_with(123, repo="org/repo")
 
@@ -173,8 +191,18 @@ def test_get_pr_view_shapen_contract(orchestrator):
     assert res["reviewDecision"] == "CHANGES_REQUESTED"
     assert res["mergeable"] == "MERGEABLE"
     assert len(res["checks"]) == 4
-    assert res["checks"][0] == {"name": "ci", "status": "completed", "conclusion": "success"}
-    assert res["checksSummary"] == {"total": 4, "passed": 1, "failed": 1, "pending": 1, "skipped": 1}
+    assert res["checks"][0] == {
+        "name": "ci",
+        "status": "completed",
+        "conclusion": "success",
+    }
+    assert res["checksSummary"] == {
+        "total": 4,
+        "passed": 1,
+        "failed": 1,
+        "pending": 1,
+        "skipped": 1,
+    }
     orchestrator.github.fetch_check_runs.assert_called_once_with("abc123")
 
 
@@ -183,32 +211,54 @@ def test_get_pr_view_shapen_mergeable_mapping(orchestrator):
     orchestrator.github.fetch_check_runs.return_value = []
 
     orchestrator.github.fetch_pr_details.return_value = {
-        "title": "t", "state": "open", "draft": False, "mergeable": False, "head": {"sha": "s"}
+        "title": "t",
+        "state": "open",
+        "draft": False,
+        "mergeable": False,
+        "head": {"sha": "s"},
     }
     assert orchestrator.get_pr_view_shapen(1)["mergeable"] == "CONFLICTING"
 
     orchestrator.github.fetch_pr_details.return_value = {
-        "title": "t", "state": "open", "draft": False, "mergeable": None, "head": {"sha": "s"}
+        "title": "t",
+        "state": "open",
+        "draft": False,
+        "mergeable": None,
+        "head": {"sha": "s"},
     }
     assert orchestrator.get_pr_view_shapen(1)["mergeable"] == "UNKNOWN"
 
 
 def test_get_pr_view_shapen_no_head_sha_skips_checks(orchestrator):
     orchestrator.github.fetch_pr_details.return_value = {
-        "title": "t", "state": "closed", "draft": False, "mergeable": True, "head": {}
+        "title": "t",
+        "state": "closed",
+        "draft": False,
+        "mergeable": True,
+        "head": {},
     }
     orchestrator.github.fetch_pr_review_decision.return_value = None
 
     res = orchestrator.get_pr_view_shapen(7)
 
     assert res["checks"] == []
-    assert res["checksSummary"] == {"total": 0, "passed": 0, "failed": 0, "pending": 0, "skipped": 0}
+    assert res["checksSummary"] == {
+        "total": 0,
+        "passed": 0,
+        "failed": 0,
+        "pending": 0,
+        "skipped": 0,
+    }
     orchestrator.github.fetch_check_runs.assert_not_called()
 
 
 def test_get_pr_view_shapen_repo_passthrough(orchestrator):
     orchestrator.github.fetch_pr_details.return_value = {
-        "title": "t", "state": "open", "draft": False, "mergeable": True, "head": {"sha": "s"}
+        "title": "t",
+        "state": "open",
+        "draft": False,
+        "mergeable": True,
+        "head": {"sha": "s"},
     }
     orchestrator.github.fetch_pr_review_decision.return_value = None
     orchestrator.github.fetch_check_runs.return_value = []
@@ -216,7 +266,9 @@ def test_get_pr_view_shapen_repo_passthrough(orchestrator):
     orchestrator.get_pr_view_shapen(9, repo="org/repo")
 
     orchestrator.github.fetch_pr_details.assert_called_once_with(9, repo="org/repo")
-    orchestrator.github.fetch_pr_review_decision.assert_called_once_with(9, repo="org/repo")
+    orchestrator.github.fetch_pr_review_decision.assert_called_once_with(
+        9, repo="org/repo"
+    )
     orchestrator.github.fetch_check_runs.assert_called_once_with("s", repo="org/repo")
 
 
@@ -229,8 +281,18 @@ def test_get_run_jobs_shapen_contract(orchestrator):
             "conclusion": "failure",
             "html_url": "http://example.com/job/1",
             "steps": [
-                {"number": 1, "name": "checkout", "status": "completed", "conclusion": "success"},
-                {"number": 2, "name": "test", "status": "completed", "conclusion": "failure"},
+                {
+                    "number": 1,
+                    "name": "checkout",
+                    "status": "completed",
+                    "conclusion": "success",
+                },
+                {
+                    "number": 2,
+                    "name": "test",
+                    "status": "completed",
+                    "conclusion": "failure",
+                },
             ],
         }
     ]
@@ -256,4 +318,6 @@ def test_get_run_jobs_shapen_empty_and_repo_passthrough(orchestrator):
     assert res["runId"] == 999
     assert res["totalCount"] == 0
     assert res["jobs"] == []
-    orchestrator.github.fetch_workflow_run_jobs.assert_called_once_with(999, repo="org/repo")
+    orchestrator.github.fetch_workflow_run_jobs.assert_called_once_with(
+        999, repo="org/repo"
+    )

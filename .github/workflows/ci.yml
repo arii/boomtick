@@ -136,12 +136,14 @@ jobs:
           pnpm install --frozen-lockfile
           pnpm --filter @arii/boomtick-mcp run lint
           pnpm --filter @arii/boomtick-mcp run type-check
+          pnpm run type-check:ts
 
       - name: Run Lint & Typecheck (Python)
         if: matrix.target == 'python'
         run: |
           pnpm run lint:python
           pnpm run type-check:python
+          pnpm run lint:format
 
   audit:
     name: Anti-Pattern & Code Smell Checks

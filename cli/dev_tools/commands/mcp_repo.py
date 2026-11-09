@@ -1,4 +1,5 @@
 """MCP, config, and repo command groups."""
+
 import json
 from dataclasses import asdict
 import click
@@ -21,10 +22,20 @@ def mcp():
 
 
 @mcp.command(name="install")
-@click.option("--host", "-h", "hosts", multiple=True, help="Target specific host (antigravity, claude, cursor, codex)")
+@click.option(
+    "--host",
+    "-h",
+    "hosts",
+    multiple=True,
+    help="Target specific host (antigravity, claude, cursor, codex)",
+)
 @click.option("--path", "custom_path", help="Custom path to host settings JSON file")
-@click.option("--command", "mcp_command", default="boomtick-mcp", help="Command to run MCP server")
-@click.option("--dry-run/--execute", default=True, help="Preview changes without updating files")
+@click.option(
+    "--command", "mcp_command", default="boomtick-mcp", help="Command to run MCP server"
+)
+@click.option(
+    "--dry-run/--execute", default=True, help="Preview changes without updating files"
+)
 @click.pass_context
 def mcp_install(ctx, hosts, custom_path, mcp_command, dry_run):
     """Detect agent host environments and register boomtick-mcp."""
@@ -48,14 +59,30 @@ def mcp_install(ctx, hosts, custom_path, mcp_command, dry_run):
 
 
 @mcp.command(name="setup")
-@click.option("--host", "-h", "hosts", multiple=True, help="Target specific host (antigravity, claude, cursor, codex)")
+@click.option(
+    "--host",
+    "-h",
+    "hosts",
+    multiple=True,
+    help="Target specific host (antigravity, claude, cursor, codex)",
+)
 @click.option("--path", "custom_path", help="Custom path to host settings JSON file")
-@click.option("--command", "mcp_command", default="boomtick-mcp", help="Command to run MCP server")
-@click.option("--dry-run/--execute", default=True, help="Preview changes without updating files")
+@click.option(
+    "--command", "mcp_command", default="boomtick-mcp", help="Command to run MCP server"
+)
+@click.option(
+    "--dry-run/--execute", default=True, help="Preview changes without updating files"
+)
 @click.pass_context
 def mcp_setup(ctx, hosts, custom_path, mcp_command, dry_run):
     """Alias for 'td mcp install'."""
-    ctx.invoke(mcp_install, hosts=hosts, custom_path=custom_path, mcp_command=mcp_command, dry_run=dry_run)
+    ctx.invoke(
+        mcp_install,
+        hosts=hosts,
+        custom_path=custom_path,
+        mcp_command=mcp_command,
+        dry_run=dry_run,
+    )
 
 
 # ==========================================
@@ -109,7 +136,9 @@ def run_playwright(ctx, grep, worktree):
 
 @repo.command()
 @click.argument("pr_number", type=int)
-@click.option("--all", "include_all", is_flag=True, help="Include logs for successful runs")
+@click.option(
+    "--all", "include_all", is_flag=True, help="Include logs for successful runs"
+)
 @click.option("--repo", help="Target repository override (e.g. owner/repo)")
 @click.pass_context
 def ci_logs(ctx, pr_number, include_all, repo):

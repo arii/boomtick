@@ -18,7 +18,9 @@ def test_template_json_block_validity():
         content = f.read()
 
     # Mock formatting
-    formatted = content.format(pr_num=1, head_sha="sha", failed_checks="none", detected_errors="none")
+    formatted = content.format(
+        pr_num=1, head_sha="sha", failed_checks="none", detected_errors="none"
+    )
 
     # Extract JSON
     pattern = r"```json\n(.*?)\n```"
@@ -41,7 +43,12 @@ def test_template_json_block_validity():
 
 def test_validate_review_payload_with_new_skeleton():
     """Tests that a payload following the new skeleton passes validation."""
-    payload = {"body": "Some findings", "recommendation": "Approved", "labels": [], "comments": []}
+    payload = {
+        "body": "Some findings",
+        "recommendation": "Approved",
+        "labels": [],
+        "comments": [],
+    }
     # Should not raise CLIError
     GitHubClient.validate_review_payload(payload)
 

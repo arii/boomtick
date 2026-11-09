@@ -23,7 +23,7 @@ export const geminiCodeReviewClient: CodeReviewClientStrategy = {
   botTagline: 'Powered by Gemini 3.x',
   reportFileName: 'gemini-code-review.md',
 
-  invokeReview: async (summary: CodeReviewSummary, forceMaxOutputTokens?: number): Promise<CodeReviewResult> => {
+  invokeReview: async (summary: CodeReviewSummary & { role: string }, forceMaxOutputTokens?: number): Promise<CodeReviewResult> => {
     const systemPrompt = buildSystemPrompt(summary);
     const { diffText, externalText } = budgetInputContext(systemPrompt, summary);
 

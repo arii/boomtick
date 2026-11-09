@@ -1,4 +1,5 @@
 """Regression test: ast_audit must loudly mark tree-sitter downgrades (PR #1220)."""
+
 from dev_tools.services import ast_audit
 from dev_tools.services.ast_audit import ASTAuditor
 

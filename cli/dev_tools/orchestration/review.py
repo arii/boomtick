@@ -1,4 +1,5 @@
 """PR review heuristics and finding collection."""
+
 import json
 import os
 import re
@@ -8,7 +9,6 @@ from typing import Any, Dict, List, Optional, Tuple
 from dev_tools.utils import log_warn
 from dev_tools.orchestration.base import OrchestratorBase
 import dev_tools.orchestrator
-
 
 
 class ReviewMixin(OrchestratorBase):
@@ -37,7 +37,9 @@ class ReviewMixin(OrchestratorBase):
             if not line.startswith("+") or line.startswith("+++"):
                 continue
             added = line[1:]
-            if any(sig in path or sig in added for sig in cfg.tailwind_config_indicators):
+            if any(
+                sig in path or sig in added for sig in cfg.tailwind_config_indicators
+            ):
                 evidence.append((path, added.strip()))
                 continue
             for classes in self._CLASS_ATTR_RE.findall(added):
@@ -70,7 +72,8 @@ class ReviewMixin(OrchestratorBase):
     # touch target (#1116).
     _SMALL_PX_RE = re.compile(
         r"(?:h|w|min-h|min-w)-\[(\d+(?:\.\d+)?)px\]|"
-        r"(?:height|width)\s*:\s*(\d+(?:\.\d+)?)px")
+        r"(?:height|width)\s*:\s*(\d+(?:\.\d+)?)px"
+    )
 
     _BUTTON_RE = re.compile(r"<button\b|role=[\"']button[\"']")
 
@@ -105,12 +108,16 @@ class ReviewMixin(OrchestratorBase):
             small = any(
                 float(n) < 48
                 for pair in self._SMALL_PX_RE.findall(added)
-                for n in pair if n)
+                for n in pair
+                if n
+            )
             if small:
                 evidence.append((path, added.strip()))
         return evidence
 
-    def collect_pr_findings(self, pr: Dict[str, Any], diff: str, checks: Dict[str, Any]) -> List[Dict[str, Any]]:
+    def collect_pr_findings(
+        self, pr: Dict[str, Any], diff: str, checks: Dict[str, Any]
+    ) -> List[Dict[str, Any]]:
         """Structured hunk-cited findings for a PR (#1113).
 
         Each finding names the rule, the file, and the added diff lines
@@ -118,7 +125,14 @@ class ReviewMixin(OrchestratorBase):
         """
         findings: List[Dict[str, Any]] = []
         for path, added in self._tailwind_evidence(diff or ""):
-            existing = next((f for f in findings if f["rule"] == "tailwind-primitives" and f["file"] == path), None)
+            existing = next(
+                (
+                    f
+                    for f in findings
+                    if f["rule"] == "tailwind-primitives" and f["file"] == path
+                ),
+                None,
+            )
             if existing is None:
                 existing = {
                     "rule": "tailwind-primitives",
@@ -130,17 +144,30 @@ class ReviewMixin(OrchestratorBase):
                 findings.append(existing)
             if added not in existing["evidence"] and len(existing["evidence"]) < 5:
                 existing["evidence"].append(added)
-        fails = [c["name"] for c in (checks or {}).get("check_runs", []) if c.get("conclusion") == "failure"]
+        fails = [
+            c["name"]
+            for c in (checks or {}).get("check_runs", [])
+            if c.get("conclusion") == "failure"
+        ]
         if fails:
-            findings.append({
-                "rule": "ci-failure",
-                "severity": "error",
-                "file": "",
-                "evidence": sorted(fails),
-                "message": f"Failing checks: {', '.join(sorted(fails))}.",
-            })
+            findings.append(
+                {
+                    "rule": "ci-failure",
+                    "severity": "error",
+                    "file": "",
+                    "evidence": sorted(fails),
+                    "message": f"Failing checks: {', '.join(sorted(fails))}.",
+                }
+            )
         for path, added in self._overflow_evidence(diff or ""):
-            existing = next((f for f in findings if f["rule"] == "mobile-overflow" and f["file"] == path), None)
+            existing = next(
+                (
+                    f
+                    for f in findings
+                    if f["rule"] == "mobile-overflow" and f["file"] == path
+                ),
+                None,
+            )
             if existing is None:
                 existing = {
                     "rule": "mobile-overflow",
@@ -161,7 +188,14 @@ class ReviewMixin(OrchestratorBase):
             if added not in existing["evidence"] and len(existing["evidence"]) < 5:
                 existing["evidence"].append(added)
         for path, added in self._touch_evidence(diff or ""):
-            existing = next((f for f in findings if f["rule"] == "touch-target" and f["file"] == path), None)
+            existing = next(
+                (
+                    f
+                    for f in findings
+                    if f["rule"] == "touch-target" and f["file"] == path
+                ),
+                None,
+            )
             if existing is None:
                 existing = {
                     "rule": "touch-target",
@@ -174,16 +208,20 @@ class ReviewMixin(OrchestratorBase):
             if added not in existing["evidence"] and len(existing["evidence"]) < 5:
                 existing["evidence"].append(added)
         if pr.get("mergeable") is False:
-            findings.append({
-                "rule": "merge-conflict",
-                "severity": "error",
-                "file": "",
-                "evidence": [dev_tools.orchestrator.get_config().base_branch_name],
-                "message": f"PR conflicts with the {dev_tools.orchestrator.get_config().base_branch_name} base branch.",
-            })
+            findings.append(
+                {
+                    "rule": "merge-conflict",
+                    "severity": "error",
+                    "file": "",
+                    "evidence": [dev_tools.orchestrator.get_config().base_branch_name],
+                    "message": f"PR conflicts with the {dev_tools.orchestrator.get_config().base_branch_name} base branch.",
+                }
+            )
         return findings
 
-    def evaluate_pr_heuristics(self, pr: Dict[str, Any], diff: str, checks: Dict[str, Any]) -> str:
+    def evaluate_pr_heuristics(
+        self, pr: Dict[str, Any], diff: str, checks: Dict[str, Any]
+    ) -> str:
         """Applies heuristic rules to a PR diff and checks, returning specific feedback."""
         # Pre-process diff to get unique files for faster heuristic matching
         files_in_diff = set()
@@ -191,20 +229,32 @@ class ReviewMixin(OrchestratorBase):
             if line.startswith("+++ b/"):
                 files_in_diff.add(line[6:])
 
-        is_ui = any(any(ind in f for ind in dev_tools.orchestrator.get_config().ui_indicators) for f in files_in_diff)
+        is_ui = any(
+            any(ind in f for ind in dev_tools.orchestrator.get_config().ui_indicators)
+            for f in files_in_diff
+        )
         is_python = any(f.endswith(".py") for f in files_in_diff)
         is_infra = any(
-            any(ind in f for ind in dev_tools.orchestrator.get_config().infra_file_paths)
+            any(
+                ind in f for ind in dev_tools.orchestrator.get_config().infra_file_paths
+            )
             for f in files_in_diff
         )
 
         # File Necessity Check (Temporary Files)
         temp_files = []
         for f in files_in_diff:
-            if any(re.search(pattern, f) for pattern in dev_tools.orchestrator.get_config().temp_file_patterns):
+            if any(
+                re.search(pattern, f)
+                for pattern in dev_tools.orchestrator.get_config().temp_file_patterns
+            ):
                 temp_files.append(f)
 
-        fails = [c["name"] for c in checks.get("check_runs", []) if c.get("conclusion") == "failure"]
+        fails = [
+            c["name"]
+            for c in checks.get("check_runs", [])
+            if c.get("conclusion") == "failure"
+        ]
 
         feedback = f"### Specific Review for PR #{pr['number']}\n\n"
 
@@ -351,7 +401,10 @@ class ReviewMixin(OrchestratorBase):
                 f"force push.\n"
             )
 
-        if "overlap" in pr.get("title", "").lower() or "cli" in pr.get("title", "").lower():
+        if (
+            "overlap" in pr.get("title", "").lower()
+            or "cli" in pr.get("title", "").lower()
+        ):
             feedback += "- **Overlap / Interdependency:** This PR touches dev-tools or overlap logic.\n"
             feedback += (
                 f"  "
@@ -394,7 +447,9 @@ class ReviewMixin(OrchestratorBase):
         check_runs = self.github.fetch_check_runs(sha)
         pr_diff = self.github.fetch_pr_diff(prNumber)
 
-        feedback = self.evaluate_pr_heuristics(pr_details, pr_diff, {"check_runs": check_runs})
+        feedback = self.evaluate_pr_heuristics(
+            pr_details, pr_diff, {"check_runs": check_runs}
+        )
         fails = [c["name"] for c in check_runs if c.get("conclusion") == "failure"]
         verdict = "Not Approved" if fails else "Approved"
 
@@ -402,10 +457,14 @@ class ReviewMixin(OrchestratorBase):
             "prNumber": prNumber,
             "recommendation": verdict,
             "reviewComment": feedback,
-            "findings": self.collect_pr_findings(pr_details, pr_diff, {"check_runs": check_runs}),
+            "findings": self.collect_pr_findings(
+                pr_details, pr_diff, {"check_runs": check_runs}
+            ),
         }
 
-    def get_audit_results(self, content: Optional[str] = None, targets: Optional[List[str]] = None) -> Dict[str, Any]:
+    def get_audit_results(
+        self, content: Optional[str] = None, targets: Optional[List[str]] = None
+    ) -> Dict[str, Any]:
         """Collect audit tool results for targets."""
         script_path = self._resolve_antipatterns_script()
         if script_path and os.path.exists(script_path):
@@ -414,20 +473,29 @@ class ReviewMixin(OrchestratorBase):
                 cmd.extend(targets)
             elif content is not None:
                 cmd.append("-")
-            res = dev_tools.orchestrator.run_command(cmd, check=False, input_str=content)
+            res = dev_tools.orchestrator.run_command(
+                cmd, check=False, input_str=content
+            )
             try:
-                stdout = res.stdout if isinstance(res, subprocess.CompletedProcess) else str(res)
+                stdout = (
+                    res.stdout
+                    if isinstance(res, subprocess.CompletedProcess)
+                    else str(res)
+                )
                 node_results = json.loads(stdout)
             except json.JSONDecodeError:
                 node_results = {"violations": {}, "config": {}}
         else:
-            node_results = {"violations": {},
+            node_results = {
+                "violations": {},
                 "config": {},
                 "status": "skipped",
-                "reason": "detect-antipatterns.mjs not found"}
+                "reason": "detect-antipatterns.mjs not found",
+            }
 
         # Integrate Python ASTAuditor deterministic checks
         from dev_tools.services.ast_audit import ASTAuditor
+
         ast_auditor = ASTAuditor()
 
         ast_violations = node_results.get("violations", {})
@@ -442,30 +510,40 @@ class ReviewMixin(OrchestratorBase):
                             if target_path not in ast_violations:
                                 ast_violations[target_path] = []
                             for finding in findings:
-                                ast_violations[target_path].append({
-                                    "pattern": finding["rule"],
-                                    "message": finding["message"],
-                                    "value": finding["value"],
-                                    "severity": finding["severity"],
-                                    "line": finding["line"],
-                                })
+                                ast_violations[target_path].append(
+                                    {
+                                        "pattern": finding["rule"],
+                                        "message": finding["message"],
+                                        "value": finding["value"],
+                                        "severity": finding["severity"],
+                                        "line": finding["line"],
+                                    }
+                                )
                     except Exception as e:
-                        log_warn(f"orchestrator: AST audit failed for {target_path}: {e}")
+                        log_warn(
+                            f"orchestrator: AST audit failed for {target_path}: {e}"
+                        )
                 elif os.path.isdir(target_path):
                     try:
                         dir_findings = ast_auditor.audit_directory(target_path)
                         for filepath, findings in dir_findings.items():
-                            rel_path = os.path.relpath(filepath) if os.path.isabs(filepath) else filepath
+                            rel_path = (
+                                os.path.relpath(filepath)
+                                if os.path.isabs(filepath)
+                                else filepath
+                            )
                             if rel_path not in ast_violations:
                                 ast_violations[rel_path] = []
                             for finding in findings:
-                                ast_violations[rel_path].append({
-                                    "pattern": finding["rule"],
-                                    "message": finding["message"],
-                                    "value": finding["value"],
-                                    "severity": finding["severity"],
-                                    "line": finding["line"],
-                                })
+                                ast_violations[rel_path].append(
+                                    {
+                                        "pattern": finding["rule"],
+                                        "message": finding["message"],
+                                        "value": finding["value"],
+                                        "severity": finding["severity"],
+                                        "line": finding["line"],
+                                    }
+                                )
                     except Exception as e:
                         log_warn(f"orchestrator: AST audit failed for {rel_path}: {e}")
         elif content is not None:
@@ -474,13 +552,15 @@ class ReviewMixin(OrchestratorBase):
                 if "stdin" not in ast_violations:
                     ast_violations["stdin"] = []
                 for finding in findings:
-                    ast_violations["stdin"].append({
-                        "pattern": finding["rule"],
-                        "message": finding["message"],
-                        "value": finding["value"],
-                        "severity": finding["severity"],
-                        "line": finding["line"],
-                    })
+                    ast_violations["stdin"].append(
+                        {
+                            "pattern": finding["rule"],
+                            "message": finding["message"],
+                            "value": finding["value"],
+                            "severity": finding["severity"],
+                            "line": finding["line"],
+                        }
+                    )
 
         node_results["violations"] = ast_violations
         return node_results

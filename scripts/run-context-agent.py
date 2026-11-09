@@ -15,6 +15,7 @@ from dev_tools.workflows import WorkflowGraph, WorkflowNode, WorkflowContext
 from dev_tools.workflows.nodes import DeploymentImpactCheckNode, FinalSynthesisNode
 from dev_tools.orchestrator import Orchestrator
 
+
 class IngestionNode(WorkflowNode):
     def __init__(self):
         super().__init__("Ingestion", role="system")
@@ -35,6 +36,7 @@ class IngestionNode(WorkflowNode):
         print("📥 [Agent] Ingesting Repository file tree layout...")
         context.builder.ingest_file_tree(max_depth=2)
 
+
 class ReviewerNode(WorkflowNode):
     def __init__(self):
         super().__init__("Reviewer", role="reviewer")
@@ -46,8 +48,9 @@ class ReviewerNode(WorkflowNode):
             "1. Verified all changes in context_builder.py. No raw Tailwind layout classes used.\n"
             "2. Identified a clean class structure and excellent use of local/deferred imports.\n"
             "3. Recommendation: Ready for promotion to compliance auditing.",
-            role=self.role
+            role=self.role,
         )
+
 
 class AuditorNode(WorkflowNode):
     def __init__(self):
@@ -56,15 +59,18 @@ class AuditorNode(WorkflowNode):
     def execute(self, context: WorkflowContext):
         print("🔍 [Agent Phase 2: Compliance Auditor] Starting assessment...")
         previous_notes = context.builder.scratch_pad
-        print(f"   💡 [Scratch Pad Read] Carry-over thoughts: {len(previous_notes)} notes found.")
+        print(
+            f"   💡 [Scratch Pad Read] Carry-over thoughts: {len(previous_notes)} notes found."
+        )
 
         context.write_scratchpad(
             "auditor_assessment",
             "1. Inspected file tree. No stray, temporary or compiled artifacts (*.tmp, *dump.json) found.\n"
             "2. All file pathways are correctly organized inside the `cli/dev_tools/` structure.\n"
             "3. All compliance standards are fully satisfied.",
-            role=self.role
+            role=self.role,
         )
+
 
 class TriageNode(WorkflowNode):
     def __init__(self):
@@ -76,10 +82,13 @@ class TriageNode(WorkflowNode):
             "triage_assessment",
             "1. Checked PR alignment with goal. The PR correctly implements the generic Context Builder Module.\n"
             "2. Verification plan: Verified locally via pytest and pylint.",
-            role=self.role
+            role=self.role,
         )
 
-def run_single_agent_multi_role_scratchpad(pr_number: Optional[int] = None, issue_number: Optional[int] = None):
+
+def run_single_agent_multi_role_scratchpad(
+    pr_number: Optional[int] = None, issue_number: Optional[int] = None
+):
     orch = Orchestrator()
     pr_numbers = []
 
@@ -89,12 +98,26 @@ def run_single_agent_multi_role_scratchpad(pr_number: Optional[int] = None, issu
         print("🔍 [Agent] No PR number provided. Fetching all open PRs...")
         try:
             res = subprocess.run(
-                ["gh", "pr", "list", "--state", "open", "--json", "number", "--jq", ".[].number"],
+                [
+                    "gh",
+                    "pr",
+                    "list",
+                    "--state",
+                    "open",
+                    "--json",
+                    "number",
+                    "--jq",
+                    ".[].number",
+                ],
                 capture_output=True,
                 text=True,
-                check=True
+                check=True,
             )
-            pr_numbers = [int(num) for num in res.stdout.strip().split("\n") if num.strip().isdigit()]
+            pr_numbers = [
+                int(num)
+                for num in res.stdout.strip().split("\n")
+                if num.strip().isdigit()
+            ]
             print(f"✅ Found {len(pr_numbers)} open PRs: {pr_numbers}")
         except Exception as e:
             print(f"❌ Failed to fetch open PRs: {e}", file=sys.stderr)
@@ -103,7 +126,7 @@ def run_single_agent_multi_role_scratchpad(pr_number: Optional[int] = None, issu
     failed_prs = []
 
     for pr in pr_numbers:
-        print(f"\n{'='*50}\n🚀 RUNNING EVALUATION FOR PR #{pr}\n{'='*50}")
+        print(f"\n{'=' * 50}\n🚀 RUNNING EVALUATION FOR PR #{pr}\n{'=' * 50}")
         graph = WorkflowGraph()
 
         graph.add_node(IngestionNode())
@@ -144,13 +167,17 @@ def run_single_agent_multi_role_scratchpad(pr_number: Optional[int] = None, issu
             print(f"  - PR #{failed_pr}: {err_msg}")
         sys.exit(1)
 
+
 if __name__ == "__main__":
     target_pr = None
     if len(sys.argv) > 1:
         try:
             target_pr = int(sys.argv[1])
         except ValueError:
-            print("Usage: python3 scripts/run-context-agent.py [pr_number]", file=sys.stderr)
+            print(
+                "Usage: python3 scripts/run-context-agent.py [pr_number]",
+                file=sys.stderr,
+            )
             sys.exit(1)
 
     run_single_agent_multi_role_scratchpad(pr_number=target_pr)

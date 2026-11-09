@@ -14,22 +14,83 @@ import os
 import re
 
 EXEMPT_FILES = {
-    "dockerfile", "package.json", "package-lock.json", "pnpm-lock.yaml", "pnpm-workspace.yaml", "project_config.json",
-    "tsconfig.json", "workspace.json", ".gitignore", ".dockerignore", ".pylintrc",
-    "eslint.config.mjs", "oxlint.json", "tsconfig.app.json", ".release-please-manifest.json",
-    "release-please-config.json", "changelog.md", "readme.md", "agents.md", "ci.yml", "release.yml",
-    "verify-scope.py", "test_verify_scope.py", "reviewpromptconstants.ts",
-    "prompt_constants.json", "pyproject.toml", "action.yml", ".dependency-cruiser.config.mjs",
-    ".fallowrc.json", ".jscpd.json", ".node-version", ".npmrc", "tsup.config.ts",
-    "workspace-schema.json", ".env.example"
+    "dockerfile",
+    "package.json",
+    "package-lock.json",
+    "pnpm-lock.yaml",
+    "pnpm-workspace.yaml",
+    "project_config.json",
+    "tsconfig.json",
+    "workspace.json",
+    ".gitignore",
+    ".dockerignore",
+    ".pylintrc",
+    "eslint.config.mjs",
+    "oxlint.json",
+    "tsconfig.app.json",
+    ".release-please-manifest.json",
+    "release-please-config.json",
+    "changelog.md",
+    "readme.md",
+    "agents.md",
+    "ci.yml",
+    "release.yml",
+    "verify-scope.py",
+    "test_verify_scope.py",
+    "reviewpromptconstants.ts",
+    "prompt_constants.json",
+    "pyproject.toml",
+    "action.yml",
+    ".dependency-cruiser.config.mjs",
+    ".fallowrc.json",
+    ".jscpd.json",
+    ".node-version",
+    ".npmrc",
+    "tsup.config.ts",
+    "workspace-schema.json",
+    ".env.example",
 }
 EXEMPT_FILES_LOWER = {f.lower() for f in EXEMPT_FILES}
 
 STOP_WORDS = {
-    "with", "this", "that", "from", "your", "have", "will", "mode", "flag", "test", "file", "spec",
-    "tool", "mode", "strict", "scope", "hook", "hooks", "commit", "issue", "branch", "main", "origin",
-    "unrequested", "modification", "modifications", "unrelated", "runner", "release", "publish",
-    "build", "docker", "setup", "buildx", "workflow", "workflows", "verification", "mechanism"
+    "with",
+    "this",
+    "that",
+    "from",
+    "your",
+    "have",
+    "will",
+    "mode",
+    "flag",
+    "test",
+    "file",
+    "spec",
+    "tool",
+    "mode",
+    "strict",
+    "scope",
+    "hook",
+    "hooks",
+    "commit",
+    "issue",
+    "branch",
+    "main",
+    "origin",
+    "unrequested",
+    "modification",
+    "modifications",
+    "unrelated",
+    "runner",
+    "release",
+    "publish",
+    "build",
+    "docker",
+    "setup",
+    "buildx",
+    "workflow",
+    "workflows",
+    "verification",
+    "mechanism",
 }
 
 
@@ -73,7 +134,11 @@ def is_module_hierarchy_subfile(filepath: str, allowed_file_paths: set) -> bool:
         # 2. Check if filepath is a sibling module with prefix stem (e.g. config.sub.ts or config-sub.ts)
         if parent_dir and os.path.dirname(filepath_norm) == parent_dir:
             cand_filename = os.path.basename(filepath_norm)
-            if cand_filename.startswith(f"{stem}.") or cand_filename.startswith(f"{stem}-") or cand_filename.startswith(f"{stem}_"):
+            if (
+                cand_filename.startswith(f"{stem}.")
+                or cand_filename.startswith(f"{stem}-")
+                or cand_filename.startswith(f"{stem}_")
+            ):
                 return True
 
     return False
@@ -87,7 +152,7 @@ def check_file_imports_target(importer_path: str, target_path: str, root=None) -
         return False
 
     try:
-        with open(importer_abs, 'r', encoding='utf-8', errors='ignore') as f:
+        with open(importer_abs, "r", encoding="utf-8", errors="ignore") as f:
             content = f.read()
     except Exception:
         return False
@@ -98,28 +163,33 @@ def check_file_imports_target(importer_path: str, target_path: str, root=None) -
     importer_dir = os.path.dirname(importer_abs)
 
     # JS/TS relative imports: import ... from './...'
-    js_imports = re.findall(r'(?:import|export|require)\s*(?:[^\'"]*?\s*from\s*)?[\(\'"]([^\'"]+)[\)\'"]', content)
+    js_imports = re.findall(
+        r'(?:import|export|require)\s*(?:[^\'"]*?\s*from\s*)?[\(\'"]([^\'"]+)[\)\'"]',
+        content,
+    )
     for imp in js_imports:
-        if imp.startswith('.'):
+        if imp.startswith("."):
             resolved = os.path.normpath(os.path.join(importer_dir, imp))
             resolved_stem, _ = os.path.splitext(resolved)
             target_base = os.path.normpath(os.path.join(base, target_dir, target_stem))
             if resolved_stem == target_base:
                 return True
-            if target_stem == 'index' and target_dir == resolved:
+            if target_stem == "index" and target_dir == resolved:
                 return True
 
     # Python relative/absolute module imports
-    py_imports = re.findall(r'(?:from|import)\s+([\.\w]+)', content)
+    py_imports = re.findall(r"(?:from|import)\s+([\.\w]+)", content)
     for imp in py_imports:
-        imp_parts = imp.lstrip('.').split('.')
+        imp_parts = imp.lstrip(".").split(".")
         if imp_parts and imp_parts[-1] == target_stem:
             return True
 
     return False
 
 
-def is_refactor_extraction_heuristic(filepath: str, allowed_file_paths: set, root=None) -> bool:
+def is_refactor_extraction_heuristic(
+    filepath: str, allowed_file_paths: set, root=None
+) -> bool:
     """
     If a newly added/extracted file is imported by an allowed file within the same package/component tree
     (or imports an allowed file in the same package/component tree), allow it as a modular extraction.
@@ -132,9 +202,15 @@ def is_refactor_extraction_heuristic(filepath: str, allowed_file_paths: set, roo
         allowed_dir = os.path.dirname(allowed_p_norm)
 
         # Must share a package or component subtree (common parent path up to 2 directory levels)
-        if cand_dir == allowed_dir or cand_dir.startswith(allowed_dir + os.sep) or allowed_dir.startswith(cand_dir + os.sep):
+        if (
+            cand_dir == allowed_dir
+            or cand_dir.startswith(allowed_dir + os.sep)
+            or allowed_dir.startswith(cand_dir + os.sep)
+        ):
             # Check if allowed file imports candidate file OR candidate file imports allowed file
-            if check_file_imports_target(allowed_p_norm, filepath_norm, root) or check_file_imports_target(filepath_norm, allowed_p_norm, root):
+            if check_file_imports_target(
+                allowed_p_norm, filepath_norm, root
+            ) or check_file_imports_target(filepath_norm, allowed_p_norm, root):
                 return True
 
     return False
@@ -142,7 +218,11 @@ def is_refactor_extraction_heuristic(filepath: str, allowed_file_paths: set, roo
 
 def split_camel_case(s: str) -> list:
     """Splits camelCase or PascalCase strings into lowercased component tokens."""
-    return [w.lower() for w in re.findall(r'[A-Z]?[a-z]+|[A-Z]+(?=[A-Z][a-z]|\d|\b)|[0-9]+', s) if w]
+    return [
+        w.lower()
+        for w in re.findall(r"[A-Z]?[a-z]+|[A-Z]+(?=[A-Z][a-z]|\d|\b)|[0-9]+", s)
+        if w
+    ]
 
 
 # File extensions that count as "known file context" for a bare
@@ -153,12 +233,52 @@ def split_camel_case(s: str) -> list:
 KNOWN_FILE_EXTENSIONS = frozenset(
     {name.rsplit(".", 1)[1].lower() for name in EXEMPT_FILES if "." in name}
     | {
-        "py", "pyi", "ts", "tsx", "mts", "cts", "js", "jsx", "mjs", "cjs",
-        "json", "jsonc", "yml", "yaml", "toml", "cfg", "ini", "conf",
-        "md", "mdx", "rst", "txt", "sh", "bash", "css", "scss",
-        "html", "xml", "svg", "sql", "go", "rs", "rb", "java",
-        "c", "h", "cc", "cpp", "hpp", "cs", "swift", "php",
-        "vue", "graphql", "proto", "lock",
+        "py",
+        "pyi",
+        "ts",
+        "tsx",
+        "mts",
+        "cts",
+        "js",
+        "jsx",
+        "mjs",
+        "cjs",
+        "json",
+        "jsonc",
+        "yml",
+        "yaml",
+        "toml",
+        "cfg",
+        "ini",
+        "conf",
+        "md",
+        "mdx",
+        "rst",
+        "txt",
+        "sh",
+        "bash",
+        "css",
+        "scss",
+        "html",
+        "xml",
+        "svg",
+        "sql",
+        "go",
+        "rs",
+        "rb",
+        "java",
+        "c",
+        "h",
+        "cc",
+        "cpp",
+        "hpp",
+        "cs",
+        "swift",
+        "php",
+        "vue",
+        "graphql",
+        "proto",
+        "lock",
     }
 )
 
@@ -182,7 +302,9 @@ def _is_phantom_file_match(match: str) -> bool:
 
 def _is_phantom_dir_match(match: str) -> bool:
     """True when a dir_regex hit is prose, not a deliberate mention."""
-    segments = [seg for seg in match.strip("/").split("/") if seg not in ("", ".", "..")]
+    segments = [
+        seg for seg in match.strip("/").split("/") if seg not in ("", ".", "..")
+    ]
     if not segments:
         return True
     # Single-letter paths (``i/``, ``a/b/``) are never deliberate.
@@ -211,14 +333,16 @@ def extract_mentions(issue_text):
     """
     issue_text = issue_text or ""
     # Extract everything that looks like a file name, file path, or directory path
-    path_regex = r'[a-zA-Z0-9_\-\./]+\.[a-zA-Z0-9]+'
-    mentioned_files = {m for m in re.findall(path_regex, issue_text)
-                       if not _is_phantom_file_match(m)}
+    path_regex = r"[a-zA-Z0-9_\-\./]+\.[a-zA-Z0-9]+"
+    mentioned_files = {
+        m for m in re.findall(path_regex, issue_text) if not _is_phantom_file_match(m)
+    }
 
     # Extract directories
-    dir_regex = r'[a-zA-Z0-9_\-\./]+/'
-    mentioned_dirs = {m for m in re.findall(dir_regex, issue_text)
-                      if not _is_phantom_dir_match(m)}
+    dir_regex = r"[a-zA-Z0-9_\-\./]+/"
+    mentioned_dirs = {
+        m for m in re.findall(dir_regex, issue_text) if not _is_phantom_dir_match(m)
+    }
     return mentioned_files, mentioned_dirs
 
 
@@ -230,7 +354,7 @@ def check_scope(changed_files, issue_text, root=None):
     mentioned_files, mentioned_dirs = extract_mentions(issue_text)
 
     # Extract single words/tokens
-    word_regex = r'[a-zA-Z0-9_\-]+'
+    word_regex = r"[a-zA-Z0-9_\-]+"
     raw_words = set(re.findall(word_regex, issue_text))
     mentioned_words = set()
     for w in raw_words:
@@ -261,11 +385,17 @@ def check_scope(changed_files, issue_text, root=None):
             continue
 
         # 2. Exact match in mentioned files
-        if any(mf.lower() in filepath_lower or filepath_lower in mf.lower() for mf in mentioned_files):
+        if any(
+            mf.lower() in filepath_lower or filepath_lower in mf.lower()
+            for mf in mentioned_files
+        ):
             allowed_files.append((filepath, "Exact path/pattern mentioned in issue"))
             continue
 
-        if any(mf.lower() in filename_lower or filename_lower in mf.lower() for mf in mentioned_files):
+        if any(
+            mf.lower() in filename_lower or filename_lower in mf.lower()
+            for mf in mentioned_files
+        ):
             allowed_files.append((filepath, "Filename mentioned in issue"))
             continue
 
@@ -279,7 +409,9 @@ def check_scope(changed_files, issue_text, root=None):
                 matched_dir = md
                 break
         if is_in_mentioned_dir:
-            allowed_files.append((filepath, f"Located in mentioned directory: {matched_dir}"))
+            allowed_files.append(
+                (filepath, f"Located in mentioned directory: {matched_dir}")
+            )
             continue
 
         # 4. Test file for an allowed file
@@ -313,13 +445,23 @@ def check_scope(changed_files, issue_text, root=None):
     for filepath in candidates_for_pass_2:
         # 1. Module hierarchy matching
         if is_module_hierarchy_subfile(filepath, allowed_file_paths):
-            allowed_files.append((filepath, "Module hierarchy sub-file extracted from in-scope parent module"))
+            allowed_files.append(
+                (
+                    filepath,
+                    "Module hierarchy sub-file extracted from in-scope parent module",
+                )
+            )
             allowed_file_paths.add(filepath)
             continue
 
         # 2. Import heuristic matching
         if is_refactor_extraction_heuristic(filepath, allowed_file_paths, root):
-            allowed_files.append((filepath, "Extracted helper module imported by/importing in-scope module"))
+            allowed_files.append(
+                (
+                    filepath,
+                    "Extracted helper module imported by/importing in-scope module",
+                )
+            )
             allowed_file_paths.add(filepath)
             continue
 

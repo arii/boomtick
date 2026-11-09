@@ -60,9 +60,7 @@ class TestOrchestratorHeuristics(unittest.TestCase):
         pr = {"number": 6, "head": {"ref": "cleanup-branch"}, "title": "Drop legacy"}
         diff = (
             "+++ b/src/components/Button.tsx\n"
-            "@@ -1,2 +1,1 @@\n"
-            + "-<button className=\"px-4 flex\">\n"
-            + "+<button>"
+            "@@ -1,2 +1,1 @@\n" + '-<button className="px-4 flex">\n' + "+<button>"
         )
         checks = {"check_runs": []}
 
@@ -76,8 +74,8 @@ class TestOrchestratorHeuristics(unittest.TestCase):
         diff = (
             "+++ b/src/components/Card.tsx\n"
             "@@ -1,1 +1,1 @@\n"
-            + "-<div className=\"card\">\n"
-            + "+<div className=\"px-4 flex\">"
+            + '-<div className="card">\n'
+            + '+<div className="px-4 flex">'
         )
         checks = {"check_runs": []}
 
@@ -93,7 +91,11 @@ class TestOrchestratorHeuristics(unittest.TestCase):
         self.assertTrue(any("px-4 flex" in line for line in tw[0]["evidence"]))
 
     def test_evaluate_pr_heuristics_temp_files(self):
-        pr = {"number": 4, "head": {"ref": "temp-files-branch"}, "title": "Added some logs"}
+        pr = {
+            "number": 4,
+            "head": {"ref": "temp-files-branch"},
+            "title": "Added some logs",
+        }
         # Diff adding suspicious files
         diff = "+++ b/workflow-audit-status.md\n+Some findings\n+++ b/package.json\n+{}\n+++ b/data-dump.json"
         checks = {"check_runs": []}
@@ -134,7 +136,7 @@ class TestOrchestratorHeuristics(unittest.TestCase):
         diff = (
             "+++ b/src/components/Icon.tsx\n"
             "@@ -1,1 +1,1 @@\n"
-            '-<span>x</span>\n'
+            "-<span>x</span>\n"
             '+<button className="h-[24px] w-[24px]">x</button>'
         )
         checks = {"check_runs": []}
@@ -148,8 +150,12 @@ class TestOrchestratorHeuristics(unittest.TestCase):
     def test_merge_conflict_finding_when_unmergeable(self):
         # Issue #1116: the merge-conflict advisory rendered with no
         # matching findings entry.
-        pr = {"number": 10, "head": {"ref": "ui-branch"},
-              "title": "UI change", "mergeable": False}
+        pr = {
+            "number": 10,
+            "head": {"ref": "ui-branch"},
+            "title": "UI change",
+            "mergeable": False,
+        }
         diff = "+++ b/src/App.tsx\n+<br/>"
         checks = {"check_runs": []}
 

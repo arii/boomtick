@@ -26,7 +26,10 @@ class WorktreeError(ValueError):
 def _git(args, cwd):
     try:
         res = subprocess.run(
-            ["git"] + args, cwd=cwd, capture_output=True, text=True,
+            ["git"] + args,
+            cwd=cwd,
+            capture_output=True,
+            text=True,
             check=False,
         )
     except OSError as exc:
@@ -41,12 +44,13 @@ LOCKFILE_NAMES = (
     "requirements.txt",
 )
 
-WARM_LINK_DIRS = ("node_modules", ".venv", "venv")
+WARM_LINK_DIRS = ("node_modules", ".venv", "venv", ".agents/skills")
 
 
 def lockfile_hash(root):
     """SHA256 over repo lockfiles, or '' when none exist."""
     import hashlib
+
     digest = hashlib.sha256()
     found = False
     for name in LOCKFILE_NAMES:
@@ -80,18 +84,22 @@ def fast_forward_main_ref(root):
         if status.returncode == 0 and status.stdout.strip():
             return False, "worktree dirty; not fast-forwarding"
         merged = _git(["merge", "--ff-only", "origin/main"], root)
-        return (merged.returncode == 0,
-                "fast-forwarded" if merged.returncode == 0
-                else "main diverged; not fast-forwarding")
+        return (
+            merged.returncode == 0,
+            "fast-forwarded"
+            if merged.returncode == 0
+            else "main diverged; not fast-forwarding",
+        )
     ancestor = _git(
-        ["merge-base", "--is-ancestor", "refs/heads/main", "origin/main"],
-        root)
+        ["merge-base", "--is-ancestor", "refs/heads/main", "origin/main"], root
+    )
     local_missing = _git(["rev-parse", "--verify", "refs/heads/main"], root)
     if ancestor.returncode == 0 or local_missing.returncode != 0:
         moved = _git(["update-ref", "refs/heads/main", "origin/main"], root)
-        return (moved.returncode == 0,
-                "fast-forwarded main ref" if moved.returncode == 0
-                else "update-ref failed")
+        return (
+            moved.returncode == 0,
+            "fast-forwarded main ref" if moved.returncode == 0 else "update-ref failed",
+        )
     return False, "main diverged; not fast-forwarding"
 
 
@@ -123,9 +131,14 @@ def warm_dependencies(root):
     requirements = os.path.join(root, "requirements.txt")
     if os.path.isfile(pnpm_lock):
         import subprocess as _sp
-        proc = _sp.run(["pnpm", "install", "--frozen-lockfile"],
-                       cwd=root, capture_output=True, text=True,
-                       check=False)
+
+        proc = _sp.run(
+            ["pnpm", "install", "--frozen-lockfile"],
+            cwd=root,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
         if proc.returncode == 0:
             notes.append("pnpm install ok")
         else:
@@ -133,8 +146,10 @@ def warm_dependencies(root):
             notes.append("pnpm install failed")
     elif os.path.isfile(pkg_lock):
         import subprocess as _sp
-        proc = _sp.run(["npm", "ci"], cwd=root, capture_output=True,
-                       text=True, check=False)
+
+        proc = _sp.run(
+            ["npm", "ci"], cwd=root, capture_output=True, text=True, check=False
+        )
         if proc.returncode == 0:
             notes.append("npm ci ok")
         else:
@@ -142,9 +157,14 @@ def warm_dependencies(root):
             notes.append("npm ci failed")
     if os.path.isfile(requirements):
         import subprocess as _sp
-        proc = _sp.run(["pip", "install", "-r", "requirements.txt"],
-                       cwd=root, capture_output=True, text=True,
-                       check=False)
+
+        proc = _sp.run(
+            ["pip", "install", "-r", "requirements.txt"],
+            cwd=root,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
         if proc.returncode == 0:
             notes.append("pip install ok")
         else:
@@ -168,6 +188,9 @@ def link_warm_deps(root, worktree_path):
         if not os.path.isdir(src) or os.path.lexists(dst):
             continue
         try:
+            parent = os.path.dirname(dst)
+            if parent and not os.path.isdir(parent):
+                os.makedirs(parent, exist_ok=True)
             os.symlink(src, dst)
             linked.append(name)
         except OSError:
@@ -237,8 +260,7 @@ def create(root, name=None, base_branch="main"):
     os.makedirs(worktrees_dir(root), exist_ok=True)
     res = _git(["worktree", "add", path, "-b", branch, base_branch], root)
     if res.returncode != 0:
-        raise WorktreeError(
-            f"git worktree add failed: {(res.stderr or '').strip()}")
+        raise WorktreeError(f"git worktree add failed: {(res.stderr or '').strip()}")
     return worktree_id, path, branch
 
 
@@ -265,13 +287,11 @@ def create_for_issue(root, issue_id):
     res = _git(["fetch", "origin", "main"], root)
     if res.returncode != 0:
         raise WorktreeError(
-            f"git fetch origin/main failed: "
-            f"{(res.stderr or '').strip()}")
-    res = _git(["worktree", "add", path, "-b", branch, "origin/main"],
-               root)
+            f"git fetch origin/main failed: {(res.stderr or '').strip()}"
+        )
+    res = _git(["worktree", "add", path, "-b", branch, "origin/main"], root)
     if res.returncode != 0:
-        raise WorktreeError(
-            f"git worktree add failed: {(res.stderr or '').strip()}")
+        raise WorktreeError(f"git worktree add failed: {(res.stderr or '').strip()}")
     linked = link_warm_deps(root, path)
     return {
         "worktreeId": f"issue-{issue_num}",
@@ -303,14 +323,16 @@ def list_worktrees(root):
             size = _dir_size(path)
         except OSError:
             size = 0
-        items.append({
-            "worktreeId": entry,
-            "path": path,
-            "branch": _branch_of(path),
-            "ageSeconds": age,
-            "changedFilesCount": _changed_count(path),
-            "diskUsageBytes": size,
-        })
+        items.append(
+            {
+                "worktreeId": entry,
+                "path": path,
+                "branch": _branch_of(path),
+                "ageSeconds": age,
+                "changedFilesCount": _changed_count(path),
+                "diskUsageBytes": size,
+            }
+        )
     return items
 
 
@@ -330,7 +352,8 @@ def remove(root, worktree_id, force=False):
     if not force and _changed_count(path) > 0:
         raise WorktreeError(
             f"Worktree {worktree_id} has uncommitted changes; "
-            "pass --force to remove anyway")
+            "pass --force to remove anyway"
+        )
     # Single owner (td via local_sessions, #1139 item 3). Total function:
     # corrupt sessions are skipped, persistence never raises.
     local_sessions.abandon_sessions_in_worktree(root, path)
@@ -340,7 +363,6 @@ def remove(root, worktree_id, force=False):
         freed = None
     res = _git(["worktree", "remove", "--force", path], root)
     if res.returncode != 0:
-        raise WorktreeError(
-            f"git worktree remove failed: {(res.stderr or '').strip()}")
+        raise WorktreeError(f"git worktree remove failed: {(res.stderr or '').strip()}")
     _git(["worktree", "prune"], root)
     return freed

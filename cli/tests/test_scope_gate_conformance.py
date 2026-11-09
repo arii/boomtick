@@ -6,6 +6,7 @@ both entry points run over shared fixtures and must agree on
 (success, allowed set, disallowed set). This test keeps the single
 source of truth honest, including the script's re-export wiring.
 """
+
 import importlib.util
 import os
 
@@ -59,8 +60,9 @@ def test_matches_reference(files, expected):
 
 
 def test_empty_issue_passes_both():
-    assert _verdict(scope_gate.check_scope, ["a/b.ts"], "") == \
-        _verdict(REF.check_scope, ["a/b.ts"], "")
+    assert _verdict(scope_gate.check_scope, ["a/b.ts"], "") == _verdict(
+        REF.check_scope, ["a/b.ts"], ""
+    )
     assert scope_gate.check_scope(["a/b.ts"], "")[0] is True
 
 
@@ -86,8 +88,7 @@ def test_root_anchors_import_reads(tmp_path):
     (pkg / "helper.py").write_text("def run(): pass\n")
     issue = "Change pkg/core.py behaviour."
     files = ["pkg/core.py", "pkg/helper.py"]
-    ok, _allowed, disallowed = scope_gate.check_scope(
-        files, issue, root=str(tmp_path))
+    ok, _allowed, disallowed = scope_gate.check_scope(files, issue, root=str(tmp_path))
     assert ok is True
     assert disallowed == []
 

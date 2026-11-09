@@ -33,7 +33,11 @@ def test_extract_exports_from_diff(orchestrator):
 """
     exports_ts = orchestrator.extract_exports_from_diff(ts_diff)
     assert "src/components/Button.tsx" in exports_ts
-    assert exports_ts["src/components/Button.tsx"] == {"CustomButton", "BUTTON_SIZE", "ButtonProps"}
+    assert exports_ts["src/components/Button.tsx"] == {
+        "CustomButton",
+        "BUTTON_SIZE",
+        "ButtonProps",
+    }
 
     exports_py = orchestrator.extract_exports_from_diff(py_diff)
     assert "cli/dev_tools/service.py" in exports_py
@@ -41,9 +45,17 @@ def test_extract_exports_from_diff(orchestrator):
 
 
 def test_detect_semantic_overlaps(orchestrator):
-    with patch.object(orchestrator, "detect_conflicts", return_value={(1, 2): ["shared.py"]}), \
-         patch.object(orchestrator.github, "fetch_pr_diff") as mock_fetch_diff, \
-         patch.object(orchestrator.github, "list_pull_requests", return_value=[{"number": 1}, {"number": 2}]):
+    with (
+        patch.object(
+            orchestrator, "detect_conflicts", return_value={(1, 2): ["shared.py"]}
+        ),
+        patch.object(orchestrator.github, "fetch_pr_diff") as mock_fetch_diff,
+        patch.object(
+            orchestrator.github,
+            "list_pull_requests",
+            return_value=[{"number": 1}, {"number": 2}],
+        ),
+    ):
 
         def diff_side_effect(pr_num):
             if pr_num == 1:
@@ -126,7 +138,9 @@ def test_cli_detect_conflicts_all():
         assert len(data["conflicts"]) == 1
         assert data["conflicts"][0]["prs"] == [1, 2]
         assert data["conflicts"][0]["type"] == "file_overlap"
-        mock_orch.handle_detect_conflicts.assert_called_once_with(pr_num=None, all_prs=True)
+        mock_orch.handle_detect_conflicts.assert_called_once_with(
+            pr_num=None, all_prs=True
+        )
 
 
 def test_cli_detect_conflicts_specific_pr():
@@ -143,7 +157,9 @@ def test_cli_detect_conflicts_specific_pr():
         assert result.exit_code == 0
         data = json.loads(result.output)
         assert data["status"] == "success"
-        mock_orch.handle_detect_conflicts.assert_called_once_with(pr_num=123, all_prs=False)
+        mock_orch.handle_detect_conflicts.assert_called_once_with(
+            pr_num=123, all_prs=False
+        )
 
 
 def test_cli_detect_conflicts_mutually_exclusive():
@@ -178,4 +194,6 @@ def test_cli_detect_conflicts_no_args():
         assert data["status"] == "success"
         assert len(data["conflicts"]) == 1
         assert data["conflicts"][0]["type"] == "file_overlap"
-        mock_orch.handle_detect_conflicts.assert_called_once_with(pr_num=None, all_prs=True)
+        mock_orch.handle_detect_conflicts.assert_called_once_with(
+            pr_num=None, all_prs=True
+        )

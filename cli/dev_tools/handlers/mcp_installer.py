@@ -21,9 +21,7 @@ HOST_CONFIG_MAP = {
     ],
 }
 
-DEFAULT_MCP_CONFIG = {
-    "command": "boomtick-mcp"
-}
+DEFAULT_MCP_CONFIG = {"command": "boomtick-mcp"}
 
 
 def detect_and_install_mcp(
@@ -57,12 +55,14 @@ def detect_and_install_mcp(
         # If parent or file exists, we consider this host target active/eligible
         if file_exists or parent_exists or custom_path:
             status, msg = update_host_config(path_obj, mcp_entry, dry_run=dry_run)
-            results.append({
-                "path": str(path_obj),
-                "status": status,
-                "message": msg,
-                "exists": file_exists,
-            })
+            results.append(
+                {
+                    "path": str(path_obj),
+                    "status": status,
+                    "message": msg,
+                    "exists": file_exists,
+                }
+            )
 
     return {
         "status": "success",
@@ -85,7 +85,10 @@ def update_host_config(
                 if content:
                     data = json.loads(content)
         except Exception as e:
-            return "error", f"Failed to parse existing JSON config at {path_obj}: {str(e)}"
+            return (
+                "error",
+                f"Failed to parse existing JSON config at {path_obj}: {str(e)}",
+            )
 
     if not isinstance(data, dict):
         data = {}

@@ -8,9 +8,15 @@ import pytest
 # Dynamically import the hyphenated script file 'verify-scope.py'.
 # Resolved from this file's location so the suite passes regardless
 # of the pytest invocation cwd (repo root or cli/).
-script_path = os.path.normpath(os.path.join(
-    os.path.dirname(os.path.abspath(__file__)),
-    "..", "..", "scripts", "verify-scope.py"))
+script_path = os.path.normpath(
+    os.path.join(
+        os.path.dirname(os.path.abspath(__file__)),
+        "..",
+        "..",
+        "scripts",
+        "verify-scope.py",
+    )
+)
 spec = importlib.util.spec_from_file_location("verify_scope", script_path)
 assert spec is not None
 verify_scope = importlib.util.module_from_spec(spec)
@@ -21,9 +27,11 @@ spec.loader.exec_module(verify_scope)
 
 @pytest.fixture(autouse=True)
 def chdir_to_repo_root(monkeypatch):
-    monkeypatch.chdir(os.path.normpath(os.path.join(
-        os.path.dirname(os.path.abspath(__file__)), "..", "..")))
-
+    monkeypatch.chdir(
+        os.path.normpath(
+            os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..")
+        )
+    )
 
 
 def test_exact_file_match():
@@ -41,7 +49,10 @@ def test_exact_file_match():
 def test_out_of_scope_file_blocked():
     issue_text = "Fix a bug in .github/workflows/release.yml related to Docker buildx."
     # publish-runner.yml is NOT mentioned and is unrelated
-    changed_files = [".github/workflows/release.yml", ".github/workflows/publish-runner.yml"]
+    changed_files = [
+        ".github/workflows/release.yml",
+        ".github/workflows/publish-runner.yml",
+    ]
 
     success, allowed, disallowed = verify_scope.check_scope(changed_files, issue_text)
 
@@ -53,7 +64,13 @@ def test_out_of_scope_file_blocked():
 
 def test_exempt_configuration_files():
     issue_text = "Fix a bug in .github/workflows/release.yml."
-    changed_files = ["package.json", "project_config.json", "ci.yml", "README.md", "cli/pyproject.toml"]
+    changed_files = [
+        "package.json",
+        "project_config.json",
+        "ci.yml",
+        "README.md",
+        "cli/pyproject.toml",
+    ]
 
     success, allowed, disallowed = verify_scope.check_scope(changed_files, issue_text)
 
@@ -75,7 +92,9 @@ def test_test_file_mapping():
 
 
 def test_directory_match():
-    issue_text = "Optimize files and configurations under scripts/ and help with validation."
+    issue_text = (
+        "Optimize files and configurations under scripts/ and help with validation."
+    )
     changed_files = ["scripts/run-python-tool.py", "scripts/validate_workspace.py"]
 
     success, allowed, disallowed = verify_scope.check_scope(changed_files, issue_text)
@@ -91,7 +110,7 @@ def test_module_hierarchy_subfile():
         "mcp/src/config.ts",
         "mcp/src/config/dynamic.ts",
         "mcp/src/config/github.ts",
-        "mcp/src/config/repo.ts"
+        "mcp/src/config/repo.ts",
     ]
 
     success, allowed, disallowed = verify_scope.check_scope(changed_files, issue_text)
@@ -102,13 +121,15 @@ def test_module_hierarchy_subfile():
 
 
 def test_refactor_import_heuristic():
-    issue_text = ("Extract JSON schema parsing from "
-                  "mcp/src/tools/repo.read_agent_context.ts into shared "
-                  "schema helper.")
+    issue_text = (
+        "Extract JSON schema parsing from "
+        "mcp/src/tools/repo.read_agent_context.ts into shared "
+        "schema helper."
+    )
     # mcp/src/tools/repo.read_agent_context.ts imports ./contract
     changed_files = [
         "mcp/src/tools/repo.read_agent_context.ts",
-        "mcp/src/tools/contract.ts"
+        "mcp/src/tools/contract.ts",
     ]
 
     success, allowed, disallowed = verify_scope.check_scope(changed_files, issue_text)
@@ -123,15 +144,16 @@ def test_linked_issue_fetching(monkeypatch):
 
     class MockCompletedProcess:  # pylint: disable=too-few-public-methods
         returncode = 0
-        stdout = json.dumps({
-            "title": "[cleanup] MCP Server & Tools",
-            "body": "Refactor targets in mcp/src/tools/jules/shared.ts, mcp/src/config.ts."
-        })
+        stdout = json.dumps(
+            {
+                "title": "[cleanup] MCP Server & Tools",
+                "body": "Refactor targets in mcp/src/tools/jules/shared.ts, mcp/src/config.ts.",
+            }
+        )
         stderr = ""
 
     monkeypatch.setattr(
-        "subprocess.run",
-        lambda *args, **kwargs: MockCompletedProcess()
+        "subprocess.run", lambda *args, **kwargs: MockCompletedProcess()
     )
 
     full_text = verify_scope.fetch_linked_issue_bodies(issue_text)
@@ -165,15 +187,13 @@ Fixes #936"""
 
     class MockCompletedProcess:  # pylint: disable=too-few-public-methods
         returncode = 0
-        stdout = json.dumps({
-            "title": "[cleanup] MCP Server & Tools",
-            "body": body_text
-        })
+        stdout = json.dumps(
+            {"title": "[cleanup] MCP Server & Tools", "body": body_text}
+        )
         stderr = ""
 
     monkeypatch.setattr(
-        "subprocess.run",
-        lambda *args, **kwargs: MockCompletedProcess()
+        "subprocess.run", lambda *args, **kwargs: MockCompletedProcess()
     )
 
     full_text = verify_scope.fetch_linked_issue_bodies(pr_body)
@@ -205,7 +225,7 @@ def test_unrelated_file_blocked_under_strict():
     changed_files = [
         "mcp/src/config.ts",
         "mcp/src/config/dynamic.ts",
-        "cli/dev_tools/schema_gen.py"  # Completely unrelated package/directory
+        "cli/dev_tools/schema_gen.py",  # Completely unrelated package/directory
     ]
 
     success, allowed, disallowed = verify_scope.check_scope(changed_files, issue_text)
@@ -231,8 +251,7 @@ def test_override_commit_msg(monkeypatch):
         stderr = ""
 
     monkeypatch.setattr(
-        "subprocess.run",
-        lambda *args, **kwargs: MockCompletedProcess()
+        "subprocess.run", lambda *args, **kwargs: MockCompletedProcess()
     )
 
     assert verify_scope.check_override() is True
@@ -261,7 +280,7 @@ def test_override_release_please_event_path(monkeypatch, tmp_path):
         "pull_request": {
             "title": "chore: release main (#942)",
             "head": {"ref": "release-please--branches--main"},
-            "user": {"login": "release-please[bot]"}
+            "user": {"login": "release-please[bot]"},
         }
     }
     event_file.write_text(json.dumps(event_data), encoding="utf-8")
@@ -280,7 +299,7 @@ def test_override_boomtick_bot_user(monkeypatch, tmp_path):
         "pull_request": {
             "title": "chore: release main (#972)",
             "head": {"ref": "release-please--branches--main"},
-            "user": {"login": "boomtick[bot]"}
+            "user": {"login": "boomtick[bot]"},
         }
     }
     event_file.write_text(json.dumps(event_data), encoding="utf-8")
@@ -296,7 +315,7 @@ def test_dockerfile_case_insensitive_exempt():
         "package-lock.json",
         "action.yml",
         ".dependency-cruiser.config.mjs",
-        "tsup.config.ts"
+        "tsup.config.ts",
     ]
 
     success, allowed, disallowed = verify_scope.check_scope(changed_files, issue_text)
@@ -318,8 +337,7 @@ def test_override_release_please_commit_msg(monkeypatch):
         stderr = ""
 
     monkeypatch.setattr(
-        "subprocess.run",
-        lambda *args, **kwargs: MockCompletedProcess()
+        "subprocess.run", lambda *args, **kwargs: MockCompletedProcess()
     )
 
     assert verify_scope.check_override() is True
@@ -361,7 +379,9 @@ def test_log_probe_scopes_to_pr_range_not_last_10(monkeypatch):
     assert log_calls, "expected check_override() to probe git log"
     assert any("origin/main..HEAD" in c for c in log_calls)
     for call in log_calls:
-        assert not ("-n" in call and "10" in call), f"probe must not read history: {call}"
+        assert not ("-n" in call and "10" in call), (
+            f"probe must not read history: {call}"
+        )
 
 
 def test_old_history_release_does_not_bypass(monkeypatch):

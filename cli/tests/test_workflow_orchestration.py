@@ -17,7 +17,6 @@ from dev_tools.workflows import (
 
 
 class DummyNode(WorkflowNode):
-
     def __init__(self, name, execution_fn=None, **kwargs):
         super().__init__(name, **kwargs)
         self.execution_fn = execution_fn
@@ -50,7 +49,9 @@ def test_context_state_and_history():
 
     start = datetime.now(timezone.utc)
     end = datetime.now(timezone.utc)
-    ctx.record_node_execution("NodeA", "COMPLETED", start, end, retries=1, role="verifier")
+    ctx.record_node_execution(
+        "NodeA", "COMPLETED", start, end, retries=1, role="verifier"
+    )
 
     assert len(ctx.history) == 1
     assert ctx.history[0]["node_name"] == "NodeA"
@@ -203,7 +204,11 @@ def test_runner_retries_with_custom_sleep_fn():
         ctx.set("success_on_attempt", attempts)
         return "Success"
 
-    node = DummyNode("A", execution_fn=retry_fn, retry_policy={"max_retries": 3, "backoff_factor": 1.0})
+    node = DummyNode(
+        "A",
+        execution_fn=retry_fn,
+        retry_policy={"max_retries": 3, "backoff_factor": 1.0},
+    )
     graph.add_node(node)
 
     runner = WorkflowRunner(sleep_fn=mock_sleep)
@@ -231,7 +236,11 @@ def test_runner_retries_with_exponential_backoff(mock_sleep):
         ctx.set("success_on_attempt", attempts)
         return "Success"
 
-    node = DummyNode("A", execution_fn=retry_fn, retry_policy={"max_retries": 3, "backoff_factor": 1.0})
+    node = DummyNode(
+        "A",
+        execution_fn=retry_fn,
+        retry_policy={"max_retries": 3, "backoff_factor": 1.0},
+    )
     graph.add_node(node)
 
     runner = WorkflowRunner()
@@ -274,8 +283,14 @@ def test_runner_timeout_handling():
 def test_concrete_nodes_execution(mock_orchestrator_class):
     mock_orchestrator = MagicMock()
     mock_orchestrator_class.return_value = mock_orchestrator
-    mock_orchestrator.runtime_check.return_value = {"node": "24.16.0", "pnpm": "10.28.2"}
-    mock_orchestrator.validate_issue.return_value = {"status": "success", "total_findings": 0}
+    mock_orchestrator.runtime_check.return_value = {
+        "node": "24.16.0",
+        "pnpm": "10.28.2",
+    }
+    mock_orchestrator.validate_issue.return_value = {
+        "status": "success",
+        "total_findings": 0,
+    }
 
     graph = WorkflowGraph()
     node_env = EnvironmentCheckNode()
@@ -296,10 +311,15 @@ def test_concrete_nodes_execution(mock_orchestrator_class):
 
     # Verify context outputs and scratchpad are set correctly
     assert context.get("runtime_info") == {"node": "24.16.0", "pnpm": "10.28.2"}
-    assert context.get("issue_validation_results") == {"status": "success", "total_findings": 0}
+    assert context.get("issue_validation_results") == {
+        "status": "success",
+        "total_findings": 0,
+    }
     assert context.read_scratchpad("verified_node_version") == "24.16.0"
     assert context.read_scratchpad("verified_pnpm_version") == "10.28.2"
-    assert context.read_scratchpad("validation_focus") == "Validating under Node 24.16.0"
+    assert (
+        context.read_scratchpad("validation_focus") == "Validating under Node 24.16.0"
+    )
 
 
 def test_context_snapshot_rollback_and_checkpoint():
@@ -345,4 +365,6 @@ def test_fstring_backslash_compatibility():
                     if seg and "\\" in seg:
                         violations.append((path, node.lineno, seg))
 
-    assert not violations, f"f-string expression(s) contain backslashes incompatible with Python < 3.12: {violations}"
+    assert not violations, (
+        f"f-string expression(s) contain backslashes incompatible with Python < 3.12: {violations}"
+    )

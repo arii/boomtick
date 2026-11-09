@@ -1,4 +1,5 @@
 """Unit tests for AST chunking, BM25 vector store indexing, and code intelligence services."""
+
 import importlib.util
 import pytest
 from click.testing import CliRunner
@@ -13,7 +14,9 @@ HAS_TREE_SITTER = (
 )
 
 
-@pytest.mark.skipif(not HAS_TREE_SITTER, reason="tree-sitter or tree-sitter-typescript not installed")
+@pytest.mark.skipif(
+    not HAS_TREE_SITTER, reason="tree-sitter or tree-sitter-typescript not installed"
+)
 def test_vector_store_ast_chunking_and_bm25(tmp_path):
     """Test AST chunking of TSX code and incremental BM25 indexing."""
     db_dir = str(tmp_path / "chroma_db")
@@ -36,7 +39,9 @@ export const UserCard = ({ user }: { user: User }) => {
     chunks = vs.chunk_code_ast(ts_code, "src/components/User.tsx")
     assert len(chunks) >= 2
     assert any("interface User" in c["content"] for c in chunks)
-    assert any("function getUser" in c["content"] or "getUser" in c["content"] for c in chunks)
+    assert any(
+        "function getUser" in c["content"] or "getUser" in c["content"] for c in chunks
+    )
 
     # Test incremental indexing and BM25 index
     ids = vs.add_file_incremental("src/components/User.tsx", ts_code)
@@ -50,7 +55,9 @@ export const UserCard = ({ user }: { user: User }) => {
         assert len(results) > 0
 
 
-@pytest.mark.skipif(not HAS_TREE_SITTER, reason="tree-sitter or tree-sitter-typescript not installed")
+@pytest.mark.skipif(
+    not HAS_TREE_SITTER, reason="tree-sitter or tree-sitter-typescript not installed"
+)
 def test_ast_auditor_type_suppression_and_jsx_primitives(tmp_path):
     """Test AST auditor detection of raw JSX primitives and type suppressions."""
     auditor = ASTAuditor(baseline_file=str(tmp_path / "audit-baseline.json"))
@@ -81,11 +88,18 @@ export function BadComponent() {
 def test_orchestrator_preflight(mocker):
     """Test Orchestrator preflight command aggregation and status."""
     orch = Orchestrator()
-    mocker.patch.object(orch, "doctor_check", return_value={"status": "success", "node": "24.16.0", "pnpm": "10.28.2"})
+    mocker.patch.object(
+        orch,
+        "doctor_check",
+        return_value={"status": "success", "node": "24.16.0", "pnpm": "10.28.2"},
+    )
     mocker.patch.object(orch, "get_audit_results", return_value={"violations": {}})
     mocker.patch.object(orch, "detect_conflicts", return_value={})
     mocker.patch.object(orch, "_pnpm_has_script", return_value=True)
-    mocker.patch("dev_tools.orchestrator.run_command", return_value=mocker.MagicMock(returncode=0, stdout="clean"))
+    mocker.patch(
+        "dev_tools.orchestrator.run_command",
+        return_value=mocker.MagicMock(returncode=0, stdout="clean"),
+    )
 
     res = orch.run_preflight(base_branch="main")
     assert res["status"] == "success"
@@ -110,7 +124,10 @@ def test_orchestrator_preflight_skips_missing_scripts(tmp_path, mocker):
     mocker.patch.object(orch, "doctor_check", return_value={"status": "success"})
     mocker.patch.object(orch, "get_audit_results", return_value={"violations": {}})
     mocker.patch.object(orch, "detect_conflicts", return_value={})
-    mocker.patch("dev_tools.orchestrator.run_command", return_value=mocker.MagicMock(returncode=0, stdout="clean"))
+    mocker.patch(
+        "dev_tools.orchestrator.run_command",
+        return_value=mocker.MagicMock(returncode=0, stdout="clean"),
+    )
 
     # Test _pnpm_has_script helper
     assert orch._pnpm_has_script("type-check", cwd=str(tmp_path)) is False
@@ -121,7 +138,10 @@ def test_orchestrator_preflight_skips_missing_scripts(tmp_path, mocker):
 
     res = orch.run_preflight(base_branch="main")
     assert res["status"] == "success"
-    assert res["typecheck"] == {"status": "skipped", "reason": "script not in package.json"}
+    assert res["typecheck"] == {
+        "status": "skipped",
+        "reason": "script not in package.json",
+    }
     assert res["lint"] == {"status": "skipped", "reason": "script not in package.json"}
 
 

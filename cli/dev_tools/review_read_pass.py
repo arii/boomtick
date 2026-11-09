@@ -195,7 +195,10 @@ def parse_diff_into_file_chunks(diff_text: str) -> list[dict]:
             is_truncated = False
 
             if len(text) > MAX_CHUNK_CHARS:
-                text = text[:MAX_CHUNK_CHARS] + f"\n... (diff truncated at {MAX_CHUNK_CHARS} chars)"
+                text = (
+                    text[:MAX_CHUNK_CHARS]
+                    + f"\n... (diff truncated at {MAX_CHUNK_CHARS} chars)"
+                )
                 is_truncated = True
 
             chunks.append(

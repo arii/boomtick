@@ -21,6 +21,7 @@ export interface VisualRouteSummary {
   beforePath: string;
   afterPath: string;
   diffPath?: string;
+  suffix?: string;
   previousFindings?: VisualReviewFinding[];
   validation?: {
     passed: boolean;

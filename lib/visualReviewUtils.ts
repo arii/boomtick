@@ -258,7 +258,7 @@ async function fetchPaginatedGitHubItems(
   let currentUrl: string | null = `${url}${url.includes('?') ? '&' : '?'}per_page=100`;
 
   while (currentUrl) {
-    const response = await fetch(currentUrl, {
+    const response: Response = await fetch(currentUrl, {
       headers: { Authorization: `Bearer ${token}`, Accept: 'application/vnd.github+json' },
     });
 
@@ -483,7 +483,7 @@ async function _postPRReview(
   let existingReview: { id: number; body: string; state: string; user: { type: string } } | undefined;
 
   while (fetchReviewsUrl) {
-    const getReviewsResponse = await fetch(fetchReviewsUrl, {
+    const getReviewsResponse: Response = await fetch(fetchReviewsUrl, {
       headers: {
         Authorization: `Bearer ${token}`,
         Accept: 'application/vnd.github+json',
@@ -622,7 +622,7 @@ async function _postPRIssueComment(
   let existingComment: { id: number; body: string; user: { type: string } } | undefined;
 
   while (fetchUrl) {
-    const getCommentsResponse = await fetch(fetchUrl, {
+    const getCommentsResponse: Response = await fetch(fetchUrl, {
       headers: {
         Authorization: `Bearer ${token}`,
         Accept: 'application/vnd.github+json',

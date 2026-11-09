@@ -22,7 +22,9 @@ def parse_diff(diff_text: str) -> List[Dict]:
 
     # Regex patterns
     ACTION_PATTERN = re.compile(r"uses:\s+([\w\-/]+)@([\w\.]+)")
-    PKG_JSON_VERSION_PATTERN = re.compile(r'"(node|pnpm|[\w\-\./@]+)":\s*"([\d\.\^x~<>=\| v]+)"')
+    PKG_JSON_VERSION_PATTERN = re.compile(
+        r'"(node|pnpm|[\w\-\./@]+)":\s*"([\d\.\^x~<>=\| v]+)"'
+    )
     PM_PATTERN = re.compile(r'"packageManager":\s*"pnpm@([\d\.]+)"')
 
     # Files we care about
@@ -47,7 +49,9 @@ def parse_diff(diff_text: str) -> List[Dict]:
         if not current_file:
             continue
 
-        is_sensitive = current_file in SENSITIVE_FILES or any(current_file.startswith(sd) for sd in SENSITIVE_DIRS)
+        is_sensitive = current_file in SENSITIVE_FILES or any(
+            current_file.startswith(sd) for sd in SENSITIVE_DIRS
+        )
         if not is_sensitive:
             continue
 
@@ -55,7 +59,11 @@ def parse_diff(diff_text: str) -> List[Dict]:
         additions = {}  # name -> version
 
         for line in lines:
-            if line.startswith("--- ") or line.startswith("+++ ") or line.startswith("@@ "):
+            if (
+                line.startswith("--- ")
+                or line.startswith("+++ ")
+                or line.startswith("@@ ")
+            ):
                 continue
 
             if line.startswith("-"):
@@ -97,7 +105,15 @@ def parse_diff(diff_text: str) -> List[Dict]:
             if name == "node" or current_file in [".nvmrc", ".node-version"]:
                 type_val = "runtime"
 
-            changes.append({"file": current_file, "type": type_val, "name": name, "old": old_v, "new": new_v})
+            changes.append(
+                {
+                    "file": current_file,
+                    "type": type_val,
+                    "name": name,
+                    "old": old_v,
+                    "new": new_v,
+                }
+            )
 
     return changes
 

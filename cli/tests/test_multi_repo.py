@@ -21,17 +21,33 @@ def temp_ecosystem(tmp_path):
     repo1.mkdir()
     (repo1 / ".git").mkdir()
     (repo1 / "project_config.json").write_text(
-        json.dumps({"github_repo": "org/repo1", "packageName": "repo1", "vite_base_path": "/repo1/"})
+        json.dumps(
+            {
+                "github_repo": "org/repo1",
+                "packageName": "repo1",
+                "vite_base_path": "/repo1/",
+            }
+        )
     )
-    (repo1 / "package.json").write_text(json.dumps({"name": "repo1", "scripts": {"agent:prime": "echo prime1"}}))
+    (repo1 / "package.json").write_text(
+        json.dumps({"name": "repo1", "scripts": {"agent:prime": "echo prime1"}})
+    )
 
     repo2 = tmp_path / "repo2"
     repo2.mkdir()
     (repo2 / ".git").mkdir()
     (repo2 / "project_config.json").write_text(
-        json.dumps({"github_repo": "org/repo2", "packageName": "repo2", "vite_base_path": "/repo2/"})
+        json.dumps(
+            {
+                "github_repo": "org/repo2",
+                "packageName": "repo2",
+                "vite_base_path": "/repo2/",
+            }
+        )
     )
-    (repo2 / "package.json").write_text(json.dumps({"name": "repo2", "scripts": {"doctor": "echo doctor2"}}))
+    (repo2 / "package.json").write_text(
+        json.dumps({"name": "repo2", "scripts": {"doctor": "echo doctor2"}})
+    )
 
     return {"root": tmp_path, "repo1": repo1, "repo2": repo2}
 
@@ -180,23 +196,32 @@ class _FakeGithub:
 def test_verify_partner_deep_agents_reports_assignment(tmp_path):
     from dev_tools import multi_repo as mr
 
-    (tmp_path / "project_config.json").write_text(json.dumps({
-        "ecosystem_repos": {"arii/tech-dancer": "../tech-dancer"},
-    }))
-    github = _FakeGithub({
-        "arii/tech-dancer": _FakeRepo(
-            [_FakeIssue(1, ["deep-agent"]), _FakeIssue(2, ["bug"])],
-            [_FakePR(10)],
-        ),
-        "arii/hrm": _FakeRepo([], []),
-    })
+    (tmp_path / "project_config.json").write_text(
+        json.dumps(
+            {
+                "ecosystem_repos": {"arii/tech-dancer": "../tech-dancer"},
+            }
+        )
+    )
+    github = _FakeGithub(
+        {
+            "arii/tech-dancer": _FakeRepo(
+                [_FakeIssue(1, ["deep-agent"]), _FakeIssue(2, ["bug"])],
+                [_FakePR(10)],
+            ),
+            "arii/hrm": _FakeRepo([], []),
+        }
+    )
     worktrees = [
         {"path": "/wt/tech-dancer-1", "branch": "feat/x"},
         {"path": "/wt/other", "branch": "feat/y"},
     ]
     report = mr.verify_partner_deep_agents(
-        github, tmp_path, ["arii/tech-dancer", "arii/hrm", "arii/missing"],
-        worktree_lister=lambda root: worktrees)
+        github,
+        tmp_path,
+        ["arii/tech-dancer", "arii/hrm", "arii/missing"],
+        worktree_lister=lambda root: worktrees,
+    )
 
     tech = report["arii/tech-dancer"]
     assert tech["reachable"] is True

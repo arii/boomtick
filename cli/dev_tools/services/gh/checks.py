@@ -1,4 +1,5 @@
 """GitHub checks, workflow runs, and logs."""
+
 import json
 import re
 import subprocess
@@ -8,11 +9,12 @@ from dev_tools.utils import CLIError, log_warn
 from dev_tools.services.gh.pulls import PullsMixin
 
 
-
 class ChecksMixin(PullsMixin):
     """GitHub checks, workflow runs, and logs."""
 
-    def fetch_check_runs(self, ref: str, repo: Optional[str] = None) -> List[Dict[str, Any]]:
+    def fetch_check_runs(
+        self, ref: str, repo: Optional[str] = None
+    ) -> List[Dict[str, Any]]:
         """Fetch check runs for a ref."""
         target_repo = repo or self.repo
         data = self._request("GET", f"/repos/{target_repo}/commits/{ref}/check-runs")
@@ -28,20 +30,29 @@ class ChecksMixin(PullsMixin):
             for run in data.get("check_runs", [])
         ]
 
-    def fetch_check_suites(self, ref: str, repo: Optional[str] = None) -> List[Dict[str, Any]]:
+    def fetch_check_suites(
+        self, ref: str, repo: Optional[str] = None
+    ) -> List[Dict[str, Any]]:
         """Fetch check suites for a ref."""
         target_repo = repo or self.repo
         data = self._request("GET", f"/repos/{target_repo}/commits/{ref}/check-suites")
         return data.get("check_suites", [])
 
-    def fetch_check_runs_for_suite(self, suite_id: int, repo: Optional[str] = None) -> List[Dict[str, Any]]:
+    def fetch_check_runs_for_suite(
+        self, suite_id: int, repo: Optional[str] = None
+    ) -> List[Dict[str, Any]]:
         """Fetch check runs for a suite."""
         target_repo = repo or self.repo
-        data = self._request("GET", f"/repos/{target_repo}/check-suites/{suite_id}/check-runs")
+        data = self._request(
+            "GET", f"/repos/{target_repo}/check-suites/{suite_id}/check-runs"
+        )
         return data.get("check_runs", [])
 
     def fetch_workflow_runs(
-        self, branch: Optional[str] = None, event: Optional[str] = None, repo: Optional[str] = None
+        self,
+        branch: Optional[str] = None,
+        event: Optional[str] = None,
+        repo: Optional[str] = None,
     ) -> List[Dict[str, Any]]:
         """Fetches workflow runs for the repository with optional branch/event filtering."""
         target_repo = repo or self.repo
@@ -50,10 +61,16 @@ class ChecksMixin(PullsMixin):
             params["branch"] = branch
         if event:
             params["event"] = event
-        data = self._request("GET", f"/repos/{target_repo}/actions/runs", params=params if params else None)
+        data = self._request(
+            "GET",
+            f"/repos/{target_repo}/actions/runs",
+            params=params if params else None,
+        )
         return data.get("workflow_runs", []) if isinstance(data, dict) else []
 
-    def fetch_workflow_run_jobs(self, run_id: int, repo: Optional[str] = None) -> List[Dict[str, Any]]:
+    def fetch_workflow_run_jobs(
+        self, run_id: int, repo: Optional[str] = None
+    ) -> List[Dict[str, Any]]:
         """Fetches jobs for a workflow run, shaped to name/conclusion/steps."""
         target_repo = repo or self.repo
         data = self._request("GET", f"/repos/{target_repo}/actions/runs/{run_id}/jobs")
@@ -81,7 +98,9 @@ class ChecksMixin(PullsMixin):
     def _handle_missing_logs(self, identifier: Any, is_fallback: bool = False) -> str:
         """Helper to log warning and return a warning string for missing logs."""
         label = "check run" if is_fallback else "job"
-        log_warn(f"Logs for {label} {identifier} {'also ' if is_fallback else ''}not found (404).")
+        log_warn(
+            f"Logs for {label} {identifier} {'also ' if is_fallback else ''}not found (404)."
+        )
         return (
             f"WARNING: "
             f"Logs not "
@@ -95,10 +114,12 @@ class ChecksMixin(PullsMixin):
             f"still pending."
         )
 
-    def fetch_check_run_logs(self,
+    def fetch_check_run_logs(
+        self,
         check_run_id: int,
         external_id: Optional[str] = None,
-        repo: Optional[str] = None) -> str:
+        repo: Optional[str] = None,
+    ) -> str:
         (
             """Fetches """
             """logs for """
@@ -129,7 +150,11 @@ class ChecksMixin(PullsMixin):
             )
         except (requests.exceptions.HTTPError, CLIError) as e:
             code = getattr(e, "code", None)
-            if code is None and isinstance(e, requests.exceptions.HTTPError) and e.response is not None:
+            if (
+                code is None
+                and isinstance(e, requests.exceptions.HTTPError)
+                and e.response is not None
+            ):
                 code = e.response.status_code
 
             # Fallback only if the error was a 404 (permanent not found) or a potentially transient network error
@@ -138,15 +163,17 @@ class ChecksMixin(PullsMixin):
             if code == 404 or is_transient:
                 if external_id is not None:
                     # Fallback to query by raw check_run_id
-                    log_warn((
-                        f"Logs "
-                        f"for job "
-                        f"{external_id} not "
-                        f"found ({code}). "
-                        f"Falling back "
-                        f"to check "
-                        f"run {check_run_id}..."
-                    ))
+                    log_warn(
+                        (
+                            f"Logs "
+                            f"for job "
+                            f"{external_id} not "
+                            f"found ({code}). "
+                            f"Falling back "
+                            f"to check "
+                            f"run {check_run_id}..."
+                        )
+                    )
                     try:
                         return self._request(
                             "GET",
@@ -165,7 +192,9 @@ class ChecksMixin(PullsMixin):
                             fallback_code = fallback_e.response.status_code
 
                         if fallback_code == 404:
-                            return self._handle_missing_logs(check_run_id, is_fallback=True)
+                            return self._handle_missing_logs(
+                                check_run_id, is_fallback=True
+                            )
                         raise fallback_e
                 elif code == 404:
                     return self._handle_missing_logs(job_id)
@@ -194,11 +223,13 @@ class ChecksMixin(PullsMixin):
                 f.write(chunk)
 
         from dev_tools.utils import run_command
+
         # unzip -o overwrite files without prompting
         run_command(["unzip", "-o", safe_dest])
 
-
-    def fetch_pr_view_details(self, number: int, repo: Optional[str] = None) -> Dict[str, Any]:
+    def fetch_pr_view_details(
+        self, number: int, repo: Optional[str] = None
+    ) -> Dict[str, Any]:
         """Fetches detailed PR evaluation fields: title, state, mergeable, statusCheckRollup, isDraft, files, body."""
         target_repo = repo or self.repo
         cmd = [
@@ -233,7 +264,8 @@ class ChecksMixin(PullsMixin):
                 for c in check_runs
             ]
             mergeable_val = (
-                "MERGEABLE" if pr.get("mergeable") is True
+                "MERGEABLE"
+                if pr.get("mergeable") is True
                 else ("CONFLICTING" if pr.get("mergeable") is False else "UNKNOWN")
             )
             return {

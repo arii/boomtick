@@ -42,8 +42,15 @@ class TestContextBuilder(unittest.TestCase):
 
     def test_ingest_pr(self) -> None:
         """Test PR detail and diff ingestion."""
-        mock_details = {"number": 12, "title": "Feat: Add something", "body": "PR description", "state": "open"}
-        mock_diff = "diff --git a/src/app.tsx b/src/app.tsx\n+++ b/src/app.tsx\n+added line"
+        mock_details = {
+            "number": 12,
+            "title": "Feat: Add something",
+            "body": "PR description",
+            "state": "open",
+        }
+        mock_diff = (
+            "diff --git a/src/app.tsx b/src/app.tsx\n+++ b/src/app.tsx\n+added line"
+        )
 
         self.mock_github.fetch_pr_details.return_value = mock_details
         self.mock_github.fetch_pr_diff.return_value = mock_diff
@@ -108,11 +115,19 @@ class TestContextBuilder(unittest.TestCase):
             os.makedirs(os.path.join(tmp_dir, "node_modules"))  # Should be ignored
             os.makedirs(os.path.join(tmp_dir, ".git"))  # Should be ignored
 
-            with open(os.path.join(tmp_dir, "src", "app.tsx"), "w", encoding="utf-8") as f:
+            with open(
+                os.path.join(tmp_dir, "src", "app.tsx"), "w", encoding="utf-8"
+            ) as f:
                 f.write("app content")
-            with open(os.path.join(tmp_dir, "src", "components", "Button.tsx"), "w", encoding="utf-8") as f:
+            with open(
+                os.path.join(tmp_dir, "src", "components", "Button.tsx"),
+                "w",
+                encoding="utf-8",
+            ) as f:
                 f.write("button content")
-            with open(os.path.join(tmp_dir, "package.json"), "w", encoding="utf-8") as f:
+            with open(
+                os.path.join(tmp_dir, "package.json"), "w", encoding="utf-8"
+            ) as f:
                 f.write("{}")
 
             self.builder.ingest_file_tree(root_dir=tmp_dir, max_depth=3)
@@ -126,16 +141,25 @@ class TestContextBuilder(unittest.TestCase):
             self.assertIn("src/", self.builder.file_tree)
             self.assertIn("components/", self.builder.file_tree["src/"])
             self.assertIsNone(self.builder.file_tree["src/"]["app.tsx"])
-            self.assertIsNone(self.builder.file_tree["src/"]["components/"]["Button.tsx"])
+            self.assertIsNone(
+                self.builder.file_tree["src/"]["components/"]["Button.tsx"]
+            )
 
     def test_add_extra_context(self) -> None:
         """Test adding supplemental context evidence."""
         self.builder.add_extra_context("ci_logs", "npm run test failed at line 12")
-        self.assertEqual(self.builder.extra_context["ci_logs"], "npm run test failed at line 12")
+        self.assertEqual(
+            self.builder.extra_context["ci_logs"], "npm run test failed at line 12"
+        )
 
     def test_build_structured_context(self) -> None:
         """Test creating structured dictionary for the programmatic agent."""
-        mock_details = {"number": 100, "title": "Feature X", "body": "Add feature X", "state": "closed"}
+        mock_details = {
+            "number": 100,
+            "title": "Feature X",
+            "body": "Add feature X",
+            "state": "closed",
+        }
         mock_diff = "diff --git a/src/index.ts b/src/index.ts\n+++ b/src/index.ts\n+export * from './x';"
         self.mock_github.fetch_pr_details.return_value = mock_details
         self.mock_github.fetch_pr_diff.return_value = mock_diff
@@ -152,11 +176,18 @@ class TestContextBuilder(unittest.TestCase):
         self.assertEqual(context["pr"]["changed_files"], ["src/index.ts"])
         self.assertEqual(context["file_tree"], {"package.json": None})
         self.assertEqual(context["extra"], {"test_run": "success"})
-        self.assertEqual(context["scratch_pad"], [{"role": "reviewer", "note": "My note"}])
+        self.assertEqual(
+            context["scratch_pad"], [{"role": "reviewer", "note": "My note"}]
+        )
 
     def test_build_markdown_context(self) -> None:
         """Test generating Markdown prompt context formatted for LLM consumption."""
-        mock_details = {"number": 1, "title": "Example", "body": "Example description", "state": "open"}
+        mock_details = {
+            "number": 1,
+            "title": "Example",
+            "body": "Example description",
+            "state": "open",
+        }
         mock_diff = "diff --git a/src/app.ts b/src/app.ts\n+++ b/src/app.ts"
         self.mock_github.fetch_pr_details.return_value = mock_details
         self.mock_github.fetch_pr_diff.return_value = mock_diff

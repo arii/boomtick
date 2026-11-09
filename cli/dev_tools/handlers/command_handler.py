@@ -6,7 +6,9 @@ class CommandHandler:
     def __init__(self, orchestrator):
         self.orchestrator = orchestrator
 
-    def handle(self, pr_number: int, command_text: str, comment_id: Optional[str] = None) -> Dict[str, Any]:
+    def handle(
+        self, pr_number: int, command_text: str, comment_id: Optional[str] = None
+    ) -> Dict[str, Any]:
         """
         Parses and dispatches slash commands.
         """

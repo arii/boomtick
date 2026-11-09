@@ -6,6 +6,7 @@ Chrome binaries), capture, then DELETE the session (a leaked session
 holds the single grid slot and wedges every later run). All logs go
 to stderr so stdout stays pure JSON.
 """
+
 from __future__ import annotations
 
 import json
@@ -45,8 +46,9 @@ def get_grid_base() -> str:
 
 
 def _cdp_ws_url(grid_base: str, session_id: str) -> str:
-    ws_base = grid_base.rstrip("/").replace(
-        "https://", "wss://").replace("http://", "ws://")
+    ws_base = (
+        grid_base.rstrip("/").replace("https://", "wss://").replace("http://", "ws://")
+    )
     return f"{ws_base}/session/{session_id}/se/cdp"
 
 
@@ -72,27 +74,31 @@ def _session_capabilities() -> dict:
     viewer session mirrors it recursively). Custom vendor caps
     round-trip through Grid /status slot capabilities.
     """
-    return {"browserName": "chrome",
-            "boomtick:agentSession": True,
-            "goog:chromeOptions": {"args": list(AGENT_PROFILE_ARGS)}}
+    return {
+        "browserName": "chrome",
+        "boomtick:agentSession": True,
+        "goog:chromeOptions": {"args": list(AGENT_PROFILE_ARGS)},
+    }
 
 
 def _create_grid_session(grid_base: str, timeout: int = 60) -> str:
     """Start a headed Chromium session; returns its sessionId."""
-    body = json.dumps({"capabilities": {"alwaysMatch":
-                                        _session_capabilities()}}).encode()
-    req = urllib.request.Request(grid_base + "/session", data=body,
-                                 headers={"Content-Type": "application/json"})
+    body = json.dumps(
+        {"capabilities": {"alwaysMatch": _session_capabilities()}}
+    ).encode()
+    req = urllib.request.Request(
+        grid_base + "/session", data=body, headers={"Content-Type": "application/json"}
+    )
     with urllib.request.urlopen(req, timeout=timeout) as resp:
         return json.load(resp)["value"]["sessionId"]
 
 
-def _delete_grid_session(grid_base: str, session_id: str,
-                         timeout: int = 15) -> None:
+def _delete_grid_session(grid_base: str, session_id: str, timeout: int = 15) -> None:
     """Best-effort session teardown; never raises."""
     try:
         req = urllib.request.Request(
-            f"{grid_base}/session/{session_id}", method="DELETE")
+            f"{grid_base}/session/{session_id}", method="DELETE"
+        )
         urllib.request.urlopen(req, timeout=timeout)
     except Exception as exc:
         _log_stderr(f"session teardown best-effort failed: {exc}")
@@ -111,14 +117,16 @@ def _compare_png_bytes(baseline_png: Path, candidate_png: Path) -> float:
     try:
         from PIL import Image, ImageChops
         import io
-        with Image.open(io.BytesIO(baseline)).convert("RGB") as img1, \
-                Image.open(io.BytesIO(candidate)).convert("RGB") as img2:
+
+        with (
+            Image.open(io.BytesIO(baseline)).convert("RGB") as img1,
+            Image.open(io.BytesIO(candidate)).convert("RGB") as img2,
+        ):
             if img1.size != img2.size:
                 img2 = img2.resize(img1.size)
             diff = ImageChops.difference(img1, img2)
             non_zero = sum(1 for px in diff.getdata() if px != (0, 0, 0))
-            return round(
-                non_zero / max(img1.size[0] * img1.size[1], 1) * 100.0, 3)
+            return round(non_zero / max(img1.size[0] * img1.size[1], 1) * 100.0, 3)
     except Exception:
         return 100.0
 
@@ -151,8 +159,7 @@ def capture_dom_and_visual_snapshot(
     try:
         from playwright.sync_api import sync_playwright
     except ImportError as exc:
-        return _unreachable(target_url,
-                            f"PLAYWRIGHT_NOT_INSTALLED ({exc})")
+        return _unreachable(target_url, f"PLAYWRIGHT_NOT_INSTALLED ({exc})")
 
     try:
         session_id = _create_grid_session(grid_base)
@@ -162,14 +169,17 @@ def capture_dom_and_visual_snapshot(
     try:
         with sync_playwright() as p:
             browser = p.chromium.connect_over_cdp(
-                _cdp_ws_url(grid_base, session_id), timeout=15000)
-            context = (browser.contexts[0] if browser.contexts
-                       else browser.new_context(viewport=vp))
+                _cdp_ws_url(grid_base, session_id), timeout=15000
+            )
+            context = (
+                browser.contexts[0]
+                if browser.contexts
+                else browser.new_context(viewport=vp)
+            )
             page = context.new_page()
             try:
                 page.set_viewport_size(vp)
-                page.goto(target_url, wait_until="domcontentloaded",
-                          timeout=20000)
+                page.goto(target_url, wait_until="domcontentloaded", timeout=20000)
                 # Single JS string literal: JS has no Python-style
                 # implicit literal concatenation ('a,' 'b' is a
                 # SyntaxError in the page).
@@ -178,7 +188,8 @@ def capture_dom_and_visual_snapshot(
                     "document.querySelectorAll('*').length, "
                     "interactive_elements: document.querySelectorAll("
                     "'a, button, input, select, textarea, "
-                    "[role=\"button\"]').length})")
+                    '[role="button"]\').length})'
+                )
                 page.screenshot(path=str(candidate_png), full_page=False)
             finally:
                 page.close()
@@ -188,8 +199,11 @@ def capture_dom_and_visual_snapshot(
     finally:
         _delete_grid_session(grid_base, session_id)
 
-    mismatch = (_compare_png_bytes(baseline_png, candidate_png)
-                if baseline_png and baseline_png.exists() else 0.0)
+    mismatch = (
+        _compare_png_bytes(baseline_png, candidate_png)
+        if baseline_png and baseline_png.exists()
+        else 0.0
+    )
     return VisualDiffResult(
         reachable=True,
         url=target_url,
@@ -237,8 +251,9 @@ def resolve_selector_center(page, selector: str) -> dict:
     return {"x": int(point["x"]), "y": int(point["y"])}
 
 
-def click(page, selector: str | None = None,
-          x: int | None = None, y: int | None = None) -> dict:
+def click(
+    page, selector: str | None = None, x: int | None = None, y: int | None = None
+) -> dict:
     """Move the visual cursor and dispatch a left click."""
     inject_cursor(page)
     if selector is not None:
@@ -252,8 +267,13 @@ def click(page, selector: str | None = None,
     return {"x": int(x), "y": int(y)}
 
 
-def type_text(page, text: str, selector: str | None = None,
-              clear_first: bool = True, press_enter: bool = False) -> dict:
+def type_text(
+    page,
+    text: str,
+    selector: str | None = None,
+    clear_first: bool = True,
+    press_enter: bool = False,
+) -> dict:
     """Click an optional selector, clear it, and type via key events."""
     if selector is not None:
         click(page, selector=selector)

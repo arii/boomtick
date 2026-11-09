@@ -7,7 +7,10 @@ from dev_tools.orchestrator import Orchestrator
 
 @pytest.fixture
 def orchestrator():
-    with patch("dev_tools.orchestrator.GitHubClient"), patch("dev_tools.orchestrator.get_config"):
+    with (
+        patch("dev_tools.orchestrator.GitHubClient"),
+        patch("dev_tools.orchestrator.get_config"),
+    ):
         orch = Orchestrator()
         orch._github = MagicMock()
         return orch
@@ -26,23 +29,27 @@ def test_generate_aggregation_workflow_logic(orchestrator):
         "files": [
             {"filename": "overlapping_file.py"},
             {"filename": f"unique_to_{pr_num}.py"},
-        ]
+        ],
     }
 
     # Mock PR diff with overlapping hunks
     orchestrator.github.fetch_pr_diff.side_effect = lambda pr_num: (
-        "+++ b/overlapping_file.py\n" "@@ -10,5 +10,5 @@\n" "+content\n"
+        "+++ b/overlapping_file.py\n@@ -10,5 +10,5 @@\n+content\n"
     )
 
     # Mock runtime check
-    orchestrator.runtime_check = MagicMock(return_value={"node": "24.x", "pnpm": "10.x"})
+    orchestrator.runtime_check = MagicMock(
+        return_value={"node": "24.x", "pnpm": "10.x"}
+    )
 
     # Mock log directories and file operations
-    with patch("dev_tools.orchestrator.get_or_create_log_dir", return_value="/tmp/logs"), patch(
-        "builtins.open", mock_open()
-    ) as mocked_file:
-
-        res = orchestrator.generate_aggregation_workflow([3281, 3282], "feat/test-aggregation")
+    with (
+        patch("dev_tools.orchestrator.get_or_create_log_dir", return_value="/tmp/logs"),
+        patch("builtins.open", mock_open()) as mocked_file,
+    ):
+        res = orchestrator.generate_aggregation_workflow(
+            [3281, 3282], "feat/test-aggregation"
+        )
 
         assert res["status"] == "success"
         # Verify single consolidated plan path
@@ -58,7 +65,9 @@ def test_generate_aggregation_workflow_logic(orchestrator):
         assert mocked_file.call_count >= 1
 
         # Capture all written content to verify escaping and single unified structure
-        written_content = "".join(call.args[0] for call in mocked_file().write.call_args_list)
+        written_content = "".join(
+            call.args[0] for call in mocked_file().write.call_args_list
+        )
         assert "PR 3281 \\[with brackets\\]" in written_content
         assert "overlapping_file.py" in written_content
         assert "overlap at lines 10-14" in written_content

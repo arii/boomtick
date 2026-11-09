@@ -77,7 +77,7 @@ export async function checkReviewQuota(
   return false; // Quota not met, continue review
 }
 
-export function createTaskErrorResult<T extends { role?: string; feedback: string; tokens: number; cost: number; inputTokens: number; outputTokens: number; cacheTokens: number; modelName: string; llmVerdict: 'warn' }>(
+export function createTaskErrorResult<T extends { role?: string; feedback: string; tokens: number; cost: number; inputTokens?: number; outputTokens?: number; cacheTokens?: number; modelName?: string; llmVerdict?: 'pass' | 'fail' | 'warn' }>(
   role: string,
   err: unknown,
   reviewType: string,

@@ -3,6 +3,7 @@ import unittest
 from unittest.mock import patch
 from dev_tools.pr_overlap import get_pr_overlaps
 
+
 class TestPrOverlap(unittest.TestCase):
     @patch("dev_tools.services.github.GitHubClient")
     def test_get_pr_overlaps(self, mock_github_client):
@@ -84,6 +85,7 @@ class TestPrOverlap(unittest.TestCase):
 
         # Verify
         self.assertEqual(len(clusters), 0)
+
 
 if __name__ == "__main__":
     unittest.main()

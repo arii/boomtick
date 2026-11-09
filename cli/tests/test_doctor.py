@@ -1,4 +1,5 @@
 """Unit tests for td doctor full-stack runtime and diagnostic checks."""
+
 import os
 from unittest.mock import patch
 from click.testing import CliRunner
@@ -16,7 +17,9 @@ def test_doctor_check_all_configured():
         "GEMINI_API_KEY": "test_gemini_key_123",
     }
     with patch.dict(os.environ, env, clear=True):
-        with patch.object(orch, "runtime_check", return_value={"node": "24.16.0", "pnpm": "10.28.2"}):
+        with patch.object(
+            orch, "runtime_check", return_value={"node": "24.16.0", "pnpm": "10.28.2"}
+        ):
             res = orch.doctor_check()
             assert res["node"] == "24.16.0"
             assert res["pnpm"] == "10.28.2"
@@ -30,7 +33,9 @@ def test_doctor_check_missing_env():
     """Test doctor check when credentials environment variables are missing."""
     orch = Orchestrator()
     with patch.dict(os.environ, {}, clear=True):
-        with patch.object(orch, "runtime_check", return_value={"node": "24.16.0", "pnpm": "10.28.2"}):
+        with patch.object(
+            orch, "runtime_check", return_value={"node": "24.16.0", "pnpm": "10.28.2"}
+        ):
             res = orch.doctor_check()
             assert res["app_id"] == "missing"
             assert res["app_private_key"] == "missing"
@@ -45,7 +50,9 @@ def test_doctor_check_invalid_app_id():
         "APP_PRIVATE_KEY": "short",
     }
     with patch.dict(os.environ, env, clear=True):
-        with patch.object(orch, "runtime_check", return_value={"node": "24.16.0", "pnpm": "10.28.2"}):
+        with patch.object(
+            orch, "runtime_check", return_value={"node": "24.16.0", "pnpm": "10.28.2"}
+        ):
             res = orch.doctor_check()
             assert res["app_id"] == "invalid"
             assert res["app_private_key"] == "invalid"
@@ -70,12 +77,16 @@ def test_doctor_git_safe_directory_deduplication():
         return ""
 
     with patch("dev_tools.orchestrator.run_command", side_effect=mock_run_command):
-        with patch.object(orch, "runtime_check", return_value={"node": "24.16.0", "pnpm": "10.28.2"}):
+        with patch.object(
+            orch, "runtime_check", return_value={"node": "24.16.0", "pnpm": "10.28.2"}
+        ):
             with patch("os.getcwd", return_value="/repo/path"):
                 with patch("os.path.realpath", side_effect=lambda p: p):
                     res = orch.doctor_check()
                     assert res["git_safe_directory"] == "configured"
-                    configured = res["checks"]["git_safe_directory"]["configured_directories"]
+                    configured = res["checks"]["git_safe_directory"][
+                        "configured_directories"
+                    ]
                     assert configured == ["/repo/path", "/other/path"]
 
 
@@ -88,7 +99,9 @@ def test_doctor_git_safe_directory_strict_ownership():
 
     # Case 1: Not in safe_dirs, process UID does not match repo stat UID -> unconfigured
     with patch("dev_tools.orchestrator.run_command", side_effect=mock_run_command):
-        with patch.object(orch, "runtime_check", return_value={"node": "24.16.0", "pnpm": "10.28.2"}):
+        with patch.object(
+            orch, "runtime_check", return_value={"node": "24.16.0", "pnpm": "10.28.2"}
+        ):
             with patch("os.getcwd", return_value="/repo/path"):
                 with patch("os.path.realpath", side_effect=lambda p: p):
                     with patch("os.getuid", return_value=1000):
@@ -99,7 +112,9 @@ def test_doctor_git_safe_directory_strict_ownership():
 
     # Case 2: Not in safe_dirs, process UID matches repo stat UID -> configured
     with patch("dev_tools.orchestrator.run_command", side_effect=mock_run_command):
-        with patch.object(orch, "runtime_check", return_value={"node": "24.16.0", "pnpm": "10.28.2"}):
+        with patch.object(
+            orch, "runtime_check", return_value={"node": "24.16.0", "pnpm": "10.28.2"}
+        ):
             with patch("os.getcwd", return_value="/repo/path"):
                 with patch("os.path.realpath", side_effect=lambda p: p):
                     with patch("os.getuid", return_value=1000):

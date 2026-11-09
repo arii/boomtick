@@ -1,5 +1,6 @@
 # pylint: disable=missing-docstring,line-too-long
 """CliRunner tests for td agent run / session / skill (local, no Jules)."""
+
 import json
 import os
 import subprocess
@@ -42,10 +43,19 @@ def _payload(result):
 def test_agent_run_bookkeeping_only(repo, monkeypatch):
     monkeypatch.setenv("BOOMTICK_SESSION_EXEC", "0")
     runner = CliRunner()
-    result = runner.invoke(cli, ["agent", "run",
-                                 "--worktree", str(repo / ".worktrees" / "wt1"),
-                                 "--brief", "do it",
-                                 "--path", str(repo)])
+    result = runner.invoke(
+        cli,
+        [
+            "agent",
+            "run",
+            "--worktree",
+            str(repo / ".worktrees" / "wt1"),
+            "--brief",
+            "do it",
+            "--path",
+            str(repo),
+        ],
+    )
     payload = _payload(result)
     assert payload["status"] == "success"
     assert payload["executed"] is False
@@ -55,10 +65,19 @@ def test_agent_run_bookkeeping_only(repo, monkeypatch):
 
 def test_agent_run_missing_worktree(repo):
     runner = CliRunner()
-    result = runner.invoke(cli, ["agent", "run",
-                                 "--worktree", str(repo / "nope"),
-                                 "--brief", "do it",
-                                 "--path", str(repo)])
+    result = runner.invoke(
+        cli,
+        [
+            "agent",
+            "run",
+            "--worktree",
+            str(repo / "nope"),
+            "--brief",
+            "do it",
+            "--path",
+            str(repo),
+        ],
+    )
     assert result.exit_code != 0
     assert "does not exist" in result.output
 
@@ -67,10 +86,19 @@ def test_agent_run_foreground_fake_executor(repo, monkeypatch):
     monkeypatch.setenv("BOOMTICK_EXECUTOR_CLI", "echo")
     monkeypatch.delenv("BOOMTICK_SESSION_EXEC", raising=False)
     runner = CliRunner()
-    result = runner.invoke(cli, ["agent", "run",
-                                 "--worktree", str(repo / ".worktrees" / "wt1"),
-                                 "--brief", "hello agent",
-                                 "--path", str(repo)])
+    result = runner.invoke(
+        cli,
+        [
+            "agent",
+            "run",
+            "--worktree",
+            str(repo / ".worktrees" / "wt1"),
+            "--brief",
+            "hello agent",
+            "--path",
+            str(repo),
+        ],
+    )
     payload = _payload(result)
     assert payload["exit_code"] == 0
     assert payload["session"]["state"] == "done"
@@ -79,14 +107,23 @@ def test_agent_run_foreground_fake_executor(repo, monkeypatch):
 def test_agent_run_detach_spawns_supervisor(repo, monkeypatch):
     monkeypatch.delenv("BOOMTICK_SESSION_EXEC", raising=False)
     runner = CliRunner()
-    with patch("dev_tools.services.local_sessions.spawn_detached",
-               return_value=4242) as spawn:
-        result = runner.invoke(cli, ["agent", "run",
-                                     "--worktree",
-                                     str(repo / ".worktrees" / "wt1"),
-                                     "--brief", "later",
-                                     "--detach",
-                                     "--path", str(repo)])
+    with patch(
+        "dev_tools.services.local_sessions.spawn_detached", return_value=4242
+    ) as spawn:
+        result = runner.invoke(
+            cli,
+            [
+                "agent",
+                "run",
+                "--worktree",
+                str(repo / ".worktrees" / "wt1"),
+                "--brief",
+                "later",
+                "--detach",
+                "--path",
+                str(repo),
+            ],
+        )
     payload = _payload(result)
     assert payload["supervisor_pid"] == 4242
     assert payload["session"]["state"] == "running"
@@ -96,23 +133,32 @@ def test_agent_run_detach_spawns_supervisor(repo, monkeypatch):
 def _run_session(repo, monkeypatch, brief="work"):
     monkeypatch.setenv("BOOMTICK_SESSION_EXEC", "0")
     runner = CliRunner()
-    result = runner.invoke(cli, ["agent", "run",
-                                 "--worktree", str(repo / ".worktrees" / "wt1"),
-                                 "--brief", brief,
-                                 "--path", str(repo)])
+    result = runner.invoke(
+        cli,
+        [
+            "agent",
+            "run",
+            "--worktree",
+            str(repo / ".worktrees" / "wt1"),
+            "--brief",
+            brief,
+            "--path",
+            str(repo),
+        ],
+    )
     return _payload(result)["session"]["sessionId"]
 
 
 def test_session_status_and_logs_round_trip(repo, monkeypatch):
     sid = _run_session(repo, monkeypatch)
     runner = CliRunner()
-    status = runner.invoke(cli, ["session", "status", sid,
-                                 "--path", str(repo)])
+    status = runner.invoke(cli, ["session", "status", sid, "--path", str(repo)])
     payload = _payload(status)
     assert payload["session"]["sessionId"] == sid
     assert payload["session"]["state"] == "running"
-    logs = runner.invoke(cli, ["session", "logs", sid, "--tail", "5",
-                               "--path", str(repo)])
+    logs = runner.invoke(
+        cli, ["session", "logs", sid, "--tail", "5", "--path", str(repo)]
+    )
     payload = _payload(logs)
     assert payload["sessionId"] == sid
     assert payload["totalLines"] >= 1
@@ -121,8 +167,7 @@ def test_session_status_and_logs_round_trip(repo, monkeypatch):
 
 def test_session_status_missing(repo):
     runner = CliRunner()
-    result = runner.invoke(cli, ["session", "status", "sess_nope",
-                                 "--path", str(repo)])
+    result = runner.invoke(cli, ["session", "status", "sess_nope", "--path", str(repo)])
     assert result.exit_code != 0
     assert "not found" in result.output
 
@@ -131,8 +176,7 @@ def test_skill_list_and_read(repo):
     runner = CliRunner()
     listed = runner.invoke(cli, ["skill", "list", "--path", str(repo)])
     assert _payload(listed)["skills"] == ["eco"]
-    read = runner.invoke(cli, ["skill", "read", "eco",
-                               "--path", str(repo)])
+    read = runner.invoke(cli, ["skill", "read", "eco", "--path", str(repo)])
     payload = _payload(read)
     assert payload["skill"] == "eco"
     assert payload["content"] == "# eco\n"
@@ -140,8 +184,7 @@ def test_skill_list_and_read(repo):
 
 def test_skill_read_missing(repo):
     runner = CliRunner()
-    result = runner.invoke(cli, ["skill", "read", "nope",
-                                 "--path", str(repo)])
+    result = runner.invoke(cli, ["skill", "read", "nope", "--path", str(repo)])
     assert result.exit_code != 0
     assert "not found" in result.output
 

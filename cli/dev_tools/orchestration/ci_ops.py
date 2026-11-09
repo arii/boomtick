@@ -1,4 +1,5 @@
 """CI logs, merge conflicts, and shaped PR views."""
+
 import json
 import os
 import shutil
@@ -8,7 +9,6 @@ from dev_tools.models import PrDiffResponse, PrViewResponse, RunJobsResponse
 from dev_tools.utils import log_info, CLIError, log_error, log_warn
 from dev_tools.orchestration.runtime import RuntimeMixin
 import dev_tools.orchestrator
-
 
 
 class CIOpsMixin(RuntimeMixin):
@@ -23,14 +23,22 @@ class CIOpsMixin(RuntimeMixin):
             # Restrict to .github/workflows directory and ensure valid extensions
             workflow_path = os.path.normpath(workflow)
             if not (workflow_path.endswith(".yml") or workflow_path.endswith(".yaml")):
-                raise CLIError(f"Invalid workflow file extension: {workflow}. Must be .yml or .yaml")
+                raise CLIError(
+                    f"Invalid workflow file extension: {workflow}. Must be .yml or .yaml"
+                )
 
-            if not workflow_path.startswith(".github/workflows" + os.sep) and workflow_path != os.path.join(
+            if not workflow_path.startswith(
+                ".github/workflows" + os.sep
+            ) and workflow_path != os.path.join(
                 ".github", "workflows", os.path.basename(workflow_path)
             ):
                 # Allow relative paths that point into the directory
-                if not os.path.dirname(workflow_path) == os.path.join(".github", "workflows"):
-                    raise CLIError(f"Workflow file must reside in .github/workflows/: {workflow}")
+                if not os.path.dirname(workflow_path) == os.path.join(
+                    ".github", "workflows"
+                ):
+                    raise CLIError(
+                        f"Workflow file must reside in .github/workflows/: {workflow}"
+                    )
 
             if not os.path.exists(workflow_path):
                 raise CLIError(f"Workflow file not found: {workflow_path}")
@@ -64,7 +72,9 @@ class CIOpsMixin(RuntimeMixin):
             name = os.path.basename(f_path)
             violations = file_audit_results[f_path]
             status = "✅" if not violations else "❌"
-            status_lines.append(f"- [ ] {status} `{name}`: {len(violations)} violation(s)")
+            status_lines.append(
+                f"- [ ] {status} `{name}`: {len(violations)} violation(s)"
+            )
 
         with open(status_path, "w", encoding="utf-8") as f:
             f.write("\n".join(status_lines) + "\n")
@@ -77,7 +87,9 @@ class CIOpsMixin(RuntimeMixin):
             name = os.path.basename(f_path)
             plan_path = os.path.join(plan_dir, f"workflow-plan-{name}.md")
             violations = file_audit_results[f_path]
-            violations_text = "" if not violations else "\n".join(f"- {v}" for v in violations)
+            violations_text = (
+                "" if not violations else "\n".join(f"- {v}" for v in violations)
+            )
 
             with open(plan_path, "w", encoding="utf-8") as f:
                 f.write(f"""# Workflow Audit Plan: {name}
@@ -167,18 +179,20 @@ Run the workflow (if possible via `gh workflow run` or by pushing a test branch)
         generated_plans = []
 
         for issue in issues:
-            plan_path = os.path.join(plan_dir, f"workflow-plan-issue-{issue['number']}.md")
+            plan_path = os.path.join(
+                plan_dir, f"workflow-plan-issue-{issue['number']}.md"
+            )
 
             with open(plan_path, "w", encoding="utf-8") as f:
-                f.write(f"""# Workflow Plan: Issue #{issue['number']}
+                f.write(f"""# Workflow Plan: Issue #{issue["number"]}
 
 ## Agent Instructions
 - **Environment Check**: Ensure Python dependencies and pnpm {dev_tools.orchestrator.get_config().pnpm_version} are available.
 
 ## Issue Context
-- **Title:** {issue['title']}
-- **URL:** {issue['html_url']}
-- **Labels:** {', '.join(issue['labels']) if issue['labels'] else '_None_'}
+- **Title:** {issue["title"]}
+- **URL:** {issue["html_url"]}
+- **Labels:** {", ".join(issue["labels"]) if issue["labels"] else "_None_"}
 
 ## Audit Instructions
 
@@ -200,7 +214,7 @@ Follow the "Audit comment template" in `docs/agent/issue-audit-rules.md` to post
 
 ## Issue Body Excerpt
 ```markdown
-{issue['body'] or '_No description provided._'}
+{issue["body"] or "_No description provided._"}
 ```
 """)
             generated_plans.append(plan_path)
@@ -212,13 +226,17 @@ Follow the "Audit comment template" in `docs/agent/issue-audit-rules.md` to post
             "workflow_plans": generated_plans,
         }
 
-    def run_playwright(self, grep: Optional[str] = None, worktree_path: Optional[str] = None) -> Dict[str, Any]:
+    def run_playwright(
+        self, grep: Optional[str] = None, worktree_path: Optional[str] = None
+    ) -> Dict[str, Any]:
         """Runs Playwright tests and parses the JSON report."""
         playwright_args = ["playwright", "test", "--reporter=json"]
         if grep:
             playwright_args.extend(["--grep", grep])
 
-        res = dev_tools.orchestrator.run_command(["pnpm"] + playwright_args, cwd=worktree_path, check=False)
+        res = dev_tools.orchestrator.run_command(
+            ["pnpm"] + playwright_args, cwd=worktree_path, check=False
+        )
 
         failed_tests = []
         try:
@@ -235,7 +253,9 @@ Follow the "Audit comment template" in `docs/agent/issue-audit-rules.md` to post
                                     and spec["tests"][0].get("results")
                                     and spec["tests"][0]["results"][0].get("error")
                                 ):
-                                    error = spec["tests"][0]["results"][0]["error"].get("message", "Unknown error")
+                                    error = spec["tests"][0]["results"][0]["error"].get(
+                                        "message", "Unknown error"
+                                    )
 
                                 failed_tests.append(
                                     {
@@ -245,7 +265,9 @@ Follow the "Audit comment template" in `docs/agent/issue-audit-rules.md` to post
                                     }
                                 )
                 except json.JSONDecodeError as e:
-                    log_error(f"Failed to parse Playwright JSON report: {e}\nRaw output: {res.stdout}")
+                    log_error(
+                        f"Failed to parse Playwright JSON report: {e}\nRaw output: {res.stdout}"
+                    )
         except Exception as e:
             log_error(f"Unexpected error parsing Playwright output: {e}")
 
@@ -265,12 +287,18 @@ Follow the "Audit comment template" in `docs/agent/issue-audit-rules.md` to post
 
         log_info(f"Fetching remote state for PR #{prNumber} ({head_ref})...")
         # Use pull ref to be robust against forks and ensure we get the exact commit
-        dev_tools.orchestrator.run_command(["git", "fetch", "origin", f"pull/{prNumber}/head"])
+        dev_tools.orchestrator.run_command(
+            ["git", "fetch", "origin", f"pull/{prNumber}/head"]
+        )
 
-        current_branch = dev_tools.orchestrator.run_command(["git", "branch", "--show-current"]).strip()
+        current_branch = dev_tools.orchestrator.run_command(
+            ["git", "branch", "--show-current"]
+        ).strip()
         if current_branch != head_ref:
             log_info(f"Switching from {current_branch} to {head_ref}")
-            dev_tools.orchestrator.run_command(["git", "checkout", "-B", head_ref, "FETCH_HEAD"])
+            dev_tools.orchestrator.run_command(
+                ["git", "checkout", "-B", head_ref, "FETCH_HEAD"]
+            )
         else:
             log_info(f"Hard resetting {head_ref} to remote state...")
             dev_tools.orchestrator.run_command(["git", "reset", "--hard", "FETCH_HEAD"])
@@ -281,12 +309,13 @@ Follow the "Audit comment template" in `docs/agent/issue-audit-rules.md` to post
             "branch": head_ref,
         }
 
-    def get_ci_logs(self,
+    def get_ci_logs(
+        self,
         prNumber: int,
         include_all: bool = False,
         repo: Optional[str] = None,
-        **kwargs) -> Dict[str,
-        Any]:
+        **kwargs,
+    ) -> Dict[str, Any]:
         """Fetch CI logs for a pull request."""
         if "pr_number" in kwargs:
             prNumber = kwargs["pr_number"]
@@ -311,44 +340,67 @@ Follow the "Audit comment template" in `docs/agent/issue-audit-rules.md` to post
         all_runs = []
         failed_suites: list = []
         from dev_tools.utils.concurrency import run_concurrently
+
         if check_suites:
+
             def fetch_suite_runs(suite):
                 try:
-                    return self.github.fetch_check_runs_for_suite(suite["id"], repo=repo)
+                    return self.github.fetch_check_runs_for_suite(
+                        suite["id"], repo=repo
+                    )
                 except Exception as e:
                     log_warn(f"Failed to fetch runs for suite {suite.get('id')}: {e}")
                     failed_suites.append(suite.get("id"))
                     return []
 
-            results = run_concurrently(fetch_suite_runs, check_suites, max_workers=4, ignore_exceptions=True)
+            results = run_concurrently(
+                fetch_suite_runs, check_suites, max_workers=4, ignore_exceptions=True
+            )
             for runs in results:
                 all_runs.extend(runs)
 
-        runs_to_fetch = [run for run in all_runs if include_all or run.get("conclusion") == "failure"]
+        runs_to_fetch = [
+            run for run in all_runs if include_all or run.get("conclusion") == "failure"
+        ]
 
         failed_logs: list = []
+
         def fetch_log(run):
             try:
                 run_id = run.get("id")
                 if isinstance(run_id, int):
-                    return run["name"], self.github.fetch_check_run_logs(run_id,
-                        external_id=run.get("external_id"),
-                        repo=repo)
+                    return run["name"], self.github.fetch_check_run_logs(
+                        run_id, external_id=run.get("external_id"), repo=repo
+                    )
             except Exception as e:
                 log_warn(f"Failed to fetch log for run {run.get('id')}: {e}")
                 failed_logs.append(run.get("id"))
             return None, None
 
         if runs_to_fetch:
-            log_results = run_concurrently(fetch_log, runs_to_fetch, max_workers=4, ignore_exceptions=True)
+            log_results = run_concurrently(
+                fetch_log, runs_to_fetch, max_workers=4, ignore_exceptions=True
+            )
             for name, log_content in log_results:
-                if name and isinstance(name, str) and log_content and isinstance(log_content, str):
+                if (
+                    name
+                    and isinstance(name, str)
+                    and log_content
+                    and isinstance(log_content, str)
+                ):
                     logs[name] = log_content[:10000]
 
-        return {"checks": checks, "failedChecks": failed_checks, "logs": logs,
-                "failedSuites": failed_suites, "failedLogs": failed_logs}
+        return {
+            "checks": checks,
+            "failedChecks": failed_checks,
+            "logs": logs,
+            "failedSuites": failed_suites,
+            "failedLogs": failed_logs,
+        }
 
-    def stream_ci_logs(self, prNumber: int, grep: Optional[str] = None, repo: Optional[str] = None) -> str:
+    def stream_ci_logs(
+        self, prNumber: int, grep: Optional[str] = None, repo: Optional[str] = None
+    ) -> str:
         """Fetches and combines all CI logs for the latest workflow run of a PR."""
         # Get PR head SHA
         pr_data = self.github.fetch_pr_details(prNumber, repo=repo)
@@ -367,7 +419,9 @@ Follow the "Audit comment template" in `docs/agent/issue-audit-rules.md` to post
             run_id = run.get("id")
             if not isinstance(run_id, int):
                 continue
-            log_content = self.github.fetch_check_run_logs(run_id, external_id=run.get("external_id"), repo=repo)
+            log_content = self.github.fetch_check_run_logs(
+                run_id, external_id=run.get("external_id"), repo=repo
+            )
             header = f"--- LOGS FOR JOB: {run['name']} (ID: {run_id}) ---"
             all_logs.append(header)
             # Truncate each log to 20k chars to balance detail vs memory
@@ -384,7 +438,9 @@ Follow the "Audit comment template" in `docs/agent/issue-audit-rules.md` to post
 
         return combined_logs
 
-    def get_merge_conflicts(self, prNumber: int, base_branch: Optional[str] = None) -> Dict[str, Any]:
+    def get_merge_conflicts(
+        self, prNumber: int, base_branch: Optional[str] = None
+    ) -> Dict[str, Any]:
         """Detects merge conflicts for a PR against a base branch using a temporary worktree."""
         if base_branch is None:
             base_branch = dev_tools.orchestrator.get_config().base_branch_name
@@ -402,13 +458,23 @@ Follow the "Audit comment template" in `docs/agent/issue-audit-rules.md` to post
         worktree_path = os.path.join(os.getcwd(), f"worktree-conflict-{prNumber}.tmp")
         self._cleanup_worktree(worktree_path)
 
-        dev_tools.orchestrator.run_command(["git", "worktree", "add", worktree_path, f"origin/{head_ref}"])
+        dev_tools.orchestrator.run_command(
+            ["git", "worktree", "add", worktree_path, f"origin/{head_ref}"]
+        )
 
         conflict_files = []
         command_log = ""
         try:
-            merge_cmd = ["git", "merge", "--no-commit", "--no-ff", f"origin/{base_branch}"]
-            res = dev_tools.orchestrator.run_command(merge_cmd, cwd=worktree_path, check=False)
+            merge_cmd = [
+                "git",
+                "merge",
+                "--no-commit",
+                "--no-ff",
+                f"origin/{base_branch}",
+            ]
+            res = dev_tools.orchestrator.run_command(
+                merge_cmd, cwd=worktree_path, check=False
+            )
             command_log = (res.stdout or "") + (res.stderr or "")
 
             if res.returncode != 0:
@@ -425,9 +491,11 @@ Follow the "Audit comment template" in `docs/agent/issue-audit-rules.md` to post
                             f"--allow-unrelated-histories"
                         )
                     )
-                    res = dev_tools.orchestrator.run_command(merge_cmd + ["--allow-unrelated-histories"],
+                    res = dev_tools.orchestrator.run_command(
+                        merge_cmd + ["--allow-unrelated-histories"],
                         cwd=worktree_path,
-                        check=False)
+                        check=False,
+                    )
                     command_log += "\n--- RETRY WITH --allow-unrelated-histories ---\n"
                     command_log += (res.stdout or "") + (res.stderr or "")
 
@@ -437,10 +505,16 @@ Follow the "Audit comment template" in `docs/agent/issue-audit-rules.md` to post
                     cwd=worktree_path,
                     check=False,
                 )
-                conflict_files = [f.strip() for f in res_diff.stdout.splitlines() if f.strip()]
-                dev_tools.orchestrator.run_command(["git", "merge", "--abort"], cwd=worktree_path, check=False)
+                conflict_files = [
+                    f.strip() for f in res_diff.stdout.splitlines() if f.strip()
+                ]
+                dev_tools.orchestrator.run_command(
+                    ["git", "merge", "--abort"], cwd=worktree_path, check=False
+                )
         finally:
-            dev_tools.orchestrator.run_command(["git", "worktree", "remove", "-f", worktree_path], check=False)
+            dev_tools.orchestrator.run_command(
+                ["git", "worktree", "remove", "-f", worktree_path], check=False
+            )
             if os.path.exists(worktree_path):
                 shutil.rmtree(worktree_path, ignore_errors=True)
 
@@ -452,7 +526,9 @@ Follow the "Audit comment template" in `docs/agent/issue-audit-rules.md` to post
             "commandLog": command_log,
         }
 
-    def get_pr_diff_shapen(self, prNumber: int, repo: Optional[str] = None) -> Dict[str, Any]:
+    def get_pr_diff_shapen(
+        self, prNumber: int, repo: Optional[str] = None
+    ) -> Dict[str, Any]:
         """Fetches PR diff, applies truncation and shapes file info."""
         extra_kwargs = {"repo": repo} if repo else {}
         # Get files list
@@ -464,7 +540,9 @@ Follow the "Audit comment template" in `docs/agent/issue-audit-rules.md` to post
         MAX_DIFF_SIZE = 50000
         truncated = False
         if len(diff_text) > MAX_DIFF_SIZE:
-            diff_text = diff_text[:MAX_DIFF_SIZE] + "\n\n... [Diff truncated due to size] ..."
+            diff_text = (
+                diff_text[:MAX_DIFF_SIZE] + "\n\n... [Diff truncated due to size] ..."
+            )
             truncated = True
 
         resp = PrDiffResponse(
@@ -483,18 +561,32 @@ Follow the "Audit comment template" in `docs/agent/issue-audit-rules.md` to post
         )
         return resp.model_dump()
 
-    def get_pr_view_shapen(self, prNumber: int, repo: Optional[str] = None) -> Dict[str, Any]:
+    def get_pr_view_shapen(
+        self, prNumber: int, repo: Optional[str] = None
+    ) -> Dict[str, Any]:
         """Fetches a single PR state snapshot: title, state, draft, reviewDecision, mergeable, checks."""
         extra_kwargs = {"repo": repo} if repo else {}
         pr = self.github.fetch_pr_details(prNumber, **extra_kwargs)
         review_decision = self.github.fetch_pr_review_decision(prNumber, **extra_kwargs)
         head_sha = (pr.get("head") or {}).get("sha")
-        check_runs = self.github.fetch_check_runs(head_sha, **extra_kwargs) if head_sha else []
+        check_runs = (
+            self.github.fetch_check_runs(head_sha, **extra_kwargs) if head_sha else []
+        )
         checks = [
-            {"name": c.get("name"), "status": c.get("status"), "conclusion": c.get("conclusion")}
+            {
+                "name": c.get("name"),
+                "status": c.get("status"),
+                "conclusion": c.get("conclusion"),
+            }
             for c in (check_runs or [])
         ]
-        summary = {"total": len(checks), "passed": 0, "failed": 0, "pending": 0, "skipped": 0}
+        summary = {
+            "total": len(checks),
+            "passed": 0,
+            "failed": 0,
+            "pending": 0,
+            "skipped": 0,
+        }
         for check in checks:
             conclusion = (check.get("conclusion") or "").lower()
             status = (check.get("status") or "").lower()
@@ -527,9 +619,13 @@ Follow the "Audit comment template" in `docs/agent/issue-audit-rules.md` to post
         )
         return resp.model_dump()
 
-    def get_run_jobs_shapen(self, run_id: int, repo: Optional[str] = None) -> Dict[str, Any]:
+    def get_run_jobs_shapen(
+        self, run_id: int, repo: Optional[str] = None
+    ) -> Dict[str, Any]:
         """Fetches workflow run jobs shaped to name/conclusion/steps."""
         extra_kwargs = {"repo": repo} if repo else {}
         jobs = self.github.fetch_workflow_run_jobs(run_id, **extra_kwargs) or []
-        resp = RunJobsResponse.model_validate({"run_id": run_id, "total_count": len(jobs), "jobs": jobs})
+        resp = RunJobsResponse.model_validate(
+            {"run_id": run_id, "total_count": len(jobs), "jobs": jobs}
+        )
         return resp.model_dump()

@@ -3,19 +3,27 @@
 Robust Python tool runner that assumes the environment is already pre-warmed,
 failing fast if the required developer tool is missing.
 """
+
 import os
 import sys
 import subprocess
 
 from lib.env_utils import get_venv_paths
 
+
 def is_tool_available(python_exe, tool_module):
     """Checks if a tool is installed/available via the given python executable."""
     try:
-        res = subprocess.run([python_exe, "-m", tool_module, "--version"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False)
+        res = subprocess.run(
+            [python_exe, "-m", tool_module, "--version"],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            check=False,
+        )
         return res.returncode == 0
     except Exception:
         return False
+
 
 def main():
     if len(sys.argv) < 2:
@@ -36,8 +44,14 @@ def main():
     elif is_tool_available(sys.executable, tool_module):
         tool_cmd = [sys.executable, "-m", tool_module]
     else:
-        print(f"Error: {tool_module} not found in local .venv or current environment.", file=sys.stderr)
-        print("Please run the setup script first to configure your local environment:", file=sys.stderr)
+        print(
+            f"Error: {tool_module} not found in local .venv or current environment.",
+            file=sys.stderr,
+        )
+        print(
+            "Please run the setup script first to configure your local environment:",
+            file=sys.stderr,
+        )
         print("    ./setup-agent.sh", file=sys.stderr)
         sys.exit(1)
 
@@ -54,6 +68,7 @@ def main():
 
     result = subprocess.run(cmd)
     sys.exit(result.returncode)
+
 
 if __name__ == "__main__":
     main()

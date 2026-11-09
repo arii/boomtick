@@ -1,4 +1,5 @@
 """GitHub pull-request commands."""
+
 import json
 import os
 import subprocess
@@ -38,14 +39,28 @@ def search_prs(ctx, state, limit, include_drafts, labels, repo):
     label_list = [l.strip() for l in labels.split(",")] if labels else None
     extra_kwargs = {"repo": repo} if repo else {}
 
-    res = orch.list_prs(state=state, limit=limit, includeDrafts=include_drafts, labels=label_list, **extra_kwargs)
+    res = orch.list_prs(
+        state=state,
+        limit=limit,
+        includeDrafts=include_drafts,
+        labels=label_list,
+        **extra_kwargs,
+    )
     out(ctx, f"Found {len(res['prs'])} PRs.", data=res)
 
 
 @gh.command()
 @click.argument("pr_number_arg", required=False, type=int)
-@click.option("--pr", "--pr-number", "pr_number_opt", type=int, help="The PR number to check merge conflicts for.")
-@click.option("--base", default=None, help="Base branch (defaults to configured base branch)")
+@click.option(
+    "--pr",
+    "--pr-number",
+    "pr_number_opt",
+    type=int,
+    help="The PR number to check merge conflicts for.",
+)
+@click.option(
+    "--base", default=None, help="Base branch (defaults to configured base branch)"
+)
 @click.pass_context
 def merge_conflicts(ctx, pr_number_arg, pr_number_opt, base):
     pr_number = pr_number_arg if pr_number_arg is not None else pr_number_opt
@@ -60,7 +75,9 @@ def merge_conflicts(ctx, pr_number_arg, pr_number_opt, base):
 
 @gh.command()
 @click.argument("pr_number_arg", required=False, type=int)
-@click.option("--pr", "--pr-number", "pr_number_opt", type=int, help="The PR number to sync.")
+@click.option(
+    "--pr", "--pr-number", "pr_number_opt", type=int, help="The PR number to sync."
+)
 @click.pass_context
 def sync_pr(ctx, pr_number_arg, pr_number_opt):
     """Reliably pull the latest remote PR state to local, overwriting messy rebases."""
@@ -74,7 +91,13 @@ def sync_pr(ctx, pr_number_arg, pr_number_opt):
 
 @gh.command()
 @click.argument("pr_number_arg", required=False, type=int)
-@click.option("--pr", "--pr-number", "pr_number_opt", type=int, help="The PR number to fetch diff for.")
+@click.option(
+    "--pr",
+    "--pr-number",
+    "pr_number_opt",
+    type=int,
+    help="The PR number to fetch diff for.",
+)
 @click.option("--repo", help="Target repository override (e.g. owner/repo)")
 @click.pass_context
 def pr_diff(ctx, pr_number_arg, pr_number_opt, repo):
@@ -89,7 +112,9 @@ def pr_diff(ctx, pr_number_arg, pr_number_opt, repo):
 
 @gh.command()
 @click.argument("pr_number_arg", required=False, type=int)
-@click.option("--pr", "--pr-number", "pr_number_opt", type=int, help="The PR number to view.")
+@click.option(
+    "--pr", "--pr-number", "pr_number_opt", type=int, help="The PR number to view."
+)
 @click.option("--repo", help="Target repository override (e.g. owner/repo)")
 @click.pass_context
 def view(ctx, pr_number_arg, pr_number_opt, repo):
@@ -179,23 +204,38 @@ def _render_conflicts(ctx, conflicts):
         if not conflicts:
             click.echo("✅ No file overlap between open PRs detected.")
         for c in conflicts:
-            prs_str = ' ↔ '.join(f'#{p}' for p in c['prs'])
-            files_count = len(c['files'])
+            prs_str = " ↔ ".join(f"#{p}" for p in c["prs"])
+            files_count = len(c["files"])
             click.echo(f"⚠️  {prs_str} share {files_count} file(s):")
             for f in sorted(c["files"])[:10]:
                 click.echo(f"    - {f}")
-    out(ctx, f"Found {len(conflicts)} file overlap group(s).", data={"conflicts": conflicts})
+    out(
+        ctx,
+        f"Found {len(conflicts)} file overlap group(s).",
+        data={"conflicts": conflicts},
+    )
 
 
 @gh.command()
-@click.option("--pr", "--pr-number", "pr", required=True, type=int, help="The PR number to resolve conflicts for.")
-@click.option("--allow-unrelated", is_flag=True, help="Allow merging unrelated histories.")
+@click.option(
+    "--pr",
+    "--pr-number",
+    "pr",
+    required=True,
+    type=int,
+    help="The PR number to resolve conflicts for.",
+)
+@click.option(
+    "--allow-unrelated", is_flag=True, help="Allow merging unrelated histories."
+)
 @click.option(
     "--strategy",
     type=click.Choice(["ours", "theirs"]),
     help="Merge strategy option (-X ours/theirs).",
 )
-@click.option("--push", is_flag=True, help="Automatically push the resolution to origin.")
+@click.option(
+    "--push", is_flag=True, help="Automatically push the resolution to origin."
+)
 @click.option(
     "--continue",
     "continue_resolve",
@@ -252,7 +292,11 @@ def verify_versions(ctx, diff_input):
             try:
                 findings = json.loads(proc.stdout)
                 if findings:
-                    status = "error" if any(f["severity"] == "error" for f in findings) else "success"
+                    status = (
+                        "error"
+                        if any(f["severity"] == "error" for f in findings)
+                        else "success"
+                    )
                     out(
                         ctx,
                         f"Found {len(findings)} version issues.",
@@ -275,8 +319,12 @@ def verify_versions(ctx, diff_input):
 
 
 @gh.command()
-@click.option("--pr", "--pr-number", "pr", type=int, help="PR number to detect file overlap for")
-@click.option("--all", "all_prs", is_flag=True, help="Detect file overlap for all open PRs")
+@click.option(
+    "--pr", "--pr-number", "pr", type=int, help="PR number to detect file overlap for"
+)
+@click.option(
+    "--all", "all_prs", is_flag=True, help="Detect file overlap for all open PRs"
+)
 @click.pass_context
 def detect_conflicts(ctx, pr, all_prs):
     (
@@ -295,7 +343,10 @@ def detect_conflicts(ctx, pr, all_prs):
     if pr is not None and all_prs:
         err(ctx, "Provide either --pr or --all, not both")
     if pr is None and not all_prs:
-        click.echo("💡 Suggestion: Use 'td gh detect-conflicts --all' to explicitly scan all open PRs.", err=True)
+        click.echo(
+            "💡 Suggestion: Use 'td gh detect-conflicts --all' to explicitly scan all open PRs.",
+            err=True,
+        )
         all_prs = True
     orch = ctx.obj["ORCHESTRATOR"]
     conflicts = orch.handle_detect_conflicts(pr_num=pr, all_prs=all_prs)
@@ -303,12 +354,14 @@ def detect_conflicts(ctx, pr, all_prs):
 
 
 @gh.command(name="read-pr-reviews")
-@click.option("--pr",
+@click.option(
+    "--pr",
     "--pr-number",
     "pr_number",
     required=True,
     type=int,
-    help="The PR number to fetch top-level reviews for.")
+    help="The PR number to fetch top-level reviews for.",
+)
 @click.option("--repo", help="Target repository override (e.g. owner/repo)")
 @click.pass_context
 def read_pr_reviews(ctx, pr_number, repo):
@@ -318,13 +371,22 @@ def read_pr_reviews(ctx, pr_number, repo):
     orch = ctx.obj["ORCHESTRATOR"]
     extra_kwargs = {"repo": repo} if repo else {}
     reviews = orch.github.fetch_reviews(pr_number, **extra_kwargs)
-    out(ctx,
+    out(
+        ctx,
         f"Fetched {len(reviews)} reviews for PR #{pr_number}",
-        data={"reviews": reviews, "review_count": len(reviews)})
+        data={"reviews": reviews, "review_count": len(reviews)},
+    )
 
 
 @gh.command(name="list-pr-commits")
-@click.option("--pr", "--pr-number", "pr_number", required=True, type=int, help="The PR number to list commits for.")
+@click.option(
+    "--pr",
+    "--pr-number",
+    "pr_number",
+    required=True,
+    type=int,
+    help="The PR number to list commits for.",
+)
 @click.option("--repo", help="Target repository override (e.g. owner/repo)")
 @click.pass_context
 def list_pr_commits(ctx, pr_number, repo):
@@ -334,21 +396,36 @@ def list_pr_commits(ctx, pr_number, repo):
     orch = ctx.obj["ORCHESTRATOR"]
     extra_kwargs = {"repo": repo} if repo else {}
     raw_commits = orch.github.fetch_pr_commits(pr_number, **extra_kwargs)
-    commits = [
-        {
-            "sha": c.get("sha"),
-            "author": c.get("commit", {}).get("author", {}).get("name") or c.get("author", {}).get("login"),
-            "date": c.get("commit", {}).get("author", {}).get("date"),
-            "message": c.get("commit", {}).get("message"),
-        }
-        for c in raw_commits
-    ] if isinstance(raw_commits, list) else []
-    out(ctx, f"Fetched {len(commits)} commits for PR #{pr_number}", data={"commits": commits})
+    commits = (
+        [
+            {
+                "sha": c.get("sha"),
+                "author": c.get("commit", {}).get("author", {}).get("name")
+                or c.get("author", {}).get("login"),
+                "date": c.get("commit", {}).get("author", {}).get("date"),
+                "message": c.get("commit", {}).get("message"),
+            }
+            for c in raw_commits
+        ]
+        if isinstance(raw_commits, list)
+        else []
+    )
+    out(
+        ctx,
+        f"Fetched {len(commits)} commits for PR #{pr_number}",
+        data={"commits": commits},
+    )
 
 
 @gh.command(name="pr-view")
 @click.argument("pr_number_arg", required=False, type=int)
-@click.option("--pr", "--pr-number", "pr_number_opt", type=int, help="The PR number to fetch state for.")
+@click.option(
+    "--pr",
+    "--pr-number",
+    "pr_number_opt",
+    type=int,
+    help="The PR number to fetch state for.",
+)
 @click.option("--repo", help="Target repository override (e.g. owner/repo)")
 @click.pass_context
 def pr_view(ctx, pr_number_arg, pr_number_opt, repo):
@@ -366,7 +443,13 @@ def pr_view(ctx, pr_number_arg, pr_number_opt, repo):
 
 @gh.command(name="run-jobs")
 @click.argument("run_id_arg", required=False, type=int)
-@click.option("--run", "--run-id", "run_id_opt", type=int, help="The workflow run ID to list jobs for.")
+@click.option(
+    "--run",
+    "--run-id",
+    "run_id_opt",
+    type=int,
+    help="The workflow run ID to list jobs for.",
+)
 @click.option("--repo", help="Target repository override (e.g. owner/repo)")
 @click.pass_context
 def run_jobs(ctx, run_id_arg, run_id_opt, repo):
@@ -383,7 +466,14 @@ def run_jobs(ctx, run_id_arg, run_id_opt, repo):
 
 
 @gh.command(name="read-pr-comments")
-@click.option("--pr", "--pr-number", "pr_number", required=True, type=int, help="The PR number to fetch comments for.")
+@click.option(
+    "--pr",
+    "--pr-number",
+    "pr_number",
+    required=True,
+    type=int,
+    help="The PR number to fetch comments for.",
+)
 @click.pass_context
 def read_pr_comments(ctx, pr_number):
     """Fetch and display standard and review comments for a PR."""

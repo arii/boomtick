@@ -12,7 +12,9 @@ def check_shell_script(filepath):
     # 1. Syntax check (only for .sh files)
     if filepath.endswith(".sh"):
         try:
-            subprocess.run(["bash", "-n", filepath], check=True, capture_output=True, text=True)
+            subprocess.run(
+                ["bash", "-n", filepath], check=True, capture_output=True, text=True
+            )
         except subprocess.CalledProcessError as e:
             findings.append(f"Syntax error: {e.stderr.strip()}")
             return findings
@@ -37,7 +39,9 @@ def check_shell_script(filepath):
         missing_settings.append("set -o pipefail")
 
     if missing_settings and len(lines) > 5:
-        findings.append(f"Script lacks recommended settings in first 10 lines: {', '.join(missing_settings)}")
+        findings.append(
+            f"Script lacks recommended settings in first 10 lines: {', '.join(missing_settings)}"
+        )
 
     # 3. Pattern checks
     for i, line in enumerate(lines):
@@ -51,17 +55,23 @@ def check_shell_script(filepath):
             line,
         ):
             if not re.search(r"[0-9]\s*/\s*[0-9]", line):  # Avoid flagging division
-                findings.append(f"Line {i+1}: Potential hardcoded absolute path: {stripped}")
+                findings.append(
+                    f"Line {i + 1}: Potential hardcoded absolute path: {stripped}"
+                )
 
         # Unquoted variables in risky commands - SIMPLIFIED heuristic
         # We flag cases where a variable expansion ($VAR or ${VAR}) is used in a risky command
         # without any quotes on that line. This is a simple signal.
         if any(cmd in stripped for cmd in ["rm ", "cp ", "mv ", "ls "]):
             if "$" in stripped and not any(q in stripped for q in ['"', "'"]):
-                findings.append(f"Line {i+1}: Potential unquoted variable in risky command: {stripped}")
+                findings.append(
+                    f"Line {i + 1}: Potential unquoted variable in risky command: {stripped}"
+                )
 
     if len(lines) > 20:
-        findings.append("Note: For complex shell scripts, please run 'shellcheck' for deeper analysis.")
+        findings.append(
+            "Note: For complex shell scripts, please run 'shellcheck' for deeper analysis."
+        )
 
     return findings
 

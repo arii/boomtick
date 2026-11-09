@@ -59,7 +59,9 @@ def collect_commands(root_cmd, prefix="", max_depth=10):
                 param_type = get_type_name(param)
                 if isinstance(param, click.Argument):
                     arg_name = param.name.upper()
-                    arg_label = f"<{arg_name}...>" if param.nargs == -1 else f"<{arg_name}>"
+                    arg_label = (
+                        f"<{arg_name}...>" if param.nargs == -1 else f"<{arg_name}>"
+                    )
                     arg_info = {
                         "name": param.name,
                         "type": param_type,
@@ -74,7 +76,11 @@ def collect_commands(root_cmd, prefix="", max_depth=10):
                 elif isinstance(param, click.Option):
                     flag_name = param.opts[0]
                     flag_desc = param.help or ""
-                    option_dict = {"flag": flag_name, "type": param_type, "description": flag_desc}
+                    option_dict = {
+                        "flag": flag_name,
+                        "type": param_type,
+                        "description": flag_desc,
+                    }
                     if param.required:
                         req_flags.append(option_dict)
                     else:
@@ -83,7 +89,12 @@ def collect_commands(root_cmd, prefix="", max_depth=10):
             # Build a cleaner exact_usage string
             usage = f"td {cmd_name}"
             if req_flags:
-                usage += " " + " ".join([f"{f['flag']} <{f['flag'].lstrip('-').upper()}>" for f in req_flags])
+                usage += " " + " ".join(
+                    [
+                        f"{f['flag']} <{f['flag'].lstrip('-').upper()}>"
+                        for f in req_flags
+                    ]
+                )
 
             # Show a compact view of optional flags
             boolean_flags = [f for f in opt_flags if f["type"] == "boolean"]
@@ -92,7 +103,12 @@ def collect_commands(root_cmd, prefix="", max_depth=10):
             if boolean_flags:
                 usage += " " + " ".join([f"[{f['flag']}]" for f in boolean_flags])
             if other_opt_flags:
-                usage += " " + " ".join([f"[{f['flag']} <{f['flag'].lstrip('-').upper()}>]" for f in other_opt_flags])
+                usage += " " + " ".join(
+                    [
+                        f"[{f['flag']} <{f['flag'].lstrip('-').upper()}>]"
+                        for f in other_opt_flags
+                    ]
+                )
 
             if args_str:
                 usage += " " + " ".join(args_str)
