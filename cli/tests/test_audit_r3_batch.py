@@ -8,7 +8,6 @@ skills link + dirty-state indexing (#1232), remote-server separation
 """
 
 import importlib.util
-import inspect
 import json
 import os
 import subprocess
