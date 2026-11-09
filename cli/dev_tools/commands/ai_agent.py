@@ -1,4 +1,5 @@
 """AI review and agent-fleet command groups."""
+
 import glob
 import json
 import os
@@ -58,8 +59,8 @@ def review(ctx, pr_number, no_cache):
     ):
         # Likely an error result – dump full dict to stderr for diagnosis
         log_info(f"""⚠️  Review returned 'Not Approved' (may indicate an error).
-    recommendation : {res.get('recommendation')}
-    reviewComment  : {res.get('reviewComment', '')[:500]}""")
+    recommendation : {res.get("recommendation")}
+    reviewComment  : {res.get("reviewComment", "")[:500]}""")
 
     out(ctx, f"✅ Generated review for PR #{pr_number}", data=res)
 
@@ -121,7 +122,9 @@ def analyze(ctx, file):
 
 
 @ai.command()
-@click.option("--pr", "--pr-number", "pr", required=True, type=int, help="The PR number.")
+@click.option(
+    "--pr", "--pr-number", "pr", required=True, type=int, help="The PR number."
+)
 @click.option("--command", required=True)
 @click.option("--comment-id")
 @click.pass_context
@@ -170,20 +173,32 @@ def repair(ctx, logs, stdin, worktree):
 
 
 @agent_group.command(name="run")
-@click.option("--worktree", required=True, help="Existing worktree path for the session")
+@click.option(
+    "--worktree", required=True, help="Existing worktree path for the session"
+)
 @click.option("--brief", required=True, help="Task brief for the executor")
 @click.option("--model", default=None, help="Executor model override")
-@click.option("--repo", "-r", default=None, help="Target GitHub repository (e.g. owner/repo)")
-@click.option("--path", "root_path", default=None, help="Repo root override (default: git root)")
-@click.option("--detach/--foreground", default=False,
-              help="Return immediately and supervise in background")
+@click.option(
+    "--repo", "-r", default=None, help="Target GitHub repository (e.g. owner/repo)"
+)
+@click.option(
+    "--path", "root_path", default=None, help="Repo root override (default: git root)"
+)
+@click.option(
+    "--detach/--foreground",
+    default=False,
+    help="Return immediately and supervise in background",
+)
 @click.pass_context
 def run(ctx, worktree, brief, model, repo, root_path, detach):
     """Dispatch a local worktree session (fully local, no cloud API)."""
     from dev_tools.services import local_sessions as ls
+
     try:
         root = ls.repo_root_for(root_path)
-        wt = worktree if os.path.isabs(worktree) else os.path.join(os.getcwd(), worktree)
+        wt = (
+            worktree if os.path.isabs(worktree) else os.path.join(os.getcwd(), worktree)
+        )
         if not os.path.isdir(wt):
             err(ctx, f"Worktree path does not exist: {worktree}")
             return
@@ -191,14 +206,19 @@ def run(ctx, worktree, brief, model, repo, root_path, detach):
         ls.save_session(session)
         sid = session["sessionId"]
         if ls.exec_disabled():
-            out(ctx, f"Session {sid} recorded (execution disabled).",
-                data={"session": ls.status_summary(session), "executed": False})
+            out(
+                ctx,
+                f"Session {sid} recorded (execution disabled).",
+                data={"session": ls.status_summary(session), "executed": False},
+            )
             return
         if detach:
             pid = ls.spawn_detached(root, sid)
-            out(ctx, f"Session {sid} dispatched (supervisor pid {pid}).",
-                data={"session": ls.status_summary(session),
-                      "supervisor_pid": pid})
+            out(
+                ctx,
+                f"Session {sid} dispatched (supervisor pid {pid}).",
+                data={"session": ls.status_summary(session), "supervisor_pid": pid},
+            )
             return
         if not ctx.obj["JSON"]:
             click.echo(f"Session {sid} running in {wt}")
@@ -206,8 +226,11 @@ def run(ctx, worktree, brief, model, repo, root_path, detach):
             click.echo(f"Session {sid} finished: {session['state']}")
         else:
             code = ls.run_executor(root, session)
-        out(ctx, f"Session {sid} finished: {session['state']}.",
-            data={"session": ls.status_summary(session), "exit_code": code})
+        out(
+            ctx,
+            f"Session {sid} finished: {session['state']}.",
+            data={"session": ls.status_summary(session), "exit_code": code},
+        )
         if code:
             sys.exit(code)
     except Exception as e:
@@ -219,32 +242,52 @@ def run(ctx, worktree, brief, model, repo, root_path, detach):
 @click.option("--title", required=True, help="PR title")
 @click.option("--body", default="", help="PR body")
 @click.option("--base", default="main", help="Base branch for the PR")
-@click.option("--draft/--no-draft", default=True,
-              help="Open as a draft for human review")
-@click.option("--issue", "issue_number", type=int, default=None,
-              help="Gate changed files against this issue's scope")
-@click.option("--repo", "-r", default=None,
-              help="Target GitHub repository (e.g. owner/repo)")
-@click.option("--skip-scope-check", is_flag=True,
-              help="Bypass the scope gate (mirrors CI's [skip-scope-check])")
+@click.option(
+    "--draft/--no-draft", default=True, help="Open as a draft for human review"
+)
+@click.option(
+    "--issue",
+    "issue_number",
+    type=int,
+    default=None,
+    help="Gate changed files against this issue's scope",
+)
+@click.option(
+    "--repo", "-r", default=None, help="Target GitHub repository (e.g. owner/repo)"
+)
+@click.option(
+    "--skip-scope-check",
+    is_flag=True,
+    help="Bypass the scope gate (mirrors CI's [skip-scope-check])",
+)
 @click.pass_context
-def submit_pr(ctx, worktree, title, body, base, draft, issue_number,
-              repo, skip_scope_check):
+def submit_pr(
+    ctx, worktree, title, body, base, draft, issue_number, repo, skip_scope_check
+):
     """Push a worktree branch and open a PR (scope-gated with --issue)."""
     from dev_tools.services import submit_pr as sp
+
     try:
-        wt = worktree if os.path.isabs(worktree) \
-            else os.path.join(os.getcwd(), worktree)
+        wt = (
+            worktree if os.path.isabs(worktree) else os.path.join(os.getcwd(), worktree)
+        )
         issue_text = None
         if issue_number is not None:
             orch = ctx.obj["ORCHESTRATOR"]
             extra = {"repo": repo} if repo else {}
             details = orch.get_issue_details(issue_number, **extra)
-            issue_text = (details.get("title", "") + "\n"
-                          + (details.get("body") or ""))
-        res = sp.submit(wt, title, body, base, draft, repo,
-                        issue_text, skip_scope_check,
-                        issue=issue_number)
+            issue_text = details.get("title", "") + "\n" + (details.get("body") or "")
+        res = sp.submit(
+            wt,
+            title,
+            body,
+            base,
+            draft,
+            repo,
+            issue_text,
+            skip_scope_check,
+            issue=issue_number,
+        )
         if not ctx.obj["JSON"]:
             click.echo(f"submitted {res['branch']} -> {res['url']}")
         out(ctx, f"PR submitted: {res['url']}.", data=res)
@@ -255,19 +298,27 @@ def submit_pr(ctx, worktree, title, body, base, draft, issue_number,
 
 
 @agent_group.command(name="verify-fleet")
-@click.option("--repos", multiple=True, default=None,
-              help="Partner repositories to audit (default: tech-dancer, hrm, glossy)")
-@click.option("--json", "as_json", is_flag=True,
-              help="Output machine-readable JSON status")
+@click.option(
+    "--repos",
+    multiple=True,
+    default=None,
+    help="Partner repositories to audit (default: tech-dancer, hrm, glossy)",
+)
+@click.option(
+    "--json", "as_json", is_flag=True, help="Output machine-readable JSON status"
+)
 @click.pass_context
 def verify_fleet(ctx, repos, as_json):
     """Verify deep-agent assignment across partner repos."""
     from dev_tools import multi_repo as mr
     from dev_tools.services import local_sessions as ls
+
     try:
         from dev_tools.utils import get_github_client
+
         report = mr.verify_partner_deep_agents(
-            get_github_client(), ls.repo_root_for(None), list(repos) or None)
+            get_github_client(), ls.repo_root_for(None), list(repos) or None
+        )
         if not ctx.obj["JSON"] and not as_json:
             for name, info in report.items():
                 click.echo(
@@ -277,15 +328,22 @@ def verify_fleet(ctx, repos, as_json):
                     f"agent={info['agent_assigned_issues']} "
                     f"prs={info['open_agent_prs']} "
                     f"worktrees={info['active_worktrees']} "
-                    f"healthy={info['healthy']}")
-        out(ctx, f"Verified {len(report)} partner repo(s).",
-            data={"repos": report})
+                    f"healthy={info['healthy']}"
+                )
+        out(ctx, f"Verified {len(report)} partner repo(s).", data={"repos": report})
     except Exception as e:
         _handle_unexpected_error(ctx, "agent verify-fleet", e)
 
 
 @agent_group.command(name="run-local")
-@click.option("--pr", "--pr-number", "pr_number", required=False, type=int, help="Pull Request number to evaluate.")
+@click.option(
+    "--pr",
+    "--pr-number",
+    "pr_number",
+    required=False,
+    type=int,
+    help="Pull Request number to evaluate.",
+)
 @click.option("--issue", "issue_number", type=int, help="Optional linked Issue number.")
 @click.pass_context
 def run_local(ctx, pr_number, issue_number):
@@ -320,7 +378,14 @@ def run_local(ctx, pr_number, issue_number):
 
 
 @agent_group.command(name="plan-review")
-@click.option("--pr", "--pr-number", "pr_number", required=True, type=int, help="Pull Request number")
+@click.option(
+    "--pr",
+    "--pr-number",
+    "pr_number",
+    required=True,
+    type=int,
+    help="Pull Request number",
+)
 @click.option("--issue", "issue_number", type=int, help="Issue number")
 @click.pass_context
 def plan_review(ctx, pr_number, issue_number):
@@ -374,7 +439,9 @@ def plan_issue_audit(ctx, issue_numbers, all_open, limit):
     """Generate deterministic roadmap and checklist for auditing open issues."""
     orch = ctx.obj["ORCHESTRATOR"]
     try:
-        res = orch.plan_issue_audit(issue_numbers=list(issue_numbers), all_open=all_open, limit=limit)
+        res = orch.plan_issue_audit(
+            issue_numbers=list(issue_numbers), all_open=all_open, limit=limit
+        )
         out(ctx, f"Issue audit plan generated. Summary: {res['status_file']}", data=res)
     except Exception as e:
         _handle_unexpected_error(ctx, "agent plan-issue-audit", e)
@@ -388,7 +455,11 @@ def plan_workflow_audit(ctx, workflow):
     orch = ctx.obj["ORCHESTRATOR"]
     try:
         res = orch.plan_workflow_audit(workflow=workflow)
-        out(ctx, f"Workflow audit plan generated. Summary: {res['status_file']}", data=res)
+        out(
+            ctx,
+            f"Workflow audit plan generated. Summary: {res['status_file']}",
+            data=res,
+        )
     except Exception as e:
         _handle_unexpected_error(ctx, "agent plan-workflow-audit", e)
 
@@ -401,6 +472,7 @@ def plan_workflow_audit(ctx, workflow):
 def install_workflows(ctx, target, dry_run, force):
     """Install and configure standardized GitHub Actions workflows."""
     from dev_tools.handlers.workflow_installer import install_workflows as do_install
+
     try:
         success = do_install(target_dir=target, dry_run=dry_run, force=force)
         if success:
@@ -413,7 +485,11 @@ def install_workflows(ctx, target, dry_run, force):
 
 @agent_group.command(name="merge-approved")
 @click.option("--repo", "-r", help="Target GitHub repository (e.g. owner/repo)")
-@click.option("--dry-run/--execute", default=True, help="Preview mergeable PRs or merge each approved PR")
+@click.option(
+    "--dry-run/--execute",
+    default=True,
+    help="Preview mergeable PRs or merge each approved PR",
+)
 @click.pass_context
 def merge_approved(ctx, repo, dry_run):
     """Deterministic merge gate for approved, green, non-draft, mergeable PRs."""
@@ -432,14 +508,22 @@ def merge_approved(ctx, repo, dry_run):
                 title = item.get("title", "")
                 if dry_run:
                     status_icon = "✅" if item.get("is_eligible") else "❌"
-                    status_msg = "READY" if item.get("is_eligible") else f"REFUSED: {item.get('reason')}"
+                    status_msg = (
+                        "READY"
+                        if item.get("is_eligible")
+                        else f"REFUSED: {item.get('reason')}"
+                    )
                     click.echo(f"  {status_icon} #{pr_num}: {title} [{status_msg}]")
                 else:
                     status_icon = "✅" if item.get("merged") else "❌"
                     status_msg = item.get("message")
                     click.echo(f"  {status_icon} #{pr_num}: {title} [{status_msg}]")
 
-        out(ctx, f"Evaluated {res['total_evaluated']} PRs ({res['eligible_count']} eligible).", data=res)
+        out(
+            ctx,
+            f"Evaluated {res['total_evaluated']} PRs ({res['eligible_count']} eligible).",
+            data=res,
+        )
     except Exception as e:
         _handle_unexpected_error(ctx, "agent merge-approved", e)
 

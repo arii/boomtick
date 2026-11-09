@@ -49,15 +49,21 @@ class CreateIssueInput(CamelCaseModel):
 class IssueUpdateInput(CamelCaseModel):
     issue_number: int = Field(..., description="The number of the issue to update.")
     body: Optional[str] = Field(None, description="The new body content for the issue.")
-    file: Optional[str] = Field(None, description="Path to file containing new issue body.")
-    labels: Optional[List[str]] = Field(None, description="Comma-separated list of labels to set.")
+    file: Optional[str] = Field(
+        None, description="Path to file containing new issue body."
+    )
+    labels: Optional[List[str]] = Field(
+        None, description="Comma-separated list of labels to set."
+    )
     add_labels: Optional[List[str]] = Field(
         None, description="Comma-separated list of labels to add."
     )
     remove_labels: Optional[List[str]] = Field(
         None, description="Comma-separated list of labels to remove."
     )
-    state: Optional[Literal["open", "closed"]] = Field(None, description="The state to set the issue to.")
+    state: Optional[Literal["open", "closed"]] = Field(
+        None, description="The state to set the issue to."
+    )
     repo: Optional[str] = Field(
         None,
         pattern=r"^[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+$",
@@ -66,9 +72,18 @@ class IssueUpdateInput(CamelCaseModel):
 
     @model_validator(mode="after")
     def check_updates(self) -> "IssueUpdateInput":
-        fields = (self.body, self.file, self.labels, self.add_labels, self.remove_labels, self.state)
+        fields = (
+            self.body,
+            self.file,
+            self.labels,
+            self.add_labels,
+            self.remove_labels,
+            self.state,
+        )
         if all(v is None for v in fields):
-            raise ValueError("Provide --file, --body, --labels, --add_labels, --remove_labels, or --state")
+            raise ValueError(
+                "Provide --file, --body, --labels, --add_labels, --remove_labels, or --state"
+            )
         body_val = self.body.strip() if self.body else None
         file_val = self.file.strip() if self.file else None
         if body_val and file_val:
@@ -91,7 +106,9 @@ class IssueUpdateResponse(CLIResponse):
 
 
 class ReadPRCommentsInput(CamelCaseModel):
-    pr_number: int = Field(..., gt=0, description="The PR number to fetch comments for.")
+    pr_number: int = Field(
+        ..., gt=0, description="The PR number to fetch comments for."
+    )
 
 
 class PRComment(CamelCaseModel):
@@ -119,21 +136,33 @@ class ReadPRCommentsResponse(CLIResponse):
 
 class HealthCheckInput(CamelCaseModel):
     check_deep: bool = Field(
-        False, description="Whether to perform a deep health check including external dependencies."
+        False,
+        description="Whether to perform a deep health check including external dependencies.",
     )
 
 
 class ReadCiLogsInput(CamelCaseModel):
-    pr_number: Optional[int] = Field(None, description="PR number for CI logs. Omit to list workflow runs instead.")
-    all: bool = Field(False, description="Include logs for successful runs (default: false).")
+    pr_number: Optional[int] = Field(
+        None, description="PR number for CI logs. Omit to list workflow runs instead."
+    )
+    all: bool = Field(
+        False, description="Include logs for successful runs (default: false)."
+    )
     repo: Optional[str] = Field(
         None,
         pattern=r"^[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+$",
         description="The target repository override (e.g. org/repo).",
     )
-    include_runs: bool = Field(False, description="Include recent workflow runs (absorbs repo_get_workflow_runs).")
-    branch: Optional[str] = Field(None, description="Filter workflow runs by branch name.")
-    event: Optional[str] = Field(None, description="Filter workflow runs by event (e.g. push, pull_request).")
+    include_runs: bool = Field(
+        False,
+        description="Include recent workflow runs (absorbs repo_get_workflow_runs).",
+    )
+    branch: Optional[str] = Field(
+        None, description="Filter workflow runs by branch name."
+    )
+    event: Optional[str] = Field(
+        None, description="Filter workflow runs by event (e.g. push, pull_request)."
+    )
 
 
 class WorktreeItem(CamelCaseModel):
@@ -150,8 +179,12 @@ class RunTestsInput(CamelCaseModel):
         None,
         description="Optional list of commands to run (default includes install, lint, test, build).",
     )
-    timeout_seconds: int = Field(300, description="Maximum time in seconds to wait for tests (default: 300).")
-    worktree_path: Optional[str] = Field(None, description="Optional path to the worktree to run tests in.")
+    timeout_seconds: int = Field(
+        300, description="Maximum time in seconds to wait for tests (default: 300)."
+    )
+    worktree_path: Optional[str] = Field(
+        None, description="Optional path to the worktree to run tests in."
+    )
 
 
 class RunTestsResponse(CamelCaseModel):
@@ -162,22 +195,36 @@ class RunTestsResponse(CamelCaseModel):
 
 
 class GetPrInput(CamelCaseModel):
-    pr_number: Optional[int] = Field(None, description="The number of the PR to view. Omit to search PRs instead.")
+    pr_number: Optional[int] = Field(
+        None, description="The number of the PR to view. Omit to search PRs instead."
+    )
     repo: Optional[str] = Field(
         None,
         pattern=r"^[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+$",
         description="The target repository override (e.g. org/repo).",
     )
-    include_diff: bool = Field(False, description="Include the PR diff and changed files.")
+    include_diff: bool = Field(
+        False, description="Include the PR diff and changed files."
+    )
     include_reviews: bool = Field(False, description="Include top-level reviews.")
     include_commits: bool = Field(False, description="Include commit metadata.")
     include_conflicts: bool = Field(False, description="Include merge-conflict files.")
-    base_branch: Optional[str] = Field(None, description="Conflict check only: base branch.")
+    base_branch: Optional[str] = Field(
+        None, description="Conflict check only: base branch."
+    )
     head_ref: Optional[str] = Field(None, description="Conflict check only: head ref.")
-    state: Literal["open", "closed", "all"] = Field("open", description="Search mode only: PR state filter.")
-    include_drafts: bool = Field(True, description="Search mode only: include draft PRs.")
-    limit: int = Field(100, ge=1, le=100, description="Search mode only: max PRs to return.")
-    labels: Optional[List[str]] = Field(None, description="Search mode only: filter by labels.")
+    state: Literal["open", "closed", "all"] = Field(
+        "open", description="Search mode only: PR state filter."
+    )
+    include_drafts: bool = Field(
+        True, description="Search mode only: include draft PRs."
+    )
+    limit: int = Field(
+        100, ge=1, le=100, description="Search mode only: max PRs to return."
+    )
+    labels: Optional[List[str]] = Field(
+        None, description="Search mode only: filter by labels."
+    )
 
 
 class IssueViewInput(CamelCaseModel):
@@ -197,10 +244,15 @@ class IssueCommentInput(CamelCaseModel):
         pattern=r"^[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+$",
         description="The target repository override (e.g. org/repo).",
     )
+
+
 class ReadAgentContractInput(CamelCaseModel):
-    path: Optional[str] = Field(None, description="Local filesystem path to target repository root")
+    path: Optional[str] = Field(
+        None, description="Local filesystem path to target repository root"
+    )
     repo_path: Optional[str] = Field(
-        None, description="Alias for path (filesystem path to target workspace repository root)."
+        None,
+        description="Alias for path (filesystem path to target workspace repository root).",
     )
     repo: Optional[str] = Field(
         None,
@@ -209,25 +261,36 @@ class ReadAgentContractInput(CamelCaseModel):
 
 
 class ReadAgentContextInput(CamelCaseModel):
-    path: Optional[str] = Field(None, description="Local filesystem path to target repository root")
+    path: Optional[str] = Field(
+        None, description="Local filesystem path to target repository root"
+    )
     repo_path: Optional[str] = Field(
-        None, description="Alias for path (filesystem path to target workspace repository root)."
+        None,
+        description="Alias for path (filesystem path to target workspace repository root).",
     )
     repo: Optional[str] = Field(
         None,
         description="Target GitHub repository string (e.g. org/repo).",
     )
-    repos: Optional[List[str]] = Field(None, description="List of repository names to fetch context for")
-    all: Optional[bool] = Field(
-        None, description="Whether to fetch context across all discovered ecosystem repositories"
+    repos: Optional[List[str]] = Field(
+        None, description="List of repository names to fetch context for"
     )
-    skill_name: Optional[str] = Field(None, description="Optional skill name: return its SKILL.md body too.")
+    all: Optional[bool] = Field(
+        None,
+        description="Whether to fetch context across all discovered ecosystem repositories",
+    )
+    skill_name: Optional[str] = Field(
+        None, description="Optional skill name: return its SKILL.md body too."
+    )
 
 
 class GetContextStatusInput(CamelCaseModel):
-    path: Optional[str] = Field(None, description="Local filesystem path to target repository root")
+    path: Optional[str] = Field(
+        None, description="Local filesystem path to target repository root"
+    )
     repo_path: Optional[str] = Field(
-        None, description="Alias for path (filesystem path to target workspace repository root)."
+        None,
+        description="Alias for path (filesystem path to target workspace repository root).",
     )
     repo: Optional[str] = Field(
         None,
@@ -237,23 +300,33 @@ class GetContextStatusInput(CamelCaseModel):
 
 class TdValidateIssueInput(CamelCaseModel):
     file: str = Field(..., description="Path to the design spec file (or - for stdin).")
-    repo_root: Optional[str] = Field(None, description="Repo root for file existence checks.")
+    repo_root: Optional[str] = Field(
+        None, description="Repo root for file existence checks."
+    )
 
 
 class TdVerifyScopeInput(CamelCaseModel):
-    spec_file: str = Field(..., description="Path to the validated design spec markdown file.")
+    spec_file: str = Field(
+        ..., description="Path to the validated design spec markdown file."
+    )
     worktree: str = Field(..., description="Path to the worktree to gate.")
-    auto_revert: bool = Field(False, description="Revert files outside the allowed scope.")
+    auto_revert: bool = Field(
+        False, description="Revert files outside the allowed scope."
+    )
 
 
 class TdAuditWorktreeInput(CamelCaseModel):
     worktree: str = Field(..., description="Path to the worktree to audit.")
-    include_impact: bool = Field(False, description="Also run blast-radius impact analysis.")
+    include_impact: bool = Field(
+        False, description="Also run blast-radius impact analysis."
+    )
     top_k: Optional[int] = Field(None, description="Maximum impacted files to list.")
 
 
 class TdInitInput(CamelCaseModel):
-    repo_root: Optional[str] = Field(None, description="Repo root to initialize (default: git root).")
+    repo_root: Optional[str] = Field(
+        None, description="Repo root to initialize (default: git root)."
+    )
 
 
 class TdInitResponse(CamelCaseModel):
@@ -262,7 +335,9 @@ class TdInitResponse(CamelCaseModel):
 
 
 class TdRagInput(CamelCaseModel):
-    repo_root: Optional[str] = Field(None, description="Repo root for the RAG index (default: git root).")
+    repo_root: Optional[str] = Field(
+        None, description="Repo root for the RAG index (default: git root)."
+    )
     query: str = Field(..., description="Natural-language query to run (no rebuild).")
     top_k: Optional[int] = Field(None, description="Maximum RAG hits to return.")
 
@@ -293,14 +368,26 @@ class TdAuditWorktreeResponse(CamelCaseModel):
 class AIReviewIssue(CamelCaseModel):
     id: Optional[str] = Field(None, description="Unique identifier for the finding.")
     line: Optional[int] = Field(None, description="Line number where the issue occurs.")
-    file: Optional[str] = Field(None, description="File path (if not already scoped by AIFileReview).")
-    severity: Literal["error", "warn", "info"] = Field(..., description="The severity level.")
-    issue: Optional[str] = Field(None, description="Description of the issue (alternative to 'comment').")
+    file: Optional[str] = Field(
+        None, description="File path (if not already scoped by AIFileReview)."
+    )
+    severity: Literal["error", "warn", "info"] = Field(
+        ..., description="The severity level."
+    )
+    issue: Optional[str] = Field(
+        None, description="Description of the issue (alternative to 'comment')."
+    )
     comment: Optional[str] = Field(None, description="Description of the issue.")
     status: Optional[str] = Field("open", description="Status of the finding.")
-    confidence: Literal["high", "medium", "low"] = Field(..., description="Confidence level of the AI.")
-    counterexample: Optional[str] = Field(None, description="Example of how to fix or why it fails.")
-    snippet: Optional[str] = Field(None, description="The exact code snippet from the diff.")
+    confidence: Literal["high", "medium", "low"] = Field(
+        ..., description="Confidence level of the AI."
+    )
+    counterexample: Optional[str] = Field(
+        None, description="Example of how to fix or why it fails."
+    )
+    snippet: Optional[str] = Field(
+        None, description="The exact code snippet from the diff."
+    )
 
     @field_validator("severity", "confidence", mode="before")
     @classmethod
@@ -325,26 +412,40 @@ class AIReviewIssue(CamelCaseModel):
     @model_validator(mode="after")
     def validate_content(self) -> "AIReviewIssue":
         if not self.issue and not self.comment:
-            raise ValueError("AI review issue must have either an 'issue' or 'comment' field.")
+            raise ValueError(
+                "AI review issue must have either an 'issue' or 'comment' field."
+            )
         return self
 
 
 class AIFileReview(CamelCaseModel):
     file: str = Field(..., description="The path of the file being reviewed.")
-    issues: List[AIReviewIssue] = Field(default_factory=list, description="List of findings in this file.")
-    verdict: str = Field(..., description="The verdict for this file (ok, needs_changes, blocking).")
+    issues: List[AIReviewIssue] = Field(
+        default_factory=list, description="List of findings in this file."
+    )
+    verdict: str = Field(
+        ..., description="The verdict for this file (ok, needs_changes, blocking)."
+    )
 
 
 class AIFullReview(CamelCaseModel):
-    file_reviews: List[AIFileReview] = Field(default_factory=list, description="Per-file review results.")
+    file_reviews: List[AIFileReview] = Field(
+        default_factory=list, description="Per-file review results."
+    )
     review_comment: str = Field(..., description="Overall summary comment for the PR.")
-    labels: List[str] = Field(default_factory=list, description="Suggested labels for the PR.")
-    recommendation: str = Field(..., description="Final recommendation (Approved, Not Approved, etc).")
+    labels: List[str] = Field(
+        default_factory=list, description="Suggested labels for the PR."
+    )
+    recommendation: str = Field(
+        ..., description="Final recommendation (Approved, Not Approved, etc)."
+    )
 
 
 class AISynthesisReview(CamelCaseModel):
     review_comment: str = Field(..., description="Overall summary comment for the PR.")
-    labels: List[str] = Field(default_factory=list, description="Suggested labels for the PR.")
+    labels: List[str] = Field(
+        default_factory=list, description="Suggested labels for the PR."
+    )
     recommendation: str = Field(..., description="Final recommendation.")
 
 
@@ -412,20 +513,28 @@ class HealthCheckResponse(CamelCaseModel):
 
 class AgentContractConfig(CamelCaseModel):
     base_branch: str = Field("main", description="The default base branch.")
-    setup_command: Optional[str] = Field(None, description="Command to set up dependencies.")
+    setup_command: Optional[str] = Field(
+        None, description="Command to set up dependencies."
+    )
     test_command: Optional[str] = Field(None, description="Command to run tests.")
     lint_command: Optional[str] = Field(None, description="Command to run linter.")
-    build_command: Optional[str] = Field(None, description="Command to build the project.")
+    build_command: Optional[str] = Field(
+        None, description="Command to build the project."
+    )
     shared_deps: Literal["symlink", "install", "none"] = Field(
         "symlink", description="Dependency sharing strategy."
     )
-    sparse_paths: Optional[List[str]] = Field(None, description="Optional sparse checkout paths.")
+    sparse_paths: Optional[List[str]] = Field(
+        None, description="Optional sparse checkout paths."
+    )
     worktree_ttl_days: int = Field(7, description="Worktree TTL in days.")
 
 
 class ReadAgentContractResponse(CamelCaseModel):
     status: str = "success"
-    content: Optional[str] = Field(None, description="The content of the agent contract specification file.")
+    content: Optional[str] = Field(
+        None, description="The content of the agent contract specification file."
+    )
     path: Optional[str] = Field(None, description="Path to the agent contract file.")
     config: Optional[AgentContractConfig] = Field(
         None,
@@ -441,10 +550,18 @@ class ReadAgentContextResponse(CamelCaseModel):
 
 
 class GetContextStatusResponse(CamelCaseModel):
-    warm: bool = Field(..., description="Whether the .agent-context.json index is warm and up-to-date.")
-    last_warmed_at: Optional[str] = Field(None, description="ISO timestamp when .agent-context.json was last updated or created.")
+    warm: bool = Field(
+        ..., description="Whether the .agent-context.json index is warm and up-to-date."
+    )
+    last_warmed_at: Optional[str] = Field(
+        None,
+        description="ISO timestamp when .agent-context.json was last updated or created.",
+    )
     path: str = Field(..., description="Path to .agent-context.json.")
-    stale_files: List[str] = Field(default_factory=list, description="List of files that are newer than .agent-context.json or stale.")
+    stale_files: List[str] = Field(
+        default_factory=list,
+        description="List of files that are newer than .agent-context.json or stale.",
+    )
 
 
 class CheckoutBranchResponse(CamelCaseModel):
@@ -477,6 +594,8 @@ class CreateRepairBranchResponse(CamelCaseModel):
     base_sha: Optional[str] = None
     pr_head_sha: Optional[str] = None
     fetched: bool = False
+
+
 class OpenReplacementPrResponse(CamelCaseModel):
     success: bool = True
     url: str
@@ -503,8 +622,12 @@ class IssueViewResponse(CamelCaseModel):
 class IssueCommentResponse(CamelCaseModel):
     status: str = "success"
     comment: Optional[Any] = None
+
+
 class AgentStatusInput(CamelCaseModel):
-    session_id: str = Field(..., description="The ID of the session to check status for")
+    session_id: str = Field(
+        ..., description="The ID of the session to check status for"
+    )
 
 
 class AgentStatusVerification(CamelCaseModel):
@@ -528,14 +651,18 @@ class SkillInfo(CamelCaseModel):
 
 
 class AgentSubmitPrInput(CamelCaseModel):
-    repo: Optional[str] = Field(None, description="Target repository override (e.g. owner/repo)")
+    repo: Optional[str] = Field(
+        None, description="Target repository override (e.g. owner/repo)"
+    )
     branch: str = Field(..., description="Branch to push and submit as a PR")
     base_branch: str = Field("main", description="Base branch for the PR")
     title: str = Field(..., description="PR title")
     body: str = Field("", description="PR body")
     draft: bool = Field(True, description="Open the PR as a draft for human review")
     worktree_path: Optional[str] = Field(None, description="Worktree to push from")
-    push_mode: bool = Field(False, description="Safety gate: must be true to push and open the PR")
+    push_mode: bool = Field(
+        False, description="Safety gate: must be true to push and open the PR"
+    )
 
 
 class AgentSubmitPrResponse(CamelCaseModel):

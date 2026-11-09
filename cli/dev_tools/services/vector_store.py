@@ -14,15 +14,36 @@ TD_RAG_DIR = ".td_rag"
 META_FILENAME = "meta.json"
 
 INDEXABLE_EXTENSIONS = (
-    ".py", ".ts", ".tsx", ".js", ".jsx", ".mjs", ".mts",
-    ".md", ".markdown",
+    ".py",
+    ".ts",
+    ".tsx",
+    ".js",
+    ".jsx",
+    ".mjs",
+    ".mts",
+    ".md",
+    ".markdown",
 )
 
-SKIP_DIRS = frozenset({
-    ".git", "node_modules", ".venv", "venv", "env",
-    "__pycache__", "dist", "build", ".worktrees", ".td_rag",
-    "chroma_db", "traces", "fixtures", ".mypy_cache", ".pytest_cache",
-})
+SKIP_DIRS = frozenset(
+    {
+        ".git",
+        "node_modules",
+        ".venv",
+        "venv",
+        "env",
+        "__pycache__",
+        "dist",
+        "build",
+        ".worktrees",
+        ".td_rag",
+        "chroma_db",
+        "traces",
+        "fixtures",
+        ".mypy_cache",
+        ".pytest_cache",
+    }
+)
 
 
 def default_store_paths(repo_root: str) -> Tuple[str, str]:
@@ -55,24 +76,32 @@ def git_head_sha(repo_root: str) -> str:
     """HEAD commit SHA, or '' when git is unavailable."""
     try:
         proc = subprocess.run(
-            ["git", "rev-parse", "HEAD"], cwd=repo_root,
-            capture_output=True, text=True, check=False)
+            ["git", "rev-parse", "HEAD"],
+            cwd=repo_root,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
         return proc.stdout.strip() if proc.returncode == 0 else ""
     except OSError:
         return ""
 
 
-def git_name_status(repo_root: str, base: str, head: str = "HEAD"
-                    ) -> List[Tuple[str, str, str]]:
+def git_name_status(
+    repo_root: str, base: str, head: str = "HEAD"
+) -> List[Tuple[str, str, str]]:
     """[(status, path, old_path)] for base..head (renames split out).
 
     status is one of A/C/D/M/R/T/U/X; old_path is set for renames.
     """
     try:
         proc = subprocess.run(
-            ["git", "diff", "--name-status", "-M",
-             f"{base}..{head}", "--", "."],
-            cwd=repo_root, capture_output=True, text=True, check=False)
+            ["git", "diff", "--name-status", "-M", f"{base}..{head}", "--", "."],
+            cwd=repo_root,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
     except OSError:
         return []
     if proc.returncode != 0:
@@ -88,14 +117,47 @@ def git_name_status(repo_root: str, base: str, head: str = "HEAD"
     return out
 
 
+def git_dirty_files(repo_root: str) -> List[str]:
+    """Indexable paths with uncommitted changes (issue #1232)."""
+    try:
+        proc = subprocess.run(
+            ["git", "status", "--porcelain", "--", "."],
+            cwd=repo_root,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+    except OSError:
+        return []
+    if proc.returncode != 0:
+        return []
+    out = []
+    for line in proc.stdout.splitlines():
+        if len(line) < 4:
+            continue
+        path = line[3:]
+        if " -> " in path:
+            path = path.rsplit(" -> ", 1)[1]
+        path = path.strip().strip('"')
+        if not path or not _is_indexable(path):
+            continue
+        parts = path.split("/")
+        if any(p in SKIP_DIRS or p.startswith(".") for p in parts[:-1]):
+            continue
+        if parts[-1].startswith("."):
+            continue
+        out.append(path)
+    return out
+
+
 def iter_repo_files(repo_root: str):
     """Sorted repo-relative paths of indexable files."""
     root = os.path.abspath(repo_root)
     found = []
     for dirpath, dirnames, filenames in os.walk(root):
         dirnames[:] = sorted(
-            d for d in dirnames
-            if d not in SKIP_DIRS and not d.startswith("."))
+            d for d in dirnames if d not in SKIP_DIRS and not d.startswith(".")
+        )
         for name in sorted(filenames):
             if name.startswith("."):
                 continue
@@ -110,6 +172,7 @@ def iter_repo_files(repo_root: str):
             found.append(os.path.relpath(full, root))
     return found
 
+
 @dataclass
 class BM25State:  # pylint: disable=too-few-public-methods
     index: Any = None
@@ -118,7 +181,11 @@ class BM25State:  # pylint: disable=too-few-public-methods
 
 
 class VectorStore:
-    def __init__(self, persist_directory: str = "artifacts/chroma_db", collection_name: str = "codebase"):
+    def __init__(
+        self,
+        persist_directory: str = "artifacts/chroma_db",
+        collection_name: str = "codebase",
+    ):
         self.persist_directory = persist_directory
         self.collection_name = collection_name
         self._client = None
@@ -152,6 +219,7 @@ class VectorStore:
     def client(self):
         if self._client is None and self.is_available():
             import chromadb  # pylint: disable=import-error
+
             self._client = chromadb.PersistentClient(path=self.persist_directory)
         return self._client
 
@@ -159,7 +227,12 @@ class VectorStore:
     def embedding_fn(self):
         if self._embedding_fn is None and self.is_available():
             from chromadb.utils import embedding_functions  # pylint: disable=import-error
-            self._embedding_fn = embedding_functions.SentenceTransformerEmbeddingFunction(model_name="all-MiniLM-L6-v2")
+
+            self._embedding_fn = (
+                embedding_functions.SentenceTransformerEmbeddingFunction(
+                    model_name="all-MiniLM-L6-v2"
+                )
+            )
         return self._embedding_fn
 
     @property
@@ -177,16 +250,22 @@ class VectorStore:
         """Checks if ChromaDB and dependencies are available."""
         from importlib.util import find_spec
 
-        return find_spec("chromadb") is not None and find_spec("sentence_transformers") is not None
+        return (
+            find_spec("chromadb") is not None
+            and find_spec("sentence_transformers") is not None
+        )
 
     def tokenize_text(self, text: str) -> List[str]:
         """Tokenize text into lowercased identifiers/symbols for BM25 search."""
-        return [tok.lower() for tok in re.findall(r"[A-Za-z0-9_]+", text) if len(tok) > 1]
+        return [
+            tok.lower() for tok in re.findall(r"[A-Za-z0-9_]+", text) if len(tok) > 1
+        ]
 
     def build_bm25_index(self, documents: List[str], ids: List[str]) -> None:
         """Build or update the BM25 index over documents."""
         try:
             from rank_bm25 import BM25Okapi  # pylint: disable=import-error
+
             tokenized_corpus = [self.tokenize_text(doc) for doc in documents]
             self._bm25.corpus_docs = tokenized_corpus
             self._bm25.corpus_ids = ids
@@ -212,8 +291,13 @@ class VectorStore:
             ):
                 nodes_to_chunk.append(node)
             elif ntype in ("export_statement", "lexical_declaration"):
-                code_snippet = code_bytes[node.start_byte:node.end_byte].decode("utf-8", errors="ignore")
-                has_decl = any(kw in code_snippet for kw in ("function", "=>", "class", "interface"))
+                code_snippet = code_bytes[node.start_byte : node.end_byte].decode(
+                    "utf-8", errors="ignore"
+                )
+                has_decl = any(
+                    kw in code_snippet
+                    for kw in ("function", "=>", "class", "interface")
+                )
                 if has_decl:
                     nodes_to_chunk.append(node)
                 else:
@@ -228,7 +312,8 @@ class VectorStore:
         selected_nodes: List[Any] = []
         for node_item in nodes_to_chunk:
             is_nested = any(
-                parent.start_byte <= node_item.start_byte and parent.end_byte >= node_item.end_byte
+                parent.start_byte <= node_item.start_byte
+                and parent.end_byte >= node_item.end_byte
                 for parent in selected_nodes
                 if parent != node_item
             )
@@ -243,7 +328,11 @@ class VectorStore:
             import tree_sitter  # pylint: disable=import-error
             import tree_sitter_typescript as tsts  # pylint: disable=import-error
 
-            ts_lang = tsts.language_tsx() if filepath.endswith("x") else tsts.language_typescript()
+            ts_lang = (
+                tsts.language_tsx()
+                if filepath.endswith("x")
+                else tsts.language_typescript()
+            )
             lang = tree_sitter.Language(ts_lang)
             parser = tree_sitter.Parser(lang)
             code_bytes = code.encode("utf-8")
@@ -252,18 +341,24 @@ class VectorStore:
             selected_nodes = self._collect_ast_nodes(tree, code_bytes)
 
             for idx, node in enumerate(selected_nodes):
-                chunk_str = code_bytes[node.start_byte:node.end_byte].decode("utf-8", errors="ignore").strip()
+                chunk_str = (
+                    code_bytes[node.start_byte : node.end_byte]
+                    .decode("utf-8", errors="ignore")
+                    .strip()
+                )
                 if chunk_str:
-                    chunks.append({
-                        "content": chunk_str,
-                        "metadata": {
-                            "filepath": filepath,
-                            "start_line": node.start_point[0] + 1,
-                            "end_line": node.end_point[0] + 1,
-                            "node_type": node.type,
-                            "chunk_index": idx,
-                        },
-                    })
+                    chunks.append(
+                        {
+                            "content": chunk_str,
+                            "metadata": {
+                                "filepath": filepath,
+                                "start_line": node.start_point[0] + 1,
+                                "end_line": node.end_point[0] + 1,
+                                "node_type": node.type,
+                                "chunk_index": idx,
+                            },
+                        }
+                    )
         except Exception:
             return []
         return chunks
@@ -273,19 +368,21 @@ class VectorStore:
         lines = code.splitlines()
         chunk_size = 50
         for i in range(0, len(lines), chunk_size):
-            chunk_lines = lines[i:i + chunk_size]
+            chunk_lines = lines[i : i + chunk_size]
             chunk_str = "\n".join(chunk_lines).strip()
             if chunk_str:
-                chunks.append({
-                    "content": chunk_str,
-                    "metadata": {
-                        "filepath": filepath,
-                        "start_line": i + 1,
-                        "end_line": i + len(chunk_lines),
-                        "node_type": "line_block",
-                        "chunk_index": i // chunk_size,
-                    },
-                })
+                chunks.append(
+                    {
+                        "content": chunk_str,
+                        "metadata": {
+                            "filepath": filepath,
+                            "start_line": i + 1,
+                            "end_line": i + len(chunk_lines),
+                            "node_type": "line_block",
+                            "chunk_index": i // chunk_size,
+                        },
+                    }
+                )
         return chunks
 
     def chunk_code_ast(self, code: str, filepath: str) -> List[Dict[str, Any]]:
@@ -312,23 +409,24 @@ class VectorStore:
             nonlocal chunk_index
             text = "\n".join(section_lines).strip()
             if text:
-                chunks.append({
-                    "content": text,
-                    "metadata": {
-                        "filepath": filepath,
-                        "start_line": section_start,
-                        "end_line": end_line,
-                        "node_type": "md_section",
-                        "chunk_index": chunk_index,
-                        "section": section_title,
-                    },
-                })
+                chunks.append(
+                    {
+                        "content": text,
+                        "metadata": {
+                            "filepath": filepath,
+                            "start_line": section_start,
+                            "end_line": end_line,
+                            "node_type": "md_section",
+                            "chunk_index": chunk_index,
+                            "section": section_title,
+                        },
+                    }
+                )
                 chunk_index += 1
 
         for lineno, line in enumerate(code.splitlines(), start=1):
             match = re.match(r"^(#{1,6})\s+(.+?)\s*$", line)
-            if match and section_lines and (
-                    len(section_lines) >= 120 or section_title):
+            if match and section_lines and (len(section_lines) >= 120 or section_title):
                 flush(lineno - 1)
                 section_lines = []
                 section_start = lineno
@@ -364,7 +462,9 @@ class VectorStore:
                 log_warn(f"vector_store: vector delete failed for {filepath}: {e}")
         return removed
 
-    def add_file_incremental(self, filepath: str, code: str, force_reembed: bool = False) -> List[str]:
+    def add_file_incremental(
+        self, filepath: str, code: str, force_reembed: bool = False
+    ) -> List[str]:
         """
         AST chunks a file, hashes each node content, and only embeds/updates new or modified chunks.
         """
@@ -378,7 +478,9 @@ class VectorStore:
             content = chunk["content"]
             meta = chunk["metadata"]
             content_hash = hashlib.sha256(content.encode("utf-8")).hexdigest()
-            chunk_id = f"{filepath}:{meta['start_line']}-{meta['end_line']}:{content_hash[:8]}"
+            chunk_id = (
+                f"{filepath}:{meta['start_line']}-{meta['end_line']}:{content_hash[:8]}"
+            )
 
             cached_hash = self._cache.get(chunk_id)
             if force_reembed or cached_hash != content_hash:
@@ -392,12 +494,16 @@ class VectorStore:
                 ids_added.append(chunk_id)
 
         if documents_to_add:
-            self.add_documents(documents=documents_to_add, metadatas=metadatas_to_add, ids=ids_to_add)
+            self.add_documents(
+                documents=documents_to_add, metadatas=metadatas_to_add, ids=ids_to_add
+            )
             self._save_cache()
 
         return ids_added
 
-    def index_files(self, file_map: Dict[str, str], changed_files_only: Optional[List[str]] = None) -> None:
+    def index_files(
+        self, file_map: Dict[str, str], changed_files_only: Optional[List[str]] = None
+    ) -> None:
         """
         Indexes files in file_map (dict of filepath -> code content).
         If changed_files_only is supplied, only process files modified in git diff.
@@ -406,7 +512,11 @@ class VectorStore:
         all_docs = []
         all_ids = []
 
-        files_to_process = changed_files_only if changed_files_only is not None else list(file_map.keys())
+        files_to_process = (
+            changed_files_only
+            if changed_files_only is not None
+            else list(file_map.keys())
+        )
 
         for fp in files_to_process:
             if fp in file_map:
@@ -422,14 +532,25 @@ class VectorStore:
                 all_ids = col_data["ids"]
                 self.build_bm25_index(all_docs, all_ids)
 
-    def add_documents(self, documents: List[str], metadatas: List[Dict[str, Any]], ids: List[str]):
+    def add_documents(
+        self, documents: List[str], metadatas: List[Dict[str, Any]], ids: List[str]
+    ):
         """Adds documents to the collection."""
         collection = self.collection
         if collection:
             collection.add(documents=documents, metadatas=metadatas, ids=ids)
 
-    def query(self, query_text: str, n_results: int = 5, hybrid: bool = True) -> List[Dict[str, Any]]:
-        """Queries the collection for similar documents, optionally using BM25 hybrid reranking."""
+    def query(
+        self,
+        query_text: str,
+        n_results: int = 5,
+        hybrid: bool = True,
+        min_relative_score: float = 0.4,
+    ) -> List[Dict[str, Any]]:
+        """Queries the collection for similar documents, optionally using BM25 hybrid reranking.
+
+        Drops hits below min_relative_score of the top hit (#1236).
+        """
         collection = self.collection
         if not collection:
             return []
@@ -444,7 +565,9 @@ class VectorStore:
                         "document": vector_results["documents"][0][i],
                         "metadata": vector_results["metadatas"][0][i],
                         "id": vector_results["ids"][0][i],
-                        "distance": vector_results["distances"][0][i] if "distances" in vector_results else None,
+                        "distance": vector_results["distances"][0][i]
+                        if "distances" in vector_results
+                        else None,
                         "bm25_score": 0.0,
                     }
                 )
@@ -458,11 +581,16 @@ class VectorStore:
                     item["bm25_score"] = score_dict.get(item["id"], 0.0)
 
                 formatted_results.sort(
-                    key=lambda x: (x["bm25_score"], -x["distance"] if x["distance"] is not None else 0),
-                    reverse=True
+                    key=lambda x: (
+                        x["bm25_score"],
+                        -x["distance"] if x["distance"] is not None else 0,
+                    ),
+                    reverse=True,
                 )
 
-        return formatted_results[:n_results]
+        return drop_low_relative_scores(
+            formatted_results[:n_results], fraction=min_relative_score
+        )
 
     def reset(self):
         """Resets the collection and cache."""
@@ -486,8 +614,12 @@ class VectorStore:
             # no-op (first index), not a warning. Machine-output commands
             # (e.g. rag index --json) must stay parseable.
             if "does not exist" not in str(e).lower():
-                log_warn(f"vector_store: collection delete failed for {self.collection_name}: {e}")
-        self._collection = client.create_collection(name=self.collection_name, embedding_function=embedding_fn)
+                log_warn(
+                    f"vector_store: collection delete failed for {self.collection_name}: {e}"
+                )
+        self._collection = client.create_collection(
+            name=self.collection_name, embedding_function=embedding_fn
+        )
         # Only purge caches after the replacement collection exists,
         # so a failed create leaves the prior state intact.
         self._cache = {}
@@ -500,16 +632,35 @@ def _is_indexable(path: str) -> bool:
     return path.endswith(INDEXABLE_EXTENSIONS)
 
 
-def update_index(repo_root: str, incremental: bool = True,
-                 persist_directory: str = "",
-                 meta_file: str = "") -> Dict[str, Any]:
+def drop_low_relative_scores(
+    results: List[Dict[str, Any]], fraction: float = 0.4
+) -> List[Dict[str, Any]]:
+    """Drop hits below fraction of the top hit; all-zero keeps all (#1236)."""
+    if not results or fraction <= 0:
+        return results
+    top = max(float(item.get("bm25_score", 0.0) or 0.0) for item in results)
+    if top <= 0:
+        return results
+    cutoff = top * fraction
+    return [
+        item for item in results if float(item.get("bm25_score", 0.0) or 0.0) >= cutoff
+    ]
+
+
+def update_index(
+    repo_root: str,
+    incremental: bool = True,
+    persist_directory: str = "",
+    meta_file: str = "",
+) -> Dict[str, Any]:
     """Incrementally update the vector index for a repo root.
 
     Full pass on first run (or incremental=False): walks indexable
     files, embeds new/modified chunks, deletes chunks for removed
     files, and records HEAD in meta. Incremental pass: diffs
     last_indexed_sha..HEAD, re-embeds A/C/M/T files, drops chunks for
-    D/R files, and advances the SHA. Returns a status dict.
+    D/R files, then re-embeds uncommitted working-tree buffers via
+    git status --porcelain, and advances the SHA. Returns a status dict.
     """
     repo_root = os.path.abspath(repo_root)
     default_persist, default_meta = default_store_paths(repo_root)
@@ -526,8 +677,7 @@ def update_index(repo_root: str, incremental: bool = True,
     added_chunks = 0
 
     if last_sha and head_sha and last_sha != head_sha:
-        for status, path, old_path in git_name_status(
-                repo_root, last_sha, head_sha):
+        for status, path, old_path in git_name_status(repo_root, last_sha, head_sha):
             if old_path:
                 removed_files.append(old_path)
                 store.delete_by_filepath(old_path)
@@ -538,8 +688,7 @@ def update_index(repo_root: str, incremental: bool = True,
                 full = os.path.join(repo_root, path)
                 if os.path.isfile(full):
                     try:
-                        with open(full, encoding="utf-8",
-                                  errors="ignore") as handle:
+                        with open(full, encoding="utf-8", errors="ignore") as handle:
                             code = handle.read()
                     except OSError:
                         continue
@@ -555,8 +704,7 @@ def update_index(repo_root: str, incremental: bool = True,
         for path in iter_repo_files(repo_root):
             full = os.path.join(repo_root, path)
             try:
-                with open(full, encoding="utf-8",
-                          errors="ignore") as handle:
+                with open(full, encoding="utf-8", errors="ignore") as handle:
                     code = handle.read()
             except OSError:
                 continue
@@ -575,7 +723,26 @@ def update_index(repo_root: str, incremental: bool = True,
             if actual != added_chunks:
                 raise RuntimeError(
                     f"rag index shortfall: embedded {added_chunks} "
-                    f"chunks but collection holds {actual}")
+                    f"chunks but collection holds {actual}"
+                )
+
+    if incremental and last_sha and head_sha:
+        # Uncommitted buffers the base..HEAD walk misses (#1232).
+        for path in git_dirty_files(repo_root):
+            full = os.path.join(repo_root, path)
+            if os.path.isfile(full):
+                try:
+                    with open(full, encoding="utf-8", errors="ignore") as handle:
+                        code = handle.read()
+                except OSError:
+                    continue
+                ids = store.add_file_incremental(path, code)
+                if ids:
+                    added_chunks += len(ids)
+                updated_files.append(path)
+            else:
+                removed_files.append(path)
+                store.delete_by_filepath(path)
 
     # Degraded-env hole (#1167): with no embedding backend the walk
     # above still counts chunks while persisting zero vectors. Fail
@@ -587,7 +754,8 @@ def update_index(repo_root: str, incremental: bool = True,
         raise RuntimeError(
             f"rag index has no embedding backend: visited "
             f"{len(updated_files)} files but the collection is "
-            "unavailable (install chromadb + sentence-transformers)")
+            "unavailable (install chromadb + sentence-transformers)"
+        )
 
     # Incremental-path emptiness guard (#1181): the changed-files
     # walk above never reconciles, so a diverged cache (hashes
@@ -598,12 +766,16 @@ def update_index(repo_root: str, incremental: bool = True,
     # index; a full rebuild (rag index --full) repairs it.
     if incremental and last_sha and head_sha:
         _collection = store.collection
-        if _collection is not None and _collection.count() == 0 \
-                and iter_repo_files(repo_root):
+        if (
+            _collection is not None
+            and _collection.count() == 0
+            and iter_repo_files(repo_root)
+        ):
             raise RuntimeError(
                 "rag index unverified: collection holds 0 vectors "
                 "but indexable files exist; refusing to advance "
-                "last_indexed_sha (rebuild with rag index --full)")
+                "last_indexed_sha (rebuild with rag index --full)"
+            )
 
     if head_sha and store.collection is not None:
         meta["last_indexed_sha"] = head_sha
@@ -620,14 +792,16 @@ def update_index(repo_root: str, incremental: bool = True,
     }
 
 
-def query_index(repo_root: str, query: str, top_k: int = 8,
-                persist_directory: str = "") -> List[Dict[str, Any]]:
+def query_index(
+    repo_root: str, query: str, top_k: int = 8, persist_directory: str = ""
+) -> List[Dict[str, Any]]:
     """Hybrid query over the repo index; [] when nothing is indexed.
 
     Fail-loud on exception (issue #1165): an empty index returns []
     via store.query itself, so anything raised here is a broken query
     the caller must see. Matches the fail-loud update_index behavior
-    from #1094.
+    from #1094. The relative-score cut (issue #1236) applies inside
+    store.query; pass min_relative_score there to tune it.
     """
     repo_root = os.path.abspath(repo_root)
     default_persist, _ = default_store_paths(repo_root)
@@ -636,12 +810,14 @@ def query_index(repo_root: str, query: str, top_k: int = 8,
     hits = []
     for item in results or []:
         meta = item.get("metadata") or {}
-        hits.append({
-            "content": item.get("document", ""),
-            "filepath": meta.get("filepath", ""),
-            "start_line": meta.get("start_line"),
-            "end_line": meta.get("end_line"),
-            "score": item.get("bm25_score", 0.0),
-            "distance": item.get("distance"),
-        })
+        hits.append(
+            {
+                "content": item.get("document", ""),
+                "filepath": meta.get("filepath", ""),
+                "start_line": meta.get("start_line"),
+                "end_line": meta.get("end_line"),
+                "score": item.get("bm25_score", 0.0),
+                "distance": item.get("distance"),
+            }
+        )
     return hits

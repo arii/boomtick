@@ -40,10 +40,13 @@ jobs:
         run: pip install boomtick-cli
       - name: Execute Audit Gate
         run: td gh audit-gate
-"""
+""",
 }
 
-def install_workflows(target_dir: str, dry_run: bool = False, force: bool = False) -> bool:
+
+def install_workflows(
+    target_dir: str, dry_run: bool = False, force: bool = False
+) -> bool:
     """Installs standardized workflow templates into the specified target directory."""
     resolved_target = Path(target_dir).resolve()
     github_dir = resolved_target / ".github" / "workflows"

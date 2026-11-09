@@ -1,14 +1,20 @@
 """Issue/PR operations and conflict-file helpers."""
+
 import os
 import re
 import subprocess
 from collections import defaultdict
 from typing import Any, Dict, List, Optional, Tuple
 from dev_tools.models import IssueSummary
-from dev_tools.utils import CLIError, get_gha_variable, get_github_client, log_warn, sanitize_path
+from dev_tools.utils import (
+    CLIError,
+    get_gha_variable,
+    get_github_client,
+    log_warn,
+    sanitize_path,
+)
 from dev_tools.orchestration.review import ReviewMixin
 import dev_tools.orchestrator
-
 
 
 class IssueMixin(ReviewMixin):
@@ -107,7 +113,11 @@ class IssueMixin(ReviewMixin):
             check=False,
             log_on_error=False,
         )
-        if isinstance(res, subprocess.CompletedProcess) and res.returncode == 0 and res.stdout:
+        if (
+            isinstance(res, subprocess.CompletedProcess)
+            and res.returncode == 0
+            and res.stdout
+        ):
             return [f.strip() for f in res.stdout.splitlines() if f.strip()]
         return []
 
@@ -117,7 +127,9 @@ class IssueMixin(ReviewMixin):
             return os.environ[env_var]
         return get_gha_variable(env_var)
 
-    def resolve_baseline(self, file_path: Optional[str], env_var: str, fallback_value: int) -> int:
+    def resolve_baseline(
+        self, file_path: Optional[str], env_var: str, fallback_value: int
+    ) -> int:
         """Resolve a numeric baseline from file, env, or fallback."""
         if file_path and os.path.exists(file_path):
             with open(file_path, "r", encoding="utf-8") as f:
@@ -127,7 +139,9 @@ class IssueMixin(ReviewMixin):
             return int(val)
         return fallback_value
 
-    def detect_conflicts(self, target_pr_num: Optional[int] = None) -> Dict[Tuple[int, ...], List[str]]:
+    def detect_conflicts(
+        self, target_pr_num: Optional[int] = None
+    ) -> Dict[Tuple[int, ...], List[str]]:
         """
         Detect file overlap between open PRs (shared touched paths).
 
@@ -135,7 +149,9 @@ class IssueMixin(ReviewMixin):
         """
         repo_name = dev_tools.orchestrator.get_repo_name()
         if not repo_name:
-            scope = f"PR #{target_pr_num}" if target_pr_num is not None else "all open PRs"
+            scope = (
+                f"PR #{target_pr_num}" if target_pr_num is not None else "all open PRs"
+            )
             raise CLIError(
                 f"Could not determine repository name for detect-conflicts scan of {scope}: "
                 "no GITHUB_REPOSITORY env var and no git origin remote found. "
@@ -153,18 +169,22 @@ class IssueMixin(ReviewMixin):
                 conflicts[tuple(sorted(prs))].append(filename)
         return conflicts
 
-    def detect_semantic_overlaps(self, target_pr_num: Optional[int] = None) -> List[Dict[str, Any]]:
+    def detect_semantic_overlaps(
+        self, target_pr_num: Optional[int] = None
+    ) -> List[Dict[str, Any]]:
         """
         Detects both textual file overlaps and shared exported symbol modifications across open PRs.
         """
         conflicts = self.detect_conflicts(target_pr_num)
         results = []
         for pr_pair, files in conflicts.items():
-            results.append({
-                "prs": list(pr_pair),
-                "files": files,
-                "type": "file_overlap",
-            })
+            results.append(
+                {
+                    "prs": list(pr_pair),
+                    "files": files,
+                    "type": "file_overlap",
+                }
+            )
 
         # Symbol export overlap detection
         open_prs = self.github.list_pull_requests(state="open")
@@ -173,7 +193,9 @@ class IssueMixin(ReviewMixin):
             prs_in_conflicts.add(target_pr_num)
             open_prs = [p for p in open_prs if p.get("number") in prs_in_conflicts]
 
-        symbol_map: Dict[str, Dict[str, List[int]]] = defaultdict(lambda: defaultdict(list))
+        symbol_map: Dict[str, Dict[str, List[int]]] = defaultdict(
+            lambda: defaultdict(list)
+        )
         for pr in open_prs:
             pr_num = pr.get("number")
             if not pr_num:
@@ -190,12 +212,14 @@ class IssueMixin(ReviewMixin):
         for filepath, sym_dict in symbol_map.items():
             for sym, prs in sym_dict.items():
                 if len(prs) > 1 and (target_pr_num is None or target_pr_num in prs):
-                    results.append({
-                        "prs": sorted(prs),
-                        "file": filepath,
-                        "symbol": sym,
-                        "type": "export_overlap",
-                    })
+                    results.append(
+                        {
+                            "prs": sorted(prs),
+                            "file": filepath,
+                            "symbol": sym,
+                            "type": "export_overlap",
+                        }
+                    )
 
         return results
 
@@ -222,9 +246,13 @@ class IssueMixin(ReviewMixin):
         repo_root = os.path.abspath(os.getcwd())
         try:
             if os.path.commonpath([repo_root, abs_path]) != repo_root:
-                raise CLIError(f"Security Error: Path {file_path} is outside of repository root.")
+                raise CLIError(
+                    f"Security Error: Path {file_path} is outside of repository root."
+                )
         except ValueError:
-            raise CLIError(f"Security Error: Path {file_path} is invalid or outside of repository root.")
+            raise CLIError(
+                f"Security Error: Path {file_path} is invalid or outside of repository root."
+            )
 
         if not os.path.exists(abs_path):
             raise CLIError(f"File not found: {file_path}")
@@ -235,7 +263,9 @@ class IssueMixin(ReviewMixin):
         with open(abs_path, "r", encoding="utf-8") as f:
             return f.read()
 
-    def create_issue(self, title: str, body: str, repo: Optional[str] = None) -> Dict[str, Any]:
+    def create_issue(
+        self, title: str, body: str, repo: Optional[str] = None
+    ) -> Dict[str, Any]:
         """
         Creates a new GitHub issue.
         """
@@ -243,14 +273,24 @@ class IssueMixin(ReviewMixin):
         return {"status": "success", "issue": IssueSummary(**res).model_dump()}
 
     def create_pull_request(
-        self, title: str, body: str, head: str, base: str = "main", draft: bool = False, repo: Optional[str] = None
+        self,
+        title: str,
+        body: str,
+        head: str,
+        base: str = "main",
+        draft: bool = False,
+        repo: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
         Creates a new GitHub pull request.
         """
-        return self.github.create_pull_request(title, body, head, base, draft=draft, repo=repo)
+        return self.github.create_pull_request(
+            title, body, head, base, draft=draft, repo=repo
+        )
 
-    def get_issue_details(self, issueNumber: int, repo: Optional[str] = None) -> Dict[str, Any]:
+    def get_issue_details(
+        self, issueNumber: int, repo: Optional[str] = None
+    ) -> Dict[str, Any]:
         """
         Fetches details of a GitHub issue.
         """
@@ -277,9 +317,13 @@ class IssueMixin(ReviewMixin):
         # Handle full label replacement first as it is mutually exclusive with incremental changes
         if labels is not None:
             if repo:
-                res = self.github.update_issue(issueNumber, body=body, labels=labels, state=state, repo=repo)
+                res = self.github.update_issue(
+                    issueNumber, body=body, labels=labels, state=state, repo=repo
+                )
             else:
-                res = self.github.update_issue(issueNumber, body=body, labels=labels, state=state)
+                res = self.github.update_issue(
+                    issueNumber, body=body, labels=labels, state=state
+                )
         else:
             # Handle incremental label changes (can happen together)
             if addLabels:
@@ -287,7 +331,10 @@ class IssueMixin(ReviewMixin):
                     self.github.add_labels(issueNumber, addLabels, repo=repo)
                 else:
                     self.github.add_labels(issueNumber, addLabels)
-                res = {"status": "success", "message": f"Added labels {addLabels} to #{issueNumber}"}
+                res = {
+                    "status": "success",
+                    "message": f"Added labels {addLabels} to #{issueNumber}",
+                }
 
             if removeLabels:
                 for label in removeLabels:
@@ -295,12 +342,17 @@ class IssueMixin(ReviewMixin):
                         self.github.remove_label(issueNumber, label, repo=repo)
                     else:
                         self.github.remove_label(issueNumber, label)
-                res = {"status": "success", "message": f"Removed labels {removeLabels} from #{issueNumber}"}
+                res = {
+                    "status": "success",
+                    "message": f"Removed labels {removeLabels} from #{issueNumber}",
+                }
 
             # Handle body/state update if not already done via 'labels' PATCH
             if body is not None or state is not None:
                 if repo:
-                    res = self.github.update_issue(issueNumber, body=body, state=state, repo=repo)
+                    res = self.github.update_issue(
+                        issueNumber, body=body, state=state, repo=repo
+                    )
                 else:
                     res = self.github.update_issue(issueNumber, body=body, state=state)
 
@@ -312,7 +364,9 @@ class IssueMixin(ReviewMixin):
 
         return {"status": "success", "issue": IssueSummary(**res).model_dump()}
 
-    def post_comment(self, entity_number: int, body: Optional[str], repo: Optional[str] = None) -> Dict[str, Any]:
+    def post_comment(
+        self, entity_number: int, body: Optional[str], repo: Optional[str] = None
+    ) -> Dict[str, Any]:
         """
         Posts a comment to a Pull Request or Issue.
         """
@@ -322,7 +376,9 @@ class IssueMixin(ReviewMixin):
             return self.github.create_issue_comment(entity_number, body, repo=repo)
         return self.github.create_issue_comment(entity_number, body)
 
-    def validate_content(self, title: str, body: str, config: Optional[Dict[str, Any]] = None) -> Dict[str, List[str]]:
+    def validate_content(
+        self, title: str, body: str, config: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, List[str]]:
         """
         Validates issue content against spec-driven headers and anti-patterns.
         """
@@ -341,13 +397,19 @@ class IssueMixin(ReviewMixin):
             violations = res.get("violations", {}).get("stdin", [])
             for v in violations:
                 val = v.get("value", "N/A")
-                findings.append(f"Code block {i+1}: {v['message']} (value: {val})")
+                findings.append(f"Code block {i + 1}: {v['message']} (value: {val})")
             for comp, path in config.get("existingComponents", {}).items():
-                if re.search(rf"(create|build|make|add|new)\s+.*{comp}", block, re.IGNORECASE):
-                    warnings.append(f"Code block {i+1}: Suggests `{comp}` (exists at `{path}`)")
+                if re.search(
+                    rf"(create|build|make|add|new)\s+.*{comp}", block, re.IGNORECASE
+                ):
+                    warnings.append(
+                        f"Code block {i + 1}: Suggests `{comp}` (exists at `{path}`)"
+                    )
 
         for comp, path in config.get("existingComponents", {}).items():
-            if re.search(rf"(create|build|make|add\s+a\s+new)\s+.*{comp}\b", body, re.IGNORECASE):
+            if re.search(
+                rf"(create|build|make|add\s+a\s+new)\s+.*{comp}\b", body, re.IGNORECASE
+            ):
                 warnings.append(f"Issue suggests `{comp}` (exists at `{path}`)")
 
         if re.match(r"^Draft.*:", title) and "```markdown" in body:
@@ -365,12 +427,16 @@ class IssueMixin(ReviewMixin):
             or "[skip-spec-check]" in title
         )
 
-        if not is_exempt and not re.search(r"(acceptance criteria|definition of done|## done|verify|test)",
+        if not is_exempt and not re.search(
+            r"(acceptance criteria|definition of done|## done|verify|test)",
             body,
-            re.IGNORECASE):
+            re.IGNORECASE,
+        ):
             warnings.append("No acceptance criteria.")
 
-        if re.search(r"tailwind|className.*flex|className.*grid", body, re.IGNORECASE) and not re.search(
+        if re.search(
+            r"tailwind|className.*flex|className.*grid", body, re.IGNORECASE
+        ) and not re.search(
             r"<Box|<Stack|<Grid|primitives|design.tokens", body, re.IGNORECASE
         ):
             warnings.append("Mentions Tailwind but not layout primitives.")
@@ -378,11 +444,14 @@ class IssueMixin(ReviewMixin):
         # Spec-Driven Issue Validation
         if not is_exempt:
             missing_spec_sections = [
-                s for s in dev_tools.orchestrator.get_config().spec_sections
+                s
+                for s in dev_tools.orchestrator.get_config().spec_sections
                 if not self._has_spec_section(s, body)
             ]
             if missing_spec_sections:
-                findings.append(f"Missing spec-driven sections: {', '.join(f'`{s}`' for s in missing_spec_sections)}")
+                findings.append(
+                    f"Missing spec-driven sections: {', '.join(f'`{s}`' for s in missing_spec_sections)}"
+                )
 
         return {"findings": findings, "warnings": warnings}
 
@@ -395,9 +464,15 @@ class IssueMixin(ReviewMixin):
         **kwargs: Any,
     ) -> Dict[str, Any]:
         """Validate an issue body against project rules."""
-        if "issue_number" in kwargs and kwargs["issue_number"] is not None and issueNumber is None:
+        if (
+            "issue_number" in kwargs
+            and kwargs["issue_number"] is not None
+            and issueNumber is None
+        ):
             issueNumber = int(kwargs["issue_number"])
-        repo = get_github_client().get_repo(dev_tools.orchestrator.get_repo_name() or "")
+        repo = get_github_client().get_repo(
+            dev_tools.orchestrator.get_repo_name() or ""
+        )
         issues: List[Any] = []
         if all_open:
             issues = list(repo.get_issues(state="open"))
@@ -431,15 +506,25 @@ class IssueMixin(ReviewMixin):
             if post_comments and (findings or warnings):
                 comment = "## 🤖 Issue Quality Review\n\n"
                 if findings:
-                    comment += "### ❌ Violations\n" + "\n".join(f"- {f}" for f in findings) + "\n\n"
+                    comment += (
+                        "### ❌ Violations\n"
+                        + "\n".join(f"- {f}" for f in findings)
+                        + "\n\n"
+                    )
                 if warnings:
-                    comment += "### ⚠️ Warnings\n" + "\n".join(f"- {w}" for w in warnings) + "\n"
+                    comment += (
+                        "### ⚠️ Warnings\n"
+                        + "\n".join(f"- {w}" for w in warnings)
+                        + "\n"
+                    )
                 if not dry_run:
-                    issue.create_comment((
-                        f"{comment}\n---\n*Generated "
-                        f"by `{dev_tools.orchestrator.get_config().cli_alias} "
-                        f"validate-issue`*"
-                    ))
+                    issue.create_comment(
+                        (
+                            f"{comment}\n---\n*Generated "
+                            f"by `{dev_tools.orchestrator.get_config().cli_alias} "
+                            f"validate-issue`*"
+                        )
+                    )
 
         return {
             "status": "success" if total_findings == 0 else "error",
@@ -447,7 +532,9 @@ class IssueMixin(ReviewMixin):
             "total_findings": total_findings,
         }
 
-    def handle_detect_conflicts(self, pr_num: Optional[int] = None, all_prs: bool = False) -> List[Dict[str, Any]]:
+    def handle_detect_conflicts(
+        self, pr_num: Optional[int] = None, all_prs: bool = False
+    ) -> List[Dict[str, Any]]:
         """
         Handle detect-conflicts request, returning PR-vs-PR file overlap groups.
 
@@ -460,11 +547,13 @@ class IssueMixin(ReviewMixin):
         conflicts = self.detect_conflicts(target_pr)
         formatted = []
         for pr_pair, files in conflicts.items():
-            formatted.append({
-                "prs": list(pr_pair),
-                "files": files,
-                "type": "file_overlap",
-            })
+            formatted.append(
+                {
+                    "prs": list(pr_pair),
+                    "files": files,
+                    "type": "file_overlap",
+                }
+            )
         return formatted
 
     def handle_status_board(self, limit: int = 10) -> List[Dict[str, Any]]:
@@ -477,5 +566,12 @@ class IssueMixin(ReviewMixin):
             m = re.search(r"issue-(\d+)", branch)
             issue = f"#{m.group(1)}" if m else "—"
             status = "Draft" if pr.get("isDraft") else "Open"
-            prs_data.append({"branch": branch, "issue": issue, "status": status, "number": pr.get("number")})
+            prs_data.append(
+                {
+                    "branch": branch,
+                    "issue": issue,
+                    "status": status,
+                    "number": pr.get("number"),
+                }
+            )
         return prs_data

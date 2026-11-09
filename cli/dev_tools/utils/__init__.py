@@ -178,7 +178,9 @@ def resolve_resource_path(resource_name: str) -> str:
         if ref.exists():  # type: ignore[attr-defined]
             return str(ref)
     except (ImportError, AttributeError, FileNotFoundError, TypeError) as e:
-        log_debug(f"importlib_resources failed for '{resource_name}': {e}. Falling back.")
+        log_debug(
+            f"importlib_resources failed for '{resource_name}': {e}. Falling back."
+        )
 
     # 2. Fallback to manual discovery for development/monorepo
     # Assumes structural layout:
@@ -199,7 +201,9 @@ def resolve_resource_path(resource_name: str) -> str:
         if cand.exists():
             return str(cand.absolute())
 
-    raise FileNotFoundError(f"Could not resolve resource: {resource_name}. Tried: {[str(c) for c in candidates]}")
+    raise FileNotFoundError(
+        f"Could not resolve resource: {resource_name}. Tried: {[str(c) for c in candidates]}"
+    )
 
 
 def get_workspace_log_dir() -> Path:
@@ -238,7 +242,9 @@ def safe_write_file(filepath: str, content: str):
                 f"Security Error: Target path {target_path} (resolved: {abs_target}) is outside of repository root."
             )
     except (ValueError, Exception) as e:
-        raise CLIError(f"Security Error: Target path {target_path} is invalid or outside of repository root: {e}")
+        raise CLIError(
+            f"Security Error: Target path {target_path} is invalid or outside of repository root: {e}"
+        )
 
     # Ensure parent directory exists for the target
     os.makedirs(os.path.dirname(abs_target), exist_ok=True)
@@ -262,9 +268,13 @@ def apply_patch(filepath: str, patch_content: str):
     abs_filepath = os.path.realpath(filepath)
     try:
         if os.path.commonpath([repo_root, abs_filepath]) != repo_root:
-            raise CLIError(f"Security Error: Path {filepath} is outside of repository root.")
+            raise CLIError(
+                f"Security Error: Path {filepath} is outside of repository root."
+            )
     except ValueError:
-        raise CLIError(f"Security Error: Path {filepath} is invalid or outside of repository root.")
+        raise CLIError(
+            f"Security Error: Path {filepath} is invalid or outside of repository root."
+        )
 
     with tempfile.NamedTemporaryFile(mode="w", suffix=".patch", delete=False) as tmp:
         tmp.write(patch_content)
@@ -274,7 +284,9 @@ def apply_patch(filepath: str, patch_content: str):
         # Use --include to restrict what git apply can touch
         # filepath should be relative to repo root for --include
         rel_path = os.path.relpath(abs_filepath, repo_root)
-        run_command(["git", "apply", "--whitespace=fix", "--include", rel_path, tmp_path])
+        run_command(
+            ["git", "apply", "--whitespace=fix", "--include", rel_path, tmp_path]
+        )
         log_info(f"Successfully applied patch to {filepath}")
     finally:
         if os.path.exists(tmp_path):
@@ -406,12 +418,18 @@ def clean_llm_output(text: str) -> str:
     text = text.replace("\\\\n", "\\n")
 
     # 1. Extract from <findings> tags if present
-    findings_match = re.search(r"<findings>\s*(.*?)\s*</findings>", text, re.DOTALL | re.IGNORECASE)
+    findings_match = re.search(
+        r"<findings>\s*(.*?)\s*</findings>", text, re.DOTALL | re.IGNORECASE
+    )
     if findings_match:
         text = findings_match.group(1).strip()
 
     # 2. Extract from ```json or ``` code blocks
-    code_block_match = re.search(r"```(?:json|xml|tsx?|jsx?)?\s*\n?(.*?)\n?\s*```", text, re.DOTALL | re.IGNORECASE)
+    code_block_match = re.search(
+        r"```(?:json|xml|tsx?|jsx?)?\s*\n?(.*?)\n?\s*```",
+        text,
+        re.DOTALL | re.IGNORECASE,
+    )
     if code_block_match:
         return code_block_match.group(1).strip()
 
@@ -470,7 +488,10 @@ def log_ai_run(entry: dict):
 
 
 def call_github_models(
-    prompt: str, model: Optional[str] = None, max_retries: int = 3, schema: Optional[Dict[str, Any]] = None
+    prompt: str,
+    model: Optional[str] = None,
+    max_retries: int = 3,
+    schema: Optional[Dict[str, Any]] = None,
 ) -> Optional[str]:
     """Offline stub for call_github_models."""
     return None
@@ -547,11 +568,17 @@ def verify_ci_metrics(
 
     errors = []
     if total_input > input_threshold:
-        errors.append(f"Input tokens ({total_input}) exceeded limit ({input_threshold})")
+        errors.append(
+            f"Input tokens ({total_input}) exceeded limit ({input_threshold})"
+        )
     if total_output > output_threshold:
-        errors.append(f"Output tokens ({total_output}) exceeded limit ({output_threshold})")
+        errors.append(
+            f"Output tokens ({total_output}) exceeded limit ({output_threshold})"
+        )
     if total_tokens > total_threshold:
-        errors.append(f"Total tokens ({total_tokens}) exceeded limit ({total_threshold})")
+        errors.append(
+            f"Total tokens ({total_tokens}) exceeded limit ({total_threshold})"
+        )
 
     if errors:
         return {
@@ -560,11 +587,18 @@ def verify_ci_metrics(
             "metrics": result,
         }
 
-    return {"status": "success", "message": "AI Token usage is within limits.", "metrics": result}
+    return {
+        "status": "success",
+        "message": "AI Token usage is within limits.",
+        "metrics": result,
+    }
 
 
 def call_gemini(
-    prompt: str, model: Optional[str] = None, max_retries: int = 3, schema: Optional[Dict[str, Any]] = None
+    prompt: str,
+    model: Optional[str] = None,
+    max_retries: int = 3,
+    schema: Optional[Dict[str, Any]] = None,
 ) -> Optional[str]:
     """Offline stub for call_gemini."""
     return None
@@ -630,7 +664,9 @@ def run_command(
 
     if check:
         if proc.returncode != 0:
-            raise CLIError(f"Command failed with exit code {proc.returncode}", code=proc.returncode)
+            raise CLIError(
+                f"Command failed with exit code {proc.returncode}", code=proc.returncode
+            )
         return proc.stdout.strip()
 
     return proc
@@ -643,7 +679,9 @@ def get_github_token() -> Optional[str]:
         return token
     # Fallback to local gh CLI auth token
     try:
-        proc = subprocess.run(["gh", "auth", "token"], capture_output=True, text=True, check=False)
+        proc = subprocess.run(
+            ["gh", "auth", "token"], capture_output=True, text=True, check=False
+        )
         if proc.returncode == 0:
             token = proc.stdout.strip()
             if token:
@@ -661,7 +699,11 @@ def get_repo_name() -> Optional[str]:
 
     try:
         # Using check=False here to avoid noisy logs for a common discovery step
-        res = run_command(["git", "config", "--get", "remote.origin.url"], check=False, log_on_error=False)
+        res = run_command(
+            ["git", "config", "--get", "remote.origin.url"],
+            check=False,
+            log_on_error=False,
+        )
         if not isinstance(res, subprocess.CompletedProcess):
             return None
 
@@ -687,7 +729,9 @@ def get_gha_variable(name: str) -> Optional[str]:
     if name in _gha_var_cache:
         return _gha_var_cache[name]
     try:
-        proc = run_command(["gh", "variable", "get", name], check=False, log_on_error=False)
+        proc = run_command(
+            ["gh", "variable", "get", name], check=False, log_on_error=False
+        )
         if isinstance(proc, subprocess.CompletedProcess) and proc.returncode == 0:
             val = proc.stdout.strip()
             _gha_var_cache[name] = val
@@ -700,7 +744,11 @@ def get_gha_variable(name: str) -> Optional[str]:
 def set_gha_variable(name: str, value: str) -> bool:
     """Helper function to set a GHA variable via the native gh cli."""
     try:
-        proc = run_command(["gh", "variable", "set", name, "--body", str(value)], check=False, log_on_error=False)
+        proc = run_command(
+            ["gh", "variable", "set", name, "--body", str(value)],
+            check=False,
+            log_on_error=False,
+        )
         if isinstance(proc, subprocess.CompletedProcess) and proc.returncode == 0:
             _gha_var_cache[name] = str(value)
             return True
@@ -715,14 +763,25 @@ def extract_failing_info(logs: str) -> List[dict]:
     """Extracts failing test and build information from logs."""
     findings = []
     # TS Errors
-    ts_errors = re.findall(r"([a-zA-Z0-9_\-\./]+\.[tj]sx?):(\d+):(\d+) - error (TS\d+): (.*)", logs)
+    ts_errors = re.findall(
+        r"([a-zA-Z0-9_\-\./]+\.[tj]sx?):(\d+):(\d+) - error (TS\d+): (.*)", logs
+    )
     for file_path, line, col, code, msg in ts_errors:
-        findings.append({"file": file_path, "line": line, "message": f"{code}: {msg}", "type": "typescript"})
+        findings.append(
+            {
+                "file": file_path,
+                "line": line,
+                "message": f"{code}: {msg}",
+                "type": "typescript",
+            }
+        )
 
     # Vitest Errors (Robust)
     # Matches FAIL followed by the test file, then non-greedily finds the first ❯ trace
     # (?!FAIL) ensures we don't skip over another FAIL block
-    vitest_matches = re.finditer(r"FAIL\s+([^\n]+)(?:(?!FAIL).)*?❯\s+([^\n:]+):(\d+):(\d+)", logs, re.DOTALL)
+    vitest_matches = re.finditer(
+        r"FAIL\s+([^\n]+)(?:(?!FAIL).)*?❯\s+([^\n:]+):(\d+):(\d+)", logs, re.DOTALL
+    )
     for m in vitest_matches:
         findings.append(
             {
@@ -734,7 +793,9 @@ def extract_failing_info(logs: str) -> List[dict]:
         )
 
     # Playwright Errors
-    playwright_matches = re.finditer(r"\s*\d+\)\s+\[([^\]]+)\]\s+›\s+([^\s:]+):(\d+):(\d+)\s+›\s+(.*)", logs)
+    playwright_matches = re.finditer(
+        r"\s*\d+\)\s+\[([^\]]+)\]\s+›\s+([^\s:]+):(\d+):(\d+)\s+›\s+(.*)", logs
+    )
     for m in playwright_matches:
         findings.append(
             {
@@ -869,7 +930,9 @@ def get_any_count(search_dir="src"):
         log_warn(f"Search directory {search_dir} not found.")
         return 0
     safe_dir = shlex.quote(search_dir)
-    cmd = f"grep -rn ': any\\b\\|as any\\b' {safe_dir} --include='*.tsx' --include='*.ts'"
+    cmd = (
+        f"grep -rn ': any\\b\\|as any\\b' {safe_dir} --include='*.tsx' --include='*.ts'"
+    )
     res = run_command(cmd, check=False, shell=True, log_on_error=False)
     if res.returncode == 0:
         return len(res.stdout.strip().split("\n")) if res.stdout.strip() else 0
@@ -886,10 +949,14 @@ def get_changed_files():
 
     config = get_config()
     base = config.base_branch
-    res = run_command(["git", "diff", "--name-only", base], check=False, log_on_error=False)
+    res = run_command(
+        ["git", "diff", "--name-only", base], check=False, log_on_error=False
+    )
     if res.returncode == 0:
         return res.stdout.strip().splitlines()
-    res = run_command(["git", "diff", "--name-only", "HEAD"], check=False, log_on_error=True)
+    res = run_command(
+        ["git", "diff", "--name-only", "HEAD"], check=False, log_on_error=True
+    )
     if res.returncode == 0:
         return res.stdout.strip().splitlines()
     log_error("Failed to get changed files from git diff.")
@@ -934,7 +1001,11 @@ def verify_pr_scope(file_list: Optional[List[str]] = None) -> Optional[str]:
 
     # 4. Check for mixing significant code changes with content updates
     has_content = len(active_scopes) > 0
-    code_files = [f for f in files if f.startswith("src/") and not any(f.startswith(d) for d in core_dirs)]
+    code_files = [
+        f
+        for f in files
+        if f.startswith("src/") and not any(f.startswith(d) for d in core_dirs)
+    ]
 
     if has_content and len(code_files) > 2:
         return "PR scope warning: Mixing significant code changes with content updates. Consider splitting content corrections from feature development."

@@ -1,5 +1,6 @@
 # pylint: disable=missing-docstring,line-too-long
 """Tests for td worktree create/list/remove (real git, tmp repos)."""
+
 import json
 import subprocess
 
@@ -32,8 +33,13 @@ def test_create_named_branch_and_layout(repo):
     assert wid.startswith("wt-")
     assert branch == "fix-login-flow"
     assert path == str(repo / ".worktrees" / wid)
-    out = subprocess.run(["git", "branch", "--show-current"], cwd=path,
-                         capture_output=True, text=True, check=True)
+    out = subprocess.run(
+        ["git", "branch", "--show-current"],
+        cwd=path,
+        capture_output=True,
+        text=True,
+        check=True,
+    )
     assert out.stdout.strip() == "fix-login-flow"
 
 
@@ -84,16 +90,16 @@ def test_sanitize_name():
 
 def test_cli_create_list_remove(repo):
     runner = CliRunner()
-    created = runner.invoke(cli, ["worktree", "create", "cli-demo",
-                                  "--path", str(repo)])
+    created = runner.invoke(
+        cli, ["worktree", "create", "cli-demo", "--path", str(repo)]
+    )
     assert created.exit_code == 0, created.output
     payload = json.loads(created.output)
     assert payload["branch"] == "cli-demo"
     wid = payload["worktreeId"]
     listed = runner.invoke(cli, ["worktree", "list", "--path", str(repo)])
     assert json.loads(listed.output)["worktrees"][0]["worktreeId"] == wid
-    removed = runner.invoke(cli, ["worktree", "remove", wid,
-                                  "--path", str(repo)])
+    removed = runner.invoke(cli, ["worktree", "remove", wid, "--path", str(repo)])
     assert json.loads(removed.output)["status"] == "removed"
     listed = runner.invoke(cli, ["worktree", "list", "--path", str(repo)])
     assert json.loads(listed.output)["worktrees"] == []
@@ -119,9 +125,13 @@ def test_create_for_issue_provisions_branch(origin_repo):
     assert status["worktreeId"] == "issue-42"
     assert status["branch"] == "agent/issue-42"
     assert status["path"] == str(origin_repo / ".worktrees" / "issue-42")
-    out = subprocess.run(["git", "branch", "--show-current"],
-                         cwd=status["path"], capture_output=True,
-                         text=True, check=True)
+    out = subprocess.run(
+        ["git", "branch", "--show-current"],
+        cwd=status["path"],
+        capture_output=True,
+        text=True,
+        check=True,
+    )
     assert out.stdout.strip() == "agent/issue-42"
     assert status["base_sha"]
     assert "linked_deps" in status
@@ -137,6 +147,7 @@ def test_create_for_issue_rejects_bad_id(origin_repo):
 
 def test_link_warm_deps_symlinks_missing_only(tmp_path):
     import os
+
     root = tmp_path / "root"
     wt_dir = tmp_path / "wt"
     root.mkdir()
@@ -155,9 +166,11 @@ def test_remove_abandons_bound_sessions(repo):
     # (single owner) before unregistering the worktree.
     from unittest.mock import patch
     from dev_tools.services import local_sessions as ls
+
     wid, path, _branch = wt.create(str(repo), "demo")
-    with patch.object(ls, "abandon_sessions_in_worktree",
-                      return_value=["sess_x"]) as abandon:
+    with patch.object(
+        ls, "abandon_sessions_in_worktree", return_value=["sess_x"]
+    ) as abandon:
         wt.remove(str(repo), wid)
     abandon.assert_called_once_with(str(repo), path)
 
@@ -169,16 +182,25 @@ def test_fetch_main_reports_state(origin_repo):
 
 def _clone_to(tmp_path, origin_repo, name):
     work = tmp_path / name
-    subprocess.run(["git", "clone", "-q", str(origin_repo), str(work)],
-                   cwd=str(tmp_path), capture_output=True, check=True)
+    subprocess.run(
+        ["git", "clone", "-q", str(origin_repo), str(work)],
+        cwd=str(tmp_path),
+        capture_output=True,
+        check=True,
+    )
     _git(["config", "user.email", "t@t"], work)
     _git(["config", "user.name", "t"], work)
     return work
 
 
 def _rev(root, ref):
-    out = subprocess.run(["git", "rev-parse", ref], cwd=str(root),
-                         capture_output=True, text=True, check=True)
+    out = subprocess.run(
+        ["git", "rev-parse", ref],
+        cwd=str(root),
+        capture_output=True,
+        text=True,
+        check=True,
+    )
     return out.stdout.strip()
 
 
@@ -218,8 +240,18 @@ def test_fast_forward_main_ref_refuses_diverged(tmp_path, origin_repo):
 
 def test_cli_create_issue(origin_repo):
     runner = CliRunner()
-    created = runner.invoke(cli, ["worktree", "create", "--issue", "99",
-                                  "--repo-root", str(origin_repo), "--json"])
+    created = runner.invoke(
+        cli,
+        [
+            "worktree",
+            "create",
+            "--issue",
+            "99",
+            "--repo-root",
+            str(origin_repo),
+            "--json",
+        ],
+    )
     assert created.exit_code == 0, created.output
     payload = json.loads(created.output)
     assert payload["worktreeId"] == "issue-99"

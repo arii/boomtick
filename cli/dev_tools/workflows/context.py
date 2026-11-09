@@ -14,8 +14,13 @@ class WorkflowContext:
     for a single agent to transition through different roles.
     """
 
+    MAX_HISTORY_ENTRIES = 100
+    MAX_SCRATCHPAD_KEYS = 100
+
     def __init__(
-        self, initial_inputs: Optional[Dict[str, Any]] = None, builder: Optional[ContextBuilder] = None
+        self,
+        initial_inputs: Optional[Dict[str, Any]] = None,
+        builder: Optional[ContextBuilder] = None,
     ) -> None:
         self._lock = threading.Lock()
         self._inputs: Dict[str, Any] = dict(initial_inputs) if initial_inputs else {}
@@ -69,6 +74,8 @@ class WorkflowContext:
         """Write intermediate thoughts or notes to the scratchpad."""
         with self._lock:
             self._scratchpad[key] = value
+            while len(self._scratchpad) > self.MAX_SCRATCHPAD_KEYS:
+                self._scratchpad.pop(next(iter(self._scratchpad)))
             self.builder.add_scratch_note(role=role, note=f"{key}: {value}")
 
     def read_scratchpad(self, key: str, default: Any = None) -> Any:
@@ -124,3 +131,4 @@ class WorkflowContext:
         }
         with self._lock:
             self._history.append(record)
+            del self._history[: -self.MAX_HISTORY_ENTRIES]

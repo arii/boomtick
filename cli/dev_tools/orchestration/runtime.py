@@ -1,4 +1,5 @@
 """Runtime checks, preflight, repair, and workflow compliance."""
+
 import json
 import os
 import re
@@ -13,10 +14,10 @@ from dev_tools.utils import (
     log_error,
     log_warn,
     verify_ci_metrics,
-    verify_pr_scope)
+    verify_pr_scope,
+)
 from dev_tools.orchestration.quality import QualityMixin
 import dev_tools.orchestrator
-
 
 
 class RuntimeMixin(QualityMixin):
@@ -33,9 +34,13 @@ class RuntimeMixin(QualityMixin):
             with open(".node-version", "r", encoding="utf-8") as f:
                 expected_node = f.read().strip().replace("v", "")
         except FileNotFoundError:
-            raise CLIError("Missing .node-version: it is the single source of truth for the required Node version.")
+            raise CLIError(
+                "Missing .node-version: it is the single source of truth for the required Node version."
+            )
         if not expected_node:
-            raise CLIError("Empty .node-version: it must contain the required Node version.")
+            raise CLIError(
+                "Empty .node-version: it must contain the required Node version."
+            )
 
         manifest_path = "package.json"
         if not os.path.exists(manifest_path) and os.path.exists("workspace.json"):
@@ -48,32 +53,46 @@ class RuntimeMixin(QualityMixin):
             raise CLIError(
                 f"Missing {manifest_path}: it is the single source of truth for the required pnpm version."
             )
-        expected_pnpm = pkg.get("packageManager", "").replace("pnpm@", "") or (pkg.get("engines") or {}).get(
-            "pnpm", ""
-        )
+        expected_pnpm = pkg.get("packageManager", "").replace("pnpm@", "") or (
+            pkg.get("engines") or {}
+        ).get("pnpm", "")
         if not expected_pnpm:
-            raise CLIError(f"{manifest_path} must declare the pnpm version via packageManager or engines.pnpm.")
+            raise CLIError(
+                f"{manifest_path} must declare the pnpm version via packageManager or engines.pnpm."
+            )
 
         dev_tools.orchestrator.run_command(["corepack", "enable"], check=False)
-        dev_tools.orchestrator.run_command(["corepack", "prepare", f"pnpm@{expected_pnpm}", "--activate"], check=False)
+        dev_tools.orchestrator.run_command(
+            ["corepack", "prepare", f"pnpm@{expected_pnpm}", "--activate"], check=False
+        )
 
         actual_node_res = dev_tools.orchestrator.run_command(["node", "-v"])
         actual_node = str(actual_node_res).strip().replace("v", "")
         is_ci = os.environ.get("CI") == "true"
 
         expected_prefix = ".".join(expected_node.split(".")[:2]) + "."
-        node_matches = actual_node.startswith(expected_prefix) if is_ci else actual_node == expected_node
+        node_matches = (
+            actual_node.startswith(expected_prefix)
+            if is_ci
+            else actual_node == expected_node
+        )
 
         if not node_matches:
-            log_error(f"Node version mismatch\nExpected: {expected_node}\nActual:   {actual_node}")
+            log_error(
+                f"Node version mismatch\nExpected: {expected_node}\nActual:   {actual_node}"
+            )
             raise CLIError("Node version mismatch. Do not switch versions manually.")
 
         actual_pnpm_res = dev_tools.orchestrator.run_command(["pnpm", "--version"])
         actual_pnpm = str(actual_pnpm_res).strip()
 
         if not actual_pnpm or actual_pnpm != expected_pnpm:
-            log_error(f"pnpm version mismatch\nExpected: {expected_pnpm}\nActual:   {actual_pnpm}")
-            raise CLIError(f"Run: corepack enable && corepack prepare pnpm@{expected_pnpm} --activate")
+            log_error(
+                f"pnpm version mismatch\nExpected: {expected_pnpm}\nActual:   {actual_pnpm}"
+            )
+            raise CLIError(
+                f"Run: corepack enable && corepack prepare pnpm@{expected_pnpm} --activate"
+            )
 
         return {"node": actual_node, "pnpm": actual_pnpm}
 
@@ -95,7 +114,7 @@ class RuntimeMixin(QualityMixin):
             "gemini_api_key": "unconfigured",
             "git_safe_directory": "unconfigured",
             "status": "success",
-            "checks": {}
+            "checks": {},
         }
 
         # 1. Node & pnpm checks
@@ -103,7 +122,11 @@ class RuntimeMixin(QualityMixin):
             rt = self.runtime_check()
             results["node"] = rt.get("node", "unknown")
             results["pnpm"] = rt.get("pnpm", "unknown")
-            results["checks"]["runtime"] = {"status": "ok", "node": results["node"], "pnpm": results["pnpm"]}
+            results["checks"]["runtime"] = {
+                "status": "ok",
+                "node": results["node"],
+                "pnpm": results["pnpm"],
+            }
         except Exception as e:
             results["status"] = "error"
             results["checks"]["runtime"] = {"status": "error", "message": str(e)}
@@ -116,24 +139,36 @@ class RuntimeMixin(QualityMixin):
                 results["checks"]["app_id"] = {"status": "ok", "value": app_id.strip()}
             else:
                 results["app_id"] = "invalid"
-                results["checks"]["app_id"] = {"status": "warning", "message": "APP_ID must be a numeric string"}
+                results["checks"]["app_id"] = {
+                    "status": "warning",
+                    "message": "APP_ID must be a numeric string",
+                }
         else:
             results["app_id"] = "missing"
-            results["checks"]["app_id"] = {"status": "warning", "message": "APP_ID / GITHUB_APP_ID not set"}
+            results["checks"]["app_id"] = {
+                "status": "warning",
+                "message": "APP_ID / GITHUB_APP_ID not set",
+            }
 
-        app_key = os.environ.get("APP_PRIVATE_KEY") or os.environ.get("GITHUB_APP_PRIVATE_KEY")
+        app_key = os.environ.get("APP_PRIVATE_KEY") or os.environ.get(
+            "GITHUB_APP_PRIVATE_KEY"
+        )
         if app_key and app_key.strip():
             if "BEGIN" in app_key or len(app_key.strip()) > 20:
                 results["app_private_key"] = "configured"
                 results["checks"]["app_private_key"] = {"status": "ok"}
             else:
                 results["app_private_key"] = "invalid"
-                results["checks"]["app_private_key"] = {"status": "warning",
-                    "message": "APP_PRIVATE_KEY format invalid"}
+                results["checks"]["app_private_key"] = {
+                    "status": "warning",
+                    "message": "APP_PRIVATE_KEY format invalid",
+                }
         else:
             results["app_private_key"] = "missing"
-            results["checks"]["app_private_key"] = {"status": "warning",
-                "message": "APP_PRIVATE_KEY / GITHUB_APP_PRIVATE_KEY not set"}
+            results["checks"]["app_private_key"] = {
+                "status": "warning",
+                "message": "APP_PRIVATE_KEY / GITHUB_APP_PRIVATE_KEY not set",
+            }
 
         # 3. Gemini API Key
         gemini_key = os.environ.get("GEMINI_API_KEY") or os.environ.get("GEMINI_KEY")
@@ -142,15 +177,24 @@ class RuntimeMixin(QualityMixin):
             results["checks"]["gemini_api_key"] = {"status": "ok"}
         else:
             results["gemini_api_key"] = "missing"
-            results["checks"]["gemini_api_key"] = {"status": "warning", "message": "GEMINI_API_KEY not set"}
+            results["checks"]["gemini_api_key"] = {
+                "status": "warning",
+                "message": "GEMINI_API_KEY not set",
+            }
 
         # 4. Git Safe Directory Configuration
         try:
             cwd = os.getcwd()
-            safe_dirs_res = dev_tools.orchestrator.run_command(["git", "config", "--get-all", "safe.directory"],
+            safe_dirs_res = dev_tools.orchestrator.run_command(
+                ["git", "config", "--get-all", "safe.directory"],
                 check=False,
-                log_on_error=False)
-            safe_dirs_out = safe_dirs_res.stdout if hasattr(safe_dirs_res, "stdout") else str(safe_dirs_res)
+                log_on_error=False,
+            )
+            safe_dirs_out = (
+                safe_dirs_res.stdout
+                if hasattr(safe_dirs_res, "stdout")
+                else str(safe_dirs_res)
+            )
             raw_safe_dirs = [d.strip() for d in safe_dirs_out.splitlines() if d.strip()]
             safe_dirs = list(dict.fromkeys(raw_safe_dirs))
 
@@ -175,20 +219,28 @@ class RuntimeMixin(QualityMixin):
             is_owner = False
             if hasattr(os, "getuid"):
                 try:
-                    is_owner = (os.stat(cwd).st_uid == os.getuid())
+                    is_owner = os.stat(cwd).st_uid == os.getuid()
                 except Exception:
                     is_owner = False
 
             if is_safe or is_owner:
                 results["git_safe_directory"] = "configured"
-                results["checks"]["git_safe_directory"] = {"status": "ok", "configured_directories": safe_dirs}
+                results["checks"]["git_safe_directory"] = {
+                    "status": "ok",
+                    "configured_directories": safe_dirs,
+                }
             else:
                 results["git_safe_directory"] = "unconfigured"
-                results["checks"]["git_safe_directory"] = {"status": "warning",
-                    "message": "Git dubious ownership or safe.directory missing"}
+                results["checks"]["git_safe_directory"] = {
+                    "status": "warning",
+                    "message": "Git dubious ownership or safe.directory missing",
+                }
         except Exception as e:
             results["git_safe_directory"] = "error"
-            results["checks"]["git_safe_directory"] = {"status": "warning", "message": str(e)}
+            results["checks"]["git_safe_directory"] = {
+                "status": "warning",
+                "message": str(e),
+            }
 
         return results
 
@@ -219,7 +271,9 @@ class RuntimeMixin(QualityMixin):
 
         return "\n".join(report)
 
-    def run_preflight(self, limit: int = 10, base_branch: Optional[str] = None) -> Dict[str, Any]:
+    def run_preflight(
+        self, limit: int = 10, base_branch: Optional[str] = None
+    ) -> Dict[str, Any]:
         """
         Orchestrates td doctor, typechecks, local linting, AST audit, overlap
         detection, and merge simulation into a unified preflight report.
@@ -243,7 +297,9 @@ class RuntimeMixin(QualityMixin):
         # 2. Local Typechecks
         if self._pnpm_has_script("type-check"):
             try:
-                tsc_res = dev_tools.orchestrator.run_command(["pnpm", "run", "type-check"], check=False)
+                tsc_res = dev_tools.orchestrator.run_command(
+                    ["pnpm", "run", "type-check"], check=False
+                )
                 results["typecheck"] = {
                     "exit_code": tsc_res.returncode,
                     "status": "success" if tsc_res.returncode == 0 else "error",
@@ -252,12 +308,17 @@ class RuntimeMixin(QualityMixin):
             except Exception as e:
                 results["typecheck"] = {"status": "error", "message": str(e)}
         else:
-            results["typecheck"] = {"status": "skipped", "reason": "script not in package.json"}
+            results["typecheck"] = {
+                "status": "skipped",
+                "reason": "script not in package.json",
+            }
 
         # 3. Local Linting Check
         if self._pnpm_has_script("lint"):
             try:
-                lint_res = dev_tools.orchestrator.run_command(["pnpm", "run", "lint"], check=False)
+                lint_res = dev_tools.orchestrator.run_command(
+                    ["pnpm", "run", "lint"], check=False
+                )
                 results["lint"] = {
                     "exit_code": lint_res.returncode,
                     "status": "success" if lint_res.returncode == 0 else "error",
@@ -266,11 +327,16 @@ class RuntimeMixin(QualityMixin):
             except Exception as e:
                 results["lint"] = {"status": "error", "message": str(e)}
         else:
-            results["lint"] = {"status": "skipped", "reason": "script not in package.json"}
+            results["lint"] = {
+                "status": "skipped",
+                "reason": "script not in package.json",
+            }
 
         # 4. Deterministic AST Audit (repo-aware: only scan targets that exist here)
         try:
-            configured_targets = dev_tools.orchestrator.get_config().audit_check_dirs or []
+            configured_targets = (
+                dev_tools.orchestrator.get_config().audit_check_dirs or []
+            )
             existing_targets = [t for t in configured_targets if os.path.exists(t)]
             if not existing_targets:
                 results["audit"] = {
@@ -297,7 +363,11 @@ class RuntimeMixin(QualityMixin):
 
         # 6. Merge Simulation via git merge-tree (repo-aware base discovery)
         try:
-            requested_base = base_branch or dev_tools.orchestrator.get_config().base_branch or "origin/main"
+            requested_base = (
+                base_branch
+                or dev_tools.orchestrator.get_config().base_branch
+                or "origin/main"
+            )
             base_candidates = [requested_base]
             for fallback in ("origin/main", "main", "origin/master", "master"):
                 if fallback not in base_candidates:
@@ -305,7 +375,9 @@ class RuntimeMixin(QualityMixin):
             merge_base = None
             for cand in base_candidates:
                 verify = dev_tools.orchestrator.run_command(
-                    ["git", "rev-parse", "--verify", cand], check=False, log_on_error=False
+                    ["git", "rev-parse", "--verify", cand],
+                    check=False,
+                    log_on_error=False,
                 )
                 if verify.returncode == 0:
                     merge_base = cand
@@ -316,9 +388,15 @@ class RuntimeMixin(QualityMixin):
                     "reason": f"no base ref found (tried {base_candidates})",
                 }
             else:
-                curr_branch = dev_tools.orchestrator.run_command(["git", "branch", "--show-current"]).strip() or "HEAD"
-                merge_tree_res = dev_tools.orchestrator.run_command(["git", "merge-tree", merge_base, curr_branch],
-                    check=False)
+                curr_branch = (
+                    dev_tools.orchestrator.run_command(
+                        ["git", "branch", "--show-current"]
+                    ).strip()
+                    or "HEAD"
+                )
+                merge_tree_res = dev_tools.orchestrator.run_command(
+                    ["git", "merge-tree", merge_base, curr_branch], check=False
+                )
                 stdout_text = merge_tree_res.stdout or ""
                 has_conflicts = "<<<<<<<" in stdout_text
                 results["merge_simulation"] = {
@@ -326,7 +404,8 @@ class RuntimeMixin(QualityMixin):
                     "head": curr_branch,
                     "has_conflicts": has_conflicts,
                     "status": (
-                        "clean" if not has_conflicts and merge_tree_res.returncode == 0
+                        "clean"
+                        if not has_conflicts and merge_tree_res.returncode == 0
                         else ("conflicts_detected" if has_conflicts else "error")
                     ),
                 }
@@ -354,7 +433,9 @@ class RuntimeMixin(QualityMixin):
             self.runtime_check()
             results["steps"].append({"name": "Runtime Check", "status": "success"})
         except CLIError as e:
-            results["steps"].append({"name": "Runtime Check", "status": "failure", "error": str(e)})
+            results["steps"].append(
+                {"name": "Runtime Check", "status": "failure", "error": str(e)}
+            )
             raise e
 
         # 2. Automated Validation Steps
@@ -362,8 +443,16 @@ class RuntimeMixin(QualityMixin):
         steps: List[Tuple[str, List[str]]] = []
         if script_path and os.path.exists(script_path):
             steps.append(("Anti-Pattern Audit", ["node", script_path]))
-        steps.append(("Version Downgrade Check",
-            [dev_tools.orchestrator.get_config().cli_alias, "gh", "verify-versions"]))
+        steps.append(
+            (
+                "Version Downgrade Check",
+                [
+                    dev_tools.orchestrator.get_config().cli_alias,
+                    "gh",
+                    "verify-versions",
+                ],
+            )
+        )
         if self._pnpm_has_script("type-check"):
             steps.append(("TypeScript", ["pnpm", "run", "type-check"]))
         if self._pnpm_has_script("lint"):
@@ -375,10 +464,14 @@ class RuntimeMixin(QualityMixin):
                 dev_tools.orchestrator.run_command(cmd)
                 results["steps"].append({"name": name, "status": "success"})
             except CLIError as e:
-                results["steps"].append({"name": name, "status": "failure", "error": str(e)})
+                results["steps"].append(
+                    {"name": name, "status": "failure", "error": str(e)}
+                )
                 raise e
         missing_vars = [
-            v for v in ["BUNDLE_BASELINE_KB", "ANY_COUNT_BASELINE"] if not (os.environ.get(v) or get_gha_variable(v))
+            v
+            for v in ["BUNDLE_BASELINE_KB", "ANY_COUNT_BASELINE"]
+            if not (os.environ.get(v) or get_gha_variable(v))
         ]
         if missing_vars:
             results["steps"].append(
@@ -392,13 +485,24 @@ class RuntimeMixin(QualityMixin):
             results["steps"].append({"name": "Baseline Check", "status": "success"})
         scope_warning = verify_pr_scope()
         if scope_warning:
-            results["steps"].append({"name": "PR Scope Check", "status": "warning", "message": scope_warning})
+            results["steps"].append(
+                {
+                    "name": "PR Scope Check",
+                    "status": "warning",
+                    "message": scope_warning,
+                }
+            )
         conflicts = self.detect_conflicts()
-        results["conflicts"] = [{"prs": list(p), "files": f} for p, f in conflicts.items()]
+        results["conflicts"] = [
+            {"prs": list(p), "files": f} for p, f in conflicts.items()
+        ]
         return results
 
     def repair_local(
-        self, logs_path: Optional[str] = None, stdin: bool = False, worktree: bool = False
+        self,
+        logs_path: Optional[str] = None,
+        stdin: bool = False,
+        worktree: bool = False,
     ) -> Dict[str, Any]:
         """Repair a local checkout from logs."""
         logs_content = ""
@@ -411,22 +515,38 @@ class RuntimeMixin(QualityMixin):
             else:
                 raise CLIError(f"Log file not found: {logs_path}")
         else:
-            res_lint = dev_tools.orchestrator.run_command(["pnpm", "run", "lint:ox"], check=False)
-            res_tsc = dev_tools.orchestrator.run_command(["pnpm", "run", "type-check"], check=False)
-            logs_content = res_lint.stdout + res_lint.stderr + "\n" + res_tsc.stdout + res_tsc.stderr
+            res_lint = dev_tools.orchestrator.run_command(
+                ["pnpm", "run", "lint:ox"], check=False
+            )
+            res_tsc = dev_tools.orchestrator.run_command(
+                ["pnpm", "run", "type-check"], check=False
+            )
+            logs_content = (
+                res_lint.stdout
+                + res_lint.stderr
+                + "\n"
+                + res_tsc.stdout
+                + res_tsc.stderr
+            )
         if not logs_content.strip():
             return {"status": "success", "message": "No errors found."}
         original_cwd = os.getcwd()
-        repair_script = os.path.abspath(os.path.join(original_cwd, "dev-tools", "repair.py"))
+        repair_script = os.path.abspath(
+            os.path.join(original_cwd, "dev-tools", "repair.py")
+        )
         worktree_path = None
         branch_name = None
         try:
             branch_name = f"repair/local-{datetime.now().strftime('%H%M%S')}"
             prefix = dev_tools.orchestrator.get_config().worktree_prefix
             # Create temporary worktree within repo root to avoid Security Error
-            worktree_path = os.path.join(original_cwd, f"{prefix}{datetime.now().strftime('%H%M%S')}")
+            worktree_path = os.path.join(
+                original_cwd, f"{prefix}{datetime.now().strftime('%H%M%S')}"
+            )
             os.makedirs(worktree_path, exist_ok=True)
-            dev_tools.orchestrator.run_command(["git", "worktree", "add", "-b", branch_name, worktree_path, "HEAD"])
+            dev_tools.orchestrator.run_command(
+                ["git", "worktree", "add", "-b", branch_name, worktree_path, "HEAD"]
+            )
             os.chdir(worktree_path)
             if os.path.exists(os.path.join(original_cwd, "node_modules")):
                 os.symlink(
@@ -435,7 +555,9 @@ class RuntimeMixin(QualityMixin):
                 )
             # Create temporary log file within repo root logs/
             log_dir = dev_tools.orchestrator.get_or_create_log_dir("repair")
-            with tempfile.NamedTemporaryFile(mode="w", suffix=".log", delete=False, dir=log_dir) as tmp_log:
+            with tempfile.NamedTemporaryFile(
+                mode="w", suffix=".log", delete=False, dir=log_dir
+            ) as tmp_log:
                 tmp_log.write(logs_content)
                 tmp_log_path = tmp_log.name
             cmd = [sys.executable, repair_script, tmp_log_path]
@@ -448,7 +570,10 @@ class RuntimeMixin(QualityMixin):
                     "worktree": worktree_path,
                     "branch": branch_name,
                 }
-            return {"status": "error", "message": f"Repair failed with code {proc.returncode}"}
+            return {
+                "status": "error",
+                "message": f"Repair failed with code {proc.returncode}",
+            }
         finally:
             os.chdir(original_cwd)
 
@@ -508,7 +633,11 @@ class RuntimeMixin(QualityMixin):
                     validator = rule.get("validator")
                     if validator is None or (callable(validator) and validator(match)):
                         # Support dynamic version reporting if the regex has a group
-                        ver = match.group(1) if match.lastindex and match.lastindex >= 1 else ""
+                        ver = (
+                            match.group(1)
+                            if match.lastindex and match.lastindex >= 1
+                            else ""
+                        )
                         msg = rule.get("message")
                         if isinstance(msg, str):
                             violations.append(msg.format(ver=ver))

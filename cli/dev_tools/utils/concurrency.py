@@ -1,4 +1,5 @@
 """Concurrency utilities for parallel execution of tasks."""
+
 import concurrent.futures
 from typing import Callable, Iterable, List, Optional, TypeVar
 
@@ -22,6 +23,7 @@ def run_concurrently(
     """
     if log_fn is None:
         from dev_tools.utils import log_warn  # pylint: disable=import-outside-toplevel
+
         log_fn = log_warn
 
     items_list = list(items)

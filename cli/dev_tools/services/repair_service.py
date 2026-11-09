@@ -55,7 +55,9 @@ class SignatureExtractor:
     # ESLint stylish: /app/src/App.tsx:10:5: 'unused' is defined but never used. [eslint/no-unused-vars]
     # ESLint compact: /app/src/App.tsx: line 10, col 5, Error - 'unused' is defined but never used. [eslint/no-unused-vars]
     ESLINT_PATTERN = re.compile(r"^(.*?):(\d+):(\d+): (.*) \[(.*)\]$")
-    ESLINT_COMPACT_PATTERN = re.compile(r"^(.*?): line (\d+), col (\d+), (?:Error|Warning) - (.*) \[(.*)\]$")
+    ESLINT_COMPACT_PATTERN = re.compile(
+        r"^(.*?): line (\d+), col (\d+), (?:Error|Warning) - (.*) \[(.*)\]$"
+    )
 
     # TS example: src/App.tsx:10:5 - error TS2322: Type 'string' is not assignable to type 'number'.
     TS_PATTERN = re.compile(r"^(.*?):(\d+):(\d+) - error (TS\d+): (.*)$")
@@ -78,7 +80,9 @@ class SignatureExtractor:
         log_line = strip_ansi(log_line.strip())
 
         # Try ESLint
-        match = cls.ESLINT_PATTERN.match(log_line) or cls.ESLINT_COMPACT_PATTERN.match(log_line)
+        match = cls.ESLINT_PATTERN.match(log_line) or cls.ESLINT_COMPACT_PATTERN.match(
+            log_line
+        )
         if match:
             sig = match.group(5)
             if not sig.startswith("eslint/") and "/" not in sig:
@@ -108,7 +112,9 @@ class ASTContextualizer:
     """Extracts surrounding code block for a given line."""
 
     @staticmethod
-    def extract_context(filepath: str, line_number: int, window: int = 15) -> Optional[str]:
+    def extract_context(
+        filepath: str, line_number: int, window: int = 15
+    ) -> Optional[str]:
         """
         Extracts a deterministic window of code around line_number.
         Uses a fixed window to avoid brittle indentation heuristics.
@@ -167,12 +173,19 @@ class RepairService:
 
         sig = extracted["signature"]
         strategy_data = self.knowledge_base.get(sig, {})
-        strategy = strategy_data.get("strategy", "Investigate the error and apply a fix based on common practices.")
+        strategy = strategy_data.get(
+            "strategy",
+            "Investigate the error and apply a fix based on common practices.",
+        )
         examples = strategy_data.get("examples", [])
 
         # Adjust file path for context extraction
         filepath = resolve_file_path(extracted["file"])
-        context = ASTContextualizer.extract_context(filepath, extracted["line"]) if filepath else None
+        context = (
+            ASTContextualizer.extract_context(filepath, extracted["line"])
+            if filepath
+            else None
+        )
 
         prompt = "### Error Report\n"
         prompt += f"- **File**: `{extracted['file']}`\n"

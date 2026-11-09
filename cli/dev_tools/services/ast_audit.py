@@ -152,7 +152,9 @@ class ASTAuditor:
 
         opening = node
         if ntype == "jsx_element":
-            opening = next((c for c in node.children if c.type == "jsx_opening_element"), None)
+            opening = next(
+                (c for c in node.children if c.type == "jsx_opening_element"), None
+            )
 
         if not opening:
             return None
@@ -166,7 +168,12 @@ class ASTAuditor:
                 tag_name = get_text(child)
             elif child.type == "jsx_attribute":
                 attr_name = next(
-                    (get_text(ac) for ac in child.children if ac.type == "property_identifier"), ""
+                    (
+                        get_text(ac)
+                        for ac in child.children
+                        if ac.type == "property_identifier"
+                    ),
+                    "",
                 )
                 if attr_name == "style":
                     has_style = True
@@ -217,42 +224,56 @@ class ASTAuditor:
         typo_tags_re = r"<(?:" + "|".join(sorted(TYPOGRAPHY_HTML_TAGS)) + r")\b"
         for idx, line in enumerate(lines):
             line_str = line.strip()
-            if "// @ts-ignore" in line_str or "// @ts-expect-error" in line_str or "/* @ts-ignore" in line_str:
-                findings.append({
-                    "type": "type_suppression",
-                    "severity": "error",
-                    "line": idx + 1,
-                    "rule": "no-ts-suppression",
-                    "message": f"Unvetted type suppression found: `{line_str}`",
-                    "value": line_str,
-                })
+            if (
+                "// @ts-ignore" in line_str
+                or "// @ts-expect-error" in line_str
+                or "/* @ts-ignore" in line_str
+            ):
+                findings.append(
+                    {
+                        "type": "type_suppression",
+                        "severity": "error",
+                        "line": idx + 1,
+                        "rule": "no-ts-suppression",
+                        "message": f"Unvetted type suppression found: `{line_str}`",
+                        "value": line_str,
+                    }
+                )
             elif PLACEHOLDER_COMMENT_RE.search(line_str):
-                findings.append({
-                    "type": "dead_code",
-                    "severity": "warning",
-                    "line": idx + 1,
-                    "rule": "no-placeholder-comment",
-                    "message": f"Placeholder comment detected: `{line_str}`",
-                    "value": line_str,
-                })
+                findings.append(
+                    {
+                        "type": "dead_code",
+                        "severity": "warning",
+                        "line": idx + 1,
+                        "rule": "no-placeholder-comment",
+                        "message": f"Placeholder comment detected: `{line_str}`",
+                        "value": line_str,
+                    }
+                )
             if re.search(typo_tags_re, line):
-                findings.append({
-                    "type": "typography_token",
-                    "severity": "warning",
-                    "line": idx + 1,
-                    "rule": "use-typography-tokens",
-                    "message": f"Raw HTML typography tag found: `{line_str[:40]}`",
-                    "value": line_str,
-                })
-            elif re.search(raw_tags_re, line) and ("style=" in line or "className=" in line):
-                findings.append({
-                    "type": "jsx_primitive",
-                    "severity": "warning",
-                    "line": idx + 1,
-                    "rule": "use-approved-primitives",
-                    "message": f"Raw JSX element with styling found: `{line_str[:40]}`",
-                    "value": line_str,
-                })
+                findings.append(
+                    {
+                        "type": "typography_token",
+                        "severity": "warning",
+                        "line": idx + 1,
+                        "rule": "use-typography-tokens",
+                        "message": f"Raw HTML typography tag found: `{line_str[:40]}`",
+                        "value": line_str,
+                    }
+                )
+            elif re.search(raw_tags_re, line) and (
+                "style=" in line or "className=" in line
+            ):
+                findings.append(
+                    {
+                        "type": "jsx_primitive",
+                        "severity": "warning",
+                        "line": idx + 1,
+                        "rule": "use-approved-primitives",
+                        "message": f"Raw JSX element with styling found: `{line_str[:40]}`",
+                        "value": line_str,
+                    }
+                )
         return findings
 
     def audit_file(self, filepath: str, code: str) -> List[Dict[str, Any]]:
@@ -274,14 +295,20 @@ class ASTAuditor:
             import tree_sitter
             import tree_sitter_typescript as tsts
 
-            ts_lang = tsts.language_tsx() if filepath.endswith("x") else tsts.language_typescript()
+            ts_lang = (
+                tsts.language_tsx()
+                if filepath.endswith("x")
+                else tsts.language_typescript()
+            )
             lang = tree_sitter.Language(ts_lang)
             parser = tree_sitter.Parser(lang)
             code_bytes = code.encode("utf-8")
             tree = parser.parse(code_bytes)
 
             def get_text(node) -> str:
-                return code_bytes[node.start_byte:node.end_byte].decode("utf-8", errors="ignore")
+                return code_bytes[node.start_byte : node.end_byte].decode(
+                    "utf-8", errors="ignore"
+                )
 
             def visit(node):
                 ntype = node.type
@@ -304,16 +331,21 @@ class ASTAuditor:
             visit(tree.root_node)
 
         except Exception as exc:
-            log_warn(f"ast_audit: tree-sitter parse failed for {filepath}: {exc}; using regex fallback")
+            log_warn(
+                f"ast_audit: tree-sitter parse failed for {filepath}: {exc}; using regex fallback"
+            )
             findings = self._fallback_regex_audit(code)
-            findings.insert(0, {
-                "type": "parser_downgrade",
-                "severity": "warning",
-                "line": 1,
-                "rule": "ast-parser-downgrade",
-                "message": f"tree-sitter parse failed ({exc}); results are regex fallback, not a full AST pass",
-                "value": filepath,
-            })
+            findings.insert(
+                0,
+                {
+                    "type": "parser_downgrade",
+                    "severity": "warning",
+                    "line": 1,
+                    "rule": "ast-parser-downgrade",
+                    "message": f"tree-sitter parse failed ({exc}); results are regex fallback, not a full AST pass",
+                    "value": filepath,
+                },
+            )
 
         return findings
 
@@ -327,7 +359,12 @@ class ASTAuditor:
 
         for root, dirs, files in os.walk(dirpath):
             # Exclude node_modules, .git, dist, .venv
-            dirs[:] = [d for d in dirs if d not in ("node_modules", ".git", "dist", "build", ".venv", "__pycache__")]
+            dirs[:] = [
+                d
+                for d in dirs
+                if d
+                not in ("node_modules", ".git", "dist", "build", ".venv", "__pycache__")
+            ]
             for file in files:
                 if file.endswith((".ts", ".tsx", ".js", ".jsx")):
                     filepath = os.path.join(root, file)

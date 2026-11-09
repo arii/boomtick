@@ -1,4 +1,5 @@
 """GitHub issue commands."""
+
 import os
 import subprocess
 import sys
@@ -46,12 +47,19 @@ def create_issue(ctx, title, file, body, repo):
 
 @gh.command()
 @click.argument("issue_number_arg", required=False, type=int)
-@click.option("--issue-number", "issue_number_opt", type=int, help="The GitHub issue number to view")
+@click.option(
+    "--issue-number",
+    "issue_number_opt",
+    type=int,
+    help="The GitHub issue number to view",
+)
 @click.option("--repo", help="Target repository override (e.g. owner/repo)")
 @click.pass_context
 def issue_view(ctx, issue_number_arg, issue_number_opt, repo):
     """View details of a GitHub issue."""
-    issue_number = issue_number_arg if issue_number_arg is not None else issue_number_opt
+    issue_number = (
+        issue_number_arg if issue_number_arg is not None else issue_number_opt
+    )
     if issue_number is None:
         err(ctx, "Provide --issue-number or a positional issue number")
 
@@ -66,19 +74,25 @@ def issue_view(ctx, issue_number_arg, issue_number_opt, repo):
 @click.argument("issue_number", type=int)
 @click.option("--file", help="Path to file containing new issue body")
 @click.option("--body", help="Literal body text")
-@click.option("--labels", help="Comma-separated list of labels to set (replaces existing labels)")
+@click.option(
+    "--labels", help="Comma-separated list of labels to set (replaces existing labels)"
+)
 @click.option("--add-labels", help="Comma-separated list of labels to add")
 @click.option("--remove-labels", help="Comma-separated list of labels to remove")
 @click.option("--state", type=click.Choice(["open", "closed"]))
 @click.option("--repo", help="Target repository override (e.g. owner/repo)")
 @click.pass_context
-def issue_update(ctx, issue_number, file, body, labels, add_labels, remove_labels, state, repo):
+def issue_update(
+    ctx, issue_number, file, body, labels, add_labels, remove_labels, state, repo
+):
     """Update a GitHub issue's body, labels, and/or state."""
     orch = ctx.obj["ORCHESTRATOR"]
 
     label_list = [l.strip() for l in labels.split(",")] if labels else None
     add_label_list = [l.strip() for l in add_labels.split(",")] if add_labels else None
-    remove_label_list = [l.strip() for l in remove_labels.split(",")] if remove_labels else None
+    remove_label_list = (
+        [l.strip() for l in remove_labels.split(",")] if remove_labels else None
+    )
 
     content = None
     if file or body:
@@ -109,7 +123,11 @@ def issue_comment(ctx, issue_number, file, body, repo):
     content = _get_body_content(ctx, orch, file, body)
     extra_kwargs = {"repo": repo} if repo else {}
     res = orch.post_comment(issue_number, content, **extra_kwargs)
-    out(ctx, f"✅ Successfully posted comment to issue #{issue_number}", data={"comment": res})
+    out(
+        ctx,
+        f"✅ Successfully posted comment to issue #{issue_number}",
+        data={"comment": res},
+    )
 
 
 @gh.command()
@@ -140,14 +158,21 @@ def validate_issue(ctx, issue_number, all_open, post_comments, dry_run, file=Non
         }
     else:
         res = orch.validate_issue(
-            issue_number=issue_number, all_open=all_open, post_comments=post_comments, dry_run=dry_run
+            issue_number=issue_number,
+            all_open=all_open,
+            post_comments=post_comments,
+            dry_run=dry_run,
         )
 
     if not ctx.obj["JSON"]:
         for issue in res["issues"]:
-            issue_ref = f"#{issue['number']}" if issue["number"] else f"File: {issue['title']}"
+            issue_ref = (
+                f"#{issue['number']}" if issue["number"] else f"File: {issue['title']}"
+            )
             title_display = f": {issue['title'][:60]}" if issue["number"] else ""
-            click.echo(f"{'✅' if not issue['findings'] else '❌'} {issue_ref}{title_display}")
+            click.echo(
+                f"{'✅' if not issue['findings'] else '❌'} {issue_ref}{title_display}"
+            )
             for f in issue["findings"]:
                 click.echo(f"   ❌ {f}")
             for w in issue["warnings"]:
@@ -183,12 +208,20 @@ def scaffold_issue(ctx, file):
 
 @gh.command(name="spec-issue")
 @click.argument("issue_number", type=int)
-@click.option("--repo", "-r", default=None,
-              help="Target GitHub repository (e.g. owner/repo)")
-@click.option("--path", "root_path", default=None,
-              help="Checkout for scope existence checks (default: git root)")
-@click.option("--write/--no-write", default=False,
-              help="Write the improved body back to the issue")
+@click.option(
+    "--repo", "-r", default=None, help="Target GitHub repository (e.g. owner/repo)"
+)
+@click.option(
+    "--path",
+    "root_path",
+    default=None,
+    help="Checkout for scope existence checks (default: git root)",
+)
+@click.option(
+    "--write/--no-write",
+    default=False,
+    help="Write the improved body back to the issue",
+)
 @click.pass_context
 def spec_issue(ctx, issue_number, repo, root_path, write):
     """Rewrite an issue as an agent-implementable spec (exit 0 iff ready).
@@ -199,6 +232,7 @@ def spec_issue(ctx, issue_number, repo, root_path, write):
     """
     from dev_tools.services import local_sessions as ls
     from dev_tools.services import spec_issue as spec
+
     try:
         orch = ctx.obj["ORCHESTRATOR"]
         extra = {"repo": repo} if repo else {}
@@ -208,21 +242,24 @@ def spec_issue(ctx, issue_number, repo, root_path, write):
         root = ls.repo_root_for(root_path)
         improved, report = spec.render_body(title, body, root)
         if write:
-            orch.update_issue(issueNumber=issue_number, body=improved,
-                              **extra)
+            orch.update_issue(issueNumber=issue_number, body=improved, **extra)
         if not ctx.obj["JSON"]:
             if report["ready"]:
                 click.echo(f"issue #{issue_number} is agent-ready")
             else:
-                click.echo(f"issue #{issue_number} NOT ready: "
-                           f"missing headers {report['missing_headers']}, "
-                           f"{len(report['scope'])} scope path(s)")
+                click.echo(
+                    f"issue #{issue_number} NOT ready: "
+                    f"missing headers {report['missing_headers']}, "
+                    f"{len(report['scope'])} scope path(s)"
+                )
             if not write:
                 click.echo("--- improved body ---")
                 click.echo(improved)
-        out(ctx, f"issue #{issue_number} ready: {report['ready']}.",
-            data={"issue": issue_number, "wrote": write,
-                  "body": improved, **report})
+        out(
+            ctx,
+            f"issue #{issue_number} ready: {report['ready']}.",
+            data={"issue": issue_number, "wrote": write, "body": improved, **report},
+        )
         if not report["ready"]:
             sys.exit(1)
     except Exception as e:
@@ -231,7 +268,11 @@ def spec_issue(ctx, issue_number, repo, root_path, write):
 
 @gh.command()
 @click.option("--body", help="The comment body text.")
-@click.option("--author-association", required=True, help="The author association (e.g. OWNER, MEMBER).")
+@click.option(
+    "--author-association",
+    required=True,
+    help="The author association (e.g. OWNER, MEMBER).",
+)
 @click.pass_context
 def parse_comment(ctx, body, author_association):
     """Parse a comment body and return intended actions."""
@@ -246,7 +287,14 @@ def parse_comment(ctx, body, author_association):
 
 
 @gh.command()
-@click.option("--pr", "--pr-number", "pr", required=True, type=int, help="The PR number to comment on.")
+@click.option(
+    "--pr",
+    "--pr-number",
+    "pr",
+    required=True,
+    type=int,
+    help="The PR number to comment on.",
+)
 @click.option("--file", type=str, help="Path to the file containing the comment body.")
 @click.option("--body", type=str, help="Literal comment text.")
 @click.option("--repo", help="Target repository override (e.g. owner/repo)")

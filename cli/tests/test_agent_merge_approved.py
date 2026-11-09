@@ -1,4 +1,5 @@
 """Unit tests for agent merge-approved command and eligibility checks."""
+
 import os
 from unittest.mock import MagicMock, patch
 from click.testing import CliRunner
@@ -10,17 +11,19 @@ from dev_tools.orchestrator import Orchestrator
 def test_evaluate_pr_merge_readiness_eligible():
     """Test that a fully approved, clean, non-draft PR with green checks is eligible."""
     orch = Orchestrator()
-    orch.github.fetch_pr_details = MagicMock(return_value={
-        "title": "Fix something",
-        "draft": False,
-        "mergeable": True,
-        "mergeable_state": "clean",
-        "head": {"sha": "head123"},
-    })
+    orch.github.fetch_pr_details = MagicMock(
+        return_value={
+            "title": "Fix something",
+            "draft": False,
+            "mergeable": True,
+            "mergeable_state": "clean",
+            "head": {"sha": "head123"},
+        }
+    )
     orch.github.fetch_pr_review_decision = MagicMock(return_value="APPROVED")
-    orch.github.fetch_check_runs = MagicMock(return_value=[
-        {"name": "build", "conclusion": "success"}
-    ])
+    orch.github.fetch_check_runs = MagicMock(
+        return_value=[{"name": "build", "conclusion": "success"}]
+    )
 
     readiness = orch.evaluate_pr_merge_readiness(123)
     assert readiness["is_eligible"] is True
@@ -37,13 +40,15 @@ def test_evaluate_pr_merge_readiness_ineligible_reasons():
     """Test refusal reasons for drafts, unapproved, failing checks, and conflicting PRs."""
     orch = Orchestrator()
     # 1. Draft
-    orch.github.fetch_pr_details = MagicMock(return_value={
-        "title": "Draft PR",
-        "draft": True,
-        "mergeable": True,
-        "mergeable_state": "clean",
-        "head": {"sha": "head123"},
-    })
+    orch.github.fetch_pr_details = MagicMock(
+        return_value={
+            "title": "Draft PR",
+            "draft": True,
+            "mergeable": True,
+            "mergeable_state": "clean",
+            "head": {"sha": "head123"},
+        }
+    )
     orch.github.fetch_pr_review_decision = MagicMock(return_value="APPROVED")
     orch.github.fetch_check_runs = MagicMock(return_value=[])
 
@@ -52,42 +57,48 @@ def test_evaluate_pr_merge_readiness_ineligible_reasons():
     assert "PR is a draft" in res["reason"]
 
     # 2. Unapproved
-    orch.github.fetch_pr_details = MagicMock(return_value={
-        "title": "Unapproved PR",
-        "draft": False,
-        "mergeable": True,
-        "mergeable_state": "clean",
-        "head": {"sha": "head123"},
-    })
+    orch.github.fetch_pr_details = MagicMock(
+        return_value={
+            "title": "Unapproved PR",
+            "draft": False,
+            "mergeable": True,
+            "mergeable_state": "clean",
+            "head": {"sha": "head123"},
+        }
+    )
     orch.github.fetch_pr_review_decision = MagicMock(return_value="CHANGES_REQUESTED")
     res = orch.evaluate_pr_merge_readiness(2)
     assert res["is_eligible"] is False
     assert "Review decision is CHANGES_REQUESTED" in res["reason"]
 
     # 3. Failing check run
-    orch.github.fetch_pr_details = MagicMock(return_value={
-        "title": "Red PR",
-        "draft": False,
-        "mergeable": True,
-        "mergeable_state": "clean",
-        "head": {"sha": "head123"},
-    })
+    orch.github.fetch_pr_details = MagicMock(
+        return_value={
+            "title": "Red PR",
+            "draft": False,
+            "mergeable": True,
+            "mergeable_state": "clean",
+            "head": {"sha": "head123"},
+        }
+    )
     orch.github.fetch_pr_review_decision = MagicMock(return_value="APPROVED")
-    orch.github.fetch_check_runs = MagicMock(return_value=[
-        {"name": "test", "conclusion": "failure"}
-    ])
+    orch.github.fetch_check_runs = MagicMock(
+        return_value=[{"name": "test", "conclusion": "failure"}]
+    )
     res = orch.evaluate_pr_merge_readiness(3)
     assert res["is_eligible"] is False
     assert "Head commit has failing check runs" in res["reason"]
 
     # 4. Conflicting
-    orch.github.fetch_pr_details = MagicMock(return_value={
-        "title": "Conflicting PR",
-        "draft": False,
-        "mergeable": False,
-        "mergeable_state": "dirty",
-        "head": {"sha": "head123"},
-    })
+    orch.github.fetch_pr_details = MagicMock(
+        return_value={
+            "title": "Conflicting PR",
+            "draft": False,
+            "mergeable": False,
+            "mergeable_state": "dirty",
+            "head": {"sha": "head123"},
+        }
+    )
     orch.github.fetch_pr_review_decision = MagicMock(return_value="APPROVED")
     orch.github.fetch_check_runs = MagicMock(return_value=[])
     res = orch.evaluate_pr_merge_readiness(4)
@@ -125,7 +136,9 @@ def test_merge_approved_dry_run_and_execute():
         }
 
     orch.evaluate_pr_merge_readiness = MagicMock(side_effect=fake_readiness)
-    orch.github.merge_pull_request = MagicMock(return_value={"message": "Pull Request successfully merged"})
+    orch.github.merge_pull_request = MagicMock(
+        return_value={"message": "Pull Request successfully merged"}
+    )
 
     # Test Dry Run
     dry_res = orch.merge_approved(repo="owner/repo", execute=False)
@@ -158,11 +171,13 @@ def test_merge_approved_execute_refused_without_console_credential():
     with patch.dict("os.environ", {"GITHUB_TOKEN": "fake_token"}):
         orch = Orchestrator()
         orch.list_prs = MagicMock(return_value={"prs": [{"number": 10}]})
-        orch.evaluate_pr_merge_readiness = MagicMock(return_value={
-            "pr_number": 10,
-            "is_eligible": True,
-            "reason": None,
-        })
+        orch.evaluate_pr_merge_readiness = MagicMock(
+            return_value={
+                "pr_number": 10,
+                "is_eligible": True,
+                "reason": None,
+            }
+        )
         orch.github.merge_pull_request = MagicMock()
         os.environ.pop("S5_CONSOLE_MERGE_TOKEN", None)
         res = orch.merge_approved(repo="owner/repo", execute=True)

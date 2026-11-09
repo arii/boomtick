@@ -1,5 +1,6 @@
 # pylint: disable=missing-docstring,line-too-long
 """Tests for scope-gated td agent submit-pr (mocked push/gh, real git)."""
+
 import json
 import os
 import subprocess
@@ -40,6 +41,7 @@ def _router(mapping):
             raise AssertionError(f"unexpected command: {args}")
         code, out, err = mapping[key]
         return subprocess.CompletedProcess(args, code, out, err)
+
     return run
 
 
@@ -59,8 +61,7 @@ def test_happy_path_in_scope(worktree):
         return real_run(args, cwd)
 
     with patch.object(sp, "_run", side_effect=router):
-        res = sp.submit(str(worktree), "Fix login", "body", "main",
-                        True, "o/r", ISSUE)
+        res = sp.submit(str(worktree), "Fix login", "body", "main", True, "o/r", ISSUE)
     assert res["status"] == "submitted"
     assert res["url"] == "https://github.com/o/r/pull/7"
     assert res["branch"] == "fix-login"
@@ -99,8 +100,9 @@ def test_skip_scope_check_bypasses(worktree):
         return real_run(args, cwd)
 
     with patch.object(sp, "_run", side_effect=router):
-        res = sp.submit(str(worktree), "T", "", "main", True, None,
-                        ISSUE, skip_scope=True)
+        res = sp.submit(
+            str(worktree), "T", "", "main", True, None, ISSUE, skip_scope=True
+        )
     assert res["scope"]["skipped"] is True
     assert res["status"] == "submitted"
 
@@ -121,16 +123,27 @@ def test_dirty_work_committed_with_agent_message(worktree):
         return real_run(args, cwd)
 
     with patch.object(sp, "_run", side_effect=router):
-        res = sp.submit(str(worktree), "Fix login", "", "main", True,
-                        None, ISSUE, issue=271)
+        res = sp.submit(
+            str(worktree), "Fix login", "", "main", True, None, ISSUE, issue=271
+        )
     assert res["status"] == "submitted"
     assert res["commit"]
-    log = subprocess.run(["git", "log", "-1", "--format=%s"], cwd=worktree,
-                         capture_output=True, text=True, check=True)
+    log = subprocess.run(
+        ["git", "log", "-1", "--format=%s"],
+        cwd=worktree,
+        capture_output=True,
+        text=True,
+        check=True,
+    )
     assert log.stdout.strip() == "feat(agent): Fix login (#271)"
     # Nothing left uncommitted (supervisor state aside).
-    status = subprocess.run(["git", "status", "--porcelain"], cwd=worktree,
-                            capture_output=True, text=True, check=True)
+    status = subprocess.run(
+        ["git", "status", "--porcelain"],
+        cwd=worktree,
+        capture_output=True,
+        text=True,
+        check=True,
+    )
     assert status.stdout.strip() == ""
 
 
@@ -161,8 +174,7 @@ def test_session_json_stamped(worktree):
     with patch.object(sp, "_run", side_effect=router):
         sp.submit(str(worktree), "T")
     with open(worktree / "session.json", encoding="utf-8") as handle:
-        assert json.load(handle)["pullRequestUrl"] == \
-            "https://github.com/o/r/pull/7"
+        assert json.load(handle)["pullRequestUrl"] == "https://github.com/o/r/pull/7"
 
 
 def test_not_a_checkout_refuses(tmp_path):
@@ -182,7 +194,6 @@ def test_root_session_json_excluded_from_scope(worktree):
         return real_run(args, cwd)
 
     with patch.object(sp, "_run", side_effect=router):
-        res = sp.submit(str(worktree), "T", "", "main", True, None,
-                        ISSUE)
+        res = sp.submit(str(worktree), "T", "", "main", True, None, ISSUE)
     assert res["status"] == "submitted"
     assert "session.json" not in res["files"]

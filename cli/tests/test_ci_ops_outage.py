@@ -1,11 +1,15 @@
 """Regression test: get_ci_logs must record outage identities (PR #1220)."""
+
 from unittest.mock import MagicMock, patch
 
 from dev_tools.orchestrator import Orchestrator
 
 
 def _orchestrator_with_stub_github():
-    with patch("dev_tools.orchestrator.GitHubClient"), patch("dev_tools.orchestrator.get_config"):
+    with (
+        patch("dev_tools.orchestrator.GitHubClient"),
+        patch("dev_tools.orchestrator.get_config"),
+    ):
         orch = Orchestrator()
     orch._github = MagicMock()
     return orch
@@ -24,7 +28,12 @@ def test_get_ci_logs_records_outage_identities():
             raise RuntimeError("suite API outage")
         return [
             {"id": 101, "name": "ok-job", "conclusion": "failure", "external_id": None},
-            {"id": 102, "name": "bad-job", "conclusion": "failure", "external_id": None},
+            {
+                "id": 102,
+                "name": "bad-job",
+                "conclusion": "failure",
+                "external_id": None,
+            },
         ]
 
     def _run_logs(run_id, external_id=None, repo=None):

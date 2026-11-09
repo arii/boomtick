@@ -10,7 +10,9 @@ def test_load_default_config(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     # Mock _detect_repo_name to return a valid string, so we can test missing vite_base_path
     monkeypatch.setattr("dev_tools.config._detect_repo_name", lambda: "owner/repo")
-    with pytest.raises(ValueError, match="Missing required configuration: vite_base_path"):
+    with pytest.raises(
+        ValueError, match="Missing required configuration: vite_base_path"
+    ):
         load_project_config(tmp_path / "non_existent.json")
 
     # Mock _detect_repo_name to return None, so we can test missing github_repo
@@ -45,6 +47,7 @@ def test_load_custom_config(tmp_path):
 def test_import_outside_repo(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     from dev_tools.config import get_config
+
     get_config.cache_clear()
     monkeypatch.setattr("dev_tools.config._detect_repo_name", lambda: None)
 
@@ -58,6 +61,7 @@ def test_import_outside_repo(tmp_path, monkeypatch):
 def test_help_outside_repo(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     from dev_tools.config import get_config
+
     get_config.cache_clear()
     monkeypatch.setattr("dev_tools.config._detect_repo_name", lambda: None)
 
@@ -73,6 +77,7 @@ def test_help_outside_repo(tmp_path, monkeypatch):
 def test_config_view_missing_config(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     from dev_tools.config import get_config
+
     get_config.cache_clear()
     monkeypatch.setattr("dev_tools.config._detect_repo_name", lambda: None)
 
@@ -89,6 +94,7 @@ def test_config_view_missing_config(tmp_path, monkeypatch):
 def test_config_dependent_command_missing_config(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     from dev_tools.config import get_config
+
     get_config.cache_clear()
     monkeypatch.setattr("dev_tools.config._detect_repo_name", lambda: None)
 
@@ -108,7 +114,7 @@ def test_load_package_name(tmp_path):
     data1 = {
         "github_repo": "owner/repo",
         "vite_base_path": "/test/",
-        "packageName": "my-package"
+        "packageName": "my-package",
     }
     config_file1.write_text(json.dumps(data1))
     config1 = load_project_config(config_file1)
@@ -119,7 +125,7 @@ def test_load_package_name(tmp_path):
     data2 = {
         "github_repo": "owner/repo",
         "vite_base_path": "/test/",
-        "package_name": "another-package"
+        "package_name": "another-package",
     }
     config_file2.write_text(json.dumps(data2))
     config2 = load_project_config(config_file2)
@@ -132,7 +138,7 @@ def test_type_coercion(tmp_path):
         "github_repo": "owner/repo",
         "vite_base_path": "/",
         "monolithic_pr_threshold": "10",
-        "max_diff_chars": "60000"
+        "max_diff_chars": "60000",
     }
     config_file.write_text(json.dumps(data))
 

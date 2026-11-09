@@ -22,6 +22,13 @@ else
   echo "[pre-push] pnpm not found — skipping local gates (CI will cover)"
 fi
 
+if python3 -m ruff --version >/dev/null 2>&1; then
+  # contracts.py is generator-owned (sync-contracts); never format-gate it.
+  python3 -m ruff format --check --exclude cli/dev_tools/models/contracts.py cli scripts || fail=1
+else
+  echo "[pre-push] ruff not found — skipping format gate (CI will cover)"
+fi
+
 if [ "$fail" -ne 0 ]; then
   echo "[pre-push] gate failed — push blocked. Fix and retry, or bypass once with SKIP_HOOKS=1 git push"
   exit 1

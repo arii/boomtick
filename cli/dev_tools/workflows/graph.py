@@ -59,7 +59,9 @@ class WorkflowGraph:
         # Validate existence of all nodes in edges
         for from_node, to_nodes in self.edges.items():
             if from_node not in self.nodes:
-                raise MissingDependencyError(f"Edge references node '{from_node}' which is not in the graph.")
+                raise MissingDependencyError(
+                    f"Edge references node '{from_node}' which is not in the graph."
+                )
             for to_node in to_nodes:
                 if to_node not in self.nodes:
                     raise MissingDependencyError(
@@ -80,7 +82,9 @@ class WorkflowGraph:
                     cycle_start_idx = path.index(neighbor)
                     cycle_path = path[cycle_start_idx:] + [neighbor]
                     cycle_str = " -> ".join(cycle_path)
-                    raise CycleDetectedError(f"Cycle detected in workflow graph: {cycle_str}")
+                    raise CycleDetectedError(
+                        f"Cycle detected in workflow graph: {cycle_str}"
+                    )
                 if visited.get(neighbor, 0) == 0:
                     dfs(neighbor)
 

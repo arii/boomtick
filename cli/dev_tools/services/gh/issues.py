@@ -1,15 +1,17 @@
 """GitHub issue resource."""
+
 import subprocess
 from typing import Any, Dict, List, Optional
 from dev_tools.utils import log_warn
 from dev_tools.services.gh.checks import ChecksMixin
 
 
-
 class IssuesMixin(ChecksMixin):
     """GitHub issue resource."""
 
-    def close_issue(self, number: int, repo: Optional[str] = None, comment: Optional[str] = None) -> bool:
+    def close_issue(
+        self, number: int, repo: Optional[str] = None, comment: Optional[str] = None
+    ) -> bool:
         """Closes an issue with an optional comment."""
         target_repo = repo or self.repo
         cmd = ["gh", "issue", "close", str(number), "-R", target_repo]
@@ -21,15 +23,27 @@ class IssuesMixin(ChecksMixin):
         log_warn(f"gh issue close failed for #{number} in {target_repo}: {res.stderr}")
         return False
 
-    def create_issue_comment(self, number: int, body: str, repo: Optional[str] = None) -> Dict[str, Any]:
+    def create_issue_comment(
+        self, number: int, body: str, repo: Optional[str] = None
+    ) -> Dict[str, Any]:
         """Create a comment on an issue."""
         target_repo = repo or self.repo
-        return self._request("POST", f"/repos/{target_repo}/issues/{number}/comments", json_data={"body": body})
+        return self._request(
+            "POST",
+            f"/repos/{target_repo}/issues/{number}/comments",
+            json_data={"body": body},
+        )
 
-    def create_issue(self, title: str, body: str, repo: Optional[str] = None) -> Dict[str, Any]:
+    def create_issue(
+        self, title: str, body: str, repo: Optional[str] = None
+    ) -> Dict[str, Any]:
         """Creates a new GitHub issue."""
         target_repo = repo or self.repo
-        res = self._request("POST", f"/repos/{target_repo}/issues", json_data={"title": title, "body": body})
+        res = self._request(
+            "POST",
+            f"/repos/{target_repo}/issues",
+            json_data={"title": title, "body": body},
+        )
         return self._normalize_issue_response(res)
 
     @staticmethod
@@ -41,7 +55,10 @@ class IssuesMixin(ChecksMixin):
             "body": issue.get("body"),
             "state": issue.get("state"),
             "html_url": issue.get("html_url"),
-            "labels": [l.get("name") if isinstance(l, dict) else l for l in issue.get("labels", [])],
+            "labels": [
+                l.get("name") if isinstance(l, dict) else l
+                for l in issue.get("labels", [])
+            ],
             "updated_at": issue.get("updated_at"),
         }
 
@@ -56,13 +73,19 @@ class IssuesMixin(ChecksMixin):
             "state": raw_data.get("state"),
         }
 
-    def fetch_issue_details(self, number: int, repo: Optional[str] = None) -> Dict[str, Any]:
+    def fetch_issue_details(
+        self, number: int, repo: Optional[str] = None
+    ) -> Dict[str, Any]:
         """Fetches the details of a GitHub issue."""
         target_repo = repo or self.repo
         return self._request("GET", f"/repos/{target_repo}/issues/{number}")
 
     def list_issues(
-        self, state: str = "open", limit: int = 100, labels: Optional[List[str]] = None, repo: Optional[str] = None
+        self,
+        state: str = "open",
+        limit: int = 100,
+        labels: Optional[List[str]] = None,
+        repo: Optional[str] = None,
     ) -> List[Dict[str, Any]]:
         """Lists issues (excluding pull requests) with optional filters."""
         target_repo = repo or self.repo
@@ -73,12 +96,16 @@ class IssuesMixin(ChecksMixin):
             for label in labels:
                 query += f' label:"{label}"'
 
-        data = self._request("GET", "/search/issues", params={"q": query, "per_page": limit})
+        data = self._request(
+            "GET", "/search/issues", params={"q": query, "per_page": limit}
+        )
         items = data.get("items", []) if isinstance(data, dict) else []
 
         return [self.normalize_issue(issue) for issue in items[:limit]]
 
-    def fetch_issue_comments(self, number: int, repo: Optional[str] = None) -> List[Dict[str, Any]]:
+    def fetch_issue_comments(
+        self, number: int, repo: Optional[str] = None
+    ) -> List[Dict[str, Any]]:
         """Fetches the comments on an issue or pull request."""
         target_repo = repo or self.repo
         return self._request("GET", f"/repos/{target_repo}/issues/{number}/comments")
@@ -100,5 +127,7 @@ class IssuesMixin(ChecksMixin):
             data["labels"] = labels
         if state is not None:
             data["state"] = state
-        res = self._request("PATCH", f"/repos/{target_repo}/issues/{number}", json_data=data)
+        res = self._request(
+            "PATCH", f"/repos/{target_repo}/issues/{number}", json_data=data
+        )
         return self._normalize_issue_response(res)

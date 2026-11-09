@@ -9,6 +9,7 @@ import os
 import sys
 import re
 
+
 def verify_workflows():
     workflow_dir = ".github/workflows"
     if not os.path.exists(workflow_dir):
@@ -41,6 +42,7 @@ def verify_workflows():
         print("✅ All workflows are compliant with Buildx setup requirements.")
         return 0
 
+
 def check_workflow_file(file_path, content):
     violations = []
     lines = content.splitlines()
@@ -71,8 +73,12 @@ def check_workflow_file(file_path, content):
                 # Close the previous job
                 if current_job_name:
                     if current_step_lines:
-                        current_job_steps.append((current_step_lines, idx - len(current_step_lines)))
-                    violations.extend(verify_job_steps(file_path, current_job_name, current_job_steps))
+                        current_job_steps.append(
+                            (current_step_lines, idx - len(current_step_lines))
+                        )
+                    violations.extend(
+                        verify_job_steps(file_path, current_job_name, current_job_steps)
+                    )
                 in_jobs_block = False
                 current_job_name = None
                 current_job_steps = []
@@ -82,17 +88,28 @@ def check_workflow_file(file_path, content):
             # Detect a job key.
             # In standard workflows, it's indented by 2 spaces.
             # We also ensure we don't treat keys inside steps or step `with` block as a job name.
-            is_job_key = (indentation > job_indentation and
-                          stripped.endswith(":") and
-                          not stripped.startswith("-") and
-                          not re.match(r"^(with|env|steps|outputs|runs-on|strategy|needs|if|permissions|concurrency):", stripped))
+            is_job_key = (
+                indentation > job_indentation
+                and stripped.endswith(":")
+                and not stripped.startswith("-")
+                and not re.match(
+                    r"^(with|env|steps|outputs|runs-on|strategy|needs|if|permissions|concurrency):",
+                    stripped,
+                )
+            )
 
-            if is_job_key and (indentation == job_indentation + 2 or not current_job_name):
+            if is_job_key and (
+                indentation == job_indentation + 2 or not current_job_name
+            ):
                 # Close the previous job
                 if current_job_name:
                     if current_step_lines:
-                        current_job_steps.append((current_step_lines, idx - len(current_step_lines)))
-                    violations.extend(verify_job_steps(file_path, current_job_name, current_job_steps))
+                        current_job_steps.append(
+                            (current_step_lines, idx - len(current_step_lines))
+                        )
+                    violations.extend(
+                        verify_job_steps(file_path, current_job_name, current_job_steps)
+                    )
 
                 current_job_name = stripped[:-1].strip()
                 current_job_steps = []
@@ -104,7 +121,9 @@ def check_workflow_file(file_path, content):
                 # If a line starts with `-`, it indicates a new step
                 if stripped.startswith("-"):
                     if current_step_lines:
-                        current_job_steps.append((current_step_lines, idx - len(current_step_lines)))
+                        current_job_steps.append(
+                            (current_step_lines, idx - len(current_step_lines))
+                        )
                     current_step_lines = [line]
                 else:
                     if current_step_lines:
@@ -113,10 +132,15 @@ def check_workflow_file(file_path, content):
     # Close final job
     if current_job_name:
         if current_step_lines:
-            current_job_steps.append((current_step_lines, len(lines) - len(current_step_lines) + 1))
-        violations.extend(verify_job_steps(file_path, current_job_name, current_job_steps))
+            current_job_steps.append(
+                (current_step_lines, len(lines) - len(current_step_lines) + 1)
+            )
+        violations.extend(
+            verify_job_steps(file_path, current_job_name, current_job_steps)
+        )
 
     return violations
+
 
 def verify_job_steps(file_path, job_name, steps):
     violations = []
@@ -129,7 +153,10 @@ def verify_job_steps(file_path, job_name, steps):
         uses_match = re.search(r"uses:\s*(\S+)", step_content)
         if uses_match:
             action_name = uses_match.group(1).strip("'\"")
-            if "docker/setup-buildx-action" in action_name or "setup-docker-buildx" in action_name:
+            if (
+                "docker/setup-buildx-action" in action_name
+                or "setup-docker-buildx" in action_name
+            ):
                 buildx_setup_seen = True
 
         # Check if the step uses docker/build-push-action
@@ -147,6 +174,7 @@ def verify_job_steps(file_path, job_name, steps):
                         )
 
     return violations
+
 
 if __name__ == "__main__":
     sys.exit(verify_workflows())

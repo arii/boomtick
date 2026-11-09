@@ -1,12 +1,32 @@
 """Unified Tech-Dancer DevTools CLI (thin aggregator)."""
+
 import json
 import sys
 from dev_tools.config import get_config
 from dev_tools.utils import log_error
-from dev_tools.commands import (ai_agent, gates_audit, gates_spec, gh_issue, gh_pr, gh_review, mcp_repo, ops, sessions)
-from dev_tools.commands.core import (LazyOrchestrator, cli, err, json_option, limit_option, out)
+from dev_tools.commands import (
+    ai_agent,
+    gates_audit,
+    gates_spec,
+    gh_issue,
+    gh_pr,
+    gh_review,
+    mcp_repo,
+    ops,
+    sessions,
+)
+from dev_tools.commands.core import (
+    LazyOrchestrator,
+    cli,
+    err,
+    json_option,
+    limit_option,
+    out,
+)
 from dev_tools.commands.gates_audit import _prune_walk_dirs
-__all__ = ["LazyOrchestrator",
+
+__all__ = [
+    "LazyOrchestrator",
     "_prune_walk_dirs",
     "ai_agent",
     "cli",
@@ -23,7 +43,8 @@ __all__ = ["LazyOrchestrator",
     "mcp_repo",
     "ops",
     "out",
-    "sessions"]
+    "sessions",
+]
 
 
 def __getattr__(name: str):
@@ -44,7 +65,11 @@ def main():
         is_json = "--no-json" not in sys.argv
 
         if is_json:
-            error_payload = {"status": "error", "message": str(e), "type": e.__class__.__name__}
+            error_payload = {
+                "status": "error",
+                "message": str(e),
+                "type": e.__class__.__name__,
+            }
             # CLIError and some others might have a custom 'code' attribute
             code = getattr(e, "code", 1)
             error_payload["code"] = code

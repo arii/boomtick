@@ -9,8 +9,6 @@ from dev_tools.workflows.context import WorkflowContext
 from dev_tools.workflows.graph import WorkflowGraph
 
 
-
-
 class WorkflowRunner:
     """
     Executes a WorkflowGraph in topological order.
@@ -35,7 +33,9 @@ class WorkflowRunner:
         try:
             return future.result(timeout=timeout)
         except concurrent.futures.TimeoutError as exc:
-            raise TimeoutError(f"Node '{node.name}' timed out after {timeout} seconds.") from exc
+            raise TimeoutError(
+                f"Node '{node.name}' timed out after {timeout} seconds."
+            ) from exc
 
     def shutdown(self, wait: bool = False) -> None:
         """Shutdown the underlying thread pool executor."""
@@ -52,7 +52,7 @@ class WorkflowRunner:
         self,
         graph: WorkflowGraph,
         initial_inputs: Optional[Dict[str, Any]] = None,
-        context: Optional[WorkflowContext] = None
+        context: Optional[WorkflowContext] = None,
     ) -> WorkflowContext:
         """
         Runs the workflow graph.

@@ -1,7 +1,10 @@
 # pylint: disable=missing-docstring,too-many-branches,too-many-nested-blocks,line-too-long
 import json
 
-from dev_tools.services.dependency_graph import DependencyGraph, validate_and_sanitize_graph_data
+from dev_tools.services.dependency_graph import (
+    DependencyGraph,
+    validate_and_sanitize_graph_data,
+)
 
 
 def test_dependency_graph_parsing(tmp_path):
@@ -41,7 +44,10 @@ def test_find_affected_files_complex(tmp_path):
     # Multiple paths to D: A -> B -> D, and A -> C -> D.
     graph_data = {
         "modules": [
-            {"source": "src/d.ts", "dependencies": [{"resolved": "src/b.ts"}, {"resolved": "src/c.ts"}]},
+            {
+                "source": "src/d.ts",
+                "dependencies": [{"resolved": "src/b.ts"}, {"resolved": "src/c.ts"}],
+            },
             {"source": "src/b.ts", "dependencies": [{"resolved": "src/a.ts"}]},
             {"source": "src/c.ts", "dependencies": [{"resolved": "src/a.ts"}]},
             {"source": "src/a.ts", "dependencies": []},

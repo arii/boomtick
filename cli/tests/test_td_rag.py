@@ -1,5 +1,6 @@
 # pylint: disable=missing-docstring,line-too-long
 """Tests for td rag index/query/init (SHA-tracked incremental indexing)."""
+
 import json
 import os
 import subprocess
@@ -14,6 +15,7 @@ from dev_tools.services import vector_store as vs
 try:
     import chromadb  # noqa: F401
     import sentence_transformers  # noqa: F401
+
     HAS_CHROMA = True
 except ImportError:
     HAS_CHROMA = False
@@ -34,7 +36,8 @@ def repo(tmp_path):
     (root / "src" / "widget.py").write_text("def widget():\n    return 1\n")
     (root / "docs").mkdir()
     (root / "docs" / "guide.md").write_text(
-        "# Guide\n\n## Intro\n\nSome intro text here.\n")
+        "# Guide\n\n## Intro\n\nSome intro text here.\n"
+    )
     _git(["add", "-A"], root)
     _git(["commit", "-qm", "init"], root)
     _git(["remote", "add", "origin", str(root)], root)
@@ -43,63 +46,62 @@ def repo(tmp_path):
 
 
 def _head(root):
-    out = subprocess.run(["git", "rev-parse", "HEAD"], cwd=root,
-                         capture_output=True, text=True, check=True)
+    out = subprocess.run(
+        ["git", "rev-parse", "HEAD"],
+        cwd=root,
+        capture_output=True,
+        text=True,
+        check=True,
+    )
     return out.stdout.strip()
 
 
-@pytest.mark.skipif(not HAS_CHROMA,
-                    reason="needs chromadb + sentence-transformers")
+@pytest.mark.skipif(not HAS_CHROMA, reason="needs chromadb + sentence-transformers")
 def test_update_index_full_and_meta(repo, tmp_path):
     meta = str(tmp_path / "meta.json")
     persist = str(tmp_path / "chroma")
-    data = vs.update_index(str(repo), incremental=True,
-                           persist_directory=persist, meta_file=meta)
+    data = vs.update_index(
+        str(repo), incremental=True, persist_directory=persist, meta_file=meta
+    )
     assert data["status"] == "ready"
     assert data["head_sha"] == _head(repo)
     assert data["last_indexed_sha"] == _head(repo)
-    assert sorted(data["updated_files"]) == ["docs/guide.md",
-                                             "src/widget.py"]
+    assert sorted(data["updated_files"]) == ["docs/guide.md", "src/widget.py"]
     assert data["removed_files"] == []
     assert os.path.isfile(meta)
 
 
-@pytest.mark.skipif(not HAS_CHROMA,
-                    reason="needs chromadb + sentence-transformers")
+@pytest.mark.skipif(not HAS_CHROMA, reason="needs chromadb + sentence-transformers")
 def test_update_index_incremental(repo, tmp_path):
     meta = str(tmp_path / "meta.json")
     persist = str(tmp_path / "chroma")
     vs.update_index(str(repo), persist_directory=persist, meta_file=meta)
-    (repo / "src" / "widget.py").write_text(
-        "def widget():\n    return 2\n")
+    (repo / "src" / "widget.py").write_text("def widget():\n    return 2\n")
     (repo / "docs" / "guide.md").unlink()
     _git(["add", "-A"], repo)
     _git(["commit", "-qm", "update"], repo)
-    data = vs.update_index(str(repo), persist_directory=persist,
-                           meta_file=meta)
+    data = vs.update_index(str(repo), persist_directory=persist, meta_file=meta)
     assert data["updated_files"] == ["src/widget.py"]
     assert data["removed_files"] == ["docs/guide.md"]
     assert data["last_indexed_sha"] == _head(repo)
 
 
-@pytest.mark.skipif(not HAS_CHROMA,
-                    reason="needs chromadb + sentence-transformers")
+@pytest.mark.skipif(not HAS_CHROMA, reason="needs chromadb + sentence-transformers")
 def test_update_index_no_changes_is_empty(repo, tmp_path):
     meta = str(tmp_path / "meta.json")
     persist = str(tmp_path / "chroma")
     vs.update_index(str(repo), persist_directory=persist, meta_file=meta)
-    data = vs.update_index(str(repo), persist_directory=persist,
-                           meta_file=meta)
+    data = vs.update_index(str(repo), persist_directory=persist, meta_file=meta)
     assert data["updated_files"] == []
     assert data["removed_files"] == []
 
 
 def test_chunk_markdown_sections(tmp_path):
-    store = vs.VectorStore(
-        persist_directory=str(tmp_path / "chroma"))
+    store = vs.VectorStore(persist_directory=str(tmp_path / "chroma"))
     chunks = store.chunk_file(
         "# Title\n\nbody one\n\n## Part A\n\ntext a\n\n## Part B\n\ntext b\n",
-        "docs/guide.md")
+        "docs/guide.md",
+    )
     assert len(chunks) >= 2
     assert all(c["metadata"]["node_type"] == "md_section" for c in chunks)
     titles = [c["metadata"]["section"] for c in chunks]
@@ -107,8 +109,9 @@ def test_chunk_markdown_sections(tmp_path):
 
 
 def test_query_index_empty_graceful(repo, tmp_path):
-    hits = vs.query_index(str(repo), "widget",
-                          persist_directory=str(tmp_path / "chroma"))
+    hits = vs.query_index(
+        str(repo), "widget", persist_directory=str(tmp_path / "chroma")
+    )
     assert hits == []
 
 
@@ -122,23 +125,20 @@ def test_add_file_incremental_counts_embeds_only(tmp_path):
     assert store.add_file_incremental("src/a.py", code) == []
 
 
-@pytest.mark.skipif(not HAS_CHROMA,
-                    reason="needs chromadb + sentence-transformers")
+@pytest.mark.skipif(not HAS_CHROMA, reason="needs chromadb + sentence-transformers")
 def test_full_rebuild_recovers_diverged_cache(repo, tmp_path):
     # #1167: hashes cached but vectors missing (wiped collection).
     # --full must rebuild everything and reconcile, not report
     # cache-skips as added on a thin index.
     persist = str(tmp_path / "chroma")
-    first = vs.update_index(str(repo), incremental=False,
-                            persist_directory=persist)
+    first = vs.update_index(str(repo), incremental=False, persist_directory=persist)
     total = first["added_chunks"]
     assert total > 0
     store = vs.VectorStore(persist_directory=persist)
     assert store.collection.count() == total
     store.collection.delete(ids=store.collection.get()["ids"])
     assert store.collection.count() == 0
-    second = vs.update_index(str(repo), incremental=False,
-                             persist_directory=persist)
+    second = vs.update_index(str(repo), incremental=False, persist_directory=persist)
     assert second["added_chunks"] == total
     fresh = vs.VectorStore(persist_directory=persist)
     assert fresh.collection.count() == total
@@ -148,17 +148,15 @@ def test_update_index_no_backend_raises(repo, tmp_path, monkeypatch):
     # #1167 degraded-env hole: added>0 with no collection must fail
     # loud instead of reporting ready on zero persisted vectors.
     # Runs with or without the backend installed (property mocked).
-    monkeypatch.setattr(vs.VectorStore, "collection",
-                        property(lambda self: None))
+    monkeypatch.setattr(vs.VectorStore, "collection", property(lambda self: None))
     with pytest.raises(RuntimeError, match="no embedding backend"):
-        vs.update_index(str(repo), incremental=False,
-                        persist_directory=str(tmp_path / "chroma"))
+        vs.update_index(
+            str(repo), incremental=False, persist_directory=str(tmp_path / "chroma")
+        )
 
 
-@pytest.mark.skipif(not HAS_CHROMA,
-                    reason="needs chromadb + sentence-transformers")
-def test_update_index_warm_cache_no_backend_raises(repo, tmp_path,
-                                                   monkeypatch):
+@pytest.mark.skipif(not HAS_CHROMA, reason="needs chromadb + sentence-transformers")
+def test_update_index_warm_cache_no_backend_raises(repo, tmp_path, monkeypatch):
     # #1167 follow-up: a pre-existing hash cache + no embedding
     # backend must fail loud. reset() early-returns without a
     # backend, so the --full walk cache-skips everything
@@ -173,8 +171,7 @@ def test_update_index_warm_cache_no_backend_raises(repo, tmp_path,
     # would pass without the fix.
     persist = str(tmp_path / "chroma")
     cache_file = os.path.join(persist, "ast_hash_cache.json")
-    first = vs.update_index(str(repo), incremental=False,
-                            persist_directory=persist)
+    first = vs.update_index(str(repo), incremental=False, persist_directory=persist)
     assert first["added_chunks"] > 0
     with open(cache_file, "r", encoding="utf-8") as handle:
         warm_cache = json.load(handle)
@@ -187,18 +184,15 @@ def test_update_index_warm_cache_no_backend_raises(repo, tmp_path,
     monkeypatch.setattr(vs.VectorStore, "client", None)
     monkeypatch.setattr(vs.VectorStore, "embedding_fn", None)
     with pytest.raises(RuntimeError, match="no embedding backend"):
-        vs.update_index(str(repo), incremental=False,
-                        persist_directory=persist)
+        vs.update_index(str(repo), incremental=False, persist_directory=persist)
 
     # Phase 2 (purge-pin): change a file so its warm-cache chunk_ids
     # cannot legitimately reappear: if reset() failed to clear the
     # cache, the stale ids for the OLD content would survive the
     # no-backend run. (The mocks persist within this test.)
-    stale_ids = [cid for cid in warm_cache
-                 if cid.startswith("src/widget.py:")]
+    stale_ids = [cid for cid in warm_cache if cid.startswith("src/widget.py:")]
     assert stale_ids
-    (repo / "src" / "widget.py").write_text(
-        "def widget():\n    return 3\n")
+    (repo / "src" / "widget.py").write_text("def widget():\n    return 3\n")
 
     # Now degrade the environment: the client and embedding_fn are
     # mocked away (faithfully simulating "no embedding backend
@@ -206,8 +200,7 @@ def test_update_index_warm_cache_no_backend_raises(repo, tmp_path,
     monkeypatch.setattr(vs.VectorStore, "client", None)
     monkeypatch.setattr(vs.VectorStore, "embedding_fn", None)
     with pytest.raises(RuntimeError, match="no embedding backend"):
-        vs.update_index(str(repo), incremental=False,
-                        persist_directory=persist)
+        vs.update_index(str(repo), incremental=False, persist_directory=persist)
     # The warm cache entries must be gone even though reset()
     # early-returned (the walk may repopulate with fresh hashes).
     if os.path.exists(cache_file):
@@ -217,8 +210,7 @@ def test_update_index_warm_cache_no_backend_raises(repo, tmp_path,
             assert chunk_id not in remaining
 
 
-def test_update_index_incremental_empty_collection_raises(
-        repo, tmp_path, monkeypatch):
+def test_update_index_incremental_empty_collection_raises(repo, tmp_path, monkeypatch):
     # #1181: diverged cache (hashes recorded, vectors missing) +
     # unchanged files must fail loud instead of stamping
     # last_indexed_sha over an unverified (empty) collection.
@@ -226,8 +218,9 @@ def test_update_index_incremental_empty_collection_raises(
     # runs with or without chromadb installed.
     persist = str(tmp_path / "chroma")
     os.makedirs(persist, exist_ok=True)
-    with open(os.path.join(persist, "ast_hash_cache.json"), "w",
-              encoding="utf-8") as handle:
+    with open(
+        os.path.join(persist, "ast_hash_cache.json"), "w", encoding="utf-8"
+    ) as handle:
         json.dump({"src/widget.py:1-2:deadbeef": "0" * 64}, handle)
     meta = str(tmp_path / "meta.json")
     head = _head(repo)
@@ -238,11 +231,13 @@ def test_update_index_incremental_empty_collection_raises(
         def count(self):
             return 0
 
-    monkeypatch.setattr(vs.VectorStore, "collection",
-                        property(lambda self: _EmptyCollection()))
+    monkeypatch.setattr(
+        vs.VectorStore, "collection", property(lambda self: _EmptyCollection())
+    )
     with pytest.raises(RuntimeError, match="unverified"):
-        vs.update_index(str(repo), incremental=True,
-                        persist_directory=persist, meta_file=meta)
+        vs.update_index(
+            str(repo), incremental=True, persist_directory=persist, meta_file=meta
+        )
     with open(meta, "r", encoding="utf-8") as handle:
         assert json.load(handle)["last_indexed_sha"] == head
 
@@ -256,34 +251,48 @@ def test_query_index_broken_store_raises(repo, tmp_path):
     vs.VectorStore.query = broken
     try:
         with pytest.raises(RuntimeError, match="index unreadable"):
-            vs.query_index(str(repo), "widget",
-                           persist_directory=str(tmp_path / "chroma"))
+            vs.query_index(
+                str(repo), "widget", persist_directory=str(tmp_path / "chroma")
+            )
     finally:
         vs.VectorStore.query = orig
 
 
-@pytest.mark.skipif(not HAS_CHROMA,
-                    reason="needs chromadb + sentence-transformers")
+@pytest.mark.skipif(not HAS_CHROMA, reason="needs chromadb + sentence-transformers")
 def test_cli_rag_index_query_init(repo, tmp_path):
     runner = CliRunner()
-    indexed = runner.invoke(cli, ["rag", "index", "--repo-root",
-                                 str(repo), "--json"])
+    indexed = runner.invoke(cli, ["rag", "index", "--repo-root", str(repo), "--json"])
     assert indexed.exit_code == 0, indexed.output
     payload = json.loads(indexed.output)
     assert payload["status"] == "ready"
     assert payload["head_sha"]
 
-    queried = runner.invoke(cli, ["rag", "query", "--repo-root",
-                                 str(repo), "--query", "widget",
-                                 "--top-k", "3", "--json"])
+    queried = runner.invoke(
+        cli,
+        [
+            "rag",
+            "query",
+            "--repo-root",
+            str(repo),
+            "--query",
+            "widget",
+            "--top-k",
+            "3",
+            "--json",
+        ],
+    )
     assert queried.exit_code == 0, queried.output
     payload = json.loads(queried.output)
     assert set(payload) >= {"status", "query", "hits", "count"}
     assert isinstance(payload["hits"], list)
 
-    inited = runner.invoke(cli, ["init", "--repo-root", str(repo),
-                                "--json"])
+    inited = runner.invoke(cli, ["init", "--repo-root", str(repo), "--json"])
     assert inited.exit_code == 0, inited.output
     payload = json.loads(inited.output)
-    assert set(payload) >= {"status", "head_sha", "deps_synced",
-                            "rag_indexed_sha", "updated_files"}
+    assert set(payload) >= {
+        "status",
+        "head_sha",
+        "deps_synced",
+        "rag_indexed_sha",
+        "updated_files",
+    }

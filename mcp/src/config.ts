@@ -3,6 +3,7 @@ import fs from "fs";
 import { fileURLToPath } from "url";
 import { findRepoRoot } from "./config/repo.js";
 import { getGithubToken } from "./config/github.js";
+import { resolveRepo } from "./lib/git.js";
 import { initializeConfig, getCachedDynamicConfig } from "./config/dynamic.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -16,19 +17,17 @@ if (fs.existsSync(envPath) && typeof process.loadEnvFile === "function") {
   }
 }
 
-export const DEFAULT_STACK_ENV_PATH = "/srv/remote-server/.env";
-
 export function resolveStackEnvPath(): string {
   return (
     process.env.REMOTE_SERVER_ENV_PATH ||
     process.env.STACK_ENV_PATH ||
-    DEFAULT_STACK_ENV_PATH
+    ""
   );
 }
 
 export function loadStackEnv(explicitPath?: string): void {
   const targetPath = explicitPath || resolveStackEnvPath();
-  if (!fs.existsSync(targetPath)) {
+  if (!targetPath || !fs.existsSync(targetPath)) {
     return;
   }
 
@@ -85,7 +84,11 @@ export const config = {
     if (envRepo && envRepo.includes("/")) {
       return envRepo.split("/")[0];
     }
-    throw new Error("GITHUB_OWNER must be set via environment variable or project_config.json");
+    try {
+      return resolveRepo().split("/")[0];
+    } catch {
+      throw new Error("GITHUB_OWNER must be set via environment variable or project_config.json");
+    }
   },
   get githubRepo() {
     const cachedDynamicConfig = getCachedDynamicConfig();
@@ -98,7 +101,11 @@ export const config = {
     if (envRepo && envRepo.includes("/")) {
       return envRepo.split("/")[1];
     }
-    throw new Error("GITHUB_REPO must be set via environment variable or project_config.json");
+    try {
+      return resolveRepo().split("/")[1];
+    } catch {
+      throw new Error("GITHUB_REPO must be set via environment variable or project_config.json");
+    }
   },
   get repoPath() {
     return findRepoRoot();

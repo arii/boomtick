@@ -55,7 +55,9 @@ class TestLabels(unittest.TestCase):
         mock_response.raise_for_status.return_value = None
         mock_request.return_value = mock_response
 
-        client = GitHubClient(token="fake_token", repo="owner/repo", no_cache=True, use_graphql=False)
+        client = GitHubClient(
+            token="fake_token", repo="owner/repo", no_cache=True, use_graphql=False
+        )
         res = client.remove_label(123, "ui bug")
 
         calls = mock_request.call_args_list
@@ -64,7 +66,9 @@ class TestLabels(unittest.TestCase):
         self.assertEqual(calls[1][0][0], "GET")
         self.assertIn("/issues/123", calls[1][0][1])
 
-        self.assertEqual(res, {"number": 123, "title": "T", "html_url": "U", "state": "S"})
+        self.assertEqual(
+            res, {"number": 123, "title": "T", "html_url": "U", "state": "S"}
+        )
 
     @patch("dev_tools.services.github.requests.Session.request")
     def test_github_client_add_labels(self, mock_request):
@@ -78,7 +82,9 @@ class TestLabels(unittest.TestCase):
         mock_response.raise_for_status.return_value = None
         mock_request.return_value = mock_response
 
-        client = GitHubClient(token="fake_token", repo="owner/repo", no_cache=True, use_graphql=False)
+        client = GitHubClient(
+            token="fake_token", repo="owner/repo", no_cache=True, use_graphql=False
+        )
         res = client.add_labels(123, ["bug"])
 
         calls = mock_request.call_args_list
@@ -87,7 +93,9 @@ class TestLabels(unittest.TestCase):
         self.assertEqual(calls[1][0][0], "GET")
         self.assertIn("/issues/123", calls[1][0][1])
 
-        self.assertEqual(res, {"number": 123, "title": "T", "html_url": "U", "state": "S"})
+        self.assertEqual(
+            res, {"number": 123, "title": "T", "html_url": "U", "state": "S"}
+        )
 
     def test_orchestrator_update_issue_add_labels(self):
         self.orch.update_issue(123, addLabels=["new-label"])
@@ -99,7 +107,9 @@ class TestLabels(unittest.TestCase):
 
     def test_orchestrator_update_issue_full_labels(self):
         self.orch.update_issue(123, labels=["l1", "l2"])
-        self.orch.github.update_issue.assert_called_once_with(123, body=None, labels=["l1", "l2"], state=None)
+        self.orch.github.update_issue.assert_called_once_with(
+            123, body=None, labels=["l1", "l2"], state=None
+        )
 
     def test_orchestrator_update_issue_simultaneous_add_remove(self):
         self.orch.update_issue(123, addLabels=["new"], removeLabels=["old"])
@@ -114,7 +124,9 @@ class TestLabels(unittest.TestCase):
     def test_orchestrator_update_issue_body_and_add_labels(self):
         self.orch.update_issue(123, body="new body", addLabels=["l1"])
         self.orch.github.add_labels.assert_called_once_with(123, ["l1"])
-        self.orch.github.update_issue.assert_called_once_with(123, body="new body", state=None)
+        self.orch.github.update_issue.assert_called_once_with(
+            123, body="new body", state=None
+        )
 
     def test_orchestrator_update_issue_add_labels_no_fallback(self):
         # We ensure fetch_issue_details is NOT called during update_issue

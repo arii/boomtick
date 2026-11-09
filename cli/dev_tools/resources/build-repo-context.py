@@ -15,7 +15,9 @@ def safe_read_and_minify(file_path: pathlib.Path, base_dir: pathlib.Path) -> str
 
         # Security validation: Ensure resolved_path starts with resolved_base
         if not str(resolved_path).startswith(str(resolved_base)):
-            raise ValueError(f"Path traversal detected: {file_path} is outside {base_dir}")
+            raise ValueError(
+                f"Path traversal detected: {file_path} is outside {base_dir}"
+            )
 
         if not resolved_path.exists() or not resolved_path.is_file():
             return ""
@@ -23,23 +25,27 @@ def safe_read_and_minify(file_path: pathlib.Path, base_dir: pathlib.Path) -> str
         content = resolved_path.read_text(encoding="utf-8")
 
         # 1. Strip block comments: /* ... */
-        content = re.sub(r'/\*[\s\S]*?\*/', '', content)
+        content = re.sub(r"/\*[\s\S]*?\*/", "", content)
 
         # 2. Strip single-line comments: // ... (making sure we don't match http:// or https://)
-        content = re.sub(r'(?<!:)\/\/.*', '', content)
+        content = re.sub(r"(?<!:)\/\/.*", "", content)
 
         # 3. Normalize whitespace (replace any sequence of whitespace with a single space)
-        content = re.sub(r'\s+', ' ', content)
+        content = re.sub(r"\s+", " ", content)
 
         return content.strip()
     except (FileNotFoundError, PermissionError) as e:
-        print(f"File access error reading or minifying {file_path}: {e}", file=sys.stderr)
+        print(
+            f"File access error reading or minifying {file_path}: {e}", file=sys.stderr
+        )
         return ""
     except ValueError as e:
         print(f"Path traversal validation error for {file_path}: {e}", file=sys.stderr)
         return ""
     except Exception as e:
-        print(f"Unexpected error reading or minifying {file_path}: {e}", file=sys.stderr)
+        print(
+            f"Unexpected error reading or minifying {file_path}: {e}", file=sys.stderr
+        )
         return ""
 
 
@@ -59,7 +65,9 @@ def build_repo_context():
     # Always find the root of the repository
     repo_root = pathlib.Path(".").resolve()
     for parent in script_path.parents:
-        if (parent / "project_config.json").exists() or (parent / "package.json").exists():
+        if (parent / "project_config.json").exists() or (
+            parent / "package.json"
+        ).exists():
             repo_root = parent
             break
 
@@ -78,7 +86,9 @@ def build_repo_context():
             "name": package_json.get("name"),
             "scripts": package_json.get("scripts", {}),
             "dependencies": sorted(list(package_json.get("dependencies", {}).keys())),
-            "devDependencies": sorted(list(package_json.get("devDependencies", {}).keys())),
+            "devDependencies": sorted(
+                list(package_json.get("devDependencies", {}).keys())
+            ),
         }
     except Exception as e:
         print(f"Error reading package.json: {e}", file=sys.stderr)
@@ -122,10 +132,15 @@ def build_repo_context():
 
         cli_commands_schema_path = commands_schema_path(package_root)
         if cli_commands_schema_path is None:
-            print("Skipping cli-commands-schema.json write: not a boomtick checkout.", file=sys.stderr)
+            print(
+                "Skipping cli-commands-schema.json write: not a boomtick checkout.",
+                file=sys.stderr,
+            )
         else:
             temp_schema_path = cli_commands_schema_path.with_suffix(".tmp")
-            temp_schema_path.write_text(json.dumps(full_payload, indent=2) + "\n", encoding="utf-8")
+            temp_schema_path.write_text(
+                json.dumps(full_payload, indent=2) + "\n", encoding="utf-8"
+            )
             temp_schema_path.replace(cli_commands_schema_path)
 
         # Also trigger Pydantic model contract generation
@@ -140,14 +155,25 @@ def build_repo_context():
         # Note: sync-contracts.ts is run via pnpm run verify:schemas or manually
 
     except Exception as e:
-        print(f"Error generating command or model schemas dynamically: {e}", file=sys.stderr)
+        print(
+            f"Error generating command or model schemas dynamically: {e}",
+            file=sys.stderr,
+        )
         # Fallback to reading command schema file if generation failed
         try:
             cli_commands_schema_path = commands_schema_path(package_root)
-            if cli_commands_schema_path is not None and cli_commands_schema_path.exists():
-                cli_schema = json.loads(cli_commands_schema_path.read_text(encoding="utf-8"))
+            if (
+                cli_commands_schema_path is not None
+                and cli_commands_schema_path.exists()
+            ):
+                cli_schema = json.loads(
+                    cli_commands_schema_path.read_text(encoding="utf-8")
+                )
         except Exception as read_err:
-            print(f"Fallback read of cli-commands-schema.json failed: {read_err}", file=sys.stderr)
+            print(
+                f"Fallback read of cli-commands-schema.json failed: {read_err}",
+                file=sys.stderr,
+            )
         raise
 
     # 5. File Tree (Repo Root)
@@ -157,10 +183,16 @@ def build_repo_context():
         structure = {}
         try:
             for item in sorted(path.iterdir()):
-                if item.name.startswith(".") or item.name == "node_modules" or item.name == "__pycache__":
+                if (
+                    item.name.startswith(".")
+                    or item.name == "node_modules"
+                    or item.name == "__pycache__"
+                ):
                     continue
                 if item.is_dir():
-                    structure[item.name + "/"] = get_dir_structure(item, max_depth, current_depth + 1)
+                    structure[item.name + "/"] = get_dir_structure(
+                        item, max_depth, current_depth + 1
+                    )
                 else:
                     structure[item.name] = None
         except Exception:
@@ -200,7 +232,9 @@ if __name__ == "__main__":
     try:
         context = build_repo_context()
         if not context.get("package_json"):
-            raise ValueError("Failed to gather basic repository context (package.json missing or invalid)")
+            raise ValueError(
+                "Failed to gather basic repository context (package.json missing or invalid)"
+            )
         # sort_keys=True ensures the output is deterministic for revision control
         print(json.dumps(context, indent=2, sort_keys=True))
     except Exception as e:

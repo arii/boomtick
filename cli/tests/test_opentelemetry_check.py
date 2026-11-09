@@ -37,7 +37,9 @@ class TestOpenTelemetryCheck(unittest.TestCase):
         # float transitively. runtime_check must stay silent whatever the
         # installed OTEL set is (the old 1.37.0 gate prescribed downgrades
         # that skewed the resolver and broke the RAG backend).
-        mock_run.side_effect = lambda cmd, **kwargs: "24.16.0" if "node" in cmd else "10.28.2"
+        mock_run.side_effect = lambda cmd, **kwargs: (
+            "24.16.0" if "node" in cmd else "10.28.2"
+        )
         _contract_files_present(mock_exists, mock_open)
 
         captured_output = io.StringIO()
@@ -55,7 +57,9 @@ class TestOpenTelemetryCheck(unittest.TestCase):
     @patch("dev_tools.orchestrator.run_command")
     @patch("builtins.open")
     @patch("os.path.exists")
-    def test_runtime_check_fails_without_node_version_file(self, mock_exists, mock_open, mock_run):
+    def test_runtime_check_fails_without_node_version_file(
+        self, mock_exists, mock_open, mock_run
+    ):
         # No hardcoded fallback (#1172): a missing .node-version must fail.
         mock_exists.return_value = False
         mock_open.side_effect = FileNotFoundError

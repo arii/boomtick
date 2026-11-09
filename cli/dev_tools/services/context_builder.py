@@ -84,7 +84,9 @@ class ContextBuilder:
             self.linked_issues.append({"number": issue_number, "error": str(e)})
         return self
 
-    def ingest_file_tree(self, root_dir: str = ".", max_depth: int = 2) -> "ContextBuilder":
+    def ingest_file_tree(
+        self, root_dir: str = ".", max_depth: int = 2
+    ) -> "ContextBuilder":
         """Generates and ingests a clean, structured directory layout of the repository."""
         # Performance optimization: Attempt to load from pre-warmed context index if available
         context_file = os.path.join(root_dir, ".agent-context.json")
@@ -96,9 +98,14 @@ class ContextBuilder:
                         self.file_tree = context_data["file_tree"]
                         return self
             except Exception as e:
-                print(f"Warning: Failed to load cached file tree from {context_file}: {e}", file=sys.stderr)
+                print(
+                    f"Warning: Failed to load cached file tree from {context_file}: {e}",
+                    file=sys.stderr,
+                )
 
-        self.file_tree = self._get_dir_structure(root_dir, max_depth, root_dir_abs=os.path.realpath(root_dir))
+        self.file_tree = self._get_dir_structure(
+            root_dir, max_depth, root_dir_abs=os.path.realpath(root_dir)
+        )
         return self
 
     def add_extra_context(self, key: str, value: Any) -> "ContextBuilder":
@@ -155,7 +162,9 @@ class ContextBuilder:
 
         return structure
 
-    def _format_file_tree_as_markdown(self, tree: Dict[str, Any], indent: int = 0) -> str:
+    def _format_file_tree_as_markdown(
+        self, tree: Dict[str, Any], indent: int = 0
+    ) -> str:
         """Helper to format a directory tree dict into a clean Markdown list."""
         lines: List[str] = []
         for name, contents in tree.items():
@@ -165,7 +174,9 @@ class ContextBuilder:
             if name.endswith("/"):
                 lines.append(f"{spacing}- 📁 {name}")
                 if isinstance(contents, dict):
-                    subtree_str = self._format_file_tree_as_markdown(contents, indent + 1)
+                    subtree_str = self._format_file_tree_as_markdown(
+                        contents, indent + 1
+                    )
                     if subtree_str:
                         lines.append(subtree_str)
             else:
@@ -204,7 +215,9 @@ class ContextBuilder:
 
         pr_diff_text = self.pr_diff
         if pr_diff_text and len(pr_diff_text) > 15000:
-            pr_diff_text = pr_diff_text[:15000] + "\n\n... [Diff truncated due to size] ..."
+            pr_diff_text = (
+                pr_diff_text[:15000] + "\n\n... [Diff truncated due to size] ..."
+            )
 
         context = {
             "step": step_name,
@@ -301,7 +314,16 @@ class ContextBuilder:
             )
             for f in pr_data["changed_files"]:
                 markdown_lines.append(f"- `{f}`")
-            markdown_lines.extend(["", "### Diff Content", "```diff", str(pr_data.get("diff") or ""), "```", ""])
+            markdown_lines.extend(
+                [
+                    "",
+                    "### Diff Content",
+                    "```diff",
+                    str(pr_data.get("diff") or ""),
+                    "```",
+                    "",
+                ]
+            )
 
         # 3. Linked Issues
         if data["linked_issues"]:
@@ -330,8 +352,12 @@ class ContextBuilder:
 
         # 5. Agent Scratch Pad / Shared Thinking State
         if data["scratch_pad"]:
-            markdown_lines.append("## Agent Scratch Pad (Shared Multi-Role Thinking State)")
-            markdown_lines.append("These are intermediate thoughts and findings recorded sequentially by this agent:")
+            markdown_lines.append(
+                "## Agent Scratch Pad (Shared Multi-Role Thinking State)"
+            )
+            markdown_lines.append(
+                "These are intermediate thoughts and findings recorded sequentially by this agent:"
+            )
             for entry in data["scratch_pad"]:
                 markdown_lines.extend(
                     [
@@ -348,7 +374,9 @@ class ContextBuilder:
             for key, val in data["extra"].items():
                 markdown_lines.append(f"### {key}")
                 if isinstance(val, (dict, list)):
-                    markdown_lines.extend(["```json", json.dumps(val, indent=2), "```", ""])
+                    markdown_lines.extend(
+                        ["```json", json.dumps(val, indent=2), "```", ""]
+                    )
                 else:
                     markdown_lines.extend(["```text", str(val), "```", ""])
 

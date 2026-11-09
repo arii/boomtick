@@ -1,4 +1,5 @@
 """Ratchets, audits, and review tracking."""
+
 import json
 import os
 import re
@@ -20,17 +21,20 @@ from dev_tools.utils import (
     resolve_resource_path,
     set_gha_variable,
     verify_pr_scope,
-    walk_tsx)
+    walk_tsx,
+)
 from dev_tools.orchestration.issues import IssueMixin
 import dev_tools.orchestrator
-
 
 
 class QualityMixin(IssueMixin):
     """Ratchets, audits, and review tracking."""
 
     def ratchet_any(
-        self, update: bool = False, baseline_file: Optional[str] = None, dry_run: bool = True
+        self,
+        update: bool = False,
+        baseline_file: Optional[str] = None,
+        dry_run: bool = True,
     ) -> Dict[str, Any]:
         """Enforce a numeric ratchet gate."""
         current = get_any_count()
@@ -70,7 +74,9 @@ class QualityMixin(IssueMixin):
             "status": "success" if size <= threshold_kb else "error",
         }
         if size > threshold_kb:
-            res["message"] = f"Bundle size exceeds threshold ({size}KB > {threshold_kb}KB)."
+            res["message"] = (
+                f"Bundle size exceeds threshold ({size}KB > {threshold_kb}KB)."
+            )
         if update:
             if not dry_run:
                 if baseline_file:
@@ -94,7 +100,9 @@ class QualityMixin(IssueMixin):
             for filepath in walk_tsx(root_dir):
                 findings = find_patterns_in_file(filepath, [(re.escape(find), "Found")])
                 for ln, _, content in findings:
-                    matches.append({"file": filepath, "line": ln, "content": content.strip()})
+                    matches.append(
+                        {"file": filepath, "line": ln, "content": content.strip()}
+                    )
         elif migrate:
             old, new = migrate
             for filepath in walk_tsx(root_dir):
@@ -132,10 +140,18 @@ class QualityMixin(IssueMixin):
         if audit:
             res["auto_findings"] = self._run_antipattern_audit(ctx_path)
         if submit:
-            self.github.submit_pr_review(prNumber, rev_path, cleanup=cleanup, dry_run=dry_run, event_override=event)
+            self.github.submit_pr_review(
+                prNumber,
+                rev_path,
+                cleanup=cleanup,
+                dry_run=dry_run,
+                event_override=event,
+            )
         return res
 
-    def _fetch_pr_context_files(self, prNumber: int, ctx_path: str, rev_path: str) -> None:
+    def _fetch_pr_context_files(
+        self, prNumber: int, ctx_path: str, rev_path: str
+    ) -> None:
         repo = get_github_client().get_repo(dev_tools.orchestrator.get_repo_name())
         pr = repo.get_pull(prNumber)
         title = pr.title
@@ -157,17 +173,25 @@ class QualityMixin(IssueMixin):
         fetched_logs = {}
         if failed_runs:
             from dev_tools.utils.concurrency import run_concurrently
-            log_info(f"⚡ Pre-fetching logs for {len(failed_runs)} failed check runs in parallel...")
+
+            log_info(
+                f"⚡ Pre-fetching logs for {len(failed_runs)} failed check runs in parallel..."
+            )
+
             def fetch_logs_for_run(run_item):
                 r_id = run_item.get("id")
                 if isinstance(r_id, int):
                     try:
-                        return r_id, self.github.fetch_check_run_logs(r_id, external_id=run_item.get("external_id"))
+                        return r_id, self.github.fetch_check_run_logs(
+                            r_id, external_id=run_item.get("external_id")
+                        )
                     except Exception as e:
                         log_warn(f"Failed to fetch logs for run {r_id}: {e}")
                 return r_id, ""
 
-            results = run_concurrently(fetch_logs_for_run, failed_runs, max_workers=4, ignore_exceptions=True)
+            results = run_concurrently(
+                fetch_logs_for_run, failed_runs, max_workers=4, ignore_exceptions=True
+            )
             for r_id, r_logs in results:
                 if r_id is not None:
                     fetched_logs[r_id] = r_logs
@@ -177,7 +201,9 @@ class QualityMixin(IssueMixin):
                 status_icon = (
                     "✅"
                     if run.get("conclusion") == "success"
-                    else "❌" if run.get("conclusion") == "failure" else "⏳"
+                    else "❌"
+                    if run.get("conclusion") == "failure"
+                    else "⏳"
                 )
                 context_lines.append(
                     (
@@ -194,7 +220,9 @@ class QualityMixin(IssueMixin):
                         # Retrieve pre-fetched logs with a fallback
                         logs = fetched_logs.get(run_id, "")
                         if not logs:
-                            logs = self.github.fetch_check_run_logs(run_id, external_id=run.get("external_id"))
+                            logs = self.github.fetch_check_run_logs(
+                                run_id, external_id=run.get("external_id")
+                            )
 
                         # Structured failure analysis
                         findings = extract_failing_info(logs)
@@ -211,9 +239,21 @@ class QualityMixin(IssueMixin):
                     error_lines = [
                         l
                         for l in log_lines
-                        if any(x in l.lower() for x in ["error", "fail", "ts", "vitest", "playwright", "🔴"])
+                        if any(
+                            x in l.lower()
+                            for x in [
+                                "error",
+                                "fail",
+                                "ts",
+                                "vitest",
+                                "playwright",
+                                "🔴",
+                            ]
+                        )
                     ]
-                    snippet = "\n".join(error_lines[-20:] if error_lines else log_lines[-30:])
+                    snippet = "\n".join(
+                        error_lines[-20:] if error_lines else log_lines[-30:]
+                    )
                     context_lines.append(
                         f"  <details><summary>Failure Logs Snippet</summary>\n\n  ```\n  {snippet}\n  ```\n  </details>"
                     )
@@ -251,10 +291,14 @@ class QualityMixin(IssueMixin):
             context_file.write("\n".join(context_lines))
 
         failed_checks_str = (
-            "\n".join(f"- {name}" for name in failed_check_names) if failed_check_names else "_None_"
+            "\n".join(f"- {name}" for name in failed_check_names)
+            if failed_check_names
+            else "_None_"
         )
         errors_str = (
-            "\n".join(f"- {err}" for err in detected_errors) if detected_errors else "_None detected by parser._"
+            "\n".join(f"- {err}" for err in detected_errors)
+            if detected_errors
+            else "_None detected by parser._"
         )
 
         template_path = resolve_resource_path("review_template.md")
@@ -278,9 +322,13 @@ class QualityMixin(IssueMixin):
         auto_findings = []
         scope_warning = verify_pr_scope(changed_files)
         if scope_warning:
-            auto_findings.append({"path": "PR SCOPE", "issue": scope_warning, "severity": "major"})
+            auto_findings.append(
+                {"path": "PR SCOPE", "issue": scope_warning, "severity": "major"}
+            )
         files_to_audit = [
-            f for f in changed_files if (f.endswith(".tsx") or f.endswith(".ts")) and os.path.exists(f)
+            f
+            for f in changed_files
+            if (f.endswith(".tsx") or f.endswith(".ts")) and os.path.exists(f)
         ]
         if files_to_audit:
             script_path = self._resolve_antipatterns_script()
@@ -289,7 +337,11 @@ class QualityMixin(IssueMixin):
                     ["node", script_path, "--json"] + files_to_audit,
                     check=False,
                 )
-                output = audit_res.stdout if isinstance(audit_res, subprocess.CompletedProcess) else str(audit_res)
+                output = (
+                    audit_res.stdout
+                    if isinstance(audit_res, subprocess.CompletedProcess)
+                    else str(audit_res)
+                )
             else:
                 output = ""
             if output and "{" in output:
@@ -321,12 +373,16 @@ class QualityMixin(IssueMixin):
                                                     f"{v.get('message', 'No message')} (value: "
                                                     f"{v.get('value', 'N/A')})"
                                                 ),
-                                                "severity": str(v.get("severity", "minor")),
+                                                "severity": str(
+                                                    v.get("severity", "minor")
+                                                ),
                                             }
                                         )
         return auto_findings
 
-    def handle_comment_command(self, prNumber: int, command: str, comment_id: Optional[str] = None) -> Dict[str, Any]:
+    def handle_comment_command(
+        self, prNumber: int, command: str, comment_id: Optional[str] = None
+    ) -> Dict[str, Any]:
         """
         Delegates command handling to the CommandHandler.
         """
@@ -350,12 +406,24 @@ class QualityMixin(IssueMixin):
         """Evaluate the audit gate."""
         script_path = self._resolve_antipatterns_script()
         if not script_path or not os.path.exists(script_path):
-            return {"current": 0, "baseline": 0, "status": "skipped", "reason": "detect-antipatterns.mjs not found"}
-        current_count = int(dev_tools.orchestrator.run_command(["node", script_path, "--count-only"]) or 0)
+            return {
+                "current": 0,
+                "baseline": 0,
+                "status": "skipped",
+                "reason": "detect-antipatterns.mjs not found",
+            }
+        current_count = int(
+            dev_tools.orchestrator.run_command(["node", script_path, "--count-only"])
+            or 0
+        )
         baseline_count = self.resolve_baseline(None, "AUDIT_BASELINE", -1)
 
-        is_shallow = dev_tools.orchestrator.run_command(["git", "rev-parse", "--is-shallow-repository"],
-            check=False).stdout.strip() == "true"
+        is_shallow = (
+            dev_tools.orchestrator.run_command(
+                ["git", "rev-parse", "--is-shallow-repository"], check=False
+            ).stdout.strip()
+            == "true"
+        )
 
         if baseline_count == -1 or is_shallow:
             val = self.get_env_or_gha("AUDIT_BASELINE")
@@ -368,7 +436,9 @@ class QualityMixin(IssueMixin):
 
             if is_shallow:
                 # In a shallow clone, git ls-tree/show on base branch will fail or be incomplete.
-                log_warn("Shallow repository detected and no AUDIT_BASELINE variable found. Falling back to 0.")
+                log_warn(
+                    "Shallow repository detected and no AUDIT_BASELINE variable found. Falling back to 0."
+                )
                 return {
                     "current": current_count,
                     "baseline": 0,
@@ -377,43 +447,52 @@ class QualityMixin(IssueMixin):
 
             baseline_count = 0
             # Robust base branch discovery: try config, then origin/main, then main
-            base_candidates = [dev_tools.orchestrator.get_config().base_branch, "origin/main", "main"]
+            base_candidates = [
+                dev_tools.orchestrator.get_config().base_branch,
+                "origin/main",
+                "main",
+            ]
             base_ref = None
             for cand in base_candidates:
                 if (
                     cand
-                    and dev_tools.orchestrator.run_command(["git", "rev-parse", "--verify", cand],
+                    and dev_tools.orchestrator.run_command(
+                        ["git", "rev-parse", "--verify", cand],
                         check=False,
-                        log_on_error=False).returncode
+                        log_on_error=False,
+                    ).returncode
                     == 0
                 ):
                     base_ref = cand
                     break
 
             if not base_ref:
-                log_warn("Could not determine base branch for audit baseline. Falling back to 0.")
+                log_warn(
+                    "Could not determine base branch for audit baseline. Falling back to 0."
+                )
                 return {
                     "current": current_count,
                     "baseline": 0,
                     "status": "success" if current_count <= 0 else "error",
                 }
 
-            base_files = dev_tools.orchestrator.run_command(["git",
-                "ls-tree",
-                "-r",
-                base_ref,
-                "--name-only"]).splitlines()
+            base_files = dev_tools.orchestrator.run_command(
+                ["git", "ls-tree", "-r", base_ref, "--name-only"]
+            ).splitlines()
             # Ensure AUDIT_CHECK_DIRS are handled as a list of prefixes
             relevant = [
                 mf
                 for mf in base_files
                 if (mf.endswith(".tsx") or mf.endswith(".ts"))
-                and any(mf == d or mf.startswith(d + "/") for d in dev_tools.orchestrator.get_config().audit_check_dirs)
+                and any(
+                    mf == d or mf.startswith(d + "/")
+                    for d in dev_tools.orchestrator.get_config().audit_check_dirs
+                )
             ]
             for mf in relevant:
-                res_show = dev_tools.orchestrator.run_command(["git", "show", f"{base_ref}:{mf}"],
-                    check=False,
-                    log_on_error=False)
+                res_show = dev_tools.orchestrator.run_command(
+                    ["git", "show", f"{base_ref}:{mf}"], check=False, log_on_error=False
+                )
                 if res_show.returncode == 0:
                     baseline_count += int(
                         dev_tools.orchestrator.run_command(
@@ -446,32 +525,53 @@ class QualityMixin(IssueMixin):
         login = g.get_user().login
         prs_data = []
         # PyGithub get_pulls handles per_page internally. Directly slice the paginated list.
-        for pr in repo.get_pulls(state="open", sort="updated", direction="desc")[:limit]:
-            last_review = next((r for r in pr.get_reviews().reversed if r.user.login == login), None)
+        for pr in repo.get_pulls(state="open", sort="updated", direction="desc")[
+            :limit
+        ]:
+            last_review = next(
+                (r for r in pr.get_reviews().reversed if r.user.login == login), None
+            )
             status = (
                 "ACTION: Needs Review"
                 if not last_review
-                else ("ACTION: Needs Re-Review" if last_review.commit_id != pr.head.sha else "STATE: Up-To-Date")
+                else (
+                    "ACTION: Needs Re-Review"
+                    if last_review.commit_id != pr.head.sha
+                    else "STATE: Up-To-Date"
+                )
             )
-            item = {"number": pr.number, "title": pr.title, "status": status, "unaddressed": []}
+            item = {
+                "number": pr.number,
+                "title": pr.title,
+                "status": status,
+                "unaddressed": [],
+            }
             if check_responses:
-                our_coms = [c for c in pr.get_review_comments() if c.user.login == login]
+                our_coms = [
+                    c for c in pr.get_review_comments() if c.user.login == login
+                ]
                 after_coms = [
                     c
                     for c in pr.get_review_comments()
-                    if c.user.login != login and any(c.in_reply_to_id == oc.id for oc in our_coms)
+                    if c.user.login != login
+                    and any(c.in_reply_to_id == oc.id for oc in our_coms)
                 ]
                 if our_coms and not after_coms:
                     item["unaddressed"] = [f"{c.path}:{c.position}" for c in our_coms]
             if cleanup_comments:
                 for c in pr.get_issue_comments():
-                    if c.user.login == login and "<!-- td-review-manager-comment -->" in c.body:
+                    if (
+                        c.user.login == login
+                        and "<!-- td-review-manager-comment -->" in c.body
+                    ):
                         if not dry_run:
                             c.delete()
             prs_data.append(item)
         return prs_data
 
-    def track_review(self, pr_num: int, status: str, auditor: str, dry_run: bool = True) -> Dict[str, Any]:
+    def track_review(
+        self, pr_num: int, status: str, auditor: str, dry_run: bool = True
+    ) -> Dict[str, Any]:
         """Record a review status entry."""
         tracking_file = "REVIEW_TRACKING.md"
         now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
@@ -520,7 +620,9 @@ class QualityMixin(IssueMixin):
         Runs the UX audit suite using Playwright.
         """
         # Ensure routes are discovered
-        dev_tools.orchestrator.run_command(["pnpm", "exec", "tsx", "scripts/ux-discover-routes.ts"])
+        dev_tools.orchestrator.run_command(
+            ["pnpm", "exec", "tsx", "scripts/ux-discover-routes.ts"]
+        )
 
         routes = ["/"]
         if all_routes:
@@ -548,7 +650,9 @@ class QualityMixin(IssueMixin):
             cmd = ["pnpm", "exec", "tsx", "scripts/ux-audit-runner.ts", r]
             if viewports:
                 for vp in viewports:
-                    res = dev_tools.orchestrator.run_command(cmd + [vp] + flags, check=False)
+                    res = dev_tools.orchestrator.run_command(
+                        cmd + [vp] + flags, check=False
+                    )
                     results.append(
                         {
                             "route": r,
@@ -558,7 +662,12 @@ class QualityMixin(IssueMixin):
                     )
             else:
                 res = dev_tools.orchestrator.run_command(cmd + flags, check=False)
-                results.append({"route": r, "status": "success" if res.returncode == 0 else "error"})
+                results.append(
+                    {
+                        "route": r,
+                        "status": "success" if res.returncode == 0 else "error",
+                    }
+                )
 
         return {"status": "success", "results": results}
 
@@ -567,7 +676,9 @@ class QualityMixin(IssueMixin):
         Runs Lighthouse audits.
         """
         # Ensure routes are discovered
-        dev_tools.orchestrator.run_command(["pnpm", "exec", "tsx", "scripts/ux-discover-routes.ts"])
+        dev_tools.orchestrator.run_command(
+            ["pnpm", "exec", "tsx", "scripts/ux-discover-routes.ts"]
+        )
 
         cmd = ["pnpm", "exec", "tsx", "scripts/ux-lighthouse-runner.ts"]
         if route:
@@ -576,7 +687,10 @@ class QualityMixin(IssueMixin):
             pass
 
         res = dev_tools.orchestrator.run_command(cmd, check=False)
-        return {"status": "success" if res.returncode == 0 else "error", "output": res.stdout}
+        return {
+            "status": "success" if res.returncode == 0 else "error",
+            "output": res.stdout,
+        }
 
     def generate_ux_report(self) -> Dict[str, Any]:
         """

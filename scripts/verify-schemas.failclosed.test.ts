@@ -1,4 +1,4 @@
-import { execFile, type ExecException } from 'node:child_process';
+import { execFile, type ExecFileException } from 'node:child_process';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
@@ -14,8 +14,8 @@ function runScript(cwd: string): Promise<{ code: number | string; output: string
     execFile(
       'node',
       [SCRIPT],
-      { cwd, timeout: 60000 },
-      (error: ExecException | null, stdout: string, stderr: string) => {
+      { cwd, timeout: 60000, encoding: 'utf-8' },
+      (error: ExecFileException | null, stdout: string, stderr: string) => {
         resolve({ code: error?.code ?? 0, output: `${stdout}\n${stderr}` });
       },
     );

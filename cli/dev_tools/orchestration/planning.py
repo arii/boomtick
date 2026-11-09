@@ -1,4 +1,5 @@
 """Review/aggregation workflow planning."""
+
 import json
 import os
 import re
@@ -10,11 +11,12 @@ from dev_tools.orchestration.merge_gate import MergeGateMixin
 import dev_tools.orchestrator
 
 
-
 class PlanningMixin(MergeGateMixin):
     """Review/aggregation workflow planning."""
 
-    def generate_review_workflow(self, prNumber: int, issueNumber: Optional[int] = None, **kwargs) -> Dict[str, Any]:
+    def generate_review_workflow(
+        self, prNumber: int, issueNumber: Optional[int] = None, **kwargs
+    ) -> Dict[str, Any]:
         """Generate a review workflow plan for a pull request."""
         if "prNumber" in kwargs:
             prNumber = kwargs["prNumber"]
@@ -24,7 +26,9 @@ class PlanningMixin(MergeGateMixin):
         context_data = self._gather_review_workflow_context(prNumber, issueNumber)
         return self._render_workflow_plan(prNumber, context_data)
 
-    def _gather_review_workflow_context(self, prNumber: int, issueNumber: Optional[int] = None) -> Dict[str, Any]:
+    def _gather_review_workflow_context(
+        self, prNumber: int, issueNumber: Optional[int] = None
+    ) -> Dict[str, Any]:
         # 1. Environment Validation
         env_res = self.runtime_check()
         env_output = f"Runtime OK: node {env_res['node']}, pnpm {env_res['pnpm']}"
@@ -52,7 +56,9 @@ class PlanningMixin(MergeGateMixin):
                 pr_context_content = f.read()
 
             summary_match = re.search(
-                r"(# PR Context:.*?)(?=## CI Status|## Diff Stats)", pr_context_content, re.DOTALL
+                r"(# PR Context:.*?)(?=## CI Status|## Diff Stats)",
+                pr_context_content,
+                re.DOTALL,
             )
             if summary_match:
                 pr_summary = summary_match.group(1).strip()
@@ -65,7 +71,11 @@ class PlanningMixin(MergeGateMixin):
             if ci_status_match:
                 ci_status = ci_status_match.group(1).strip()
 
-            failure_logs_match = re.search(r"(## Failing Tests.*?)(?=## Diff Stats|$)", pr_context_content, re.DOTALL)
+            failure_logs_match = re.search(
+                r"(## Failing Tests.*?)(?=## Diff Stats|$)",
+                pr_context_content,
+                re.DOTALL,
+            )
             if failure_logs_match:
                 failure_logs = failure_logs_match.group(1).strip()
 
@@ -102,7 +112,9 @@ class PlanningMixin(MergeGateMixin):
 
         github_models_review = "None."
         if os.path.exists("artifacts/github-models-code-review.md"):
-            with open("artifacts/github-models-code-review.md", "r", encoding="utf-8") as f:
+            with open(
+                "artifacts/github-models-code-review.md", "r", encoding="utf-8"
+            ) as f:
                 github_models_review = f.read()
 
         return {
@@ -118,7 +130,9 @@ class PlanningMixin(MergeGateMixin):
             "github_models_review": github_models_review,
         }
 
-    def _render_workflow_plan(self, prNumber: int, context_data: Dict[str, Any]) -> Dict[str, Any]:
+    def _render_workflow_plan(
+        self, prNumber: int, context_data: Dict[str, Any]
+    ) -> Dict[str, Any]:
         plan_dir = dev_tools.orchestrator.get_or_create_log_dir("workflows")
         plan_path = os.path.join(plan_dir, f"workflow-plan-pr-{prNumber}.md")
 
@@ -155,54 +169,54 @@ Agent must not repeat these steps. Redundant fetching (`--fetch`) or auditing (`
 
 ### Validation Output
 ```text
-{context_data['env_output']}
+{context_data["env_output"]}
 ```
 
 ### Issue Validation Output
 ```text
-{context_data['issue_output']}
+{context_data["issue_output"]}
 ```
 
 ### Conflict Output
 ```text
-{context_data['conflict_output']}
+{context_data["conflict_output"]}
 ```
 
 ### PR Summary
 Relevant excerpts from:
-`{context_data['pr_context_file']}`
+`{context_data["pr_context_file"]}`
 
 ```text
-{context_data['pr_summary']}
+{context_data["pr_summary"]}
 ```
 
 ### CI Status
 Relevant excerpts:
 ```text
-{context_data['ci_status']}
+{context_data["ci_status"]}
 ```
 
 ### Failure Logs
 Relevant excerpts:
 ```text
-{context_data['failure_logs']}
+{context_data["failure_logs"]}
 ```
 
 ### Impact Analysis
 Relevant excerpts:
 ```text
-{context_data['impact_output']}
+{context_data["impact_output"]}
 ```
 
 ### Existing AI Reviews
 **Gemini:**
 ```markdown
-{context_data['gemini_review']}
+{context_data["gemini_review"]}
 ```
 
 **GitHub Models:**
 ```markdown
-{context_data['github_models_review']}
+{context_data["github_models_review"]}
 ```
 
 ---
@@ -286,7 +300,11 @@ Only after successful completion.
             num = str(pr.number)
             pr_titles[num] = pr.title
             # Standardize file fetch to avoid visual snapshots
-            files = {f.filename for f in pr.get_files() if not f.filename.startswith("tests/visual.spec.ts-snapshots/")}
+            files = {
+                f.filename
+                for f in pr.get_files()
+                if not f.filename.startswith("tests/visual.spec.ts-snapshots/")
+            }
             for f in files:
                 file_to_prs[f].append(num)
 
@@ -296,9 +314,13 @@ Only after successful completion.
                 overlap_groups[frozenset(prs)].append(file)
 
         report = ["--- EXACT OVERLAP GROUPS ---"]
-        for pr_set, overlap_files in sorted(overlap_groups.items(), key=lambda x: len(x[1]), reverse=True):
+        for pr_set, overlap_files in sorted(
+            overlap_groups.items(), key=lambda x: len(x[1]), reverse=True
+        ):
             pr_list = sorted(list(pr_set), key=int)
-            report.append(f"PRs {', '.join(pr_list)} overlap on {len(overlap_files)} files:")
+            report.append(
+                f"PRs {', '.join(pr_list)} overlap on {len(overlap_files)} files:"
+            )
             for pr_num in pr_list:
                 report.append(f"  [{pr_num}] {pr_titles.get(pr_num)}")
 

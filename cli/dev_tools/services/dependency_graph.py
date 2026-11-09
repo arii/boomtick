@@ -7,6 +7,7 @@ from typing import Any, Dict, List, Set
 
 from dev_tools.utils import CLIError, log_error, log_warn
 
+
 def validate_and_sanitize_graph_data(data: dict) -> dict:
     """Validates and sanitizes the dependency graph data structure."""
     if not isinstance(data, dict):
@@ -53,17 +54,27 @@ class DependencyGraph:
         """Loads the dependency graph using dependency-cruiser."""
         try:
             # Check if we have a cached graph first (optional, but good for performance)
-            cache_path = os.path.join(self.root_dir, "artifacts", "dependency-graph.json")
+            cache_path = os.path.join(
+                self.root_dir, "artifacts", "dependency-graph.json"
+            )
             if os.path.exists(cache_path):
                 with open(cache_path, "r", encoding="utf-8") as f:
                     data = json.load(f)
             else:
-                depcruise_config = os.path.join(self.root_dir, ".dependency-cruiser.config.mjs")
+                depcruise_config = os.path.join(
+                    self.root_dir, ".dependency-cruiser.config.mjs"
+                )
                 tsconfig = os.path.join(self.root_dir, "tsconfig.app.json")
                 src_dir = os.path.join(self.root_dir, "src")
 
-                if not os.path.exists(depcruise_config) or not os.path.exists(tsconfig) or not os.path.exists(src_dir):
-                    log_warn("Missing config or src directory. Dependency graph will be empty.")
+                if (
+                    not os.path.exists(depcruise_config)
+                    or not os.path.exists(tsconfig)
+                    or not os.path.exists(src_dir)
+                ):
+                    log_warn(
+                        "Missing config or src directory. Dependency graph will be empty."
+                    )
                     self.graph = {}
                     self.reverse_graph = {}
                     return
@@ -83,21 +94,33 @@ class DependencyGraph:
                 ]
                 try:
                     # Explicitly check for pnpm availability
-                    subprocess.run(["pnpm", "--version"], capture_output=True, check=True)
+                    subprocess.run(
+                        ["pnpm", "--version"], capture_output=True, check=True
+                    )
 
-                    result = subprocess.run(cmd, capture_output=True, text=True, cwd=self.root_dir)
+                    result = subprocess.run(
+                        cmd, capture_output=True, text=True, cwd=self.root_dir
+                    )
                     if result.returncode != 0:
-                        log_error(f"dependency-cruiser failed (exit {result.returncode}): {result.stderr}")
+                        log_error(
+                            f"dependency-cruiser failed (exit {result.returncode}): {result.stderr}"
+                        )
                         raise CLIError(f"dependency-cruiser failed: {result.stderr}")
 
                     try:
                         data = json.loads(result.stdout)
                     except json.JSONDecodeError as e:
-                        log_error(f"Failed to parse dependency-cruiser output: {e}\nRaw output: {result.stdout}")
-                        raise CLIError(f"Failed to parse dependency-cruiser output: {e}")
+                        log_error(
+                            f"Failed to parse dependency-cruiser output: {e}\nRaw output: {result.stdout}"
+                        )
+                        raise CLIError(
+                            f"Failed to parse dependency-cruiser output: {e}"
+                        )
                 except (FileNotFoundError, subprocess.CalledProcessError) as e:
                     log_error(f"pnpm or depcruise not found or failed: {e}")
-                    raise CLIError("pnpm or depcruise not found. Ensure dependencies are installed.")
+                    raise CLIError(
+                        "pnpm or depcruise not found. Ensure dependencies are installed."
+                    )
 
                 # Validate the parsed data before caching
                 validated_data = validate_and_sanitize_graph_data(data)
@@ -138,7 +161,9 @@ class DependencyGraph:
     def get_dependencies(self, filepath: str) -> List[str]:
         """Returns files that the given file depends on."""
         deps = self.graph.get(filepath, [])
-        return [str(d.get("resolved")) for d in deps if isinstance(d.get("resolved"), str)]
+        return [
+            str(d.get("resolved")) for d in deps if isinstance(d.get("resolved"), str)
+        ]
 
     def get_dependents(self, filepath: str) -> List[str]:
         """Returns files that depend on the given file."""
@@ -155,7 +180,9 @@ class DependencyGraph:
             if current_depth > depth:
                 continue
 
-            if current_depth > 0:  # Don't add the changed files themselves if we want only 'affected'
+            if (
+                current_depth > 0
+            ):  # Don't add the changed files themselves if we want only 'affected'
                 affected.add(file)
 
             dependents = self.get_dependents(file)
@@ -176,5 +203,9 @@ class DependencyGraph:
             context.update(self.get_dependents(f))
 
         # Filter out the changed files themselves and ensure they exist
-        result = [f for f in context if f not in changed_files and os.path.exists(os.path.join(self.root_dir, f))]
+        result = [
+            f
+            for f in context
+            if f not in changed_files and os.path.exists(os.path.join(self.root_dir, f))
+        ]
         return result

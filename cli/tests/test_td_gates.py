@@ -1,5 +1,6 @@
 # pylint: disable=missing-docstring,line-too-long
 """Tests for td validate-issue / verify-scope / audit-code gates (no network)."""
+
 import json
 import subprocess
 
@@ -45,8 +46,9 @@ BARE_SPEC = "# vague idea\n\nSome TODO left behind.\n"
 
 
 def _git(worktree, *args):
-    subprocess.run(["git", "-C", str(worktree), *args],
-                   check=True, capture_output=True, text=True)
+    subprocess.run(
+        ["git", "-C", str(worktree), *args], check=True, capture_output=True, text=True
+    )
 
 
 def _worktree(tmp_path):
@@ -82,8 +84,9 @@ def test_validate_issue_valid(tmp_path):
     (root / "tests" / "test_widget.py").write_text("ok\n")
     spec = tmp_path / "spec.md"
     spec.write_text(VALID_SPEC)
-    result = CliRunner().invoke(cli, ["validate-issue", "--file", str(spec),
-                                      "--repo-root", str(root), "--json"])
+    result = CliRunner().invoke(
+        cli, ["validate-issue", "--file", str(spec), "--repo-root", str(root), "--json"]
+    )
     assert result.exit_code == 0, result.output
     data = json.loads(result.output)
     assert data["valid"] is True
@@ -98,8 +101,10 @@ def test_validate_issue_valid(tmp_path):
 def test_validate_issue_invalid(tmp_path):
     spec = tmp_path / "bad.md"
     spec.write_text(BARE_SPEC)
-    result = CliRunner().invoke(cli, ["validate-issue", "--file", str(spec),
-                                      "--repo-root", str(tmp_path), "--json"])
+    result = CliRunner().invoke(
+        cli,
+        ["validate-issue", "--file", str(spec), "--repo-root", str(tmp_path), "--json"],
+    )
     assert result.exit_code == 1, result.output
     data = json.loads(result.output)
     assert data["valid"] is False
@@ -121,8 +126,9 @@ def test_validate_issue_mixed_case_and_dirs(tmp_path):
         "test -f src/Widget.py\n"
         "```\n"
     )
-    result = CliRunner().invoke(cli, ["validate-issue", "--file", str(spec),
-                                      "--repo-root", str(root), "--json"])
+    result = CliRunner().invoke(
+        cli, ["validate-issue", "--file", str(spec), "--repo-root", str(root), "--json"]
+    )
     assert result.exit_code == 0, result.output
     assert json.loads(result.output)["valid"] is True
 
@@ -131,17 +137,33 @@ def test_verify_scope_pass_and_violation(tmp_path):
     root = _worktree(tmp_path)
     with open(root / "src" / "widget.py", "a", encoding="utf-8") as handle:
         handle.write("change\n")
-    result = CliRunner().invoke(cli, ["verify-scope", "--spec-file",
-                                      _spec_file(tmp_path), "--worktree",
-                                      str(root), "--json"])
+    result = CliRunner().invoke(
+        cli,
+        [
+            "verify-scope",
+            "--spec-file",
+            _spec_file(tmp_path),
+            "--worktree",
+            str(root),
+            "--json",
+        ],
+    )
     assert result.exit_code == 0, result.output
     assert json.loads(result.output)["violations"] == []
 
     with open(root / "src" / "admin.py", "a", encoding="utf-8") as handle:
         handle.write("bad\n")
-    result = CliRunner().invoke(cli, ["verify-scope", "--spec-file",
-                                      _spec_file(tmp_path), "--worktree",
-                                      str(root), "--json"])
+    result = CliRunner().invoke(
+        cli,
+        [
+            "verify-scope",
+            "--spec-file",
+            _spec_file(tmp_path),
+            "--worktree",
+            str(root),
+            "--json",
+        ],
+    )
     assert result.exit_code == 1, result.output
     data = json.loads(result.output)
     assert data["violations"] == ["src/admin.py"]
@@ -151,9 +173,18 @@ def test_verify_scope_auto_revert(tmp_path):
     root = _worktree(tmp_path)
     with open(root / "src" / "admin.py", "a", encoding="utf-8") as handle:
         handle.write("bad\n")
-    result = CliRunner().invoke(cli, ["verify-scope", "--spec-file",
-                                      _spec_file(tmp_path), "--worktree",
-                                      str(root), "--auto-revert", "--json"])
+    result = CliRunner().invoke(
+        cli,
+        [
+            "verify-scope",
+            "--spec-file",
+            _spec_file(tmp_path),
+            "--worktree",
+            str(root),
+            "--auto-revert",
+            "--json",
+        ],
+    )
     assert result.exit_code == 0, result.output
     data = json.loads(result.output)
     assert data["violations"] == []
@@ -168,14 +199,15 @@ def _impact_repo(tmp_path):
     _git(root, "config", "user.email", "t@t")
     _git(root, "config", "user.name", "t")
     (root / "src").mkdir()
-    (root / "src" / "widget.tsx").write_text(
-        "export function Widget() { return 1; }\n")
+    (root / "src" / "widget.tsx").write_text("export function Widget() { return 1; }\n")
     (root / "src" / "app.tsx").write_text(
         'import { Widget } from "./widget";\n'
-        "export function App() { return Widget(); }\n")
+        "export function App() { return Widget(); }\n"
+    )
     (root / "tests").mkdir()
     (root / "tests" / "widget.test.tsx").write_text(
-        'import { Widget } from "../src/widget";\n')
+        'import { Widget } from "../src/widget";\n'
+    )
     _git(root, "add", "-A")
     _git(root, "commit", "-qm", "init")
     _git(root, "remote", "add", "origin", str(root))
@@ -185,12 +217,10 @@ def _impact_repo(tmp_path):
 
 def test_audit_impact_clean_reports_blast_radius(tmp_path):
     root = _impact_repo(tmp_path)
-    with open(root / "src" / "widget.tsx", "a",
-              encoding="utf-8") as handle:
+    with open(root / "src" / "widget.tsx", "a", encoding="utf-8") as handle:
         handle.write("export const v = 2;\n")
     runner = CliRunner()
-    result = runner.invoke(cli, ["audit-impact", "--worktree",
-                                 str(root), "--json"])
+    result = runner.invoke(cli, ["audit-impact", "--worktree", str(root), "--json"])
     assert result.exit_code == 0, result.output
     data = json.loads(result.output)
     assert data["violations"] == []
@@ -208,23 +238,32 @@ def test_audit_impact_skips_heavy_dirs(tmp_path):
     invisible to the blast radius — and the walk stays fast.
     """
     from dev_tools.cli import _prune_walk_dirs
+
     assert _prune_walk_dirs(
-        [".git", "node_modules", ".venv", "venv", "dist", "build",
-         "__pycache__", ".tmp-cache", "pkg.egg-info", "src"]) == ["src"]
+        [
+            ".git",
+            "node_modules",
+            ".venv",
+            "venv",
+            "dist",
+            "build",
+            "__pycache__",
+            ".tmp-cache",
+            "pkg.egg-info",
+            "src",
+        ]
+    ) == ["src"]
     root = _impact_repo(tmp_path)
     venv_mod = root / ".venv" / "lib" / "heavy.py"
     venv_mod.parent.mkdir(parents=True)
-    venv_mod.write_text('from widget import Widget\n',
-                        encoding="utf-8")
+    venv_mod.write_text("from widget import Widget\n", encoding="utf-8")
     dist_mod = root / "dist" / "bundle.py"
     dist_mod.parent.mkdir()
-    dist_mod.write_text('from widget import Widget\n', encoding="utf-8")
-    with open(root / "src" / "widget.tsx", "a",
-              encoding="utf-8") as handle:
+    dist_mod.write_text("from widget import Widget\n", encoding="utf-8")
+    with open(root / "src" / "widget.tsx", "a", encoding="utf-8") as handle:
         handle.write("export const v = 2;\n")
     runner = CliRunner()
-    result = runner.invoke(cli, ["audit-impact", "--worktree",
-                                 str(root), "--json"])
+    result = runner.invoke(cli, ["audit-impact", "--worktree", str(root), "--json"])
     assert result.exit_code == 0, result.output
     data = json.loads(result.output)
     assert ".venv/lib/heavy.py" not in data["impacted_files"]
@@ -234,12 +273,10 @@ def test_audit_impact_skips_heavy_dirs(tmp_path):
 
 def test_audit_impact_violation_fails(tmp_path):
     root = _impact_repo(tmp_path)
-    with open(root / "src" / "widget.tsx", "a",
-              encoding="utf-8") as handle:
+    with open(root / "src" / "widget.tsx", "a", encoding="utf-8") as handle:
         handle.write("// @ts-ignore\n")
     runner = CliRunner()
-    result = runner.invoke(cli, ["audit-impact", "--worktree",
-                                 str(root), "--json"])
+    result = runner.invoke(cli, ["audit-impact", "--worktree", str(root), "--json"])
     assert result.exit_code == 1, result.output
     data = json.loads(result.output)
     assert data["violations"]
@@ -267,8 +304,9 @@ def test_validate_issue_nested_allowed_path(tmp_path):
         "pnpm vitest run picker\n"
         "```\n"
     )
-    result = CliRunner().invoke(cli, ["validate-issue", "--file", str(spec),
-                                      "--repo-root", str(root), "--json"])
+    result = CliRunner().invoke(
+        cli, ["validate-issue", "--file", str(spec), "--repo-root", str(root), "--json"]
+    )
     assert result.exit_code == 0, result.output
     data = json.loads(result.output)
     assert data["valid"] is True, data["errors"]
@@ -294,13 +332,15 @@ def test_validate_issue_missing_file_errors(tmp_path):
         "pytest tests/test_widget.py\n"
         "```\n"
     )
-    result = CliRunner().invoke(cli, ["validate-issue", "--file", str(spec),
-                                      "--repo-root", str(root), "--json"])
+    result = CliRunner().invoke(
+        cli, ["validate-issue", "--file", str(spec), "--repo-root", str(root), "--json"]
+    )
     assert result.exit_code == 1, result.output
     data = json.loads(result.output)
     assert data["valid"] is False
-    assert any("allowed path not in checkout: src/gone.py" in e
-               for e in data["errors"]), data["errors"]
+    assert any(
+        "allowed path not in checkout: src/gone.py" in e for e in data["errors"]
+    ), data["errors"]
 
 
 def test_validate_issue_command_mention_still_requires_existence(tmp_path):
@@ -323,13 +363,16 @@ def test_validate_issue_command_mention_still_requires_existence(tmp_path):
         "pytest tests/test_new_module.py\n"
         "```\n"
     )
-    result = CliRunner().invoke(cli, ["validate-issue", "--file", str(spec),
-                                      "--repo-root", str(root), "--json"])
+    result = CliRunner().invoke(
+        cli, ["validate-issue", "--file", str(spec), "--repo-root", str(root), "--json"]
+    )
     assert result.exit_code == 1, result.output
     data = json.loads(result.output)
     assert data["valid"] is False
-    assert any("allowed path not in checkout: tests/test_new_module.py" in e
-               for e in data["errors"]), data["errors"]
+    assert any(
+        "allowed path not in checkout: tests/test_new_module.py" in e
+        for e in data["errors"]
+    ), data["errors"]
 
 
 def test_validate_issue_mixed_case_create_marker(tmp_path):
@@ -354,8 +397,9 @@ def test_validate_issue_mixed_case_create_marker(tmp_path):
         "pytest tests/test_new_widget.py\n"
         "```\n"
     )
-    result = CliRunner().invoke(cli, ["validate-issue", "--file", str(spec),
-                                      "--repo-root", str(root), "--json"])
+    result = CliRunner().invoke(
+        cli, ["validate-issue", "--file", str(spec), "--repo-root", str(root), "--json"]
+    )
     assert result.exit_code == 0, result.output
     assert json.loads(result.output)["valid"] is True
 
@@ -370,10 +414,14 @@ def test_audit_code_skips_slang_without_config(tmp_path):
     root = _worktree(tmp_path)
     with open(root / "src" / "widget.py", "a", encoding="utf-8") as handle:
         handle.write("change\n")
-    result = CliRunner().invoke(cli, ["audit-code", "--worktree",
-                                      str(root), "--json"])
+    result = CliRunner().invoke(cli, ["audit-code", "--worktree", str(root), "--json"])
     assert result.exit_code == 0, result.output
     data = json.loads(result.output)
     assert data["slop_findings"] == []
-    assert set(data) == {"status", "passed", "slop_findings",
-                         "suppressions_added", "ast_violations"}
+    assert set(data) == {
+        "status",
+        "passed",
+        "slop_findings",
+        "suppressions_added",
+        "ast_violations",
+    }

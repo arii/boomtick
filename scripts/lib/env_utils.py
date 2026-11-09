@@ -1,6 +1,7 @@
 import os
 import sys
 
+
 def get_venv_paths(repo_root: str):
     """
     Returns the absolute paths for the virtual environment directory and the python executable

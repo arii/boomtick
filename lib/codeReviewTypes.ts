@@ -3,7 +3,7 @@ export interface ReviewFinding {
   file: string;
   issue: string;
   status: 'open' | 'resolved';
-  severity?: 'HIGH' | 'MEDIUM' | 'LOW';
+  severity?: 'HIGH' | 'MEDIUM' | 'LOW' | 'error' | 'warn' | 'info';
   confidence: 'high' | 'medium' | 'low';
   line?: number;
   startLine?: number;
@@ -14,8 +14,11 @@ export interface ReviewFinding {
   suggestion?: string;
 }
 
+export type CodeReviewRole = 'SECURITY' | 'PERFORMANCE' | 'STYLE' | 'ARCHITECTURE';
+
 export interface CodeReviewState {
   findings: ReviewFinding[];
+  cache?: { [key: string]: CodeReviewResult };
 }
 
 export type CodeReviewParseError = 'missing_closing_tag' | 'truncated_json' | 'incomplete_findings' | 'invalid_json';
@@ -27,9 +30,13 @@ export interface ParsedFindingsResult {
 }
 
 export interface CodeReviewSummary {
-  role: string;
+  role?: string;
   diffContext: string;
-  prGoal: string;
+  prGoal?: string;
+  fullDiff?: string;
+  changedFiles?: string[];
+  diffStat?: string;
+  isTruncated?: boolean;
   externalContext?: string;
   impactSemanticContext?: string;
   previousState?: CodeReviewState;
@@ -46,13 +53,15 @@ export interface IssueSummary {
 
 export interface CodeReviewResult extends CodeReviewState {
   feedback: string;
-  role: string;
+  role?: string;
   tokens: number;
   cost: number;
   modelName: string;
   llmVerdict: 'pass' | 'warn' | 'fail';
   /** Modern standard field indicating if the LLM output was truncated */
   isTruncated?: boolean;
+  state?: CodeReviewState;
+  skipReason?: string;
   inputTokens?: number;
   outputTokens?: number;
   cacheTokens?: number;

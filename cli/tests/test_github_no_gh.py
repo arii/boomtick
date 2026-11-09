@@ -28,14 +28,25 @@ class TestGitHubClientNoGH(unittest.TestCase):
     def test_list_pull_requests_pagination(self, mock_request):
         mock_response1 = MagicMock()
         mock_response1.json.return_value = [
-            {"number": i, "user": {"login": "u"}, "head": {"ref": "h"}, "base": {"ref": "b"}} for i in range(1, 101)
+            {
+                "number": i,
+                "user": {"login": "u"},
+                "head": {"ref": "h"},
+                "base": {"ref": "b"},
+            }
+            for i in range(1, 101)
         ]
         mock_response1.status_code = 200
         mock_response1.raise_for_status.return_value = None
 
         mock_response2 = MagicMock()
         mock_response2.json.return_value = [
-            {"number": 101, "user": {"login": "u"}, "head": {"ref": "h"}, "base": {"ref": "b"}}
+            {
+                "number": 101,
+                "user": {"login": "u"},
+                "head": {"ref": "h"},
+                "base": {"ref": "b"},
+            }
         ]
         mock_response2.status_code = 200
         mock_response2.raise_for_status.return_value = None

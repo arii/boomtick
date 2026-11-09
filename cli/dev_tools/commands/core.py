@@ -1,4 +1,5 @@
 """Core CLI group, shared options, and output helpers."""
+
 import json
 import sys
 import click
@@ -34,8 +35,11 @@ class LazyOrchestrator:
 DEFAULT_GH_API_LIMIT = 10
 
 
-def limit_option(default_val=DEFAULT_GH_API_LIMIT, help_text="Limit the number of items to process"):
+def limit_option(
+    default_val=DEFAULT_GH_API_LIMIT, help_text="Limit the number of items to process"
+):
     """Click decorator adding a --limit option."""
+
     def decorator(f):
         return click.option("--limit", type=int, default=default_val, help=help_text)(f)
 
@@ -50,7 +54,12 @@ def json_option(f):
     """
     import functools
 
-    f = click.option("--json/--no-json", "json_output", default=None, help="Output results in JSON format")(f)
+    f = click.option(
+        "--json/--no-json",
+        "json_output",
+        default=None,
+        help="Output results in JSON format",
+    )(f)
 
     @click.pass_context
     @functools.wraps(f)
@@ -74,8 +83,18 @@ CONTEXT_SETTINGS = {
 
 
 @click.group(context_settings=CONTEXT_SETTINGS)
-@click.option("--json/--no-json", "json_output", default=True, help="Output results in JSON format")
-@click.option("--no-cache", is_flag=True, default=False, help="Bypass the disk cache for GitHub API calls")
+@click.option(
+    "--json/--no-json",
+    "json_output",
+    default=True,
+    help="Output results in JSON format",
+)
+@click.option(
+    "--no-cache",
+    is_flag=True,
+    default=False,
+    help="Bypass the disk cache for GitHub API calls",
+)
 @click.pass_context
 def cli(ctx, json_output, no_cache):
     """Unified Tech-Dancer DevTools CLI"""
@@ -92,6 +111,7 @@ def cli(ctx, json_output, no_cache):
         return Orchestrator(no_cache=no_cache)
 
     from dev_tools.cli import LazyOrchestrator as lazy_orchestrator_cls
+
     ctx.obj["ORCHESTRATOR"] = lazy_orchestrator_cls(orchestrator_factory)
 
 
@@ -133,13 +153,18 @@ def _gate_json_option(func):
     """Per-command --json/--no-json passthrough (group flag is global)."""
     import click as _click
 
-    @_click.option("--json/--no-json", "json_output", default=None,
-                   help="Override JSON output for this command")
+    @_click.option(
+        "--json/--no-json",
+        "json_output",
+        default=None,
+        help="Override JSON output for this command",
+    )
     @_click.pass_context
     def wrapper(ctx, json_output, *args, **kwargs):
         if json_output is not None:
             ctx.obj["JSON"] = json_output
         return ctx.invoke(func, *args, **kwargs)
+
     wrapper.__name__ = func.__name__
     wrapper.__doc__ = func.__doc__
     return wrapper
@@ -151,7 +176,9 @@ def _get_body_content(ctx, orch, file, body):
     if not file and not body:
         err(ctx, "Provide either --file or --body")
 
-    content = body if body is not None else (orch._read_safe_file(file) if file else None)
+    content = (
+        body if body is not None else (orch._read_safe_file(file) if file else None)
+    )
     if content is None:
         err(ctx, "Provide --file or --body")
     return content
@@ -172,4 +199,5 @@ def _handle_gate(ctx, res, label):
 def get_config():
     """Active project config via the CLI shim."""
     from dev_tools.cli import get_config as _get_config
+
     return _get_config()

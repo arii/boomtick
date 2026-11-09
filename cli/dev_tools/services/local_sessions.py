@@ -49,7 +49,10 @@ def _git(args, cwd):
     # Callers strip what they need.
     try:
         res = subprocess.run(
-            ["git"] + args, cwd=cwd, capture_output=True, text=True,
+            ["git"] + args,
+            cwd=cwd,
+            capture_output=True,
+            text=True,
             check=False,
         )
     except OSError:
@@ -67,8 +70,7 @@ def repo_root_for(path=None):
     ``--git-common-dir`` and preferred when it holds ``.worktrees``.
     """
     start = os.path.abspath(path or os.getcwd())
-    top = (_git(["rev-parse", "--show-toplevel"], start) or "").strip() \
-        or start
+    top = (_git(["rev-parse", "--show-toplevel"], start) or "").strip() or start
     common = (_git(["rev-parse", "--git-common-dir"], start) or "").strip()
     if common:
         if not os.path.isabs(common):
@@ -146,16 +148,16 @@ def save_session(session):
         worktree = session.get("worktreePath")
         if not worktree or not os.path.isdir(worktree):
             return
-        with open(os.path.join(worktree, SESSION_FILE), "w",
-                  encoding="utf-8") as handle:
+        with open(
+            os.path.join(worktree, SESSION_FILE), "w", encoding="utf-8"
+        ) as handle:
             json.dump(session, handle, indent=2)
     except (OSError, ValueError, TypeError) as e:
         log_warn(f"local_sessions: session save failed for {worktree}: {e}")
 
 
 def _detect_branch(worktree_path):
-    branch = (_git(["branch", "--show-current"], worktree_path)
-              or "").strip()
+    branch = (_git(["branch", "--show-current"], worktree_path) or "").strip()
     if branch:
         return branch
     return "agent/" + os.path.basename(os.path.abspath(worktree_path))
@@ -184,11 +186,12 @@ def new_session(worktree_path, brief, model=None, repo=None, worktree_id=None):
         "changedFiles": [],
         "retries": 0,
         "maxRetries": 3,
-        "transcript": [f"[System]: Dispatch initiated with model "
-                       f"{model or 'default'}"],
-        "logs": [f"[{time.strftime('%Y-%m-%dT%H:%M:%S.000Z', time.gmtime())}] "
-                 f"Session {session_id} initialized in worktree "
-                 f"{worktree_path}"],
+        "transcript": [f"[System]: Dispatch initiated with model {model or 'default'}"],
+        "logs": [
+            f"[{time.strftime('%Y-%m-%dT%H:%M:%S.000Z', time.gmtime())}] "
+            f"Session {session_id} initialized in worktree "
+            f"{worktree_path}"
+        ],
         "lastVerification": None,
     }
 
@@ -283,8 +286,7 @@ def build_system_prompt(worktree_path, brief):
     if os.path.isfile(contract):
         try:
             with open(contract, encoding="utf-8") as handle:
-                sections.append("# Worktree Agent Contract\n\n" +
-                                handle.read())
+                sections.append("# Worktree Agent Contract\n\n" + handle.read())
         except OSError as e:
             log_warn(f"local_sessions: skipping unreadable {contract}: {e}")
     sections.append("# Task Brief\n\n" + brief)
@@ -295,8 +297,11 @@ def executor_command(session):
     """Return (cli, args) for the session executor (mirrors TS spawn)."""
     cli = os.environ.get("BOOMTICK_EXECUTOR_CLI", "s5-coder")
     model = session.get("model") or os.environ.get("BOOMTICK_EXECUTOR_MODEL")
-    args = ["-p", "--system-prompt",
-            build_system_prompt(session["worktreePath"], session["brief"])]
+    args = [
+        "-p",
+        "--system-prompt",
+        build_system_prompt(session["worktreePath"], session["brief"]),
+    ]
     if model:
         args += ["--model", model]
     args.append(session["brief"])
@@ -322,8 +327,12 @@ def run_executor(root, session, stream=None):
     cli, args = executor_command(session)
     try:
         child = subprocess.Popen(
-            [cli] + args, cwd=session["worktreePath"], stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT, text=True, bufsize=1,
+            [cli] + args,
+            cwd=session["worktreePath"],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            bufsize=1,
         )
     except OSError as exc:
         append_log(session, f"[exec] spawn failed: {exc}")
@@ -347,10 +356,18 @@ def spawn_detached(root, session_id):
     """Re-invoke this CLI detached to supervise the session executor."""
     td_binary = shutil.which("td") or sys.argv[0]
     child = subprocess.Popen(
-        [td_binary, "session", "supervise", session_id,
-         "--path", os.path.abspath(root)],
-        stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL, start_new_session=True,
+        [
+            td_binary,
+            "session",
+            "supervise",
+            session_id,
+            "--path",
+            os.path.abspath(root),
+        ],
+        stdin=subprocess.DEVNULL,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        start_new_session=True,
     )
     return child.pid
 

@@ -36,8 +36,12 @@ def generate_report():
     lh_files = glob.glob(os.path.join(lighthouse_dir, "*.report.json"))
     if lh_files:
         report_lines.append("\n## Lighthouse Scores")
-        report_lines.append("| Route | Performance | Accessibility | Best Practices | SEO |")
-        report_lines.append("|-------|-------------|---------------|----------------|-----|")
+        report_lines.append(
+            "| Route | Performance | Accessibility | Best Practices | SEO |"
+        )
+        report_lines.append(
+            "|-------|-------------|---------------|----------------|-----|"
+        )
         for lhf in lh_files:
             with open(lhf, "r", encoding="utf-8") as f:
                 data = json.load(f)
@@ -67,7 +71,9 @@ def generate_report():
                     "route": route,
                     "viewport": vp,
                     "category": "Accessibility",
-                    "severity": "High" if v["impact"] in ["critical", "serious"] else "Medium",
+                    "severity": "High"
+                    if v["impact"] in ["critical", "serious"]
+                    else "Medium",
                     "evidence": f"Axe violation: {v['description']}. Found on {len(v['nodes'])} elements.",
                     "recommendation": f"Fix {v['id']} issues. Help: {v['helpUrl']}",
                     "screenshot": screenshot,
@@ -122,7 +128,8 @@ def generate_report():
         oversized_images = [
             img
             for img in res.get("images", [])
-            if img["naturalWidth"] > img["renderedWidth"] * 2 and img["naturalWidth"] > 1000
+            if img["naturalWidth"] > img["renderedWidth"] * 2
+            and img["naturalWidth"] > 1000
         ]
         if oversized_images:
             finding = {
@@ -145,7 +152,9 @@ def generate_report():
         # 5. Above the Fold heuristics
         atf = res.get("aboveTheFold")
         if atf:
-            if atf.get("heroViewportPercentage", 0) > 80 and not atf.get("hasPrimaryCTA"):
+            if atf.get("heroViewportPercentage", 0) > 80 and not atf.get(
+                "hasPrimaryCTA"
+            ):
                 finding = {
                     "title": f"Poor Above-the-Fold Visibility on `{route}` ({vp})",
                     "route": route,
@@ -181,14 +190,23 @@ def generate_report():
 
             # Generate Issue Draft
             safe_title = (
-                f["title"].replace("/", "_").replace("`", "").replace("(", "").replace(")", "").replace(":", "")
+                f["title"]
+                .replace("/", "_")
+                .replace("`", "")
+                .replace("(", "")
+                .replace(")", "")
+                .replace(":", "")
             )
             issue_slug = f"{f['category']}-{safe_title}".lower().replace(" ", "-")
             issue_path = os.path.join(issues_dir, f"{issue_slug}.md")
             with open(issue_path, "w", encoding="utf-8") as issue_file:
                 issue_file.write(f"## Problem\n{f['title']}\n\n")
-                issue_file.write(f"## Route / viewport\n- Route: {f['route']}\n- Viewport: {f['viewport']}\n\n")
-                issue_file.write(f"## Evidence\n- {f['evidence']}\n- Screenshot: `{f['screenshot']}`\n\n")
+                issue_file.write(
+                    f"## Route / viewport\n- Route: {f['route']}\n- Viewport: {f['viewport']}\n\n"
+                )
+                issue_file.write(
+                    f"## Evidence\n- {f['evidence']}\n- Screenshot: `{f['screenshot']}`\n\n"
+                )
                 issue_file.write(f"## User impact\n{f.get('user_impact', 'N/A')}\n\n")
                 issue_file.write(f"## Recommended fix\n{f['recommendation']}\n\n")
                 issue_file.write("## Acceptance criteria\n")

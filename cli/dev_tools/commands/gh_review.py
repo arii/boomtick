@@ -1,4 +1,5 @@
 """GitHub review, audit-gate, and token commands."""
+
 import os
 import re
 import click
@@ -21,7 +22,9 @@ from dev_tools.commands.gh_pr import gh
 def audit(ctx, check_dirs):
     """Run a headless UI audit on the codebase."""
     if check_dirs is None:
-        check_dirs = os.environ.get("AUDIT_CHECK_DIRS") or ",".join(get_config().audit_check_dirs)
+        check_dirs = os.environ.get("AUDIT_CHECK_DIRS") or ",".join(
+            get_config().audit_check_dirs
+        )
     orch = ctx.obj["ORCHESTRATOR"]
     res = orch.get_audit_results(targets=check_dirs.split(","))
     out(ctx, "Headless audit complete.", data=res)
@@ -30,7 +33,9 @@ def audit(ctx, check_dirs):
 @gh.command()
 @json_option
 @click.argument("pr_number_arg", required=False, type=int)
-@click.option("--pr", "--pr-number", "pr_number_opt", type=int, help="The PR number to audit.")
+@click.option(
+    "--pr", "--pr-number", "pr_number_opt", type=int, help="The PR number to audit."
+)
 @click.option("--fetch", is_flag=True)
 @click.option("--audit", "run_audit", is_flag=True)
 @click.option("--submit", is_flag=True)
@@ -39,7 +44,18 @@ def audit(ctx, check_dirs):
 @click.option("--base")
 @click.option("--event")
 @click.pass_context
-def audit_pr(ctx, pr_number_arg, pr_number_opt, fetch, run_audit, submit, cleanup, dry_run, base, event):
+def audit_pr(
+    ctx,
+    pr_number_arg,
+    pr_number_opt,
+    fetch,
+    run_audit,
+    submit,
+    cleanup,
+    dry_run,
+    base,
+    event,
+):
     pr_number = pr_number_arg if pr_number_arg is not None else pr_number_opt
     if pr_number is None:
         err(ctx, "Provide --pr/--pr-number or a positional PR number")
@@ -99,7 +115,9 @@ def audit_gate(ctx):
 
 
 @gh.command()
-@click.option("--pr", "--pr-number", "pr", required=True, type=int, help="The PR number.")
+@click.option(
+    "--pr", "--pr-number", "pr", required=True, type=int, help="The PR number."
+)
 @click.option("--status", required=True)
 @click.option("--auditor", required=True)
 @click.option("--dry-run/--execute", default=True)
@@ -140,5 +158,7 @@ def ratchet_any(ctx, baseline_file, update, dry_run):
 @click.pass_context
 def bundle_size(ctx, baseline_file, threshold, update, dry_run):
     orch = ctx.obj["ORCHESTRATOR"]
-    res = orch.check_bundle_size(update=update, baseline_file=baseline_file, threshold=threshold, dry_run=dry_run)
+    res = orch.check_bundle_size(
+        update=update, baseline_file=baseline_file, threshold=threshold, dry_run=dry_run
+    )
     _handle_gate(ctx, res, "Bundle Size Check")

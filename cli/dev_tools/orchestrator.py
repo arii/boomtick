@@ -1,15 +1,24 @@
 """Orchestrator (thin aggregator)."""
+
 from dev_tools.services.github import GitHubClient
 from dev_tools.config import get_config
-from dev_tools.utils import get_or_create_log_dir, get_repo_name, get_stack_versions, run_command
+from dev_tools.utils import (
+    get_or_create_log_dir,
+    get_repo_name,
+    get_stack_versions,
+    run_command,
+)
 from dev_tools.orchestration.workflows import WorkflowMixin
-__all__ = ["GitHubClient",
+
+__all__ = [
+    "GitHubClient",
     "Orchestrator",
     "get_config",
     "get_or_create_log_dir",
     "get_repo_name",
     "get_stack_versions",
-    "run_command"]
+    "run_command",
+]
 
 
 def __getattr__(name: str):

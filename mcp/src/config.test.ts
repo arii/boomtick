@@ -25,8 +25,8 @@ describe("stack .env loader", () => {
   it("should resolve default stack .env path or custom override", async () => {
     delete process.env.REMOTE_SERVER_ENV_PATH;
     delete process.env.STACK_ENV_PATH;
-    const { resolveStackEnvPath, DEFAULT_STACK_ENV_PATH } = await import("./config.js");
-    expect(resolveStackEnvPath()).toBe(DEFAULT_STACK_ENV_PATH);
+    const { resolveStackEnvPath } = await import("./config.js");
+    expect(resolveStackEnvPath()).toBe("");
 
     process.env.REMOTE_SERVER_ENV_PATH = "/custom/remote-server/.env";
     expect(resolveStackEnvPath()).toBe("/custom/remote-server/.env");

@@ -21,7 +21,7 @@ export interface CodeReviewClientStrategy {
   reportTitle: string;
   botTagline: string;
   reportFileName: string;
-  invokeReview: (summary: CodeReviewSummary, forceMaxOutputTokens?: number) => Promise<CodeReviewResult>;
+  invokeReview: (summary: CodeReviewSummary & { role: string }, forceMaxOutputTokens?: number) => Promise<CodeReviewResult>;
 }
 
 const MAX_REVIEWS_PER_PR = parseInt(process.env.MAX_AI_REVIEWS ?? '10', 10);
@@ -283,7 +283,14 @@ async function getGitArgs(): Promise<{ diffArgs: string[], nameOnlyArgs: string[
   return cachedGitArgs;
 }
 
-async function getAIContext(inputData: string): Promise<Record<string, unknown>[]> {
+interface AIContextEntry {
+  path: string;
+  dependencies?: string[];
+  dependents?: string[];
+  semantic?: { path: string; document: string }[];
+}
+
+async function getAIContext(inputData: string): Promise<AIContextEntry[]> {
   return new Promise((resolve, reject) => {
     const child = spawn('td', ['ai', 'get-context']);
     let stdout = '';
@@ -825,6 +832,7 @@ async function executeReviewTasks(
           console.warn(`⚠️ [${role}] review failed: ${errorMsg} (isRateLimit: ${isRateLimit}, isInvalidApiKey: ${isInvalidApiKey})`);
 
           allResults.push(createTaskErrorResult<CodeReviewResult>(role, err, 'review', {
+            findings: [],
             state: { findings: [] },
             skipReason: isRateLimit ? 'RATE_LIMIT' : (isInvalidApiKey ? 'MISSING_API_KEY' : 'UNHANDLED_ERROR'),
           }));
@@ -943,7 +951,7 @@ function aggregateReviewResults(
   newCache: Record<string, CodeReviewResult>,
   initialSummary: CodeReviewSummary,
   orchestratorDurationMs: number
-): CodeReviewResult & { isTruncated: boolean; skipReason?: string } {
+): CodeReviewResult & { isTruncated: boolean; skipReason?: string; durationMs: number } {
   const {
     aggregatedFeedback,
     aggregatedFindings,
@@ -962,6 +970,7 @@ function aggregateReviewResults(
 
   return {
     feedback: aggregatedFeedback,
+    findings: aggregatedFindings,
     tokens: totalTokens,
     inputTokens: totalInputTokens,
     outputTokens: totalOutputTokens,

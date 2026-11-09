@@ -14,7 +14,9 @@ class ProjectConfig:
     github_repo: str | None = None
     package_name: str | None = None
     github_token_env: str = "GITHUB_TOKEN"
-    core_dirs: List[str] = field(default_factory=lambda: ["src/layouts/", "src/components/"])
+    core_dirs: List[str] = field(
+        default_factory=lambda: ["src/layouts/", "src/components/"]
+    )
     monolithic_pr_threshold: int = 3
     base_branch: str = "origin/main"
     vite_base_path: str | None = None
@@ -40,12 +42,19 @@ class ProjectConfig:
             "tailwind",
         ]
     )
-    tailwind_indicators: List[str] = field(default_factory=lambda: ["px-", "py-", "mt-", "flex", "grid", "text-["])
+    tailwind_indicators: List[str] = field(
+        default_factory=lambda: ["px-", "py-", "mt-", "flex", "grid", "text-["]
+    )
     # File/content signals that a repo actually uses Tailwind (#1113).
     # The primitives advisory only fires on class-attribute usage or one
     # of these signals — never on bare CSS like `display: flex`.
     tailwind_config_indicators: List[str] = field(
-        default_factory=lambda: ["tailwind.config.", "tailwindcss", "@tailwind", "@apply"]
+        default_factory=lambda: [
+            "tailwind.config.",
+            "tailwindcss",
+            "@tailwind",
+            "@apply",
+        ]
     )
     audit_check_dirs: List[str] = field(
         default_factory=lambda: [
@@ -106,9 +115,13 @@ class ProjectConfig:
 
     def __post_init__(self):
         if not self.github_repo:
-            raise ValueError("Missing required configuration: github_repo. Please provide it in project_config.json.")
+            raise ValueError(
+                "Missing required configuration: github_repo. Please provide it in project_config.json."
+            )
         if not self.vite_base_path:
-            raise ValueError("Missing required configuration: vite_base_path. Please provide it in project_config.json.")
+            raise ValueError(
+                "Missing required configuration: vite_base_path. Please provide it in project_config.json."
+            )
 
     @property
     def base_branch_name(self) -> str:
@@ -161,6 +174,7 @@ def load_project_config(path: str | Path = "project_config.json") -> ProjectConf
             raw = json.loads(p.read_text(encoding="utf-8"))
         except (json.JSONDecodeError, IOError) as e:
             import sys
+
             print(f"Warning: Failed to parse config file {p}: {e}", file=sys.stderr)
     elif str(path) == "project_config.json":
         # Check parent directories for project_config.json if not in CWD
@@ -174,7 +188,11 @@ def load_project_config(path: str | Path = "project_config.json") -> ProjectConf
                     break
                 except (json.JSONDecodeError, IOError) as e:
                     import sys
-                    print(f"Warning: Failed to parse candidate config file {check_path}: {e}", file=sys.stderr)
+
+                    print(
+                        f"Warning: Failed to parse candidate config file {check_path}: {e}",
+                        file=sys.stderr,
+                    )
 
     def get_list(key: str) -> Optional[List[str]]:
         val = raw.get(key)

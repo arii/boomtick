@@ -112,7 +112,9 @@ def read_node_version() -> str:
     with open(".node-version", "r", encoding="utf-8") as f:
         v = f.read().strip().lstrip("v")
     if not v:
-        raise ValueError(".node-version is empty; it must contain the required Node version.")
+        raise ValueError(
+            ".node-version is empty; it must contain the required Node version."
+        )
     return v
 
 
@@ -127,7 +129,9 @@ def read_pnpm_version() -> str:
         return pkg["packageManager"].replace("pnpm@", "")
     if "engines" in pkg and "pnpm" in pkg["engines"]:
         return pkg["engines"]["pnpm"]
-    raise ValueError("package.json must declare the pnpm version via packageManager or engines.pnpm.")
+    raise ValueError(
+        "package.json must declare the pnpm version via packageManager or engines.pnpm."
+    )
 
 
 def get_stack_versions(fetch_latest: bool = False) -> Dict[str, str]:
@@ -149,7 +153,9 @@ def get_stack_versions(fetch_latest: bool = False) -> Dict[str, str]:
                 if not (filename.endswith(".yml") or filename.endswith(".yaml")):
                     continue
                 try:
-                    with open(os.path.join(workflow_dir, filename), "r", encoding="utf-8") as f:
+                    with open(
+                        os.path.join(workflow_dir, filename), "r", encoding="utf-8"
+                    ) as f:
                         content = f.read()
                         matches = re.findall(r"uses:\s+([\w\-/]+)@([\w\.]+)", content)
                         for action, v_str in matches:

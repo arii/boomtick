@@ -1,4 +1,5 @@
 """Merge readiness, approvals, session helpers, aggregation."""
+
 import os
 import re
 import subprocess
@@ -8,7 +9,6 @@ from dev_tools.models import IssueSummary, PRSummary
 from dev_tools.utils import CLIError, get_github_client, log_warn, run_git_commands
 from dev_tools.orchestration.ci_ops import CIOpsMixin
 import dev_tools.orchestrator
-
 
 
 class MergeGateMixin(CIOpsMixin):
@@ -58,7 +58,9 @@ class MergeGateMixin(CIOpsMixin):
                 if run.get("conclusion") == "failure":
                     run_id = run.get("id")
                     if isinstance(run_id, int):
-                        logs = self.github.fetch_check_run_logs(run_id, external_id=run.get("external_id"))
+                        logs = self.github.fetch_check_run_logs(
+                            run_id, external_id=run.get("external_id")
+                        )
                         for line in logs.splitlines():
                             p = pipeline.generate_prompt(line)
                             if p:
@@ -74,17 +76,20 @@ class MergeGateMixin(CIOpsMixin):
         extra_kwargs = {"repo": repo} if repo else {}
         workflow_runs = self.github.fetch_workflow_runs(**extra_kwargs)
         failing_runs_count = sum(
-            1 for run in workflow_runs
-            if run.get("conclusion") in ("failure",
-                "timed_out") or run.get("status") in ("in_progress",
-                "queued") and run.get("conclusion") == "failure"
+            1
+            for run in workflow_runs
+            if run.get("conclusion") in ("failure", "timed_out")
+            or run.get("status") in ("in_progress", "queued")
+            and run.get("conclusion") == "failure"
         )
 
         from dev_tools.services import local_sessions as _ls
         from dev_tools.services.local_sessions import repo_root_for
+
         try:
             active_sessions_count: Optional[int] = len(
-                _ls.scan_sessions(repo_root_for(None)))
+                _ls.scan_sessions(repo_root_for(None))
+            )
             sessions_unknown = False
         except Exception:
             # A failed scan means the sessions dimension is UNKNOWN —
@@ -92,8 +97,12 @@ class MergeGateMixin(CIOpsMixin):
             active_sessions_count = None
             sessions_unknown = True
 
-        if (open_prs_count == 0 and failing_runs_count == 0
-                and not sessions_unknown and active_sessions_count == 0):
+        if (
+            open_prs_count == 0
+            and failing_runs_count == 0
+            and not sessions_unknown
+            and active_sessions_count == 0
+        ):
             suggestion = "SUGGEST: none :: All queues clear and checks green."
             return {
                 "status": "success",
@@ -177,7 +186,9 @@ class MergeGateMixin(CIOpsMixin):
             "runnable_command": runnable_command,
         }
 
-    def evaluate_pr_merge_readiness(self, pr_num: int, repo: Optional[str] = None) -> Dict[str, Any]:
+    def evaluate_pr_merge_readiness(
+        self, pr_num: int, repo: Optional[str] = None
+    ) -> Dict[str, Any]:
         """
         Evaluates deterministic merge eligibility for a single pull request:
         - not a draft
@@ -196,9 +207,13 @@ class MergeGateMixin(CIOpsMixin):
         merge_state = pr_details.get("mergeable_state")
         # In GitHub API, mergeable can be True, False, or None (if background check is computing)
         mergeable_str = (
-            "MERGEABLE" if raw_mergeable is True
-            else ("CONFLICTING" if raw_mergeable is False
-                  else (str(merge_state).upper() if merge_state else "UNKNOWN"))
+            "MERGEABLE"
+            if raw_mergeable is True
+            else (
+                "CONFLICTING"
+                if raw_mergeable is False
+                else (str(merge_state).upper() if merge_state else "UNKNOWN")
+            )
         )
 
         # Check check runs on head SHA
@@ -206,15 +221,24 @@ class MergeGateMixin(CIOpsMixin):
         has_failing_checks = False
         if head_sha:
             check_runs = self.github.fetch_check_runs(head_sha, repo=repo)
-            failing_conclusions = {"failure", "timed_out", "action_required", "cancelled"}
-            has_failing_checks = any(run.get("conclusion") in failing_conclusions for run in check_runs)
+            failing_conclusions = {
+                "failure",
+                "timed_out",
+                "action_required",
+                "cancelled",
+            }
+            has_failing_checks = any(
+                run.get("conclusion") in failing_conclusions for run in check_runs
+            )
 
         # Refusal reasons evaluation
         refusal_reasons = []
         if is_draft:
             refusal_reasons.append("PR is a draft")
         if review_decision != "APPROVED":
-            refusal_reasons.append(f"Review decision is {review_decision or 'unapproved'}")
+            refusal_reasons.append(
+                f"Review decision is {review_decision or 'unapproved'}"
+            )
         if has_failing_checks:
             refusal_reasons.append("Head commit has failing check runs")
         if mergeable_str != "MERGEABLE":
@@ -234,7 +258,9 @@ class MergeGateMixin(CIOpsMixin):
             "reason": reason,
         }
 
-    def merge_approved(self, repo: Optional[str] = None, execute: bool = False) -> Dict[str, Any]:
+    def merge_approved(
+        self, repo: Optional[str] = None, execute: bool = False
+    ) -> Dict[str, Any]:
         """
         Deterministic merge gate:
         - dry-run: list merge-ready PRs
@@ -255,9 +281,11 @@ class MergeGateMixin(CIOpsMixin):
                 "eligible_count": 0,
                 "merged_count": 0,
                 "results": [],
-                "reason": ("merge-approved --execute requires the console "
-                           "credential (S5_CONSOLE_MERGE_TOKEN); refusing "
-                           "agent-context execution"),
+                "reason": (
+                    "merge-approved --execute requires the console "
+                    "credential (S5_CONSOLE_MERGE_TOKEN); refusing "
+                    "agent-context execution"
+                ),
             }
         open_prs_res = self.list_prs(state="open", limit=100, repo=repo)
         open_prs = open_prs_res.get("prs", [])
@@ -277,11 +305,13 @@ class MergeGateMixin(CIOpsMixin):
                     # Immediate re-check before merging to guard against race conditions
                     recheck = self.evaluate_pr_merge_readiness(pr_num, repo=repo)
                     if not recheck["is_eligible"]:
-                        results.append({
-                            **recheck,
-                            "merged": False,
-                            "message": f"Refused merge on re-check: {recheck['reason']}",
-                        })
+                        results.append(
+                            {
+                                **recheck,
+                                "merged": False,
+                                "message": f"Refused merge on re-check: {recheck['reason']}",
+                            }
+                        )
                         continue
 
                     try:
@@ -293,23 +323,31 @@ class MergeGateMixin(CIOpsMixin):
                         )
                         if merged_count is not None:
                             merged_count += 1
-                        results.append({
-                            **recheck,
-                            "merged": True,
-                            "message": merge_res.get("message", "Merged successfully"),
-                        })
+                        results.append(
+                            {
+                                **recheck,
+                                "merged": True,
+                                "message": merge_res.get(
+                                    "message", "Merged successfully"
+                                ),
+                            }
+                        )
                     except Exception as e:
-                        results.append({
-                            **recheck,
-                            "merged": False,
-                            "message": f"Merge failed: {str(e)}",
-                        })
+                        results.append(
+                            {
+                                **recheck,
+                                "merged": False,
+                                "message": f"Merge failed: {str(e)}",
+                            }
+                        )
                 else:
-                    results.append({
-                        **readiness,
-                        "merged": False,
-                        "message": f"Refused: {readiness['reason']}",
-                    })
+                    results.append(
+                        {
+                            **readiness,
+                            "merged": False,
+                            "message": f"Refused: {readiness['reason']}",
+                        }
+                    )
             else:
                 # Dry run preview
                 results.append(readiness)
@@ -338,12 +376,17 @@ class MergeGateMixin(CIOpsMixin):
         if "labels" in kwargs and labels is None:
             labels = kwargs["labels"]
         extra_kwargs = {"repo": repo} if repo else {}
-        prs = self.github.list_pull_requests(state=state, limit=limit, labels=labels, **extra_kwargs)
+        prs = self.github.list_pull_requests(
+            state=state, limit=limit, labels=labels, **extra_kwargs
+        )
 
         if not includeDrafts:
             prs = [pr for pr in prs if not pr.get("isDraft")]
 
-        return {"status": "success", "prs": [PRSummary(**pr).model_dump() for pr in prs]}
+        return {
+            "status": "success",
+            "prs": [PRSummary(**pr).model_dump() for pr in prs],
+        }
 
     def list_issues(
         self,
@@ -357,7 +400,10 @@ class MergeGateMixin(CIOpsMixin):
             labels = kwargs["labels"]
         issues = self.github.list_issues(state=state, limit=limit, labels=labels)
 
-        return {"status": "success", "issues": [IssueSummary(**issue).model_dump() for issue in issues]}
+        return {
+            "status": "success",
+            "issues": [IssueSummary(**issue).model_dump() for issue in issues],
+        }
 
     def get_pr_comments(self, prNumber: int, **kwargs) -> Dict[str, Any]:
         """Fetches and aggregates standard issue comments and inline review comments for a PR."""
@@ -399,7 +445,10 @@ class MergeGateMixin(CIOpsMixin):
         if session.get("outputs") and isinstance(session["outputs"], list):
             for output in session["outputs"]:
                 if output.get("pullRequest") and output["pullRequest"].get("url"):
-                    match = re.search(r"github\.com/([^/]+/[^/]+)/pull/\d+", output["pullRequest"]["url"])
+                    match = re.search(
+                        r"github\.com/([^/]+/[^/]+)/pull/\d+",
+                        output["pullRequest"]["url"],
+                    )
                     if match:
                         return match.group(1)
 
@@ -424,7 +473,11 @@ class MergeGateMixin(CIOpsMixin):
         # 2. Try branch name from sourceContext (fast - targeted search)
         branch = None
         if session.get("sourceContext"):
-            branch = session["sourceContext"].get("githubRepoContext", {}).get("startingBranch")
+            branch = (
+                session["sourceContext"]
+                .get("githubRepoContext", {})
+                .get("startingBranch")
+            )
 
         if branch:
             # Use search API for targeted branch lookup
@@ -434,7 +487,9 @@ class MergeGateMixin(CIOpsMixin):
 
         # 3. Fallback to session ID in body
         safe_id = f'"{session_id}"'
-        prs = self.github.search_pull_requests(f"{safe_id} in:body,title state:open", limit=1)
+        prs = self.github.search_pull_requests(
+            f"{safe_id} in:body,title state:open", limit=1
+        )
         if prs:
             return prs[0]["number"]
 
@@ -459,15 +514,22 @@ class MergeGateMixin(CIOpsMixin):
         successfully_merged = []
 
         from dev_tools.utils.concurrency import run_concurrently
+
         pr_details_map = {}
         if prNumbers:
+
             def fetch_pr_details_with_error(pr_num):
                 try:
                     return pr_num, self.github.fetch_pr_details(pr_num)
                 except Exception as e:
                     raise CLIError(f"Failed to fetch PR #{pr_num}: {e}")
 
-            results = run_concurrently(fetch_pr_details_with_error, prNumbers, max_workers=4, ignore_exceptions=False)
+            results = run_concurrently(
+                fetch_pr_details_with_error,
+                prNumbers,
+                max_workers=4,
+                ignore_exceptions=False,
+            )
             for pr_num, pr_detail in results:
                 pr_details_map[pr_num] = pr_detail
 
@@ -494,7 +556,13 @@ class MergeGateMixin(CIOpsMixin):
             # 3. Safety First: Attempt automated integration merge
             # Use 'ort' strategy implicitly by standard merge if git version supports it,
             # or just standard merge.
-            merge_cmd = ["git", "merge", head_ref, "-m", f"Merging PR #{pr_num}: {title}"]
+            merge_cmd = [
+                "git",
+                "merge",
+                head_ref,
+                "-m",
+                f"Merging PR #{pr_num}: {title}",
+            ]
             res = dev_tools.orchestrator.run_command(merge_cmd, check=False)
 
             if not isinstance(res, subprocess.CompletedProcess):
@@ -505,10 +573,16 @@ class MergeGateMixin(CIOpsMixin):
                 # Safely handle potential None values if capture failed
                 merge_output = (res.stdout or "") + (res.stderr or "")
                 if "unrelated histories" in merge_output.lower():
-                    log_warn(f"Disjoint history detected for PR #{pr_num}. Retrying with --allow-unrelated-histories")
-                    res = dev_tools.orchestrator.run_command(merge_cmd + ["--allow-unrelated-histories"], check=False)
+                    log_warn(
+                        f"Disjoint history detected for PR #{pr_num}. Retrying with --allow-unrelated-histories"
+                    )
+                    res = dev_tools.orchestrator.run_command(
+                        merge_cmd + ["--allow-unrelated-histories"], check=False
+                    )
                     if not isinstance(res, subprocess.CompletedProcess):
-                        raise CLIError("Retry merge with --allow-unrelated-histories failed execution")
+                        raise CLIError(
+                            "Retry merge with --allow-unrelated-histories failed execution"
+                        )
 
                 if res.returncode != 0:
                     # Conflict encountered
@@ -529,11 +603,15 @@ class MergeGateMixin(CIOpsMixin):
             aggregate_body += f"Closes #{pr_num}\n\n### Description from PR #{pr_num} ({title}):\n{body}\n\n---\n"
 
         # Push the compiled branch
-        dev_tools.orchestrator.run_command(["git", "push", "-u", "origin", target_branch])
+        dev_tools.orchestrator.run_command(
+            ["git", "push", "-u", "origin", target_branch]
+        )
 
         # Create consolidated PR
         pr_title = f"Aggregated Feature: {target_branch}"
-        pr_res = self.github.create_pull_request(pr_title, aggregate_body, target_branch, base_branch)
+        pr_res = self.github.create_pull_request(
+            pr_title, aggregate_body, target_branch, base_branch
+        )
         pr_url = pr_res.get("html_url")
 
         return {

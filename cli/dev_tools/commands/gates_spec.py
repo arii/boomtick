@@ -1,4 +1,5 @@
 """Issue-spec validation and scope-gate commands."""
+
 import os
 import sys
 import re
@@ -61,7 +62,8 @@ def _spec_checklist_items(body):
 def _spec_fenced_commands(body):
     """Bash commands from fenced blocks in the Verification section."""
     lines = _spec_section_lines(
-        body, "verification", "verification commands", "validation")
+        body, "verification", "verification commands", "validation"
+    )
     commands = []
     in_fence = False
     for line in lines:
@@ -75,10 +77,18 @@ def _spec_fenced_commands(body):
 
 
 @cli.command(name="validate-issue")
-@click.option("--file", "file", required=True,
-              help="Path to the spec markdown file, or '-' for stdin")
-@click.option("--repo-root", "repo_root", default=None,
-              help="Checkout for scope existence checks (default: git root)")
+@click.option(
+    "--file",
+    "file",
+    required=True,
+    help="Path to the spec markdown file, or '-' for stdin",
+)
+@click.option(
+    "--repo-root",
+    "repo_root",
+    default=None,
+    help="Checkout for scope existence checks (default: git root)",
+)
 @_gate_json_option
 @click.pass_context
 def validate_issue_spec(ctx, file, repo_root):
@@ -89,6 +99,7 @@ def validate_issue_spec(ctx, file, repo_root):
     """
     from dev_tools.services import local_sessions as ls
     from dev_tools.services import spec_issue as spec
+
     try:
         body = _read_spec_source(file)
         title = ""
@@ -105,21 +116,23 @@ def validate_issue_spec(ctx, file, repo_root):
         root = ls.repo_root_for(repo_root)
         missing = spec.missing_headers(body)
         scope = spec.scope_status(title + "\n" + body, root)
-        forbidden_files = _spec_backtick_paths(
-            body, "forbidden files", "forbidden")
+        forbidden_files = _spec_backtick_paths(body, "forbidden files", "forbidden")
         forbidden_lower = {p.lower() for p in forbidden_files}
         actual = set()
         actual_dirs = set()
         for dirpath, dirnames, filenames in os.walk(root):
             _prune_walk_dirs(dirnames)
             for dirname in dirnames:
-                actual_dirs.add(os.path.relpath(
-                    os.path.join(dirpath, dirname), root).lower())
+                actual_dirs.add(
+                    os.path.relpath(os.path.join(dirpath, dirname), root).lower()
+                )
             for filename in filenames:
-                actual.add(os.path.relpath(
-                    os.path.join(dirpath, filename), root).lower())
-        allowed_files = [item["path"] for item in scope
-                         if item["path"] not in forbidden_lower]
+                actual.add(
+                    os.path.relpath(os.path.join(dirpath, filename), root).lower()
+                )
+        allowed_files = [
+            item["path"] for item in scope if item["path"] not in forbidden_lower
+        ]
         acceptance_criteria = _spec_checklist_items(body)
         verification_commands = _spec_fenced_commands(body)
         if not verification_commands:
@@ -139,25 +152,28 @@ def validate_issue_spec(ctx, file, repo_root):
             # same-line (CREATE) marking (or real checkout existence)
             # clears the error.
             same_line_created = any(
-                item["path"].lower() in line.lower()
-                and "(create)" in line.lower()
-                for line in body.splitlines())
+                item["path"].lower() in line.lower() and "(create)" in line.lower()
+                for line in body.splitlines()
+            )
             if not same_line_created:
                 errors.append(
                     f"allowed path not in checkout: {item['path']} "
-                    "(mark with (CREATE) if it is a new file)")
+                    "(mark with (CREATE) if it is a new file)"
+                )
         if re.search(r"\bTODO\b|\bTBD\b", body):
             errors.append("spec contains TODO/TBD placeholders")
         if not verification_commands:
             errors.append("no verification commands found")
         if not acceptance_criteria:
             errors.append("no acceptance criteria checklist found")
-        data = {"valid": not errors,
-                "allowed_files": allowed_files,
-                "forbidden_files": forbidden_files,
-                "verification_commands": verification_commands,
-                "acceptance_criteria": acceptance_criteria,
-                "errors": errors}
+        data = {
+            "valid": not errors,
+            "allowed_files": allowed_files,
+            "forbidden_files": forbidden_files,
+            "verification_commands": verification_commands,
+            "acceptance_criteria": acceptance_criteria,
+            "errors": errors,
+        }
         if not ctx.obj["JSON"]:
             if data["valid"]:
                 click.echo("spec is valid")
@@ -173,12 +189,21 @@ def validate_issue_spec(ctx, file, repo_root):
 
 
 @cli.command(name="verify-scope")
-@click.option("--spec-file", "spec_file", required=True,
-              help="Path to the validated design spec markdown file")
-@click.option("--worktree", "worktree", required=True,
-              help="Path to the worktree to gate")
-@click.option("--auto-revert", is_flag=True, default=False,
-              help="Revert files outside the allowed scope")
+@click.option(
+    "--spec-file",
+    "spec_file",
+    required=True,
+    help="Path to the validated design spec markdown file",
+)
+@click.option(
+    "--worktree", "worktree", required=True, help="Path to the worktree to gate"
+)
+@click.option(
+    "--auto-revert",
+    is_flag=True,
+    default=False,
+    help="Revert files outside the allowed scope",
+)
 @_gate_json_option
 @click.pass_context
 def verify_scope_gate(ctx, spec_file, worktree, auto_revert):
@@ -187,23 +212,26 @@ def verify_scope_gate(ctx, spec_file, worktree, auto_revert):
     Emits {"passed", "modified_files", "violations"}.
     """
     from dev_tools.services import scope_gate
+
     try:
         with open(spec_file, encoding="utf-8") as handle:
             spec_text = handle.read()
         changed = _worktree_changed_files(worktree)
         passed, _allowed, disallowed = scope_gate.check_scope(
-            changed, spec_text, root=worktree)
+            changed, spec_text, root=worktree
+        )
         violations = sorted(set(disallowed))
-        forbidden = _spec_backtick_paths(
-            spec_text, "forbidden files", "forbidden")
+        forbidden = _spec_backtick_paths(spec_text, "forbidden files", "forbidden")
         forbidden_norm = set()
         for entry in forbidden:
             norm = entry.strip().lower().lstrip("./")
             forbidden_norm.add(norm)
         for path in changed:
             lowered = path.lower()
-            if any(lowered == norm or lowered.endswith("/" + norm)
-                   for norm in forbidden_norm):
+            if any(
+                lowered == norm or lowered.endswith("/" + norm)
+                for norm in forbidden_norm
+            ):
                 if path not in violations:
                     violations.append(path)
         violations = sorted(set(violations))
@@ -216,14 +244,21 @@ def verify_scope_gate(ctx, spec_file, worktree, auto_revert):
                     continue
                 if os.path.isfile(full):
                     tracked = run_command(
-                        ["git", "-C", worktree, "ls-files",
-                         "--error-unmatch", "--", path],
-                        check=False)
+                        [
+                            "git",
+                            "-C",
+                            worktree,
+                            "ls-files",
+                            "--error-unmatch",
+                            "--",
+                            path,
+                        ],
+                        check=False,
+                    )
                     if tracked.returncode == 0:
                         res = run_command(
-                            ["git", "-C", worktree, "checkout",
-                             "--", path],
-                            check=False)
+                            ["git", "-C", worktree, "checkout", "--", path], check=False
+                        )
                     else:
                         try:
                             os.remove(full)
@@ -235,14 +270,16 @@ def verify_scope_gate(ctx, spec_file, worktree, auto_revert):
                     if res.returncode == 0:
                         reverted.append(path)
             _, _, still_out = scope_gate.check_scope(
-                [p for p in changed if p not in reverted],
-                spec_text, root=worktree)
+                [p for p in changed if p not in reverted], spec_text, root=worktree
+            )
             violations = sorted(set(still_out))
             passed = not violations
-        data = {"passed": passed,
-                "modified_files": changed,
-                "violations": violations,
-                "reverted": reverted}
+        data = {
+            "passed": passed,
+            "modified_files": changed,
+            "violations": violations,
+            "reverted": reverted,
+        }
         if not ctx.obj["JSON"]:
             if passed:
                 click.echo("✅ scope check passed")

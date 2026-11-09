@@ -26,6 +26,7 @@ jobs:
     import dev_tools.utils
 
     original_get = dev_tools.utils.get_stack_versions
+
     def mock_get(*args, **kwargs):
         return {"actions/checkout": "v4", "actions/setup-node": "v4"}
 
@@ -58,7 +59,9 @@ jobs:
 """)
     orch = Orchestrator()
     import dev_tools.utils
+
     original_get = dev_tools.utils.get_stack_versions
+
     def mock_get(*args, **kwargs):
         return {"actions/checkout": "v4", "actions/setup-node": "v4"}
 
@@ -119,12 +122,16 @@ def test_plan_workflow_audit_invalid_path(tmp_path, monkeypatch):
         orch.plan_workflow_audit("invalid.txt")
 
     # Directory check
-    with pytest.raises(CLIError, match="Workflow file must reside in .github/workflows/"):
+    with pytest.raises(
+        CLIError, match="Workflow file must reside in .github/workflows/"
+    ):
         orch.plan_workflow_audit(".github/ci.yml")
 
     # Residing in the correct directory but file doesn't exist
     # (assuming we are not mocking existence here yet, or we mock it to False)
-    with pytest.raises(CLIError, match="Workflow file must reside in .github/workflows/"):
+    with pytest.raises(
+        CLIError, match="Workflow file must reside in .github/workflows/"
+    ):
         # normpath will result in "some/other/ci.yml"
         orch.plan_workflow_audit("some/other/ci.yml")
 
@@ -150,7 +157,9 @@ def test_plan_workflow_audit_valid_path(tmp_path, monkeypatch):
     # Mocking _check_workflow_compliance to avoid actual file read of non-existent path
     monkeypatch.setattr(orch, "_check_workflow_compliance", lambda x: [])
     # Mocking get_or_create_log_dir
-    monkeypatch.setattr("dev_tools.orchestrator.get_or_create_log_dir", lambda x: str(tmp_path))
+    monkeypatch.setattr(
+        "dev_tools.orchestrator.get_or_create_log_dir", lambda x: str(tmp_path)
+    )
 
     res = orch.plan_workflow_audit(".github/workflows/test.yml")
     assert res["status"] == "success"

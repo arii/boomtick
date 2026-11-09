@@ -1,5 +1,6 @@
 # pylint: disable=missing-docstring,line-too-long
 """Tests for td gh spec-issue (service-level; no network)."""
+
 import json
 import subprocess
 from unittest.mock import patch
@@ -15,8 +16,9 @@ def _checkout(tmp_path):
     (root / "mcp" / "src").mkdir(parents=True)
     (root / "mcp" / "src" / "tool.ts").write_text("x")
     (root / "pyproject.toml").write_text("[tool.pytest.ini_options]\n")
-    (root / "package.json").write_text(json.dumps(
-        {"scripts": {"test": "vitest", "lint": "oxlint"}}))
+    (root / "package.json").write_text(
+        json.dumps({"scripts": {"test": "vitest", "lint": "oxlint"}})
+    )
     (root / "scripts").mkdir()
     (root / "scripts" / "verify-scope.py").write_text("# gate\n")
     return root
@@ -47,8 +49,10 @@ def test_ready_issue(tmp_path):
     improved, report = spec.render_body("Fix login", FULL_BODY, str(root))
     assert report["ready"] is True
     assert report["missing_headers"] == []
-    assert any(i["path"] == "mcp/src/tool.ts" and
-               i["status"] == "in checkout" for i in report["scope"])
+    assert any(
+        i["path"] == "mcp/src/tool.ts" and i["status"] == "in checkout"
+        for i in report["scope"]
+    )
     assert "## Agent scope" in improved
     assert "## Validation" in improved
     assert any("pytest" in g for g in report["gates"])
@@ -68,8 +72,7 @@ def test_new_file_flagged(tmp_path):
     root = _checkout(tmp_path)
     body = FULL_BODY + "\nAlso add mcp/src/brand-new.ts.\n"
     _improved, report = spec.render_body("t", body, str(root))
-    item = next(i for i in report["scope"]
-                if i["path"] == "mcp/src/brand-new.ts")
+    item = next(i for i in report["scope"] if i["path"] == "mcp/src/brand-new.ts")
     assert item["status"].startswith("NEW - confirm")
 
 
@@ -84,29 +87,36 @@ def test_idempotent_rerun(tmp_path):
 
 
 def test_missing_headers_substring():
-    assert spec.missing_headers("# SPECIFY SCOPE\n# Goal\n"
-                                "# Problem Statement\n"
-                                "# Definition of Done\n") == []
+    assert (
+        spec.missing_headers(
+            "# SPECIFY SCOPE\n# Goal\n# Problem Statement\n# Definition of Done\n"
+        )
+        == []
+    )
 
 
 def test_gates_empty_checkout(tmp_path):
     assert spec.detect_gates(str(tmp_path)) == [
-        "Scope: changes limited to the scope files above"]
+        "Scope: changes limited to the scope files above"
+    ]
 
 
 def test_cli_dry_run_and_write(tmp_path):
     root = _checkout(tmp_path)
     runner = CliRunner()
-    with patch("dev_tools.orchestrator.Orchestrator.get_issue_details",
-               return_value={"title": "Fix login",
-                             "body": FULL_BODY}), \
-            patch("dev_tools.orchestrator.Orchestrator.update_issue") \
-            as update_mock, \
-            patch("dev_tools.services.local_sessions.repo_root_for",
-                  return_value=str(root)):
+    with (
+        patch(
+            "dev_tools.orchestrator.Orchestrator.get_issue_details",
+            return_value={"title": "Fix login", "body": FULL_BODY},
+        ),
+        patch("dev_tools.orchestrator.Orchestrator.update_issue") as update_mock,
+        patch(
+            "dev_tools.services.local_sessions.repo_root_for", return_value=str(root)
+        ),
+    ):
         result = runner.invoke(
-            cli, ["--json", "gh", "spec-issue", "12",
-                  "--path", str(root)])
+            cli, ["--json", "gh", "spec-issue", "12", "--path", str(root)]
+        )
     assert result.exit_code == 0, result.output
     payload = json.loads(result.output)
     assert payload["ready"] is True
@@ -117,16 +127,19 @@ def test_cli_dry_run_and_write(tmp_path):
 def test_cli_write_calls_update(tmp_path):
     root = _checkout(tmp_path)
     runner = CliRunner()
-    with patch("dev_tools.orchestrator.Orchestrator.get_issue_details",
-               return_value={"title": "Fix login",
-                             "body": FULL_BODY}), \
-            patch("dev_tools.orchestrator.Orchestrator.update_issue") \
-            as update_mock, \
-            patch("dev_tools.services.local_sessions.repo_root_for",
-                  return_value=str(root)):
+    with (
+        patch(
+            "dev_tools.orchestrator.Orchestrator.get_issue_details",
+            return_value={"title": "Fix login", "body": FULL_BODY},
+        ),
+        patch("dev_tools.orchestrator.Orchestrator.update_issue") as update_mock,
+        patch(
+            "dev_tools.services.local_sessions.repo_root_for", return_value=str(root)
+        ),
+    ):
         result = runner.invoke(
-            cli, ["--json", "gh", "spec-issue", "12", "--write",
-                  "--path", str(root)])
+            cli, ["--json", "gh", "spec-issue", "12", "--write", "--path", str(root)]
+        )
     assert result.exit_code == 0, result.output
     assert json.loads(result.output)["wrote"] is True
     update_mock.assert_called_once()
@@ -137,11 +150,12 @@ def test_cli_write_calls_update(tmp_path):
 def test_cli_not_ready_exits_1(tmp_path):
     root = _checkout(tmp_path)
     runner = CliRunner()
-    with patch("dev_tools.orchestrator.Orchestrator.get_issue_details",
-               return_value={"title": "Fix login",
-                             "body": BARE_BODY}):
+    with patch(
+        "dev_tools.orchestrator.Orchestrator.get_issue_details",
+        return_value={"title": "Fix login", "body": BARE_BODY},
+    ):
         result = runner.invoke(
-            cli, ["--json", "gh", "spec-issue", "12",
-                  "--path", str(root)])
+            cli, ["--json", "gh", "spec-issue", "12", "--path", str(root)]
+        )
     assert result.exit_code == 1
     assert json.loads(result.output)["ready"] is False

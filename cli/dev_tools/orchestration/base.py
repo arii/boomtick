@@ -1,4 +1,5 @@
 """Orchestrator base: init, client access, and small utilities."""
+
 import hashlib
 import json
 import os
@@ -9,7 +10,6 @@ from typing import Dict, List, Optional, Tuple
 from dev_tools.services.github import GitHubClient
 from dev_tools.utils import CLIError
 import dev_tools.orchestrator
-
 
 
 class OrchestratorBase:
@@ -46,8 +46,10 @@ class OrchestratorBase:
     def github(self) -> GitHubClient:
         """Authenticated GitHub client, created on first use."""
         if self._github is None:
-            self._github = dev_tools.orchestrator.GitHubClient(repo=dev_tools.orchestrator.get_config().github_repo,
-                no_cache=self.no_cache)
+            self._github = dev_tools.orchestrator.GitHubClient(
+                repo=dev_tools.orchestrator.get_config().github_repo,
+                no_cache=self.no_cache,
+            )
         return self._github
 
     def _resolve_antipatterns_script(self) -> Optional[str]:
@@ -60,7 +62,13 @@ class OrchestratorBase:
         # 2. Fallback to absolute path relative to this file (robust for package-style execution)
         # Location: cli/dev_tools/orchestrator.py -> ../../scripts/detect-antipatterns.mjs
         abs_path = os.path.abspath(
-            os.path.join(os.path.dirname(__file__), "..", "..", "scripts", "detect-antipatterns.mjs")
+            os.path.join(
+                os.path.dirname(__file__),
+                "..",
+                "..",
+                "scripts",
+                "detect-antipatterns.mjs",
+            )
         )
         if os.path.exists(abs_path):
             return abs_path
@@ -86,16 +94,20 @@ class OrchestratorBase:
     def _cleanup_worktree(self, worktree_path: str) -> None:
         """Robustly cleans up a git worktree and its directory."""
         # Unregister and attempt to remove the worktree via git
-        dev_tools.orchestrator.run_command(["git", "worktree", "remove", "-f", worktree_path],
+        dev_tools.orchestrator.run_command(
+            ["git", "worktree", "remove", "-f", worktree_path],
             check=False,
-            log_on_error=False)
+            log_on_error=False,
+        )
 
         # Forcefully delete the directory if it still exists
         if os.path.exists(worktree_path):
             shutil.rmtree(worktree_path, ignore_errors=True)
 
         # Prune stale worktree metadata
-        dev_tools.orchestrator.run_command(["git", "worktree", "prune"], check=False, log_on_error=False)
+        dev_tools.orchestrator.run_command(
+            ["git", "worktree", "prune"], check=False, log_on_error=False
+        )
 
         # Final safety check
         if os.path.exists(worktree_path):

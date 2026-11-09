@@ -2,6 +2,7 @@ pytest
 pytest-mock
 pylint
 mypy
+ruff
 chromadb
 sentence-transformers
 types-requests

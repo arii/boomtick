@@ -1,4 +1,5 @@
 """Workflow-graph execution and installer."""
+
 import os
 import subprocess
 from collections import defaultdict
@@ -44,14 +45,17 @@ class WorkflowMixin(PlanningMixin):
 
             if continue_resolve:
                 if not os.path.exists(worktree_path):
-                    raise CLIError(f"No in-progress resolution found for PR #{prNumber} at {worktree_path}")
+                    raise CLIError(
+                        f"No in-progress resolution found for PR #{prNumber} at {worktree_path}"
+                    )
 
                 changed_dir = True
                 os.chdir(worktree_path)
 
                 # Check for unmerged paths
-                res_diff = dev_tools.orchestrator.run_command(["git", "diff", "--name-only", "--diff-filter=U"],
-                    check=False)
+                res_diff = dev_tools.orchestrator.run_command(
+                    ["git", "diff", "--name-only", "--diff-filter=U"], check=False
+                )
                 unmerged = res_diff.stdout.strip()
                 if unmerged:
                     raise CLIError(
@@ -70,10 +74,14 @@ class WorkflowMixin(PlanningMixin):
                 dev_tools.orchestrator.run_command(["git", "add", "."], check=True)
 
                 # Check if there is anything to commit
-                status_res = dev_tools.orchestrator.run_command(["git", "status", "--porcelain"], check=False)
+                status_res = dev_tools.orchestrator.run_command(
+                    ["git", "status", "--porcelain"], check=False
+                )
                 if status_res.stdout.strip():
                     commit_msg = f"Merge {base_branch} into PR #{prNumber}"
-                    dev_tools.orchestrator.run_command(["git", "commit", "-m", commit_msg], check=True)
+                    dev_tools.orchestrator.run_command(
+                        ["git", "commit", "-m", commit_msg], check=True
+                    )
 
                 # We reuse the push logic below
                 res_code = 0
@@ -82,16 +90,22 @@ class WorkflowMixin(PlanningMixin):
                 self._cleanup_worktree(worktree_path)
 
                 # 3. Fetch PR branch and create worktree directly on it
-                dev_tools.orchestrator.run_command(["git", "fetch", "origin", f"+pull/{prNumber}/head:{head_ref}"],
-                    check=True)
-                dev_tools.orchestrator.run_command(["git", "worktree", "add", worktree_path, head_ref], check=True)
+                dev_tools.orchestrator.run_command(
+                    ["git", "fetch", "origin", f"+pull/{prNumber}/head:{head_ref}"],
+                    check=True,
+                )
+                dev_tools.orchestrator.run_command(
+                    ["git", "worktree", "add", worktree_path, head_ref], check=True
+                )
 
                 # 4. Switch to worktree and perform git operations
                 changed_dir = True
                 os.chdir(worktree_path)
 
                 # Ensure origin/base_branch is up-to-date
-                dev_tools.orchestrator.run_command(["git", "fetch", "origin", base_branch], check=True)
+                dev_tools.orchestrator.run_command(
+                    ["git", "fetch", "origin", base_branch], check=True
+                )
 
                 # Attempt merge from base branch.
                 merge_cmd = [
@@ -117,10 +131,13 @@ class WorkflowMixin(PlanningMixin):
                         log_warn(
                             f"Disjoint history detected for PR #{prNumber}. Retrying with --allow-unrelated-histories"
                         )
-                        res = dev_tools.orchestrator.run_command(merge_cmd + ["--allow-unrelated-histories"],
-                            check=False)
+                        res = dev_tools.orchestrator.run_command(
+                            merge_cmd + ["--allow-unrelated-histories"], check=False
+                        )
                         if not isinstance(res, subprocess.CompletedProcess):
-                            raise CLIError("Retry merge with --allow-unrelated-histories failed execution")
+                            raise CLIError(
+                                "Retry merge with --allow-unrelated-histories failed execution"
+                            )
 
                 res_code = res.returncode
 
@@ -135,18 +152,28 @@ class WorkflowMixin(PlanningMixin):
                 if push or continue_resolve:
                     head_branch = pr_data.get("head", {}).get("ref")
                     if not head_branch:
-                        raise CLIError(f"Cannot push: head branch is missing for PR #{prNumber}")
+                        raise CLIError(
+                            f"Cannot push: head branch is missing for PR #{prNumber}"
+                        )
                     try:
                         # Use authenticated URL if token is available to avoid terminal prompts
                         if self.github.token and self.github.repo:
                             auth_url = f"https://x-access-token:{self.github.token}@github.com/{self.github.repo}.git"
-                            dev_tools.orchestrator.run_command(["git", "push", auth_url, f"HEAD:{head_branch}"],
-                                check=True)
+                            dev_tools.orchestrator.run_command(
+                                ["git", "push", auth_url, f"HEAD:{head_branch}"],
+                                check=True,
+                            )
                         else:
-                            dev_tools.orchestrator.run_command(["git", "push", "origin", head_branch], check=True)
-                        message += f"\n🚀 Successfully pushed resolution to {head_branch}"
+                            dev_tools.orchestrator.run_command(
+                                ["git", "push", "origin", head_branch], check=True
+                            )
+                        message += (
+                            f"\n🚀 Successfully pushed resolution to {head_branch}"
+                        )
                     except Exception as push_err:
-                        message += f"\n⚠️  Merge successful but push failed: {str(push_err)}"
+                        message += (
+                            f"\n⚠️  Merge successful but push failed: {str(push_err)}"
+                        )
                         status = "partial_success"
 
                 if continue_resolve and status == "success":
@@ -184,7 +211,9 @@ class WorkflowMixin(PlanningMixin):
             if changed_dir:
                 os.chdir(original_cwd)
 
-    def generate_aggregation_workflow(self, prNumbers: List[int], target_branch: str) -> Dict[str, Any]:
+    def generate_aggregation_workflow(
+        self, prNumbers: List[int], target_branch: str
+    ) -> Dict[str, Any]:
         """Generates a deterministic aggregation workflow plan for an agent."""
         # 1. Environment Validation
         self.runtime_check()
@@ -195,7 +224,9 @@ class WorkflowMixin(PlanningMixin):
         pr_hunks = {}
 
         from dev_tools.utils.concurrency import run_concurrently
+
         if prNumbers:
+
             def fetch_pr_info_with_error(pr_num: int):
                 try:
                     graphql_data = self.github.fetch_pr_info_graphql(pr_num)
@@ -207,7 +238,12 @@ class WorkflowMixin(PlanningMixin):
                 except Exception as e:
                     raise CLIError(f"Failed to fetch info for PR #{pr_num}: {e}")
 
-            results = run_concurrently(fetch_pr_info_with_error, prNumbers, max_workers=4, ignore_exceptions=False)
+            results = run_concurrently(
+                fetch_pr_info_with_error,
+                prNumbers,
+                max_workers=4,
+                ignore_exceptions=False,
+            )
             for pr_num, details, files, hunks in results:
                 pr_details[pr_num] = details
                 pr_hunks[pr_num] = hunks
@@ -247,14 +283,16 @@ class WorkflowMixin(PlanningMixin):
         plan_lines = []
         plan_lines.append(f"# Aggregation Workflow Plan: {escape_md(target_branch)}\n")
         plan_lines.append("## Agent Instructions")
-        plan_lines.append((
-            f"- "
-            f"**Environment Check**: "
-            f"Ensure Python "
-            f"dependencies and "
-            f"pnpm {dev_tools.orchestrator.get_config().pnpm_version} "
-            f"are available."
-        ))
+        plan_lines.append(
+            (
+                f"- "
+                f"**Environment Check**: "
+                f"Ensure Python "
+                f"dependencies and "
+                f"pnpm {dev_tools.orchestrator.get_config().pnpm_version} "
+                f"are available."
+            )
+        )
         plan_lines.append("- setup complete")
         plan_lines.append("- validation complete")
         plan_lines.append("- context collected")
@@ -275,9 +313,14 @@ class WorkflowMixin(PlanningMixin):
         for pr_num in prNumbers:
             details = pr_details.get(pr_num, {})
             title = escape_md(details.get("title", ""))
-            login = escape_md(details.get("user", {}).get("login", "") or details.get("author", {}).get("login", ""))
+            login = escape_md(
+                details.get("user", {}).get("login", "")
+                or details.get("author", {}).get("login", "")
+            )
             head_ref = details.get("head", {}).get("ref", "")
-            plan_lines.append(f"- **PR #{pr_num}**: {title} (@{login}) [branch: `{head_ref}`]")
+            plan_lines.append(
+                f"- **PR #{pr_num}**: {title} (@{login}) [branch: `{head_ref}`]"
+            )
 
         plan_lines.append("\n## Conflict & Overlap Analysis")
         plan_lines.append("### Overlapping Files")
@@ -285,7 +328,9 @@ class WorkflowMixin(PlanningMixin):
             plan_lines.append("No overlapping files detected.")
         else:
             for filename, prs in sorted(overlapping_files.items()):
-                plan_lines.append(f"- `{filename}`: Changed in PRs {', '.join(f'#{p}' for p in prs)}")
+                plan_lines.append(
+                    f"- `{filename}`: Changed in PRs {', '.join(f'#{p}' for p in prs)}"
+                )
 
         plan_lines.append("\n### Structural Conflicts (Line Overlaps)")
         if not conflicts:
@@ -302,83 +347,99 @@ class WorkflowMixin(PlanningMixin):
 
         plan_lines.append("\n## Sequential Execution Plan")
         plan_lines.append("### Base Branch Setup")
-        plan_lines.append((
-            f"1. "
-            f"Checkout base "
-            f"branch (`{dev_tools.orchestrator.get_config().base_branch_name}`) "
-            f"and pull "
-            f"latest changes."
-        ))
-        plan_lines.append((
-            f"2. "
-            f"Create and "
-            f"checkout target "
-            f"aggregation branch: "
-            f"`git checkout "
-            f"-b {escape_md(target_branch)}`."
-        ))
+        plan_lines.append(
+            (
+                f"1. "
+                f"Checkout base "
+                f"branch (`{dev_tools.orchestrator.get_config().base_branch_name}`) "
+                f"and pull "
+                f"latest changes."
+            )
+        )
+        plan_lines.append(
+            (
+                f"2. "
+                f"Create and "
+                f"checkout target "
+                f"aggregation branch: "
+                f"`git checkout "
+                f"-b {escape_md(target_branch)}`."
+            )
+        )
 
         plan_lines.append("\n### Step-by-Step Merge Sequence")
         step_idx = 1
         for pr_num in prNumbers:
             details = pr_details.get(pr_num, {})
             head_ref = details.get("head", {}).get("ref", f"PR #{pr_num}")
-            plan_lines.append(f"{step_idx}. **Merge PR #{pr_num}** (`{head_ref}`): `git merge {head_ref}`")
+            plan_lines.append(
+                f"{step_idx}. **Merge PR #{pr_num}** (`{head_ref}`): `git merge {head_ref}`"
+            )
             step_idx += 1
 
         plan_lines.append("\n### Conflict Resolution & Fallbacks")
-        plan_lines.append((
-            "- "
-            "**Unrelated Histories "
-            "Fallback**: If "
-            "git fails "
-            "with `fatal: "
-            "refusing to "
-            "merge unrelated "
-            "histories`, retry "
-            "with `--allow-unrelated-histories`."
-        ))
-        plan_lines.append((
-            "- "
-            "**Heavy Conflicts "
-            "Fallback**: If "
-            "standard merging "
-            "creates excessive "
-            "noise or "
-            "fails, generate "
-            "a patch "
-            "(`git diff "
-            "target...head > "
-            "pr_patch.patch`) and "
-            "apply manually "
-            "(`git apply "
-            "pr_patch.patch`)."
-        ))
+        plan_lines.append(
+            (
+                "- "
+                "**Unrelated Histories "
+                "Fallback**: If "
+                "git fails "
+                "with `fatal: "
+                "refusing to "
+                "merge unrelated "
+                "histories`, retry "
+                "with `--allow-unrelated-histories`."
+            )
+        )
+        plan_lines.append(
+            (
+                "- "
+                "**Heavy Conflicts "
+                "Fallback**: If "
+                "standard merging "
+                "creates excessive "
+                "noise or "
+                "fails, generate "
+                "a patch "
+                "(`git diff "
+                "target...head > "
+                "pr_patch.patch`) and "
+                "apply manually "
+                "(`git apply "
+                "pr_patch.patch`)."
+            )
+        )
 
         plan_lines.append("\n## Verification & Completion Checklist")
-        plan_lines.append((
-            "- "
-            "[ ] "
-            "**Local Validation**: "
-            "Run `pnpm "
-            "run lint`, "
-            "`pnpm run "
-            "type-check`, and "
-            "relevant test "
-            "suites."
-        ))
-        plan_lines.append((
-            "- "
-            "[ ] "
-            "**Merge Marker "
-            "Check**: Ensure "
-            "no remaining "
-            "git conflict "
-            "markers (`grep "
-            "-rn \"^<<<<<<<\" "
-            ".`)."
-        ))
-        plan_lines.append("- [ ] **Final Status Sign-off**: Verify overall stability of the aggregated branch.")
+        plan_lines.append(
+            (
+                "- "
+                "[ ] "
+                "**Local Validation**: "
+                "Run `pnpm "
+                "run lint`, "
+                "`pnpm run "
+                "type-check`, and "
+                "relevant test "
+                "suites."
+            )
+        )
+        plan_lines.append(
+            (
+                "- "
+                "[ ] "
+                "**Merge Marker "
+                "Check**: Ensure "
+                "no remaining "
+                "git conflict "
+                "markers (`grep "
+                '-rn "^<<<<<<<" '
+                ".`)."
+            )
+        )
+        plan_lines.append(
+            "- [ ] **Final Status Sign-off**: Verify overall stability of the aggregated branch."
+        )
 
         with open(workflow_plan_path, "w", encoding="utf-8") as f:
             f.write("\n".join(plan_lines) + "\n")
@@ -414,14 +475,18 @@ class WorkflowMixin(PlanningMixin):
         if pr_number is not None and builder.pr_diff:
             try:
                 structured_context = builder.build_structured_context(step)
-                changed_files = structured_context.get("pr", {}).get("changed_files", [])
+                changed_files = structured_context.get("pr", {}).get(
+                    "changed_files", []
+                )
                 if changed_files:
                     from dev_tools.services.dependency_graph import DependencyGraph
 
                     graph = DependencyGraph()
                     affected = graph.find_affected_files(changed_files)
                     if affected:
-                        builder.add_extra_context("Affected Files (Impact Analysis)", sorted(list(affected)))
+                        builder.add_extra_context(
+                            "Affected Files (Impact Analysis)", sorted(list(affected))
+                        )
             except Exception as e:
                 log_warn(f"Could not calculate affected files for PR context: {e}")
 
@@ -431,9 +496,7 @@ class WorkflowMixin(PlanningMixin):
         }
 
     def run_workflow_graph(
-        self,
-        graph: Any,
-        initial_inputs: Optional[Dict[str, Any]] = None
+        self, graph: Any, initial_inputs: Optional[Dict[str, Any]] = None
     ) -> "WorkflowContext":
         """
         Runs a workflow graph using a ContextBuilder-bound WorkflowContext.
@@ -451,7 +514,9 @@ class WorkflowMixin(PlanningMixin):
         finally:
             runner.shutdown(wait=False)
 
-    def install_workflows(self, dry_run: bool = True, cwd: Optional[str] = None) -> Dict[str, Any]:
+    def install_workflows(
+        self, dry_run: bool = True, cwd: Optional[str] = None
+    ) -> Dict[str, Any]:
         """
         Detects if running in a submodule context, and copies/installs standardized automation workflows
         from the submodule directory to the parent repository's .github/workflows/ folder,
@@ -483,7 +548,9 @@ class WorkflowMixin(PlanningMixin):
             # Search for a subdirectory that represents the submodule
             for candidate in ["boomtick-pkg", "boomtick"]:
                 candidate_abs = os.path.join(cwd, candidate)
-                if os.path.isdir(candidate_abs) and os.path.isdir(os.path.join(candidate_abs, "cli")):
+                if os.path.isdir(candidate_abs) and os.path.isdir(
+                    os.path.join(candidate_abs, "cli")
+                ):
                     parent_root = cwd
                     submodule_name = candidate
                     submodule_path = candidate_abs
@@ -495,7 +562,11 @@ class WorkflowMixin(PlanningMixin):
             submodule_name = ""
 
         # Workflows to copy
-        target_workflows = ["chatops-trigger.yml", "issue-operations.yml", "agent-orchestrator.yml"]
+        target_workflows = [
+            "chatops-trigger.yml",
+            "issue-operations.yml",
+            "agent-orchestrator.yml",
+        ]
         source_dir = os.path.join(submodule_path, ".github", "workflows")
         target_dir = os.path.join(parent_root, ".github", "workflows")
 
@@ -521,9 +592,16 @@ class WorkflowMixin(PlanningMixin):
 
             # Rewrite paths if we are in submodule layout
             if submodule_name:
-                content = content.replace("uses: ./mcp/actions/", f"uses: ./{submodule_name}/mcp/actions/")
-                content = content.replace("uses: ./.github/actions/", f"uses: ./{submodule_name}/.github/actions/")
-                content = content.replace("$GITHUB_WORKSPACE/cli", f"$GITHUB_WORKSPACE/{submodule_name}/cli")
+                content = content.replace(
+                    "uses: ./mcp/actions/", f"uses: ./{submodule_name}/mcp/actions/"
+                )
+                content = content.replace(
+                    "uses: ./.github/actions/",
+                    f"uses: ./{submodule_name}/.github/actions/",
+                )
+                content = content.replace(
+                    "$GITHUB_WORKSPACE/cli", f"$GITHUB_WORKSPACE/{submodule_name}/cli"
+                )
 
             if not dry_run:
                 with open(dest_file, "w", encoding="utf-8") as f:

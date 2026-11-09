@@ -36,16 +36,10 @@ def test_parse_comment_ai_review(orchestrator):
     assert res["ai_chatops"] is True
 
 
-
-
-
-
-
-
-
-
 def test_parse_comment_multiple(orchestrator):
-    res = orchestrator.parse_comment("@conflict-resolve and @update-snapshots", "CONTRIBUTOR")
+    res = orchestrator.parse_comment(
+        "@conflict-resolve and @update-snapshots", "CONTRIBUTOR"
+    )
     assert res["conflict_resolve"] is True
     assert res["update_snapshots"] is True
     assert res["ai_chatops"] is False

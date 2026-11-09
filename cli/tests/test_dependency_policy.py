@@ -7,6 +7,7 @@ set (exporter 1.45.x vs sdk 1.37.0) whose ImportError silently disabled the
 RAG embedding backend (index_available=false, 0 hits). Telemetry arrives
 transitively via chromadb/semgrep; pins here can only reintroduce skew.
 """
+
 import os
 import re
 import tomllib
@@ -20,14 +21,9 @@ def _dependencies():
 
 
 def test_no_exact_pins_on_opentelemetry():
-    pinned = [
-        dep
-        for dep in _dependencies()
-        if re.match(r"opentelemetry-.*==", dep)
-    ]
+    pinned = [dep for dep in _dependencies() if re.match(r"opentelemetry-.*==", dep)]
     assert not pinned, (
-        "opentelemetry packages must float, found exact pins: "
-        + ", ".join(pinned)
+        "opentelemetry packages must float, found exact pins: " + ", ".join(pinned)
     )
 
 

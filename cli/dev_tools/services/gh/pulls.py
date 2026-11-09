@@ -1,4 +1,5 @@
 """GitHub pull-request resource."""
+
 import json
 import subprocess
 from typing import Any, Dict, List, Optional
@@ -7,17 +8,22 @@ from dev_tools.utils.git import GitUtility
 from dev_tools.services.gh.core import GitHubCoreMixin
 
 
-
 class PullsMixin(GitHubCoreMixin):
     """GitHub pull-request resource."""
 
-    def fetch_pr_files(self, number: int, repo: Optional[str] = None) -> List[Dict[str, Any]]:
+    def fetch_pr_files(
+        self, number: int, repo: Optional[str] = None
+    ) -> List[Dict[str, Any]]:
         """Fetches the list of files changed in a PR."""
         target_repo = repo or self.repo
         # PR files usually don't change once a commit is pushed, but we'll use a shorter TTL
-        return self._request("GET", f"/repos/{target_repo}/pulls/{number}/files", ttl=600)
+        return self._request(
+            "GET", f"/repos/{target_repo}/pulls/{number}/files", ttl=600
+        )
 
-    def fetch_pr_details(self, number: int, repo: Optional[str] = None) -> Dict[str, Any]:
+    def fetch_pr_details(
+        self, number: int, repo: Optional[str] = None
+    ) -> Dict[str, Any]:
         """Fetch details for a pull request."""
         target_repo = repo or self.repo
         return self._request("GET", f"/repos/{target_repo}/pulls/{number}")
@@ -25,7 +31,9 @@ class PullsMixin(GitHubCoreMixin):
     def fetch_pr_diff(self, number: int, repo: Optional[str] = None) -> str:
         """Fetch the diff for a pull request."""
         target_repo = repo or self.repo
-        return self._request("GET", f"/repos/{target_repo}/pulls/{number}", is_text=True)
+        return self._request(
+            "GET", f"/repos/{target_repo}/pulls/{number}", is_text=True
+        )
 
     def fetch_pr_info_graphql(self, number: int) -> Dict[str, Any]:
         """
@@ -65,12 +73,16 @@ class PullsMixin(GitHubCoreMixin):
             "prNumber": number,
         }
 
-        res = self._request("POST", "/graphql", json_data={"query": query, "variables": variables})
+        res = self._request(
+            "POST", "/graphql", json_data={"query": query, "variables": variables}
+        )
 
         # Check for GraphQL errors
         if "errors" in res:
             errors_str = json.dumps(res["errors"])
-            raise CLIError(f"GitHub GraphQL API Error: {errors_str}", code=400, data=res)
+            raise CLIError(
+                f"GitHub GraphQL API Error: {errors_str}", code=400, data=res
+            )
 
         pr_node = res.get("data", {}).get("repository", {}).get("pullRequest")
         if not pr_node:
@@ -90,12 +102,14 @@ class PullsMixin(GitHubCoreMixin):
             },
             "base": {
                 "ref": pr_node.get("baseRefName", ""),
-            }
+            },
         }
 
         files_node = pr_node.get("files") or {}
         nodes = files_node.get("nodes") or []
-        files_data = [{"filename": node["path"]} for node in nodes if node and "path" in node]
+        files_data = [
+            {"filename": node["path"]} for node in nodes if node and "path" in node
+        ]
 
         return {
             "pr": pr_data,
@@ -106,11 +120,15 @@ class PullsMixin(GitHubCoreMixin):
         """List pull requests containing a commit."""
         return self._request("GET", f"/repos/{self.repo}/commits/{commit_sha}/pulls")
 
-    def search_pull_requests(self, query: str, limit: int = 10, repo: Optional[str] = None) -> List[Dict[str, Any]]:
+    def search_pull_requests(
+        self, query: str, limit: int = 10, repo: Optional[str] = None
+    ) -> List[Dict[str, Any]]:
         """General search for pull requests using the Search API."""
         target_repo = repo or self.repo
         full_query = f"repo:{target_repo} is:pr {query}"
-        data = self._request("GET", "/search/issues", params={"q": full_query, "per_page": limit})
+        data = self._request(
+            "GET", "/search/issues", params={"q": full_query, "per_page": limit}
+        )
         items = data.get("items", []) if isinstance(data, dict) else []
 
         return [
@@ -127,7 +145,11 @@ class PullsMixin(GitHubCoreMixin):
         ]
 
     def list_pull_requests(
-        self, state: str = "open", limit: int = 100, labels: Optional[List[str]] = None, repo: Optional[str] = None
+        self,
+        state: str = "open",
+        limit: int = 100,
+        labels: Optional[List[str]] = None,
+        repo: Optional[str] = None,
     ) -> List[Dict[str, Any]]:
         """Lists pull requests with optional server-side label filtering or standard Pulls API."""
         target_repo = repo or self.repo
@@ -158,7 +180,10 @@ class PullsMixin(GitHubCoreMixin):
                     # Depending on API endpoint (pulls vs search), labels might be strings or dicts
                     raw_labels = pr.get("labels", [])
                     pr_labels = [
-                        l.get("name") if isinstance(l, dict) else (l if isinstance(l, str) else "") for l in raw_labels
+                        l.get("name")
+                        if isinstance(l, dict)
+                        else (l if isinstance(l, str) else "")
+                        for l in raw_labels
                     ]
                     if not all(label in pr_labels for label in labels):
                         continue
@@ -201,10 +226,18 @@ class PullsMixin(GitHubCoreMixin):
             payload["commit_title"] = commit_title
         if commit_message:
             payload["commit_message"] = commit_message
-        return self._request("PUT", f"/repos/{target_repo}/pulls/{number}/merge", json_data=payload)
+        return self._request(
+            "PUT", f"/repos/{target_repo}/pulls/{number}/merge", json_data=payload
+        )
 
     def create_pull_request(
-        self, title: str, body: str, head: str, base: str, draft: bool = False, repo: Optional[str] = None
+        self,
+        title: str,
+        body: str,
+        head: str,
+        base: str,
+        draft: bool = False,
+        repo: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Creates a PR, automatically pushing the head branch if it doesn't exist on remote."""
         target_repo = repo or self.repo
@@ -213,19 +246,29 @@ class PullsMixin(GitHubCoreMixin):
             raise CLIError(f"Invalid branch name: {head}", code=400)
 
         if not self.branch_exists(head, repo=target_repo):
-            log_warn(f"Branch '{head}' not found on remote. Checking for local branch and pushing...")
+            log_warn(
+                f"Branch '{head}' not found on remote. Checking for local branch and pushing..."
+            )
             git_util = GitUtility(token=self.token, repo=target_repo)
 
             # Style: Explicitly check for local branch existence before pushing
             if not git_util.branch_exists_locally(head):
-                log_warn(f"Local branch '{head}' also not found. PR creation will likely fail.")
+                log_warn(
+                    f"Local branch '{head}' also not found. PR creation will likely fail."
+                )
             elif git_util.push_branch(head):
                 # Invalidate branch cache
                 self.invalidate_branch_cache(head, repo=target_repo)
             else:
                 log_warn(self.ERROR_AUTO_PUSH_FAILED.format(head=head))
 
-        data = {"title": title, "body": body, "head": head, "base": base, "draft": draft}
+        data = {
+            "title": title,
+            "body": body,
+            "head": head,
+            "base": base,
+            "draft": draft,
+        }
         return self._request("POST", f"/repos/{target_repo}/pulls", json_data=data)
 
     def mark_pr_ready(self, number: int, repo: Optional[str] = None) -> bool:
@@ -267,7 +310,9 @@ class PullsMixin(GitHubCoreMixin):
         log_warn(f"gh pr merge failed for #{number} in {target_repo}: {res.stderr}")
         return False
 
-    def close_pr(self, number: int, repo: Optional[str] = None, comment: Optional[str] = None) -> bool:
+    def close_pr(
+        self, number: int, repo: Optional[str] = None, comment: Optional[str] = None
+    ) -> bool:
         """Closes a pull request with an optional comment."""
         target_repo = repo or self.repo
         cmd = ["gh", "pr", "close", str(number), "-R", target_repo]

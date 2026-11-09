@@ -1,4 +1,5 @@
 """Schema, doctor, build, lint, test, and context commands."""
+
 import os
 import subprocess
 import sys
@@ -20,6 +21,7 @@ def schema_cmd(ctx, command_path, generate):
     """Retrieve the schema for a specific subcommand or all commands."""
     if generate:
         from dev_tools.schema_gen import generate_schema
+
         generate_schema()
         out(ctx, "✅ Schema generation complete")
         return
@@ -27,7 +29,6 @@ def schema_cmd(ctx, command_path, generate):
     # Sanitize and validate command_path to prevent injection
     # Allowed format: words separated by single spaces (no special shell characters)
     if command_path:
-
         # Stricter regex: words containing only lowercase alphanumeric, hyphens, and underscores,
         # separated by single spaces. No leading/trailing spaces.
         # This prevents any shell character injection and restricts to valid command tokens.
@@ -85,7 +86,11 @@ def doctor(ctx):
         click.echo(f"  • Gemini API Key:     {res.get('gemini_api_key')}")
         click.echo(f"  • Git Safe Directory: {res.get('git_safe_directory')}")
 
-    out(ctx, f"✅ Doctor checks complete (Status: {res.get('status', 'success')})", data=res)
+    out(
+        ctx,
+        f"✅ Doctor checks complete (Status: {res.get('status', 'success')})",
+        data=res,
+    )
 
 
 @cli.command(name="preflight")
@@ -140,14 +145,18 @@ def test_cli(ctx):
     # Get the directory of the current file to find the cli package root
     cli_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     try:
-        subprocess.run([sys.executable, "-m", "pytest", "tests/"], cwd=cli_dir, check=True)
+        subprocess.run(
+            [sys.executable, "-m", "pytest", "tests/"], cwd=cli_dir, check=True
+        )
         out(ctx, "✅ CLI tests passed")
     except subprocess.CalledProcessError as e:
         err(ctx, f"CLI tests failed with exit code {e.returncode}")
 
 
 @cli.command(name="context-warm")
-@click.option("--force", is_flag=True, help="Force re-generation of context even if not stale")
+@click.option(
+    "--force", is_flag=True, help="Force re-generation of context even if not stale"
+)
 @click.pass_context
 def context_warm(ctx, force):
     """Pre-warm the .agent-context.json repository index."""
@@ -168,7 +177,12 @@ def context_warm(ctx, force):
             )
             context_ts = int(res.stdout.strip() or 0)
 
-            res_head = subprocess.run(["git", "log", "-1", "--format=%ct"], capture_output=True, text=True, check=True)
+            res_head = subprocess.run(
+                ["git", "log", "-1", "--format=%ct"],
+                capture_output=True,
+                text=True,
+                check=True,
+            )
             head_ts = int(res_head.stdout.strip() or 0)
 
             if head_ts > context_ts:
@@ -186,7 +200,10 @@ def context_warm(ctx, force):
             log_warn(f"Error checking context staleness via git: {e}")
             # Fallback to simple mtime check if git fails
             mtime = os.path.getmtime(context_file)
-            if os.path.exists("package.json") and os.path.getmtime("package.json") > mtime:
+            if (
+                os.path.exists("package.json")
+                and os.path.getmtime("package.json") > mtime
+            ):
                 is_stale = True
 
     if is_stale:

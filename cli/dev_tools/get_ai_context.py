@@ -9,10 +9,26 @@ from dev_tools.services.dependency_graph import DependencyGraph
 from dev_tools.services.vector_store import VectorStore
 
 
-def get_context(filepath: str, diff_text: str, graph: DependencyGraph, store: VectorStore, n_results: int = 3):
-    context: Dict[str, Any] = {"path": filepath, "dependencies": [], "dependents": [], "semantic": []}
+def get_context(
+    filepath: str,
+    diff_text: str,
+    graph: DependencyGraph,
+    store: VectorStore,
+    n_results: int = 3,
+):
+    context: Dict[str, Any] = {
+        "path": filepath,
+        "dependencies": [],
+        "dependents": [],
+        "semantic": [],
+    }
 
-    if not isinstance(filepath, str) or not isinstance(diff_text, str) or not filepath.strip() or not diff_text.strip():
+    if (
+        not isinstance(filepath, str)
+        or not isinstance(diff_text, str)
+        or not filepath.strip()
+        or not diff_text.strip()
+    ):
         return context
 
     context["dependencies"] = graph.get_dependencies(filepath)
@@ -23,7 +39,9 @@ def get_context(filepath: str, diff_text: str, graph: DependencyGraph, store: Ve
         results = store.query(diff_text, n_results=n_results)
         for res in results:
             if res["metadata"].get("path") != filepath:
-                context["semantic"].append({"path": res["metadata"].get("path"), "document": res["document"]})
+                context["semantic"].append(
+                    {"path": res["metadata"].get("path"), "document": res["document"]}
+                )
     except Exception as e:
         print(f"Error querying vector store: {e}", file=sys.stderr)
 

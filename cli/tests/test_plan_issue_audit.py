@@ -38,7 +38,6 @@ def test_plan_issue_audit_all_open(orchestrator, tmp_path):
 
     # Mock get_or_create_log_dir and current working directory
     with patch("dev_tools.orchestrator.get_or_create_log_dir") as mock_log_dir:
-
         # We'll use actual file writes in the tmp_path for better verification
         mock_log_dir.return_value = str(tmp_path / "workflows")
         os.makedirs(tmp_path / "workflows", exist_ok=True)
@@ -61,7 +60,9 @@ def test_plan_issue_audit_all_open(orchestrator, tmp_path):
                 assert "- [ ] #2: Issue 2" in content
 
             assert len(res["workflow_plans"]) == 2
-            plan1_path = os.path.join(str(tmp_path / "workflows"), "workflow-plan-issue-1.md")
+            plan1_path = os.path.join(
+                str(tmp_path / "workflows"), "workflow-plan-issue-1.md"
+            )
             assert os.path.exists(plan1_path)
             with open(plan1_path, "r", encoding="utf-8") as f:
                 content = f.read()
@@ -90,7 +91,7 @@ def test_plan_issue_audit_specific_issues(orchestrator, tmp_path):
         "html_url": "url10",
         "labels": ["feat"],
         "state": "open",
-        "updated_at": "now"
+        "updated_at": "now",
     }
 
     with patch("dev_tools.orchestrator.get_or_create_log_dir") as mock_log_dir:
@@ -111,7 +112,9 @@ def test_plan_issue_audit_specific_issues(orchestrator, tmp_path):
                 content = f.read()
                 assert "- [ ] #10: Issue 10" in content
 
-            plan_path = os.path.join(str(tmp_path / "workflows"), "workflow-plan-issue-10.md")
+            plan_path = os.path.join(
+                str(tmp_path / "workflows"), "workflow-plan-issue-10.md"
+            )
             assert os.path.exists(plan_path)
         finally:
             os.chdir(original_cwd)

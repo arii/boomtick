@@ -4,6 +4,7 @@ No live browser needed: the grid session helpers and Playwright are
 faked via monkeypatch. Run: python3 scripts/run-python-tool.py pytest
 cli/tests/test_browser_cdp.py
 """
+
 import re
 import sys
 import types
@@ -39,6 +40,7 @@ class _FakePage:
 
     def screenshot(self, path=None, full_page=False):
         from pathlib import Path
+
         Path(path).write_bytes(b"fake-png-bytes")
 
     def close(self):
@@ -128,10 +130,11 @@ def test_grid_base_env_override(monkeypatch):
 
 
 def test_cdp_ws_url_scheme_swap():
-    assert _cdp_ws_url("http://browser:4444", "abc") == \
-        "ws://browser:4444/session/abc/se/cdp"
-    assert _cdp_ws_url("https://h:4444/", "abc") == \
-        "wss://h:4444/session/abc/se/cdp"
+    assert (
+        _cdp_ws_url("http://browser:4444", "abc")
+        == "ws://browser:4444/session/abc/se/cdp"
+    )
+    assert _cdp_ws_url("https://h:4444/", "abc") == "wss://h:4444/session/abc/se/cdp"
 
 
 def test_compare_identical_bytes(tmp_path):
@@ -152,16 +155,16 @@ def test_capture_reachable_snapshot(tmp_path, monkeypatch, capsys):
     deleted = []
     _install_fake_grid(monkeypatch, deleted)
     fake_browser = _install_fake_playwright(monkeypatch)
-    result = capture_dom_and_visual_snapshot(
-        "http://example.test/", tmp_path)
+    result = capture_dom_and_visual_snapshot("http://example.test/", tmp_path)
     assert isinstance(result, VisualDiffResult)
     assert result.reachable is True
     assert result.dom_node_count == 42
     assert result.interactive_elements == 7
     assert result.mismatch_percentage == 0.0
     assert result.screenshot_path is not None
-    assert fake_browser.connected_to == \
-        "ws://browser:4444/session/fake-session-id/se/cdp"
+    assert (
+        fake_browser.connected_to == "ws://browser:4444/session/fake-session-id/se/cdp"
+    )
     assert deleted == ["fake-session-id"]
     # stdout stays pure JSON: all telemetry goes to stderr
     assert capsys.readouterr().out == ""
@@ -171,8 +174,7 @@ def test_capture_deletes_session_on_cdp_failure(tmp_path, monkeypatch):
     deleted = []
     _install_fake_grid(monkeypatch, deleted)
     _install_fake_playwright(monkeypatch, exc=RuntimeError("refused"))
-    result = capture_dom_and_visual_snapshot(
-        "http://example.test/", tmp_path)
+    result = capture_dom_and_visual_snapshot("http://example.test/", tmp_path)
     assert result.reachable is False
     assert result.screenshot_path is None
     assert result.error.startswith("BROWSER_UNREACHABLE")
@@ -182,10 +184,8 @@ def test_capture_deletes_session_on_cdp_failure(tmp_path, monkeypatch):
 
 def test_capture_unreachable_grid(tmp_path, monkeypatch):
     deleted = []
-    _install_fake_grid(monkeypatch, deleted,
-                       exc=RuntimeError("connection refused"))
-    result = capture_dom_and_visual_snapshot(
-        "http://example.test/", tmp_path)
+    _install_fake_grid(monkeypatch, deleted, exc=RuntimeError("connection refused"))
+    result = capture_dom_and_visual_snapshot("http://example.test/", tmp_path)
     assert result.reachable is False
     assert result.error.startswith("BROWSER_UNREACHABLE")
     assert deleted == []
@@ -214,15 +214,13 @@ def test_evaluate_js_has_no_adjacent_string_literals(tmp_path, monkeypatch):
     _install_fake_playwright(monkeypatch)
     capture_dom_and_visual_snapshot("http://example.test/", tmp_path)
     expr = _FakePage.last_evaluate
-    assert "'a, button, input, select, textarea, " \
-        '[role="button"]\'' in expr
+    assert "'a, button, input, select, textarea, [role=\"button\"]'" in expr
     assert re.search(r"'[^'\n]*'\s*'", expr) is None
 
 
 def test_capture_without_playwright(tmp_path, monkeypatch):
     monkeypatch.setitem(sys.modules, "playwright.sync_api", None)
-    result = capture_dom_and_visual_snapshot(
-        "http://example.test/", tmp_path)
+    result = capture_dom_and_visual_snapshot("http://example.test/", tmp_path)
     assert result.reachable is False
     assert result.error.startswith("BROWSER_UNREACHABLE")
     assert "PLAYWRIGHT_NOT_INSTALLED" in result.error

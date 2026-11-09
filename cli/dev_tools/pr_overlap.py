@@ -44,7 +44,9 @@ def get_pr_overlaps(github: GitHubClient, limit: int) -> List[Dict[str, Any]]:
         pr_num = pr["number"]
         pr_metadata[pr_num] = pr
 
-    def fetch_files_for_pr(pr_dict: Dict[str, Any]) -> Tuple[int, Optional[List[Dict[str, Any]]], Optional[Exception]]:
+    def fetch_files_for_pr(
+        pr_dict: Dict[str, Any],
+    ) -> Tuple[int, Optional[List[Dict[str, Any]]], Optional[Exception]]:
         pr_num = pr_dict["number"]
         log_info(f"Fetching files for PR #{pr_num}...")
         try:
@@ -79,11 +81,13 @@ def get_pr_overlaps(github: GitHubClient, limit: int) -> List[Dict[str, Any]]:
 
     clusters: List[Dict[str, Any]] = []
     for pr_tuple_key, overlapping_files in overlaps.items():
-        clusters.append({
-            "prs": list(pr_tuple_key),
-            "files": sorted(list(overlapping_files)),
-            "metadata": {num: pr_metadata[num] for num in pr_tuple_key}
-        })
+        clusters.append(
+            {
+                "prs": list(pr_tuple_key),
+                "files": sorted(list(overlapping_files)),
+                "metadata": {num: pr_metadata[num] for num in pr_tuple_key},
+            }
+        )
 
     # Sort clusters by number of overlapping files (descending)
     clusters.sort(key=lambda x: len(x["files"]), reverse=True)
@@ -125,16 +129,22 @@ def report_overlaps(clusters: List[Dict[str, Any]]):
         print("\n**Involved PRs:**")
         for num in pr_list:
             pr = metadata[num]
-            print(f"- **#{num}**: {pr.get('title')} (Author: @{pr.get('author', {}).get('login', 'unknown')})")
+            print(
+                f"- **#{num}**: {pr.get('title')} (Author: @{pr.get('author', {}).get('login', 'unknown')})"
+            )
 
         print("\n**Recommendation:** Merge/Coordinate")
-        print("**Rationale:** High file overlap suggests these PRs may have functional dependencies or cause merge conflicts.")
+        print(
+            "**Rationale:** High file overlap suggests these PRs may have functional dependencies or cause merge conflicts."
+        )
         print("\n---\n")
 
 
 @click.command()
 @click.option("--limit", default=20, help="Limit the number of PRs to process")
-@click.option("--no-cache", is_flag=True, help="Bypass the disk cache for GitHub API calls")
+@click.option(
+    "--no-cache", is_flag=True, help="Bypass the disk cache for GitHub API calls"
+)
 def run_cli(limit, no_cache):
     try:
         github = GitHubClient(no_cache=no_cache)
