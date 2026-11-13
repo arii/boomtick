@@ -5,7 +5,10 @@ import { IssueUpdateInputSchema, IssueUpdateResponseSchema } from "./contract.js
 
 export { IssueUpdateInputSchema };
 
-export async function issueUpdateHandler(args: z.infer<typeof IssueUpdateInputSchema>) {
+// The generated schema carries .default(null) on every optional field, so the
+// input type (pre-default) — not the parsed output type — is the honest call
+// signature; parse applies the defaults.
+export async function issueUpdateHandler(args: z.input<typeof IssueUpdateInputSchema>) {
   const params = IssueUpdateInputSchema.parse(args);
   const targetRepo = resolveRepo(params.repo);
 

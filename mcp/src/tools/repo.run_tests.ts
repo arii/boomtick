@@ -1,10 +1,11 @@
 import { z } from "zod";
 import { runCommand, ShellResult } from "../lib/shell.js";
 
+// #1025 regression class: every optional input accepts explicit nulls.
 export const RunTestsInputSchema = z.object({
-  commands: z.array(z.string()).optional(),
-  timeoutSeconds: z.number().optional().default(300),
-  worktreePath: z.string().optional(),
+  commands: z.array(z.string()).nullable().optional(),
+  timeoutSeconds: z.number().nullable().optional().default(300),
+  worktreePath: z.string().nullable().optional(),
 });
 
 export type RunTestsInput = z.input<typeof RunTestsInputSchema>;
@@ -37,6 +38,7 @@ export async function runTestsHandler(args: RunTestsInput) {
     "pnpm test",
     "pnpm build"
   ];
+  const timeoutMs = (parsed.timeoutSeconds ?? 300) * 1000;
 
   const results: ShellResult[] = [];
   let success = true;
@@ -45,8 +47,8 @@ export async function runTestsHandler(args: RunTestsInput) {
     const [cmd, cmdArgs] = parseCommandArguments(fullCmd);
     try {
       const res = await runCommand(cmd, cmdArgs, {
-        cwd: parsed.worktreePath,
-        timeout: parsed.timeoutSeconds * 1000
+        cwd: parsed.worktreePath ?? undefined,
+        timeout: timeoutMs
       });
       results.push(res);
       if (res.exitCode !== 0) {

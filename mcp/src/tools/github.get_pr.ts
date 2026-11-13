@@ -6,26 +6,28 @@ import { runTDCli } from "../lib/tdCli.js";
 // runCommand("gh", ...) below is a direct gh call for PR metadata, not
 // a td call: it intentionally stays on runCommand.
 
+// #1025 regression class: LLM clients serialize explicit nulls for optional
+// fields, so every optional input accepts null and handlers normalize it.
 export const GetPrInputSchema = z.object({
-  prNumber: z.number().optional().describe("The number of the PR to view. Omit to search open PRs instead."),
-  repo: z.string().optional().describe("The target repository override (e.g. org/repo)."),
-  includeDiff: z.boolean().optional().describe("Include the PR diff and changed files (absorbs github_get_pr_diff)."),
-  includeReviews: z.boolean().optional().describe("Include top-level reviews (absorbs github_get_pr_reviews)."),
-  includeCommits: z.boolean().optional().describe("Include commit metadata (absorbs github_get_pr_commits)."),
-  includeConflicts: z.boolean().optional().describe("Include merge-conflict files (absorbs github_get_merge_conflict_files)."),
-  baseBranch: z.string().optional().describe("Conflict check only: base branch (resolved from PR when omitted)."),
-  headRef: z.string().optional().describe("Conflict check only: head ref (resolved from PR when omitted)."),
-  state: z.enum(["open", "closed", "all"]).optional().describe("Search mode only: PR state filter (absorbs github_search_open_prs)."),
-  includeDrafts: z.boolean().optional().describe("Search mode only: include draft PRs."),
-  limit: z.number().min(1).max(100).optional().describe("Search mode only: max PRs to return."),
-  labels: z.array(z.string()).optional().describe("Search mode only: filter by labels."),
+  prNumber: z.number().nullable().optional().describe("The number of the PR to view. Omit or pass null to search open PRs instead."),
+  repo: z.string().nullable().optional().describe("The target repository override (e.g. org/repo)."),
+  includeDiff: z.boolean().nullable().optional().describe("Include the PR diff and changed files (absorbs github_get_pr_diff)."),
+  includeReviews: z.boolean().nullable().optional().describe("Include top-level reviews (absorbs github_get_pr_reviews)."),
+  includeCommits: z.boolean().nullable().optional().describe("Include commit metadata (absorbs github_get_pr_commits)."),
+  includeConflicts: z.boolean().nullable().optional().describe("Include merge-conflict files (absorbs github_get_merge_conflict_files)."),
+  baseBranch: z.string().nullable().optional().describe("Conflict check only: base branch (resolved from PR when omitted)."),
+  headRef: z.string().nullable().optional().describe("Conflict check only: head ref (resolved from PR when omitted)."),
+  state: z.enum(["open", "closed", "all"]).nullable().optional().describe("Search mode only: PR state filter (absorbs github_search_open_prs)."),
+  includeDrafts: z.boolean().nullable().optional().describe("Search mode only: include draft PRs."),
+  limit: z.number().min(1).max(100).nullable().optional().describe("Search mode only: max PRs to return."),
+  labels: z.array(z.string()).nullable().optional().describe("Search mode only: filter by labels."),
 });
 
 export async function getPrHandler(args: z.infer<typeof GetPrInputSchema>): Promise<Record<string, unknown>> {
   const params = GetPrInputSchema.parse(args);
-  const targetRepo = resolveRepo(params.repo);
+  const targetRepo = resolveRepo(params.repo ?? undefined);
 
-  if (params.prNumber === undefined) {
+  if (params.prNumber == null) {
     const tdArgs = [
       "gh", "search-prs",
       "--state", params.state ?? "open",

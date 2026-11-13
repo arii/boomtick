@@ -5,7 +5,8 @@ import { runTDCli } from "../lib/tdCli.js";
 export const IssueCommentInputSchema = z.object({
   issueNumber: z.number().describe("The number of the issue to comment on."),
   body: z.string().min(1, "Comment body cannot be empty").describe("The content of the comment."),
-  repo: z.string().optional().describe("The target repository override (e.g. org/repo)."),
+  // #1025 regression class: accept explicit nulls for optional fields.
+  repo: z.string().nullable().optional().describe("The target repository override (e.g. org/repo)."),
 });
 
 const IssueCommentSchema = z
@@ -31,7 +32,7 @@ export async function issueCommentHandler(
   args: z.infer<typeof IssueCommentInputSchema>
 ): Promise<{ status: "success"; comment: IssueComment | undefined }> {
   const params = IssueCommentInputSchema.parse(args);
-  const targetRepo = resolveRepo(params.repo);
+  const targetRepo = resolveRepo(params.repo ?? undefined);
 
   const output = IssueCommentOutputSchema.parse(
     await runTDCli(
