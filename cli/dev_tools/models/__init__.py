@@ -2,7 +2,7 @@
 import re
 from typing import Any, Dict, List, Literal, Optional, Union
 
-from pydantic import Field, field_validator, model_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 from .base import CamelCaseModel
 
@@ -28,66 +28,57 @@ class PRSummary(CamelCaseModel):
 class CreateIssueInput(CamelCaseModel):
     title: str = Field(..., min_length=1)
     body: Optional[str] = Field(None, min_length=1)
-    file: Optional[str] = Field(None, min_length=1)
     repo: Optional[str] = Field(
         None,
         pattern=r"^[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+$",
         description="The target repository override (e.g. org/repo).",
     )
 
-    @model_validator(mode="after")
-    def check_body_or_file(self) -> "CreateIssueInput":
-        body_val = self.body.strip() if self.body else None
-        file_val = self.file.strip() if self.file else None
-        if not body_val and not file_val:
-            raise ValueError("Provide either --file or --body (cannot be empty)")
-        if body_val and file_val:
-            raise ValueError("Provide --file or --body, not both")
-        return self
 
+class GithubIssueInput(CamelCaseModel):
+    """One tool for issue read + write.
 
-class IssueUpdateInput(CamelCaseModel):
-    issue_number: int = Field(..., description="The number of the issue to update.")
-    body: Optional[str] = Field(None, description="The new body content for the issue.")
-    file: Optional[str] = Field(
-        None, description="Path to file containing new issue body."
+    Omitting every write field reads the issue. A write call performs
+    exactly one write kind: `comment` is exclusive with the body/label/
+    state update fields (a comment plus a state change in one call would
+    make ordering ambiguous in agent receipts).
+    """
+
+    issue_number: int = Field(..., description="The number of the issue.")
+    repo: Optional[str] = Field(
+        None,
+        pattern=r"^[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+$",
+        description="The target repository override (e.g. org/repo).",
     )
-    labels: Optional[List[str]] = Field(
-        None, description="Comma-separated list of labels to set."
+    set_body: Optional[str] = Field(
+        None, description="Write: the new issue body."
     )
     add_labels: Optional[List[str]] = Field(
-        None, description="Comma-separated list of labels to add."
+        None, description="Write: labels to add."
     )
     remove_labels: Optional[List[str]] = Field(
-        None, description="Comma-separated list of labels to remove."
+        None, description="Write: labels to remove."
     )
     state: Optional[Literal["open", "closed"]] = Field(
-        None, description="The state to set the issue to."
+        None, description="Write: the state to set the issue to."
     )
-    repo: Optional[str] = Field(
+    comment: Optional[str] = Field(
         None,
-        pattern=r"^[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+$",
-        description="The target repository override (e.g. org/repo).",
+        min_length=1,
+        description="Write: comment to add (exclusive with the other write fields).",
     )
 
     @model_validator(mode="after")
-    def check_updates(self) -> "IssueUpdateInput":
-        fields = (
-            self.body,
-            self.file,
-            self.labels,
-            self.add_labels,
-            self.remove_labels,
-            self.state,
+    def one_write_per_call(self) -> "GithubIssueInput":
+        has_comment = self.comment is not None
+        has_update = any(
+            v is not None
+            for v in (self.set_body, self.add_labels, self.remove_labels, self.state)
         )
-        if all(v is None for v in fields):
+        if has_comment and has_update:
             raise ValueError(
-                "Provide --file, --body, --labels, --add_labels, --remove_labels, or --state"
+                "Exactly one write per call: pass 'comment' or body/label/state changes, not both"
             )
-        body_val = self.body.strip() if self.body else None
-        file_val = self.file.strip() if self.file else None
-        if body_val and file_val:
-            raise ValueError("Provide --file or --body, not both")
         return self
 
 
@@ -134,47 +125,33 @@ class ReadPRCommentsResponse(CLIResponse):
 # MCP Tool Inputs
 
 
-class HealthCheckInput(CamelCaseModel):
-    check_deep: bool = Field(
-        False,
-        description="Whether to perform a deep health check including external dependencies.",
-    )
+class RepoContextInput(CamelCaseModel):
+    """Read repository context or ecosystem status, with optional server health."""
 
-
-class ReadCiLogsInput(CamelCaseModel):
-    pr_number: Optional[int] = Field(
-        None, description="PR number for CI logs. Omit to list workflow runs instead."
-    )
-    all: bool = Field(
-        False, description="Include logs for successful runs (default: false)."
-    )
     repo: Optional[str] = Field(
         None,
-        pattern=r"^[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+$",
-        description="The target repository override (e.g. org/repo).",
+        description="Target repository override (e.g. org/repo). Omit for the server's own repo.",
     )
-    include_runs: bool = Field(
-        False,
-        description="Include recent workflow runs (absorbs repo_get_workflow_runs).",
+    scope: Optional[Literal["self", "all"]] = Field(
+        None,
+        description='"all" fetches ecosystem-wide context via td multi-repo status; omit or "self" reads a single repo.',
     )
-    branch: Optional[str] = Field(
-        None, description="Filter workflow runs by branch name."
+    skill: Optional[str] = Field(
+        None, description="Skill name: include its SKILL.md body in the response."
     )
-    event: Optional[str] = Field(
-        None, description="Filter workflow runs by event (e.g. push, pull_request)."
+    deep: Optional[bool] = Field(
+        None,
+        description="Include server health details (td availability, RAG index state).",
     )
 
-
-class WorktreeItem(CamelCaseModel):
-    worktree_id: str
-    path: str
-    branch: str
-    age_seconds: Union[int, float]
-    changed_files_count: int
-    disk_usage_bytes: int
+    @model_validator(mode="after")
+    def check_scope(self) -> "RepoContextInput":
+        if self.scope == "all" and self.repo:
+            raise ValueError("Pass scope='all' or repo, not both")
+        return self
 
 
-class RunTestsInput(CamelCaseModel):
+class RepoTestInput(CamelCaseModel):
     commands: Optional[List[str]] = Field(
         None,
         description="Optional list of commands to run (default includes install, lint, test, build).",
@@ -187,63 +164,66 @@ class RunTestsInput(CamelCaseModel):
     )
 
 
-class RunTestsResponse(CamelCaseModel):
+class RepoTestResponse(CamelCaseModel):
     passed: bool
     exit_code: int
     failed_tests: List[str] = Field(default_factory=list)
     results: List[Dict[str, Any]] = Field(default_factory=list)
 
 
-class GetPrInput(CamelCaseModel):
-    pr_number: Optional[int] = Field(
-        None, description="The number of the PR to view. Omit to search PRs instead."
-    )
-    repo: Optional[str] = Field(
-        None,
-        pattern=r"^[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+$",
-        description="The target repository override (e.g. org/repo).",
-    )
-    include_diff: bool = Field(
-        False, description="Include the PR diff and changed files."
-    )
-    include_reviews: bool = Field(False, description="Include top-level reviews.")
-    include_commits: bool = Field(False, description="Include commit metadata.")
-    include_conflicts: bool = Field(False, description="Include merge-conflict files.")
-    base_branch: Optional[str] = Field(
-        None, description="Conflict check only: base branch."
-    )
-    head_ref: Optional[str] = Field(None, description="Conflict check only: head ref.")
+class GithubPrSearch(CamelCaseModel):
     state: Literal["open", "closed", "all"] = Field(
-        "open", description="Search mode only: PR state filter."
+        "open", description="PR state filter."
     )
-    include_drafts: bool = Field(
-        True, description="Search mode only: include draft PRs."
-    )
-    limit: int = Field(
-        100, ge=1, le=100, description="Search mode only: max PRs to return."
-    )
-    labels: Optional[List[str]] = Field(
-        None, description="Search mode only: filter by labels."
-    )
+    labels: Optional[List[str]] = Field(None, description="Filter by labels.")
+    limit: int = Field(100, ge=1, le=100, description="Maximum PRs to return.")
 
 
-class IssueViewInput(CamelCaseModel):
-    issue_number: int = Field(..., description="The number of the issue to view.")
+class GithubPrInput(CamelCaseModel):
+    """One tool for PR view (+ optional sections) and PR search.
+
+    Modes are explicit: pass `pr_number` to view one PR, or `search` to
+    list PRs — never implicit "prNumber omitted means search".
+    """
+
+    pr_number: Optional[int] = Field(
+        None, description="PR to view. Required unless 'search' is given."
+    )
     repo: Optional[str] = Field(
         None,
         pattern=r"^[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+$",
         description="The target repository override (e.g. org/repo).",
     )
-
-
-class IssueCommentInput(CamelCaseModel):
-    issue_number: int = Field(..., description="The number of the issue to comment on.")
-    body: str = Field(..., description="The content of the comment.")
-    repo: Optional[str] = Field(
-        None,
-        pattern=r"^[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+$",
-        description="The target repository override (e.g. org/repo).",
+    include: List[
+        Literal["diff", "reviews", "commits", "conflicts", "ciLogs", "workflowRuns"]
+    ] = Field(
+        default_factory=list,
+        description="View-mode sections to include in the response.",
     )
+    search: Optional[GithubPrSearch] = Field(
+        None,
+        description="Search PRs instead of viewing one. Mutually exclusive with prNumber.",
+    )
+
+    @model_validator(mode="after")
+    def one_mode(self) -> "GithubPrInput":
+        if self.search is not None and self.pr_number is not None:
+            raise ValueError("Pass prNumber (view) or search, not both")
+        if self.search is None and self.pr_number is None and "workflowRuns" not in self.include:
+            raise ValueError(
+                "Provide prNumber to view a PR, search to list PRs, "
+                "or include=['workflowRuns'] to list recent workflow runs"
+            )
+        return self
+
+
+class WorktreeItem(CamelCaseModel):
+    worktree_id: str
+    path: str
+    branch: str
+    age_seconds: Union[int, float]
+    changed_files_count: int
+    disk_usage_bytes: int
 
 
 class ReadAgentContractInput(CamelCaseModel):
@@ -257,30 +237,6 @@ class ReadAgentContractInput(CamelCaseModel):
     repo: Optional[str] = Field(
         None,
         description="Target GitHub repository string (e.g. org/repo).",
-    )
-
-
-class ReadAgentContextInput(CamelCaseModel):
-    path: Optional[str] = Field(
-        None, description="Local filesystem path to target repository root"
-    )
-    repo_path: Optional[str] = Field(
-        None,
-        description="Alias for path (filesystem path to target workspace repository root).",
-    )
-    repo: Optional[str] = Field(
-        None,
-        description="Target GitHub repository string (e.g. org/repo).",
-    )
-    repos: Optional[List[str]] = Field(
-        None, description="List of repository names to fetch context for"
-    )
-    all: Optional[bool] = Field(
-        None,
-        description="Whether to fetch context across all discovered ecosystem repositories",
-    )
-    skill_name: Optional[str] = Field(
-        None, description="Optional skill name: return its SKILL.md body too."
     )
 
 
@@ -329,11 +285,6 @@ class TdInitInput(CamelCaseModel):
     )
 
 
-class TdInitResponse(CamelCaseModel):
-    status: Optional[str] = None
-    data: Optional[Any] = None
-
-
 class TdRagInput(CamelCaseModel):
     repo_root: Optional[str] = Field(
         None, description="Repo root for the RAG index (default: git root)."
@@ -342,24 +293,84 @@ class TdRagInput(CamelCaseModel):
     top_k: Optional[int] = Field(None, description="Maximum RAG hits to return.")
 
 
-class TdRagResponse(CamelCaseModel):
+# td CLI responses. The td commands emit flat snake_case JSON via
+# out(ctx, msg, data=...) -> {"status": "success", **data} (errors:
+# {"status": "error", "message", "code"}), so these models use plain
+# BaseModel — field names must match the emitted keys exactly, and the
+# camelCase alias generator would describe a wire shape td never emits.
+# Every field is optional-with-default so schema validation can never
+# fail on a payload td may legally emit; the types describe the success
+# payload documented in each td command's docstring.
+
+
+class TdErrorResponseFields(BaseModel):
+    message: Optional[str] = None
+    code: Optional[int] = None
+
+
+class TdInitResponse(TdErrorResponseFields):
     status: Optional[str] = None
-    data: Optional[Any] = None
+    head_sha: Optional[str] = None
+    deps_synced: Optional[bool] = None
+    deps_note: Optional[str] = None
+    main_note: Optional[str] = None
+    rag_indexed_sha: Optional[str] = None
+    updated_files: List[str] = Field(default_factory=list)
 
 
-class TdValidateIssueResponse(CamelCaseModel):
+class RagHit(BaseModel):
+    content: str = ""
+    filepath: str = ""
+    start_line: Optional[int] = None
+    end_line: Optional[int] = None
+    score: Optional[float] = None
+    distance: Optional[float] = None
+
+
+class TdRagResponse(TdErrorResponseFields):
     status: Optional[str] = None
-    data: Optional[Any] = None
+    query: Optional[str] = None
+    hits: List[RagHit] = Field(default_factory=list)
+    count: int = 0
 
 
-class TdVerifyScopeResponse(CamelCaseModel):
+class TdValidateIssueResponse(TdErrorResponseFields):
     status: Optional[str] = None
-    data: Optional[Any] = None
+    valid: Optional[bool] = None
+    allowed_files: List[str] = Field(default_factory=list)
+    forbidden_files: List[str] = Field(default_factory=list)
+    verification_commands: List[str] = Field(default_factory=list)
+    acceptance_criteria: List[str] = Field(default_factory=list)
+    errors: List[str] = Field(default_factory=list)
 
 
-class TdAuditWorktreeResponse(CamelCaseModel):
+class TdVerifyScopeResponse(TdErrorResponseFields):
     status: Optional[str] = None
-    data: Optional[Any] = None
+    passed: Optional[bool] = None
+    modified_files: List[str] = Field(default_factory=list)
+    violations: List[str] = Field(default_factory=list)
+    reverted: List[str] = Field(default_factory=list)
+
+
+class TdImpactResponse(TdErrorResponseFields):
+    status: Optional[str] = None
+    passed: Optional[bool] = None
+    impacted_files: List[str] = Field(default_factory=list)
+    dependent_tests: List[str] = Field(default_factory=list)
+    violations: List[Dict[str, Any]] = Field(default_factory=list)
+    ui_changed: bool = False
+    visual_diff: Optional[Dict[str, Any]] = None
+    error: Optional[str] = None
+
+
+class TdAuditWorktreeResponse(TdErrorResponseFields):
+    status: Optional[str] = None
+    passed: Optional[bool] = None
+    slop_findings: List[Dict[str, Any]] = Field(default_factory=list)
+    suppressions_added: List[str] = Field(default_factory=list)
+    ast_violations: List[Dict[str, Any]] = Field(default_factory=list)
+    # Present only when the MCP tool ran the blast-radius analysis.
+    impact: Optional[TdImpactResponse] = None
 
 
 # AI Review Models
@@ -506,9 +517,56 @@ class RunJobsResponse(CamelCaseModel):
 # Tool Output Models
 
 
-class HealthCheckResponse(CamelCaseModel):
-    status: str = "ok"
+class RagHealth(CamelCaseModel):
+    index_available: Optional[bool] = None
+    last_indexed_at: Optional[str] = None
+    doc_count: Optional[int] = None
+    index_current: Optional[bool] = None
+
+
+class ServerHealth(CamelCaseModel):
+    github_owner: str = ""
+    github_repo: str = ""
+    repo_path: str = ""
+    read_only: bool = True
+    gh_path: str = "gh"
+    td_available: Optional[bool] = None
+    rag: Optional[RagHealth] = None
+
+
+class AgentContractSection(CamelCaseModel):
+    found: bool = False
+    path: str = ""
+    content: Optional[str] = None
     config: Optional[Dict[str, Any]] = None
+
+
+class VectorIndexStatus(CamelCaseModel):
+    warm: bool = False
+    last_warmed_at: Optional[str] = None
+    path: str = ""
+    stale_files: List[str] = Field(default_factory=list)
+
+
+class RepoContextResponse(CamelCaseModel):
+    """repo_context output: single-repo context, ecosystem status, or both."""
+
+    status: str = "success"
+    path: str = ""
+    repo: Optional[str] = None
+    package_name: str = "boomtick"
+    git_commit: Optional[str] = None
+    config: Optional[Dict[str, Any]] = None
+    agent_contract: Optional[AgentContractSection] = None
+    package_scripts: Dict[str, str] = Field(default_factory=dict)
+    vector_index: Optional[VectorIndexStatus] = None
+    skills: List[Dict[str, str]] = Field(default_factory=list)
+    skill: Optional[Dict[str, str]] = None
+    server: Optional[ServerHealth] = None
+    # Ecosystem scope (scope="all") only:
+    ecosystem: Optional[bool] = None
+    repos: Optional[List[Dict[str, Any]]] = None
+    total: Optional[int] = None
 
 
 class AgentContractConfig(CamelCaseModel):
@@ -542,13 +600,6 @@ class ReadAgentContractResponse(CamelCaseModel):
     )
 
 
-class ReadAgentContextResponse(CamelCaseModel):
-    status: str = "success"
-    package_name: Optional[str] = None
-    git_commit: Optional[str] = None
-    config: Optional[Dict[str, Any]] = None
-
-
 class GetContextStatusResponse(CamelCaseModel):
     warm: bool = Field(
         ..., description="Whether the .agent-context.json index is warm and up-to-date."
@@ -569,10 +620,11 @@ class CheckoutBranchResponse(CamelCaseModel):
     branch: str
 
 
-class ReadCiLogsResponse(CamelCaseModel):
+class GithubCiLogsPayload(CamelCaseModel):
     checks: Optional[List[Dict[str, Any]]] = None
     failed_checks: Optional[List[Dict[str, Any]]] = None
-    logs: Optional[Any] = None
+    logs: Optional[Union[Dict[str, Any], List[Any], str]] = None
+    workflow_runs: Optional[List[Dict[str, Any]]] = None
 
 
 class CreateBranchResponse(CamelCaseModel):
@@ -611,17 +663,52 @@ class CommentTriageSummaryResponse(CamelCaseModel):
     comment_url: str
 
 
-class GetPrResponse(CamelCaseModel):
-    pr: Dict[str, Any]
+class GithubIssueDetail(CamelCaseModel):
+    number: int
+    title: str
+    body: Optional[str] = None
+    state: str
+    html_url: Optional[str] = None
 
 
-class IssueViewResponse(CamelCaseModel):
-    issue: Optional[Dict[str, Any]] = None
+class GithubIssueCommentPayload(CamelCaseModel):
+    id: Optional[int] = None
+    url: Optional[str] = None
+    body: Optional[str] = None
+    author: Optional[str] = None
+    created_at: Optional[str] = None
+    updated_at: Optional[str] = None
 
 
-class IssueCommentResponse(CamelCaseModel):
+class GithubIssueResponse(CamelCaseModel):
     status: str = "success"
-    comment: Optional[Any] = None
+    # Read mode: the issue as td reports it (normalized).
+    issue: Optional[GithubIssueDetail] = None
+    # Comment mode: the comment as td reports it (normalized).
+    comment: Optional[GithubIssueCommentPayload] = None
+
+
+class GithubPrDiffPayload(CamelCaseModel):
+    files: List[Dict[str, Any]] = Field(default_factory=list)
+    diff_text: str = ""
+    is_truncated: bool = False
+
+
+class GithubPrResponse(CamelCaseModel):
+    status: str = "success"
+    # View mode.
+    pr: Optional[Dict[str, Any]] = None
+    # Search mode.
+    prs: Optional[List[Dict[str, Any]]] = None
+    diff: Optional[GithubPrDiffPayload] = None
+    reviews: Optional[List[Dict[str, Any]]] = None
+    review_count: Optional[int] = None
+    commits: Optional[List[Dict[str, Any]]] = None
+    conflict_files: Optional[List[str]] = None
+    ci_logs: Optional[GithubCiLogsPayload] = None
+    # Workflow-run listing mode (include=["workflowRuns"], no PR number
+    # required) — absorbed repo_get_workflow_runs.
+    workflow_runs: Optional[List[Dict[str, Any]]] = None
 
 
 class AgentStatusInput(CamelCaseModel):

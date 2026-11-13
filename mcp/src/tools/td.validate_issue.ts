@@ -1,10 +1,8 @@
 import { z } from "zod";
 import { runTDCli } from "../lib/tdCli.js";
+import { TdValidateIssueInputSchema } from "./contract.js";
 
-export const TdValidateIssueInputSchema = z.object({
-  file: z.string().describe("Path to the design spec file (or - for stdin)."),
-  repoRoot: z.string().optional().describe("Repo root for file existence checks (default: git root)."),
-});
+export { TdValidateIssueInputSchema };
 
 export async function tdValidateIssueHandler(args: z.infer<typeof TdValidateIssueInputSchema>) {
   const params = TdValidateIssueInputSchema.parse(args);

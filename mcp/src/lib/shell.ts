@@ -5,7 +5,7 @@ import fs from "fs";
 
 // Commands tools actually invoke: version control and td/gh entry
 // points, plus the JS/Python test runners reachable via
-// repo_run_tests. No shell builtins, no file destructive ops.
+// repo_test. No shell builtins, no file destructive ops.
 export const ALLOWED_COMMANDS = {
   git: "git",
   gh: "gh",

@@ -15,7 +15,7 @@ Read the matching workflow before starting these task types:
 - Read all referenced files before taking any action.
 - **Prioritize Index & Schema**: Always consult `.agent-context.json` for
   repository state and `cli/dev_tools/cli-schema.json` for CLI authority before
-  taking action. Both are available via `repo.read_agent_context` (Tier 1).
+  taking action. Both are available via `repo_context` (Tier 1).
 - **Prioritize MCP Tools**: Consult the tool hierarchy in `AGENTS.md`
   before executing any repository or GitHub operation. `boomtick-mcp` is the
   required first call — not an optional convenience.

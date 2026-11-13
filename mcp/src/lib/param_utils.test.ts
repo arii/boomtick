@@ -30,16 +30,11 @@ describe("param_utils.normalizeArguments", () => {
     });
   });
 
-  it("should synchronize branch and branchName", () => {
-    expect(normalizeArguments({ branch: "feat-x" })).toEqual({
-      branch: "feat-x",
-      branchName: "feat-x",
-    });
-
-    expect(normalizeArguments({ branch_name: "feat-y" })).toEqual({
-      branchName: "feat-y",
-      branch: "feat-y",
-    });
+  it("no longer aliases branch and branchName", () => {
+    // The aliasing was removed with the schema consolidation: input schemas
+    // name their fields exactly, and a silent alias masks caller mistakes.
+    expect(normalizeArguments({ branch: "feat-x" })).toEqual({ branch: "feat-x" });
+    expect(normalizeArguments({ branch_name: "feat-y" })).toEqual({ branchName: "feat-y" });
   });
 
   it("should handle null or empty arguments safely", () => {

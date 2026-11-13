@@ -1,23 +1,15 @@
 import { Tool, Prompt, Resource, ResourceTemplate } from "@modelcontextprotocol/sdk/types.js";
 import {
-  HealthCheckInputJsonSchema,
-  HealthCheckResponseJsonSchema,
-  ReadCiLogsInputJsonSchema,
-  ReadCiLogsResponseJsonSchema,
-  RunTestsInputJsonSchema,
-  RunTestsResponseJsonSchema,
-  GetPrInputJsonSchema,
-  GetPrResponseJsonSchema,
-  IssueViewInputJsonSchema,
-  IssueViewResponseJsonSchema,
-  IssueUpdateInputJsonSchema,
-  IssueUpdateResponseJsonSchema,
-  IssueCommentInputJsonSchema,
-  IssueCommentResponseJsonSchema,
+  RepoContextInputJsonSchema,
+  RepoContextResponseJsonSchema,
+  RepoTestInputJsonSchema,
+  RepoTestResponseJsonSchema,
+  GithubPrInputJsonSchema,
+  GithubPrResponseJsonSchema,
+  GithubIssueInputJsonSchema,
+  GithubIssueResponseJsonSchema,
   CreateIssueInputJsonSchema,
   CreateIssueResponseJsonSchema,
-  ReadAgentContextInputJsonSchema as ReadAgentContextSchema,
-  ReadAgentContextResponseJsonSchema,
   AgentSubmitPrInputJsonSchema,
   AgentSubmitPrResponseJsonSchema,
   TdInitInputJsonSchema,
@@ -178,14 +170,17 @@ function toolEntry(
   };
 }
 
-// Primary toolset for the Issue/Coder/Auditor lane roles.
-const CORE_MCP_TOOLS: Tool[] = [
-  toolEntry("boomtick_health", "Check the health and configuration of the MCP server.", HealthCheckInputJsonSchema, HealthCheckResponseJsonSchema),
-  toolEntry("repo_read_agent_context", "Read the repository index including metadata, model review chains, or multi-repo ecosystem status.", ReadAgentContextSchema, ReadAgentContextResponseJsonSchema),
-  toolEntry("repo_run_tests", "Run repository tests and checks.", RunTestsInputJsonSchema, RunTestsResponseJsonSchema),
-  toolEntry("github_issue_view", "View details of a GitHub issue including title, body, and state.", IssueViewInputJsonSchema, IssueViewResponseJsonSchema),
-  toolEntry("github_issue_update", "Update a GitHub issue's body, labels, and/or state.", IssueUpdateInputJsonSchema, IssueUpdateResponseJsonSchema),
+// Consolidated surface (15 → 11): one tool per noun/lifecycle, modes as
+// explicit fields. Receipt-producing operations (agent_submit_pr, td_init,
+// the two td gates) stay separate tools on purpose — merging them buries
+// their deterministic exit nodes. Worktree lifecycle remains orchestrator
+// territory (`td worktree`); do not re-add worktree_create/list/remove.
+export const MCP_TOOLS: Tool[] = [
+  toolEntry("repo_context", "Read repository context (index, agent contract, skills, vector-index state, server health) for one repo, or ecosystem-wide multi-repo status with scope=\"all\".", RepoContextInputJsonSchema, RepoContextResponseJsonSchema),
+  toolEntry("repo_test", "Run repository commands (default: install, lint, test, build) and report pass/fail with per-command results.", RepoTestInputJsonSchema, RepoTestResponseJsonSchema),
+  toolEntry("github_issue", "View a GitHub issue (omit write fields), or perform exactly one write: setBody/addLabels/removeLabels/state, or comment. Comment is exclusive with the other writes.", GithubIssueInputJsonSchema, GithubIssueResponseJsonSchema),
   toolEntry("github_create_issue", "Create a new GitHub issue.", CreateIssueInputJsonSchema, CreateIssueResponseJsonSchema),
+  toolEntry("github_pr", "View a GitHub PR with optional sections (diff, reviews, commits, conflicts, ciLogs, workflowRuns), list workflow runs (include=[\"workflowRuns\"] without prNumber), or search PRs via the explicit search object.", GithubPrInputJsonSchema, GithubPrResponseJsonSchema),
   toolEntry("agent_submit_pr", "Submit a branch as a pull request via the deterministic td agent submit-pr exit node (push + open, draft by default). Agents submit; humans merge.", AgentSubmitPrInputJsonSchema, AgentSubmitPrResponseJsonSchema),
   toolEntry("td_init", "Initialize a repo (fast-forward main, sync deps, index RAG). Query separately with td_rag.", TdInitInputJsonSchema, TdInitResponseJsonSchema),
   toolEntry("td_rag", "Query the RAG vector index without re-running init builds.", TdRagInputJsonSchema, TdRagResponseJsonSchema),
@@ -193,15 +188,3 @@ const CORE_MCP_TOOLS: Tool[] = [
   toolEntry("td_verify_scope", "Gate worktree changes against a spec file (exit 0 iff in scope).", TdVerifyScopeInputJsonSchema, TdVerifyScopeResponseJsonSchema),
   toolEntry("td_audit_worktree", "Audit worktree changes for slop/AST violations with optional blast-radius impact analysis.", TdAuditWorktreeInputJsonSchema, TdAuditWorktreeResponseJsonSchema),
 ];
-
-// Demoted surface (#1139 item 1): kept on the wire for diagnostics, but
-// out of the primary Issue/Coder/Auditor toolsets. Worktree lifecycle
-// moved to the orchestrator (`td worktree` / worktrees.py); do not
-// re-add worktree_create/list/remove here.
-const EXTENDED_MCP_TOOLS: Tool[] = [
-  toolEntry("repo_read_ci_logs", "[Demoted] Read CI logs for a given pull request.", ReadCiLogsInputJsonSchema, ReadCiLogsResponseJsonSchema),
-  toolEntry("github_get_pr", "[Demoted] Get details of a GitHub PR including title, state, and URLs.", GetPrInputJsonSchema, GetPrResponseJsonSchema),
-  toolEntry("github_issue_comment", "[Demoted] Add a new comment to a GitHub issue.", IssueCommentInputJsonSchema, IssueCommentResponseJsonSchema),
-];
-
-export const MCP_TOOLS: Tool[] = [...CORE_MCP_TOOLS, ...EXTENDED_MCP_TOOLS];

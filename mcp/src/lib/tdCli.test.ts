@@ -4,7 +4,7 @@ import type { TDCliResponse, TDMultiRepoEntry } from "./tdCli.js";
 import * as shellModule from "./shell.js";
 import type { ShellResult } from "./shell.js";
 import * as sessionManager from "./session_manager.js";
-import { readAgentContextHandler } from "../tools/repo.read_agent_context.js";
+import { repoContextHandler } from "../tools/repo.context.js";
 
 function shellOk(stdout: string): ShellResult {
   return { exitCode: 0, stdout, stderr: "", durationMs: 0, command: "td" };
@@ -65,8 +65,8 @@ describe("runTDCli type boundary (issue 1222)", () => {
       shellOk(JSON.stringify({ status: "success" })),
     );
     vi.spyOn(sessionManager, "recordToolReceipt").mockImplementation(() => {});
-    const res = await readAgentContextHandler({ all: true });
-    if (!("ecosystem" in res)) throw new Error("expected ecosystem response");
+    const res = await repoContextHandler({ scope: "all" });
+    if (!("ecosystem" in res) || !res.ecosystem) throw new Error("expected ecosystem response");
     expect(res.repos).toEqual([]);
     expect(res.total).toBe(0);
   });

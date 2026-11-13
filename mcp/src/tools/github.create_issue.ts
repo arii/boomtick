@@ -2,6 +2,7 @@ import { z } from "zod";
 import { resolveRepo } from "../lib/git.js";
 import { runTDCli } from "../lib/tdCli.js";
 import { CreateIssueInputSchema, CreateIssueResponseSchema } from "./contract.js";
+import { normalizeTdIssue } from "./github.issue.js";
 
 export { CreateIssueInputSchema };
 
@@ -11,12 +12,14 @@ export async function createIssueHandler(args: z.input<typeof CreateIssueInputSc
 
   const cmdArgs = ["gh", "create-issue", "--title", params.title];
   if (params.body) cmdArgs.push("--body", params.body);
-  if (params.file) cmdArgs.push("--file", params.file);
   cmdArgs.push("--repo", targetRepo);
 
   const output = await runTDCli(cmdArgs, "create issue");
 
-  const parsedOutput = CreateIssueResponseSchema.parse(output);
+  const parsedOutput = CreateIssueResponseSchema.parse({
+    ...output,
+    issue: normalizeTdIssue(output.issue),
+  });
 
-  return { status: "success", issue: parsedOutput.issue };
+  return parsedOutput;
 }

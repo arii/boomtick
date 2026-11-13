@@ -9,7 +9,7 @@ import {
   recordTdPreflight,
   resetTdPreflightForTests,
 } from "./tdHealth.js";
-import { healthHandler } from "../mcp/tools.js";
+import { getServerHealth } from "../tools/repo.context.js";
 
 type SpawnSyncResult = ReturnType<typeof spawnSync>;
 
@@ -78,7 +78,7 @@ describe("checkTdAvailability", () => {
   });
 });
 
-describe("tdAvailable surfaced through boomtick_health", () => {
+describe("tdAvailable surfaced through repo_context server health", () => {
   beforeEach(() => {
     resetTdPreflightForTests();
   });
@@ -87,21 +87,20 @@ describe("tdAvailable surfaced through boomtick_health", () => {
     resetTdPreflightForTests();
   });
 
-  it("is null before the preflight has run", async () => {
-    const health = await healthHandler({ checkDeep: false });
-    expect(health.config.tdAvailable).toBeNull();
+  it("is null before the preflight has run", () => {
+    const health = getServerHealth();
+    expect(health.tdAvailable).toBeNull();
   });
 
-  it("reflects a recorded failed preflight without crashing the handler", async () => {
+  it("reflects a recorded failed preflight without crashing the handler", () => {
     recordTdPreflight({ available: false, reason: "td is not resolvable on PATH: ENOENT" });
-    const health = await healthHandler({ checkDeep: false });
-    expect(health.config.tdAvailable).toBe(false);
-    expect(health.status).toBe("ok");
+    const health = getServerHealth();
+    expect(health.tdAvailable).toBe(false);
   });
 
-  it("reflects a successful preflight", async () => {
+  it("reflects a successful preflight", () => {
     recordTdPreflight({ available: true });
-    const health = await healthHandler({ checkDeep: false });
-    expect(health.config.tdAvailable).toBe(true);
+    const health = getServerHealth();
+    expect(health.tdAvailable).toBe(true);
   });
 });

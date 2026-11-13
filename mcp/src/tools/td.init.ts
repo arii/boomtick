@@ -1,10 +1,9 @@
 import { z } from "zod";
 import { recordToolReceipt, resolveReceiptDir } from "../lib/session_manager.js";
 import { runTDCli } from "../lib/tdCli.js";
+import { TdInitInputSchema } from "./contract.js";
 
-export const TdInitInputSchema = z.object({
-  repoRoot: z.string().optional().describe("Repo root to initialize (default: git root)."),
-});
+export { TdInitInputSchema };
 
 export async function tdInitHandler(args: z.infer<typeof TdInitInputSchema>) {
   const params = TdInitInputSchema.parse(args);

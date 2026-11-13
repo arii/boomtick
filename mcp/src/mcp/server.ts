@@ -14,14 +14,10 @@ import { createSuccessResult, createErrorResult } from "../lib/result.js";
 import { MCP_TOOLS, MCP_PROMPTS, MCP_RESOURCES, MCP_RESOURCE_TEMPLATES } from "./definitions.js";
 import { normalizeArguments } from "../lib/param_utils.js";
 import { checkTdAvailability, recordTdPreflight } from "../lib/tdHealth.js";
-import { healthHandler, HealthCheckInputSchema } from "./tools.js";
-import { readAgentContextHandler, ReadAgentContextInputSchema } from "../tools/repo.read_agent_context.js";
-import { readCiLogsHandler, ReadCiLogsInputSchema } from "../tools/repo.read_ci_logs.js";
-import { runTestsHandler, RunTestsInputSchema } from "../tools/repo.run_tests.js";
-import { getPrHandler, GetPrInputSchema } from "../tools/github.get_pr.js";
-import { issueViewHandler, IssueViewInputSchema } from "../tools/github.issue_view.js";
-import { issueUpdateHandler, IssueUpdateInputSchema } from "../tools/github.issue_update.js";
-import { issueCommentHandler, IssueCommentInputSchema } from "../tools/github.issue_comment.js";
+import { repoContextHandler, RepoContextInputSchema } from "../tools/repo.context.js";
+import { repoTestHandler, RepoTestInputSchema } from "../tools/repo.tests.js";
+import { githubPrHandler, GithubPrInputSchema } from "../tools/github.pr.js";
+import { githubIssueHandler, GithubIssueInputSchema } from "../tools/github.issue.js";
 import { createIssueHandler, CreateIssueInputSchema } from "../tools/github.create_issue.js";
 import { tdInitHandler, TdInitInputSchema } from "../tools/td.init.js";
 import { tdRagHandler, TdRagInputSchema } from "../tools/td.rag.js";
@@ -203,15 +199,16 @@ export class BoomtickMCPServer {
       }
       if (uri.startsWith("mcp://git/diff/") || uri.startsWith("repo://diff/")) {
         const prNumber = parseInt(uri.split("/").pop() || "");
-        const diff = await getPrHandler({ prNumber, includeDiff: true });
-        const diffPayload = (diff as Record<string, unknown>).diff as { diffText?: string } | undefined;
+        const result = await githubPrHandler({ prNumber, include: ["diff"] });
+        const diffPayload = (result as Record<string, unknown>).diff as { diffText?: string } | undefined;
         return {
           contents: [{ uri, mimeType: "text/plain", text: diffPayload?.diffText ?? "" }],
         };
       }
       if (uri.startsWith("mcp://ci/logs/") || uri.startsWith("repo://ci/")) {
         const prNumber = parseInt(uri.split("/").pop() || "");
-        const logs = await readCiLogsHandler({ prNumber });
+        const result = await githubPrHandler({ prNumber, include: ["ciLogs"] });
+        const logs = (result as Record<string, unknown>).ciLogs ?? {};
         return {
           contents: [{ uri, mimeType: "application/json", text: JSON.stringify(logs, null, 2) }],
         };
@@ -233,22 +230,14 @@ export class BoomtickMCPServer {
         const normArgs = normalizeArguments(request.params.arguments as Record<string, unknown>);
 
         switch (normalizedToolName) {
-          case "boomtick_health":
-            return createSuccessResult(await healthHandler(HealthCheckInputSchema.parse(normArgs)));
-          case "repo_read_agent_context":
-            return createSuccessResult(await readAgentContextHandler(ReadAgentContextInputSchema.parse(normArgs)));
-          case "repo_read_ci_logs":
-            return createSuccessResult(await readCiLogsHandler(ReadCiLogsInputSchema.parse(normArgs)));
-          case "repo_run_tests":
-            return createSuccessResult(await runTestsHandler(RunTestsInputSchema.parse(normArgs)));
-          case "github_get_pr":
-            return createSuccessResult(await getPrHandler(GetPrInputSchema.parse(normArgs)));
-          case "github_issue_view":
-            return createSuccessResult(await issueViewHandler(IssueViewInputSchema.parse(normArgs)));
-          case "github_issue_update":
-            return createSuccessResult(await issueUpdateHandler(IssueUpdateInputSchema.parse(normArgs)));
-          case "github_issue_comment":
-            return createSuccessResult(await issueCommentHandler(IssueCommentInputSchema.parse(normArgs)));
+          case "repo_context":
+            return createSuccessResult(await repoContextHandler(RepoContextInputSchema.parse(normArgs)));
+          case "repo_test":
+            return createSuccessResult(await repoTestHandler(RepoTestInputSchema.parse(normArgs)));
+          case "github_pr":
+            return createSuccessResult(await githubPrHandler(GithubPrInputSchema.parse(normArgs)));
+          case "github_issue":
+            return createSuccessResult(await githubIssueHandler(GithubIssueInputSchema.parse(normArgs)));
           case "github_create_issue":
             return createSuccessResult(await createIssueHandler(CreateIssueInputSchema.parse(normArgs)));
           case "td_init":

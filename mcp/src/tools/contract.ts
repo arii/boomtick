@@ -649,6 +649,52 @@ export const AgentContractConfigJsonSchema = {
   "type": "object"
 } as const;
 
+export const AgentContractSectionSchema = z.object({ "found": z.boolean().default(false), "path": z.string().default(""), "content": z.union([z.string(), z.null()]).default(null), "config": z.union([z.record(z.string(), z.any()), z.null()]).default(null) });
+
+export type AgentContractSection = z.infer<typeof AgentContractSectionSchema>;
+
+export const AgentContractSectionJsonSchema = {
+  "properties": {
+    "found": {
+      "default": false,
+      "title": "Found",
+      "type": "boolean"
+    },
+    "path": {
+      "default": "",
+      "title": "Path",
+      "type": "string"
+    },
+    "content": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Content"
+    },
+    "config": {
+      "anyOf": [
+        {
+          "additionalProperties": true,
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Config"
+    }
+  },
+  "title": "AgentContractSection",
+  "type": "object"
+} as const;
+
 export const AgentStatusInputSchema = z.object({ "sessionId": z.string().describe("The ID of the session to check status for") });
 
 export type AgentStatusInput = z.infer<typeof AgentStatusInputSchema>;
@@ -805,24 +851,15 @@ export const AgentStatusVerificationJsonSchema = {
   "type": "object"
 } as const;
 
-export const AgentSubmitPrInputSchema = z.object({ "repo": z.union([z.string(), z.null()]).describe("Target repository override (e.g. owner/repo)").default(null), "branch": z.string().describe("Branch to push and submit as a PR"), "baseBranch": z.string().describe("Base branch for the PR").default("main"), "title": z.string().describe("PR title"), "body": z.string().describe("PR body").default(""), "draft": z.boolean().describe("Open the PR as a draft for human review").default(true), "worktreePath": z.union([z.string(), z.null()]).describe("Worktree to push from").default(null), "pushMode": z.boolean().describe("Safety gate: must be true to push and open the PR").default(false) });
+export const AgentSubmitPrInputSchema = z.object({ "repo": z.string().describe("Target repository override (e.g. owner/repo)").optional(), "branch": z.string().describe("Branch to push and submit as a PR"), "baseBranch": z.string().describe("Base branch for the PR").default("main"), "title": z.string().describe("PR title"), "body": z.string().describe("PR body").default(""), "draft": z.boolean().describe("Open the PR as a draft for human review").default(true), "worktreePath": z.string().describe("Worktree to push from").optional(), "pushMode": z.boolean().describe("Safety gate: must be true to push and open the PR").default(false) });
 
 export type AgentSubmitPrInput = z.infer<typeof AgentSubmitPrInputSchema>;
 
 export const AgentSubmitPrInputJsonSchema = {
   "properties": {
     "repo": {
-      "anyOf": [
-        {
-          "type": "string"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "description": "Target repository override (e.g. owner/repo)",
-      "title": "Repo"
+      "type": "string",
+      "description": "Target repository override (e.g. owner/repo)"
     },
     "branch": {
       "description": "Branch to push and submit as a PR",
@@ -853,17 +890,8 @@ export const AgentSubmitPrInputJsonSchema = {
       "type": "boolean"
     },
     "worktreePath": {
-      "anyOf": [
-        {
-          "type": "string"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "description": "Worktree to push from",
-      "title": "Worktreepath"
+      "type": "string",
+      "description": "Worktree to push from"
     },
     "pushMode": {
       "default": false,
@@ -1038,7 +1066,7 @@ export const CreateBranchResponseJsonSchema = {
   "type": "object"
 } as const;
 
-export const CreateIssueInputSchema = z.object({ "title": z.string().min(1), "body": z.union([z.string().min(1), z.null()]).default(null), "file": z.union([z.string().min(1), z.null()]).default(null), "repo": z.union([z.string().regex(new RegExp("^[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+$")), z.null()]).describe("The target repository override (e.g. org/repo).").default(null) });
+export const CreateIssueInputSchema = z.object({ "title": z.string().min(1), "body": z.string().min(1).optional(), "repo": z.string().regex(new RegExp("^[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+$")).describe("The target repository override (e.g. org/repo).").optional() });
 
 export type CreateIssueInput = z.infer<typeof CreateIssueInputSchema>;
 
@@ -1050,44 +1078,13 @@ export const CreateIssueInputJsonSchema = {
       "type": "string"
     },
     "body": {
-      "anyOf": [
-        {
-          "minLength": 1,
-          "type": "string"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "title": "Body"
-    },
-    "file": {
-      "anyOf": [
-        {
-          "minLength": 1,
-          "type": "string"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "title": "File"
+      "minLength": 1,
+      "type": "string"
     },
     "repo": {
-      "anyOf": [
-        {
-          "pattern": "^[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+$",
-          "type": "string"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "description": "The target repository override (e.g. org/repo).",
-      "title": "Repo"
+      "pattern": "^[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+$",
+      "type": "string",
+      "description": "The target repository override (e.g. org/repo)."
     }
   },
   "required": [
@@ -1290,50 +1287,23 @@ export const CreateRepairBranchResponseJsonSchema = {
   "type": "object"
 } as const;
 
-export const GetContextStatusInputSchema = z.object({ "path": z.union([z.string(), z.null()]).describe("Local filesystem path to target repository root").default(null), "repoPath": z.union([z.string(), z.null()]).describe("Alias for path (filesystem path to target workspace repository root).").default(null), "repo": z.union([z.string(), z.null()]).describe("Target GitHub repository string (e.g. org/repo).").default(null) });
+export const GetContextStatusInputSchema = z.object({ "path": z.string().describe("Local filesystem path to target repository root").optional(), "repoPath": z.string().describe("Alias for path (filesystem path to target workspace repository root).").optional(), "repo": z.string().describe("Target GitHub repository string (e.g. org/repo).").optional() });
 
 export type GetContextStatusInput = z.infer<typeof GetContextStatusInputSchema>;
 
 export const GetContextStatusInputJsonSchema = {
   "properties": {
     "path": {
-      "anyOf": [
-        {
-          "type": "string"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "description": "Local filesystem path to target repository root",
-      "title": "Path"
+      "type": "string",
+      "description": "Local filesystem path to target repository root"
     },
     "repoPath": {
-      "anyOf": [
-        {
-          "type": "string"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "description": "Alias for path (filesystem path to target workspace repository root).",
-      "title": "Repopath"
+      "type": "string",
+      "description": "Alias for path (filesystem path to target workspace repository root)."
     },
     "repo": {
-      "anyOf": [
-        {
-          "type": "string"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "description": "Target GitHub repository string (e.g. org/repo).",
-      "title": "Repo"
+      "type": "string",
+      "description": "Target GitHub repository string (e.g. org/repo)."
     }
   },
   "title": "GetContextStatusInput",
@@ -1386,13 +1356,92 @@ export const GetContextStatusResponseJsonSchema = {
   "type": "object"
 } as const;
 
-export const GetPrInputSchema = z.object({ "prNumber": z.union([z.number().int(), z.null()]).describe("The number of the PR to view. Omit to search PRs instead.").default(null), "repo": z.union([z.string().regex(new RegExp("^[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+$")), z.null()]).describe("The target repository override (e.g. org/repo).").default(null), "includeDiff": z.boolean().describe("Include the PR diff and changed files.").default(false), "includeReviews": z.boolean().describe("Include top-level reviews.").default(false), "includeCommits": z.boolean().describe("Include commit metadata.").default(false), "includeConflicts": z.boolean().describe("Include merge-conflict files.").default(false), "baseBranch": z.union([z.string(), z.null()]).describe("Conflict check only: base branch.").default(null), "headRef": z.union([z.string(), z.null()]).describe("Conflict check only: head ref.").default(null), "state": z.enum(["open","closed","all"]).describe("Search mode only: PR state filter.").default("open"), "includeDrafts": z.boolean().describe("Search mode only: include draft PRs.").default(true), "limit": z.number().int().gte(1).lte(100).describe("Search mode only: max PRs to return.").default(100), "labels": z.union([z.array(z.string()), z.null()]).describe("Search mode only: filter by labels.").default(null) });
+export const GithubCiLogsPayloadSchema = z.object({ "checks": z.union([z.array(z.record(z.string(), z.any())), z.null()]).default(null), "failedChecks": z.union([z.array(z.record(z.string(), z.any())), z.null()]).default(null), "logs": z.union([z.record(z.string(), z.any()), z.array(z.any()), z.string(), z.null()]).default(null), "workflowRuns": z.union([z.array(z.record(z.string(), z.any())), z.null()]).default(null) });
 
-export type GetPrInput = z.infer<typeof GetPrInputSchema>;
+export type GithubCiLogsPayload = z.infer<typeof GithubCiLogsPayloadSchema>;
 
-export const GetPrInputJsonSchema = {
+export const GithubCiLogsPayloadJsonSchema = {
   "properties": {
-    "prNumber": {
+    "checks": {
+      "anyOf": [
+        {
+          "items": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Checks"
+    },
+    "failedChecks": {
+      "anyOf": [
+        {
+          "items": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Failedchecks"
+    },
+    "logs": {
+      "anyOf": [
+        {
+          "additionalProperties": true,
+          "type": "object"
+        },
+        {
+          "items": {},
+          "type": "array"
+        },
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Logs"
+    },
+    "workflowRuns": {
+      "anyOf": [
+        {
+          "items": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Workflowruns"
+    }
+  },
+  "title": "GithubCiLogsPayload",
+  "type": "object"
+} as const;
+
+export const GithubIssueCommentPayloadSchema = z.object({ "id": z.union([z.number().int(), z.null()]).default(null), "url": z.union([z.string(), z.null()]).default(null), "body": z.union([z.string(), z.null()]).default(null), "author": z.union([z.string(), z.null()]).default(null), "createdAt": z.union([z.string(), z.null()]).default(null), "updatedAt": z.union([z.string(), z.null()]).default(null) });
+
+export type GithubIssueCommentPayload = z.infer<typeof GithubIssueCommentPayloadSchema>;
+
+export const GithubIssueCommentPayloadJsonSchema = {
+  "properties": {
+    "id": {
       "anyOf": [
         {
           "type": "integer"
@@ -1402,48 +1451,9 @@ export const GetPrInputJsonSchema = {
         }
       ],
       "default": null,
-      "description": "The number of the PR to view. Omit to search PRs instead.",
-      "title": "Prnumber"
+      "title": "Id"
     },
-    "repo": {
-      "anyOf": [
-        {
-          "pattern": "^[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+$",
-          "type": "string"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "description": "The target repository override (e.g. org/repo).",
-      "title": "Repo"
-    },
-    "includeDiff": {
-      "default": false,
-      "description": "Include the PR diff and changed files.",
-      "title": "Includediff",
-      "type": "boolean"
-    },
-    "includeReviews": {
-      "default": false,
-      "description": "Include top-level reviews.",
-      "title": "Includereviews",
-      "type": "boolean"
-    },
-    "includeCommits": {
-      "default": false,
-      "description": "Include commit metadata.",
-      "title": "Includecommits",
-      "type": "boolean"
-    },
-    "includeConflicts": {
-      "default": false,
-      "description": "Include merge-conflict files.",
-      "title": "Includeconflicts",
-      "type": "boolean"
-    },
-    "baseBranch": {
+    "url": {
       "anyOf": [
         {
           "type": "string"
@@ -1453,10 +1463,9 @@ export const GetPrInputJsonSchema = {
         }
       ],
       "default": null,
-      "description": "Conflict check only: base branch.",
-      "title": "Basebranch"
+      "title": "Url"
     },
-    "headRef": {
+    "body": {
       "anyOf": [
         {
           "type": "string"
@@ -1466,12 +1475,677 @@ export const GetPrInputJsonSchema = {
         }
       ],
       "default": null,
-      "description": "Conflict check only: head ref.",
-      "title": "Headref"
+      "title": "Body"
+    },
+    "author": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Author"
+    },
+    "createdAt": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Createdat"
+    },
+    "updatedAt": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Updatedat"
+    }
+  },
+  "title": "GithubIssueCommentPayload",
+  "type": "object"
+} as const;
+
+export const GithubIssueDetailSchema = z.object({ "number": z.number().int(), "title": z.string(), "body": z.union([z.string(), z.null()]).default(null), "state": z.string(), "htmlUrl": z.union([z.string(), z.null()]).default(null) });
+
+export type GithubIssueDetail = z.infer<typeof GithubIssueDetailSchema>;
+
+export const GithubIssueDetailJsonSchema = {
+  "properties": {
+    "number": {
+      "title": "Number",
+      "type": "integer"
+    },
+    "title": {
+      "title": "Title",
+      "type": "string"
+    },
+    "body": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Body"
     },
     "state": {
+      "title": "State",
+      "type": "string"
+    },
+    "htmlUrl": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Htmlurl"
+    }
+  },
+  "required": [
+    "number",
+    "title",
+    "state"
+  ],
+  "title": "GithubIssueDetail",
+  "type": "object"
+} as const;
+
+export const GithubIssueInputSchema = z.object({ "issueNumber": z.number().int().describe("The number of the issue."), "repo": z.string().regex(new RegExp("^[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+$")).describe("The target repository override (e.g. org/repo).").optional(), "setBody": z.string().describe("Write: the new issue body.").optional(), "addLabels": z.array(z.string()).describe("Write: labels to add.").optional(), "removeLabels": z.array(z.string()).describe("Write: labels to remove.").optional(), "state": z.enum(["open","closed"]).describe("Write: the state to set the issue to.").optional(), "comment": z.string().min(1).describe("Write: comment to add (exclusive with the other write fields).").optional() }).describe("One tool for issue read + write.\n\nOmitting every write field reads the issue. A write call performs\nexactly one write kind: `comment` is exclusive with the body/label/\nstate update fields (a comment plus a state change in one call would\nmake ordering ambiguous in agent receipts).");
+
+export type GithubIssueInput = z.infer<typeof GithubIssueInputSchema>;
+
+export const GithubIssueInputJsonSchema = {
+  "description": "One tool for issue read + write.\n\nOmitting every write field reads the issue. A write call performs\nexactly one write kind: `comment` is exclusive with the body/label/\nstate update fields (a comment plus a state change in one call would\nmake ordering ambiguous in agent receipts).",
+  "properties": {
+    "issueNumber": {
+      "description": "The number of the issue.",
+      "title": "Issuenumber",
+      "type": "integer"
+    },
+    "repo": {
+      "pattern": "^[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+$",
+      "type": "string",
+      "description": "The target repository override (e.g. org/repo)."
+    },
+    "setBody": {
+      "type": "string",
+      "description": "Write: the new issue body."
+    },
+    "addLabels": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array",
+      "description": "Write: labels to add."
+    },
+    "removeLabels": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array",
+      "description": "Write: labels to remove."
+    },
+    "state": {
+      "enum": [
+        "open",
+        "closed"
+      ],
+      "type": "string",
+      "description": "Write: the state to set the issue to."
+    },
+    "comment": {
+      "minLength": 1,
+      "type": "string",
+      "description": "Write: comment to add (exclusive with the other write fields)."
+    }
+  },
+  "required": [
+    "issueNumber"
+  ],
+  "title": "GithubIssueInput",
+  "type": "object"
+} as const;
+
+export const GithubIssueResponseSchema = z.object({ "status": z.string().default("success"), "issue": z.union([z.any(), z.null()]).default(null), "comment": z.union([z.any(), z.null()]).default(null) });
+
+export type GithubIssueResponse = z.infer<typeof GithubIssueResponseSchema>;
+
+export const GithubIssueResponseJsonSchema = {
+  "$defs": {
+    "GithubIssueCommentPayload": {
+      "properties": {
+        "id": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Id"
+        },
+        "url": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Url"
+        },
+        "body": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Body"
+        },
+        "author": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Author"
+        },
+        "createdAt": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Createdat"
+        },
+        "updatedAt": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Updatedat"
+        }
+      },
+      "title": "GithubIssueCommentPayload",
+      "type": "object"
+    },
+    "GithubIssueDetail": {
+      "properties": {
+        "number": {
+          "title": "Number",
+          "type": "integer"
+        },
+        "title": {
+          "title": "Title",
+          "type": "string"
+        },
+        "body": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Body"
+        },
+        "state": {
+          "title": "State",
+          "type": "string"
+        },
+        "htmlUrl": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Htmlurl"
+        }
+      },
+      "required": [
+        "number",
+        "title",
+        "state"
+      ],
+      "title": "GithubIssueDetail",
+      "type": "object"
+    }
+  },
+  "properties": {
+    "status": {
+      "default": "success",
+      "title": "Status",
+      "type": "string"
+    },
+    "issue": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/GithubIssueDetail"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "comment": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/GithubIssueCommentPayload"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    }
+  },
+  "title": "GithubIssueResponse",
+  "type": "object"
+} as const;
+
+export const GithubPrDiffPayloadSchema = z.object({ "files": z.array(z.record(z.string(), z.any())).optional(), "diffText": z.string().default(""), "isTruncated": z.boolean().default(false) });
+
+export type GithubPrDiffPayload = z.infer<typeof GithubPrDiffPayloadSchema>;
+
+export const GithubPrDiffPayloadJsonSchema = {
+  "properties": {
+    "files": {
+      "items": {
+        "additionalProperties": true,
+        "type": "object"
+      },
+      "title": "Files",
+      "type": "array"
+    },
+    "diffText": {
+      "default": "",
+      "title": "Difftext",
+      "type": "string"
+    },
+    "isTruncated": {
+      "default": false,
+      "title": "Istruncated",
+      "type": "boolean"
+    }
+  },
+  "title": "GithubPrDiffPayload",
+  "type": "object"
+} as const;
+
+export const GithubPrInputSchema = z.object({ "prNumber": z.number().int().describe("PR to view. Required unless 'search' is given.").optional(), "repo": z.string().regex(new RegExp("^[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+$")).describe("The target repository override (e.g. org/repo).").optional(), "include": z.array(z.enum(["diff","reviews","commits","conflicts","ciLogs","workflowRuns"])).describe("View-mode sections to include in the response.").optional(), "search": z.any().describe("Search PRs instead of viewing one. Mutually exclusive with prNumber.").optional() }).describe("One tool for PR view (+ optional sections) and PR search.\n\nModes are explicit: pass `pr_number` to view one PR, or `search` to\nlist PRs — never implicit \"prNumber omitted means search\".");
+
+export type GithubPrInput = z.infer<typeof GithubPrInputSchema>;
+
+export const GithubPrInputJsonSchema = {
+  "$defs": {
+    "GithubPrSearch": {
+      "properties": {
+        "state": {
+          "default": "open",
+          "description": "PR state filter.",
+          "enum": [
+            "open",
+            "closed",
+            "all"
+          ],
+          "title": "State",
+          "type": "string"
+        },
+        "labels": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array",
+          "description": "Filter by labels."
+        },
+        "limit": {
+          "default": 100,
+          "description": "Maximum PRs to return.",
+          "maximum": 100,
+          "minimum": 1,
+          "title": "Limit",
+          "type": "integer"
+        }
+      },
+      "title": "GithubPrSearch",
+      "type": "object"
+    }
+  },
+  "description": "One tool for PR view (+ optional sections) and PR search.\n\nModes are explicit: pass `pr_number` to view one PR, or `search` to\nlist PRs — never implicit \"prNumber omitted means search\".",
+  "properties": {
+    "prNumber": {
+      "type": "integer",
+      "description": "PR to view. Required unless 'search' is given."
+    },
+    "repo": {
+      "pattern": "^[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+$",
+      "type": "string",
+      "description": "The target repository override (e.g. org/repo)."
+    },
+    "include": {
+      "description": "View-mode sections to include in the response.",
+      "items": {
+        "enum": [
+          "diff",
+          "reviews",
+          "commits",
+          "conflicts",
+          "ciLogs",
+          "workflowRuns"
+        ],
+        "type": "string"
+      },
+      "title": "Include",
+      "type": "array"
+    },
+    "search": {
+      "$ref": "#/$defs/GithubPrSearch",
+      "description": "Search PRs instead of viewing one. Mutually exclusive with prNumber."
+    }
+  },
+  "title": "GithubPrInput",
+  "type": "object"
+} as const;
+
+export const GithubPrResponseSchema = z.object({ "status": z.string().default("success"), "pr": z.union([z.record(z.string(), z.any()), z.null()]).default(null), "prs": z.union([z.array(z.record(z.string(), z.any())), z.null()]).default(null), "diff": z.union([z.any(), z.null()]).default(null), "reviews": z.union([z.array(z.record(z.string(), z.any())), z.null()]).default(null), "reviewCount": z.union([z.number().int(), z.null()]).default(null), "commits": z.union([z.array(z.record(z.string(), z.any())), z.null()]).default(null), "conflictFiles": z.union([z.array(z.string()), z.null()]).default(null), "ciLogs": z.union([z.any(), z.null()]).default(null), "workflowRuns": z.union([z.array(z.record(z.string(), z.any())), z.null()]).default(null) });
+
+export type GithubPrResponse = z.infer<typeof GithubPrResponseSchema>;
+
+export const GithubPrResponseJsonSchema = {
+  "$defs": {
+    "GithubCiLogsPayload": {
+      "properties": {
+        "checks": {
+          "anyOf": [
+            {
+              "items": {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Checks"
+        },
+        "failedChecks": {
+          "anyOf": [
+            {
+              "items": {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Failedchecks"
+        },
+        "logs": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "items": {},
+              "type": "array"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Logs"
+        },
+        "workflowRuns": {
+          "anyOf": [
+            {
+              "items": {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Workflowruns"
+        }
+      },
+      "title": "GithubCiLogsPayload",
+      "type": "object"
+    },
+    "GithubPrDiffPayload": {
+      "properties": {
+        "files": {
+          "items": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "title": "Files",
+          "type": "array"
+        },
+        "diffText": {
+          "default": "",
+          "title": "Difftext",
+          "type": "string"
+        },
+        "isTruncated": {
+          "default": false,
+          "title": "Istruncated",
+          "type": "boolean"
+        }
+      },
+      "title": "GithubPrDiffPayload",
+      "type": "object"
+    }
+  },
+  "properties": {
+    "status": {
+      "default": "success",
+      "title": "Status",
+      "type": "string"
+    },
+    "pr": {
+      "anyOf": [
+        {
+          "additionalProperties": true,
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Pr"
+    },
+    "prs": {
+      "anyOf": [
+        {
+          "items": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Prs"
+    },
+    "diff": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/GithubPrDiffPayload"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "reviews": {
+      "anyOf": [
+        {
+          "items": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Reviews"
+    },
+    "reviewCount": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Reviewcount"
+    },
+    "commits": {
+      "anyOf": [
+        {
+          "items": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Commits"
+    },
+    "conflictFiles": {
+      "anyOf": [
+        {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Conflictfiles"
+    },
+    "ciLogs": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/GithubCiLogsPayload"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "workflowRuns": {
+      "anyOf": [
+        {
+          "items": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Workflowruns"
+    }
+  },
+  "title": "GithubPrResponse",
+  "type": "object"
+} as const;
+
+export const GithubPrSearchSchema = z.object({ "state": z.enum(["open","closed","all"]).describe("PR state filter.").default("open"), "labels": z.union([z.array(z.string()), z.null()]).describe("Filter by labels.").default(null), "limit": z.number().int().gte(1).lte(100).describe("Maximum PRs to return.").default(100) });
+
+export type GithubPrSearch = z.infer<typeof GithubPrSearchSchema>;
+
+export const GithubPrSearchJsonSchema = {
+  "properties": {
+    "state": {
       "default": "open",
-      "description": "Search mode only: PR state filter.",
+      "description": "PR state filter.",
       "enum": [
         "open",
         "closed",
@@ -1479,20 +2153,6 @@ export const GetPrInputJsonSchema = {
       ],
       "title": "State",
       "type": "string"
-    },
-    "includeDrafts": {
-      "default": true,
-      "description": "Search mode only: include draft PRs.",
-      "title": "Includedrafts",
-      "type": "boolean"
-    },
-    "limit": {
-      "default": 100,
-      "description": "Search mode only: max PRs to return.",
-      "maximum": 100,
-      "minimum": 1,
-      "title": "Limit",
-      "type": "integer"
     },
     "labels": {
       "anyOf": [
@@ -1507,141 +2167,19 @@ export const GetPrInputJsonSchema = {
         }
       ],
       "default": null,
-      "description": "Search mode only: filter by labels.",
+      "description": "Filter by labels.",
       "title": "Labels"
-    }
-  },
-  "title": "GetPrInput",
-  "type": "object"
-} as const;
-
-export const GetPrResponseSchema = z.object({ "pr": z.record(z.string(), z.any()) });
-
-export type GetPrResponse = z.infer<typeof GetPrResponseSchema>;
-
-export const GetPrResponseJsonSchema = {
-  "properties": {
-    "pr": {
-      "additionalProperties": true,
-      "title": "Pr",
-      "type": "object"
-    }
-  },
-  "required": [
-    "pr"
-  ],
-  "title": "GetPrResponse",
-  "type": "object"
-} as const;
-
-export const HealthCheckInputSchema = z.object({ "checkDeep": z.boolean().describe("Whether to perform a deep health check including external dependencies.").default(false) });
-
-export type HealthCheckInput = z.infer<typeof HealthCheckInputSchema>;
-
-export const HealthCheckInputJsonSchema = {
-  "properties": {
-    "checkDeep": {
-      "default": false,
-      "description": "Whether to perform a deep health check including external dependencies.",
-      "title": "Checkdeep",
-      "type": "boolean"
-    }
-  },
-  "title": "HealthCheckInput",
-  "type": "object"
-} as const;
-
-export const HealthCheckResponseSchema = z.object({ "status": z.string().default("ok"), "config": z.union([z.record(z.string(), z.any()), z.null()]).default(null) });
-
-export type HealthCheckResponse = z.infer<typeof HealthCheckResponseSchema>;
-
-export const HealthCheckResponseJsonSchema = {
-  "properties": {
-    "status": {
-      "default": "ok",
-      "title": "Status",
-      "type": "string"
     },
-    "config": {
-      "anyOf": [
-        {
-          "additionalProperties": true,
-          "type": "object"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "title": "Config"
-    }
-  },
-  "title": "HealthCheckResponse",
-  "type": "object"
-} as const;
-
-export const IssueCommentInputSchema = z.object({ "issueNumber": z.number().int().describe("The number of the issue to comment on."), "body": z.string().describe("The content of the comment."), "repo": z.union([z.string().regex(new RegExp("^[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+$")), z.null()]).describe("The target repository override (e.g. org/repo).").default(null) });
-
-export type IssueCommentInput = z.infer<typeof IssueCommentInputSchema>;
-
-export const IssueCommentInputJsonSchema = {
-  "properties": {
-    "issueNumber": {
-      "description": "The number of the issue to comment on.",
-      "title": "Issuenumber",
+    "limit": {
+      "default": 100,
+      "description": "Maximum PRs to return.",
+      "maximum": 100,
+      "minimum": 1,
+      "title": "Limit",
       "type": "integer"
-    },
-    "body": {
-      "description": "The content of the comment.",
-      "title": "Body",
-      "type": "string"
-    },
-    "repo": {
-      "anyOf": [
-        {
-          "pattern": "^[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+$",
-          "type": "string"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "description": "The target repository override (e.g. org/repo).",
-      "title": "Repo"
     }
   },
-  "required": [
-    "issueNumber",
-    "body"
-  ],
-  "title": "IssueCommentInput",
-  "type": "object"
-} as const;
-
-export const IssueCommentResponseSchema = z.object({ "status": z.string().default("success"), "comment": z.union([z.any(), z.null()]).default(null) });
-
-export type IssueCommentResponse = z.infer<typeof IssueCommentResponseSchema>;
-
-export const IssueCommentResponseJsonSchema = {
-  "properties": {
-    "status": {
-      "default": "success",
-      "title": "Status",
-      "type": "string"
-    },
-    "comment": {
-      "anyOf": [
-        {},
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "title": "Comment"
-    }
-  },
-  "title": "IssueCommentResponse",
+  "title": "GithubPrSearch",
   "type": "object"
 } as const;
 
@@ -1675,130 +2213,6 @@ export const IssueSummaryJsonSchema = {
     "state"
   ],
   "title": "IssueSummary",
-  "type": "object"
-} as const;
-
-export const IssueUpdateInputSchema = z.object({ "issueNumber": z.number().int().describe("The number of the issue to update."), "body": z.union([z.string(), z.null()]).describe("The new body content for the issue.").default(null), "file": z.union([z.string(), z.null()]).describe("Path to file containing new issue body.").default(null), "labels": z.union([z.array(z.string()), z.null()]).describe("Comma-separated list of labels to set.").default(null), "addLabels": z.union([z.array(z.string()), z.null()]).describe("Comma-separated list of labels to add.").default(null), "removeLabels": z.union([z.array(z.string()), z.null()]).describe("Comma-separated list of labels to remove.").default(null), "state": z.union([z.enum(["open","closed"]), z.null()]).describe("The state to set the issue to.").default(null), "repo": z.union([z.string().regex(new RegExp("^[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+$")), z.null()]).describe("The target repository override (e.g. org/repo).").default(null) });
-
-export type IssueUpdateInput = z.infer<typeof IssueUpdateInputSchema>;
-
-export const IssueUpdateInputJsonSchema = {
-  "properties": {
-    "issueNumber": {
-      "description": "The number of the issue to update.",
-      "title": "Issuenumber",
-      "type": "integer"
-    },
-    "body": {
-      "anyOf": [
-        {
-          "type": "string"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "description": "The new body content for the issue.",
-      "title": "Body"
-    },
-    "file": {
-      "anyOf": [
-        {
-          "type": "string"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "description": "Path to file containing new issue body.",
-      "title": "File"
-    },
-    "labels": {
-      "anyOf": [
-        {
-          "items": {
-            "type": "string"
-          },
-          "type": "array"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "description": "Comma-separated list of labels to set.",
-      "title": "Labels"
-    },
-    "addLabels": {
-      "anyOf": [
-        {
-          "items": {
-            "type": "string"
-          },
-          "type": "array"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "description": "Comma-separated list of labels to add.",
-      "title": "Addlabels"
-    },
-    "removeLabels": {
-      "anyOf": [
-        {
-          "items": {
-            "type": "string"
-          },
-          "type": "array"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "description": "Comma-separated list of labels to remove.",
-      "title": "Removelabels"
-    },
-    "state": {
-      "anyOf": [
-        {
-          "enum": [
-            "open",
-            "closed"
-          ],
-          "type": "string"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "description": "The state to set the issue to.",
-      "title": "State"
-    },
-    "repo": {
-      "anyOf": [
-        {
-          "pattern": "^[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+$",
-          "type": "string"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "description": "The target repository override (e.g. org/repo).",
-      "title": "Repo"
-    }
-  },
-  "required": [
-    "issueNumber"
-  ],
-  "title": "IssueUpdateInput",
   "type": "object"
 } as const;
 
@@ -1878,63 +2292,6 @@ export const IssueUpdateResponseJsonSchema = {
     }
   },
   "title": "IssueUpdateResponse",
-  "type": "object"
-} as const;
-
-export const IssueViewInputSchema = z.object({ "issueNumber": z.number().int().describe("The number of the issue to view."), "repo": z.union([z.string().regex(new RegExp("^[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+$")), z.null()]).describe("The target repository override (e.g. org/repo).").default(null) });
-
-export type IssueViewInput = z.infer<typeof IssueViewInputSchema>;
-
-export const IssueViewInputJsonSchema = {
-  "properties": {
-    "issueNumber": {
-      "description": "The number of the issue to view.",
-      "title": "Issuenumber",
-      "type": "integer"
-    },
-    "repo": {
-      "anyOf": [
-        {
-          "pattern": "^[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+$",
-          "type": "string"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "description": "The target repository override (e.g. org/repo).",
-      "title": "Repo"
-    }
-  },
-  "required": [
-    "issueNumber"
-  ],
-  "title": "IssueViewInput",
-  "type": "object"
-} as const;
-
-export const IssueViewResponseSchema = z.object({ "issue": z.union([z.record(z.string(), z.any()), z.null()]).default(null) });
-
-export type IssueViewResponse = z.infer<typeof IssueViewResponseSchema>;
-
-export const IssueViewResponseJsonSchema = {
-  "properties": {
-    "issue": {
-      "anyOf": [
-        {
-          "additionalProperties": true,
-          "type": "object"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "title": "Issue"
-    }
-  },
-  "title": "IssueViewResponse",
   "type": "object"
 } as const;
 
@@ -2353,68 +2710,13 @@ export const PrViewResponseJsonSchema = {
   "type": "object"
 } as const;
 
-export const ReadAgentContextInputSchema = z.object({ "path": z.union([z.string(), z.null()]).describe("Local filesystem path to target repository root").default(null), "repoPath": z.union([z.string(), z.null()]).describe("Alias for path (filesystem path to target workspace repository root).").default(null), "repo": z.union([z.string(), z.null()]).describe("Target GitHub repository string (e.g. org/repo).").default(null), "repos": z.union([z.array(z.string()), z.null()]).describe("List of repository names to fetch context for").default(null), "all": z.union([z.boolean(), z.null()]).describe("Whether to fetch context across all discovered ecosystem repositories").default(null), "skillName": z.union([z.string(), z.null()]).describe("Optional skill name: return its SKILL.md body too.").default(null) });
+export const RagHealthSchema = z.object({ "indexAvailable": z.union([z.boolean(), z.null()]).default(null), "lastIndexedAt": z.union([z.string(), z.null()]).default(null), "docCount": z.union([z.number().int(), z.null()]).default(null), "indexCurrent": z.union([z.boolean(), z.null()]).default(null) });
 
-export type ReadAgentContextInput = z.infer<typeof ReadAgentContextInputSchema>;
+export type RagHealth = z.infer<typeof RagHealthSchema>;
 
-export const ReadAgentContextInputJsonSchema = {
+export const RagHealthJsonSchema = {
   "properties": {
-    "path": {
-      "anyOf": [
-        {
-          "type": "string"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "description": "Local filesystem path to target repository root",
-      "title": "Path"
-    },
-    "repoPath": {
-      "anyOf": [
-        {
-          "type": "string"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "description": "Alias for path (filesystem path to target workspace repository root).",
-      "title": "Repopath"
-    },
-    "repo": {
-      "anyOf": [
-        {
-          "type": "string"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "description": "Target GitHub repository string (e.g. org/repo).",
-      "title": "Repo"
-    },
-    "repos": {
-      "anyOf": [
-        {
-          "items": {
-            "type": "string"
-          },
-          "type": "array"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "description": "List of repository names to fetch context for",
-      "title": "Repos"
-    },
-    "all": {
+    "indexAvailable": {
       "anyOf": [
         {
           "type": "boolean"
@@ -2424,10 +2726,9 @@ export const ReadAgentContextInputJsonSchema = {
         }
       ],
       "default": null,
-      "description": "Whether to fetch context across all discovered ecosystem repositories",
-      "title": "All"
+      "title": "Indexavailable"
     },
-    "skillName": {
+    "lastIndexedAt": {
       "anyOf": [
         {
           "type": "string"
@@ -2437,111 +2738,123 @@ export const ReadAgentContextInputJsonSchema = {
         }
       ],
       "default": null,
-      "description": "Optional skill name: return its SKILL.md body too.",
-      "title": "Skillname"
+      "title": "Lastindexedat"
+    },
+    "docCount": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Doccount"
+    },
+    "indexCurrent": {
+      "anyOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Indexcurrent"
     }
   },
-  "title": "ReadAgentContextInput",
+  "title": "RagHealth",
   "type": "object"
 } as const;
 
-export const ReadAgentContextResponseSchema = z.object({ "status": z.string().default("success"), "packageName": z.union([z.string(), z.null()]).default(null), "gitCommit": z.union([z.string(), z.null()]).default(null), "config": z.union([z.record(z.string(), z.any()), z.null()]).default(null) });
+export const RagHitSchema = z.object({ "content": z.string().default(""), "filepath": z.string().default(""), "start_line": z.union([z.number().int(), z.null()]).default(null), "end_line": z.union([z.number().int(), z.null()]).default(null), "score": z.union([z.number(), z.null()]).default(null), "distance": z.union([z.number(), z.null()]).default(null) });
 
-export type ReadAgentContextResponse = z.infer<typeof ReadAgentContextResponseSchema>;
+export type RagHit = z.infer<typeof RagHitSchema>;
 
-export const ReadAgentContextResponseJsonSchema = {
+export const RagHitJsonSchema = {
   "properties": {
-    "status": {
-      "default": "success",
-      "title": "Status",
+    "content": {
+      "default": "",
+      "title": "Content",
       "type": "string"
     },
-    "packageName": {
-      "anyOf": [
-        {
-          "type": "string"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "title": "Packagename"
+    "filepath": {
+      "default": "",
+      "title": "Filepath",
+      "type": "string"
     },
-    "gitCommit": {
+    "start_line": {
       "anyOf": [
         {
-          "type": "string"
+          "type": "integer"
         },
         {
           "type": "null"
         }
       ],
       "default": null,
-      "title": "Gitcommit"
+      "title": "Start Line"
     },
-    "config": {
+    "end_line": {
       "anyOf": [
         {
-          "additionalProperties": true,
-          "type": "object"
+          "type": "integer"
         },
         {
           "type": "null"
         }
       ],
       "default": null,
-      "title": "Config"
+      "title": "End Line"
+    },
+    "score": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Score"
+    },
+    "distance": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Distance"
     }
   },
-  "title": "ReadAgentContextResponse",
+  "title": "RagHit",
   "type": "object"
 } as const;
 
-export const ReadAgentContractInputSchema = z.object({ "path": z.union([z.string(), z.null()]).describe("Local filesystem path to target repository root").default(null), "repoPath": z.union([z.string(), z.null()]).describe("Alias for path (filesystem path to target workspace repository root).").default(null), "repo": z.union([z.string(), z.null()]).describe("Target GitHub repository string (e.g. org/repo).").default(null) });
+export const ReadAgentContractInputSchema = z.object({ "path": z.string().describe("Local filesystem path to target repository root").optional(), "repoPath": z.string().describe("Alias for path (filesystem path to target workspace repository root).").optional(), "repo": z.string().describe("Target GitHub repository string (e.g. org/repo).").optional() });
 
 export type ReadAgentContractInput = z.infer<typeof ReadAgentContractInputSchema>;
 
 export const ReadAgentContractInputJsonSchema = {
   "properties": {
     "path": {
-      "anyOf": [
-        {
-          "type": "string"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "description": "Local filesystem path to target repository root",
-      "title": "Path"
+      "type": "string",
+      "description": "Local filesystem path to target repository root"
     },
     "repoPath": {
-      "anyOf": [
-        {
-          "type": "string"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "description": "Alias for path (filesystem path to target workspace repository root).",
-      "title": "Repopath"
+      "type": "string",
+      "description": "Alias for path (filesystem path to target workspace repository root)."
     },
     "repo": {
-      "anyOf": [
-        {
-          "type": "string"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "description": "Target GitHub repository string (e.g. org/repo).",
-      "title": "Repo"
+      "type": "string",
+      "description": "Target GitHub repository string (e.g. org/repo)."
     }
   },
   "title": "ReadAgentContractInput",
@@ -2698,135 +3011,6 @@ export const ReadAgentContractResponseJsonSchema = {
     }
   },
   "title": "ReadAgentContractResponse",
-  "type": "object"
-} as const;
-
-export const ReadCiLogsInputSchema = z.object({ "prNumber": z.union([z.number().int(), z.null()]).describe("PR number for CI logs. Omit to list workflow runs instead.").default(null), "all": z.boolean().describe("Include logs for successful runs (default: false).").default(false), "repo": z.union([z.string().regex(new RegExp("^[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+$")), z.null()]).describe("The target repository override (e.g. org/repo).").default(null), "includeRuns": z.boolean().describe("Include recent workflow runs (absorbs repo_get_workflow_runs).").default(false), "branch": z.union([z.string(), z.null()]).describe("Filter workflow runs by branch name.").default(null), "event": z.union([z.string(), z.null()]).describe("Filter workflow runs by event (e.g. push, pull_request).").default(null) });
-
-export type ReadCiLogsInput = z.infer<typeof ReadCiLogsInputSchema>;
-
-export const ReadCiLogsInputJsonSchema = {
-  "properties": {
-    "prNumber": {
-      "anyOf": [
-        {
-          "type": "integer"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "description": "PR number for CI logs. Omit to list workflow runs instead.",
-      "title": "Prnumber"
-    },
-    "all": {
-      "default": false,
-      "description": "Include logs for successful runs (default: false).",
-      "title": "All",
-      "type": "boolean"
-    },
-    "repo": {
-      "anyOf": [
-        {
-          "pattern": "^[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+$",
-          "type": "string"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "description": "The target repository override (e.g. org/repo).",
-      "title": "Repo"
-    },
-    "includeRuns": {
-      "default": false,
-      "description": "Include recent workflow runs (absorbs repo_get_workflow_runs).",
-      "title": "Includeruns",
-      "type": "boolean"
-    },
-    "branch": {
-      "anyOf": [
-        {
-          "type": "string"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "description": "Filter workflow runs by branch name.",
-      "title": "Branch"
-    },
-    "event": {
-      "anyOf": [
-        {
-          "type": "string"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "description": "Filter workflow runs by event (e.g. push, pull_request).",
-      "title": "Event"
-    }
-  },
-  "title": "ReadCiLogsInput",
-  "type": "object"
-} as const;
-
-export const ReadCiLogsResponseSchema = z.object({ "checks": z.union([z.array(z.record(z.string(), z.any())), z.null()]).default(null), "failedChecks": z.union([z.array(z.record(z.string(), z.any())), z.null()]).default(null), "logs": z.union([z.any(), z.null()]).default(null) });
-
-export type ReadCiLogsResponse = z.infer<typeof ReadCiLogsResponseSchema>;
-
-export const ReadCiLogsResponseJsonSchema = {
-  "properties": {
-    "checks": {
-      "anyOf": [
-        {
-          "items": {
-            "additionalProperties": true,
-            "type": "object"
-          },
-          "type": "array"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "title": "Checks"
-    },
-    "failedChecks": {
-      "anyOf": [
-        {
-          "items": {
-            "additionalProperties": true,
-            "type": "object"
-          },
-          "type": "array"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "title": "Failedchecks"
-    },
-    "logs": {
-      "anyOf": [
-        {},
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "title": "Logs"
-    }
-  },
-  "title": "ReadCiLogsResponse",
   "type": "object"
 } as const;
 
@@ -2998,6 +3182,459 @@ export const ReadPRCommentsResponseJsonSchema = {
     "pr"
   ],
   "title": "ReadPRCommentsResponse",
+  "type": "object"
+} as const;
+
+export const RepoContextInputSchema = z.object({ "repo": z.string().describe("Target repository override (e.g. org/repo). Omit for the server's own repo.").optional(), "scope": z.enum(["self","all"]).describe("\"all\" fetches ecosystem-wide context via td multi-repo status; omit or \"self\" reads a single repo.").optional(), "skill": z.string().describe("Skill name: include its SKILL.md body in the response.").optional(), "deep": z.boolean().describe("Include server health details (td availability, RAG index state).").optional() }).describe("Read repository context or ecosystem status, with optional server health.");
+
+export type RepoContextInput = z.infer<typeof RepoContextInputSchema>;
+
+export const RepoContextInputJsonSchema = {
+  "description": "Read repository context or ecosystem status, with optional server health.",
+  "properties": {
+    "repo": {
+      "type": "string",
+      "description": "Target repository override (e.g. org/repo). Omit for the server's own repo."
+    },
+    "scope": {
+      "enum": [
+        "self",
+        "all"
+      ],
+      "type": "string",
+      "description": "\"all\" fetches ecosystem-wide context via td multi-repo status; omit or \"self\" reads a single repo."
+    },
+    "skill": {
+      "type": "string",
+      "description": "Skill name: include its SKILL.md body in the response."
+    },
+    "deep": {
+      "type": "boolean",
+      "description": "Include server health details (td availability, RAG index state)."
+    }
+  },
+  "title": "RepoContextInput",
+  "type": "object"
+} as const;
+
+export const RepoContextResponseSchema = z.object({ "status": z.string().default("success"), "path": z.string().default(""), "repo": z.union([z.string(), z.null()]).default(null), "packageName": z.string().default("boomtick"), "gitCommit": z.union([z.string(), z.null()]).default(null), "config": z.union([z.record(z.string(), z.any()), z.null()]).default(null), "agentContract": z.union([z.any(), z.null()]).default(null), "packageScripts": z.record(z.string(), z.string()).optional(), "vectorIndex": z.union([z.any(), z.null()]).default(null), "skills": z.array(z.record(z.string(), z.string())).optional(), "skill": z.union([z.record(z.string(), z.string()), z.null()]).default(null), "server": z.union([z.any(), z.null()]).default(null), "ecosystem": z.union([z.boolean(), z.null()]).default(null), "repos": z.union([z.array(z.record(z.string(), z.any())), z.null()]).default(null), "total": z.union([z.number().int(), z.null()]).default(null) }).describe("repo_context output: single-repo context, ecosystem status, or both.");
+
+export type RepoContextResponse = z.infer<typeof RepoContextResponseSchema>;
+
+export const RepoContextResponseJsonSchema = {
+  "$defs": {
+    "AgentContractSection": {
+      "properties": {
+        "found": {
+          "default": false,
+          "title": "Found",
+          "type": "boolean"
+        },
+        "path": {
+          "default": "",
+          "title": "Path",
+          "type": "string"
+        },
+        "content": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Content"
+        },
+        "config": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Config"
+        }
+      },
+      "title": "AgentContractSection",
+      "type": "object"
+    },
+    "RagHealth": {
+      "properties": {
+        "indexAvailable": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Indexavailable"
+        },
+        "lastIndexedAt": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Lastindexedat"
+        },
+        "docCount": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Doccount"
+        },
+        "indexCurrent": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Indexcurrent"
+        }
+      },
+      "title": "RagHealth",
+      "type": "object"
+    },
+    "ServerHealth": {
+      "properties": {
+        "githubOwner": {
+          "default": "",
+          "title": "Githubowner",
+          "type": "string"
+        },
+        "githubRepo": {
+          "default": "",
+          "title": "Githubrepo",
+          "type": "string"
+        },
+        "repoPath": {
+          "default": "",
+          "title": "Repopath",
+          "type": "string"
+        },
+        "readOnly": {
+          "default": true,
+          "title": "Readonly",
+          "type": "boolean"
+        },
+        "ghPath": {
+          "default": "gh",
+          "title": "Ghpath",
+          "type": "string"
+        },
+        "tdAvailable": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Tdavailable"
+        },
+        "rag": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RagHealth"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "title": "ServerHealth",
+      "type": "object"
+    },
+    "VectorIndexStatus": {
+      "properties": {
+        "warm": {
+          "default": false,
+          "title": "Warm",
+          "type": "boolean"
+        },
+        "lastWarmedAt": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Lastwarmedat"
+        },
+        "path": {
+          "default": "",
+          "title": "Path",
+          "type": "string"
+        },
+        "staleFiles": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Stalefiles",
+          "type": "array"
+        }
+      },
+      "title": "VectorIndexStatus",
+      "type": "object"
+    }
+  },
+  "description": "repo_context output: single-repo context, ecosystem status, or both.",
+  "properties": {
+    "status": {
+      "default": "success",
+      "title": "Status",
+      "type": "string"
+    },
+    "path": {
+      "default": "",
+      "title": "Path",
+      "type": "string"
+    },
+    "repo": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Repo"
+    },
+    "packageName": {
+      "default": "boomtick",
+      "title": "Packagename",
+      "type": "string"
+    },
+    "gitCommit": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Gitcommit"
+    },
+    "config": {
+      "anyOf": [
+        {
+          "additionalProperties": true,
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Config"
+    },
+    "agentContract": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/AgentContractSection"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "packageScripts": {
+      "additionalProperties": {
+        "type": "string"
+      },
+      "title": "Packagescripts",
+      "type": "object"
+    },
+    "vectorIndex": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/VectorIndexStatus"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "skills": {
+      "items": {
+        "additionalProperties": {
+          "type": "string"
+        },
+        "type": "object"
+      },
+      "title": "Skills",
+      "type": "array"
+    },
+    "skill": {
+      "anyOf": [
+        {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Skill"
+    },
+    "server": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ServerHealth"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "ecosystem": {
+      "anyOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Ecosystem"
+    },
+    "repos": {
+      "anyOf": [
+        {
+          "items": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Repos"
+    },
+    "total": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Total"
+    }
+  },
+  "title": "RepoContextResponse",
+  "type": "object"
+} as const;
+
+export const RepoTestInputSchema = z.object({ "commands": z.array(z.string()).describe("Optional list of commands to run (default includes install, lint, test, build).").optional(), "timeoutSeconds": z.number().int().describe("Maximum time in seconds to wait for tests (default: 300).").default(300), "worktreePath": z.string().describe("Optional path to the worktree to run tests in.").optional() });
+
+export type RepoTestInput = z.infer<typeof RepoTestInputSchema>;
+
+export const RepoTestInputJsonSchema = {
+  "properties": {
+    "commands": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array",
+      "description": "Optional list of commands to run (default includes install, lint, test, build)."
+    },
+    "timeoutSeconds": {
+      "default": 300,
+      "description": "Maximum time in seconds to wait for tests (default: 300).",
+      "title": "Timeoutseconds",
+      "type": "integer"
+    },
+    "worktreePath": {
+      "type": "string",
+      "description": "Optional path to the worktree to run tests in."
+    }
+  },
+  "title": "RepoTestInput",
+  "type": "object"
+} as const;
+
+export const RepoTestResponseSchema = z.object({ "passed": z.boolean(), "exitCode": z.number().int(), "failedTests": z.array(z.string()).optional(), "results": z.array(z.record(z.string(), z.any())).optional() });
+
+export type RepoTestResponse = z.infer<typeof RepoTestResponseSchema>;
+
+export const RepoTestResponseJsonSchema = {
+  "properties": {
+    "passed": {
+      "title": "Passed",
+      "type": "boolean"
+    },
+    "exitCode": {
+      "title": "Exitcode",
+      "type": "integer"
+    },
+    "failedTests": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Failedtests",
+      "type": "array"
+    },
+    "results": {
+      "items": {
+        "additionalProperties": true,
+        "type": "object"
+      },
+      "title": "Results",
+      "type": "array"
+    }
+  },
+  "required": [
+    "passed",
+    "exitCode"
+  ],
+  "title": "RepoTestResponse",
   "type": "object"
 } as const;
 
@@ -3398,87 +4035,118 @@ export const RunJobsResponseJsonSchema = {
   "type": "object"
 } as const;
 
-export const RunTestsInputSchema = z.object({ "commands": z.union([z.array(z.string()), z.null()]).describe("Optional list of commands to run (default includes install, lint, test, build).").default(null), "timeoutSeconds": z.number().int().describe("Maximum time in seconds to wait for tests (default: 300).").default(300), "worktreePath": z.union([z.string(), z.null()]).describe("Optional path to the worktree to run tests in.").default(null) });
+export const ServerHealthSchema = z.object({ "githubOwner": z.string().default(""), "githubRepo": z.string().default(""), "repoPath": z.string().default(""), "readOnly": z.boolean().default(true), "ghPath": z.string().default("gh"), "tdAvailable": z.union([z.boolean(), z.null()]).default(null), "rag": z.union([z.any(), z.null()]).default(null) });
 
-export type RunTestsInput = z.infer<typeof RunTestsInputSchema>;
+export type ServerHealth = z.infer<typeof ServerHealthSchema>;
 
-export const RunTestsInputJsonSchema = {
-  "properties": {
-    "commands": {
-      "anyOf": [
-        {
-          "items": {
-            "type": "string"
-          },
-          "type": "array"
+export const ServerHealthJsonSchema = {
+  "$defs": {
+    "RagHealth": {
+      "properties": {
+        "indexAvailable": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Indexavailable"
         },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "description": "Optional list of commands to run (default includes install, lint, test, build).",
-      "title": "Commands"
-    },
-    "timeoutSeconds": {
-      "default": 300,
-      "description": "Maximum time in seconds to wait for tests (default: 300).",
-      "title": "Timeoutseconds",
-      "type": "integer"
-    },
-    "worktreePath": {
-      "anyOf": [
-        {
-          "type": "string"
+        "lastIndexedAt": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Lastindexedat"
         },
-        {
-          "type": "null"
+        "docCount": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Doccount"
+        },
+        "indexCurrent": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Indexcurrent"
         }
-      ],
-      "default": null,
-      "description": "Optional path to the worktree to run tests in.",
-      "title": "Worktreepath"
+      },
+      "title": "RagHealth",
+      "type": "object"
     }
   },
-  "title": "RunTestsInput",
-  "type": "object"
-} as const;
-
-export const RunTestsResponseSchema = z.object({ "passed": z.boolean(), "exitCode": z.number().int(), "failedTests": z.array(z.string()).optional(), "results": z.array(z.record(z.string(), z.any())).optional() });
-
-export type RunTestsResponse = z.infer<typeof RunTestsResponseSchema>;
-
-export const RunTestsResponseJsonSchema = {
   "properties": {
-    "passed": {
-      "title": "Passed",
+    "githubOwner": {
+      "default": "",
+      "title": "Githubowner",
+      "type": "string"
+    },
+    "githubRepo": {
+      "default": "",
+      "title": "Githubrepo",
+      "type": "string"
+    },
+    "repoPath": {
+      "default": "",
+      "title": "Repopath",
+      "type": "string"
+    },
+    "readOnly": {
+      "default": true,
+      "title": "Readonly",
       "type": "boolean"
     },
-    "exitCode": {
-      "title": "Exitcode",
-      "type": "integer"
+    "ghPath": {
+      "default": "gh",
+      "title": "Ghpath",
+      "type": "string"
     },
-    "failedTests": {
-      "items": {
-        "type": "string"
-      },
-      "title": "Failedtests",
-      "type": "array"
+    "tdAvailable": {
+      "anyOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Tdavailable"
     },
-    "results": {
-      "items": {
-        "additionalProperties": true,
-        "type": "object"
-      },
-      "title": "Results",
-      "type": "array"
+    "rag": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/RagHealth"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
     }
   },
-  "required": [
-    "passed",
-    "exitCode"
-  ],
-  "title": "RunTestsResponse",
+  "title": "ServerHealth",
   "type": "object"
 } as const;
 
@@ -3598,7 +4266,7 @@ export const SuggestNextActionResponseJsonSchema = {
   "type": "object"
 } as const;
 
-export const TdAuditWorktreeInputSchema = z.object({ "worktree": z.string().describe("Path to the worktree to audit."), "includeImpact": z.boolean().describe("Also run blast-radius impact analysis.").default(false), "topK": z.union([z.number().int(), z.null()]).describe("Maximum impacted files to list.").default(null) });
+export const TdAuditWorktreeInputSchema = z.object({ "worktree": z.string().describe("Path to the worktree to audit."), "includeImpact": z.boolean().describe("Also run blast-radius impact analysis.").default(false), "topK": z.number().int().describe("Maximum impacted files to list.").optional() });
 
 export type TdAuditWorktreeInput = z.infer<typeof TdAuditWorktreeInputSchema>;
 
@@ -3616,17 +4284,8 @@ export const TdAuditWorktreeInputJsonSchema = {
       "type": "boolean"
     },
     "topK": {
-      "anyOf": [
-        {
-          "type": "integer"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "description": "Maximum impacted files to list.",
-      "title": "Topk"
+      "type": "integer",
+      "description": "Maximum impacted files to list."
     }
   },
   "required": [
@@ -3636,46 +4295,121 @@ export const TdAuditWorktreeInputJsonSchema = {
   "type": "object"
 } as const;
 
-export const TdAuditWorktreeResponseSchema = z.object({ "status": z.union([z.string(), z.null()]).default(null), "data": z.union([z.any(), z.null()]).default(null) });
+export const TdAuditWorktreeResponseSchema = z.object({ "message": z.union([z.string(), z.null()]).default(null), "code": z.union([z.number().int(), z.null()]).default(null), "status": z.union([z.string(), z.null()]).default(null), "passed": z.union([z.boolean(), z.null()]).default(null), "slop_findings": z.array(z.record(z.string(), z.any())).optional(), "suppressions_added": z.array(z.string()).optional(), "ast_violations": z.array(z.record(z.string(), z.any())).optional(), "impact": z.union([z.any(), z.null()]).default(null) });
 
 export type TdAuditWorktreeResponse = z.infer<typeof TdAuditWorktreeResponseSchema>;
 
 export const TdAuditWorktreeResponseJsonSchema = {
-  "properties": {
-    "status": {
-      "anyOf": [
-        {
-          "type": "string"
+  "$defs": {
+    "TdImpactResponse": {
+      "properties": {
+        "message": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Message"
         },
-        {
-          "type": "null"
+        "code": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Code"
+        },
+        "status": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Status"
+        },
+        "passed": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Passed"
+        },
+        "impacted_files": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Impacted Files",
+          "type": "array"
+        },
+        "dependent_tests": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Dependent Tests",
+          "type": "array"
+        },
+        "violations": {
+          "items": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "title": "Violations",
+          "type": "array"
+        },
+        "ui_changed": {
+          "default": false,
+          "title": "Ui Changed",
+          "type": "boolean"
+        },
+        "visual_diff": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Visual Diff"
+        },
+        "error": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Error"
         }
-      ],
-      "default": null,
-      "title": "Status"
-    },
-    "data": {
-      "anyOf": [
-        {},
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "title": "Data"
+      },
+      "title": "TdImpactResponse",
+      "type": "object"
     }
   },
-  "title": "TdAuditWorktreeResponse",
-  "type": "object"
-} as const;
-
-export const TdInitInputSchema = z.object({ "repoRoot": z.union([z.string(), z.null()]).describe("Repo root to initialize (default: git root).").default(null) });
-
-export type TdInitInput = z.infer<typeof TdInitInputSchema>;
-
-export const TdInitInputJsonSchema = {
   "properties": {
-    "repoRoot": {
+    "message": {
       "anyOf": [
         {
           "type": "string"
@@ -3685,72 +4419,9 @@ export const TdInitInputJsonSchema = {
         }
       ],
       "default": null,
-      "description": "Repo root to initialize (default: git root).",
-      "title": "Reporoot"
-    }
-  },
-  "title": "TdInitInput",
-  "type": "object"
-} as const;
-
-export const TdInitResponseSchema = z.object({ "status": z.union([z.string(), z.null()]).default(null), "data": z.union([z.any(), z.null()]).default(null) });
-
-export type TdInitResponse = z.infer<typeof TdInitResponseSchema>;
-
-export const TdInitResponseJsonSchema = {
-  "properties": {
-    "status": {
-      "anyOf": [
-        {
-          "type": "string"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "title": "Status"
+      "title": "Message"
     },
-    "data": {
-      "anyOf": [
-        {},
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "title": "Data"
-    }
-  },
-  "title": "TdInitResponse",
-  "type": "object"
-} as const;
-
-export const TdRagInputSchema = z.object({ "repoRoot": z.union([z.string(), z.null()]).describe("Repo root for the RAG index (default: git root).").default(null), "query": z.string().describe("Natural-language query to run (no rebuild)."), "topK": z.union([z.number().int(), z.null()]).describe("Maximum RAG hits to return.").default(null) });
-
-export type TdRagInput = z.infer<typeof TdRagInputSchema>;
-
-export const TdRagInputJsonSchema = {
-  "properties": {
-    "repoRoot": {
-      "anyOf": [
-        {
-          "type": "string"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "description": "Repo root for the RAG index (default: git root).",
-      "title": "Reporoot"
-    },
-    "query": {
-      "description": "Natural-language query to run (no rebuild).",
-      "title": "Query",
-      "type": "string"
-    },
-    "topK": {
+    "code": {
       "anyOf": [
         {
           "type": "integer"
@@ -3760,23 +4431,8 @@ export const TdRagInputJsonSchema = {
         }
       ],
       "default": null,
-      "description": "Maximum RAG hits to return.",
-      "title": "Topk"
-    }
-  },
-  "required": [
-    "query"
-  ],
-  "title": "TdRagInput",
-  "type": "object"
-} as const;
-
-export const TdRagResponseSchema = z.object({ "status": z.union([z.string(), z.null()]).default(null), "data": z.union([z.any(), z.null()]).default(null) });
-
-export type TdRagResponse = z.infer<typeof TdRagResponseSchema>;
-
-export const TdRagResponseJsonSchema = {
-  "properties": {
+      "title": "Code"
+    },
     "status": {
       "anyOf": [
         {
@@ -3789,22 +4445,497 @@ export const TdRagResponseJsonSchema = {
       "default": null,
       "title": "Status"
     },
-    "data": {
+    "passed": {
       "anyOf": [
-        {},
+        {
+          "type": "boolean"
+        },
         {
           "type": "null"
         }
       ],
       "default": null,
-      "title": "Data"
+      "title": "Passed"
+    },
+    "slop_findings": {
+      "items": {
+        "additionalProperties": true,
+        "type": "object"
+      },
+      "title": "Slop Findings",
+      "type": "array"
+    },
+    "suppressions_added": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Suppressions Added",
+      "type": "array"
+    },
+    "ast_violations": {
+      "items": {
+        "additionalProperties": true,
+        "type": "object"
+      },
+      "title": "Ast Violations",
+      "type": "array"
+    },
+    "impact": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/TdImpactResponse"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    }
+  },
+  "title": "TdAuditWorktreeResponse",
+  "type": "object"
+} as const;
+
+export const TdErrorResponseFieldsSchema = z.object({ "message": z.union([z.string(), z.null()]).default(null), "code": z.union([z.number().int(), z.null()]).default(null) });
+
+export type TdErrorResponseFields = z.infer<typeof TdErrorResponseFieldsSchema>;
+
+export const TdErrorResponseFieldsJsonSchema = {
+  "properties": {
+    "message": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Message"
+    },
+    "code": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Code"
+    }
+  },
+  "title": "TdErrorResponseFields",
+  "type": "object"
+} as const;
+
+export const TdImpactResponseSchema = z.object({ "message": z.union([z.string(), z.null()]).default(null), "code": z.union([z.number().int(), z.null()]).default(null), "status": z.union([z.string(), z.null()]).default(null), "passed": z.union([z.boolean(), z.null()]).default(null), "impacted_files": z.array(z.string()).optional(), "dependent_tests": z.array(z.string()).optional(), "violations": z.array(z.record(z.string(), z.any())).optional(), "ui_changed": z.boolean().default(false), "visual_diff": z.union([z.record(z.string(), z.any()), z.null()]).default(null), "error": z.union([z.string(), z.null()]).default(null) });
+
+export type TdImpactResponse = z.infer<typeof TdImpactResponseSchema>;
+
+export const TdImpactResponseJsonSchema = {
+  "properties": {
+    "message": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Message"
+    },
+    "code": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Code"
+    },
+    "status": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Status"
+    },
+    "passed": {
+      "anyOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Passed"
+    },
+    "impacted_files": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Impacted Files",
+      "type": "array"
+    },
+    "dependent_tests": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Dependent Tests",
+      "type": "array"
+    },
+    "violations": {
+      "items": {
+        "additionalProperties": true,
+        "type": "object"
+      },
+      "title": "Violations",
+      "type": "array"
+    },
+    "ui_changed": {
+      "default": false,
+      "title": "Ui Changed",
+      "type": "boolean"
+    },
+    "visual_diff": {
+      "anyOf": [
+        {
+          "additionalProperties": true,
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Visual Diff"
+    },
+    "error": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Error"
+    }
+  },
+  "title": "TdImpactResponse",
+  "type": "object"
+} as const;
+
+export const TdInitInputSchema = z.object({ "repoRoot": z.string().describe("Repo root to initialize (default: git root).").optional() });
+
+export type TdInitInput = z.infer<typeof TdInitInputSchema>;
+
+export const TdInitInputJsonSchema = {
+  "properties": {
+    "repoRoot": {
+      "type": "string",
+      "description": "Repo root to initialize (default: git root)."
+    }
+  },
+  "title": "TdInitInput",
+  "type": "object"
+} as const;
+
+export const TdInitResponseSchema = z.object({ "message": z.union([z.string(), z.null()]).default(null), "code": z.union([z.number().int(), z.null()]).default(null), "status": z.union([z.string(), z.null()]).default(null), "head_sha": z.union([z.string(), z.null()]).default(null), "deps_synced": z.union([z.boolean(), z.null()]).default(null), "deps_note": z.union([z.string(), z.null()]).default(null), "main_note": z.union([z.string(), z.null()]).default(null), "rag_indexed_sha": z.union([z.string(), z.null()]).default(null), "updated_files": z.array(z.string()).optional() });
+
+export type TdInitResponse = z.infer<typeof TdInitResponseSchema>;
+
+export const TdInitResponseJsonSchema = {
+  "properties": {
+    "message": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Message"
+    },
+    "code": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Code"
+    },
+    "status": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Status"
+    },
+    "head_sha": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Head Sha"
+    },
+    "deps_synced": {
+      "anyOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Deps Synced"
+    },
+    "deps_note": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Deps Note"
+    },
+    "main_note": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Main Note"
+    },
+    "rag_indexed_sha": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Rag Indexed Sha"
+    },
+    "updated_files": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Updated Files",
+      "type": "array"
+    }
+  },
+  "title": "TdInitResponse",
+  "type": "object"
+} as const;
+
+export const TdRagInputSchema = z.object({ "repoRoot": z.string().describe("Repo root for the RAG index (default: git root).").optional(), "query": z.string().describe("Natural-language query to run (no rebuild)."), "topK": z.number().int().describe("Maximum RAG hits to return.").optional() });
+
+export type TdRagInput = z.infer<typeof TdRagInputSchema>;
+
+export const TdRagInputJsonSchema = {
+  "properties": {
+    "repoRoot": {
+      "type": "string",
+      "description": "Repo root for the RAG index (default: git root)."
+    },
+    "query": {
+      "description": "Natural-language query to run (no rebuild).",
+      "title": "Query",
+      "type": "string"
+    },
+    "topK": {
+      "type": "integer",
+      "description": "Maximum RAG hits to return."
+    }
+  },
+  "required": [
+    "query"
+  ],
+  "title": "TdRagInput",
+  "type": "object"
+} as const;
+
+export const TdRagResponseSchema = z.object({ "message": z.union([z.string(), z.null()]).default(null), "code": z.union([z.number().int(), z.null()]).default(null), "status": z.union([z.string(), z.null()]).default(null), "query": z.union([z.string(), z.null()]).default(null), "hits": z.array(z.any()).optional(), "count": z.number().int().default(0) });
+
+export type TdRagResponse = z.infer<typeof TdRagResponseSchema>;
+
+export const TdRagResponseJsonSchema = {
+  "$defs": {
+    "RagHit": {
+      "properties": {
+        "content": {
+          "default": "",
+          "title": "Content",
+          "type": "string"
+        },
+        "filepath": {
+          "default": "",
+          "title": "Filepath",
+          "type": "string"
+        },
+        "start_line": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Start Line"
+        },
+        "end_line": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "End Line"
+        },
+        "score": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Score"
+        },
+        "distance": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Distance"
+        }
+      },
+      "title": "RagHit",
+      "type": "object"
+    }
+  },
+  "properties": {
+    "message": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Message"
+    },
+    "code": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Code"
+    },
+    "status": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Status"
+    },
+    "query": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Query"
+    },
+    "hits": {
+      "items": {
+        "$ref": "#/$defs/RagHit"
+      },
+      "title": "Hits",
+      "type": "array"
+    },
+    "count": {
+      "default": 0,
+      "title": "Count",
+      "type": "integer"
     }
   },
   "title": "TdRagResponse",
   "type": "object"
 } as const;
 
-export const TdValidateIssueInputSchema = z.object({ "file": z.string().describe("Path to the design spec file (or - for stdin)."), "repoRoot": z.union([z.string(), z.null()]).describe("Repo root for file existence checks.").default(null) });
+export const TdValidateIssueInputSchema = z.object({ "file": z.string().describe("Path to the design spec file (or - for stdin)."), "repoRoot": z.string().describe("Repo root for file existence checks.").optional() });
 
 export type TdValidateIssueInput = z.infer<typeof TdValidateIssueInputSchema>;
 
@@ -3816,17 +4947,8 @@ export const TdValidateIssueInputJsonSchema = {
       "type": "string"
     },
     "repoRoot": {
-      "anyOf": [
-        {
-          "type": "string"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "description": "Repo root for file existence checks.",
-      "title": "Reporoot"
+      "type": "string",
+      "description": "Repo root for file existence checks."
     }
   },
   "required": [
@@ -3836,12 +4958,36 @@ export const TdValidateIssueInputJsonSchema = {
   "type": "object"
 } as const;
 
-export const TdValidateIssueResponseSchema = z.object({ "status": z.union([z.string(), z.null()]).default(null), "data": z.union([z.any(), z.null()]).default(null) });
+export const TdValidateIssueResponseSchema = z.object({ "message": z.union([z.string(), z.null()]).default(null), "code": z.union([z.number().int(), z.null()]).default(null), "status": z.union([z.string(), z.null()]).default(null), "valid": z.union([z.boolean(), z.null()]).default(null), "allowed_files": z.array(z.string()).optional(), "forbidden_files": z.array(z.string()).optional(), "verification_commands": z.array(z.string()).optional(), "acceptance_criteria": z.array(z.string()).optional(), "errors": z.array(z.string()).optional() });
 
 export type TdValidateIssueResponse = z.infer<typeof TdValidateIssueResponseSchema>;
 
 export const TdValidateIssueResponseJsonSchema = {
   "properties": {
+    "message": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Message"
+    },
+    "code": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Code"
+    },
     "status": {
       "anyOf": [
         {
@@ -3854,15 +5000,52 @@ export const TdValidateIssueResponseJsonSchema = {
       "default": null,
       "title": "Status"
     },
-    "data": {
+    "valid": {
       "anyOf": [
-        {},
+        {
+          "type": "boolean"
+        },
         {
           "type": "null"
         }
       ],
       "default": null,
-      "title": "Data"
+      "title": "Valid"
+    },
+    "allowed_files": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Allowed Files",
+      "type": "array"
+    },
+    "forbidden_files": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Forbidden Files",
+      "type": "array"
+    },
+    "verification_commands": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Verification Commands",
+      "type": "array"
+    },
+    "acceptance_criteria": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Acceptance Criteria",
+      "type": "array"
+    },
+    "errors": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Errors",
+      "type": "array"
     }
   },
   "title": "TdValidateIssueResponse",
@@ -3900,12 +5083,36 @@ export const TdVerifyScopeInputJsonSchema = {
   "type": "object"
 } as const;
 
-export const TdVerifyScopeResponseSchema = z.object({ "status": z.union([z.string(), z.null()]).default(null), "data": z.union([z.any(), z.null()]).default(null) });
+export const TdVerifyScopeResponseSchema = z.object({ "message": z.union([z.string(), z.null()]).default(null), "code": z.union([z.number().int(), z.null()]).default(null), "status": z.union([z.string(), z.null()]).default(null), "passed": z.union([z.boolean(), z.null()]).default(null), "modified_files": z.array(z.string()).optional(), "violations": z.array(z.string()).optional(), "reverted": z.array(z.string()).optional() });
 
 export type TdVerifyScopeResponse = z.infer<typeof TdVerifyScopeResponseSchema>;
 
 export const TdVerifyScopeResponseJsonSchema = {
   "properties": {
+    "message": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Message"
+    },
+    "code": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Code"
+    },
     "status": {
       "anyOf": [
         {
@@ -3918,18 +5125,81 @@ export const TdVerifyScopeResponseJsonSchema = {
       "default": null,
       "title": "Status"
     },
-    "data": {
+    "passed": {
       "anyOf": [
-        {},
+        {
+          "type": "boolean"
+        },
         {
           "type": "null"
         }
       ],
       "default": null,
-      "title": "Data"
+      "title": "Passed"
+    },
+    "modified_files": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Modified Files",
+      "type": "array"
+    },
+    "violations": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Violations",
+      "type": "array"
+    },
+    "reverted": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Reverted",
+      "type": "array"
     }
   },
   "title": "TdVerifyScopeResponse",
+  "type": "object"
+} as const;
+
+export const VectorIndexStatusSchema = z.object({ "warm": z.boolean().default(false), "lastWarmedAt": z.union([z.string(), z.null()]).default(null), "path": z.string().default(""), "staleFiles": z.array(z.string()).optional() });
+
+export type VectorIndexStatus = z.infer<typeof VectorIndexStatusSchema>;
+
+export const VectorIndexStatusJsonSchema = {
+  "properties": {
+    "warm": {
+      "default": false,
+      "title": "Warm",
+      "type": "boolean"
+    },
+    "lastWarmedAt": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Lastwarmedat"
+    },
+    "path": {
+      "default": "",
+      "title": "Path",
+      "type": "string"
+    },
+    "staleFiles": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Stalefiles",
+      "type": "array"
+    }
+  },
+  "title": "VectorIndexStatus",
   "type": "object"
 } as const;
 

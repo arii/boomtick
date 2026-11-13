@@ -1,39 +1,28 @@
 import { z } from "zod";
-import { config } from "../config.js";
-import { readPerRepoGithubRepo } from "../config/repo.js";
 import { execSync } from "child_process";
 import * as fs from "fs";
 import * as path from "path";
 import * as yaml from "yaml";
+import { config } from "../config.js";
+import { readPerRepoGithubRepo } from "../config/repo.js";
 import { runTDCli } from "../lib/tdCli.js";
-import type { TDMultiRepoEntry } from "../lib/tdCli.js";
 import { recordToolReceipt } from "../lib/session_manager.js";
 import { listSkills, readSkill } from "../lib/skills.js";
 import type { SkillSummary } from "../lib/skills.js";
-import { AgentContractConfigSchema } from "./contract.js";
+import { getTdPreflight } from "../lib/tdHealth.js";
+import { getRagHealth } from "../lib/ragHealth.js";
+import {
+  RepoContextInputSchema,
+  RepoContextResponseSchema,
+  AgentContractConfigSchema,
+} from "./contract.js";
+
+export { RepoContextInputSchema };
 
 export interface AgentContext {
   packageName: string;
   gitCommit: string;
   config: Record<string, unknown>;
-}
-
-export interface AgentContextResult extends AgentContext {
-  status: "success";
-  path: string;
-  repo?: string;
-  agent_contract: ReturnType<typeof readAgentContractSection>;
-  package_scripts: Record<string, string>;
-  vector_index: ReturnType<typeof getVectorIndexStatus>;
-  skills: SkillSummary[];
-  skill?: { name: string; body: string };
-}
-
-export interface EcosystemAgentContextResult {
-  status: "success";
-  ecosystem: true;
-  repos: TDMultiRepoEntry[];
-  total: number;
 }
 
 export const loadStandaloneAgentContext = (repoRoot: string = process.cwd()): AgentContext => {
@@ -108,56 +97,48 @@ export function matchRepoInProjectConfig(rootPath: string, rawRepo: string): str
 }
 
 export async function resolveTargetRepoPath(args: {
-  path?: string | null;
-  repoPath?: string | null;
   repo?: string | null;
 }): Promise<string> {
-  if (args.repo) {
-    const rawRepo = args.repo.trim();
-    let matchedPath: string | undefined;
-    try {
-      const output = await runTDCli(["multi-repo", "status", "-r", rawRepo], "find target repository");
-      const matched = output.repos?.[0];
-      if (matched?.path) {
-        matchedPath = matched.path;
-      }
-    } catch {
-      // Fallback if CLI unavailable
+  if (!args.repo) {
+    return config.repoPath;
+  }
+  const rawRepo = args.repo.trim();
+  let matchedPath: string | undefined;
+  try {
+    const output = await runTDCli(["multi-repo", "status", "-r", rawRepo], "find target repository");
+    const matched = output.repos?.[0];
+    if (matched?.path) {
+      matchedPath = matched.path;
     }
-
-    if (!matchedPath) {
-      const repoName = rawRepo.includes("/") ? rawRepo.split("/")[1] : rawRepo;
-      const cwdParent = path.resolve(process.cwd(), "..", repoName);
-      const configParent = path.resolve(config.repoPath, "..", repoName);
-
-      if (fs.existsSync(cwdParent)) {
-        matchedPath = cwdParent;
-      } else if (fs.existsSync(configParent)) {
-        matchedPath = configParent;
-      }
-    }
-
-    // The caller's own project_config.json is the next signal: it names the repo
-    // the server runs in (github_repo) and any registered ecosystem repos.
-    if (!matchedPath) {
-      matchedPath = matchRepoInProjectConfig(config.repoPath, rawRepo) ?? undefined;
-    }
-
-    if (matchedPath) {
-      return matchedPath;
-    }
-
-    // Fail loudly: an unresolvable repo name must never silently return this
-    // server's own repo context under the caller's repo label.
-    throw new RepoResolutionError(rawRepo);
+  } catch {
+    // Fallback if CLI unavailable
   }
 
-  const explicitPath = args.path || args.repoPath;
-  if (explicitPath) {
-    return path.resolve(explicitPath);
+  if (!matchedPath) {
+    const repoName = rawRepo.includes("/") ? rawRepo.split("/")[1] : rawRepo;
+    const cwdParent = path.resolve(process.cwd(), "..", repoName);
+    const configParent = path.resolve(config.repoPath, "..", repoName);
+
+    if (fs.existsSync(cwdParent)) {
+      matchedPath = cwdParent;
+    } else if (fs.existsSync(configParent)) {
+      matchedPath = configParent;
+    }
   }
 
-  return config.repoPath;
+  // The caller's own project_config.json is the next signal: it names the repo
+  // the server runs in (github_repo) and any registered ecosystem repos.
+  if (!matchedPath) {
+    matchedPath = matchRepoInProjectConfig(config.repoPath, rawRepo) ?? undefined;
+  }
+
+  if (matchedPath) {
+    return matchedPath;
+  }
+
+  // Fail loudly: an unresolvable repo name must never silently return this
+  // server's own repo context under the caller's repo label.
+  throw new RepoResolutionError(rawRepo);
 }
 
 export function readAgentContractSection(targetPath: string): {
@@ -271,94 +252,77 @@ export function getVectorIndexStatus(targetPath: string): {
   return { warm: !isStale, lastWarmedAt, path: contextFile, staleFiles };
 }
 
-export const ReadAgentContextInputSchema = z.object({
-  path: z.string().optional().describe("Local filesystem path to target repository root"),
-  repoPath: z.string().optional().describe("Alias for path to target repository root"),
-  repo: z.string().optional().describe("Repository name override (e.g. arii/portfolio or portfolio)"),
-  repos: z.array(z.string()).optional().describe("List of repository names to fetch context for"),
-  all: z.boolean().optional().describe("Whether to fetch context across all discovered ecosystem repositories"),
-  skillName: z.string().optional().describe("Optional skill name: return its SKILL.md body too (absorbs skill_read)."),
-});
+/**
+ * Server health (absorbed boomtick_health): always included in repo_context
+ * responses — health is repo metadata, not a separate tool call.
+ */
+export function getServerHealth() {
+  return {
+    githubOwner: config.githubOwner,
+    githubRepo: config.githubRepo,
+    repoPath: config.repoPath,
+    readOnly: !config.githubToken,
+    ghPath: config.ghPath,
+    // td availability recorded by the startup preflight; null when the
+    // preflight has not run yet.
+    tdAvailable: getTdPreflight()?.available ?? null,
+    // Deterministic RAG index/canary state for this repo (silent 0-hit
+    // indexes and never-built indexes surface here instead of being
+    // diagnosed by hand).
+    rag: getRagHealth(config.repoPath || process.cwd()),
+  };
+}
 
-export async function readAgentContextHandler(
-  args: z.infer<typeof ReadAgentContextInputSchema>
-): Promise<EcosystemAgentContextResult | AgentContextResult> {
-  // 1. Ecosystem / Multi-repo request
-  if (args.all || (args.repos && args.repos.length > 0)) {
-    const cliArgs = ["multi-repo", "status"];
-    if (args.repos) {
-      for (const r of args.repos) {
-        cliArgs.push("-r", r);
-      }
-    }
-    const output = await runTDCli(cliArgs, "fetch multi-repo context");
-    recordToolReceipt(process.cwd(), "repo.read_agent_context", {
-      repos: args.repos ?? [],
-      all: args.all ?? false,
-    });
-    return {
+export async function repoContextHandler(
+  args: z.input<typeof RepoContextInputSchema>
+): Promise<Record<string, unknown>> {
+  const params = RepoContextInputSchema.parse(args);
+
+  // Ecosystem / multi-repo request (scope="all")
+  if (params.scope === "all") {
+    const output = await runTDCli(["multi-repo", "status"], "fetch multi-repo context");
+    recordToolReceipt(process.cwd(), "repo.context", { scope: "all" });
+    return RepoContextResponseSchema.parse({
       status: "success",
       ecosystem: true,
       repos: output.repos ?? [],
-      total: output.total ?? (output.repos?.length ?? 0)
-    };
+      total: output.total ?? (output.repos?.length ?? 0),
+    });
   }
 
-  // 2. Specific repository name override
-  if (args.repo) {
-    const matchedPath = await resolveTargetRepoPath({ repo: args.repo });
-    if (matchedPath && matchedPath !== config.repoPath) {
-      const context = loadStandaloneAgentContext(matchedPath);
-      const named: AgentContextResult = {
-        status: "success",
-        repo: args.repo,
-        path: matchedPath,
-        ...context,
-        agent_contract: readAgentContractSection(matchedPath),
-        package_scripts: getPackageScriptsSection(matchedPath),
-        vector_index: getVectorIndexStatus(matchedPath),
-        skills: await listSkills(matchedPath)
-      };
-      if (args.skillName) {
-        named.skill = { name: args.skillName, body: await readSkill(matchedPath, args.skillName) };
-      }
-      recordToolReceipt(matchedPath, "repo.read_agent_context", {
-        repo: args.repo,
-      });
-      return named;
-    }
-  }
+  const targetPath = params.repo
+    ? await resolveTargetRepoPath({ repo: params.repo })
+    : config.repoPath;
 
-  // 3. Specific filesystem path or default
-  const targetPath = await resolveTargetRepoPath(args);
   const context = loadStandaloneAgentContext(targetPath);
-  const result: AgentContextResult = {
+  const configSection = { ...context.config };
+  delete configSection.submodules;
+
+  const result = {
     status: "success",
     path: targetPath,
-    ...context,
-    agent_contract: readAgentContractSection(targetPath),
-    package_scripts: getPackageScriptsSection(targetPath),
-    vector_index: getVectorIndexStatus(targetPath),
-    skills: await listSkills(targetPath)
+    repo: params.repo ?? readPerRepoGithubRepo(targetPath) ?? undefined,
+    packageName: context.packageName,
+    gitCommit: context.gitCommit,
+    config: configSection,
+    agentContract: readAgentContractSection(targetPath),
+    packageScripts: getPackageScriptsSection(targetPath),
+    vectorIndex: getVectorIndexStatus(targetPath),
+    skills: await listSkills(targetPath),
+    server: getServerHealth(),
   };
-  if (args.skillName) {
-    result.skill = { name: args.skillName, body: await readSkill(targetPath, args.skillName) };
+
+  if (params.skill) {
+    const skillBody = { name: params.skill, body: await readSkill(targetPath, params.skill) };
+    recordToolReceipt(targetPath, "repo.context", {
+      repo: params.repo ?? targetPath,
+      skill: params.skill,
+    });
+    return RepoContextResponseSchema.parse({ ...result, skill: skillBody });
   }
-  if (args?.repo) {
-    result.repo = args.repo;
-  } else {
-    // Default to the repo the server actually runs in: the target's own
-    // project_config.json declaration, not a machine-global default.
-    const declaredRepo = readPerRepoGithubRepo(targetPath);
-    if (declaredRepo) {
-      result.repo = declaredRepo;
-    }
-  }
-  if (result.config) {
-    delete result.config.submodules;
-  }
-  recordToolReceipt(targetPath, "repo.read_agent_context", {
-    path: targetPath,
+
+  recordToolReceipt(targetPath, "repo.context", {
+    repo: params.repo ?? targetPath,
   });
-  return result;
+  return RepoContextResponseSchema.parse(result);
 }

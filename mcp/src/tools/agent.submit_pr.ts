@@ -4,7 +4,7 @@ import { readToolReceipts, resolveReceiptDir } from "../lib/session_manager.js";
 import { emitToolTelemetry } from "../lib/tool_telemetry.js";
 import { runTDCli } from "../lib/tdCli.js";
 
-const RAG_TOOLS = new Set(["td.init_and_rag", "td.init", "td.rag", "repo.read_agent_context"]);
+const RAG_TOOLS = new Set(["td.init_and_rag", "td.init", "td.rag", "repo.context"]);
 const SCOPE_TOOLS = new Set(["td.verify_scope", "td.audit_worktree"]);
 
 /**

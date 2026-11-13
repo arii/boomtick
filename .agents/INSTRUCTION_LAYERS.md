@@ -19,7 +19,7 @@ or a workflow file.
 
 - `.agent-context.json` embeds `cli_schema` and `file_tree` — a single read
   covers both `cli-schema.json` and repository structure. Use
-  `repo.read_agent_context` (Tier 1 MCP) to get it.
+  `repo_context` (Tier 1 MCP) to get it.
 - `AGENTS.md` defines the MCP → `td` → bash escalation path
   for every task category. Consult it before any GitHub or repo operation.
 - `CODEX.md` has been removed — its runtime contract is now in `AGENTS.md`

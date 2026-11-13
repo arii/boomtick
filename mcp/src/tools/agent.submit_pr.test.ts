@@ -87,7 +87,7 @@ describe("agent_submit_pr MCP tool handler", () => {
       title: "T",
       draft: false,
       pushMode: true,
-      worktreePath: mkWorktree(["repo.read_agent_context", "td.audit_worktree"]),
+      worktreePath: mkWorktree(["repo.context", "td.audit_worktree"]),
     });
 
     expect(runSpy).toHaveBeenCalledWith("td", [
