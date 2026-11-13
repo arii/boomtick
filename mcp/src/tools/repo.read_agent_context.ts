@@ -237,20 +237,20 @@ export function getVectorIndexStatus(targetPath: string): {
   let isStale = false;
   const staleFiles: string[] = [];
   try {
-    const gitRes = execSync("git log -1 --format=%ct -- .agent-context.json", {
-      cwd: targetPath, encoding: "utf-8", stdio: ["pipe", "pipe", "ignore"],
-    }).trim();
-    const contextCommitTs = parseInt(gitRes || "0", 10);
+    // .agent-context.json is gitignored, so `git log -- .agent-context.json`
+    // has no commits to compare and a commit-ts check is always stale.
+    // Freshness is an mtime question: was the file written after the
+    // current HEAD commit landed?
     const headRes = execSync("git log -1 --format=%ct HEAD", {
       cwd: targetPath, encoding: "utf-8", stdio: ["pipe", "pipe", "ignore"],
     }).trim();
     const headTs = parseInt(headRes || "0", 10);
-    if (headTs > contextCommitTs) {
+    if (headTs > 0 && contextMtime > 0 && contextMtime < headTs * 1000) {
       isStale = true;
-      staleFiles.push("HEAD commit is newer than .agent-context.json commit");
+      staleFiles.push("HEAD commit is newer than .agent-context.json mtime");
     }
   } catch {
-    // Git check fallback
+    // Git unavailable: file presence is the only signal
   }
   const keyFiles = ["package.json", "project_config.json", "cli/dev_tools/cli-schema.json", "cli/dev_tools/cli-commands-schema.json"];
   for (const keyFile of keyFiles) {
