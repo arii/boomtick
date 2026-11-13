@@ -3,13 +3,12 @@
     "target": "ESNext",
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
+    "outDir": "./dist",
+    "rootDir": "./src",
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
-    "forceConsistentCasingInFileNames": true,
-    "paths": {
-      "@arii/boomtick-workflows": ["../workflows/src/index.ts"]
-    }
+    "forceConsistentCasingInFileNames": true
   },
   "include": ["src/**/*"],
   "exclude": ["node_modules", "dist"]
