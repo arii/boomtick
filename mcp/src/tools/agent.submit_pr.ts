@@ -1,26 +1,11 @@
-import * as fs from "node:fs";
-import * as path from "node:path";
 import { z } from "zod";
 import { AgentSubmitPrInputSchema } from "./contract.js";
-import { RECEIPT_FILENAME } from "../lib/session_manager.js";
+import { readToolReceipts, resolveReceiptDir } from "../lib/session_manager.js";
 import { emitToolTelemetry } from "../lib/tool_telemetry.js";
 import { runTDCli } from "../lib/tdCli.js";
 
 const RAG_TOOLS = new Set(["td.init_and_rag", "td.init", "td.rag", "repo.read_agent_context"]);
 const SCOPE_TOOLS = new Set(["td.verify_scope", "td.audit_worktree"]);
-
-function readToolReceipts(worktreePath: string): Array<{ tool: string }> {
-  const receiptPath = path.join(worktreePath, RECEIPT_FILENAME);
-  if (!fs.existsSync(receiptPath)) {
-    return [];
-  }
-  try {
-    const parsed: unknown = JSON.parse(fs.readFileSync(receiptPath, "utf8"));
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
-  }
-}
 
 /**
  * Submit a branch as a pull request (push + open, draft by default). Agents submit;
@@ -56,9 +41,23 @@ export async function agentSubmitPrHandler(
     done(false, "pushMode must be true");
     throw new Error("pushMode must be true to push and open the PR.");
   }
-  const receipts = readToolReceipts(parsed.worktreePath ?? process.cwd());
-  const usedRag = receipts.some((r) => RAG_TOOLS.has(r.tool));
-  const usedScope = receipts.some((r) => SCOPE_TOOLS.has(r.tool));
+  // Reads go through the same receipt-dir resolution the td.* writers use —
+  // separate fallbacks let receipts land in the server cwd while submission
+  // looked in the worktree (audit H3).
+  const receiptRead = readToolReceipts(resolveReceiptDir(parsed.worktreePath));
+  if (receiptRead.error) {
+    const detail =
+      `tool receipt file is unreadable: ${receiptRead.error}. ` +
+      "Repair or delete the file, then re-run td init (or repo read-agent-context).";
+    done(false, detail);
+    throw new Error(`PR submission blocked: ${detail}`);
+  }
+  const receipts = receiptRead.receipts;
+  const receiptTools = receipts
+    .map((r) => r.tool)
+    .filter((tool): tool is string => typeof tool === "string");
+  const usedRag = receiptTools.some((t) => RAG_TOOLS.has(t));
+  const usedScope = receiptTools.some((t) => SCOPE_TOOLS.has(t));
   if (!usedRag || !usedScope) {
     const detail =
       `missing mandatory tool receipts (usedRag=${usedRag}, usedScope=${usedScope}). ` +

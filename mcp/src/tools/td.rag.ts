@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { recordToolReceipt } from "../lib/session_manager.js";
+import { recordToolReceipt, resolveReceiptDir } from "../lib/session_manager.js";
 import { runTDCli } from "../lib/tdCli.js";
 
 export const TdRagInputSchema = z.object({
@@ -19,7 +19,7 @@ export async function tdRagHandler(args: z.infer<typeof TdRagInputSchema>) {
   }
   queryArgs.push("--json");
   const rag = await runTDCli(queryArgs, "query RAG index");
-  recordToolReceipt(params.repoRoot ?? process.cwd(), "td.rag", {
+  recordToolReceipt(resolveReceiptDir(params.repoRoot), "td.rag", {
     query: params.query,
   });
   return rag;

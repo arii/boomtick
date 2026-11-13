@@ -173,6 +173,17 @@ describe("agent_submit_pr MCP tool handler", () => {
     expect(runSpy).not.toHaveBeenCalled();
   });
 
+  it("names the unreadable receipt file instead of reporting missing receipts", async () => {
+    const runSpy = vi.spyOn(shellModule, "runCommand");
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "submit-pr-"));
+    fs.writeFileSync(path.join(dir, ".agent_tool_receipt.json"), "{corrupt", "utf8");
+
+    await expect(
+      agentSubmitPrHandler({ branch: "feat/x", title: "T", pushMode: true, worktreePath: dir })
+    ).rejects.toThrow("tool receipt file is unreadable");
+    expect(runSpy).not.toHaveBeenCalled();
+  });
+
   it("blocks submission with RAG receipts but no scope receipts (issue 1146)", async () => {
     const runSpy = vi.spyOn(shellModule, "runCommand");
     await expect(
