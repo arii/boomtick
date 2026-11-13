@@ -36,7 +36,7 @@ describe("github.create_issue", () => {
       "Test Body",
       "--repo",
       expect.any(String)
-    ]);
+    ], { timeout: 60_000 });
     expect(result.status).toBe("success");
     expect(result.issue?.number).toBe(123);
     expect(result.issue?.title).toBe("Test Issue");
@@ -77,7 +77,7 @@ describe("github.create_issue", () => {
       "Body",
       "--repo",
       "org/other-repo"
-    ]);
+    ], { timeout: 60_000 });
     expect(result.status).toBe("success");
     expect(result.issue?.number).toBe(456);
   });

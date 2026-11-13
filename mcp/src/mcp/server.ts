@@ -13,6 +13,7 @@ import { config } from "../config.js";
 import { createSuccessResult, createErrorResult } from "../lib/result.js";
 import { MCP_TOOLS, MCP_PROMPTS, MCP_RESOURCES, MCP_RESOURCE_TEMPLATES } from "./definitions.js";
 import { normalizeArguments } from "../lib/param_utils.js";
+import { checkTdAvailability, recordTdPreflight } from "../lib/tdHealth.js";
 import { healthHandler, HealthCheckInputSchema } from "./tools.js";
 import { readAgentContextHandler, ReadAgentContextInputSchema } from "../tools/repo.read_agent_context.js";
 import { readCiLogsHandler, ReadCiLogsInputSchema } from "../tools/repo.read_ci_logs.js";
@@ -320,31 +321,18 @@ export class BoomtickMCPServer {
     // 3. SAFE REPOSITORY RESOLUTION
     const repoPath = config.repoPath || projectRoot;
 
-    // 4. SECURE, UNIX-ONLY PRE-FLIGHT CHECK FOR TD
-    try {
-      const result = spawnSync("td", ["doctor"], { 
-        encoding: "utf-8", 
-        cwd: repoPath,
-        shell: false // Explicitly disabled to clear Semgrep rules
-      });
+    // 4. SECURE, UNIX-ONLY PRE-FLIGHT CHECK FOR TD — warn and continue
+    // instead of exiting: a missing or broken td degrades the td.* tools
+    // but the rest of the server still works. The outcome is surfaced
+    // through boomtick_health as the tdAvailable flag.
+    const preflight = checkTdAvailability(repoPath);
+    recordTdPreflight(preflight);
 
-      if (result.error) {
-        throw result.error;
-      }
-
-      if (result.status !== 0) {
-        console.error("status:", result.status);
-        console.error("stdout:", result.stdout);
-        console.error("stderr:", result.stderr);
-        throw new Error(`td doctor returned exit code: ${result.status}`);
-      }
-
+    if (preflight.available) {
       console.error("✅ td verified on PATH securely");
-    } catch (error) {
-      console.error("❌ Fatal: td is not resolvable on PATH. MCP tools will fail.");
+    } else {
+      console.error("⚠️ td pre-flight check failed — td.* tools will degrade:", preflight.reason);
       console.error("Please ensure the project is installed: pip install -e .");
-      console.error("❌ Fatal: td pre-flight check failed:", error instanceof Error ? error.message : String(error));
-      process.exit(1);
     }
   }
 
