@@ -1,7 +1,7 @@
 import path from "path";
 import fs from "fs";
 import { fileURLToPath } from "url";
-import { findRepoRoot } from "./config/repo.js";
+import { findRepoRoot, readPerRepoGithubRepo } from "./config/repo.js";
 import { getGithubToken } from "./config/github.js";
 import { resolveRepo } from "./lib/git.js";
 import { initializeConfig, getCachedDynamicConfig } from "./config/dynamic.js";
@@ -74,6 +74,12 @@ export const config = {
     return getGithubToken();
   },
   get githubOwner() {
+    // The caller's own project_config.json declaration wins over machine-global
+    // `td config view`, which may point at an unrelated repo (e.g. tech-dancer).
+    const perRepoGithubRepo = readPerRepoGithubRepo();
+    if (perRepoGithubRepo) {
+      return perRepoGithubRepo.split("/")[0];
+    }
     const cachedDynamicConfig = getCachedDynamicConfig();
     const repoString = cachedDynamicConfig?.github_repo;
     if (typeof repoString === "string" && repoString.includes("/")) {
@@ -91,6 +97,10 @@ export const config = {
     }
   },
   get githubRepo() {
+    const perRepoGithubRepo = readPerRepoGithubRepo();
+    if (perRepoGithubRepo) {
+      return perRepoGithubRepo.split("/")[1];
+    }
     const cachedDynamicConfig = getCachedDynamicConfig();
     const repoString = cachedDynamicConfig?.github_repo;
     if (typeof repoString === "string" && repoString.includes("/")) {

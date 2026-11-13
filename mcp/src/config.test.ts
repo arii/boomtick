@@ -8,6 +8,13 @@ vi.mock("child_process", () => ({
   execSync: vi.fn(),
 }));
 
+const readPerRepoGithubRepoMock = vi.fn<(startDir?: string) => string | undefined>();
+
+vi.mock("./config/repo.js", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("./config/repo.js")>()),
+  readPerRepoGithubRepo: (...args: [(string | undefined)?]) => readPerRepoGithubRepoMock(...args),
+}));
+
 describe("stack .env loader", () => {
   const originalEnv = process.env;
   let tmpDir: string;
@@ -68,6 +75,7 @@ describe("config", () => {
     process.env = { ...originalEnv };
     vi.mocked(execSync).mockReset();
     vi.mocked(execSync).mockReturnValue("{}");
+    readPerRepoGithubRepoMock.mockReset();
   });
 
   afterEach(() => {
@@ -158,6 +166,24 @@ describe("config", () => {
 
       expect(config.githubOwner).toBe("workspace-owner");
       expect(config.githubRepo).toBe("workspace-repo");
+    });
+
+    it("should prioritize the per-repo project_config.json github_repo over dynamic config and env", async () => {
+      // The caller's own repo declaration is the most specific signal: it must
+      // outrank machine-global `td config view` (which can point at an
+      // unrelated repo, e.g. tech-dancer) and environment variables.
+      process.env.GITHUB_OWNER = "env-owner";
+      process.env.GITHUB_REPO = "env-repo";
+      readPerRepoGithubRepoMock.mockReturnValue("arii/remote-server");
+
+      const mockConfig = { github_repo: "workspace-owner/workspace-repo" };
+      vi.mocked(execSync).mockReturnValue(JSON.stringify(mockConfig));
+
+      const { config, initializeConfig } = await import("./config.js");
+      initializeConfig();
+
+      expect(config.githubOwner).toBe("arii");
+      expect(config.githubRepo).toBe("remote-server");
     });
 
     it("should fallback to environment variables when cachedDynamicConfig is empty", async () => {
