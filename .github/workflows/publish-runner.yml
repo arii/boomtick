@@ -46,9 +46,13 @@ jobs:
           python-version: '3.12'
 
       - name: Install Python CLI Dependencies
+        # verify:schemas (scripts/verify-schemas.mjs) hard-requires the pinned
+        # venv layout (.venv/bin/python3 and .venv/bin/td), so provision .venv
+        # here rather than installing into the system interpreter.
         run: |
-          python3 -m pip install --upgrade pip
-          pip install -e cli
+          python3 -m venv .venv
+          .venv/bin/pip install --upgrade pip
+          .venv/bin/pip install -e cli
 
       - name: Install Node Dependencies
         run: pnpm install --frozen-lockfile
