@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { runTestsHandler, RunTestsInputSchema } from "./repo.run_tests.js";
+import { repoTestHandler, RepoTestInputSchema } from "./repo.tests.js";
 import * as shell from "../lib/shell.js";
 
 vi.mock("../lib/shell.js", () => ({ runCommand: vi.fn() }));
@@ -23,11 +23,11 @@ function fail(command: string, stderr = "boom"): shell.ShellResult {
 const commandsSent = (): Array<[string, string[]]> =>
   runCommand.mock.calls.map(([cmd, args]) => [cmd as string, args as string[]]);
 
-describe("repo.run_tests — regex tokenizer", () => {
+describe("repo_test — regex tokenizer", () => {
   it("splits plain space-separated commands", async () => {
     runCommand.mockResolvedValue(ok("pnpm lint"));
 
-    await runTestsHandler({ commands: ["pnpm lint --fix"] });
+    await repoTestHandler({ commands: ["pnpm lint --fix"] });
 
     expect(commandsSent()).toEqual([["pnpm", ["lint", "--fix"]]]);
   });
@@ -35,7 +35,7 @@ describe("repo.run_tests — regex tokenizer", () => {
   it("keeps double-quoted arguments together and unescapes \\\"", async () => {
     runCommand.mockResolvedValue(ok("node"));
 
-    await runTestsHandler({
+    await repoTestHandler({
       commands: ['node -e "console.log(\\"hello world\\")"'],
     });
 
@@ -47,7 +47,7 @@ describe("repo.run_tests — regex tokenizer", () => {
   it("keeps single-quoted arguments together", async () => {
     runCommand.mockResolvedValue(ok("grep"));
 
-    await runTestsHandler({ commands: ["grep 'a b c' file.txt"] });
+    await repoTestHandler({ commands: ["grep 'a b c' file.txt"] });
 
     expect(commandsSent()).toEqual([["grep", ["a b c", "file.txt"]]]);
   });
@@ -55,7 +55,7 @@ describe("repo.run_tests — regex tokenizer", () => {
   it("keeps escaped single quotes inside single-quoted arguments", async () => {
     runCommand.mockResolvedValue(ok("grep"));
 
-    await runTestsHandler({ commands: ["grep 'it\\'s' file.txt"] });
+    await repoTestHandler({ commands: ["grep 'it\\'s' file.txt"] });
 
     expect(commandsSent()).toEqual([["grep", ["it's", "file.txt"]]]);
   });
@@ -63,17 +63,17 @@ describe("repo.run_tests — regex tokenizer", () => {
   it("collapses runs of whitespace", async () => {
     runCommand.mockResolvedValue(ok("pnpm"));
 
-    await runTestsHandler({ commands: ["pnpm   test    --run"] });
+    await repoTestHandler({ commands: ["pnpm   test    --run"] });
 
     expect(commandsSent()).toEqual([["pnpm", ["test", "--run"]]]);
   });
 });
 
-describe("repo.run_tests — execution semantics", () => {
+describe("repo_test — execution semantics", () => {
   it("runs the default four commands when none are given", async () => {
     runCommand.mockResolvedValue(ok("pnpm"));
 
-    const result = await runTestsHandler({});
+    const result = await repoTestHandler({});
 
     expect(runCommand).toHaveBeenCalledTimes(4);
     expect(commandsSent()[0]).toEqual(["pnpm", ["install", "--frozen-lockfile"]]);
@@ -87,7 +87,9 @@ describe("repo.run_tests — execution semantics", () => {
       .mockResolvedValueOnce(ok("pnpm install --frozen-lockfile"))
       .mockResolvedValueOnce(fail("pnpm lint", "eslint: 3 errors"));
 
-    const result = await runTestsHandler({ commands: ["pnpm install --frozen-lockfile", "pnpm lint", "pnpm test"] });
+    const result = await repoTestHandler({
+      commands: ["pnpm install --frozen-lockfile", "pnpm lint", "pnpm test"],
+    });
 
     expect(runCommand).toHaveBeenCalledTimes(2);
     expect(result.passed).toBe(false);
@@ -98,7 +100,7 @@ describe("repo.run_tests — execution semantics", () => {
   it("surfaces the failing command's stderr detail instead of 'Unknown error'", async () => {
     runCommand.mockResolvedValue(fail("pnpm test", "FAIL src/x.test.ts — expected 2 to be 3"));
 
-    const result = await runTestsHandler({ commands: ["pnpm test"] });
+    const result = await repoTestHandler({ commands: ["pnpm test"] });
 
     expect(result.results[0].stderr).toContain("expected 2 to be 3");
     expect(result.failedTests).toEqual(["pnpm test"]);
@@ -107,7 +109,7 @@ describe("repo.run_tests — execution semantics", () => {
   it("records a thrown spawn failure as a failed result and stops", async () => {
     runCommand.mockRejectedValue(new Error("spawn ENOENT"));
 
-    const result = await runTestsHandler({ commands: ["pnpm test", "pnpm build"] });
+    const result = await repoTestHandler({ commands: ["pnpm test", "pnpm build"] });
 
     expect(runCommand).toHaveBeenCalledTimes(1);
     expect(result.passed).toBe(false);
@@ -121,7 +123,7 @@ describe("repo.run_tests — execution semantics", () => {
   it("passes worktreePath as cwd and the timeout to runCommand", async () => {
     runCommand.mockResolvedValue(ok("pnpm"));
 
-    await runTestsHandler({
+    await repoTestHandler({
       commands: ["pnpm test"],
       worktreePath: "/tmp/wt",
       timeoutSeconds: 42,
@@ -136,7 +138,7 @@ describe("repo.run_tests — execution semantics", () => {
   it("defaults the timeout to 300 seconds", async () => {
     runCommand.mockResolvedValue(ok("pnpm"));
 
-    await runTestsHandler({ commands: ["pnpm test"] });
+    await repoTestHandler({ commands: ["pnpm test"] });
 
     expect(runCommand).toHaveBeenCalledWith("pnpm", ["test"], {
       cwd: undefined,
@@ -145,32 +147,20 @@ describe("repo.run_tests — execution semantics", () => {
   });
 });
 
-describe("repo.run_tests — #1025 regression: explicit null args", () => {
-  it("accepts null for every optional field and uses the defaults", async () => {
-    runCommand.mockResolvedValue(ok("pnpm"));
-
-    const result = await runTestsHandler({
-      commands: null,
-      timeoutSeconds: null,
-      worktreePath: null,
-    });
-
-    // null commands fall back to the default pipeline; null timeout to 300s.
-    expect(runCommand).toHaveBeenCalledTimes(4);
-    expect(runCommand).toHaveBeenCalledWith("pnpm", ["test"], {
-      cwd: undefined,
-      timeout: 300_000,
-    });
-    expect(result.passed).toBe(true);
-  });
-});
-
-describe("repo.run_tests — schema boundary", () => {
+describe("repo_test — schema boundary", () => {
   it("still rejects a non-numeric timeoutSeconds", () => {
-    expect(() => RunTestsInputSchema.parse({ timeoutSeconds: "soon" })).toThrow();
+    expect(() => RepoTestInputSchema.parse({ timeoutSeconds: "soon" })).toThrow();
   });
 
   it("still rejects a non-array commands field", () => {
-    expect(() => RunTestsInputSchema.parse({ commands: "pnpm test" })).toThrow();
+    expect(() => RepoTestInputSchema.parse({ commands: "pnpm test" })).toThrow();
+  });
+
+  // #1025 regression class, consolidation resolution: the wire schema is
+  // omission-only, so clients must omit optional fields instead of sending
+  // explicit nulls — and the runtime schema enforces that.
+  it("rejects explicit null for optional fields instead of silently accepting it", () => {
+    expect(() => RepoTestInputSchema.parse({ commands: null })).toThrow();
+    expect(() => RepoTestInputSchema.parse({ worktreePath: null })).toThrow();
   });
 });
