@@ -514,6 +514,198 @@ export const AIReviewIssueJsonSchema = {
   "type": "object"
 } as const;
 
+export const AIRunLogEntrySchema = z.object({ "timestamp": z.string(), "type": z.enum(["code-review","visual-review"]), "inputTokens": z.number().int(), "outputTokens": z.number().int(), "durationMs": z.number().int(), "cost": z.number(), "model": z.union([z.string(), z.null()]).default(null), "cacheTokens": z.union([z.number().int(), z.null()]).default(null), "totalTokens": z.union([z.number().int(), z.null()]).default(null), "verdict": z.union([z.string(), z.null()]).default(null), "pr": z.union([z.string(), z.null()]).default(null), "route": z.union([z.string(), z.null()]).default(null), "error": z.union([z.string(), z.null()]).default(null), "isTruncated": z.union([z.boolean(), z.null()]).default(null), "parseError": z.union([z.string(), z.null()]).default(null), "rawResponse": z.union([z.string(), z.null()]).default(null), "findings": z.union([z.array(z.any()), z.null()]).default(null), "inputChars": z.union([z.number().int(), z.null()]).default(null) });
+
+export type AIRunLogEntry = z.infer<typeof AIRunLogEntrySchema>;
+
+export const AIRunLogEntryJsonSchema = {
+  "properties": {
+    "timestamp": {
+      "title": "Timestamp",
+      "type": "string"
+    },
+    "type": {
+      "enum": [
+        "code-review",
+        "visual-review"
+      ],
+      "title": "Type",
+      "type": "string"
+    },
+    "inputTokens": {
+      "title": "Inputtokens",
+      "type": "integer"
+    },
+    "outputTokens": {
+      "title": "Outputtokens",
+      "type": "integer"
+    },
+    "durationMs": {
+      "title": "Durationms",
+      "type": "integer"
+    },
+    "cost": {
+      "title": "Cost",
+      "type": "number"
+    },
+    "model": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Model"
+    },
+    "cacheTokens": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Cachetokens"
+    },
+    "totalTokens": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Totaltokens"
+    },
+    "verdict": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Verdict"
+    },
+    "pr": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Pr"
+    },
+    "route": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Route"
+    },
+    "error": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Error"
+    },
+    "isTruncated": {
+      "anyOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Istruncated"
+    },
+    "parseError": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Parseerror"
+    },
+    "rawResponse": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Rawresponse"
+    },
+    "findings": {
+      "anyOf": [
+        {
+          "items": {},
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Findings"
+    },
+    "inputChars": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Inputchars"
+    }
+  },
+  "required": [
+    "timestamp",
+    "type",
+    "inputTokens",
+    "outputTokens",
+    "durationMs",
+    "cost"
+  ],
+  "title": "AIRunLogEntry",
+  "type": "object"
+} as const;
+
 export const AISynthesisReviewSchema = z.object({ "reviewComment": z.string().describe("Overall summary comment for the PR."), "labels": z.array(z.string()).describe("Suggested labels for the PR.").optional(), "recommendation": z.string().describe("Final recommendation.") });
 
 export type AISynthesisReview = z.infer<typeof AISynthesisReviewSchema>;
@@ -953,6 +1145,435 @@ export const CheckoutBranchResponseJsonSchema = {
     "branch"
   ],
   "title": "CheckoutBranchResponse",
+  "type": "object"
+} as const;
+
+export const CodeReviewResultSchema = z.object({ "findings": z.array(z.any()).optional(), "feedback": z.string(), "role": z.string(), "tokens": z.number().int(), "cost": z.number(), "modelName": z.string(), "llmVerdict": z.enum(["pass","warn","fail"]), "isTruncated": z.union([z.boolean(), z.null()]).default(null), "inputTokens": z.union([z.number().int(), z.null()]).default(null), "outputTokens": z.union([z.number().int(), z.null()]).default(null), "cacheTokens": z.union([z.number().int(), z.null()]).default(null), "parseError": z.union([z.enum(["missing_closing_tag","truncated_json","incomplete_findings","invalid_json"]), z.null()]).default(null) });
+
+export type CodeReviewResult = z.infer<typeof CodeReviewResultSchema>;
+
+export const CodeReviewResultJsonSchema = {
+  "$defs": {
+    "ReviewFinding": {
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "file": {
+          "title": "File",
+          "type": "string"
+        },
+        "issue": {
+          "title": "Issue",
+          "type": "string"
+        },
+        "status": {
+          "enum": [
+            "open",
+            "resolved"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "confidence": {
+          "enum": [
+            "high",
+            "medium",
+            "low"
+          ],
+          "title": "Confidence",
+          "type": "string"
+        },
+        "severity": {
+          "anyOf": [
+            {
+              "enum": [
+                "HIGH",
+                "MEDIUM",
+                "LOW"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Severity"
+        },
+        "line": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Line"
+        },
+        "startLine": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Startline"
+        },
+        "endLine": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Endline"
+        },
+        "snippet": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Snippet"
+        },
+        "fixSummary": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Fixsummary"
+        },
+        "counterexample": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Counterexample"
+        },
+        "suggestion": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Suggestion"
+        }
+      },
+      "required": [
+        "id",
+        "file",
+        "issue",
+        "status",
+        "confidence"
+      ],
+      "title": "ReviewFinding",
+      "type": "object"
+    }
+  },
+  "properties": {
+    "findings": {
+      "items": {
+        "$ref": "#/$defs/ReviewFinding"
+      },
+      "title": "Findings",
+      "type": "array"
+    },
+    "feedback": {
+      "title": "Feedback",
+      "type": "string"
+    },
+    "role": {
+      "title": "Role",
+      "type": "string"
+    },
+    "tokens": {
+      "title": "Tokens",
+      "type": "integer"
+    },
+    "cost": {
+      "title": "Cost",
+      "type": "number"
+    },
+    "modelName": {
+      "title": "Modelname",
+      "type": "string"
+    },
+    "llmVerdict": {
+      "enum": [
+        "pass",
+        "warn",
+        "fail"
+      ],
+      "title": "Llmverdict",
+      "type": "string"
+    },
+    "isTruncated": {
+      "anyOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Istruncated"
+    },
+    "inputTokens": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Inputtokens"
+    },
+    "outputTokens": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Outputtokens"
+    },
+    "cacheTokens": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Cachetokens"
+    },
+    "parseError": {
+      "anyOf": [
+        {
+          "enum": [
+            "missing_closing_tag",
+            "truncated_json",
+            "incomplete_findings",
+            "invalid_json"
+          ],
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Parseerror"
+    }
+  },
+  "required": [
+    "feedback",
+    "role",
+    "tokens",
+    "cost",
+    "modelName",
+    "llmVerdict"
+  ],
+  "title": "CodeReviewResult",
+  "type": "object"
+} as const;
+
+export const CodeReviewStateSchema = z.object({ "findings": z.array(z.any()).optional() });
+
+export type CodeReviewState = z.infer<typeof CodeReviewStateSchema>;
+
+export const CodeReviewStateJsonSchema = {
+  "$defs": {
+    "ReviewFinding": {
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "file": {
+          "title": "File",
+          "type": "string"
+        },
+        "issue": {
+          "title": "Issue",
+          "type": "string"
+        },
+        "status": {
+          "enum": [
+            "open",
+            "resolved"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "confidence": {
+          "enum": [
+            "high",
+            "medium",
+            "low"
+          ],
+          "title": "Confidence",
+          "type": "string"
+        },
+        "severity": {
+          "anyOf": [
+            {
+              "enum": [
+                "HIGH",
+                "MEDIUM",
+                "LOW"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Severity"
+        },
+        "line": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Line"
+        },
+        "startLine": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Startline"
+        },
+        "endLine": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Endline"
+        },
+        "snippet": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Snippet"
+        },
+        "fixSummary": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Fixsummary"
+        },
+        "counterexample": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Counterexample"
+        },
+        "suggestion": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Suggestion"
+        }
+      },
+      "required": [
+        "id",
+        "file",
+        "issue",
+        "status",
+        "confidence"
+      ],
+      "title": "ReviewFinding",
+      "type": "object"
+    }
+  },
+  "properties": {
+    "findings": {
+      "items": {
+        "$ref": "#/$defs/ReviewFinding"
+      },
+      "title": "Findings",
+      "type": "array"
+    }
+  },
+  "title": "CodeReviewState",
   "type": "object"
 } as const;
 
@@ -3046,6 +3667,352 @@ export const ReviewCommentJsonSchema = {
   "type": "object"
 } as const;
 
+export const ReviewFindingSchema = z.object({ "id": z.string(), "file": z.string(), "issue": z.string(), "status": z.enum(["open","resolved"]), "confidence": z.enum(["high","medium","low"]), "severity": z.union([z.enum(["HIGH","MEDIUM","LOW"]), z.null()]).default(null), "line": z.union([z.number().int(), z.null()]).default(null), "startLine": z.union([z.number().int(), z.null()]).default(null), "endLine": z.union([z.number().int(), z.null()]).default(null), "snippet": z.union([z.string(), z.null()]).default(null), "fixSummary": z.union([z.string(), z.null()]).default(null), "counterexample": z.union([z.string(), z.null()]).default(null), "suggestion": z.union([z.string(), z.null()]).default(null) });
+
+export type ReviewFinding = z.infer<typeof ReviewFindingSchema>;
+
+export const ReviewFindingJsonSchema = {
+  "properties": {
+    "id": {
+      "title": "Id",
+      "type": "string"
+    },
+    "file": {
+      "title": "File",
+      "type": "string"
+    },
+    "issue": {
+      "title": "Issue",
+      "type": "string"
+    },
+    "status": {
+      "enum": [
+        "open",
+        "resolved"
+      ],
+      "title": "Status",
+      "type": "string"
+    },
+    "confidence": {
+      "enum": [
+        "high",
+        "medium",
+        "low"
+      ],
+      "title": "Confidence",
+      "type": "string"
+    },
+    "severity": {
+      "anyOf": [
+        {
+          "enum": [
+            "HIGH",
+            "MEDIUM",
+            "LOW"
+          ],
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Severity"
+    },
+    "line": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Line"
+    },
+    "startLine": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Startline"
+    },
+    "endLine": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Endline"
+    },
+    "snippet": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Snippet"
+    },
+    "fixSummary": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Fixsummary"
+    },
+    "counterexample": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Counterexample"
+    },
+    "suggestion": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Suggestion"
+    }
+  },
+  "required": [
+    "id",
+    "file",
+    "issue",
+    "status",
+    "confidence"
+  ],
+  "title": "ReviewFinding",
+  "type": "object"
+} as const;
+
+export const RouteReviewSchema = z.object({ "route": z.string(), "severity": z.enum(["LOW","MEDIUM","HIGH"]), "differencePercent": z.number(), "feedback": z.string(), "tokens": z.number().int(), "cost": z.number(), "inputTokens": z.union([z.number().int(), z.null()]).default(null), "outputTokens": z.union([z.number().int(), z.null()]).default(null), "cacheTokens": z.union([z.number().int(), z.null()]).default(null), "modelName": z.union([z.string(), z.null()]).default(null), "llmVerdict": z.union([z.enum(["pass","fail","warn"]), z.null()]).default(null), "findings": z.union([z.array(z.any()), z.null()]).default(null), "isTruncated": z.union([z.boolean(), z.null()]).default(null), "role": z.union([z.string(), z.null()]).default(null) });
+
+export type RouteReview = z.infer<typeof RouteReviewSchema>;
+
+export const RouteReviewJsonSchema = {
+  "$defs": {
+    "VisualReviewFinding": {
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "route": {
+          "title": "Route",
+          "type": "string"
+        },
+        "issue": {
+          "title": "Issue",
+          "type": "string"
+        },
+        "status": {
+          "enum": [
+            "open",
+            "resolved"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "fixSummary": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Fixsummary"
+        }
+      },
+      "required": [
+        "id",
+        "route",
+        "issue",
+        "status"
+      ],
+      "title": "VisualReviewFinding",
+      "type": "object"
+    }
+  },
+  "properties": {
+    "route": {
+      "title": "Route",
+      "type": "string"
+    },
+    "severity": {
+      "enum": [
+        "LOW",
+        "MEDIUM",
+        "HIGH"
+      ],
+      "title": "Severity",
+      "type": "string"
+    },
+    "differencePercent": {
+      "title": "Differencepercent",
+      "type": "number"
+    },
+    "feedback": {
+      "title": "Feedback",
+      "type": "string"
+    },
+    "tokens": {
+      "title": "Tokens",
+      "type": "integer"
+    },
+    "cost": {
+      "title": "Cost",
+      "type": "number"
+    },
+    "inputTokens": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Inputtokens"
+    },
+    "outputTokens": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Outputtokens"
+    },
+    "cacheTokens": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Cachetokens"
+    },
+    "modelName": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Modelname"
+    },
+    "llmVerdict": {
+      "anyOf": [
+        {
+          "enum": [
+            "pass",
+            "fail",
+            "warn"
+          ],
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Llmverdict"
+    },
+    "findings": {
+      "anyOf": [
+        {
+          "items": {
+            "$ref": "#/$defs/VisualReviewFinding"
+          },
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Findings"
+    },
+    "isTruncated": {
+      "anyOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Istruncated"
+    },
+    "role": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Role"
+    }
+  },
+  "required": [
+    "route",
+    "severity",
+    "differencePercent",
+    "feedback",
+    "tokens",
+    "cost"
+  ],
+  "title": "RouteReview",
+  "type": "object"
+} as const;
+
 export const RunJobSchema = z.object({ "id": z.union([z.number().int(), z.null()]).default(null), "name": z.union([z.string(), z.null()]).default(null), "status": z.union([z.string(), z.null()]).default(null), "conclusion": z.union([z.string(), z.null()]).default(null), "htmlUrl": z.union([z.string(), z.null()]).default(null), "steps": z.array(z.any()).optional() });
 
 export type RunJob = z.infer<typeof RunJobSchema>;
@@ -3930,6 +4897,55 @@ export const TdVerifyScopeResponseJsonSchema = {
     }
   },
   "title": "TdVerifyScopeResponse",
+  "type": "object"
+} as const;
+
+export const VisualReviewFindingSchema = z.object({ "id": z.string(), "route": z.string(), "issue": z.string(), "status": z.enum(["open","resolved"]), "fixSummary": z.union([z.string(), z.null()]).default(null) });
+
+export type VisualReviewFinding = z.infer<typeof VisualReviewFindingSchema>;
+
+export const VisualReviewFindingJsonSchema = {
+  "properties": {
+    "id": {
+      "title": "Id",
+      "type": "string"
+    },
+    "route": {
+      "title": "Route",
+      "type": "string"
+    },
+    "issue": {
+      "title": "Issue",
+      "type": "string"
+    },
+    "status": {
+      "enum": [
+        "open",
+        "resolved"
+      ],
+      "title": "Status",
+      "type": "string"
+    },
+    "fixSummary": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Fixsummary"
+    }
+  },
+  "required": [
+    "id",
+    "route",
+    "issue",
+    "status"
+  ],
+  "title": "VisualReviewFinding",
   "type": "object"
 } as const;
 
