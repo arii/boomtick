@@ -53,6 +53,9 @@ jobs:
           python3 -m venv .venv
           .venv/bin/pip install --upgrade pip
           .venv/bin/pip install -e cli
+          # Later steps (sync-contracts, td calls) invoke plain `python3`/`td`;
+          # put the venv first on PATH so they see the pinned interpreter.
+          echo "$GITHUB_WORKSPACE/.venv/bin" >> "$GITHUB_PATH"
 
       - name: Install Node Dependencies
         run: pnpm install --frozen-lockfile
