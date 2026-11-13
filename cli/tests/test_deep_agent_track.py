@@ -5,6 +5,7 @@ Covers:
 - `td preflight` repo-awareness (audit skip, base-ref discovery)
 """
 
+from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 from click.testing import CliRunner
@@ -23,7 +24,16 @@ def test_preflight_skips_audit_when_dirs_missing():
             "dev_tools.orchestrator.run_command",
             return_value=MagicMock(returncode=0, stdout="clean"),
         ),
-        patch("os.path.exists", return_value=False),
+        # Stub the config instead of patching os.path.exists globally:
+        # Python 3.14's pathlib routes Path.exists() through os.path.exists,
+        # so a global patch also hides project_config.json from the config
+        # loader, which then raises on missing required keys.
+        patch(
+            "dev_tools.orchestrator.get_config",
+            return_value=SimpleNamespace(
+                audit_check_dirs=["/nonexistent/boomtick-audit-dir"]
+            ),
+        ),
     ):
         res = orch.run_preflight(base_branch="main")
     assert res["audit"]["status"] == "skipped"
