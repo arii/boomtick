@@ -136,6 +136,7 @@ jobs:
           pnpm install --frozen-lockfile
           pnpm --filter @arii/boomtick-mcp run lint
           pnpm --filter @arii/boomtick-mcp run type-check
+          pnpm --filter @arii/boomtick-workflows run lint
           pnpm run type-check:ts
 
       - name: Run Lint & Typecheck (Python)
@@ -185,6 +186,9 @@ jobs:
 
       - name: Run MCP Tests (Vitest)
         run: pnpm --filter @arii/boomtick-mcp run test
+
+      - name: Run Workflow Tests (Vitest)
+        run: pnpm --filter @arii/boomtick-workflows run test
 
       - name: Run Python CLI Tests (pytest)
         run: |

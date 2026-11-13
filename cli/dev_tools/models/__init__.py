@@ -376,6 +376,44 @@ class TdAuditWorktreeResponse(TdErrorResponseFields):
 # AI Review Models
 
 
+
+# run_workflow gateway. The wire input is deliberately thin: per-workflow
+# input schemas live in the workflows package registry and are enforced
+# server-side with Zod; the wire schema only routes the request. The
+# receipt records which provider tier answered so traces show the tier.
+
+
+class RunWorkflowInput(CamelCaseModel):
+    workflow: str = Field(
+        ...,
+        description="Registered workflow id (see the boomtick://workflows/registry resource for ids and input schemas).",
+    )
+    input: Optional[Dict[str, Any]] = Field(
+        None,
+        description="Workflow input object, validated against the per-workflow schema from the registry.",
+    )
+
+
+class WorkflowStepReceipt(BaseModel):
+    # Receipts describe graph execution, not request payloads, so field
+    # names must match the emitted keys exactly (plain BaseModel).
+    name: str = ""
+    status: Optional[str] = None
+    tier: Optional[str] = None
+    model: Optional[str] = None
+    error: Optional[str] = None
+
+
+class RunWorkflowResponse(TdErrorResponseFields):
+    status: Optional[str] = None
+    workflow: Optional[str] = None
+    result: Optional[Dict[str, Any]] = None
+    steps: List[WorkflowStepReceipt] = Field(default_factory=list)
+    tier: Optional[str] = None
+    model: Optional[str] = None
+    error: Optional[str] = None
+
+
 class AIReviewIssue(CamelCaseModel):
     id: Optional[str] = Field(None, description="Unique identifier for the finding.")
     line: Optional[int] = Field(None, description="Line number where the issue occurs.")

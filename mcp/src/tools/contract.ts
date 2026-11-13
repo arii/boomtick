@@ -4035,6 +4035,206 @@ export const RunJobsResponseJsonSchema = {
   "type": "object"
 } as const;
 
+export const RunWorkflowInputSchema = z.object({ "workflow": z.string().describe("Registered workflow id (see the boomtick://workflows/registry resource for ids and input schemas)."), "input": z.record(z.string(), z.any()).describe("Workflow input object, validated against the per-workflow schema from the registry.").optional() });
+
+export type RunWorkflowInput = z.infer<typeof RunWorkflowInputSchema>;
+
+export const RunWorkflowInputJsonSchema = {
+  "properties": {
+    "workflow": {
+      "description": "Registered workflow id (see the boomtick://workflows/registry resource for ids and input schemas).",
+      "title": "Workflow",
+      "type": "string"
+    },
+    "input": {
+      "additionalProperties": true,
+      "type": "object",
+      "description": "Workflow input object, validated against the per-workflow schema from the registry."
+    }
+  },
+  "required": [
+    "workflow"
+  ],
+  "title": "RunWorkflowInput",
+  "type": "object"
+} as const;
+
+export const RunWorkflowResponseSchema = z.object({ "message": z.union([z.string(), z.null()]).default(null), "code": z.union([z.number().int(), z.null()]).default(null), "status": z.union([z.string(), z.null()]).default(null), "workflow": z.union([z.string(), z.null()]).default(null), "result": z.union([z.record(z.string(), z.any()), z.null()]).default(null), "steps": z.array(z.any()).optional(), "tier": z.union([z.string(), z.null()]).default(null), "model": z.union([z.string(), z.null()]).default(null), "error": z.union([z.string(), z.null()]).default(null) });
+
+export type RunWorkflowResponse = z.infer<typeof RunWorkflowResponseSchema>;
+
+export const RunWorkflowResponseJsonSchema = {
+  "$defs": {
+    "WorkflowStepReceipt": {
+      "properties": {
+        "name": {
+          "default": "",
+          "title": "Name",
+          "type": "string"
+        },
+        "status": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Status"
+        },
+        "tier": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Tier"
+        },
+        "model": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Model"
+        },
+        "error": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Error"
+        }
+      },
+      "title": "WorkflowStepReceipt",
+      "type": "object"
+    }
+  },
+  "properties": {
+    "message": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Message"
+    },
+    "code": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Code"
+    },
+    "status": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Status"
+    },
+    "workflow": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Workflow"
+    },
+    "result": {
+      "anyOf": [
+        {
+          "additionalProperties": true,
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Result"
+    },
+    "steps": {
+      "items": {
+        "$ref": "#/$defs/WorkflowStepReceipt"
+      },
+      "title": "Steps",
+      "type": "array"
+    },
+    "tier": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Tier"
+    },
+    "model": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Model"
+    },
+    "error": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Error"
+    }
+  },
+  "title": "RunWorkflowResponse",
+  "type": "object"
+} as const;
+
 export const ServerHealthSchema = z.object({ "githubOwner": z.string().default(""), "githubRepo": z.string().default(""), "repoPath": z.string().default(""), "readOnly": z.boolean().default(true), "ghPath": z.string().default("gh"), "tdAvailable": z.union([z.boolean(), z.null()]).default(null), "rag": z.union([z.any(), z.null()]).default(null) });
 
 export type ServerHealth = z.infer<typeof ServerHealthSchema>;
@@ -5200,6 +5400,70 @@ export const VectorIndexStatusJsonSchema = {
     }
   },
   "title": "VectorIndexStatus",
+  "type": "object"
+} as const;
+
+export const WorkflowStepReceiptSchema = z.object({ "name": z.string().default(""), "status": z.union([z.string(), z.null()]).default(null), "tier": z.union([z.string(), z.null()]).default(null), "model": z.union([z.string(), z.null()]).default(null), "error": z.union([z.string(), z.null()]).default(null) });
+
+export type WorkflowStepReceipt = z.infer<typeof WorkflowStepReceiptSchema>;
+
+export const WorkflowStepReceiptJsonSchema = {
+  "properties": {
+    "name": {
+      "default": "",
+      "title": "Name",
+      "type": "string"
+    },
+    "status": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Status"
+    },
+    "tier": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Tier"
+    },
+    "model": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Model"
+    },
+    "error": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Error"
+    }
+  },
+  "title": "WorkflowStepReceipt",
   "type": "object"
 } as const;
 
