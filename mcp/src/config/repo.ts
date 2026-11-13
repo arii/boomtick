@@ -34,3 +34,34 @@ export function findRepoRoot(startDir?: string): string {
   }
   return path.resolve(__dirname, "../../../../");
 }
+
+interface PerRepoConfigSnapshot {
+  root: string;
+  githubRepo?: string;
+}
+
+let perRepoConfigSnapshot: PerRepoConfigSnapshot | null = null;
+
+/**
+ * Read github_repo from the project_config.json governing startDir — the
+ * caller's own repo declaration. This is the most specific repo signal and
+ * outranks machine-global configuration (e.g. `td config view`), which may
+ * point at an unrelated repo.
+ */
+export function readPerRepoGithubRepo(startDir?: string): string | undefined {
+  const root = findRepoRoot(startDir);
+  if (perRepoConfigSnapshot?.root === root) {
+    return perRepoConfigSnapshot.githubRepo;
+  }
+  let githubRepo: string | undefined;
+  try {
+    const parsed = JSON.parse(fs.readFileSync(path.join(root, "project_config.json"), "utf-8"));
+    if (typeof parsed?.github_repo === "string" && parsed.github_repo.includes("/")) {
+      githubRepo = parsed.github_repo;
+    }
+  } catch {
+    // No per-repo declaration → undefined; callers fall through to other signals.
+  }
+  perRepoConfigSnapshot = { root, githubRepo };
+  return githubRepo;
+}

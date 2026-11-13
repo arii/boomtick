@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { config } from "../config.js";
+import { readPerRepoGithubRepo } from "../config/repo.js";
 import { execSync } from "child_process";
 import * as fs from "fs";
 import * as path from "path";
@@ -63,15 +64,59 @@ export const loadStandaloneAgentContext = (repoRoot: string = process.cwd()): Ag
   };
 };
 
+export class RepoResolutionError extends Error {
+  constructor(repo: string) {
+    super(
+      `Unknown repository "${repo}": not resolvable via "td multi-repo status", not registered in ecosystem_repos (project_config.json), and no matching sibling directory of the server cwd exists. Register the repo in project_config.json ecosystem_repos or pass an explicit path.`
+    );
+    this.name = "RepoResolutionError";
+  }
+}
+
+/**
+ * Match a repo name ("owner/name" or "name") against the project_config.json at
+ * rootPath: either its own github_repo declaration (repo is the config root
+ * itself) or an ecosystem_repos entry. Returns the resolved absolute path, or
+ * null when there is no match / the config is unreadable.
+ */
+export function matchRepoInProjectConfig(rootPath: string, rawRepo: string): string | null {
+  const repoName = rawRepo.includes("/") ? rawRepo.split("/")[1] : rawRepo;
+  const projectConfigPath = path.join(rootPath, "project_config.json");
+  if (!fs.existsSync(projectConfigPath)) {
+    return null;
+  }
+  try {
+    const parsed = JSON.parse(fs.readFileSync(projectConfigPath, "utf-8"));
+    if (
+      typeof parsed.github_repo === "string" &&
+      (parsed.github_repo === rawRepo || parsed.github_repo.split("/")[1] === repoName)
+    ) {
+      return rootPath;
+    }
+    if (parsed.ecosystem_repos && typeof parsed.ecosystem_repos === "object") {
+      for (const [key, relPath] of Object.entries(parsed.ecosystem_repos)) {
+        const keyRepoName = key.includes("/") ? key.split("/")[1] : key;
+        if (key === rawRepo || keyRepoName === repoName) {
+          return path.resolve(rootPath, relPath as string);
+        }
+      }
+    }
+  } catch {
+    // Unreadable config → no match from this root; caller fails loudly instead.
+  }
+  return null;
+}
+
 export async function resolveTargetRepoPath(args: {
   path?: string | null;
   repoPath?: string | null;
   repo?: string | null;
 }): Promise<string> {
   if (args.repo) {
+    const rawRepo = args.repo.trim();
     let matchedPath: string | undefined;
     try {
-      const output = await runTDCli(["multi-repo", "status", "-r", args.repo], "find target repository");
+      const output = await runTDCli(["multi-repo", "status", "-r", rawRepo], "find target repository");
       const matched = output.repos?.[0];
       if (matched?.path) {
         matchedPath = matched.path;
@@ -81,7 +126,7 @@ export async function resolveTargetRepoPath(args: {
     }
 
     if (!matchedPath) {
-      const repoName = args.repo.includes("/") ? args.repo.split("/")[1] : args.repo;
+      const repoName = rawRepo.includes("/") ? rawRepo.split("/")[1] : rawRepo;
       const cwdParent = path.resolve(process.cwd(), "..", repoName);
       const configParent = path.resolve(config.repoPath, "..", repoName);
 
@@ -92,9 +137,19 @@ export async function resolveTargetRepoPath(args: {
       }
     }
 
+    // The caller's own project_config.json is the next signal: it names the repo
+    // the server runs in (github_repo) and any registered ecosystem repos.
+    if (!matchedPath) {
+      matchedPath = matchRepoInProjectConfig(config.repoPath, rawRepo) ?? undefined;
+    }
+
     if (matchedPath) {
       return matchedPath;
     }
+
+    // Fail loudly: an unresolvable repo name must never silently return this
+    // server's own repo context under the caller's repo label.
+    throw new RepoResolutionError(rawRepo);
   }
 
   const explicitPath = args.path || args.repoPath;
@@ -291,6 +346,13 @@ export async function readAgentContextHandler(
   }
   if (args?.repo) {
     result.repo = args.repo;
+  } else {
+    // Default to the repo the server actually runs in: the target's own
+    // project_config.json declaration, not a machine-global default.
+    const declaredRepo = readPerRepoGithubRepo(targetPath);
+    if (declaredRepo) {
+      result.repo = declaredRepo;
+    }
   }
   if (result.config) {
     delete result.config.submodules;

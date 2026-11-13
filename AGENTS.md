@@ -26,7 +26,6 @@ Agent tooling in this repository is structured into three tiers:
 | Dispatch Local Session | N/A (local worktree sessions) | `td agent run` | N/A |
 | Run Test Suites | `repo.run_tests` (`repo_run_tests`) | `td test` / `td test cli` | `pnpm test` / `pytest` |
 | Multi-Repo Context & Status | `repo.read_agent_context(all=true)` | `td multi-repo status` | N/A |
-| Sequential Multi-Repo Exec | `repo.multi_exec` (`repo_multi_exec`) | `td multi-repo exec "<cmd>"` | N/A |
 | Multi-Repo Context Warming | `repo.read_agent_context` | `td multi-repo context-warm` | N/A |
 
 ---

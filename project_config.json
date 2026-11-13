@@ -17,6 +17,7 @@
     "arii/tech-dancer": "../tech-dancer",
     "arii/portfolio": "../portfolio",
     "arii/hrm": "../hrm",
-    "arii/glossy": "../glossy"
+    "arii/glossy": "../glossy",
+    "arii/remote-server": "../remote-server"
   }
 }
