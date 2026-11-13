@@ -22,6 +22,8 @@ import {
   TdVerifyScopeResponseJsonSchema,
   TdAuditWorktreeInputJsonSchema,
   TdAuditWorktreeResponseJsonSchema,
+  RunWorkflowInputJsonSchema,
+  RunWorkflowResponseJsonSchema,
 } from "../tools/contract.js";
 
 export const MCP_PROMPTS: Prompt[] = [
@@ -136,6 +138,19 @@ export const MCP_RESOURCES: Resource[] = [
     mimeType: "application/json",
     description: "The design tokens used in the repository provided by the 'boomtick' MCP server.",
   },
+  {
+    uri: "boomtick://workflows/registry",
+    name: "Workflow Registry",
+    mimeType: "application/json",
+    description: "Registered run_workflow workflows with their descriptions and per-workflow JSON input schemas.",
+  },
+  {
+    uri: "mcp://workflows/registry",
+    name: "Workflow Registry",
+    mimeType: "application/json",
+    description: "Registered run_workflow workflows with their descriptions and per-workflow JSON input schemas.",
+  },
+
 ];
 
 export const MCP_RESOURCE_TEMPLATES: ResourceTemplate[] = [
@@ -170,11 +185,12 @@ function toolEntry(
   };
 }
 
-// Consolidated surface (15 → 11): one tool per noun/lifecycle, modes as
-// explicit fields. Receipt-producing operations (agent_submit_pr, td_init,
-// the two td gates) stay separate tools on purpose — merging them buries
-// their deterministic exit nodes. Worktree lifecycle remains orchestrator
-// territory (`td worktree`); do not re-add worktree_create/list/remove.
+// Consolidated surface (15 → 11) plus the run_workflow gateway (12):
+// one tool per noun/lifecycle, modes as explicit fields. Receipt-producing
+// operations (agent_submit_pr, td_init, the two td gates) stay separate tools
+// on purpose — merging them buries their deterministic exit nodes. Worktree
+// lifecycle remains orchestrator territory (`td worktree`); do not re-add
+// worktree_create/list/remove.
 export const MCP_TOOLS: Tool[] = [
   toolEntry("repo_context", "Read repository context (index, agent contract, skills, vector-index state, server health) for one repo, or ecosystem-wide multi-repo status with scope=\"all\".", RepoContextInputJsonSchema, RepoContextResponseJsonSchema),
   toolEntry("repo_test", "Run repository commands (default: install, lint, test, build) and report pass/fail with per-command results.", RepoTestInputJsonSchema, RepoTestResponseJsonSchema),
@@ -187,4 +203,5 @@ export const MCP_TOOLS: Tool[] = [
   toolEntry("td_validate_issue", "Validate a design spec file deterministically (exit 0 iff valid).", TdValidateIssueInputJsonSchema, TdValidateIssueResponseJsonSchema),
   toolEntry("td_verify_scope", "Gate worktree changes against a spec file (exit 0 iff in scope).", TdVerifyScopeInputJsonSchema, TdVerifyScopeResponseJsonSchema),
   toolEntry("td_audit_worktree", "Audit worktree changes for slop/AST violations with optional blast-radius impact analysis.", TdAuditWorktreeInputJsonSchema, TdAuditWorktreeResponseJsonSchema),
+  toolEntry("run_workflow", "Run a constrained, fixed-graph workflow from the workflows registry (boomtick://workflows/registry). Validates the request deterministically; returns a receipt with per-provider attempt traces.", RunWorkflowInputJsonSchema, RunWorkflowResponseJsonSchema),
 ];

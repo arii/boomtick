@@ -24,10 +24,11 @@ import { tdRagHandler, TdRagInputSchema } from "../tools/td.rag.js";
 import { tdValidateIssueHandler, TdValidateIssueInputSchema } from "../tools/td.validate_issue.js";
 import { tdVerifyScopeHandler, TdVerifyScopeInputSchema } from "../tools/td.verify_scope.js";
 import { tdAuditWorktreeHandler, TdAuditWorktreeInputSchema } from "../tools/td.audit_worktree.js";
+import { runWorkflowHandler, describeWorkflowRegistry } from "../tools/run_workflow.js";
 
 
 import { agentSubmitPrHandler } from "../tools/agent.submit_pr.js";
-import { AgentSubmitPrInputSchema } from "../tools/contract.js";
+import { AgentSubmitPrInputSchema, RunWorkflowInputSchema } from "../tools/contract.js";
 
 // NOTE (#1139 item 1): worktree lifecycle moved to the orchestrator
 // (`td worktree` / cli/dev_tools/services/worktrees.py). The worktree.*
@@ -213,6 +214,12 @@ export class BoomtickMCPServer {
           contents: [{ uri, mimeType: "application/json", text: JSON.stringify(logs, null, 2) }],
         };
       }
+      if (uri === "boomtick://workflows/registry" || uri === "mcp://workflows/registry") {
+        const registryDescriptor = await describeWorkflowRegistry();
+        return {
+          contents: [{ uri, mimeType: "application/json", text: JSON.stringify(registryDescriptor, null, 2) }],
+        };
+      }
       throw new Error(`Resource not found: ${uri}`);
     });
   }
@@ -250,6 +257,9 @@ export class BoomtickMCPServer {
             return createSuccessResult(await tdVerifyScopeHandler(TdVerifyScopeInputSchema.parse(normArgs)));
           case "td_audit_worktree":
             return createSuccessResult(await tdAuditWorktreeHandler(TdAuditWorktreeInputSchema.parse(normArgs)));
+
+          case "run_workflow":
+            return createSuccessResult(await runWorkflowHandler(RunWorkflowInputSchema.parse(normArgs)));
 
           case "agent_submit_pr":
             return createSuccessResult(await agentSubmitPrHandler(AgentSubmitPrInputSchema.parse(normArgs)));

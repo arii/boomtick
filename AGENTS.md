@@ -14,7 +14,7 @@ Agent tooling in this repository is structured into three tiers:
 
 ### Tool Mapping Table
 
-The MCP surface is 11 consolidated tools (schema consolidation 15 → 9/11, feat/mcp-tool-consolidation-15-to-9): `repo_context`, `repo_test`, `github_issue`, `github_create_issue`, `github_pr`, `agent_submit_pr`, `td_init`, `td_rag`, `td_validate_issue`, `td_verify_scope`, `td_audit_worktree`. The retired names (`boomtick_health`, `repo_read_agent_context`, `repo_run_tests`, `github_get_pr`, `github_issue_view`, `github_issue_update`, `github_issue_comment`, `repo_read_ci_logs`, plus the pre-existing dead `github.get_pr_diff`, `github.search_open_prs`, `github.get_merge_conflict_files`) return a "Tool not found" error.
+The MCP surface is 11 consolidated tools (schema consolidation 15 → 9/11, feat/mcp-tool-consolidation-15-to-9) plus the `run_workflow` gateway (12 registered): `repo_context`, `repo_test`, `github_issue`, `github_create_issue`, `github_pr`, `agent_submit_pr`, `td_init`, `td_rag`, `td_validate_issue`, `td_verify_scope`, `td_audit_worktree`, `run_workflow`. The retired names (`boomtick_health`, `repo_read_agent_context`, `repo_run_tests`, `github_get_pr`, `github_issue_view`, `github_issue_update`, `github_issue_comment`, `repo_read_ci_logs`, plus the pre-existing dead `github.get_pr_diff`, `github.search_open_prs`, `github.get_merge_conflict_files`) return a "Tool not found" error.
 
 | Task | Tier 1 (MCP) | Tier 2 (`td` CLI) | Tier 3 (Shell) |
 | :--- | :--- | :--- | :--- |
@@ -29,6 +29,7 @@ The MCP surface is 11 consolidated tools (schema consolidation 15 → 9/11, feat
 | Dispatch Local Session | N/A (local worktree sessions) | `td agent run` | N/A |
 | Run Test Suites | `repo_test` | `td test` / `td test cli` | `pnpm test` / `pytest` |
 | Multi-Repo Context & Status | `repo_context` (`scope: "all"`) | `td multi-repo status` / `td multi-repo context-warm` | N/A |
+| Run Constrained Workflows | `run_workflow` (registry: `boomtick://workflows/registry`) | N/A (workflows package) | N/A |
 
 ---
 

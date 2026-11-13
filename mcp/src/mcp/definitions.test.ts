@@ -7,9 +7,10 @@ import { MCP_TOOLS, MCP_PROMPTS } from "./definitions.js";
 // dash-notated and within the length cap.
 const MCP_CLIENT_NAME_PATTERN = /^[a-zA-Z0-9_-]{1,64}$/;
 
-// Consolidation surface (15 → 11): the count and names are contractual.
-// Any change here must update the remote-server mcp.json allowlist and
-// SKILL.md in lockstep, so drift must fail CI rather than pass silently.
+// Consolidation surface (15 → 11) plus the run_workflow gateway (12): the
+// count and names are contractual. Any change here must update the
+// remote-server mcp.json allowlist and SKILL.md in lockstep, so drift must
+// fail CI rather than pass silently.
 const CONSOLIDATED_TOOL_NAMES = [
   "repo_context",
   "repo_test",
@@ -22,10 +23,11 @@ const CONSOLIDATED_TOOL_NAMES = [
   "td_validate_issue",
   "td_verify_scope",
   "td_audit_worktree",
+  "run_workflow",
 ];
 
 describe("MCP tool surface contract (consolidation)", () => {
-  it("registers exactly the 11 consolidated tool names", () => {
+  it("registers exactly the 11 consolidated tools plus the run_workflow gateway", () => {
     expect(MCP_TOOLS.map((tool) => tool.name)).toEqual(CONSOLIDATED_TOOL_NAMES);
   });
 });

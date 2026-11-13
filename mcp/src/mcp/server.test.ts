@@ -338,6 +338,7 @@ describe("BoomtickMCPServer", () => {
         "github_pr",
         "repo_context",
         "repo_test",
+        "run_workflow",
         "td_audit_worktree",
         "td_init",
         "td_rag",
