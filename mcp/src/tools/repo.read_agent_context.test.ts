@@ -1,7 +1,11 @@
 import { describe, expect, it } from "vitest";
 import path from "path";
+import fs from "fs";
+import os from "os";
+import { execSync } from "child_process";
 import {
   RepoResolutionError,
+  getVectorIndexStatus,
   loadStandaloneAgentContext,
   readAgentContextHandler,
   resolveTargetRepoPath,
@@ -88,3 +92,67 @@ describe("resolveTargetRepoPath", () => {
     expect(path.resolve(resolvedByBasename)).toBe(path.resolve(resolved));
   });
 });
+
+describe("getVectorIndexStatus staleness", () => {
+  function makeTmpRepo(): string {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "vector-index-status-"));
+    execSync(
+      'git init -q -b main && git config user.email "t@example.com" && git config user.name "t" && git commit -q --allow-empty -m init',
+      { cwd: dir, stdio: "pipe" },
+    );
+    return dir;
+  }
+
+  it("reports cold when .agent-context.json is missing", () => {
+    const dir = makeTmpRepo();
+    const status = getVectorIndexStatus(dir);
+    expect(status.warm).toBe(false);
+    expect(status.lastWarmedAt).toBeNull();
+    expect(status.staleFiles).toContain(".agent-context.json missing");
+  });
+
+  it("reports warm when .agent-context.json was written after the HEAD commit (gitignored file)", () => {
+    const dir = makeTmpRepo();
+    fs.writeFileSync(path.join(dir, ".agent-context.json"), "{}");
+    const status = getVectorIndexStatus(dir);
+    expect(status.warm).toBe(true);
+    expect(status.lastWarmedAt).not.toBeNull();
+    expect(status.staleFiles).toEqual([]);
+  });
+
+  it("reports stale when a commit lands after the context was warmed", () => {
+    const dir = makeTmpRepo();
+    const contextFile = path.join(dir, ".agent-context.json");
+    fs.writeFileSync(contextFile, "{}");
+    // Age the context file well below the next commit's timestamp.
+    const old = new Date(Date.now() - 60_000);
+    fs.utimesSync(contextFile, old, old);
+    execSync("git commit -q --allow-empty -m later", { cwd: dir, stdio: "pipe" });
+
+    const status = getVectorIndexStatus(dir);
+    expect(status.warm).toBe(false);
+    expect(status.staleFiles.some((f) => f.includes("HEAD"))).toBe(true);
+  });
+
+  it("reports stale when a key file is newer than the context", () => {
+    const dir = makeTmpRepo();
+    const contextFile = path.join(dir, ".agent-context.json");
+    fs.writeFileSync(contextFile, "{}");
+    const old = new Date(Date.now() - 60_000);
+    fs.utimesSync(contextFile, old, old);
+    fs.writeFileSync(path.join(dir, "package.json"), "{}");
+
+    const status = getVectorIndexStatus(dir);
+    expect(status.warm).toBe(false);
+    expect(status.staleFiles).toContain("package.json");
+  });
+
+  it("does not crash outside a git repo and falls back to file presence", () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "vector-index-nogit-"));
+    fs.writeFileSync(path.join(dir, ".agent-context.json"), "{}");
+    const status = getVectorIndexStatus(dir);
+    expect(status.warm).toBe(true);
+    expect(status.lastWarmedAt).not.toBeNull();
+  });
+});
+

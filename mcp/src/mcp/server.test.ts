@@ -375,6 +375,7 @@ describe("BoomtickMCPServer", () => {
           readOnly: true,
           ghPath: "gh",
           tdAvailable: true,
+          rag: { indexAvailable: true, lastIndexedAt: "2026-01-01T00:00:00.000Z", docCount: 1, indexCurrent: true },
         },
       });
 
@@ -384,8 +385,8 @@ describe("BoomtickMCPServer", () => {
       });
 
       expect(result).toEqual({
-        content: [{ type: "text", text: JSON.stringify({ status: "ok", config: { githubOwner: "o", githubRepo: "r", repoPath: "/mock/repo", readOnly: true, ghPath: "gh", tdAvailable: true } }, null, 2) }],
-        structuredContent: { status: "ok", config: { githubOwner: "o", githubRepo: "r", repoPath: "/mock/repo", readOnly: true, ghPath: "gh", tdAvailable: true } },
+        content: [{ type: "text", text: JSON.stringify({ status: "ok", config: { githubOwner: "o", githubRepo: "r", repoPath: "/mock/repo", readOnly: true, ghPath: "gh", tdAvailable: true, rag: { indexAvailable: true, lastIndexedAt: "2026-01-01T00:00:00.000Z", docCount: 1, indexCurrent: true } } }, null, 2) }],
+        structuredContent: { status: "ok", config: { githubOwner: "o", githubRepo: "r", repoPath: "/mock/repo", readOnly: true, ghPath: "gh", tdAvailable: true, rag: { indexAvailable: true, lastIndexedAt: "2026-01-01T00:00:00.000Z", docCount: 1, indexCurrent: true } } },
       });
     });
 
