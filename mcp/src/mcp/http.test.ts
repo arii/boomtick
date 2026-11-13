@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import http from "node:http";
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { createMcpHttpServer } from "./http.js";
 import { BoomtickMCPServer } from "./server.js";
@@ -126,6 +127,32 @@ describe("createMcpHttpServer", () => {
     expect(res.status).toBe(400);
     const body = await res.json();
     expect(body.error).toContain("Session not found or expired");
+  });
+
+  it("audit H5: returns a JSON-RPC 500 error instead of crashing on a malformed Host header", async () => {
+    httpServerObj = createMcpHttpServer({ port: 0, mcpServer });
+    port = await httpServerObj.listen(0);
+
+    // `new URL(req.url, "http://not a valid host")` throws on this request;
+    // without the per-request catch that is an unhandled rejection (fatal on
+    // Node 24). With the catch it must be a 500 JSON-RPC error response.
+    const status = await new Promise<number>((resolve, reject) => {
+      const req = http.request(
+        { host: "127.0.0.1", port, path: "/health", method: "GET", headers: { Host: "not a valid host" } },
+        (res) => {
+          res.resume();
+          res.on("end", () => resolve(res.statusCode ?? 0));
+        }
+      );
+      req.on("error", reject);
+      req.end();
+    });
+
+    expect(status).toBe(500);
+
+    // The process survived: the server still answers normal requests.
+    const after = await fetch(`http://localhost:${port}/health`);
+    expect(after.status).toBe(200);
   });
 
   it("should allow BoomtickMCPServer to start HTTP server via run() when transport is http", async () => {

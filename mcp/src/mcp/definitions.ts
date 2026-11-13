@@ -159,12 +159,6 @@ export const MCP_RESOURCE_TEMPLATES: ResourceTemplate[] = [
     mimeType: "application/json",
     description: "CI logs for a pull request.",
   },
-  {
-    uriTemplate: "repo://repair-report/{branch}",
-    name: "Repair Report",
-    mimeType: "application/json",
-    description: "The validation report for a specific repair branch.",
-  },
 ];
 
 // The generated contract schemas carry readonly tuples where the MCP
