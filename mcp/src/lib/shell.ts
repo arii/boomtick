@@ -92,6 +92,10 @@ export async function runCommand(
   };
 
   return new Promise((resolve, reject) => {
+    // Grace window after SIGTERM before escalating to SIGKILL.
+    const KILL_GRACE_MS = 2000;
+    let killGraceTimer: NodeJS.Timeout | undefined;
+
     // nosemgrep
     const child = spawn(finalCmd, args, {
       cwd: options.cwd || config.repoPath,
@@ -110,12 +114,24 @@ export async function runCommand(
     });
 
     const timer = setTimeout(() => {
-      child.kill();
+      // Escalate: SIGTERM first, then SIGKILL after a short grace period so
+      // stuck Python children cannot survive the timeout and hold locks.
+      child.kill("SIGTERM");
+      killGraceTimer = setTimeout(() => {
+        try {
+          child.kill("SIGKILL");
+        } catch {
+          // Process already exited between the grace timer and the kill.
+        }
+      }, KILL_GRACE_MS);
       reject(new Error(`Command timed out: ${cmd} ${args.join(" ")}`));
     }, timeout);
 
     child.on("close", (code) => {
       clearTimeout(timer);
+      if (killGraceTimer) {
+        clearTimeout(killGraceTimer);
+      }
       const durationMs = Date.now() - start;
 
       // Redact token from output
@@ -136,6 +152,9 @@ export async function runCommand(
 
     child.on("error", (err) => {
       clearTimeout(timer);
+      if (killGraceTimer) {
+        clearTimeout(killGraceTimer);
+      }
       reject(err);
     });
   });

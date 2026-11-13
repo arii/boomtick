@@ -65,7 +65,7 @@ describe("agent_submit_pr MCP tool handler", () => {
       "--base",
       "main",
       "--json",
-    ]);
+    ], { timeout: 60_000 });
     expect(res).toEqual({
       status: "success",
       url: "https://github.com/o/r/pull/1",
@@ -105,7 +105,7 @@ describe("agent_submit_pr MCP tool handler", () => {
       "o/r",
       "--no-draft",
       "--json",
-    ]);
+    ], { timeout: 60_000 });
   });
 
   it("accepts td.init / td.rag receipts as RAG proof", async () => {

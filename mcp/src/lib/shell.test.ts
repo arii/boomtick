@@ -35,3 +35,33 @@ describe("command allowlist", () => {
     }
   });
 });
+
+describe("timeout kill escalation", () => {
+  it("SIGKILLs a child that ignores SIGTERM after the grace period", async () => {
+    // Unique per run so a stale process from an earlier run cannot
+    // satisfy the ps assertion.
+    const marker = `obvious_hang_${Date.now()}`;
+    const start = Date.now();
+    await expect(
+      runCommand(
+        "python3",
+        [
+          "-c",
+          `import signal, time  # ${marker}\n` +
+            "signal.signal(signal.SIGTERM, signal.SIG_IGN)\n" +
+            "time.sleep(60)",
+        ],
+        { timeout: 500 },
+      ),
+    ).rejects.toThrow("Command timed out");
+
+    // 500ms timeout + 2s SIGKILL grace, with scheduling slack — the
+    // SIGKILL lands well after the rejection, so wait out the grace first.
+    const elapsed = Date.now() - start;
+    expect(elapsed).toBeLessThan(8000);
+    await new Promise((resolve) => setTimeout(resolve, 2500));
+    const { execSync } = await import("child_process");
+    const ps = execSync("ps -eo args", { encoding: "utf-8" });
+    expect(ps).not.toContain(marker);
+  }, 15000);
+});

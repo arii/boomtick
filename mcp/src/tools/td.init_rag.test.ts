@@ -32,7 +32,7 @@ describe("td_init / td_rag split (issue 1139, item 2)", () => {
       );
 
     const res = await tdInitHandler({ repoRoot: dir });
-    expect(runSpy).toHaveBeenCalledWith("td", ["init", "--repo-root", dir, "--json"]);
+    expect(runSpy).toHaveBeenCalledWith("td", ["init", "--repo-root", dir, "--json"], { timeout: 600_000 });
     expect(res.status).toBe("ready");
     expect(readReceiptTools(dir)).toContain("td.init");
   });
@@ -55,7 +55,7 @@ describe("td_init / td_rag split (issue 1139, item 2)", () => {
       "--top-k",
       "3",
       "--json",
-    ]);
+    ], { timeout: 600_000 });
     expect(readReceiptTools(dir)).toContain("td.rag");
   });
 });

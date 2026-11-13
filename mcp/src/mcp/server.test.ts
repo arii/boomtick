@@ -374,6 +374,7 @@ describe("BoomtickMCPServer", () => {
           repoPath: "/mock/repo",
           readOnly: true,
           ghPath: "gh",
+          tdAvailable: true,
         },
       });
 
@@ -383,8 +384,8 @@ describe("BoomtickMCPServer", () => {
       });
 
       expect(result).toEqual({
-        content: [{ type: "text", text: JSON.stringify({ status: "ok", config: { githubOwner: "o", githubRepo: "r", repoPath: "/mock/repo", readOnly: true, ghPath: "gh" } }, null, 2) }],
-        structuredContent: { status: "ok", config: { githubOwner: "o", githubRepo: "r", repoPath: "/mock/repo", readOnly: true, ghPath: "gh" } },
+        content: [{ type: "text", text: JSON.stringify({ status: "ok", config: { githubOwner: "o", githubRepo: "r", repoPath: "/mock/repo", readOnly: true, ghPath: "gh", tdAvailable: true } }, null, 2) }],
+        structuredContent: { status: "ok", config: { githubOwner: "o", githubRepo: "r", repoPath: "/mock/repo", readOnly: true, ghPath: "gh", tdAvailable: true } },
       });
     });
 

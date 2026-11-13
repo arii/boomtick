@@ -52,10 +52,35 @@ function tryParseJson(text: string): TDCliResponse | null {
   }
 }
 
-export async function runTDCli(args: string[], actionName?: string): Promise<TDCliResponse> {
-  const result = await runCommand("td", args);
+// td may print warnings or log lines before/around the JSON payload, so
+// parse the {..} span instead of requiring the whole stdout to be JSON.
+function extractJsonPayload(text: string): TDCliResponse | null {
+  const start = text.indexOf("{");
+  const end = text.lastIndexOf("}");
+  if (start === -1 || end <= start) {
+    return null;
+  }
+  return tryParseJson(text.slice(start, end + 1));
+}
+
+// Subcommands that legitimately build indexes and run for minutes; the
+// generic shell timeout kills them mid-flight.
+const LONG_RUNNING_SUBCOMMANDS = new Set(["init", "audit-code", "audit-impact", "rag"]);
+const DEFAULT_TD_TIMEOUT_MS = 60_000;
+const LONG_TD_TIMEOUT_MS = 600_000;
+
+export interface TDCliOptions {
+  /** Timeout in ms for the underlying td process. Overrides the per-subcommand default. */
+  timeoutMs?: number;
+}
+
+export async function runTDCli(args: string[], actionName?: string, options: TDCliOptions = {}): Promise<TDCliResponse> {
+  const timeoutMs =
+    options.timeoutMs ??
+    (LONG_RUNNING_SUBCOMMANDS.has(args[0] ?? "") ? LONG_TD_TIMEOUT_MS : DEFAULT_TD_TIMEOUT_MS);
+  const result = await runCommand("td", args, { timeout: timeoutMs });
   const stdout = result.stdout.trim();
-  const output = stdout.startsWith("{") ? tryParseJson(stdout) : null;
+  const output = extractJsonPayload(stdout);
 
   if (output?.status === "error") {
     const errorMsg = output.message ?? "Unknown error";

@@ -80,3 +80,69 @@ describe("runTDCli type boundary (issue 1222)", () => {
     expectTypeOf<TDCliResponse[string]>().toEqualTypeOf<unknown>();
   });
 });
+
+// Regression tests for audit H1: td may print warn/log lines before the
+// JSON payload, and long-running subcommands were killed by the generic
+// 60s shell default.
+describe("runTDCli reliability (audit H1)", () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("parses a JSON payload that follows non-JSON warn lines", async () => {
+    vi.spyOn(shellModule, "runCommand").mockResolvedValueOnce(
+      shellOk('warning: stale index detected\n{"status": "success", "repos": []}'),
+    );
+    const out = await runTDCli(["multi-repo", "status"]);
+    expect(out.status).toBe("success");
+    expect(out.repos).toEqual([]);
+  });
+
+  it("still rejects stdout with no JSON payload at all", async () => {
+    vi.spyOn(shellModule, "runCommand").mockResolvedValueOnce(
+      shellOk("warning: nothing useful here"),
+    );
+    await expect(runTDCli(["repo", "ci-logs"])).rejects.toThrow("non-JSON output");
+  });
+
+  it("surfaces an error status that follows a warn prefix", async () => {
+    vi.spyOn(shellModule, "runCommand").mockResolvedValueOnce(
+      shellOk('warn: degraded\n{"status": "error", "message": "index locked"}'),
+    );
+    await expect(runTDCli(["repo", "workflow-runs"], "fetch workflow runs")).rejects.toThrow(
+      "Failed to fetch workflow runs: index locked",
+    );
+  });
+
+  it("passes a 60s default timeout for ordinary subcommands", async () => {
+    const spy = vi
+      .spyOn(shellModule, "runCommand")
+      .mockResolvedValueOnce(shellOk('{"status": "success"}'));
+    await runTDCli(["multi-repo", "status"]);
+    expect(spy).toHaveBeenCalledWith("td", ["multi-repo", "status"], { timeout: 60_000 });
+  });
+
+  it("passes a generous default timeout for index-building subcommands", async () => {
+    const spy = vi
+      .spyOn(shellModule, "runCommand")
+      .mockResolvedValue(shellOk('{"status": "success"}'));
+    await runTDCli(["init", "--json"]);
+    await runTDCli(["audit-code", "--worktree", "/tmp/wt", "--json"]);
+    await runTDCli(["rag", "query", "--query", "q", "--json"]);
+    expect(spy).toHaveBeenNthCalledWith(1, "td", ["init", "--json"], { timeout: 600_000 });
+    expect(spy).toHaveBeenNthCalledWith(2, "td", ["audit-code", "--worktree", "/tmp/wt", "--json"], {
+      timeout: 600_000,
+    });
+    expect(spy).toHaveBeenNthCalledWith(3, "td", ["rag", "query", "--query", "q", "--json"], {
+      timeout: 600_000,
+    });
+  });
+
+  it("lets the caller override the timeout explicitly", async () => {
+    const spy = vi
+      .spyOn(shellModule, "runCommand")
+      .mockResolvedValueOnce(shellOk('{"status": "success"}'));
+    await runTDCli(["init", "--json"], "initialize repo", { timeoutMs: 1234 });
+    expect(spy).toHaveBeenCalledWith("td", ["init", "--json"], { timeout: 1234 });
+  });
+});
