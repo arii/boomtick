@@ -30,13 +30,8 @@ export function normalizeArguments(args: Record<string, unknown> | null | undefi
     result[camelKey] = normalizedValue;
   }
 
-  // Parameter aliases harmonization
-  // branch vs branchName harmonization
-  if (result.branch !== undefined && result.branchName === undefined) {
-    result.branchName = result.branch;
-  } else if (result.branchName !== undefined && result.branch === undefined) {
-    result.branch = result.branchName;
-  }
-
+  // The old branch/branchName aliasing was removed with the schema
+  // consolidation: every input schema now names its field exactly, and a
+  // silent alias here would mask caller mistakes instead of surfacing them.
   return result;
 }

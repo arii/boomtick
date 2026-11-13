@@ -1,14 +1,8 @@
 import { z } from "zod";
 import { runCommand, ShellResult } from "../lib/shell.js";
+import { RepoTestInputSchema } from "./contract.js";
 
-// #1025 regression class: every optional input accepts explicit nulls.
-export const RunTestsInputSchema = z.object({
-  commands: z.array(z.string()).nullable().optional(),
-  timeoutSeconds: z.number().nullable().optional().default(300),
-  worktreePath: z.string().nullable().optional(),
-});
-
-export type RunTestsInput = z.input<typeof RunTestsInputSchema>;
+export { RepoTestInputSchema };
 
 function parseCommandArguments(fullCmd: string): [string, string[]] {
   const tokens: string[] = [];
@@ -30,8 +24,8 @@ function parseCommandArguments(fullCmd: string): [string, string[]] {
   return [cmd, args];
 }
 
-export async function runTestsHandler(args: RunTestsInput) {
-  const parsed = RunTestsInputSchema.parse(args || {});
+export async function repoTestHandler(args: z.input<typeof RepoTestInputSchema>) {
+  const parsed = RepoTestInputSchema.parse(args ?? {});
   const commands = parsed.commands || [
     "pnpm install --frozen-lockfile",
     "pnpm lint",

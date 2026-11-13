@@ -2,9 +2,8 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { BoomtickMCPServer } from "./server.js";
 import { config } from "../config.js";
 import fs from "fs/promises";
-import * as healthModule from "./tools.js";
-import * as getPrModule from "../tools/github.get_pr.js";
-import * as ciLogsModule from "../tools/repo.read_ci_logs.js";
+import * as repoContextModule from "../tools/repo.context.js";
+import * as githubPrModule from "../tools/github.pr.js";
 import * as gitLibModule from "../lib/git.js";
 import * as tdCliModule from "../lib/tdCli.js";
 import * as tdValidateModule from "../tools/td.validate_issue.js";
@@ -212,7 +211,7 @@ describe("BoomtickMCPServer", () => {
 
     it("should handle repo://diff/:prNumber", async () => {
       const handler = requestHandlers.get("resources/read");
-      vi.spyOn(getPrModule, "getPrHandler").mockResolvedValue({ diff: { diffText: "diff --git a b" } });
+      vi.spyOn(githubPrModule, "githubPrHandler").mockResolvedValue({ diff: { diffText: "diff --git a b" } });
 
       const result = await handler!({
         method: "resources/read",
@@ -226,7 +225,7 @@ describe("BoomtickMCPServer", () => {
 
     it("should handle repo://ci/:prNumber", async () => {
       const handler = requestHandlers.get("resources/read");
-      vi.spyOn(ciLogsModule, "readCiLogsHandler").mockResolvedValue({ status: "success" });
+      vi.spyOn(githubPrModule, "githubPrHandler").mockResolvedValue({ ciLogs: { status: "success" } });
 
       const result = await handler!({
         method: "resources/read",
@@ -334,15 +333,11 @@ describe("BoomtickMCPServer", () => {
       const names = result.tools.map((t: { name: string }) => t.name).sort();
       expect(names).toEqual([
         "agent_submit_pr",
-        "boomtick_health",
         "github_create_issue",
-        "github_get_pr",
-        "github_issue_comment",
-        "github_issue_update",
-        "github_issue_view",
-        "repo_read_agent_context",
-        "repo_read_ci_logs",
-        "repo_run_tests",
+        "github_issue",
+        "github_pr",
+        "repo_context",
+        "repo_test",
         "td_audit_worktree",
         "td_init",
         "td_rag",
@@ -366,37 +361,29 @@ describe("BoomtickMCPServer", () => {
   describe("CallTool", () => {
     it("should execute registered tool handler successfully", async () => {
       const handler = requestHandlers.get("tools/call");
-      vi.spyOn(healthModule, "healthHandler").mockResolvedValue({
-        status: "ok",
-        config: {
-          githubOwner: "o",
-          githubRepo: "r",
-          repoPath: "/mock/repo",
-          readOnly: true,
-          ghPath: "gh",
-          tdAvailable: true,
-          rag: { indexAvailable: true, lastIndexedAt: "2026-01-01T00:00:00.000Z", docCount: 1, indexCurrent: true },
-        },
+      vi.spyOn(repoContextModule, "repoContextHandler").mockResolvedValue({
+        server: { name: "boomtick", version: "1.0.0" },
+        packageScripts: { test: "vitest run" },
       });
 
       const result = await handler!({
         method: "tools/call",
-        params: { name: "boomtick_health", arguments: {} },
+        params: { name: "repo_context", arguments: {} },
       });
 
       expect(result).toEqual({
-        content: [{ type: "text", text: JSON.stringify({ status: "ok", config: { githubOwner: "o", githubRepo: "r", repoPath: "/mock/repo", readOnly: true, ghPath: "gh", tdAvailable: true, rag: { indexAvailable: true, lastIndexedAt: "2026-01-01T00:00:00.000Z", docCount: 1, indexCurrent: true } } }, null, 2) }],
-        structuredContent: { status: "ok", config: { githubOwner: "o", githubRepo: "r", repoPath: "/mock/repo", readOnly: true, ghPath: "gh", tdAvailable: true, rag: { indexAvailable: true, lastIndexedAt: "2026-01-01T00:00:00.000Z", docCount: 1, indexCurrent: true } } },
+        content: [{ type: "text", text: JSON.stringify({ server: { name: "boomtick", version: "1.0.0" }, packageScripts: { test: "vitest run" } }, null, 2) }],
+        structuredContent: { server: { name: "boomtick", version: "1.0.0" }, packageScripts: { test: "vitest run" } },
       });
     });
 
-    it("should execute folded github_get_pr includes via underscore or dot name", async () => {
+    it("should execute github_pr with an explicit include list", async () => {
       const handler = requestHandlers.get("tools/call");
-      vi.spyOn(getPrModule, "getPrHandler").mockResolvedValue({ pr: { number: 123 }, reviews: [] });
+      vi.spyOn(githubPrModule, "githubPrHandler").mockResolvedValue({ pr: { number: 123 }, reviews: [] });
 
       const res = await handler!({
         method: "tools/call",
-        params: { name: "github_get_pr", arguments: { prNumber: 123, includeReviews: true } },
+        params: { name: "github_pr", arguments: { prNumber: 123, include: ["reviews"] } },
       });
       expect(res.structuredContent).toEqual({ pr: { number: 123 }, reviews: [] });
     });
@@ -404,6 +391,16 @@ describe("BoomtickMCPServer", () => {
     it("should return not-found for pruned legacy tools", async () => {
       const handler = requestHandlers.get("tools/call");
       for (const name of [
+        // Absorbed into consolidated tools (feat/mcp-tool-consolidation-15-to-9).
+        "boomtick_health",
+        "repo_read_agent_context",
+        "repo_read_ci_logs",
+        "repo_run_tests",
+        "github_get_pr",
+        "github_issue_view",
+        "github_issue_update",
+        "github_issue_comment",
+        // Pruned long before the consolidation.
         "github_get_pr_reviews",
         "github_get_pr_commits",
         "repo_get_workflow_runs",
@@ -465,15 +462,15 @@ describe("BoomtickMCPServer", () => {
 
     it("should return error result when tool execution throws error", async () => {
       const handler = requestHandlers.get("tools/call");
-      vi.spyOn(healthModule, "healthHandler").mockRejectedValue(new Error("Health check failed"));
+      vi.spyOn(repoContextModule, "repoContextHandler").mockRejectedValue(new Error("repo_context failed"));
 
       const result = await handler!({
         method: "tools/call",
-        params: { name: "boomtick_health", arguments: {} },
+        params: { name: "repo_context", arguments: {} },
       });
 
       expect(result).toEqual({
-        content: [{ type: "text", text: "Health check failed" }],
+        content: [{ type: "text", text: "repo_context failed" }],
         isError: true,
       });
     });

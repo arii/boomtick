@@ -8,6 +8,43 @@ from dev_tools import models
 from pydantic import BaseModel
 
 
+def _unwrap_optional_null(prop):
+    """Unwrap pydantic's `anyOf: [T, null]` optional rendering to just T.
+
+    `Optional[T] = None` fields render on the wire as anyOf [T, null] with
+    "default": null, which advertises explicit-null acceptance while the
+    generated runtime Zod only accepts omission (the source of the
+    documented "never pass null" footgun). Emitting T alone keeps the wire
+    schema and runtime Zod in agreement: optional means omit, never null.
+    """
+    if not isinstance(prop, dict) or "anyOf" not in prop:
+        return prop
+    branches = [b for b in prop["anyOf"] if isinstance(b, dict)]
+    null_branches = [b for b in branches if b.get("type") == "null"]
+    non_null = [b for b in branches if b.get("type") != "null"]
+    if not null_branches:
+        return prop
+    merged = dict(non_null[0]) if len(non_null) == 1 else {"anyOf": non_null}
+    if "description" in prop:
+        merged["description"] = prop["description"]
+    if prop.get("default") is not None:
+        merged["default"] = prop["default"]
+    return merged
+
+
+def _strip_input_null_branches(schema):
+    if not isinstance(schema, dict):
+        return
+    properties = schema.get("properties")
+    if isinstance(properties, dict):
+        for key, prop in properties.items():
+            properties[key] = _unwrap_optional_null(prop)
+    sub_defs = schema.get("$defs")
+    if isinstance(sub_defs, dict):
+        for sub in sub_defs.values():
+            _strip_input_null_branches(sub)
+
+
 def get_models_schema():
     schemas = {}
     for name, obj in inspect.getmembers(models):
@@ -16,7 +53,10 @@ def get_models_schema():
             if name in ("CLIResponse", "CLIInput"):
                 continue
             # Force export using camelCase aliases
-            schemas[name] = obj.model_json_schema(by_alias=True)
+            schema = obj.model_json_schema(by_alias=True)
+            if name.endswith("Input"):
+                _strip_input_null_branches(schema)
+            schemas[name] = schema
     return schemas
 
 

@@ -14,19 +14,21 @@ Agent tooling in this repository is structured into three tiers:
 
 ### Tool Mapping Table
 
+The MCP surface is 11 consolidated tools (schema consolidation 15 → 9/11, feat/mcp-tool-consolidation-15-to-9): `repo_context`, `repo_test`, `github_issue`, `github_create_issue`, `github_pr`, `agent_submit_pr`, `td_init`, `td_rag`, `td_validate_issue`, `td_verify_scope`, `td_audit_worktree`. The retired names (`boomtick_health`, `repo_read_agent_context`, `repo_run_tests`, `github_get_pr`, `github_issue_view`, `github_issue_update`, `github_issue_comment`, `repo_read_ci_logs`, plus the pre-existing dead `github.get_pr_diff`, `github.search_open_prs`, `github.get_merge_conflict_files`) return a "Tool not found" error.
+
 | Task | Tier 1 (MCP) | Tier 2 (`td` CLI) | Tier 3 (Shell) |
 | :--- | :--- | :--- | :--- |
-| Read Agent Context Index | `repo.read_agent_context` (`repo_read_agent_context`) | `td context-warm` / `pnpm run agent:prime` | `cat .agent-context.json` |
-| PR Code Review | `github.get_pr_diff` + `github.get_pr_reviews` | `td ai review <PR>` | `gh pr diff <PR>` |
-| Search Open PRs | `github.search_open_prs` (`github_search_open_prs`) | `td gh search-prs` | `gh pr list` |
-| View PR Details / Diff | `github.get_pr_diff` (`github_get_pr_diff`) | `td gh pr-diff <PR>` | `gh pr diff <PR>` |
-| Fetch CI Logs | `repo.read_ci_logs` (`repo_read_ci_logs`) | `td repo ci-logs <PR>` | `gh run view --log` |
-| Resolve / Check Conflicts | `github.get_merge_conflict_files` (`github_get_merge_conflict_files`) | `td gh resolve` / `td gh merge-conflicts` | `git merge` |
+| Read Agent Context Index | `repo_context` | `td context-warm` / `pnpm run agent:prime` | `cat .agent-context.json` |
+| Server Health / Config | `repo_context` (`server` field) | `td doctor` | N/A |
+| PR Code Review | `github_pr` (`include: ["diff", "reviews"]`) | `td ai review <PR>` | `gh pr diff <PR>` |
+| Search Open PRs | `github_pr` (`search: { state: "open" }`) | `td gh search-prs` | `gh pr list` |
+| View PR Details / Diff | `github_pr` (`include: ["diff"]`) | `td gh pr-diff <PR>` | `gh pr diff <PR>` |
+| Fetch CI Logs / Workflow Runs | `github_pr` (`include: ["ciLogs"]` / `["workflowRuns"]`) | `td repo ci-logs <PR>` | `gh run view --log` |
+| Resolve / Check Conflicts | `github_pr` (`include: ["conflicts"]`) | `td gh resolve` / `td gh merge-conflicts` | `git merge` |
 | Run UX / DOM Audits | N/A (Vitest suite) | `td ux audit` | `pnpm exec vitest` |
 | Dispatch Local Session | N/A (local worktree sessions) | `td agent run` | N/A |
-| Run Test Suites | `repo.run_tests` (`repo_run_tests`) | `td test` / `td test cli` | `pnpm test` / `pytest` |
-| Multi-Repo Context & Status | `repo.read_agent_context(all=true)` | `td multi-repo status` | N/A |
-| Multi-Repo Context Warming | `repo.read_agent_context` | `td multi-repo context-warm` | N/A |
+| Run Test Suites | `repo_test` | `td test` / `td test cli` | `pnpm test` / `pytest` |
+| Multi-Repo Context & Status | `repo_context` (`scope: "all"`) | `td multi-repo status` / `td multi-repo context-warm` | N/A |
 
 ---
 

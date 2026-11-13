@@ -123,12 +123,12 @@ def test_module_hierarchy_subfile():
 def test_refactor_import_heuristic():
     issue_text = (
         "Extract JSON schema parsing from "
-        "mcp/src/tools/repo.read_agent_context.ts into shared "
+        "mcp/src/tools/repo.context.ts into shared "
         "schema helper."
     )
-    # mcp/src/tools/repo.read_agent_context.ts imports ./contract
+    # mcp/src/tools/repo.context.ts imports ./contract
     changed_files = [
-        "mcp/src/tools/repo.read_agent_context.ts",
+        "mcp/src/tools/repo.context.ts",
         "mcp/src/tools/contract.ts",
     ]
 

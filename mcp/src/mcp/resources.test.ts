@@ -4,8 +4,7 @@ import { MCP_RESOURCES, MCP_RESOURCE_TEMPLATES } from "./definitions.js";
 import fs from "fs/promises";
 import * as gitLibModule from "../lib/git.js";
 import * as tdCliModule from "../lib/tdCli.js";
-import * as getPrModule from "../tools/github.get_pr.js";
-import * as ciLogsModule from "../tools/repo.read_ci_logs.js";
+import * as gitPrModule from "../tools/github.pr.js";
 
 vi.mock("fs/promises");
 vi.mock("../config.js", () => ({
@@ -15,8 +14,7 @@ vi.mock("../config.js", () => ({
 }));
 vi.mock("../lib/git.js", () => ({ getChangedFiles: vi.fn() }));
 vi.mock("../lib/tdCli.js", () => ({ runTDCli: vi.fn() }));
-vi.mock("../tools/github.get_pr.js", () => ({ getPrHandler: vi.fn() }));
-vi.mock("../tools/repo.read_ci_logs.js", () => ({ readCiLogsHandler: vi.fn() }));
+vi.mock("../tools/github.pr.js", () => ({ githubPrHandler: vi.fn() }));
 
 type TestContent = { uri: string; mimeType: string; text: string };
 
@@ -57,8 +55,10 @@ describe("MCP resource handlers (URI consistency)", () => {
     vi.mocked(fs.readFile).mockResolvedValue("mock-file-content");
     vi.mocked(gitLibModule.getChangedFiles).mockResolvedValue([{ status: "M", path: "src/a.ts" }]);
     vi.mocked(tdCliModule.runTDCli).mockResolvedValue({ runs: [] });
-    vi.mocked(getPrModule.getPrHandler).mockResolvedValue({ diff: { diffText: "mock-diff" } } as never);
-    vi.mocked(ciLogsModule.readCiLogsHandler).mockResolvedValue({ logs: "mock-logs" } as never);
+    vi.mocked(gitPrModule.githubPrHandler).mockResolvedValue({
+      diff: { diffText: "mock-diff" },
+      ciLogs: { logs: "mock-logs" },
+    } as never);
   });
 
   const read = (uri: string) => readHandler({ method: "resources/read", params: { uri } });

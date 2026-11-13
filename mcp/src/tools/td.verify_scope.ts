@@ -1,12 +1,9 @@
 import { z } from "zod";
 import { recordToolReceipt } from "../lib/session_manager.js";
 import { runTDCli } from "../lib/tdCli.js";
+import { TdVerifyScopeInputSchema } from "./contract.js";
 
-export const TdVerifyScopeInputSchema = z.object({
-  specFile: z.string().describe("Path to the validated design spec markdown file."),
-  worktree: z.string().describe("Path to the worktree to gate."),
-  autoRevert: z.boolean().optional().describe("Revert files outside the allowed scope."),
-});
+export { TdVerifyScopeInputSchema };
 
 export async function tdVerifyScopeHandler(args: z.infer<typeof TdVerifyScopeInputSchema>) {
   const params = TdVerifyScopeInputSchema.parse(args);

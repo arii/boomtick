@@ -12,7 +12,7 @@ import os from "os";
 import path from "path";
 import { execSync } from "child_process";
 import { getRagHealth } from "./ragHealth.js";
-import { healthHandler } from "../mcp/tools.js";
+import { getServerHealth } from "../tools/repo.context.js";
 
 type SpawnSyncResult = ReturnType<typeof spawnSync>;
 
@@ -153,7 +153,7 @@ describe("getRagHealth", () => {
   });
 });
 
-describe("rag health surfaced through boomtick_health", () => {
+describe("rag health surfaced through repo_context server health", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(spawnSync).mockReturnValue(spawnResult({ status: 0, stdout: "42\n" }));
@@ -163,12 +163,12 @@ describe("rag health surfaced through boomtick_health", () => {
     vi.restoreAllMocks();
   });
 
-  it("exposes a rag object alongside tdAvailable without restructuring config", async () => {
-    const health = await healthHandler({ checkDeep: false });
-    expect(health.config.tdAvailable).toBeNull();
-    expect(health.config.rag).toBeDefined();
-    expect(typeof health.config.rag.indexAvailable).toBe("boolean");
-    expect("docCount" in health.config.rag).toBe(true);
-    expect("lastIndexedAt" in health.config.rag).toBe(true);
+  it("exposes a rag object alongside tdAvailable", () => {
+    const health = getServerHealth();
+    expect(health.tdAvailable).toBeNull();
+    expect(health.rag).toBeDefined();
+    expect(typeof health.rag?.indexAvailable).toBe("boolean");
+    expect("docCount" in (health.rag ?? {})).toBe(true);
+    expect("lastIndexedAt" in (health.rag ?? {})).toBe(true);
   });
 });
