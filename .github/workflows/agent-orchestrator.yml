@@ -156,21 +156,11 @@ jobs:
           fi
         shell: bash
 
-      - name: Dispatch Jules Agent
-        if: ${{ env.EXECUTION_MODE == 'remote-dispatch' }}
-        env:
-          GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
-          JULES_API_KEY: ${{ secrets.JULES_API_KEY }}
-        run: |
-          td agent dispatch main "$AUDIT_PROMPT"
-        shell: bash
-
       - name: Run Local Orchestrator
         if: ${{ env.EXECUTION_MODE == 'local-orchestrator' }}
         env:
           GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          JULES_API_KEY: ${{ secrets.JULES_API_KEY }}
         run: |
           if [ -z "$PR_NUMBER" ]; then
             echo "No PR number provided. Running local orchestrator for all open PRs..."
@@ -233,7 +223,6 @@ jobs:
           mode: ${{ steps.determine_mode.outputs.mode }}
           issue_number: ${{ github.event.inputs.issue_number || github.event.client_payload.issue_number }}
           comment_body: ${{ github.event.inputs.comment_body || github.event.client_payload.comment_body }}
-          jules_api_key: ${{ secrets.JULES_API_KEY }}
           github_token: ${{ steps.app-token.outputs.token }}
 
   dependabot:
@@ -465,22 +454,11 @@ jobs:
           ISSUE_URL=$(gh issue create \
             --title "$ISSUE_TITLE" \
             --body-file issue_body.md \
-            --label "spec-driven,security" \
-            --assignee Jules)
+            --label "spec-driven,security")
 
           echo "issue_url=${ISSUE_URL}" >> "$GITHUB_OUTPUT"
 
           # shellcheck disable=SC2155
           issue_number="${ISSUE_URL##*/}"
           echo "issue_number=${issue_number}" >> "$GITHUB_OUTPUT"
-        shell: bash
-
-      - name: Dispatch Jules
-        if: steps.create_issue.outputs.issue_number != ''
-        env:
-          GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
-          ISSUE_NUMBER: ${{ steps.create_issue.outputs.issue_number }}
-        run: |
-          set -eo pipefail
-          td jules dispatch main "Upgrade dependency to fix security vulnerability in issue #$ISSUE_NUMBER"
         shell: bash

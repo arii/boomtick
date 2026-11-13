@@ -15,8 +15,6 @@ vi.mock('../../lib/visualReviewUtils', () => ({
   generateMarkdownReport: vi.fn(() => 'mock report'),
   postPRComment: vi.fn(),
   countExistingReviews: vi.fn().mockResolvedValue(0),
-  getJulesSessionIdFromPR: vi.fn().mockResolvedValue(null),
-  sendJulesMessage: vi.fn(),
   getPreviousReviewState: vi.fn().mockResolvedValue(undefined),
 }));
 
@@ -98,7 +96,7 @@ describe('visualReviewOrchestrator - Empty Payload Validation', () => {
     vi.clearAllMocks();
   });
 
-  it('gracefully exits and does not call postPRComment or sendJulesMessage when findings are empty', async () => {
+  it('gracefully exits and does not call postPRComment when findings are empty', async () => {
     const mockSummary = {
       routes: [
         { route: '/home', differencePercent: 5.0, severity: 'LOW', slug: 'home' }
@@ -141,8 +139,7 @@ describe('visualReviewOrchestrator - Empty Payload Validation', () => {
 
     await orchestrateVisualReview(mockClient);
 
-    // Verify postPRComment and sendJulesMessage are not called
+    // Verify postPRComment is not called
     expect(visualReviewUtils.postPRComment).not.toHaveBeenCalled();
-    expect(visualReviewUtils.sendJulesMessage).not.toHaveBeenCalled();
   });
 });
