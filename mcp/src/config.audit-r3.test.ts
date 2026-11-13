@@ -5,6 +5,13 @@ vi.mock("child_process", () => ({
   execSync: vi.fn(),
 }));
 
+const readPerRepoGithubRepoMock = vi.fn<(startDir?: string) => string | undefined>();
+
+vi.mock("./config/repo.js", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("./config/repo.js")>()),
+  readPerRepoGithubRepo: (...args: [(string | undefined)?]) => readPerRepoGithubRepoMock(...args),
+}));
+
 // Independent regression tests for #1235 (PR #1237): githubOwner/githubRepo
 // derive from the origin remote as a last resort. Explicit config still wins;
 // no remote still throws the same message. Each test asserts the derive
@@ -16,6 +23,8 @@ describe("config origin-remote derive (issue #1235)", () => {
     vi.resetModules();
     process.env = { ...originalEnv };
     vi.mocked(execSync).mockReset();
+    // These tests pin the origin-remote derive path, so no per-repo declaration.
+    readPerRepoGithubRepoMock.mockReset();
   });
 
   afterEach(() => {
