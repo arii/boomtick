@@ -46,6 +46,9 @@ import path from "path";
 import { spawnSync } from "child_process";
 import { fileURLToPath } from "url";
 import { createMcpHttpServer } from "./http.js";
+import { resolveTransport } from "./transport.js";
+import { installProcessGuards } from "../lib/processGuards.js";
+
 
 export class BoomtickMCPServer {
   private server: Server;
@@ -337,35 +340,22 @@ export class BoomtickMCPServer {
   }
 
   async run() {
+    installProcessGuards();
     this.prepareEnvironmentAndPreflight();
 
+    // Audit H5: HTTP requires an explicit opt-in (--http or
+    // MCP_TRANSPORT=http). PORT / HTTP_PORT never flip the transport —
+    // service managers export PORT and stdio clients would hang forever.
     const args = process.argv.slice(2);
-    let port = parseInt(process.env.PORT || process.env.HTTP_PORT || "3000", 10);
-    let bearerToken = process.env.BOOMTICK_MCP_BEARER_TOKEN || process.env.MCP_BEARER_TOKEN || process.env.AUTH_TOKEN;
+    const selection = resolveTransport(args);
 
-    for (let i = 0; i < args.length; i++) {
-      if (args[i] === "--port" && i + 1 < args.length) {
-        port = parseInt(args[i + 1], 10);
-        i++;
-      } else if (args[i].startsWith("--port=")) {
-        port = parseInt(args[i].split("=")[1], 10);
-      } else if (args[i] === "--bearer-token" && i + 1 < args.length) {
-        bearerToken = args[i + 1];
-        i++;
-      } else if (args[i].startsWith("--bearer-token=")) {
-        bearerToken = args[i].split("=")[1];
-      }
-    }
-
-    const isHttp =
-      process.env.MCP_TRANSPORT === "http" ||
-      args.includes("--http") ||
-      (process.env.PORT !== undefined && !args.includes("--stdio")) ||
-      (process.env.HTTP_PORT !== undefined && !args.includes("--stdio"));
-
-    if (isHttp) {
-      const mcpHttp = createMcpHttpServer({ port, bearerToken, mcpServer: this.server });
-      await mcpHttp.listen(port);
+    if (selection.transport === "http") {
+      const mcpHttp = createMcpHttpServer({
+        port: selection.port,
+        bearerToken: selection.bearerToken,
+        mcpServer: this.server,
+      });
+      await mcpHttp.listen(selection.port);
       return;
     }
 

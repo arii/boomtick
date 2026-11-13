@@ -18,7 +18,10 @@ export function createMcpHttpServer(options: HttpServerOptions) {
 
   const transports = new Map<string, SSEServerTransport>();
 
-  const server = http.createServer(async (req, res) => {
+  // Audit H5: every request is wrapped — one malformed request (e.g. an
+  // invalid Host header making `new URL` throw) must not become an
+  // unhandled rejection and crash the process (fatal on Node 24).
+  const handleHttpRequest = async (req: http.IncomingMessage, res: http.ServerResponse): Promise<void> => {
     // CORS Headers
     res.setHeader("Access-Control-Allow-Origin", "*");
     res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS, HEAD");
@@ -126,6 +129,24 @@ export function createMcpHttpServer(options: HttpServerOptions) {
 
     res.writeHead(404, { "Content-Type": "application/json" });
     res.end(JSON.stringify({ error: "Not found" }));
+  };
+
+  const server = http.createServer((req, res) => {
+    handleHttpRequest(req, res).catch((error) => {
+      console.error("Error handling MCP HTTP request:", error);
+      if (!res.headersSent) {
+        res.writeHead(500, { "Content-Type": "application/json" });
+        res.end(
+          JSON.stringify({
+            jsonrpc: "2.0",
+            id: null,
+            error: { code: -32603, message: "Internal server error" },
+          })
+        );
+      } else {
+        res.end();
+      }
+    });
   });
 
   return {
