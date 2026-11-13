@@ -43,25 +43,25 @@ describe("stack .env loader", () => {
     expect(resolveStackEnvPath()).toBe("/custom/stack/.env");
   });
 
-  it("should load JULES_API_KEY from stack .env without clobbering existing env vars", async () => {
+  it("should load non-secret env vars from stack .env without clobbering existing env vars", async () => {
     const envFilePath = path.join(tmpDir, ".env");
     fs.writeFileSync(
       envFilePath,
       `
 # Comment line
-JULES_API_KEY="my-secret-jules-key"
+STACK_TEST_TOKEN="my-secret-token"
 PRE_EXISTING_VAR="from-file"
 ANOTHER_KEY=plain_value
 `
     );
 
-    delete process.env.JULES_API_KEY;
+    delete process.env.STACK_TEST_TOKEN;
     process.env.PRE_EXISTING_VAR = "original-value";
 
     const { loadStackEnv } = await import("./config.js");
     loadStackEnv(envFilePath);
 
-    expect(process.env.JULES_API_KEY).toBe("my-secret-jules-key");
+    expect(process.env.STACK_TEST_TOKEN).toBe("my-secret-token");
     expect(process.env.PRE_EXISTING_VAR).toBe("original-value");
     expect(process.env.ANOTHER_KEY).toBe("plain_value");
   });

@@ -11,7 +11,6 @@ Use this checklist to ensure all prerequisites and configuration steps are compl
 - [ ] **Initialize Context Index**: Create `.agent-context.json` in your repository root to establish the workspace index.
 - [ ] **Create Repository Configuration**: Add `project_config.json` at your repository root with `github_repo` and AI review model chain configurations.
 - [ ] **Configure GitHub Secrets**: Set up required repository secrets:
-  - `JULES_API_KEY`: Required for automated self-repair sessions and orchestrator integration.
   - `GEMINI_API_KEY`: Required for multi-modal code review and vision pipelines (Gemini API is the sole supported AI provider for code review).
   - `GITHUB_TOKEN` (or GitHub App Token `APP_ID` / `APP_PRIVATE_KEY`): For repository-scoped actions.
 - [ ] **Install Integration Paradigm**: Select and set up PyPI package (`pip install boomtick-cli`), Docker container (`ghcr.io/arii/boomtick`), or npm MCP package (`@arii/boomtick-mcp`).
@@ -167,7 +166,6 @@ Boomtick exposes the following Composite Actions under `arii/boomtick/.github/ac
      head_sha: ${{ github.event.workflow_run.head_sha }}
      head_branch: ${{ github.event.workflow_run.head_branch }}
      github_token: ${{ secrets.GITHUB_TOKEN }}
-     jules_api_key: ${{ secrets.JULES_API_KEY }}
    ```
 
 4. **`ai-review`**: Runs AI review audits on pull requests.
@@ -187,7 +185,6 @@ Boomtick exposes the following Composite Actions under `arii/boomtick/.github/ac
 
 #### GitHub Secrets Configuration
 Configure the following Secrets in your repository settings:
-- `JULES_API_KEY`: Communicates with the Jules session orchestrator.
 - `GEMINI_API_KEY`: Required credential enabling Gemini API multi-modal vision and code review pipelines (only Gemini API is supported for AI code review at this time).
 - `GITHUB_TOKEN` or GitHub App Token (`APP_ID` & `APP_PRIVATE_KEY`): Passed as `github_token` input to composite actions.
 

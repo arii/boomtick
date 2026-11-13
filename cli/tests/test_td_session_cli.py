@@ -1,5 +1,5 @@
 # pylint: disable=missing-docstring,line-too-long
-"""CliRunner tests for td agent run / session / skill (local, no Jules)."""
+"""CliRunner tests for td agent run / session / skill (local)."""
 
 import json
 import os
@@ -187,13 +187,3 @@ def test_skill_read_missing(repo):
     result = runner.invoke(cli, ["skill", "read", "nope", "--path", str(repo)])
     assert result.exit_code != 0
     assert "not found" in result.output
-
-
-def test_no_jules_key_needed(repo, monkeypatch):
-    """Draft 4 acceptance: local run works with the Jules key unset."""
-    monkeypatch.delenv("JULES_API_KEY", raising=False)
-    monkeypatch.setenv("BOOMTICK_SESSION_EXEC", "0")
-    for var in [k for k in os.environ if "JULES" in k]:
-        monkeypatch.delenv(var, raising=False)
-    sid = _run_session(repo, monkeypatch)
-    assert sid.startswith("sess_")

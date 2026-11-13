@@ -1,6 +1,6 @@
 """Tests for `td agent suggest` local-session fallback behavior.
 
-No Jules dependency: when no git/PR tooling data is available the
+When no git/PR tooling data is available the
 command reports all-queues-clear, and active sessions come from local
 `.worktrees` scans (never a cloud session list).
 """

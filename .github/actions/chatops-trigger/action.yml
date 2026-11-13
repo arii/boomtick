@@ -63,12 +63,11 @@ runs:
           echo "conflict_resolve=$(echo "$RESULT" | jq -r '.actions.conflict_resolve')"
           echo "update_snapshots=$(echo "$RESULT" | jq -r '.actions.update_snapshots')"
           echo "ai_chatops=$(echo "$RESULT" | jq -r '.actions.ai_chatops')"
-          echo "jules_fix_ci=$(echo "$RESULT" | jq -r '.actions.jules_fix_ci')"
         } >> "$GITHUB_OUTPUT"
       shell: bash
 
     - name: Resolve Branch Details
-      if: steps.check.outputs.conflict_resolve == 'true' || steps.check.outputs.update_snapshots == 'true' || steps.check.outputs.ai_chatops == 'true' || steps.check.outputs.jules_fix_ci == 'true'
+      if: steps.check.outputs.conflict_resolve == 'true' || steps.check.outputs.update_snapshots == 'true' || steps.check.outputs.ai_chatops == 'true'
       id: resolve_branch
       env:
         ISSUE_NUMBER: ${{ inputs.issue_number }}
@@ -81,14 +80,13 @@ runs:
       shell: bash
 
     - name: Trigger Dispatch Actions
-      if: steps.check.outputs.conflict_resolve == 'true' || steps.check.outputs.update_snapshots == 'true' || steps.check.outputs.ai_chatops == 'true' || steps.check.outputs.jules_fix_ci == 'true'
+      if: steps.check.outputs.conflict_resolve == 'true' || steps.check.outputs.update_snapshots == 'true' || steps.check.outputs.ai_chatops == 'true'
       env:
         HEAD_REF: ${{ steps.resolve_branch.outputs.HEAD_REF }}
         BASE_REF: ${{ steps.resolve_branch.outputs.BASE_REF }}
         CONFLICT_RESOLVE: ${{ steps.check.outputs.conflict_resolve }}
         UPDATE_SNAPSHOTS: ${{ steps.check.outputs.update_snapshots }}
         AI_CHATOPS: ${{ steps.check.outputs.ai_chatops }}
-        JULES_FIX_CI: ${{ steps.check.outputs.jules_fix_ci }}
         ISSUE_NUMBER: ${{ inputs.issue_number }}
         COMMENT_BODY: ${{ inputs.comment_body }}
         GH_TOKEN: ${{ inputs.github_token }}
@@ -114,13 +112,6 @@ runs:
         if [[ "$AI_CHATOPS" == 'true' ]]; then
           if ! gh workflow run "$OPS_WORKFLOW" --ref "$HEAD_REF" -f action="ai-review" -f issue_number="$ISSUE_NUMBER" -f comment_body="$COMMENT_BODY"; then
             echo "::error::Trigger failed for $OPS_WORKFLOW ai-review on PR $ISSUE_NUMBER"
-            ERRORS=1
-          fi
-        fi
-
-        if [[ "$JULES_FIX_CI" == 'true' ]]; then
-          if ! gh workflow run "$CI_WORKFLOW" --ref "$BASE_REF" -f task_type="repair" -f issue_number="$ISSUE_NUMBER" -f comment_body="$COMMENT_BODY"; then
-            echo "::error::Trigger failed for $CI_WORKFLOW repair on PR $ISSUE_NUMBER"
             ERRORS=1
           fi
         fi

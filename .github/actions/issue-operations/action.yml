@@ -21,9 +21,6 @@ inputs:
   openai_api_key:
     description: 'OpenAI API Key'
     required: false
-  google_jules_api_key:
-    description: 'Google Jules API Key'
-    required: false
 
 runs:
   using: 'composite'
@@ -204,7 +201,6 @@ runs:
       env:
         GEMINI_API_KEY: ${{ inputs.gemini_api_key }}
         OPENAI_API_KEY: ${{ inputs.openai_api_key }}
-        GOOGLE_JULES_API_KEY: ${{ inputs.google_jules_api_key }}
 
     # --- RESOLVE CONFLICTS ---
     - name: Setup Workspace for Conflict Resolution

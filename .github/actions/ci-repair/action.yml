@@ -1,8 +1,8 @@
 name: 'CI Repair'
-description: 'Automated and manual CI repair orchestration with Jules'
+description: 'Automated and manual CI repair orchestration'
 inputs:
   mode:
-    description: 'Execution mode: auto (dispatched on CI failure) or manual (dispatched via ChatOps/Jules)'
+    description: 'Execution mode: auto (dispatched on CI failure) or manual'
     required: false
     default: 'auto'
   issue_number:
@@ -10,9 +10,6 @@ inputs:
     required: false
   comment_body:
     description: 'Comment body containing instructions for the fix'
-    required: false
-  jules_api_key:
-    description: 'API key for Jules service'
     required: false
   github_token:
     description: 'GitHub token'
@@ -160,7 +157,7 @@ runs:
           gh label create main-ci-failure --color FF0000 --description "CI failures on main branch" || true
 
           TITLE="fix(ci): main branch failure at $SHA_SHORT — $FAILING_JOBS_CLEAN"
-          BODY="CI failure detected in run [$RUN_ID]($RUN_URL).${NL}${NL}**Commit:** $SHA${NL}**Failing Jobs:** $FAILING_JOBS_CLEAN${NL}${NL}🤖 Jules repair session will be dispatched automatically."
+          BODY="CI failure detected in run [$RUN_ID]($RUN_URL).${NL}${NL}**Commit:** $SHA${NL}**Failing Jobs:** $FAILING_JOBS_CLEAN"
         else
           gh label create ci-failure --color FF0000 --description "CI failures" || true
 
@@ -214,51 +211,4 @@ runs:
             fi
           fi
         fi
-      shell: bash
-
-    - name: Dispatch Jules (Main Branch Only)
-      if: inputs.mode == 'auto' && steps.context.outputs.is_main == 'true'
-      env:
-        JULES_API_KEY: ${{ inputs.jules_api_key }}
-        ISSUE_NUMBER: ${{ steps.check.outputs.issue_number || steps.create_issue.outputs.issue_number }}
-      run: |
-        if [ -z "$JULES_API_KEY" ]; then
-          echo "::warning::JULES_API_KEY is missing. Jules repair session cannot be dispatched."
-          gh issue comment "$ISSUE_NUMBER" --body "⚠️ JULES_API_KEY is missing. Jules repair session cannot be dispatched."
-          exit 0
-        fi
-
-        # Use td to dispatch Jules
-        td jules fix-ci --issue-number "$ISSUE_NUMBER" --execute
-      shell: bash
-
-    # --- MANUAL REPAIR MODE ---
-    - name: Pre-check Jules Credentials
-      if: inputs.mode == 'manual'
-      env:
-        JULES_API_KEY_INPUT: ${{ inputs.jules_api_key }}
-      run: |
-        MISSING=()
-        if [ -z "$GH_TOKEN" ]; then MISSING+=("GITHUB_TOKEN"); fi
-        if [ -z "$JULES_API_KEY_INPUT" ]; then MISSING+=("JULES_API_KEY"); fi
-
-        if [ ${#MISSING[@]} -ne 0 ]; then
-          echo "❌ Missing required secrets: ${MISSING[*]}"
-          echo "Please ensure GITHUB_TOKEN and JULES_API_KEY are configured."
-          exit 1
-        fi
-        echo "✅ Credentials pre-check passed."
-      shell: bash
-
-    - name: Initialize Jules Repair Session
-      if: inputs.mode == 'manual'
-      env:
-        JULES_API_KEY: ${{ inputs.jules_api_key }}
-        ISSUE_NUMBER: ${{ inputs.issue_number }}
-      run: |
-        if [[ ! "$ISSUE_NUMBER" =~ ^[0-9]+$ ]]; then
-          echo "::error::Invalid issue_number: must be numeric."
-          exit 1
-        fi
-        td jules fix-ci --pr-number "$ISSUE_NUMBER" --execute
       shell: bash

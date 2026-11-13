@@ -147,7 +147,7 @@ def test_linked_issue_fetching(monkeypatch):
         stdout = json.dumps(
             {
                 "title": "[cleanup] MCP Server & Tools",
-                "body": "Refactor targets in mcp/src/tools/jules/shared.ts, mcp/src/config.ts.",
+                "body": "Refactor targets in mcp/src/lib/visualReviewUtils.ts, mcp/src/config.ts.",
             }
         )
         stderr = ""
@@ -177,7 +177,7 @@ Fixes #936"""
 
     body_text = (
         "## Dead Code\n- Remove unused class member `startHttp` in `mcp/src/mcp/server.ts`.\n\n"
-        "## Complexity\n- Refactor targets in `mcp/src/tools/jules/shared.ts` (64 LOC, 6 dependents), "
+        "## Complexity\n- Refactor targets in `mcp/src/lib/visualReviewUtils.ts` (64 LOC, 6 dependents), "
         "`mcp/src/config.ts` (144 LOC, 9 dependents).\n\n"
         "## Duplication\n- DRY up clone groups in the following files: "
         "`mcp/src/tools/github.get_pr_diff.ts`, `mcp/src/tools/repo.logs.ts`, "

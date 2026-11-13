@@ -6,7 +6,7 @@ Developers and automated agents currently spend significant manual effort invest
 
 # Goal
 
-Define and specify a fully standardized agentic workflow document at `.agents/workflows/ci-remediation.md`. This document will serve as the core prompt and instruction set for an autonomous agent (like Jules or other LLM-driven agents) to independently and reliably handle CI failure remediation. The agent must fetch failing CI logs, analyze the root cause against recent commits, apply targeted minimal fixes, run the project's verification suite, and push the resolution to the repository.
+Define and specify a fully standardized agentic workflow document at `.agents/workflows/ci-remediation.md`. This document will serve as the core prompt and instruction set for an autonomous agent to independently and reliably handle CI failure remediation. The agent must fetch failing CI logs, analyze the root cause against recent commits, apply targeted minimal fixes, run the project's verification suite, and push the resolution to the repository.
 
 # Non-Goals
 
