@@ -50,12 +50,8 @@ class GithubIssueInput(CamelCaseModel):
         pattern=r"^[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+$",
         description="The target repository override (e.g. org/repo).",
     )
-    set_body: Optional[str] = Field(
-        None, description="Write: the new issue body."
-    )
-    add_labels: Optional[List[str]] = Field(
-        None, description="Write: labels to add."
-    )
+    set_body: Optional[str] = Field(None, description="Write: the new issue body.")
+    add_labels: Optional[List[str]] = Field(None, description="Write: labels to add.")
     remove_labels: Optional[List[str]] = Field(
         None, description="Write: labels to remove."
     )
@@ -209,7 +205,11 @@ class GithubPrInput(CamelCaseModel):
     def one_mode(self) -> "GithubPrInput":
         if self.search is not None and self.pr_number is not None:
             raise ValueError("Pass prNumber (view) or search, not both")
-        if self.search is None and self.pr_number is None and "workflowRuns" not in self.include:
+        if (
+            self.search is None
+            and self.pr_number is None
+            and "workflowRuns" not in self.include
+        ):
             raise ValueError(
                 "Provide prNumber to view a PR, search to list PRs, "
                 "or include=['workflowRuns'] to list recent workflow runs"
