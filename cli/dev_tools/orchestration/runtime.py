@@ -349,7 +349,7 @@ class RuntimeMixin(QualityMixin):
                 if audit_res.get("violations"):
                     results["audit_status"] = "violations_found"
         except Exception as e:
-            results["audit"] = {"error": str(e)}
+            results["audit"] = {"status": "error", "message": str(e)}
 
         # 5. Overlap Detection
         try:
@@ -359,7 +359,7 @@ class RuntimeMixin(QualityMixin):
                 formatted_overlaps.append({"prs": list(pr_pair), "files": files})
             results["overlaps"] = formatted_overlaps
         except Exception as e:
-            results["overlaps"] = [{"error": str(e)}]
+            results["overlaps"] = [{"status": "error", "message": str(e)}]
 
         # 6. Merge Simulation via git merge-tree (repo-aware base discovery)
         try:
@@ -410,12 +410,13 @@ class RuntimeMixin(QualityMixin):
                     ),
                 }
         except Exception as e:
-            results["merge_simulation"] = {"error": str(e)}
+            results["merge_simulation"] = {"status": "error", "message": str(e)}
 
         has_errors = (
             results.get("doctor", {}).get("status") == "error"
             or results.get("typecheck", {}).get("status") == "error"
             or results.get("lint", {}).get("status") == "error"
+            or results.get("audit", {}).get("status") == "error"
             or results.get("merge_simulation", {}).get("has_conflicts", False)
             or results.get("merge_simulation", {}).get("status") == "error"
         )
