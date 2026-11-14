@@ -84,9 +84,6 @@ importers:
 
   mcp:
     dependencies:
-      '@arii/boomtick-workflows':
-        specifier: workspace:*
-        version: link:../workflows
       '@modelcontextprotocol/sdk':
         specifier: ^1.6.0
         version: 1.29.0(@cfworker/json-schema@4.1.6)(zod@4.4.3)
@@ -97,6 +94,9 @@ importers:
         specifier: ^4.4.3
         version: 4.4.3
     devDependencies:
+      '@arii/boomtick-workflows':
+        specifier: workspace:*
+        version: link:../workflows
       '@types/node':
         specifier: ^20.17.15
         version: 20.19.43
