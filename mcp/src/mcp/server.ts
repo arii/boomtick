@@ -325,15 +325,16 @@ export class BoomtickMCPServer {
 
     // 4. SECURE, UNIX-ONLY PRE-FLIGHT CHECK FOR TD — warn and continue
     // instead of exiting: a missing or broken td degrades the td.* tools
-    // but the rest of the server still works. The outcome is surfaced
-    // through boomtick_health as the tdAvailable flag.
+    // and the github tools that shell out to it (github_issue,
+    // github_create_issue) but the rest of the server still works. The
+    // outcome is surfaced through boomtick_health as the tdAvailable flag.
     const preflight = checkTdAvailability(repoPath);
     recordTdPreflight(preflight);
 
     if (preflight.available) {
       console.error("✅ td verified on PATH securely");
     } else {
-      console.error("⚠️ td pre-flight check failed — td.* tools will degrade:", preflight.reason);
+      console.error("⚠️ td pre-flight check failed — td.* and github_issue/github_create_issue tools will degrade:", preflight.reason);
       console.error("Please ensure the project is installed: pip install -e .");
     }
   }
