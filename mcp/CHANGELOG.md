@@ -1,5 +1,28 @@
 # Changelog
 
+## [0.12.0](https://github.com/arii/boomtick/compare/mcp-v0.11.1...mcp-v0.12.0) (2026-11-14)
+
+
+### Features
+
+* add LangGraph.js workflows package with run_workflow MCP gateway ([#1263](https://github.com/arii/boomtick/issues/1263)) ([ad3b686](https://github.com/arii/boomtick/commit/ad3b68612750e2d39e6d65ebcff6aad650112e91))
+* consolidate MCP tool surface with typed schemas and explicit modes ([#1259](https://github.com/arii/boomtick/issues/1259)) ([5a4d93c](https://github.com/arii/boomtick/commit/5a4d93c7f280e2862bfb383b1c5166cf0becec44))
+
+
+### Bug Fixes
+
+* audit batch [#1226](https://github.com/arii/boomtick/issues/1226) [#1227](https://github.com/arii/boomtick/issues/1227) [#1228](https://github.com/arii/boomtick/issues/1228) (fail-closed schemas, model catalog, receipt cap) ([#1229](https://github.com/arii/boomtick/issues/1229)) ([1804df8](https://github.com/arii/boomtick/commit/1804df80b32870d94366930b66f144a292fc41e8))
+* audit batch [#1231](https://github.com/arii/boomtick/issues/1231) [#1232](https://github.com/arii/boomtick/issues/1232) [#1233](https://github.com/arii/boomtick/issues/1233) [#1234](https://github.com/arii/boomtick/issues/1234) [#1235](https://github.com/arii/boomtick/issues/1235) + [#1236](https://github.com/arii/boomtick/issues/1236) verified cuts ([#1237](https://github.com/arii/boomtick/issues/1237)) ([4a200e4](https://github.com/arii/boomtick/commit/4a200e44875c2b55e93e3ced05f87480dc87f245))
+* fail loudly on unresolvable MCP repos; default to caller's repo; register remote-server ([#1240](https://github.com/arii/boomtick/issues/1240)) ([b100282](https://github.com/arii/boomtick/commit/b100282b95523e5210835c326bd08085d2748ee2))
+* make the MCP server survive a missing or slow td (audit H1+H4) ([#1242](https://github.com/arii/boomtick/issues/1242)) ([2bcdb73](https://github.com/arii/boomtick/commit/2bcdb7340abcfe4633568ee17e15c833a8e2ffbb))
+* **mcp:** vendor workflows dist so packed tarballs are standalone-installable ([#1269](https://github.com/arii/boomtick/issues/1269)) ([ad150a0](https://github.com/arii/boomtick/commit/ad150a04da4f7639cef461d74803d40e374ede1f))
+* mtime-based context staleness and deterministic RAG health signal in boomtick_health ([#1251](https://github.com/arii/boomtick/issues/1251)) ([7be98ba](https://github.com/arii/boomtick/commit/7be98ba355b8771785afb9608f6f4f70e93c2a76))
+* name github_issue/github_create_issue in td degrade warning ([#1270](https://github.com/arii/boomtick/issues/1270)) ([3e970a5](https://github.com/arii/boomtick/commit/3e970a570aee0a550ec6409de769c201c9a5b900))
+* pin MCP transport selection explicitly and harden HTTP handler (audit H5) ([#1249](https://github.com/arii/boomtick/issues/1249)) ([9a44d38](https://github.com/arii/boomtick/commit/9a44d3876522cd25a9756637b8bc748d57751733))
+* restore workflows/MCP package boundary so the publish job can bundle mcp/dist ([#1268](https://github.com/arii/boomtick/issues/1268)) ([d3680c4](https://github.com/arii/boomtick/commit/d3680c4f5406c4df58f8b4365a3d966bfe8f2e53))
+* type the unvalidated MCP boundaries (part of [#1222](https://github.com/arii/boomtick/issues/1222)) ([#1224](https://github.com/arii/boomtick/issues/1224)) ([45e15ff](https://github.com/arii/boomtick/commit/45e15ffdf04400dfbe880c2a5fcd52ab3e6e0819))
+* unify receipt directory resolution so submit_pr finds td.* receipts ([#1239](https://github.com/arii/boomtick/issues/1239)) ([222ea10](https://github.com/arii/boomtick/commit/222ea10375dc00dfbadf989feaeb4af143c64d10))
+
 ## [0.11.1](https://github.com/arii/boomtick/compare/mcp-v0.11.0...mcp-v0.11.1) (2026-11-08)
 
 
