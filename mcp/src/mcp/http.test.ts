@@ -1,16 +1,19 @@
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import http from "node:http";
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
+import { Client } from "@modelcontextprotocol/sdk/client/index.js";
+import { SSEClientTransport } from "@modelcontextprotocol/sdk/client/sse.js";
+import { SSEServerTransport } from "@modelcontextprotocol/sdk/server/sse.js";
 import { createMcpHttpServer } from "./http.js";
 import { BoomtickMCPServer } from "./server.js";
 
 describe("createMcpHttpServer", () => {
-  let mcpServer: Server;
+  let createServer: () => Server;
   let httpServerObj: ReturnType<typeof createMcpHttpServer>;
   let port: number;
 
   beforeEach(async () => {
-    mcpServer = new Server({ name: "test-server", version: "1.0.0" }, { capabilities: {} });
+    createServer = () => new BoomtickMCPServer().createServer();
   });
 
   afterEach(() => {
@@ -20,7 +23,7 @@ describe("createMcpHttpServer", () => {
   });
 
   it("should respond with 200 on GET /health endpoint", async () => {
-    httpServerObj = createMcpHttpServer({ port: 0, mcpServer });
+    httpServerObj = createMcpHttpServer({ port: 0, createServer });
     port = await httpServerObj.listen(0);
 
     const res = await fetch(`http://localhost:${port}/health`);
@@ -30,7 +33,7 @@ describe("createMcpHttpServer", () => {
   });
 
   it("should respond with RFC 9728 OAuth protected resource metadata on /.well-known/oauth-protected-resource", async () => {
-    httpServerObj = createMcpHttpServer({ port: 0, mcpServer });
+    httpServerObj = createMcpHttpServer({ port: 0, createServer });
     port = await httpServerObj.listen(0);
 
     const res = await fetch(`http://localhost:${port}/.well-known/oauth-protected-resource`);
@@ -46,7 +49,7 @@ describe("createMcpHttpServer", () => {
   });
 
   it("should handle HEAD requests for /.well-known/oauth-protected-resource", async () => {
-    httpServerObj = createMcpHttpServer({ port: 0, mcpServer });
+    httpServerObj = createMcpHttpServer({ port: 0, createServer });
     port = await httpServerObj.listen(0);
 
     const res = await fetch(`http://localhost:${port}/.well-known/oauth-protected-resource`, {
@@ -58,7 +61,7 @@ describe("createMcpHttpServer", () => {
   });
 
   it("should handle OPTIONS preflight CORS requests", async () => {
-    httpServerObj = createMcpHttpServer({ port: 0, mcpServer });
+    httpServerObj = createMcpHttpServer({ port: 0, createServer });
     port = await httpServerObj.listen(0);
 
     const res = await fetch(`http://localhost:${port}/sse`, {
@@ -71,7 +74,7 @@ describe("createMcpHttpServer", () => {
   });
 
   it("should reject protected requests when Bearer token is missing or invalid", async () => {
-    httpServerObj = createMcpHttpServer({ port: 0, bearerToken: "secret123", mcpServer });
+    httpServerObj = createMcpHttpServer({ port: 0, bearerToken: "secret123", createServer });
     port = await httpServerObj.listen(0);
 
     // Request without token
@@ -94,7 +97,7 @@ describe("createMcpHttpServer", () => {
   });
 
   it("should handle 404 for unknown endpoints", async () => {
-    httpServerObj = createMcpHttpServer({ port: 0, mcpServer });
+    httpServerObj = createMcpHttpServer({ port: 0, createServer });
     port = await httpServerObj.listen(0);
 
     const res = await fetch(`http://localhost:${port}/unknown-path`);
@@ -102,7 +105,7 @@ describe("createMcpHttpServer", () => {
   });
 
   it("should return 500 if bearer token is not configured on server for protected endpoints", async () => {
-    httpServerObj = createMcpHttpServer({ port: 0, mcpServer });
+    httpServerObj = createMcpHttpServer({ port: 0, createServer });
     port = await httpServerObj.listen(0);
 
     const res = await fetch(`http://localhost:${port}/sse`);
@@ -112,7 +115,7 @@ describe("createMcpHttpServer", () => {
   });
 
   it("should return 400 for message requests without session or invalid session", async () => {
-    httpServerObj = createMcpHttpServer({ port: 0, bearerToken: "secret123", mcpServer });
+    httpServerObj = createMcpHttpServer({ port: 0, bearerToken: "secret123", createServer });
     port = await httpServerObj.listen(0);
 
     const res = await fetch(`http://localhost:${port}/messages?sessionId=invalid_session`, {
@@ -130,7 +133,7 @@ describe("createMcpHttpServer", () => {
   });
 
   it("audit H5: returns a JSON-RPC 500 error instead of crashing on a malformed Host header", async () => {
-    httpServerObj = createMcpHttpServer({ port: 0, mcpServer });
+    httpServerObj = createMcpHttpServer({ port: 0, createServer });
     port = await httpServerObj.listen(0);
 
     // `new URL(req.url, "http://not a valid host")` throws on this request;
@@ -153,6 +156,66 @@ describe("createMcpHttpServer", () => {
     // The process survived: the server still answers normal requests.
     const after = await fetch(`http://localhost:${port}/health`);
     expect(after.status).toBe(200);
+  });
+
+  it("isolates concurrent SDK clients and removes closed sessions", async () => {
+    const servers: Server[] = [];
+    httpServerObj = createMcpHttpServer({
+      port: 0,
+      bearerToken: "secret123",
+      createServer: () => {
+        const server = createServer();
+        servers.push(server);
+        return server;
+      },
+    });
+    port = await httpServerObj.listen();
+    const clients = [1, 2].map((id) => new Client({ name: `client-${id}`, version: "1.0.0" }));
+    const transports = clients.map(() => new SSEClientTransport(new URL(`http://localhost:${port}/sse`), {
+      eventSourceInit: {
+        fetch: (url, init) => fetch(url, {
+          ...init,
+          headers: { ...init?.headers, Authorization: "Bearer secret123" },
+        }),
+      },
+      requestInit: { headers: { Authorization: "Bearer secret123" } },
+    }));
+    try {
+      await Promise.all(clients.map((client, index) => client.connect(transports[index])));
+      const results = await Promise.all(clients.map((client) => client.listTools()));
+      expect(results[0].tools.length).toBeGreaterThan(0);
+      expect(results[1].tools).toEqual(results[0].tools);
+      expect(servers).toHaveLength(2);
+      expect(servers[0]).not.toBe(servers[1]);
+      const sessionId = (servers[0].transport as SSEServerTransport).sessionId;
+      expect(sessionId).toBeTruthy();
+      await clients[0].close();
+      await vi.waitFor(() => expect(servers[0].transport).toBeUndefined());
+      const expired = await fetch(`http://localhost:${port}/messages?sessionId=${sessionId}`, {
+        method: "POST",
+        headers: { Authorization: "Bearer secret123", "Content-Type": "application/json" },
+        body: JSON.stringify({ jsonrpc: "2.0", method: "ping", id: 1 }),
+      });
+      expect(expired.status).toBe(400);
+      expect((await clients[1].listTools()).tools).toEqual(results[1].tools);
+    } finally {
+      await Promise.all(clients.map((client) => client.close()));
+    }
+  });
+
+  it("cleans up a session when connecting its server fails", async () => {
+    const failedServer = createServer();
+    vi.spyOn(failedServer, "connect").mockRejectedValue(new Error("connection failed"));
+    const close = vi.spyOn(failedServer, "close");
+    httpServerObj = createMcpHttpServer({
+      port: 0, bearerToken: "secret123", createServer: () => failedServer,
+    });
+    port = await httpServerObj.listen();
+    const response = await fetch(`http://localhost:${port}/sse`, {
+      headers: { Authorization: "Bearer secret123" },
+    });
+    expect(response.status).toBe(500);
+    expect(close).toHaveBeenCalledOnce();
   });
 
   it("should allow BoomtickMCPServer to start HTTP server via run() when transport is http", async () => {

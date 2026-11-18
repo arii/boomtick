@@ -51,7 +51,11 @@ export class BoomtickMCPServer {
   private server: Server;
 
   constructor() {
-    this.server = new Server(
+    this.server = this.createServer();
+  }
+
+  createServer(): Server {
+    const server = new Server(
       {
         name: "boomtick-mcp",
         version: "0.2.0",
@@ -65,19 +69,20 @@ export class BoomtickMCPServer {
       }
     );
 
-    this.setupToolHandlers();
-    this.setupResourceHandlers();
-    this.setupPromptHandlers();
+    this.setupToolHandlers(server);
+    this.setupResourceHandlers(server);
+    this.setupPromptHandlers(server);
+    return server;
   }
 
-  private setupPromptHandlers() {
-    this.server.setRequestHandler(ListPromptsRequestSchema, async () => {
+  private setupPromptHandlers(server: Server) {
+    server.setRequestHandler(ListPromptsRequestSchema, async () => {
       return {
         prompts: MCP_PROMPTS,
       };
     });
 
-    this.server.setRequestHandler(GetPromptRequestSchema, async (request) => {
+    server.setRequestHandler(GetPromptRequestSchema, async (request) => {
       const name = request.params.name;
 
       const agentsDir = path.resolve(config.repoPath, "mcp/src/agents");
@@ -104,20 +109,20 @@ export class BoomtickMCPServer {
     });
   }
 
-  private setupResourceHandlers() {
-    this.server.setRequestHandler(ListResourcesRequestSchema, async () => {
+  private setupResourceHandlers(server: Server) {
+    server.setRequestHandler(ListResourcesRequestSchema, async () => {
       return {
         resources: MCP_RESOURCES,
       };
     });
 
-    this.server.setRequestHandler(ListResourceTemplatesRequestSchema, async () => {
+    server.setRequestHandler(ListResourceTemplatesRequestSchema, async () => {
       return {
         resourceTemplates: MCP_RESOURCE_TEMPLATES,
       };
     });
 
-    this.server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
+    server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
       const uri = request.params.uri;
       if (
         uri === "boomtick://workspace/agent-contract" ||
@@ -224,14 +229,14 @@ export class BoomtickMCPServer {
     });
   }
 
-  private setupToolHandlers() {
-    this.server.setRequestHandler(ListToolsRequestSchema, async () => {
+  private setupToolHandlers(server: Server) {
+    server.setRequestHandler(ListToolsRequestSchema, async () => {
       return {
         tools: MCP_TOOLS,
       };
     });
 
-    this.server.setRequestHandler(CallToolRequestSchema, async (request) => {
+    server.setRequestHandler(CallToolRequestSchema, async (request) => {
       try {
         const normalizedToolName = request.params.name;
         const normArgs = normalizeArguments(request.params.arguments as Record<string, unknown>);
@@ -353,7 +358,7 @@ export class BoomtickMCPServer {
       const mcpHttp = createMcpHttpServer({
         port: selection.port,
         bearerToken: selection.bearerToken,
-        mcpServer: this.server,
+        createServer: () => this.createServer(),
       });
       await mcpHttp.listen(selection.port);
       return;
