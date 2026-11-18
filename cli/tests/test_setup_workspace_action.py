@@ -93,7 +93,6 @@ class SetupWorkspaceActionTests(unittest.TestCase):
             [
                 [
                     "install",
-                    "--upgrade",
                     "boomtick-cli>=0.14.0",
                     "--break-system-packages",
                 ]
@@ -119,13 +118,16 @@ class SetupWorkspaceActionTests(unittest.TestCase):
         self.assertEqual(result.returncode, 8)
         self.assertEqual(len(self.calls()), 1)
 
-    def test_consumer_requirements_are_used_without_editable_install(self):
+    def test_consumer_requirements_still_get_boomtick_cli(self):
         (self.workspace / "requirements-dev.txt").touch()
         result = self.install(self.resolve())
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(
             self.calls(),
-            [["install", "-r", "requirements-dev.txt", "--break-system-packages"]],
+            [
+                ["install", "-r", "requirements-dev.txt", "--break-system-packages"],
+                ["install", "boomtick-cli>=0.14.0", "--break-system-packages"],
+            ],
         )
 
     def test_unrelated_consumer_cli_is_not_used(self):

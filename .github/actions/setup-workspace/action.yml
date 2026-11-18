@@ -140,10 +140,12 @@ runs:
             pip install -r "$CLI_DIR/requirements-dev.txt" --break-system-packages || true
           fi
           pip install -e "$CLI_DIR" --break-system-packages
-        elif [ -f "requirements-dev.txt" ]; then
-          pip install -r requirements-dev.txt --break-system-packages
         else
-          pip install --upgrade "boomtick-cli>=0.14.0" --break-system-packages
+          if [ -f "requirements-dev.txt" ]; then
+            pip install -r requirements-dev.txt --break-system-packages
+          fi
+          # No-op when the consumer's requirements already pin a matching boomtick-cli.
+          pip install "boomtick-cli>=0.14.0" --break-system-packages
         fi
 
         echo "::endgroup::"
