@@ -48,6 +48,8 @@ jobs:
 
 A maintainer adds the label to review a trusted same-repo PR. Ordinary pushes and forks don't trigger the job. Keep checkout on GitHub's default PR merge commit: the Docker action reads the checked-out Git diff, so checking out only the base branch would review no changes. Don't switch to `pull_request_target`, give forks secrets, or run project scripts in this job.
 
+The trigger is the label being added, not the label being present. After new commits land, remove and reapply the label if a maintainer wants another review of the updated diff.
+
 ## Verify on an approved run
 
 - Validate the workflow with `actionlint` before opening the setup PR. Explain the permissions and model cost in the PR.
