@@ -37,7 +37,7 @@ run_url="$url/attempts/$attempt"
 if [[ "$conclusion" == success ]]; then
   for issue in $issues; do
     gh issue close "$issue" --repo "$repo" --reason completed \
-      --comment "CI recovered on `$branch` in [run $run_id (attempt $attempt)]($run_url)."
+      --comment "CI recovered on $branch in [run $run_id (attempt $attempt)]($run_url)."
   done
   if [[ -z "$issues" ]]; then
     echo "CI passed on $branch; no open incident for workflow $workflow_id."
