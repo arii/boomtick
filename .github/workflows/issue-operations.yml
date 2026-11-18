@@ -2,7 +2,7 @@ name: Issue Operations
 
 on:
   issues:
-    types: [opened, edited]
+    types: [opened, edited, labeled]
   workflow_dispatch:
     inputs:
       action:
@@ -33,6 +33,7 @@ jobs:
     name: Validate Issue Quality
     if: |
       github.event_name == 'issues' &&
+      (github.event.action != 'labeled' || github.event.label.name == 'spec-driven') &&
       contains(github.event.issue.labels.*.name, 'spec-driven') &&
       !startsWith(github.event.issue.title, 'fix(ci):') &&
       !contains(github.event.issue.title, 'CI failure') &&
@@ -66,6 +67,7 @@ jobs:
     name: Validate Design Spec
     if: |
       github.event_name == 'issues' &&
+      github.event.action != 'labeled' &&
       (contains(toJSON(github.event.issue.body), '## Agent scope') ||
        contains(github.event.issue.labels.*.name, 'spec')) &&
       !startsWith(github.event.issue.title, 'fix(ci):') &&
@@ -100,6 +102,7 @@ jobs:
     name: Issue to Content PR
     if: |
       github.event_name == 'issues' &&
+      github.event.action != 'labeled' &&
       startsWith(github.event.issue.title, 'Draft') &&
       contains(github.event.issue.title, ':') &&
       (github.event.issue.author_association == 'OWNER' ||
