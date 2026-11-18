@@ -62,25 +62,14 @@ runs:
       shell: bash
 
     - name: Resolve Paths
+      if: inputs.setup-python == 'true'
       id: resolve-paths
       shell: bash
       run: |
-        if [ -d "cli" ]; then
-          CLI_DIR="cli"
-        elif [ -d "boomtick-pkg/cli" ]; then
-          CLI_DIR="boomtick-pkg/cli"
-        elif [ -d "boomtick/cli" ]; then
-          CLI_DIR="boomtick/cli"
-        elif [ -d "${{ github.action_path }}/../../../cli" ]; then
-          CLI_DIR="${{ github.action_path }}/../../../cli"
-        else
-          CLI_DIR="cli"
-        fi
-
-        # Validate that the resolved CLI directory exists
-        if [ -z "$CLI_DIR" ] || { [ ! -d "$CLI_DIR" ] && [ ! -d "${{ github.action_path }}/../../../$CLI_DIR" ]; }; then
-          echo "::error::Could not resolve a valid CLI directory. Resolved: '$CLI_DIR'"
-          exit 1
+        CLI_DIR=""
+        # Only the checkout hosting this action uses editable CLI sources.
+        if [ -f "cli/pyproject.toml" ] && [ "$GITHUB_ACTION_PATH" -ef ".github/actions/setup-workspace" ]; then
+          CLI_DIR="$(pwd)/cli"
         fi
 
         echo "CLI_DIR=$CLI_DIR" >> "$GITHUB_OUTPUT"
@@ -134,22 +123,28 @@ runs:
         CLI_DIR: ${{ steps.resolve-paths.outputs.CLI_DIR }}
       run: |
         echo "::group::Install dev-tools"
-        if [ -d ".venv" ]; then
+        if [ -n "$CLI_DIR" ]; then
+          if [ -d ".venv" ]; then
+            if [ -f "requirements-dev.txt" ]; then
+              .venv/bin/pip install -r requirements-dev.txt || true
+            fi
+            if [ -f "$CLI_DIR/requirements-dev.txt" ]; then
+              .venv/bin/pip install -r "$CLI_DIR/requirements-dev.txt" || true
+            fi
+            .venv/bin/pip install -e "$CLI_DIR" || true
+          fi
           if [ -f "requirements-dev.txt" ]; then
-            .venv/bin/pip install -r requirements-dev.txt || true
+            pip install -r requirements-dev.txt --break-system-packages || true
           fi
           if [ -f "$CLI_DIR/requirements-dev.txt" ]; then
-            .venv/bin/pip install -r "$CLI_DIR/requirements-dev.txt" || true
+            pip install -r "$CLI_DIR/requirements-dev.txt" --break-system-packages || true
           fi
-          .venv/bin/pip install -e "$CLI_DIR" || true
+          pip install -e "$CLI_DIR" --break-system-packages
+        elif [ -f "requirements-dev.txt" ]; then
+          pip install -r requirements-dev.txt --break-system-packages
+        else
+          pip install --upgrade "boomtick-cli>=0.14.0" --break-system-packages
         fi
-        if [ -f "requirements-dev.txt" ]; then
-          pip install -r requirements-dev.txt --break-system-packages || true
-        fi
-        if [ -f "$CLI_DIR/requirements-dev.txt" ]; then
-          pip install -r "$CLI_DIR/requirements-dev.txt" --break-system-packages || true
-        fi
-        pip install -e "$CLI_DIR" --break-system-packages
 
         echo "::endgroup::"
       shell: bash
@@ -177,7 +172,7 @@ runs:
       shell: bash
 
     - name: Export Environment Variables
-      if: inputs.setup-python == 'true'
+      if: inputs.setup-python == 'true' && steps.resolve-paths.outputs.CLI_DIR != ''
       id: export-env
       env:
         CLI_DIR: ${{ steps.resolve-paths.outputs.CLI_DIR }}
@@ -203,7 +198,7 @@ runs:
       shell: bash
 
     - name: Initialize Schemas and Contracts
-      if: inputs.setup-node == 'true' && inputs.setup-python == 'true'
+      if: inputs.setup-node == 'true' && inputs.setup-python == 'true' && steps.resolve-paths.outputs.CLI_DIR != ''
       env:
         CLI_DIR_ABS: ${{ steps.export-env.outputs.cli_dir_abs }}
       run: |
