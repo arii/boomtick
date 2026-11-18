@@ -1,8 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { readFile } from "node:fs/promises";
+import path from "node:path";
 import { repoTestHandler, RepoTestInputSchema } from "./repo.tests.js";
 import * as shell from "../lib/shell.js";
 
 vi.mock("../lib/shell.js", () => ({ runCommand: vi.fn() }));
+vi.mock("node:fs/promises", () => ({ readFile: vi.fn() }));
 
 const runCommand = vi.mocked(shell.runCommand);
 
@@ -70,7 +73,8 @@ describe("repo_test — regex tokenizer", () => {
 });
 
 describe("repo_test — execution semantics", () => {
-  it("runs the default four commands when none are given", async () => {
+  it("runs all four defaults when the target package has lint, test and build scripts", async () => {
+    vi.mocked(readFile).mockResolvedValue(JSON.stringify({ scripts: { lint: "eslint .", test: "vitest", build: "tsc" } }));
     runCommand.mockResolvedValue(ok("pnpm"));
 
     const result = await repoTestHandler({});
@@ -80,6 +84,38 @@ describe("repo_test — execution semantics", () => {
     expect(commandsSent()[3]).toEqual(["pnpm", ["build"]]);
     expect(result.passed).toBe(true);
     expect(result.failedTests).toEqual([]);
+    expect(readFile).toHaveBeenCalledWith(path.join(process.cwd(), "package.json"), "utf-8");
+  });
+
+  it("omits build when the target package has no build script", async () => {
+    vi.mocked(readFile).mockResolvedValue(JSON.stringify({ scripts: { lint: "eslint .", test: "vitest" } }));
+    runCommand.mockResolvedValue(ok("pnpm"));
+
+    await repoTestHandler({ worktreePath: "/repo/without-build" });
+
+    expect(readFile).toHaveBeenCalledWith("/repo/without-build/package.json", "utf-8");
+    expect(commandsSent()).toEqual([
+      ["pnpm", ["install", "--frozen-lockfile"]],
+      ["pnpm", ["lint"]],
+      ["pnpm", ["test"]],
+    ]);
+  });
+
+  it.each([{}, { scripts: {} }])("keeps install when no scripts exist: %j", async (pkg) => {
+    vi.mocked(readFile).mockResolvedValue(JSON.stringify(pkg));
+    runCommand.mockResolvedValue(ok("pnpm"));
+
+    await repoTestHandler({});
+
+    expect(commandsSent()).toEqual([["pnpm", ["install", "--frozen-lockfile"]]]);
+  });
+
+  it("rejects unreadable or invalid package metadata before running defaults", async () => {
+    vi.mocked(readFile).mockRejectedValueOnce(new Error("ENOENT"));
+    await expect(repoTestHandler({})).rejects.toThrow("ENOENT");
+    vi.mocked(readFile).mockResolvedValueOnce("not JSON");
+    await expect(repoTestHandler({})).rejects.toThrow();
+    expect(runCommand).not.toHaveBeenCalled();
   });
 
   it("stops at the first failing command and reports it", async () => {

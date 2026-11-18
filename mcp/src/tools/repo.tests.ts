@@ -1,4 +1,6 @@
 import { z } from "zod";
+import { readFile } from "node:fs/promises";
+import path from "node:path";
 import { runCommand, ShellResult } from "../lib/shell.js";
 import { RepoTestInputSchema } from "./contract.js";
 
@@ -26,12 +28,17 @@ function parseCommandArguments(fullCmd: string): [string, string[]] {
 
 export async function repoTestHandler(args: z.input<typeof RepoTestInputSchema>) {
   const parsed = RepoTestInputSchema.parse(args ?? {});
-  const commands = parsed.commands || [
-    "pnpm install --frozen-lockfile",
-    "pnpm lint",
-    "pnpm test",
-    "pnpm build"
-  ];
+  let commands = parsed.commands;
+  if (!commands) {
+    const packageJsonPath = path.join(parsed.worktreePath ?? process.cwd(), "package.json");
+    const pkg = JSON.parse(await readFile(packageJsonPath, "utf-8"));
+    commands = [
+      "pnpm install --frozen-lockfile",
+      ...["lint", "test", "build"]
+        .filter((script) => Object.hasOwn(pkg.scripts ?? {}, script))
+        .map((script) => `pnpm ${script}`)
+    ];
+  }
   const timeoutMs = (parsed.timeoutSeconds ?? 300) * 1000;
 
   const results: ShellResult[] = [];
