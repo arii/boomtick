@@ -33,7 +33,8 @@ jobs:
     name: Validate Issue Quality
     if: |
       github.event_name == 'issues' &&
-      (github.event.action != 'labeled' || github.event.label.name == 'spec-driven') &&
+      (github.event.action == 'edited' ||
+       (github.event.action == 'labeled' && github.event.label.name == 'spec-driven')) &&
       contains(github.event.issue.labels.*.name, 'spec-driven') &&
       !startsWith(github.event.issue.title, 'fix(ci):') &&
       !contains(github.event.issue.title, 'CI failure') &&
