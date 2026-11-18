@@ -7,7 +7,7 @@ inputs:
 runs:
   using: composite
   steps:
-    - uses: arii/boomtick/mcp/actions/setup@main
+    - uses: arii/boomtick/mcp/actions/setup@3e970a570aee0a550ec6409de769c201c9a5b900 # boomtick main (cli-v0.20.2 + unreleased fixes)
     - name: AI review
       env:
         PR_NUMBER: ${{ inputs.pr_number }}
