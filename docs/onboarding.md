@@ -168,12 +168,24 @@ Boomtick exposes the following Composite Actions under `arii/boomtick/.github/ac
      github_token: ${{ secrets.GITHUB_TOKEN }}
    ```
 
-4. **`ai-review`**: Runs AI review audits on pull requests.
+4. **AI review (drop-in for any repo)**: Add one step to a `pull_request` workflow; only the `GEMINI_API_KEY` secret is required. The PR number and `github.token` are picked up automatically, and the App inputs (`github-app-id`, `github-app-private-key`) are optional for posting as a bot identity.
    ```yaml
-   uses: arii/boomtick/mcp/actions/ai-review@main # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
-   with:
-     pr_number: ${{ inputs.pr_number }}
+   on: pull_request
+   permissions:
+     contents: read
+     pull-requests: write
+   jobs:
+     ai-review:
+       runs-on: ubuntu-latest
+       steps:
+         - uses: actions/checkout@v7
+           with:
+             fetch-depth: 0 # the review diffs against the base branch
+         - uses: arii/boomtick@<sha-or-tag>
+           with:
+             gemini-api-key: ${{ secrets.GEMINI_API_KEY }}
    ```
+   Pin `<sha-or-tag>` to a release tag or commit, not `main`.
 
 5. **`impact-analysis`**: Performs blast-radius checks and posts review summaries.
    ```yaml
