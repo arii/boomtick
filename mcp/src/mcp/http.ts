@@ -6,14 +6,14 @@ import { SSEServerTransport } from "@modelcontextprotocol/sdk/server/sse.js";
 export interface HttpServerOptions {
   port?: number;
   bearerToken?: string;
-  mcpServer: Server;
+  createServer: () => Server;
 }
 
 export function createMcpHttpServer(options: HttpServerOptions) {
   const {
     port = 3000,
     bearerToken = process.env.BOOMTICK_MCP_BEARER_TOKEN || process.env.MCP_BEARER_TOKEN || process.env.AUTH_TOKEN,
-    mcpServer,
+    createServer,
   } = options;
 
   const transports = new Map<string, SSEServerTransport>();
@@ -97,6 +97,7 @@ export function createMcpHttpServer(options: HttpServerOptions) {
       res.setHeader("Connection", "keep-alive");
 
       const transport = new SSEServerTransport("/messages", res);
+      const mcpServer = createServer();
       transports.set(transport.sessionId, transport);
 
       const keepAliveInterval = setInterval(() => {
@@ -110,7 +111,14 @@ export function createMcpHttpServer(options: HttpServerOptions) {
         transports.delete(transport.sessionId);
       };
 
-      await mcpServer.connect(transport);
+      try {
+        await mcpServer.connect(transport);
+      } catch (error) {
+        clearInterval(keepAliveInterval);
+        transports.delete(transport.sessionId);
+        await mcpServer.close();
+        throw error;
+      }
       return;
     }
 
