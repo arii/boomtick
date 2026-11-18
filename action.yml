@@ -1,5 +1,9 @@
 name: 'BoomTick AI Code Review'
 description: 'Runs standalone AI code review in Docker container'
+# Minimal use on a pull_request workflow (needs `permissions: pull-requests: write`):
+#   - uses: arii/boomtick@<ref>
+#     with:
+#       gemini-api-key: ${{ secrets.GEMINI_API_KEY }}
 inputs:
   github-app-id:
     description: "GitHub App ID"
@@ -8,8 +12,13 @@ inputs:
     description: "GitHub App private key (PEM string)"
     required: false
   github-token:
-    description: "Fallback pre-minted installation token or GITHUB_TOKEN"
+    description: "Token used to read the PR and post the review when no GitHub App credentials are given"
     required: false
+    default: ${{ github.token }}
+  pr-number:
+    description: "Pull request to review; defaults to the triggering pull_request event"
+    required: false
+    default: ${{ github.event.pull_request.number }}
   gemini-api-key:
     description: "Gemini API key for synthesis"
     required: true
@@ -21,3 +30,4 @@ runs:
     GITHUB_APP_PRIVATE_KEY: ${{ inputs.github-app-private-key }}
     GITHUB_TOKEN: ${{ inputs.github-token }}
     GEMINI_API_KEY: ${{ inputs.gemini-api-key }}
+    PR_NUMBER: ${{ inputs.pr-number }}
