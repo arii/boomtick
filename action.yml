@@ -32,4 +32,4 @@ runs:
     GITHUB_APP_PRIVATE_KEY: ${{ inputs.github-app-private-key }}
     GITHUB_TOKEN: ${{ inputs.github-token }}
     GEMINI_API_KEY: ${{ inputs.gemini-api-key }}
-    PR_NUMBER: ${{ inputs.pr-number }}
+    BOOMTICK_PR_NUMBER: ${{ inputs.pr-number }}
