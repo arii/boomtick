@@ -33,7 +33,7 @@ jobs:
     name: Validate Issue Quality
     if: |
       github.event_name == 'issues' &&
-      contains(github.event.issue.labels.*.name, 'spec') &&
+      contains(github.event.issue.labels.*.name, 'spec-driven') &&
       !startsWith(github.event.issue.title, 'fix(ci):') &&
       !contains(github.event.issue.title, 'CI failure') &&
       !contains(github.event.issue.labels.*.name, 'automated') &&
@@ -67,7 +67,7 @@ jobs:
     if: |
       github.event_name == 'issues' &&
       (contains(toJSON(github.event.issue.body), '## Agent scope') ||
-       contains(github.event.issue.labels.*.name, 'spec')) &&
+       contains(github.event.issue.labels.*.name, 'spec-driven')) &&
       !startsWith(github.event.issue.title, 'fix(ci):') &&
       !contains(github.event.issue.title, 'CI failure') &&
       !contains(github.event.issue.labels.*.name, 'automated') &&
