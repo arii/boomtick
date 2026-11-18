@@ -3,7 +3,7 @@ import fs from "fs";
 import { fileURLToPath } from "url";
 import { findRepoRoot, readPerRepoGithubRepo } from "./config/repo.js";
 import { getGithubToken } from "./config/github.js";
-import { resolveRepo } from "./lib/git.js";
+import { resolveRepo } from "./lib/gitRemote.js";
 import { initializeConfig, getCachedDynamicConfig } from "./config/dynamic.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));

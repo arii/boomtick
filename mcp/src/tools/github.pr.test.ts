@@ -2,8 +2,10 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 
 vi.mock("../lib/tdCli.js", () => ({ runTDCli: vi.fn() }));
 vi.mock("../lib/shell.js", () => ({ runCommand: vi.fn() }));
-vi.mock("../lib/git.js", () => ({
+vi.mock("../lib/gitRemote.js", () => ({
   resolveRepo: vi.fn((repo?: string | null) => repo ?? "o/r"),
+}));
+vi.mock("../lib/git.js", () => ({
   getMergeConflictFiles: vi.fn(),
 }));
 

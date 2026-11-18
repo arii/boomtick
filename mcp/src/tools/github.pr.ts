@@ -1,6 +1,7 @@
 import { z } from "zod";
+import { resolveRepo } from "../lib/gitRemote.js";
 import { runCommand } from "../lib/shell.js";
-import { resolveRepo, getMergeConflictFiles } from "../lib/git.js";
+import { getMergeConflictFiles } from "../lib/git.js";
 import { runTDCli } from "../lib/tdCli.js";
 import { GithubPrInputSchema, GithubPrSearchSchema, GithubPrResponseSchema } from "./contract.js";
 

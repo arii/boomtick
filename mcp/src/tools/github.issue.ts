@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { resolveRepo } from "../lib/git.js";
+import { resolveRepo } from "../lib/gitRemote.js";
 import { runTDCli } from "../lib/tdCli.js";
 import { GithubIssueInputSchema, GithubIssueResponseSchema } from "./contract.js";
 
@@ -15,7 +15,7 @@ export interface NormalizedIssue {
   htmlUrl: string | null;
 }
 
-export interface NormalizedComment {
+interface NormalizedComment {
   id: number | null;
   url: string | null;
   body: string | null;

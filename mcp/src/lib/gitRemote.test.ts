@@ -5,7 +5,7 @@ vi.mock("child_process", () => ({
 }));
 
 import { execSync } from "child_process";
-import { resolveRepo } from "./git.js";
+import { resolveRepo } from "./gitRemote.js";
 
 const mockedExecSync = vi.mocked(execSync);
 
