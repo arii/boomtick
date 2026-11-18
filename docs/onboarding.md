@@ -179,6 +179,8 @@ Boomtick exposes the following Composite Actions under `arii/boomtick/.github/ac
        runs-on: ubuntu-latest
        steps:
          - uses: actions/checkout@v7
+           with:
+             fetch-depth: 0 # the review diffs against the base branch
          - uses: arii/boomtick@<sha-or-tag>
            with:
              gemini-api-key: ${{ secrets.GEMINI_API_KEY }}

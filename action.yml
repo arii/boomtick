@@ -1,6 +1,8 @@
 name: 'BoomTick AI Code Review'
 description: 'Runs standalone AI code review in Docker container'
 # Minimal use on a pull_request workflow (needs `permissions: pull-requests: write`):
+#   - uses: actions/checkout@v7
+#     with: { fetch-depth: 0 }
 #   - uses: arii/boomtick@<ref>
 #     with:
 #       gemini-api-key: ${{ secrets.GEMINI_API_KEY }}
