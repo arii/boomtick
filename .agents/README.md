@@ -3,6 +3,32 @@
 This directory contains the agent operating contract, tooling protocols,
 workflows, and supporting scripts for automated operations in this repository.
 
+## Installable skills
+
+- [`actions-health-check`](skills/actions-health-check/SKILL.md): sample recent GitHub Actions outcomes and elapsed times without rerunning CI.
+- [`add-boomtick-review`](skills/add-boomtick-review/SKILL.md): add opt-in BoomTick PR review to a downstream repo.
+
+Install an individual skill into your local agent. For example, use the
+[Skills CLI](https://github.com/vercel-labs/skills) for a personal Codex install:
+
+```sh
+npx skills add arii/boomtick --skill actions-health-check --agent codex -g
+```
+
+Replace `codex` with `claude-code`, `cursor`, or `devin`. For a manual
+project install, copy the whole skill directory into your agent's skill path:
+
+| Agent | Project skill path |
+| --- | --- |
+| [Claude Code](https://code.claude.com/docs/en/skills) | `.claude/skills/` |
+| [Codex](https://developers.openai.com/codex/skills/) | `.agents/skills/` |
+| [Cursor](https://cursor.com/docs/context/skills) | `.cursor/skills/` |
+| [Devin CLI](https://docs.devin.ai/cli/extensibility/skills/overview) | `.devin/skills/` |
+
+For a Devin cloud session, install an individual skill via **Customize → Skills** using its
+Markdown, or place it in the target checkout's `.devin/skills/` directory.
+Install or copy the skills you need; there's no requirement to run BoomTick's setup first.
+
 ---
 
 ## Core Standards
