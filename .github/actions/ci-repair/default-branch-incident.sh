@@ -11,16 +11,18 @@ if [[ "$event" != push || ( "$conclusion" != failure && "$conclusion" != success
   exit 0
 fi
 
-# workflow_run delivery and concurrency scheduling are not ordered by CI run number.
+# A late event can replace a newer pending handler in the concurrency group.
+# Reconcile the newest decisive result even if its own handler never runs.
 for status in success failure; do
   latest=$(gh api --method GET "repos/$repo/actions/workflows/$workflow_id/runs" \
     -f branch="$branch" -f event=push -f status="$status" -F per_page=1 \
-    --jq '.workflow_runs[0] // empty | [.run_number, .run_attempt] | @tsv')
+    --jq '.workflow_runs[0] // empty | [.run_number, .run_attempt, .id, .head_sha, .html_url] | @tsv')
   if [[ -n "$latest" ]]; then
-    read -r latest_number latest_attempt <<< "$latest"
+    read -r latest_number latest_attempt latest_id latest_sha latest_url <<< "$latest"
     if (( latest_number > number || (latest_number == number && latest_attempt > attempt) )); then
-      echo "Ignoring superseded CI run $run_id (attempt $attempt)."
-      exit 0
+      echo "Using CI run $latest_id (attempt $latest_attempt) instead of superseded run $run_id (attempt $attempt)."
+      read -r number attempt run_id sha url <<< "$latest"
+      conclusion="$status"
     fi
   fi
 done
