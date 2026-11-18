@@ -19,7 +19,7 @@ import {
 
 export { RepoContextInputSchema };
 
-export interface AgentContext {
+interface AgentContext {
   packageName: string;
   gitCommit: string;
   config: Record<string, unknown>;

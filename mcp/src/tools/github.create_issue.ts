@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { resolveRepo } from "../lib/git.js";
+import { resolveRepo } from "../lib/gitRemote.js";
 import { runTDCli } from "../lib/tdCli.js";
 import { CreateIssueInputSchema, CreateIssueResponseSchema } from "./contract.js";
 import { normalizeTdIssue } from "./github.issue.js";

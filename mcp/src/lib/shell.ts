@@ -6,7 +6,7 @@ import fs from "fs";
 // Commands tools actually invoke: version control and td/gh entry
 // points, plus the JS/Python test runners reachable via
 // repo_test. No shell builtins, no file destructive ops.
-export const ALLOWED_COMMANDS = {
+const ALLOWED_COMMANDS = {
   git: "git",
   gh: "gh",
   td: "td",
@@ -15,7 +15,7 @@ export const ALLOWED_COMMANDS = {
   python3: "python3"
 } as const;
 
-export type AllowedCommand = keyof typeof ALLOWED_COMMANDS;
+type AllowedCommand = keyof typeof ALLOWED_COMMANDS;
 
 // Resolved td binary, computed once per process. The .venv probes
 // hit the filesystem, so cache the winner instead of re-probing on
