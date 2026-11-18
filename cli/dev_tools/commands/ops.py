@@ -107,7 +107,21 @@ def preflight(ctx, base):
     base = base or get_config().base_branch_name
     orch = ctx.obj["ORCHESTRATOR"]
     res = orch.run_preflight(base_branch=base)
+    if _preflight_has_errors(res):
+        out(ctx, "❌ Preflight checks failed.", data=res)
+        ctx.exit(1)
     out(ctx, "✅ Preflight check complete.", data=res)
+
+
+def _preflight_has_errors(report):
+    """Check all sections, including errors not reflected in the overall status."""
+    if isinstance(report, dict):
+        return report.get("status") == "error" or any(
+            _preflight_has_errors(value) for value in report.values()
+        )
+    if isinstance(report, list):
+        return any(_preflight_has_errors(value) for value in report)
+    return False
 
 
 @cli.command()

@@ -1,6 +1,7 @@
 """Unit tests for AST chunking, BM25 vector store indexing, and code intelligence services."""
 
 import importlib.util
+import json
 import pytest
 from click.testing import CliRunner
 from dev_tools.cli import cli
@@ -145,22 +146,33 @@ def test_orchestrator_preflight_skips_missing_scripts(tmp_path, mocker):
     assert res["lint"] == {"status": "skipped", "reason": "script not in package.json"}
 
 
-def test_preflight_cli_command(mocker):
+@pytest.mark.parametrize("json_output", [True, False])
+@pytest.mark.parametrize(
+    "report,exit_code",
+    [
+        ({"status": "success"}, 0),
+        ({}, 0),
+        ({"status": "warning", "doctor": {"status": "warning"}}, 0),
+        ({"status": "success", "lint": {"status": "skipped"}}, 0),
+        ({"status": "error", "lint": {"status": "error", "exit_code": 1}}, 1),
+        ({"status": "success", "doctor": {"status": "error"}}, 1),
+        ({"status": "success", "overlaps": [{"status": "error"}]}, 1),
+    ],
+)
+def test_preflight_cli_command(mocker, json_output, report, exit_code):
     """Test running the td preflight CLI command via click runner."""
     mocker.patch(
         "dev_tools.orchestrator.Orchestrator.run_preflight",
-        return_value={
-            "status": "success",
-            "doctor": {"status": "success"},
-            "typecheck": {"status": "success"},
-            "lint": {"status": "success"},
-            "audit": {"violations": {}},
-            "overlaps": [],
-            "merge_simulation": {"status": "clean", "base": "main"},
-        },
+        return_value=report,
     )
 
     runner = CliRunner()
-    result = runner.invoke(cli, ["preflight"])
-    assert result.exit_code == 0
-    assert "success" in result.output or "Preflight" in result.output
+    result = runner.invoke(cli, ["--json" if json_output else "--no-json", "preflight"])
+    assert result.exit_code == exit_code
+    if json_output:
+        assert json.loads(result.output) == {"status": "success", **report}
+    elif exit_code:
+        assert "❌ Preflight checks failed." in result.output
+        assert "✅" not in result.output
+    else:
+        assert "✅ Preflight check complete." in result.output
