@@ -22,7 +22,7 @@ runs:
   using: 'composite'
   steps:
     - name: Setup Workspace
-      uses: arii/boomtick/.github/actions/setup-workspace@cli-v0.20.2 # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
+      uses: arii/boomtick/.github/actions/setup-workspace@3e970a570aee0a550ec6409de769c201c9a5b900 # boomtick main (cli-v0.20.2 + unreleased fixes) # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
 
     - name: Pre-flight Validations
       id: validate

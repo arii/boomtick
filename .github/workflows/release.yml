@@ -101,7 +101,7 @@ jobs:
           fetch-depth: 0
 
       - name: Setup Environment
-        uses: arii/boomtick/.github/actions/setup-workspace@cli-v0.20.2 # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
+        uses: arii/boomtick/.github/actions/setup-workspace@3e970a570aee0a550ec6409de769c201c9a5b900 # boomtick main (cli-v0.20.2 + unreleased fixes) # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
         with:
           setup-python: 'true'
 
@@ -182,7 +182,7 @@ jobs:
 
       - name: Set up Docker Buildx and Registry Login
         if: (steps.determine_target.outputs.target == 'all' || steps.determine_target.outputs.target == 'cli') && (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && steps.determine_target.outputs.dry_run == 'false'))
-        uses: arii/boomtick/.github/actions/setup-docker-buildx@cli-v0.20.2 # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
+        uses: arii/boomtick/.github/actions/setup-docker-buildx@3e970a570aee0a550ec6409de769c201c9a5b900 # boomtick main (cli-v0.20.2 + unreleased fixes) # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
         with:
           login: 'true'
           password: ${{ secrets.GITHUB_TOKEN }}
