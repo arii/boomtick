@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
+import { config } from "../config.js";
 import { runCommand, ShellResult } from "../lib/shell.js";
 import { RepoTestInputSchema } from "./contract.js";
 
@@ -30,7 +31,7 @@ export async function repoTestHandler(args: z.input<typeof RepoTestInputSchema>)
   const parsed = RepoTestInputSchema.parse(args ?? {});
   let commands = parsed.commands;
   if (!commands) {
-    const packageJsonPath = path.join(parsed.worktreePath ?? process.cwd(), "package.json");
+    const packageJsonPath = path.join(parsed.worktreePath || config.repoPath, "package.json");
     const pkg = JSON.parse(await readFile(packageJsonPath, "utf-8"));
     commands = [
       "pnpm install --frozen-lockfile",
