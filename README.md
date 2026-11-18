@@ -55,6 +55,7 @@ Boomtick uses a direct standalone package, container, and composite action integ
 
 ## Documentation Index
 
+* [Reusable Agent Skills](.agents/README.md#installable-skills) — Install the GitHub Actions health check or BoomTick review setup in your agent.
 * [Developer Onboarding & Workflows](docs/onboarding.md) — Onboarding guide, codebase context, and collaboration workflows.
 * [Agent Contracts and Standards](.agents/AGENT_CONTRACT.md) — Invariant rules for autonomous agent behavior.
 * [Agent Workflows & MCP Protocol](.agents/README.md) — Tooling hierarchies (MCP → `td` → Bash) and enforcement rules.
