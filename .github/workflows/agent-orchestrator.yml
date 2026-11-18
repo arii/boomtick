@@ -176,6 +176,10 @@ jobs:
     runs-on: ubuntu-latest
     if: |
       (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'failure') ||
+      (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success' &&
+        github.event.workflow_run.event == 'push' &&
+        github.event.workflow_run.head_branch == github.event.repository.default_branch &&
+        github.event.workflow_run.head_repository.full_name == github.repository) ||
       (github.event_name == 'workflow_dispatch' && github.event.inputs.task_type == 'repair') ||
       (github.event_name == 'repository_dispatch' && github.event.action == 'repair')
     concurrency:
@@ -218,7 +222,8 @@ jobs:
         shell: bash
 
       - name: Run CI Repair
-        uses: arii/boomtick/.github/actions/ci-repair@3e970a570aee0a550ec6409de769c201c9a5b900 # boomtick main (cli-v0.20.2 + unreleased fixes) # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
+        # Use the action from this workflow's trusted checkout, never the triggering run's head.
+        uses: ./.github/actions/ci-repair
         with:
           mode: ${{ steps.determine_mode.outputs.mode }}
           issue_number: ${{ github.event.inputs.issue_number || github.event.client_payload.issue_number }}
