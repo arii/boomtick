@@ -3,7 +3,41 @@ import asyncio
 import httpx
 import pytest
 from test_gateway import REQUEST, reply, setup
-from twt.gateway import Gateway, create_app
+from twt.gateway import Gateway, create_app, upstream_cooldown
+
+
+@pytest.mark.parametrize("payload", [{}, {"error": "rate limited"}, {"error": {"metadata": {"limit_source": "openrouter_free_tier_daily", "headers": {"X-RateLimit-Reset": "invalid"}}}}])
+def test_missing_or_invalid_daily_reset_preserves_retry_after(payload):
+    assert upstream_cooldown(httpx.Response(429, headers={"Retry-After": "2"}), payload) == 2
+
+
+def test_explicit_daily_exhaustion_waits_until_reset_not_each_request(store, monkeypatch):
+    configuration = free_first(store, monkeypatch)
+    monkeypatch.setattr("twt.gateway.time.time", lambda: 1000)
+    calls = []
+    sleeps = []
+
+    async def sleep(delay):
+        sleeps.append(delay)
+
+    def handler(request):
+        calls.append(request.url.host)
+        if request.url.host == "p0.test":
+            return httpx.Response(429, json={"error": {"metadata": {
+                "limit_source": "openrouter_free_tier_daily",
+                "headers": {"X-RateLimit-Reset": "2000000"}
+            }}})
+        return httpx.Response(200, json=reply())
+
+    async def scenario():
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+            gateway = Gateway(store, client, configuration, sleep=sleep)
+            for _ in range(2):
+                assert (await gateway.complete(REQUEST))[1] == 200
+
+    asyncio.run(scenario())
+    assert calls == ["p0.test", "p1.test", "p1.test"]
+    assert sleeps == []
 
 
 def free_first(store, monkeypatch):

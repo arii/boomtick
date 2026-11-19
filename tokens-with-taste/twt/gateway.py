@@ -53,6 +53,20 @@ def trace_headers(trace):
     }
 
 
+def upstream_cooldown(response, payload):
+    delay = retry_seconds(response.headers.get("Retry-After"))
+    error = payload.get("error")
+    metadata = error.get("metadata") if isinstance(error, dict) else None
+    if isinstance(metadata, dict) and metadata.get("limit_source") == "openrouter_free_tier_daily":
+        fields = metadata.get("headers")
+        if isinstance(fields, dict):
+            try:
+                delay = max(delay, int(fields["X-RateLimit-Reset"]) / 1000 - time.time())
+            except (KeyError, ValueError, TypeError, OverflowError):
+                pass
+    return delay
+
+
 def error_response(message, status):
     return JSONResponse({"error": {"message": message}}, status_code=status)
 
@@ -188,6 +202,10 @@ class Gateway:
             trace["provider"] = provider["id"]
             trace["model"] = model["id"]
             attempt["request"] = {**body, "model": model["id"]}
+            if provider["id"] == "nebius" and model["id"].startswith("nvidia/NVIDIA-Nemotron-3-") and body.get("tools"):
+                attempt["request"]["chat_template_kwargs"] = {
+                    "enable_thinking": False, **body.get("chat_template_kwargs", {})
+                }
             request_start = self.clock()
             try:
                 response = await self.client.post(base_url(provider) + "/chat/completions",
@@ -205,7 +223,7 @@ class Gateway:
                         and attempt["prompt_tokens"] is not None and attempt["completion_tokens"] is not None):
                     attempt["cost_usd"] = attempt["prompt_tokens"] * model["input_price"] + attempt["completion_tokens"] * model["output_price"]
                 if response.status_code == 429:
-                    self.cooldowns[key] = max(self.cooldowns.get(key, 0), self.clock() + retry_seconds(response.headers.get("Retry-After")))
+                    self.cooldowns[key] = max(self.cooldowns.get(key, 0), self.clock() + upstream_cooldown(response, payload))
                     if model["free"] and key not in retried:
                         retried.add(key)
                         pending.appendleft(provider)
