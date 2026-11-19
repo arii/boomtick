@@ -3,6 +3,7 @@ import os
 import sys
 import json
 import importlib.util
+import subprocess
 import pytest
 
 # Dynamically import the hyphenated script file 'verify-scope.py'.
@@ -46,6 +47,229 @@ def test_exact_file_match():
     assert len(disallowed) == 0
 
 
+@pytest.mark.parametrize(
+    "branch,body,expected",
+    [
+        ("agent/issue-271", "", 0),
+        ("feature/fix", "Fixes #271", 0),
+        ("feature/fix", "Fixes: #271", 0),
+        ("feature/fix", "Fixes #272", 1),
+        ("feature/fix", "Fixes #271 and closes #272", 1),
+        ("feature/fix", "", 1),
+    ],
+)
+def test_ci_generated_spec_uses_linked_issue(
+    monkeypatch, tmp_path, branch, body, expected
+):
+    event = tmp_path / "event.json"
+    event.write_text(
+        json.dumps({"pull_request": {"head": {"ref": branch}, "body": body}})
+    )
+    monkeypatch.setenv("GITHUB_EVENT_PATH", str(event))
+    monkeypatch.delenv("GITHUB_HEAD_REF", raising=False)
+    monkeypatch.setattr(verify_scope, "check_override", lambda: False)
+    monkeypatch.setattr(
+        subprocess,
+        "run",
+        lambda *args, **kwargs: subprocess.CompletedProcess(
+            args[0], 0, json.dumps({"title": "Fix mcp/login.ts", "body": ""}), ""
+        ),
+    )
+    monkeypatch.setattr(
+        verify_scope, "get_changed_files", lambda *args: ["docs/specs/issue-271.md"]
+    )
+    monkeypatch.setattr(sys, "argv", ["verify-scope.py", "--strict-scope"])
+    with pytest.raises(SystemExit) as error:
+        verify_scope.main()
+    assert error.value.code == expected
+
+
+def test_ci_spec_allowance_follows_fetched_issue_not_branch(monkeypatch, tmp_path):
+    event = tmp_path / "event.json"
+    event.write_text(
+        json.dumps(
+            {
+                "pull_request": {
+                    "head": {"ref": "agent/issue-271"},
+                    "body": "Fixes: #272",
+                }
+            }
+        )
+    )
+    monkeypatch.setenv("GITHUB_EVENT_PATH", str(event))
+    monkeypatch.delenv("GITHUB_HEAD_REF", raising=False)
+    monkeypatch.setattr(verify_scope, "check_override", lambda: False)
+    monkeypatch.setattr(
+        subprocess,
+        "run",
+        lambda *args, **kwargs: subprocess.CompletedProcess(
+            args[0], 0, json.dumps({"title": "Fix mcp/login.ts"}), ""
+        ),
+    )
+    monkeypatch.setattr(
+        verify_scope, "get_changed_files", lambda *args: ["docs/specs/issue-271.md"]
+    )
+    monkeypatch.setattr(sys, "argv", ["verify-scope.py", "--strict-scope"])
+    with pytest.raises(SystemExit) as error:
+        verify_scope.main()
+    assert error.value.code == 1
+
+
+@pytest.mark.parametrize(
+    "branch,body,sidebar,expected",
+    [
+        ("agent/issue-271", "Background #272", [], {271}),
+        ("feature/fix", "Background #271", [], set()),
+        ("agent/issue-272", "Fixes: #271; background #273", [], {271}),
+        ("agent/issue-272", "Closes #271; background #273", [], {271}),
+        ("agent/issue-272", "Resolves: #271; background #273", [], {271}),
+        ("agent/issue-272", "Background #273", [271], {271}),
+        ("agent/issue-272", "Fixes #271", [274], set()),
+        ("agent/issue-271", "Fixes #272 and closes #273", [], set()),
+    ],
+)
+def test_spec_identity_priority_preserves_background_scope(
+    monkeypatch, tmp_path, branch, body, sidebar, expected
+):
+    event = tmp_path / "event.json"
+    event.write_text(
+        json.dumps(
+            {
+                "repository": {"full_name": "o/r"},
+                "pull_request": {"number": 999, "head": {"ref": branch}, "body": body},
+            }
+        )
+    )
+    monkeypatch.setenv("GITHUB_EVENT_PATH", str(event))
+    monkeypatch.delenv("GITHUB_HEAD_REF", raising=False)
+    fetched = set()
+
+    def run(args, **kwargs):
+        if args[:3] == ["gh", "pr", "view"]:
+            payload = {
+                "closingIssuesReferences": [
+                    {"number": n, "url": f"https://github.com/o/r/issues/{n}"}
+                    for n in sidebar
+                ]
+            }
+        else:
+            fetched.add(int(args[3]))
+            payload = {"title": f"Fix source{args[3]}.py", "body": ""}
+        return subprocess.CompletedProcess(args, 0, json.dumps(payload), "")
+
+    monkeypatch.setattr(subprocess, "run", run)
+    resolved = set()
+    text = verify_scope.fetch_issue_description(resolved_issues=resolved)
+    assert resolved == expected
+    for number in set(verify_scope.re.findall(r"#(\d+)", body)):
+        assert int(number) in fetched
+        assert f"source{number}.py" in text
+    for number in [271, 272, 273, 274]:
+        passed, _, _ = verify_scope.check_scope(
+            [f"docs/specs/issue-{number}.md"],
+            text,
+            issue=verify_scope.submitted_issue_number(resolved),
+        )
+        assert passed == (number in expected)
+
+
+def test_ci_sidebar_link_supplies_scope_and_spec_identity(monkeypatch, tmp_path):
+    event = tmp_path / "event.json"
+    event.write_text(
+        json.dumps(
+            {
+                "repository": {"full_name": "o/r"},
+                "pull_request": {
+                    "number": 999,
+                    "head": {"ref": "feature/fix"},
+                    "body": "Small change",
+                },
+            }
+        )
+    )
+    monkeypatch.setenv("GITHUB_EVENT_PATH", str(event))
+    monkeypatch.delenv("GITHUB_HEAD_REF", raising=False)
+    monkeypatch.setattr(verify_scope, "check_override", lambda: False)
+    calls = []
+
+    def run(args, **kwargs):
+        calls.append(args)
+        payload = (
+            {
+                "closingIssuesReferences": [
+                    {"number": 271, "url": "https://github.com/o/r/issues/271"}
+                ]
+            }
+            if args[:3] == ["gh", "pr", "view"]
+            else {"title": "Fix mcp/login.ts", "body": ""}
+        )
+        return subprocess.CompletedProcess(args, 0, json.dumps(payload), "")
+
+    monkeypatch.setattr(subprocess, "run", run)
+    monkeypatch.setattr(
+        verify_scope,
+        "get_changed_files",
+        lambda *args: ["docs/specs/issue-271.md", "mcp/login.ts"],
+    )
+    monkeypatch.setattr(sys, "argv", ["verify-scope.py", "--strict-scope"])
+    with pytest.raises(SystemExit) as error:
+        verify_scope.main()
+    assert error.value.code == 0
+    assert any(args[:4] == ["gh", "issue", "view", "271"] for args in calls)
+
+
+@pytest.mark.parametrize(
+    "body,code,expected",
+    [("Fixes: #271", 0, {271}), ("Fixes: #271", 1, set()), ("No links", 0, set())],
+)
+def test_spec_identity_records_only_successfully_loaded_issues(
+    monkeypatch, body, code, expected
+):
+    monkeypatch.setattr(
+        subprocess,
+        "run",
+        lambda *args, **kwargs: subprocess.CompletedProcess(
+            args[0], code, json.dumps({"title": "Fix mcp/login.ts"}), ""
+        ),
+    )
+    resolved = set()
+    verify_scope.fetch_issue_description(issue_body=body, resolved_issues=resolved)
+    assert resolved == expected
+
+
+def test_explicit_issue_number_supplies_scope_identity(monkeypatch):
+    monkeypatch.delenv("GITHUB_EVENT_PATH", raising=False)
+    monkeypatch.setattr(
+        subprocess,
+        "run",
+        lambda *args, **kwargs: subprocess.CompletedProcess(
+            args[0], 0, json.dumps({"title": "Fix mcp/login.ts"}), ""
+        ),
+    )
+    resolved = set()
+    text = verify_scope.fetch_issue_description(
+        issue_number=271, resolved_issues=resolved
+    )
+    assert resolved == {271}
+    assert "mcp/login.ts" in text
+
+
+def test_unavailable_sidebar_metadata_keeps_pr_scope(monkeypatch):
+    def unavailable(*args, **kwargs):
+        raise OSError("gh unavailable")
+
+    monkeypatch.setattr(subprocess, "run", unavailable)
+    text, numbers, issue = verify_scope.event_scope_context(
+        {
+            "repository": {"full_name": "o/r"},
+            "pull_request": {"number": 999, "body": "Fix mcp/login.ts"},
+        }
+    )
+    assert "mcp/login.ts" in text
+    assert numbers == set()
+    assert issue is None
+
+
 def test_out_of_scope_file_blocked():
     issue_text = "Fix a bug in .github/workflows/release.yml related to Docker buildx."
     # publish-runner.yml is NOT mentioned and is unrelated
@@ -60,6 +284,25 @@ def test_out_of_scope_file_blocked():
     assert len(allowed) == 1
     assert len(disallowed) == 1
     assert disallowed[0] == ".github/workflows/publish-runner.yml"
+
+
+def test_ci_changed_files_include_both_rename_sides(tmp_path, monkeypatch):
+    def git(*args):
+        subprocess.run(["git", *args], cwd=tmp_path, check=True, capture_output=True)
+
+    git("init", "-q", "-b", "main")
+    git("config", "user.name", "Test")
+    git("config", "user.email", "test@example.invalid")
+    (tmp_path / "unrelated.md").write_text("unrelated content\n")
+    git("add", "unrelated.md")
+    git("commit", "-qm", "base")
+    (tmp_path / "docs/specs").mkdir(parents=True)
+    git("mv", "unrelated.md", "docs/specs/issue-271.md")
+    monkeypatch.chdir(tmp_path)
+    assert verify_scope.get_changed_files("HEAD") == [
+        "docs/specs/issue-271.md",
+        "unrelated.md",
+    ]
 
 
 def test_exempt_configuration_files():

@@ -70,6 +70,93 @@ def test_happy_path_in_scope(worktree):
     assert res["files"] == ["mcp/login.ts"]
 
 
+def test_generated_spec_for_submitted_issue_is_in_scope(worktree):
+    spec = worktree / "docs/specs/issue-271.md"
+    spec.parent.mkdir(parents=True)
+    spec.write_text("# Generated specification\n")
+    real_run = sp._run
+
+    def router(args, cwd):
+        if args[:2] == ["git", "push"] or args[0] == "gh":
+            return _router(_ok_push_pr())(args, cwd)
+        return real_run(args, cwd)
+
+    with patch.object(sp, "_run", side_effect=router):
+        res = sp.submit(
+            str(worktree), "Fix login", "", "main", True, None, ISSUE, issue=271
+        )
+    assert res["status"] == "submitted"
+    assert res["scope"]["checked"] is True
+    assert res["scope"]["skipped"] is False
+    assert res["scope"]["disallowed"] == []
+    assert res["scope"]["allowed"] == ["docs/specs/issue-271.md", "mcp/login.ts"]
+
+
+@pytest.mark.parametrize(
+    "unrelated",
+    [
+        "docs/specs/issue-272.md",
+        "other/issue-271.md",
+        "other/docs/specs/issue-271.md",
+        "docs/specs/issue-271.md.bak",
+        "docs/specs/issue-271-extra.md",
+        "docs/specs/issue-271/helpers.py",
+        "billing/unrelated.ts",
+    ],
+)
+def test_generated_spec_does_not_broaden_scope(worktree, unrelated):
+    for path in ("docs/specs/issue-271.md", unrelated):
+        target = worktree / path
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text("generated\n")
+    real_run = sp._run
+
+    def router(args, cwd):
+        if args[:2] == ["git", "push"] or args[0] == "gh":
+            raise AssertionError("must not push out-of-scope files")
+        return real_run(args, cwd)
+
+    with (
+        patch.object(sp, "_run", side_effect=router),
+        pytest.raises(sp.SubmitError, match="Out-of-scope") as error,
+    ):
+        sp.submit(str(worktree), "T", "", "main", True, None, ISSUE, issue=271)
+    assert str(error.value) == "Out-of-scope files for this issue: " + unrelated
+
+
+@pytest.mark.parametrize("issue", [None, 0, -1, True, "271"])
+def test_generated_spec_requires_a_positive_integer_issue(worktree, issue):
+    spec = worktree / "docs/specs/issue-271.md"
+    spec.parent.mkdir(parents=True)
+    spec.write_text("generated\n")
+    with pytest.raises(sp.SubmitError, match="docs/specs/issue-271.md"):
+        sp.submit(str(worktree), "T", "", "main", True, None, ISSUE, issue=issue)
+
+
+def test_rename_into_generated_spec_checks_deleted_source(worktree):
+    _git(["checkout", "-q", "main"], worktree)
+    source = worktree / "billing/secret.md"
+    source.parent.mkdir()
+    source.write_text("unrelated content\n")
+    _git(["add", "billing/secret.md"], worktree)
+    _git(["commit", "-qm", "base content"], worktree)
+    _git(["checkout", "-qb", "rename-issue-spec"], worktree)
+    (worktree / "docs/specs").mkdir(parents=True)
+    _git(["mv", "billing/secret.md", "docs/specs/issue-271.md"], worktree)
+    real_run = sp._run
+
+    def router(args, cwd):
+        if args[:2] == ["git", "push"] or args[0] == "gh":
+            raise AssertionError("must not push an out-of-scope deletion")
+        return real_run(args, cwd)
+
+    with (
+        patch.object(sp, "_run", side_effect=router),
+        pytest.raises(sp.SubmitError, match="billing/secret.md"),
+    ):
+        sp.submit(str(worktree), "T", "", "main", True, None, ISSUE, issue=271)
+
+
 def test_scope_violation_refuses(worktree):
     (worktree / "billing").mkdir()
     (worktree / "billing" / "unrelated.ts").write_text("x\n")

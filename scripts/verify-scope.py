@@ -50,7 +50,7 @@ def get_changed_files(base_branch=None):
 
     # Try diffing directly against base branch (compares base branch commit to the working directory)
     res = subprocess.run(
-        ["git", "diff", "--name-only", base_branch],
+        ["git", "diff", "--name-only", "--no-renames", base_branch],
         capture_output=True,
         text=True,
         check=False,
@@ -60,7 +60,7 @@ def get_changed_files(base_branch=None):
     else:
         # Fallback to main
         res = subprocess.run(
-            ["git", "diff", "--name-only", "main"],
+            ["git", "diff", "--name-only", "--no-renames", "main"],
             capture_output=True,
             text=True,
             check=False,
@@ -70,7 +70,7 @@ def get_changed_files(base_branch=None):
         else:
             # Fallback to HEAD~1 to catch local changes if base branches are not available
             res = subprocess.run(
-                ["git", "diff", "--name-only", "HEAD~1"],
+                ["git", "diff", "--name-only", "--no-renames", "HEAD~1"],
                 capture_output=True,
                 text=True,
                 check=False,
@@ -79,7 +79,7 @@ def get_changed_files(base_branch=None):
                 files.update(f.strip() for f in res.stdout.splitlines() if f.strip())
             else:
                 res = subprocess.run(
-                    ["git", "diff", "--name-only"],
+                    ["git", "diff", "--name-only", "--no-renames"],
                     capture_output=True,
                     text=True,
                     check=False,
@@ -101,14 +101,16 @@ def get_changed_files(base_branch=None):
     return sorted(list(files))
 
 
-def fetch_linked_issue_bodies(text: str, fetched_nums=None) -> str:
+def fetch_linked_issue_bodies(
+    text: str, fetched_nums=None, *, resolved_issues=None, issue_numbers=()
+) -> str:
     """Find issue numbers like #123, Fixes #123 in text and fetch their descriptions."""
     if fetched_nums is None:
         fetched_nums = set()
 
     extra_texts = []
     # Find patterns like #123 or fixes #123
-    issue_refs = set(re.findall(r"#(\d+)", text))
+    issue_refs = set(re.findall(r"#(\d+)", text)) | {str(n) for n in issue_numbers}
     for num in issue_refs:
         if num in fetched_nums:
             continue
@@ -125,6 +127,8 @@ def fetch_linked_issue_bodies(text: str, fetched_nums=None) -> str:
                 title = data.get("title", "")
                 body = data.get("body", "")
                 extra_texts.append(f"\n--- Linked Issue #{num} ---\n{title}\n\n{body}")
+                if resolved_issues is not None:
+                    resolved_issues.add(int(num))
         except Exception as e:
             print(f"verify-scope: linked issue #{num} unreadable: {e}", file=sys.stderr)
 
@@ -133,8 +137,80 @@ def fetch_linked_issue_bodies(text: str, fetched_nums=None) -> str:
     return text
 
 
-def fetch_issue_description(issue_file=None, issue_body=None, issue_number=None):
+def pr_linked_issue_numbers(pr_number, repository):
+    numbers = set()
+    repo = repository.get("full_name")
+    if not pr_number or not repo:
+        return numbers
+    try:
+        result = subprocess.run(
+            [
+                "gh",
+                "pr",
+                "view",
+                str(pr_number),
+                "--repo",
+                repo,
+                "--json",
+                "closingIssuesReferences",
+            ],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if result.returncode == 0:
+            for linked in json.loads(result.stdout).get("closingIssuesReferences", []):
+                number = linked.get("number")
+                repo_url = repository.get("html_url", f"https://github.com/{repo}")
+                if (
+                    isinstance(number, int)
+                    and not isinstance(number, bool)
+                    and number > 0
+                    and linked.get("url") == f"{repo_url}/issues/{number}"
+                ):
+                    numbers.add(number)
+    except (OSError, ValueError, TypeError, AttributeError) as exc:
+        print(f"verify-scope: PR issue links unreadable: {exc}", file=sys.stderr)
+    return numbers
+
+
+def closing_issue_numbers(text):
+    return {
+        int(number)
+        for number in re.findall(
+            r"\b(?:fix(?:es|ed)?|close[sd]?|resolve[sd]?)(?:\s*:\s*|\s+)#([1-9][0-9]*)\b",
+            text,
+            re.IGNORECASE,
+        )
+    }
+
+
+def event_scope_context(event):
+    pr = event.get("pull_request", {})
+    issue = event.get("issue", {})
+    body = pr.get("body") or issue.get("body") or ""
+    title = pr.get("title") or issue.get("title") or ""
+    text = f"{title}\n\n{body}" if title or body else ""
+    numbers = closing_issue_numbers(text) if pr else set()
+    numbers.update(
+        pr_linked_issue_numbers(pr.get("number"), event.get("repository", {}))
+    )
+    if pr and not numbers:
+        head = os.environ.get("GITHUB_HEAD_REF") or pr.get("head", {}).get("ref", "")
+        match = re.fullmatch(r"agent/issue-([1-9][0-9]*)", head)
+        if match:
+            numbers.add(int(match[1]))
+    return text, numbers, issue.get("number") if not pr and text else None
+
+
+def fetch_issue_description(
+    issue_file=None, issue_body=None, issue_number=None, *, resolved_issues=None
+):
     raw_text = None
+    linked_numbers = set()
+    candidates = set()
+    fetched_issues = set()
+    resolved_issues = resolved_issues if resolved_issues is not None else set()
 
     if issue_body:
         raw_text = issue_body
@@ -143,6 +219,9 @@ def fetch_issue_description(issue_file=None, issue_body=None, issue_number=None)
         with open(issue_file, "r", encoding="utf-8") as f:
             raw_text = f.read()
 
+    if raw_text:
+        candidates.update(closing_issue_numbers(raw_text))
+
     # Check GITHUB_EVENT_PATH
     if not raw_text:
         event_path = os.environ.get("GITHUB_EVENT_PATH")
@@ -150,21 +229,16 @@ def fetch_issue_description(issue_file=None, issue_body=None, issue_number=None)
             try:
                 with open(event_path, "r", encoding="utf-8") as f:
                     event = json.load(f)
-                pr = event.get("pull_request", {})
-                body = pr.get("body") or ""
-                title = pr.get("title") or ""
-
-                issue = event.get("issue", {})
-                body = body or issue.get("body") or ""
-                title = title or issue.get("title") or ""
-
-                if body or title:
-                    raw_text = f"{title}\n\n{body}"
+                raw_text, linked_numbers, event_issue = event_scope_context(event)
+                candidates.update(linked_numbers)
+                if event_issue:
+                    candidates.add(event_issue)
+                    fetched_issues.add(event_issue)
             except Exception as e:
                 print(f"verify-scope: event payload unreadable: {e}", file=sys.stderr)
 
     # Try using gh CLI if issue_number is provided
-    if not raw_text and issue_number:
+    if not raw_text and not linked_numbers and issue_number:
         try:
             res = subprocess.run(
                 ["gh", "issue", "view", str(issue_number), "--json", "title,body"],
@@ -175,13 +249,15 @@ def fetch_issue_description(issue_file=None, issue_body=None, issue_number=None)
             if res.returncode == 0:
                 data = json.loads(res.stdout)
                 raw_text = f"{data.get('title', '')}\n\n{data.get('body', '')}"
+                candidates.add(issue_number)
+                fetched_issues.add(issue_number)
         except Exception as e:
             print(
                 f"verify-scope: issue #{issue_number} unreadable: {e}", file=sys.stderr
             )
 
     # Try looking for task_description.md or similar files in workspace
-    if not raw_text:
+    if not raw_text and not linked_numbers:
         for fallback_path in [
             "task_description.md",
             "issue_description.md",
@@ -190,10 +266,18 @@ def fetch_issue_description(issue_file=None, issue_body=None, issue_number=None)
             if os.path.exists(fallback_path):
                 with open(fallback_path, "r", encoding="utf-8") as f:
                     raw_text = f.read()
+                    candidates.update(closing_issue_numbers(raw_text))
                     break
 
-    if raw_text:
-        raw_text = fetch_linked_issue_bodies(raw_text)
+    if raw_text or linked_numbers:
+        raw_text = fetch_linked_issue_bodies(
+            raw_text or "",
+            resolved_issues=fetched_issues,
+            issue_numbers=linked_numbers,
+        )
+
+    if len(candidates) == 1:
+        resolved_issues.update(candidates & fetched_issues)
 
     return raw_text
 
@@ -291,6 +375,10 @@ def check_override():
     return False
 
 
+def submitted_issue_number(resolved_issues):
+    return next(iter(resolved_issues)) if len(resolved_issues) == 1 else None
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="Verify that modified files are within the direct scope of the reported issue."
@@ -322,8 +410,12 @@ def main():
         print("⚠️ Scope verification bypassed via explicit override.")
         sys.exit(0)
 
+    resolved_issues = set()
     issue_text = fetch_issue_description(
-        args.issue_file, args.issue_body, args.issue_number
+        args.issue_file,
+        args.issue_body,
+        args.issue_number,
+        resolved_issues=resolved_issues,
     )
     changed_files = get_changed_files(args.base_branch)
 
@@ -338,7 +430,9 @@ def main():
         )
         sys.exit(0)
 
-    success, allowed, disallowed = check_scope(changed_files, issue_text)
+    success, allowed, disallowed = check_scope(
+        changed_files, issue_text, issue=submitted_issue_number(resolved_issues)
+    )
 
     print("\n--- Scope Verification Report ---")
     print(f"Total files checked: {len(changed_files)}")
