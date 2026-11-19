@@ -237,8 +237,14 @@ def verify_scope_gate(ctx, spec_file, worktree, auto_revert):
         for entry in forbidden:
             norm = entry.strip().lower().lstrip("./")
             forbidden_norm.add(norm)
+        allowed_norm = {
+            os.path.normpath(entry).lower()
+            for entry in _spec_backtick_paths(spec_text, "allowed files", "allowed")
+        }
         for path in changed:
-            lowered = path.lower()
+            lowered = os.path.normpath(path).lower()
+            if lowered in allowed_norm:
+                continue
             if any(
                 lowered == norm or lowered.endswith("/" + norm)
                 for norm in forbidden_norm

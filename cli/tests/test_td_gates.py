@@ -76,6 +76,33 @@ def test_forbidden_paths_without_explicit_allowlist_still_apply():
     assert _spec_backtick_paths("", "forbidden files") == []
 
 
+def test_explicit_allowed_path_wins_over_exception_basename(tmp_path):
+    root = _worktree(tmp_path)
+    for directory in ("deep-agent", "other"):
+        source = root / directory / "deep_chat.py"
+        source.parent.mkdir()
+        source.write_text("before\n")
+    _git(root, "add", "deep-agent/deep_chat.py", "other/deep_chat.py")
+    _git(root, "commit", "-qm", "baseline")
+    _git(root, "fetch", "-q", "origin")
+    source = root / "deep-agent" / "deep_chat.py"
+    source.write_text("after\n")
+    body = VALID_SPEC.replace("src/widget.py", "./DEEP-AGENT/deep_chat.py").replace(
+        "- `src/admin.py`", "- `deep-agent/` modules other than `deep_chat.py`"
+    )
+    path = tmp_path / "issue-1359.md"
+    path.write_text(body)
+    args = ["verify-scope", "--spec-file", str(path), "--worktree", str(root)]
+    result = CliRunner().invoke(cli, args)
+    assert result.exit_code == 0, result.output
+    assert json.loads(result.output)["violations"] == []
+
+    (root / "other" / "deep_chat.py").write_text("after\n")
+    result = CliRunner().invoke(cli, args)
+    assert result.exit_code == 1, result.output
+    assert json.loads(result.output)["violations"] == ["other/deep_chat.py"]
+
+
 def test_allowed_precedence_normalizes_path_spelling():
     body = (
         "### Allowed Files\n- `./deep-agent/deep_chat.py`\n"
