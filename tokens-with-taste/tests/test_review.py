@@ -155,7 +155,7 @@ def test_known_cost_survives_incomplete_waterfall(store, monkeypatch, first_usag
     trace = store.trace(headers["X-Trace-Id"])
     assert trace["known_cost_usd"] == pytest.approx(expected)
     assert trace["cost_complete"] is complete
-    assert store.spend_today() == pytest.approx(expected)
+    assert store.spend_today() == pytest.approx(expected if complete else float("inf"))
     if complete:
         assert float(headers["X-Cost-Usd"]) == pytest.approx(expected)
     else:
