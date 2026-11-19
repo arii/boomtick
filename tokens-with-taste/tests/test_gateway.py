@@ -77,6 +77,74 @@ def test_failover(store, monkeypatch, failure):
     assert "test-only-placeholder" not in json.dumps(trace)
 
 
+@pytest.mark.parametrize("choices", [
+    [],
+    [{"message": {}}],
+    [{"message": {"role": "assistant"}}],
+    [{"message": {"role": "assistant", "content": None, "tool_calls": []}}],
+    [{"message": {"role": "assistant", "content": ""}}],
+    [{"message": {"role": "assistant", "content": " \n"}}],
+    [{"message": {"role": "assistant", "content": 42, "tool_calls": {}}}],
+    [{"message": {"role": "assistant", "content": None, "function_call": {}}}],
+])
+@pytest.mark.parametrize("later_succeeds", [True, False])
+def test_empty_assistant_response_falls_through(store, monkeypatch, choices, later_succeeds):
+    configuration = setup(store, monkeypatch)
+    invalid = {**reply(), "choices": choices}
+    sent = []
+
+    def handler(request):
+        sent.append(request.url.host)
+        valid = request.url.host == "p1.test" and later_succeeds
+        return httpx.Response(200, json=reply() if valid else invalid)
+
+    payload, status, headers = run(store, configuration, handler)
+    assert sent == ["p0.test", "p1.test"]
+    trace = store.trace(headers["X-Trace-Id"])
+    reason = ("upstream assistant message has no content, tool_calls or function_call" if choices
+              else "invalid upstream chat response")
+    assert trace["attempts"][0]["reason"] == reason
+    assert trace["attempts"][0]["response"] == invalid
+    assert all(a["called"] and a["http_status"] == 200 for a in trace["attempts"])
+    assert trace["cost_complete"] is True
+    assert trace["cost_usd"] == pytest.approx(.10)
+    if later_succeeds:
+        assert status == 200 and payload == reply()
+        assert headers["X-Provider-Used"] == "p1"
+        assert trace["attempts"][1]["reason"] == "success"
+    else:
+        assert status == 502
+        assert payload["error"]["type"] == "no_provider_available"
+        assert reason in payload["error"]["message"]
+        assert trace["attempts"][1]["reason"] == reason
+
+
+@pytest.mark.parametrize("content", [None, "", " \n"])
+def test_tool_only_assistant_response_succeeds(store, monkeypatch, content):
+    configuration = setup(store, monkeypatch)
+    expected = reply(tool={"name": "lookup", "arguments": "{}"})
+    expected["choices"][0]["message"]["content"] = content
+    payload, status, headers = run(store, configuration, lambda r: httpx.Response(200, json=expected))
+    assert status == 200 and payload == expected
+    attempts = store.trace(headers["X-Trace-Id"])["attempts"]
+    assert len(attempts) == 1 and attempts[0]["reason"] == "success"
+
+
+@pytest.mark.parametrize("content", [None, "", " \n"])
+def test_legacy_function_call_response_succeeds(store, monkeypatch, content):
+    configuration = setup(store, monkeypatch)
+    expected = reply(finish="function_call")
+    expected["choices"][0]["message"] = {
+        "role": "assistant", "content": content,
+        "function_call": {"name": "lookup", "arguments": "{}"},
+    }
+    payload, status, headers = run(store, configuration, lambda r: httpx.Response(200, json=expected))
+    assert status == 200 and payload == expected
+    assert headers["X-Provider-Used"] == "p0"
+    attempts = store.trace(headers["X-Trace-Id"])["attempts"]
+    assert len(attempts) == 1 and attempts[0]["reason"] == "success"
+
+
 @pytest.mark.parametrize("status", [400, 401, 403, 404])
 def test_non_retryable_error(store, monkeypatch, status):
     configuration = setup(store, monkeypatch)
