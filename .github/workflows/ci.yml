@@ -56,6 +56,26 @@ permissions:
   actions: read
 
 jobs:
+  tokens-with-taste:
+    name: Tokens with Taste (Python 3.11)
+    runs-on: ubuntu-latest
+    if: github.event_name != 'workflow_run'
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: tokens-with-taste
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.ref || github.ref }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+          cache-dependency-path: tokens-with-taste/pyproject.toml
+      - run: python -m pip install '.[test]'
+      - run: python -m pytest -v
+
   verify-dependencies:
     name: Verify Dependencies via Dynamic Path
     runs-on: ubuntu-latest
