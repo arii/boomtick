@@ -186,6 +186,12 @@ class Gateway:
                         or any(not isinstance(c, dict) or not isinstance(c.get("message"), dict) for c in payload["choices"])):
                     attempt["reason"] = "invalid upstream chat response"
                     continue
+                if any(not (
+                        (isinstance(c["message"].get("content"), str) and c["message"]["content"].strip())
+                        or (isinstance(c["message"].get("tool_calls"), list) and c["message"]["tool_calls"])
+                        ) for c in payload["choices"]):
+                    attempt["reason"] = "upstream assistant message has no content or tool_calls"
+                    continue
                 attempt["reason"] = "success"
                 trace.update(usage(payload))
                 trace.update(provider=provider["id"], model=model["id"], http_status=response.status_code)
