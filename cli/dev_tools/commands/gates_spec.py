@@ -50,14 +50,6 @@ def _spec_backtick_paths(body, *headings):
             path = path.strip()
             if path and path not in paths:
                 paths.append(path)
-    if {heading.lower() for heading in headings} & {"forbidden files", "forbidden"}:
-        allowed = {
-            os.path.normpath(path).lower()
-            for path in _spec_backtick_paths(body, "allowed files", "allowed")
-        }
-        paths = [
-            path for path in paths if os.path.normpath(path).lower() not in allowed
-        ]
     return paths
 
 
@@ -129,7 +121,15 @@ def validate_issue_spec(ctx, file, repo_root):
         missing = spec.missing_headers(body)
         scope = spec.scope_status(title + "\n" + body, root)
         forbidden_files = _spec_backtick_paths(body, "forbidden files", "forbidden")
-        forbidden_lower = {p.lower() for p in forbidden_files}
+        allowed_norm = {
+            os.path.normpath(path).lower()
+            for path in _spec_backtick_paths(body, "allowed files", "allowed")
+        }
+        forbidden_lower = {
+            p.lower()
+            for p in forbidden_files
+            if os.path.normpath(p).lower() not in allowed_norm
+        }
         actual = set()
         actual_dirs = set()
         for dirpath, dirnames, filenames in os.walk(root):

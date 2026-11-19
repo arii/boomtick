@@ -62,7 +62,7 @@ def test_1359_allowed_file_body_constraints_do_not_forbid_whole_file(tmp_path):
     path = tmp_path / "issue-1359.md"
     path.write_text(body)
     forbidden = _spec_backtick_paths(body, "forbidden files", "forbidden")
-    assert "deep-agent/deep_chat.py" not in forbidden
+    assert "deep-agent/deep_chat.py" in forbidden
     assert "src/admin.py" in forbidden
     result = CliRunner().invoke(
         cli, ["verify-scope", "--spec-file", str(path), "--worktree", str(root)]
@@ -113,12 +113,42 @@ def test_explicit_allowed_path_wins_over_exception_basename(tmp_path, heading):
     assert json.loads(result.output)["violations"] == ["other/deep_chat.py"]
 
 
-def test_allowed_precedence_normalizes_path_spelling():
+@pytest.mark.parametrize("allowed", ["deep_chat.py", "deep-agent/deep_chat.py"])
+def test_allowed_path_does_not_remove_forbidden_suffix_for_other_paths(
+    tmp_path, allowed
+):
+    root = _worktree(tmp_path)
+    other = "other/" + allowed
+    for name in (allowed, other):
+        path = root / name
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text("before\n")
+    _git(root, "add", allowed, other)
+    _git(root, "commit", "-qm", "baseline")
+    _git(root, "fetch", "-q", "origin")
+    spec = tmp_path / "spec.md"
+    spec.write_text(
+        VALID_SPEC.replace("src/widget.py", allowed).replace("src/admin.py", allowed)
+    )
+    (root / allowed).write_text("after\n")
+    args = ["verify-scope", "--spec-file", str(spec), "--worktree", str(root)]
+    result = CliRunner().invoke(cli, args)
+    assert result.exit_code == 0, result.output
+    (root / other).write_text("after\n")
+    result = CliRunner().invoke(cli, args)
+    assert result.exit_code == 1, result.output
+    assert json.loads(result.output)["violations"] == [other]
+
+
+def test_forbidden_extraction_preserves_paths_for_per_file_precedence():
     body = (
         "### Allowed Files\n- `./deep-agent/deep_chat.py`\n"
         "### Forbidden Files\n- `DEEP-AGENT/deep_chat.py`\n- `other.py`\n"
     )
-    assert _spec_backtick_paths(body, "forbidden files") == ["other.py"]
+    assert _spec_backtick_paths(body, "forbidden files") == [
+        "DEEP-AGENT/deep_chat.py",
+        "other.py",
+    ]
 
 
 def _git(worktree, *args):
