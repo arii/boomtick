@@ -84,6 +84,7 @@ class Gateway:
         self.lock = asyncio.Lock()
         self.sleep = sleep
         self.free_wait_seconds = max(0, min(60, free_wait_seconds))
+        self.cancelled = set()
 
     async def reserve(self, model, key, budget, remaining):
         waited = 0
@@ -109,12 +110,12 @@ class Gateway:
             await self.sleep(delay)
             waited += delay
 
-    async def complete(self, body, privacy="standard", session=None):
+    async def complete(self, body, privacy="standard", session=None, trace_id=None, disconnected=None):
         started = self.clock()
         original_body = dict(body)
         body = {**body, "stream": False}
         body.pop("stream_options", None)
-        trace = {"trace_id": str(uuid.uuid4()), "timestamp": now(), "route": body.get("model", "default"),
+        trace = {"trace_id": trace_id or str(uuid.uuid4()), "timestamp": now(), "route": body.get("model", "default"),
                  "privacy": privacy, "session_id": session, "provider": None, "model": None,
                  "attempts": [], "http_status": 503, "latency_ms": 0, "prompt_tokens": None,
                  "completion_tokens": None, "reasoning_tokens": None, "visible_tokens": None,
@@ -139,6 +140,10 @@ class Gateway:
         retried = set()
         waited = 0
         while pending:
+            if trace["trace_id"] in self.cancelled or (disconnected and await disconnected()):
+                response_payload = {"error": {"message": "Client disconnected", "type": "client_disconnected"}}
+                trace["http_status"] = 499
+                break
             provider = pending.popleft()
             attempt = {"provider": provider["id"], "model": None, "called": False,
                        "timestamp": now(),
@@ -172,6 +177,11 @@ class Gateway:
             if reason:
                 attempt["reason"] = reason
                 continue
+            if trace["trace_id"] in self.cancelled or (disconnected and await disconnected()):
+                attempt["reason"] = "client disconnected before upstream dispatch"
+                response_payload = {"error": {"message": "Client disconnected", "type": "client_disconnected"}}
+                trace["http_status"] = 499
+                break
             attempt["called"] = True
             if model["free"] and model["input_price"] == 0 and model["output_price"] == 0:
                 attempt["cost_usd"] = 0.0
@@ -242,11 +252,12 @@ class Gateway:
         trace["response"] = response_payload
         called = [a for a in trace["attempts"] if a["called"]]
         trace["known_cost_usd"] = sum(a["cost_usd"] for a in called if a["cost_usd"] is not None)
-        trace["cost_complete"] = bool(called) and all(a["cost_usd"] is not None for a in called)
+        trace["cost_complete"] = (bool(called) or trace["http_status"] == 499) and all(a["cost_usd"] is not None for a in called)
         trace["cost_usd"] = trace["known_cost_usd"] if trace["cost_complete"] else None
         trace["latency_ms"] = (self.clock() - started) * 1000
         trace["flags"] = flags_for(self.store, trace, context)
         self.store.save_trace(trace)
+        self.cancelled.discard(trace["trace_id"])
         return response_payload, trace["http_status"], trace_headers(trace)
 
 
@@ -290,7 +301,40 @@ def create_app(store=None, client=None, configuration=None):
         privacy = request.headers.get("X-Privacy", "standard").lower()
         if privacy not in ("standard", "strict"):
             return error_response("X-Privacy must be standard or strict", 400)
-        payload, status, response_headers = await gateway.complete(body, privacy, request.headers.get("X-Session-Id"))
+        trace_id = request.headers.get("X-Trace-Id")
+        if trace_id is not None:
+            try:
+                trace_id = str(uuid.UUID(trace_id))
+            except ValueError:
+                return error_response("X-Trace-Id must be a UUID", 400)
+            if storage.trace(trace_id):
+                return error_response("Trace ID already used", 409)
+        payload, status, response_headers = await gateway.complete(body, privacy, request.headers.get("X-Session-Id"), trace_id, request.is_disconnected)
         return JSONResponse(payload, status_code=status, headers=response_headers)
+
+    @app.post("/v1/receipts")
+    async def receipts(request: Request):
+        origin = request.headers.get("origin")
+        if origin is not None and not loopback_origin(origin):
+            return error_response("Only loopback origins are allowed", 403)
+        try:
+            body = await request.json()
+            ids = body["trace_ids"]
+            if not isinstance(ids, list) or len(ids) > 1000:
+                raise ValueError
+            ids = list(dict.fromkeys(str(uuid.UUID(value)) for value in ids))
+        except (ValueError, TypeError, KeyError, AttributeError):
+            return error_response("Expected at most 1000 UUID trace_ids", 400)
+        result = []
+        for trace_id in ids:
+            trace = storage.trace(trace_id)
+            if trace is None:
+                if body.get("cancel") is True:
+                    gateway.cancelled.add(trace_id)
+                continue
+            result.append({key: trace.get(key) for key in (
+                "trace_id", "provider", "model", "cost_usd", "cost_complete", "prompt_tokens", "completion_tokens", "http_status"
+            )})
+        return {"receipts": result}
 
     return app
