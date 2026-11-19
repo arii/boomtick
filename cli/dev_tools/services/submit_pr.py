@@ -80,7 +80,7 @@ def submit(
     scope = {"checked": False, "allowed": [], "disallowed": [], "skipped": False}
     if issue_text and not skip_scope and not scope_gate.check_override():
         ok, allowed, disallowed = scope_gate.check_scope(
-            scope_files, issue_text, root=worktree
+            scope_files, issue_text, root=worktree, issue=issue
         )
         scope.update(
             checked=True, allowed=[f for f, _ in allowed], disallowed=list(disallowed)

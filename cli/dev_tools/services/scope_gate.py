@@ -346,7 +346,7 @@ def extract_mentions(issue_text):
     return mentioned_files, mentioned_dirs
 
 
-def check_scope(changed_files, issue_text, root=None):
+def check_scope(changed_files, issue_text, root=None, *, issue=None):
     if not issue_text:
         # If no issue text is found, we warn and pass to prevent blocking if run locally without metadata
         return True, [], []
@@ -372,9 +372,17 @@ def check_scope(changed_files, issue_text, root=None):
 
     allowed_files = []
     candidates_for_pass_2 = []
+    generated_spec = (
+        f"docs/specs/issue-{issue}.md"
+        if isinstance(issue, int) and not isinstance(issue, bool) and issue > 0
+        else None
+    )
 
     # PASS 1: Direct matches, exempt files, directory matches, test matches, token matches
     for filepath in changed_files:
+        if filepath == generated_spec:
+            allowed_files.append((filepath, "Generated spec for this issue"))
+            continue
         filepath_lower = filepath.lower()
         filename_lower = os.path.basename(filepath).lower()
         base_lower = os.path.splitext(filename_lower)[0]
@@ -440,7 +448,7 @@ def check_scope(changed_files, issue_text, root=None):
 
     # PASS 2: Modular refactoring / sub-file extractions & import heuristics
     disallowed_files = []
-    allowed_file_paths = {f[0] for f in allowed_files}
+    allowed_file_paths = {f[0] for f in allowed_files if f[0] != generated_spec}
 
     for filepath in candidates_for_pass_2:
         # 1. Module hierarchy matching
