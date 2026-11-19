@@ -168,10 +168,21 @@ def pr_linked_issue_numbers(pr_number, repository):
                     and number > 0
                     and linked.get("url") == f"{repo_url}/issues/{number}"
                 ):
-                    numbers.add(str(number))
+                    numbers.add(number)
     except (OSError, ValueError, TypeError, AttributeError) as exc:
         print(f"verify-scope: PR issue links unreadable: {exc}", file=sys.stderr)
     return numbers
+
+
+def closing_issue_numbers(text):
+    return {
+        int(number)
+        for number in re.findall(
+            r"\b(?:fix(?:es|ed)?|close[sd]?|resolve[sd]?)(?:\s*:\s*|\s+)#([1-9][0-9]*)\b",
+            text,
+            re.IGNORECASE,
+        )
+    }
 
 
 def event_scope_context(event):
@@ -180,7 +191,7 @@ def event_scope_context(event):
     body = pr.get("body") or issue.get("body") or ""
     title = pr.get("title") or issue.get("title") or ""
     text = f"{title}\n\n{body}" if title or body else ""
-    numbers = set(re.findall(r"#([1-9][0-9]*)\b", text))
+    numbers = closing_issue_numbers(text) if pr else set()
     numbers.update(
         pr_linked_issue_numbers(pr.get("number"), event.get("repository", {}))
     )
@@ -188,7 +199,7 @@ def event_scope_context(event):
         head = os.environ.get("GITHUB_HEAD_REF") or pr.get("head", {}).get("ref", "")
         match = re.fullmatch(r"agent/issue-([1-9][0-9]*)", head)
         if match:
-            numbers.add(match[1])
+            numbers.add(int(match[1]))
     return text, numbers, issue.get("number") if not pr and text else None
 
 
@@ -197,6 +208,8 @@ def fetch_issue_description(
 ):
     raw_text = None
     linked_numbers = set()
+    candidates = set()
+    fetched_issues = set()
     resolved_issues = resolved_issues if resolved_issues is not None else set()
 
     if issue_body:
@@ -206,6 +219,9 @@ def fetch_issue_description(
         with open(issue_file, "r", encoding="utf-8") as f:
             raw_text = f.read()
 
+    if raw_text:
+        candidates.update(closing_issue_numbers(raw_text))
+
     # Check GITHUB_EVENT_PATH
     if not raw_text:
         event_path = os.environ.get("GITHUB_EVENT_PATH")
@@ -214,8 +230,10 @@ def fetch_issue_description(
                 with open(event_path, "r", encoding="utf-8") as f:
                     event = json.load(f)
                 raw_text, linked_numbers, event_issue = event_scope_context(event)
+                candidates.update(linked_numbers)
                 if event_issue:
-                    resolved_issues.add(event_issue)
+                    candidates.add(event_issue)
+                    fetched_issues.add(event_issue)
             except Exception as e:
                 print(f"verify-scope: event payload unreadable: {e}", file=sys.stderr)
 
@@ -231,7 +249,8 @@ def fetch_issue_description(
             if res.returncode == 0:
                 data = json.loads(res.stdout)
                 raw_text = f"{data.get('title', '')}\n\n{data.get('body', '')}"
-                resolved_issues.add(issue_number)
+                candidates.add(issue_number)
+                fetched_issues.add(issue_number)
         except Exception as e:
             print(
                 f"verify-scope: issue #{issue_number} unreadable: {e}", file=sys.stderr
@@ -247,14 +266,18 @@ def fetch_issue_description(
             if os.path.exists(fallback_path):
                 with open(fallback_path, "r", encoding="utf-8") as f:
                     raw_text = f.read()
+                    candidates.update(closing_issue_numbers(raw_text))
                     break
 
     if raw_text or linked_numbers:
         raw_text = fetch_linked_issue_bodies(
             raw_text or "",
-            resolved_issues=resolved_issues,
+            resolved_issues=fetched_issues,
             issue_numbers=linked_numbers,
         )
+
+    if len(candidates) == 1:
+        resolved_issues.update(candidates & fetched_issues)
 
     return raw_text
 

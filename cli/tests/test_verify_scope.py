@@ -115,6 +115,64 @@ def test_ci_spec_allowance_follows_fetched_issue_not_branch(monkeypatch, tmp_pat
     assert error.value.code == 1
 
 
+@pytest.mark.parametrize(
+    "branch,body,sidebar,expected",
+    [
+        ("agent/issue-271", "Background #272", [], {271}),
+        ("feature/fix", "Background #271", [], set()),
+        ("agent/issue-272", "Fixes: #271; background #273", [], {271}),
+        ("agent/issue-272", "Closes #271; background #273", [], {271}),
+        ("agent/issue-272", "Resolves: #271; background #273", [], {271}),
+        ("agent/issue-272", "Background #273", [271], {271}),
+        ("agent/issue-272", "Fixes #271", [274], set()),
+        ("agent/issue-271", "Fixes #272 and closes #273", [], set()),
+    ],
+)
+def test_spec_identity_priority_preserves_background_scope(
+    monkeypatch, tmp_path, branch, body, sidebar, expected
+):
+    event = tmp_path / "event.json"
+    event.write_text(
+        json.dumps(
+            {
+                "repository": {"full_name": "o/r"},
+                "pull_request": {"number": 999, "head": {"ref": branch}, "body": body},
+            }
+        )
+    )
+    monkeypatch.setenv("GITHUB_EVENT_PATH", str(event))
+    monkeypatch.delenv("GITHUB_HEAD_REF", raising=False)
+    fetched = set()
+
+    def run(args, **kwargs):
+        if args[:3] == ["gh", "pr", "view"]:
+            payload = {
+                "closingIssuesReferences": [
+                    {"number": n, "url": f"https://github.com/o/r/issues/{n}"}
+                    for n in sidebar
+                ]
+            }
+        else:
+            fetched.add(int(args[3]))
+            payload = {"title": f"Fix source{args[3]}.py", "body": ""}
+        return subprocess.CompletedProcess(args, 0, json.dumps(payload), "")
+
+    monkeypatch.setattr(subprocess, "run", run)
+    resolved = set()
+    text = verify_scope.fetch_issue_description(resolved_issues=resolved)
+    assert resolved == expected
+    for number in set(verify_scope.re.findall(r"#(\d+)", body)):
+        assert int(number) in fetched
+        assert f"source{number}.py" in text
+    for number in [271, 272, 273, 274]:
+        passed, _, _ = verify_scope.check_scope(
+            [f"docs/specs/issue-{number}.md"],
+            text,
+            issue=verify_scope.submitted_issue_number(resolved),
+        )
+        assert passed == (number in expected)
+
+
 def test_ci_sidebar_link_supplies_scope_and_spec_identity(monkeypatch, tmp_path):
     event = tmp_path / "event.json"
     event.write_text(
