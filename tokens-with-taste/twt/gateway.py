@@ -110,7 +110,7 @@ class Gateway:
             async with self.lock:
                 if budget is not None and not model["free"] and (
                         self.store.spend_today() >= budget or model["input_price"] is None or model["output_price"] is None):
-                    return "daily budget reached or paid model price unknown", waited
+                    return "daily budget reached or paid model price unknown", waited, None
                 current = self.clock()
                 window = self.calls[key]
                 while window and window[0] <= current - 60:
@@ -124,9 +124,9 @@ class Gateway:
                     reason = "local RPM limit"
                 if not delay:
                     window.append(current)
-                    return None, waited
+                    return None, waited, current
             if not model["free"] or delay > remaining - waited:
-                return reason, waited
+                return reason, waited, None
             await self.sleep(delay)
             waited += delay
 
@@ -214,12 +214,22 @@ class Gateway:
                     attempt["reason"] = "local Ollama unavailable or cloud not disabled; check OLLAMA_NO_CLOUD=1"
                     continue
             key = (provider["id"], model["id"])
-            reason, delay = await self.reserve(model, key, budget, self.free_wait_seconds - waited)
+            reason, delay, reservation = await self.reserve(model, key, budget, self.free_wait_seconds - waited)
             waited += delay
             if reason:
                 attempt["reason"] = reason
                 continue
-            if trace["trace_id"] in self.cancelled or (disconnected and await disconnected()):
+            ready = False
+            try:
+                cancelled = trace["trace_id"] in self.cancelled or (disconnected and await disconnected())
+                ready = not cancelled
+            finally:
+                if not ready:
+                    async with self.lock:
+                        window = self.calls[key]
+                        if reservation in window:
+                            window.remove(reservation)
+            if cancelled:
                 attempt["reason"] = "client disconnected before upstream dispatch"
                 response_payload = {"error": {"message": "Client disconnected", "type": "client_disconnected"}}
                 trace["http_status"] = 499

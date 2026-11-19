@@ -91,6 +91,53 @@ def test_disconnected_client_never_starts_paid_fallback(
     assert calls == ["p0.test"]
 
 
+@pytest.mark.parametrize("cancellation", ["disconnect", "receipt_cancel", "task_cancel"])
+def test_cancelled_free_wait_refunds_reserved_rpm_slot(store, monkeypatch, cancellation):
+    configuration = free_first(store, monkeypatch)
+    model = store.models()[0]
+    model["rpm"] = 1
+    store.replace_models("p0", [model])
+    clock = [100.0]
+    calls = []
+    trace_id = str(uuid.uuid4())
+
+    async def sleep(delay):
+        clock[0] += delay
+        if cancellation == "receipt_cancel":
+            gateway.cancelled.add(trace_id)
+
+    async def disconnected():
+        if clock[0] >= 160 and cancellation == "task_cancel":
+            raise asyncio.CancelledError
+        return clock[0] >= 160 and cancellation == "disconnect"
+
+    def handler(request):
+        calls.append(request.url.host)
+        return httpx.Response(200, json=reply())
+
+    async def scenario():
+        nonlocal gateway
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+            gateway = Gateway(store, client, configuration, clock=lambda: clock[0], sleep=sleep)
+            assert (await gateway.complete(REQUEST))[1] == 200
+            if cancellation == "task_cancel":
+                with pytest.raises(asyncio.CancelledError):
+                    await gateway.complete(REQUEST, trace_id=trace_id, disconnected=disconnected)
+            else:
+                _, status, headers = await gateway.complete(REQUEST, trace_id=trace_id, disconnected=disconnected)
+                assert status == 499
+                assert float(headers["X-Cost-Usd"]) == 0
+            gateway.free_wait_seconds = 0
+            _, status, headers = await gateway.complete(REQUEST)
+            assert status == 200
+            assert headers["X-Provider-Used"] == "p0"
+            assert float(headers["X-Cost-Usd"]) == 0
+
+    gateway = None
+    asyncio.run(scenario())
+    assert calls == ["p0.test", "p0.test"]
+
+
 def test_receipt_endpoint_correlates_cancels_and_hides_prompts(store, monkeypatch):
     configuration = free_first(store, monkeypatch)
     trace_id = str(uuid.uuid4())
