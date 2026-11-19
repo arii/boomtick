@@ -189,8 +189,9 @@ class Gateway:
                 if any(not (
                         (isinstance(c["message"].get("content"), str) and c["message"]["content"].strip())
                         or (isinstance(c["message"].get("tool_calls"), list) and c["message"]["tool_calls"])
+                        or (isinstance(c["message"].get("function_call"), dict) and c["message"]["function_call"])
                         ) for c in payload["choices"]):
-                    attempt["reason"] = "upstream assistant message has no content or tool_calls"
+                    attempt["reason"] = "upstream assistant message has no content, tool_calls or function_call"
                     continue
                 attempt["reason"] = "success"
                 trace.update(usage(payload))

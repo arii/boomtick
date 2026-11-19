@@ -85,6 +85,7 @@ def test_failover(store, monkeypatch, failure):
     [{"message": {"role": "assistant", "content": ""}}],
     [{"message": {"role": "assistant", "content": " \n"}}],
     [{"message": {"role": "assistant", "content": 42, "tool_calls": {}}}],
+    [{"message": {"role": "assistant", "content": None, "function_call": {}}}],
 ])
 @pytest.mark.parametrize("later_succeeds", [True, False])
 def test_empty_assistant_response_falls_through(store, monkeypatch, choices, later_succeeds):
@@ -100,7 +101,7 @@ def test_empty_assistant_response_falls_through(store, monkeypatch, choices, lat
     payload, status, headers = run(store, configuration, handler)
     assert sent == ["p0.test", "p1.test"]
     trace = store.trace(headers["X-Trace-Id"])
-    reason = ("upstream assistant message has no content or tool_calls" if choices
+    reason = ("upstream assistant message has no content, tool_calls or function_call" if choices
               else "invalid upstream chat response")
     assert trace["attempts"][0]["reason"] == reason
     assert trace["attempts"][0]["response"] == invalid
@@ -125,6 +126,21 @@ def test_tool_only_assistant_response_succeeds(store, monkeypatch, content):
     expected["choices"][0]["message"]["content"] = content
     payload, status, headers = run(store, configuration, lambda r: httpx.Response(200, json=expected))
     assert status == 200 and payload == expected
+    attempts = store.trace(headers["X-Trace-Id"])["attempts"]
+    assert len(attempts) == 1 and attempts[0]["reason"] == "success"
+
+
+@pytest.mark.parametrize("content", [None, "", " \n"])
+def test_legacy_function_call_response_succeeds(store, monkeypatch, content):
+    configuration = setup(store, monkeypatch)
+    expected = reply(finish="function_call")
+    expected["choices"][0]["message"] = {
+        "role": "assistant", "content": content,
+        "function_call": {"name": "lookup", "arguments": "{}"},
+    }
+    payload, status, headers = run(store, configuration, lambda r: httpx.Response(200, json=expected))
+    assert status == 200 and payload == expected
+    assert headers["X-Provider-Used"] == "p0"
     attempts = store.trace(headers["X-Trace-Id"])["attempts"]
     assert len(attempts) == 1 and attempts[0]["reason"] == "success"
 
