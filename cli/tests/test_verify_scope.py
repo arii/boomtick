@@ -46,6 +46,38 @@ def test_exact_file_match():
     assert len(disallowed) == 0
 
 
+@pytest.mark.parametrize(
+    "branch,body,expected",
+    [
+        ("agent/issue-271", "", 0),
+        ("feature/fix", "Fixes #271", 0),
+        ("feature/fix", "Fixes #272", 1),
+        ("feature/fix", "Fixes #271 and closes #272", 1),
+        ("feature/fix", "", 1),
+    ],
+)
+def test_ci_generated_spec_uses_linked_issue(
+    monkeypatch, tmp_path, branch, body, expected
+):
+    event = tmp_path / "event.json"
+    event.write_text(
+        json.dumps({"pull_request": {"head": {"ref": branch}, "body": body}})
+    )
+    monkeypatch.setenv("GITHUB_EVENT_PATH", str(event))
+    monkeypatch.delenv("GITHUB_HEAD_REF", raising=False)
+    monkeypatch.setattr(verify_scope, "check_override", lambda: False)
+    monkeypatch.setattr(
+        verify_scope, "fetch_issue_description", lambda *args: "Fix mcp/login.ts"
+    )
+    monkeypatch.setattr(
+        verify_scope, "get_changed_files", lambda *args: ["docs/specs/issue-271.md"]
+    )
+    monkeypatch.setattr(sys, "argv", ["verify-scope.py", "--strict-scope"])
+    with pytest.raises(SystemExit) as error:
+        verify_scope.main()
+    assert error.value.code == expected
+
+
 def test_out_of_scope_file_blocked():
     issue_text = "Fix a bug in .github/workflows/release.yml related to Docker buildx."
     # publish-runner.yml is NOT mentioned and is unrelated

@@ -291,6 +291,30 @@ def check_override():
     return False
 
 
+def submitted_issue_number():
+    pr = {}
+    event_path = os.environ.get("GITHUB_EVENT_PATH")
+    if event_path:
+        try:
+            with open(event_path, encoding="utf-8") as handle:
+                pr = json.load(handle).get("pull_request", {})
+        except (OSError, ValueError, AttributeError) as exc:
+            print(f"verify-scope: issue context unreadable: {exc}", file=sys.stderr)
+    head = os.environ.get("GITHUB_HEAD_REF") or pr.get("head", {}).get("ref", "")
+    match = re.fullmatch(r"agent/issue-([1-9][0-9]*)", head)
+    if match:
+        return int(match[1])
+    text = f"{pr.get('title') or ''}\n{pr.get('body') or ''}"
+    linked = set(
+        re.findall(
+            r"\b(?:fix(?:es|ed)?|close[sd]?|resolve[sd]?)\s+#([1-9][0-9]*)\b",
+            text,
+            re.IGNORECASE,
+        )
+    )
+    return int(next(iter(linked))) if len(linked) == 1 else None
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="Verify that modified files are within the direct scope of the reported issue."
@@ -338,7 +362,9 @@ def main():
         )
         sys.exit(0)
 
-    success, allowed, disallowed = check_scope(changed_files, issue_text)
+    success, allowed, disallowed = check_scope(
+        changed_files, issue_text, issue=submitted_issue_number()
+    )
 
     print("\n--- Scope Verification Report ---")
     print(f"Total files checked: {len(changed_files)}")
