@@ -73,7 +73,8 @@ def eligible_models(catalog, provider, body):
 
 
 class Gateway:
-    def __init__(self, store, client, configuration=None, clock=time.monotonic):
+    def __init__(self, store, client, configuration=None, clock=time.monotonic,
+                 sleep=asyncio.sleep, free_wait_seconds=60):
         self.store = store
         self.client = client
         self.providers = configuration if configuration is not None else configured_providers()
@@ -81,6 +82,32 @@ class Gateway:
         self.calls = defaultdict(deque)
         self.cooldowns = {}
         self.lock = asyncio.Lock()
+        self.sleep = sleep
+        self.free_wait_seconds = max(0, min(60, free_wait_seconds))
+
+    async def reserve(self, model, key, budget, remaining):
+        waited = 0
+        while True:
+            async with self.lock:
+                if budget is not None and not model["free"] and (
+                        self.store.spend_today() >= budget or model["input_price"] is None or model["output_price"] is None):
+                    return "daily budget reached or paid model price unknown", waited
+                current = self.clock()
+                window = self.calls[key]
+                while window and window[0] <= current - 60:
+                    window.popleft()
+                delay = max(0, self.cooldowns.get(key, 0) - current)
+                reason = "Retry-After cooldown"
+                if model.get("rpm") is not None and len(window) >= model["rpm"]:
+                    delay = max(delay, window[0] + 60 - current) if window else float("inf")
+                    reason = "local RPM limit"
+                if not delay:
+                    window.append(current)
+                    return None, waited
+            if not model["free"] or delay > remaining - waited:
+                return reason, waited
+            await self.sleep(delay)
+            waited += delay
 
     async def complete(self, body, privacy="standard", session=None):
         started = self.clock()
@@ -108,7 +135,11 @@ class Gateway:
                 trace["http_status"] = 500
                 self.store.save_trace(trace)
                 return trace["response"], 500, trace_headers(trace)
-        for provider in self.providers:
+        pending = deque(self.providers)
+        retried = set()
+        waited = 0
+        while pending:
+            provider = pending.popleft()
             attempt = {"provider": provider["id"], "model": None, "called": False,
                        "timestamp": now(),
                        "reason": "", "http_status": None, "latency_ms": 0,
@@ -136,23 +167,14 @@ class Gateway:
                     attempt["reason"] = "local Ollama unavailable or cloud not disabled; check OLLAMA_NO_CLOUD=1"
                     continue
             key = (provider["id"], model["id"])
-            async with self.lock:
-                if budget is not None and not model["free"] and (
-                        self.store.spend_today() >= budget or model["input_price"] is None or model["output_price"] is None):
-                    attempt["reason"] = "daily budget reached or paid model price unknown"
-                    continue
-                current = self.clock()
-                if self.cooldowns.get(key, 0) > current:
-                    attempt["reason"] = "Retry-After cooldown"
-                    continue
-                window = self.calls[key]
-                while window and window[0] <= current - 60:
-                    window.popleft()
-                if model.get("rpm") is not None and len(window) >= model["rpm"]:
-                    attempt["reason"] = "local RPM limit"
-                    continue
-                window.append(current)
+            reason, delay = await self.reserve(model, key, budget, self.free_wait_seconds - waited)
+            waited += delay
+            if reason:
+                attempt["reason"] = reason
+                continue
             attempt["called"] = True
+            if model["free"] and model["input_price"] == 0 and model["output_price"] == 0:
+                attempt["cost_usd"] = 0.0
             trace["provider"] = provider["id"]
             trace["model"] = model["id"]
             attempt["request"] = {**body, "model": model["id"]}
@@ -174,6 +196,9 @@ class Gateway:
                     attempt["cost_usd"] = attempt["prompt_tokens"] * model["input_price"] + attempt["completion_tokens"] * model["output_price"]
                 if response.status_code == 429:
                     self.cooldowns[key] = max(self.cooldowns.get(key, 0), self.clock() + retry_seconds(response.headers.get("Retry-After")))
+                    if model["free"] and key not in retried:
+                        retried.add(key)
+                        pending.appendleft(provider)
                 if response.status_code == 429 or response.status_code >= 500:
                     attempt["reason"] = f"upstream HTTP {response.status_code}"
                     continue
