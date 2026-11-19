@@ -103,6 +103,13 @@ def test_script_reexports_single_implementation():
     assert REF.KNOWN_FILE_EXTENSIONS is scope_gate.KNOWN_FILE_EXTENSIONS
 
 
+def test_explicit_generated_spec_keeps_companion_matching():
+    files = ["docs/specs/issue-271.md", "docs/specs/issue-271/helpers.py"]
+    text = "Refactor issue-271.md into companions."
+    assert scope_gate.check_scope(files, text)[0] is True
+    assert scope_gate.check_scope(files, text, issue=271)[0] is True
+
+
 @pytest.mark.parametrize("token", ["./", "../", "../..", "//"])
 def test_navigation_only_dir_tokens_are_phantom(token):
     # #1219: dir tokens made only of navigation noise must not crash
