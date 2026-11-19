@@ -4,10 +4,10 @@
 import json
 import subprocess
 
+import pytest
 from click.testing import CliRunner
-
 from dev_tools.cli import cli
-
+from dev_tools.commands.gates_spec import _spec_backtick_paths
 
 VALID_SPEC = """# Fix the widget
 
@@ -43,6 +43,112 @@ pytest tests/test_widget.py
 """
 
 BARE_SPEC = "# vague idea\n\nSome TODO left behind.\n"
+
+
+def test_1359_allowed_file_body_constraints_do_not_forbid_whole_file(tmp_path):
+    root = _worktree(tmp_path)
+    source = root / "deep-agent" / "deep_chat.py"
+    source.parent.mkdir()
+    source.write_text("before\n")
+    _git(root, "add", "deep-agent/deep_chat.py")
+    _git(root, "commit", "-qm", "baseline")
+    source.write_text("after\n")
+    body = VALID_SPEC.replace("src/widget.py", "deep-agent/deep_chat.py").replace(
+        "- `src/admin.py`",
+        "- `src/admin.py`\n"
+        "- The bodies of `trim_history_by_count` and `trim_thread_history` "
+        "inside `deep-agent/deep_chat.py` must remain unchanged.",
+    )
+    path = tmp_path / "issue-1359.md"
+    path.write_text(body)
+    forbidden = _spec_backtick_paths(body, "forbidden files", "forbidden")
+    assert "deep-agent/deep_chat.py" in forbidden
+    assert "src/admin.py" in forbidden
+    result = CliRunner().invoke(
+        cli, ["verify-scope", "--spec-file", str(path), "--worktree", str(root)]
+    )
+    assert result.exit_code == 0, result.output
+    assert json.loads(result.output)["passed"]
+
+
+def test_forbidden_paths_without_explicit_allowlist_still_apply():
+    body = "### Forbidden Files\n- `deep-agent/deep_chat.py`\n"
+    assert _spec_backtick_paths(body, "forbidden files") == ["deep-agent/deep_chat.py"]
+    assert _spec_backtick_paths("", "forbidden files") == []
+
+
+@pytest.mark.parametrize(
+    "heading",
+    [
+        "Allowed Files",
+        "Allowed Files (Create / Modify / Delete)",
+        "Allowed Files (Create/Modify/Delete)",
+    ],
+)
+def test_explicit_allowed_path_wins_over_exception_basename(tmp_path, heading):
+    root = _worktree(tmp_path)
+    for directory in ("deep-agent", "other"):
+        source = root / directory / "deep_chat.py"
+        source.parent.mkdir()
+        source.write_text("before\n")
+    _git(root, "add", "deep-agent/deep_chat.py", "other/deep_chat.py")
+    _git(root, "commit", "-qm", "baseline")
+    _git(root, "fetch", "-q", "origin")
+    source = root / "deep-agent" / "deep_chat.py"
+    source.write_text("after\n")
+    body = VALID_SPEC.replace("src/widget.py", "./DEEP-AGENT/deep_chat.py").replace(
+        "- `src/admin.py`", "- `deep-agent/` modules other than `deep_chat.py`"
+    )
+    body = body.replace("### Allowed Files", "### " + heading)
+    path = tmp_path / "issue-1359.md"
+    path.write_text(body)
+    args = ["verify-scope", "--spec-file", str(path), "--worktree", str(root)]
+    result = CliRunner().invoke(cli, args)
+    assert result.exit_code == 0, result.output
+    assert json.loads(result.output)["violations"] == []
+
+    (root / "other" / "deep_chat.py").write_text("after\n")
+    result = CliRunner().invoke(cli, args)
+    assert result.exit_code == 1, result.output
+    assert json.loads(result.output)["violations"] == ["other/deep_chat.py"]
+
+
+@pytest.mark.parametrize("allowed", ["deep_chat.py", "deep-agent/deep_chat.py"])
+def test_allowed_path_does_not_remove_forbidden_suffix_for_other_paths(
+    tmp_path, allowed
+):
+    root = _worktree(tmp_path)
+    other = "other/" + allowed
+    for name in (allowed, other):
+        path = root / name
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text("before\n")
+    _git(root, "add", allowed, other)
+    _git(root, "commit", "-qm", "baseline")
+    _git(root, "fetch", "-q", "origin")
+    spec = tmp_path / "spec.md"
+    spec.write_text(
+        VALID_SPEC.replace("src/widget.py", allowed).replace("src/admin.py", allowed)
+    )
+    (root / allowed).write_text("after\n")
+    args = ["verify-scope", "--spec-file", str(spec), "--worktree", str(root)]
+    result = CliRunner().invoke(cli, args)
+    assert result.exit_code == 0, result.output
+    (root / other).write_text("after\n")
+    result = CliRunner().invoke(cli, args)
+    assert result.exit_code == 1, result.output
+    assert json.loads(result.output)["violations"] == [other]
+
+
+def test_forbidden_extraction_preserves_paths_for_per_file_precedence():
+    body = (
+        "### Allowed Files\n- `./deep-agent/deep_chat.py`\n"
+        "### Forbidden Files\n- `DEEP-AGENT/deep_chat.py`\n- `other.py`\n"
+    )
+    assert _spec_backtick_paths(body, "forbidden files") == [
+        "DEEP-AGENT/deep_chat.py",
+        "other.py",
+    ]
 
 
 def _git(worktree, *args):

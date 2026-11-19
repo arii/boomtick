@@ -1,16 +1,19 @@
 """Issue-spec validation and scope-gate commands."""
 
 import os
-import sys
 import re
+import sys
+
 import click
+
+from dev_tools.commands.core import (
+    _gate_json_option,
+    _handle_unexpected_error,
+    cli,
+    out,
+)
+from dev_tools.commands.gates_audit import _prune_walk_dirs, _worktree_changed_files
 from dev_tools.utils import run_command
-from dev_tools.commands.core import _gate_json_option
-from dev_tools.commands.core import _handle_unexpected_error
-from dev_tools.commands.core import cli
-from dev_tools.commands.core import out
-from dev_tools.commands.gates_audit import _prune_walk_dirs
-from dev_tools.commands.gates_audit import _worktree_changed_files
 
 
 def _read_spec_source(file):
@@ -31,7 +34,8 @@ def _spec_section_lines(body, *headings):
         if match:
             if capture:
                 break
-            capture = match.group(1).strip().lower() in wanted
+            heading = re.sub(r"\s+\([^)]*\)$", "", match.group(1)).strip().lower()
+            capture = heading in wanted
             continue
         if capture:
             lines.append(line)
@@ -117,7 +121,15 @@ def validate_issue_spec(ctx, file, repo_root):
         missing = spec.missing_headers(body)
         scope = spec.scope_status(title + "\n" + body, root)
         forbidden_files = _spec_backtick_paths(body, "forbidden files", "forbidden")
-        forbidden_lower = {p.lower() for p in forbidden_files}
+        allowed_norm = {
+            os.path.normpath(path).lower()
+            for path in _spec_backtick_paths(body, "allowed files", "allowed")
+        }
+        forbidden_lower = {
+            p.lower()
+            for p in forbidden_files
+            if os.path.normpath(p).lower() not in allowed_norm
+        }
         actual = set()
         actual_dirs = set()
         for dirpath, dirnames, filenames in os.walk(root):
@@ -226,8 +238,14 @@ def verify_scope_gate(ctx, spec_file, worktree, auto_revert):
         for entry in forbidden:
             norm = entry.strip().lower().lstrip("./")
             forbidden_norm.add(norm)
+        allowed_norm = {
+            os.path.normpath(entry).lower()
+            for entry in _spec_backtick_paths(spec_text, "allowed files", "allowed")
+        }
         for path in changed:
-            lowered = path.lower()
+            lowered = os.path.normpath(path).lower()
+            if lowered in allowed_norm:
+                continue
             if any(
                 lowered == norm or lowered.endswith("/" + norm)
                 for norm in forbidden_norm
