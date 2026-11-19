@@ -74,9 +74,12 @@ def error_response(message, status):
 def eligible_models(catalog, provider, body):
     candidates = [m for m in catalog if m["provider"] == provider["id"] and m["chat"]]
     requested = body.get("model", "default")
+    default_route = requested in ("default", "route:default")
+    if default_route:
+        requested = body.get("provider_models", {}).get(provider["id"], requested)
     if requested not in ("default", "route:default"):
         candidates = [m for m in candidates if requested in (m["id"], f"{provider['id']}/{m['id']}")]
-    elif provider.get("free_only"):
+    if default_route and provider.get("free_only"):
         candidates = [m for m in candidates if m["free"]]
     if body.get("tools"):
         candidates = [m for m in candidates if m["tools"]]
@@ -135,6 +138,16 @@ class Gateway:
                  "completion_tokens": None, "reasoning_tokens": None, "visible_tokens": None,
                  "cost_usd": None, "known_cost_usd": 0, "cost_complete": False,
                  "flags": [], "request": original_body, "response": None}
+        selections = body.get("provider_models", {})
+        if (not isinstance(selections, dict)
+                or any(key not in {p["id"] for p in self.providers}
+                       or not isinstance(value, str) or not value.strip()
+                       for key, value in selections.items())
+                or (selections and body.get("model", "default") not in ("default", "route:default"))):
+            trace.update(http_status=400, cost_usd=0, cost_complete=True,
+                         response={"error": {"message": "provider_models must map configured providers to nonempty model IDs on the default route"}})
+            self.store.save_trace(trace)
+            return trace["response"], 400, trace_headers(trace)
         catalog = catalog_models(self.store, self.providers)
         absent = set()
         response_payload = None
@@ -202,6 +215,7 @@ class Gateway:
             trace["provider"] = provider["id"]
             trace["model"] = model["id"]
             attempt["request"] = {**body, "model": model["id"]}
+            attempt["request"].pop("provider_models", None)
             if provider["id"] == "nebius" and model["id"].startswith("nvidia/NVIDIA-Nemotron-3-") and body.get("tools"):
                 attempt["request"]["chat_template_kwargs"] = {
                     "enable_thinking": False, **body.get("chat_template_kwargs", {})
