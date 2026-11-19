@@ -4,8 +4,54 @@ import uuid
 import httpx
 import pytest
 from test_free_wait import free_first
-from test_gateway import REQUEST, reply
+from test_gateway import REQUEST, reply, setup
 from twt.gateway import Gateway, create_app
+from twt.store import Store
+
+
+def test_concurrent_trace_id_is_reserved_before_upstream_dispatch(store, monkeypatch):
+    configuration = setup(store, monkeypatch)
+    other = Store(store.path)
+    trace_id = str(uuid.uuid4())
+    calls = []
+
+    async def scenario():
+        entered = asyncio.Event()
+        release = asyncio.Event()
+
+        async def handler(request):
+            calls.append(request.url.host)
+            entered.set()
+            if len(calls) > 1:
+                release.set()
+            await release.wait()
+            return httpx.Response(200, json=reply())
+
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as upstream:
+            apps = [create_app(db, upstream, configuration) for db in (store, other)]
+            async with (
+                httpx.AsyncClient(transport=httpx.ASGITransport(app=apps[0], raise_app_exceptions=False), base_url="http://localhost") as client,
+                httpx.AsyncClient(transport=httpx.ASGITransport(app=apps[1], raise_app_exceptions=False), base_url="http://localhost") as second_client,
+            ):
+                first = asyncio.create_task(client.post("/v1/chat/completions", json=REQUEST, headers={"X-Trace-Id": trace_id}))
+                await entered.wait()
+                try:
+                    second = await second_client.post("/v1/chat/completions", json=REQUEST, headers={"X-Trace-Id": trace_id})
+                finally:
+                    release.set()
+                    original = await first
+                assert calls == ["p0.test"]
+                assert original.status_code == 200
+                assert second.status_code == 409
+                reused = await second_client.post("/v1/chat/completions", json=REQUEST, headers={"X-Trace-Id": trace_id})
+                assert reused.status_code == 409
+                assert len(store.traces()) == 1
+                assert store.trace(trace_id)["cost_usd"] == pytest.approx(.05)
+
+    try:
+        asyncio.run(scenario())
+    finally:
+        other.close()
 
 
 @pytest.mark.parametrize("during_wait", [False, True])

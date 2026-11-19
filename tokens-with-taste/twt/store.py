@@ -21,6 +21,7 @@ class Store:
                 PRIMARY KEY(provider, id));
             CREATE TABLE IF NOT EXISTS traces (
                 id TEXT PRIMARY KEY, timestamp TEXT NOT NULL, data TEXT NOT NULL);
+            CREATE TABLE IF NOT EXISTS trace_reservations (id TEXT PRIMARY KEY);
             CREATE TABLE IF NOT EXISTS attempts (
                 trace_id TEXT NOT NULL, ordinal INTEGER NOT NULL, data TEXT NOT NULL,
                 PRIMARY KEY(trace_id, ordinal));
@@ -41,6 +42,14 @@ class Store:
     def models(self):
         return [json.loads(r[0]) for r in self.db.execute("SELECT data FROM models ORDER BY provider,id")]
 
+    def reserve_trace(self, trace_id):
+        with self.db:
+            cursor = self.db.execute(
+                "INSERT OR IGNORE INTO trace_reservations SELECT ? WHERE NOT EXISTS (SELECT 1 FROM traces WHERE id=?)",
+                (trace_id, trace_id),
+            )
+            return cursor.rowcount == 1
+
     def save_trace(self, trace):
         with self.db:
             self.db.execute("INSERT INTO traces VALUES (?, ?, ?)",
@@ -48,6 +57,7 @@ class Store:
             self.db.executemany("INSERT INTO attempts VALUES (?, ?, ?)", [
                 (trace["trace_id"], i, json.dumps(a)) for i, a in enumerate(trace["attempts"])
             ])
+            self.db.execute("DELETE FROM trace_reservations WHERE id=?", (trace["trace_id"],))
 
     def traces(self, since=None):
         rows = self.db.execute("SELECT data FROM traces WHERE timestamp >= ? ORDER BY timestamp", (since or "",))

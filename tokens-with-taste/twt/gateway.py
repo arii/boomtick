@@ -141,6 +141,8 @@ class Gateway:
                  "completion_tokens": None, "reasoning_tokens": None, "visible_tokens": None,
                  "cost_usd": None, "known_cost_usd": 0, "cost_complete": False,
                  "flags": [], "request": original_body, "response": None}
+        if not self.store.reserve_trace(trace["trace_id"]):
+            return {"error": {"message": "Trace ID already used"}}, 409, {"X-Cost-Usd": "0"}
         selections = body.get("provider_models", {})
         if (not isinstance(selections, dict)
                 or any(key not in {p["id"] for p in self.providers}
@@ -361,8 +363,6 @@ def create_app(store=None, client=None, configuration=None):
                 trace_id = str(uuid.UUID(trace_id))
             except ValueError:
                 return error_response("X-Trace-Id must be a UUID", 400)
-            if storage.trace(trace_id):
-                return error_response("Trace ID already used", 409)
         payload, status, response_headers = await gateway.complete(body, privacy, request.headers.get("X-Session-Id"), trace_id, request.is_disconnected)
         return JSONResponse(payload, status_code=status, headers=response_headers)
 
