@@ -1,4 +1,5 @@
 import json
+import math
 import os
 import sqlite3
 from datetime import datetime, timezone
@@ -72,9 +73,20 @@ class Store:
         return json.loads(row[0]) if row else None
 
     def spend_today(self):
+        """Count each dispatched attempt; unbounded spend exhausts any budget."""
         day = datetime.now(timezone.utc).date().isoformat()
-        return sum(t["cost_upper_bound_usd"] if t.get("cost_basis") == "upper_bound"
-                   else t["known_cost_usd"] for t in self.traces(day))
+        total = 0.0
+        for trace in self.traces(day):
+            for attempt in trace["attempts"]:
+                if not attempt["called"]:
+                    continue
+                cost = attempt["cost_usd"]
+                if cost is None and attempt.get("cost_basis") == "upper_bound":
+                    cost = attempt.get("cost_upper_bound_usd")
+                if type(cost) not in (int, float) or not math.isfinite(cost) or cost < 0:
+                    cost = math.inf
+                total += cost
+        return total
 
     def repeated_tools(self, session, signatures):
         if not session:

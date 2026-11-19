@@ -1,5 +1,6 @@
 import asyncio
 import json
+import math
 from decimal import Decimal
 
 import httpx
@@ -133,3 +134,28 @@ def test_error_with_reported_usage_keeps_actual_cost(store, monkeypatch):
     assert trace["cost_complete"] is True
     assert trace["cost_usd"] == .05
     assert trace.get("cost_upper_bound_usd") is None
+
+
+def test_daily_spend_blocks_when_a_trace_contains_an_unbounded_attempt(store, monkeypatch):
+    config = setup(store, monkeypatch)
+    model = next(m for m in store.models() if m["provider"] == "p0")
+    store.replace_models("p0", [{**model, "max_output_tokens": 100}])
+    _, _, headers = run(store, config, lambda _: httpx.Response(529, json=OVERLOAD))
+    trace = store.trace(headers["X-Trace-Id"])
+    assert trace["attempts"][0]["cost_upper_bound_usd"] > 0
+    assert trace["attempts"][1].get("cost_upper_bound_usd") is None
+    assert math.isinf(store.spend_today())
+    monkeypatch.setenv("TWT_DAILY_BUDGET_USD", "100")
+    _, status, _ = run(store, config, lambda _: pytest.fail("unknown prior spend must block"))
+    assert status == 503
+
+
+def test_daily_spend_sums_attempt_bounds_instead_of_trace_aggregate(store, monkeypatch):
+    config = setup(store, monkeypatch)
+    _, _, headers = run(store, config, lambda _: httpx.Response(529, json=OVERLOAD), {**REQUEST, "max_tokens": 100})
+    trace = store.trace(headers["X-Trace-Id"])
+    expected = sum(a["cost_upper_bound_usd"] for a in trace["attempts"])
+    trace.pop("cost_upper_bound_usd")
+    trace.pop("cost_basis")
+    monkeypatch.setattr(store, "traces", lambda _: [trace])
+    assert store.spend_today() == expected
