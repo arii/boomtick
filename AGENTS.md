@@ -111,6 +111,7 @@ Config path: `~/.cursor/mcp.json` or `.cursor/mcp.json`
 
 - `mcp` — MCP server source
 - `cli` — Python CLI source
+- `tokens-with-taste` — standalone Python 3.11+ LLM gateway and token/cost audit package
 - `tests` — automated tests
 - `docs` — project documentation
 

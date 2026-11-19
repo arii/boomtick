@@ -1,0 +1,247 @@
+{
+  "checked": "2026-11-16",
+  "providers": [
+    {
+      "id": "google",
+      "base_url": "https://generativelanguage.googleapis.com/v1beta/openai",
+      "key_env": "GOOGLE_API_KEY",
+      "map_prefix": "gemini",
+      "free_only": true,
+      "strict": false,
+      "trains_on_free_tier": true,
+      "models": {
+        "gemini-3.1-flash-lite": {
+          "free": true
+        }
+      },
+      "verified": {
+        "endpoint": {
+          "checked": "2026-11-16",
+          "source": "https://ai.google.dev/gemini-api/docs/openai"
+        },
+        "privacy": {
+          "checked": "2026-11-16",
+          "source": "https://ai.google.dev/gemini-api/docs/pricing"
+        },
+        "models": {
+          "checked": "2026-11-16",
+          "source": "https://ai.google.dev/gemini-api/docs/pricing"
+        }
+      },
+      "unverified": "Authenticated account availability, quota and billing: needs API key"
+    },
+    {
+      "id": "groq",
+      "base_url": "https://api.groq.com/openai/v1",
+      "key_env": "GROQ_API_KEY",
+      "map_prefix": "groq",
+      "free_only": true,
+      "strict": true,
+      "trains_on_free_tier": false,
+      "models": {
+        "openai/gpt-oss-20b": {
+          "rpm": 30,
+          "daily": 1000,
+          "free": true
+        },
+        "openai/gpt-oss-120b": {
+          "rpm": 30,
+          "daily": 1000,
+          "free": true
+        }
+      },
+      "verified": {
+        "endpoint": {
+          "checked": "2026-11-16",
+          "source": "https://console.groq.com/docs/openai"
+        },
+        "privacy": {
+          "checked": "2026-11-16",
+          "source": "https://console.groq.com/docs/legal/services-agreement"
+        },
+        "models": {
+          "checked": "2026-11-16",
+          "source": "https://console.groq.com/docs/rate-limits"
+        }
+      },
+      "unverified": "Authenticated account availability, quota and billing: needs API key"
+    },
+    {
+      "id": "nvidia",
+      "base_url": "https://integrate.api.nvidia.com/v1",
+      "key_env": "NVIDIA_API_KEY",
+      "map_prefix": "nvidia_nim",
+      "free_only": true,
+      "strict": false,
+      "trains_on_free_tier": true,
+      "models": {},
+      "verified": {
+        "endpoint": {
+          "checked": "2026-11-16",
+          "source": "https://docs.api.nvidia.com/nim/reference/deepseek-ai-deepseek-v4-flash-infer"
+        },
+        "privacy": {
+          "checked": "2026-11-16",
+          "source": "https://assets.ngc.nvidia.com/products/api-catalog/legal/NVIDIA%20API%20Trial%20Terms%20of%20Service.pdf"
+        },
+        "free_prototyping": {
+          "checked": "2026-11-16",
+          "source": "https://docs.api.nvidia.com/nim/docs/product"
+        }
+      },
+      "unverified": "Authenticated account availability, quota and billing: needs API key",
+      "public_models": true,
+      "free_prototyping": true
+    },
+    {
+      "id": "mistral",
+      "base_url": "https://api.mistral.ai/v1",
+      "key_env": "MISTRAL_API_KEY",
+      "map_prefix": "mistral",
+      "free_only": true,
+      "strict": false,
+      "trains_on_free_tier": true,
+      "models": {},
+      "verified": {
+        "endpoint": {
+          "checked": "2026-11-16",
+          "source": "https://docs.mistral.ai/getting-started/quickstarts/studio/activate-and-generate-api-key.md"
+        },
+        "privacy": {
+          "checked": "2026-11-16",
+          "source": "https://help.mistral.ai/en/articles/347617-do-you-use-my-user-data-to-train-your-artificial-in"
+        }
+      },
+      "unverified": "Authenticated account availability, quota and billing: needs API key"
+    },
+    {
+      "id": "openrouter",
+      "base_url": "https://openrouter.ai/api/v1",
+      "key_env": "OPENROUTER_API_KEY",
+      "map_prefix": "openrouter",
+      "free_only": true,
+      "strict": false,
+      "trains_on_free_tier": null,
+      "models": {},
+      "verified": {
+        "endpoint": {
+          "checked": "2026-11-16",
+          "source": "https://openrouter.ai/docs/quickstart"
+        },
+        "privacy": {
+          "checked": "2026-11-16",
+          "source": "https://openrouter.ai/docs/guides/privacy/data-collection"
+        },
+        "rpm": {
+          "checked": "2026-11-16",
+          "source": "https://openrouter.ai/docs/api-reference/limits"
+        }
+      },
+      "unverified": "Authenticated account availability, quota and billing: needs API key",
+      "rpm": 20,
+      "public_models": true
+    },
+    {
+      "id": "sambanova",
+      "base_url": "https://api.sambanova.ai/v1",
+      "key_env": "SAMBANOVA_API_KEY",
+      "map_prefix": "sambanova",
+      "free_only": true,
+      "strict": false,
+      "trains_on_free_tier": null,
+      "models": {
+        "DeepSeek-V3.1": {
+          "rpm": 20,
+          "daily": 20,
+          "free": true
+        },
+        "Meta-Llama-3.3-70B-Instruct": {
+          "rpm": 20,
+          "daily": 20,
+          "free": true
+        },
+        "gpt-oss-120b": {
+          "rpm": 20,
+          "daily": 20,
+          "free": true
+        },
+        "DeepSeek-V3.2": {
+          "rpm": 20,
+          "daily": 20,
+          "free": true
+        },
+        "gemma-4-31B-it": {
+          "rpm": 20,
+          "daily": 20,
+          "free": true
+        }
+      },
+      "verified": {
+        "endpoint": {
+          "checked": "2026-11-16",
+          "source": "https://docs.sambanova.ai/docs/en/get-started/api-keys-urls.md"
+        },
+        "privacy": {
+          "checked": "2026-11-16",
+          "source": "https://community.sambanova.ai/t/data-handling-and-retention/1314"
+        },
+        "models": {
+          "checked": "2026-11-16",
+          "source": "https://docs.sambanova.ai/docs/en/models/rate-limits"
+        }
+      },
+      "unverified": "Authenticated account availability, quota and billing: needs API key",
+      "public_models": true
+    },
+    {
+      "id": "cloudflare",
+      "base_url": "https://api.cloudflare.com/client/v4/accounts/{account_id}/ai/v1",
+      "key_env": "CLOUDFLARE_API_TOKEN",
+      "map_prefix": "cloudflare",
+      "free_only": true,
+      "strict": true,
+      "trains_on_free_tier": false,
+      "models": {},
+      "verified": {
+        "endpoint": {
+          "checked": "2026-11-16",
+          "source": "https://developers.cloudflare.com/workers-ai/configuration/open-ai-compatibility/"
+        },
+        "privacy": {
+          "checked": "2026-11-16",
+          "source": "https://developers.cloudflare.com/workers-ai/platform/data-usage/"
+        },
+        "rpm": {
+          "checked": "2026-11-16",
+          "source": "https://developers.cloudflare.com/workers-ai/platform/limits/"
+        }
+      },
+      "unverified": "Authenticated account availability, quota and billing: needs API key",
+      "required_env": [
+        "CLOUDFLARE_ACCOUNT_ID"
+      ],
+      "discovery_blocked": "Cloudflare model listing path and response schema not verified; no models configured",
+      "rpm": 300
+    },
+    {
+      "id": "nebius",
+      "base_url": "https://api.tokenfactory.nebius.com/v1",
+      "key_env": "NEBIUS_API_KEY",
+      "map_prefix": "nebius",
+      "strict": false,
+      "trains_on_free_tier": null,
+      "models": {},
+      "verified": {
+        "endpoint": {
+          "checked": "2026-11-16",
+          "source": "https://docs.tokenfactory.nebius.com/other-capabilities/migration-guide"
+        },
+        "privacy": {
+          "checked": "2026-11-16",
+          "source": "https://docs.tokenfactory.nebius.com/legal/legal-quick-guide"
+        }
+      },
+      "unverified": "Authenticated account availability, quota and billing: needs API key"
+    }
+  ]
+}

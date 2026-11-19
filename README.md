@@ -31,6 +31,7 @@ node mcp/dist/index.js
 The codebase is split into two primary operational layers:
 * **`mcp/` (Model Context Protocol Server):** Empowers AI agents with structured access to GitHub Pull Requests, repository state, CI logs, and validation tools. Facilitates conflict resolution and branch creation.
 * **`cli/` (`td`):** A terminal-based fallback and local automation toolkit. Integrates directly with the GitHub CLI (`gh`) to handle manual PR audits, conflict detection, and runtime consistency checks.
+* **[`tokens-with-taste/`](tokens-with-taste/README.md):** Standalone Python 3.11+ LLM gateway, provider catalog, and token/cost audits (`twt`).
 
 ### Zero-Submodule Integration
 
