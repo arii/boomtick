@@ -9,6 +9,49 @@ from twt.gateway import Gateway, create_app
 from twt.store import Store
 
 
+@pytest.mark.parametrize("error_type", [asyncio.CancelledError, RuntimeError])
+@pytest.mark.parametrize("phase", ["disconnect", "reserve"])
+def test_abandoned_predispatch_trace_can_be_retried(store, monkeypatch, error_type, phase):
+    configuration = setup(store, monkeypatch)
+    trace_id = str(uuid.uuid4())
+    calls = []
+
+    async def fail(*args):
+        raise error_type()
+
+    async def scenario():
+        async with httpx.AsyncClient(transport=httpx.MockTransport(lambda request: calls.append(request.url.host) or httpx.Response(200, json=reply()))) as client:
+            gateway = Gateway(store, client, configuration)
+            with monkeypatch.context() as patch:
+                if phase == "reserve":
+                    patch.setattr(gateway, "reserve", fail)
+                with pytest.raises(error_type):
+                    await gateway.complete(REQUEST, trace_id=trace_id, disconnected=fail if phase == "disconnect" else None)
+            assert store.trace(trace_id) is None
+            assert calls == []
+            assert (await gateway.complete(REQUEST, trace_id=trace_id))[1] == 200
+            assert len(calls) == 1
+
+    asyncio.run(scenario())
+
+
+def test_cancellation_after_dispatch_retains_trace_reservation(store, monkeypatch):
+    configuration = setup(store, monkeypatch)
+    trace_id = str(uuid.uuid4())
+
+    async def handler(request):
+        raise asyncio.CancelledError()
+
+    async def scenario():
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+            gateway = Gateway(store, client, configuration)
+            with pytest.raises(asyncio.CancelledError):
+                await gateway.complete(REQUEST, trace_id=trace_id)
+            assert (await gateway.complete(REQUEST, trace_id=trace_id))[1] == 409
+
+    asyncio.run(scenario())
+
+
 def test_concurrent_trace_id_is_reserved_before_upstream_dispatch(store, monkeypatch):
     configuration = setup(store, monkeypatch)
     other = Store(store.path)

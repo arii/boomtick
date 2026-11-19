@@ -131,6 +131,18 @@ class Gateway:
             waited += delay
 
     async def complete(self, body, privacy="standard", session=None, trace_id=None, disconnected=None):
+        trace_id = trace_id or str(uuid.uuid4())
+        if not self.store.reserve_trace(trace_id):
+            return {"error": {"message": "Trace ID already used"}}, 409, {"X-Cost-Usd": "0"}
+        dispatch = {"started": False}
+        try:
+            return await self._complete(body, privacy, session, trace_id, disconnected, dispatch)
+        except BaseException:
+            if not dispatch["started"]:
+                self.store.release_trace(trace_id)
+            raise
+
+    async def _complete(self, body, privacy, session, trace_id, disconnected, dispatch):
         started = self.clock()
         original_body = dict(body)
         body = {**body, "stream": False}
@@ -141,8 +153,6 @@ class Gateway:
                  "completion_tokens": None, "reasoning_tokens": None, "visible_tokens": None,
                  "cost_usd": None, "known_cost_usd": 0, "cost_complete": False,
                  "flags": [], "request": original_body, "response": None}
-        if not self.store.reserve_trace(trace["trace_id"]):
-            return {"error": {"message": "Trace ID already used"}}, 409, {"X-Cost-Usd": "0"}
         selections = body.get("provider_models", {})
         if (not isinstance(selections, dict)
                 or any(key not in {p["id"] for p in self.providers}
@@ -256,6 +266,7 @@ class Gateway:
                 }
             request_start = self.clock()
             try:
+                dispatch["started"] = True
                 response = await self.client.post(base_url(provider) + "/chat/completions",
                                                   headers=headers(provider), json=attempt["request"])
                 attempt["http_status"] = response.status_code

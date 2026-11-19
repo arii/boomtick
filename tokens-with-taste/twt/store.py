@@ -50,6 +50,10 @@ class Store:
             )
             return cursor.rowcount == 1
 
+    def release_trace(self, trace_id):
+        with self.db:
+            self.db.execute("DELETE FROM trace_reservations WHERE id=?", (trace_id,))
+
     def save_trace(self, trace):
         with self.db:
             self.db.execute("INSERT INTO traces VALUES (?, ?, ?)",
