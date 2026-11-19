@@ -159,3 +159,20 @@ def test_daily_spend_sums_attempt_bounds_instead_of_trace_aggregate(store, monke
     trace.pop("cost_basis")
     monkeypatch.setattr(store, "traces", lambda _: [trace])
     assert store.spend_today() == expected
+
+
+@pytest.mark.parametrize("provider_cap,router_cap", [(32768, 4096), (8192, 65536)])
+def test_output_bound_uses_selected_provider_metadata(provider_cap, router_cap):
+    provider = {"id": "nebius", "map_prefix": "nebius", "base_url": "https://example.test"}
+    model = normalize(provider, {"id": "glm"}, {"nebius/glm": {**MODEL, "max_output_tokens": provider_cap}},
+                      {"glm": {"top_provider": {"max_completion_tokens": router_cap}}})
+    assert model["max_output_tokens"] == provider_cap
+    assert cost_upper_bound(REQUEST, {**MODEL, "max_output_tokens": model["max_output_tokens"]})["completion_tokens_upper_bound"] == provider_cap
+
+
+def test_unknown_provider_cap_uses_largest_exact_model_cap_or_none():
+    provider = {"id": "nebius", "map_prefix": "nebius", "base_url": "https://example.test"}
+    prices = {"other/glm": {"max_output_tokens": 32768}, "other/not-glm": {"max_output_tokens": 999999}}
+    router = {"glm": {"top_provider": {"max_completion_tokens": 4096}}}
+    assert normalize(provider, {"id": "glm"}, prices, router)["max_output_tokens"] == 32768
+    assert normalize(provider, {"id": "glm"}, {}, {})["max_output_tokens"] is None

@@ -53,6 +53,22 @@ def number(value):
         return None
 
 
+def output_cap(provider, row, metadata, reference, prices):
+    known = provider.get("models", {}).get(row["id"], {})
+    selected = [known.get("max_output_tokens"), row.get("max_output_tokens"), metadata.get("max_output_tokens")]
+    router_cap = (reference.get("top_provider") or {}).get("max_completion_tokens")
+    if provider["id"] == "openrouter":
+        selected.append(router_cap)
+    selected = [value for value in selected if type(value) is int and value > 0]
+    if selected:
+        return max(selected)
+    alternatives = [router_cap]
+    for key, info in prices.items():
+        if key == row["id"] or key.partition("/")[2] == row["id"]:
+            alternatives.append(info.get("max_output_tokens"))
+    return max((value for value in alternatives if type(value) is int and value > 0), default=None)
+
+
 def normalize(provider, row, prices, router):
     model_id = row["id"]
     prefix = provider["map_prefix"]
@@ -95,9 +111,7 @@ def normalize(provider, row, prices, router):
         "provider": provider["id"], "id": model_id, "chat": chat,
         "tools": tools, "json": json_mode, "json_schema": json_schema,
         "context_length": reference.get("context_length") or metadata.get("max_input_tokens"),
-        "max_output_tokens": (known.get("max_output_tokens")
-                              or (reference.get("top_provider") or {}).get("max_completion_tokens")
-                              or metadata.get("max_output_tokens")),
+        "max_output_tokens": output_cap(provider, row, metadata, reference, prices),
         "input_price": 0.0 if free else input_price, "output_price": 0.0 if free else output_price,
         "free": free, "rpm": rpm,
         "daily": known.get("daily"), "synced_source": provider.get("models_url") or base_url(provider) + "/models",
