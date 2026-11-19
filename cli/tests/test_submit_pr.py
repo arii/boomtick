@@ -133,6 +133,30 @@ def test_generated_spec_requires_a_positive_integer_issue(worktree, issue):
         sp.submit(str(worktree), "T", "", "main", True, None, ISSUE, issue=issue)
 
 
+def test_rename_into_generated_spec_checks_deleted_source(worktree):
+    _git(["checkout", "-q", "main"], worktree)
+    source = worktree / "billing/secret.md"
+    source.parent.mkdir()
+    source.write_text("unrelated content\n")
+    _git(["add", "billing/secret.md"], worktree)
+    _git(["commit", "-qm", "base content"], worktree)
+    _git(["checkout", "-qb", "rename-issue-spec"], worktree)
+    (worktree / "docs/specs").mkdir(parents=True)
+    _git(["mv", "billing/secret.md", "docs/specs/issue-271.md"], worktree)
+    real_run = sp._run
+
+    def router(args, cwd):
+        if args[:2] == ["git", "push"] or args[0] == "gh":
+            raise AssertionError("must not push an out-of-scope deletion")
+        return real_run(args, cwd)
+
+    with (
+        patch.object(sp, "_run", side_effect=router),
+        pytest.raises(sp.SubmitError, match="billing/secret.md"),
+    ):
+        sp.submit(str(worktree), "T", "", "main", True, None, ISSUE, issue=271)
+
+
 def test_scope_violation_refuses(worktree):
     (worktree / "billing").mkdir()
     (worktree / "billing" / "unrelated.ts").write_text("x\n")

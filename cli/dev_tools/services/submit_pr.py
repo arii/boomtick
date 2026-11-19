@@ -35,7 +35,9 @@ def _branch(worktree):
 
 def changed_vs_base(worktree, base):
     """Committed files on this branch since base (merge-base diff)."""
-    res = _run(["git", "diff", "--name-only", f"{base}...HEAD"], worktree)
+    res = _run(
+        ["git", "diff", "--name-only", "--no-renames", f"{base}...HEAD"], worktree
+    )
     if res.returncode != 0:
         return []
     return [l for l in (res.stdout or "").splitlines() if l.strip()]

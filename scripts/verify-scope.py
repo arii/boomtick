@@ -50,7 +50,7 @@ def get_changed_files(base_branch=None):
 
     # Try diffing directly against base branch (compares base branch commit to the working directory)
     res = subprocess.run(
-        ["git", "diff", "--name-only", base_branch],
+        ["git", "diff", "--name-only", "--no-renames", base_branch],
         capture_output=True,
         text=True,
         check=False,
@@ -60,7 +60,7 @@ def get_changed_files(base_branch=None):
     else:
         # Fallback to main
         res = subprocess.run(
-            ["git", "diff", "--name-only", "main"],
+            ["git", "diff", "--name-only", "--no-renames", "main"],
             capture_output=True,
             text=True,
             check=False,
@@ -70,7 +70,7 @@ def get_changed_files(base_branch=None):
         else:
             # Fallback to HEAD~1 to catch local changes if base branches are not available
             res = subprocess.run(
-                ["git", "diff", "--name-only", "HEAD~1"],
+                ["git", "diff", "--name-only", "--no-renames", "HEAD~1"],
                 capture_output=True,
                 text=True,
                 check=False,
@@ -79,7 +79,7 @@ def get_changed_files(base_branch=None):
                 files.update(f.strip() for f in res.stdout.splitlines() if f.strip())
             else:
                 res = subprocess.run(
-                    ["git", "diff", "--name-only"],
+                    ["git", "diff", "--name-only", "--no-renames"],
                     capture_output=True,
                     text=True,
                     check=False,

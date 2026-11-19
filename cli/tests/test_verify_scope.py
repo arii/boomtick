@@ -3,6 +3,7 @@ import os
 import sys
 import json
 import importlib.util
+import subprocess
 import pytest
 
 # Dynamically import the hyphenated script file 'verify-scope.py'.
@@ -92,6 +93,25 @@ def test_out_of_scope_file_blocked():
     assert len(allowed) == 1
     assert len(disallowed) == 1
     assert disallowed[0] == ".github/workflows/publish-runner.yml"
+
+
+def test_ci_changed_files_include_both_rename_sides(tmp_path, monkeypatch):
+    def git(*args):
+        subprocess.run(["git", *args], cwd=tmp_path, check=True, capture_output=True)
+
+    git("init", "-q", "-b", "main")
+    git("config", "user.name", "Test")
+    git("config", "user.email", "test@example.invalid")
+    (tmp_path / "unrelated.md").write_text("unrelated content\n")
+    git("add", "unrelated.md")
+    git("commit", "-qm", "base")
+    (tmp_path / "docs/specs").mkdir(parents=True)
+    git("mv", "unrelated.md", "docs/specs/issue-271.md")
+    monkeypatch.chdir(tmp_path)
+    assert verify_scope.get_changed_files("HEAD") == [
+        "docs/specs/issue-271.md",
+        "unrelated.md",
+    ]
 
 
 def test_exempt_configuration_files():
