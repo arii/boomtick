@@ -4,6 +4,7 @@
 import json
 import subprocess
 
+import pytest
 from click.testing import CliRunner
 from dev_tools.cli import cli
 from dev_tools.commands.gates_spec import _spec_backtick_paths
@@ -76,7 +77,15 @@ def test_forbidden_paths_without_explicit_allowlist_still_apply():
     assert _spec_backtick_paths("", "forbidden files") == []
 
 
-def test_explicit_allowed_path_wins_over_exception_basename(tmp_path):
+@pytest.mark.parametrize(
+    "heading",
+    [
+        "Allowed Files",
+        "Allowed Files (Create / Modify / Delete)",
+        "Allowed Files (Create/Modify/Delete)",
+    ],
+)
+def test_explicit_allowed_path_wins_over_exception_basename(tmp_path, heading):
     root = _worktree(tmp_path)
     for directory in ("deep-agent", "other"):
         source = root / directory / "deep_chat.py"
@@ -90,6 +99,7 @@ def test_explicit_allowed_path_wins_over_exception_basename(tmp_path):
     body = VALID_SPEC.replace("src/widget.py", "./DEEP-AGENT/deep_chat.py").replace(
         "- `src/admin.py`", "- `deep-agent/` modules other than `deep_chat.py`"
     )
+    body = body.replace("### Allowed Files", "### " + heading)
     path = tmp_path / "issue-1359.md"
     path.write_text(body)
     args = ["verify-scope", "--spec-file", str(path), "--worktree", str(root)]

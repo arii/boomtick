@@ -34,7 +34,8 @@ def _spec_section_lines(body, *headings):
         if match:
             if capture:
                 break
-            capture = match.group(1).strip().lower() in wanted
+            heading = re.sub(r"\s+\([^)]*\)$", "", match.group(1)).strip().lower()
+            capture = heading in wanted
             continue
         if capture:
             lines.append(line)
