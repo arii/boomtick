@@ -5,9 +5,8 @@ import json
 import subprocess
 
 from click.testing import CliRunner
-
 from dev_tools.cli import cli
-
+from dev_tools.commands.gates_spec import _spec_backtick_paths
 
 VALID_SPEC = """# Fix the widget
 
@@ -43,6 +42,46 @@ pytest tests/test_widget.py
 """
 
 BARE_SPEC = "# vague idea\n\nSome TODO left behind.\n"
+
+
+def test_1359_allowed_file_body_constraints_do_not_forbid_whole_file(tmp_path):
+    root = _worktree(tmp_path)
+    source = root / "deep-agent" / "deep_chat.py"
+    source.parent.mkdir()
+    source.write_text("before\n")
+    _git(root, "add", "deep-agent/deep_chat.py")
+    _git(root, "commit", "-qm", "baseline")
+    source.write_text("after\n")
+    body = VALID_SPEC.replace("src/widget.py", "deep-agent/deep_chat.py").replace(
+        "- `src/admin.py`",
+        "- `src/admin.py`\n"
+        "- The bodies of `trim_history_by_count` and `trim_thread_history` "
+        "inside `deep-agent/deep_chat.py` must remain unchanged.",
+    )
+    path = tmp_path / "issue-1359.md"
+    path.write_text(body)
+    forbidden = _spec_backtick_paths(body, "forbidden files", "forbidden")
+    assert "deep-agent/deep_chat.py" not in forbidden
+    assert "src/admin.py" in forbidden
+    result = CliRunner().invoke(
+        cli, ["verify-scope", "--spec-file", str(path), "--worktree", str(root)]
+    )
+    assert result.exit_code == 0, result.output
+    assert json.loads(result.output)["passed"]
+
+
+def test_forbidden_paths_without_explicit_allowlist_still_apply():
+    body = "### Forbidden Files\n- `deep-agent/deep_chat.py`\n"
+    assert _spec_backtick_paths(body, "forbidden files") == ["deep-agent/deep_chat.py"]
+    assert _spec_backtick_paths("", "forbidden files") == []
+
+
+def test_allowed_precedence_normalizes_path_spelling():
+    body = (
+        "### Allowed Files\n- `./deep-agent/deep_chat.py`\n"
+        "### Forbidden Files\n- `DEEP-AGENT/deep_chat.py`\n- `other.py`\n"
+    )
+    assert _spec_backtick_paths(body, "forbidden files") == ["other.py"]
 
 
 def _git(worktree, *args):

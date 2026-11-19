@@ -1,16 +1,19 @@
 """Issue-spec validation and scope-gate commands."""
 
 import os
-import sys
 import re
+import sys
+
 import click
+
+from dev_tools.commands.core import (
+    _gate_json_option,
+    _handle_unexpected_error,
+    cli,
+    out,
+)
+from dev_tools.commands.gates_audit import _prune_walk_dirs, _worktree_changed_files
 from dev_tools.utils import run_command
-from dev_tools.commands.core import _gate_json_option
-from dev_tools.commands.core import _handle_unexpected_error
-from dev_tools.commands.core import cli
-from dev_tools.commands.core import out
-from dev_tools.commands.gates_audit import _prune_walk_dirs
-from dev_tools.commands.gates_audit import _worktree_changed_files
 
 
 def _read_spec_source(file):
@@ -46,6 +49,14 @@ def _spec_backtick_paths(body, *headings):
             path = path.strip()
             if path and path not in paths:
                 paths.append(path)
+    if {heading.lower() for heading in headings} & {"forbidden files", "forbidden"}:
+        allowed = {
+            os.path.normpath(path).lower()
+            for path in _spec_backtick_paths(body, "allowed files", "allowed")
+        }
+        paths = [
+            path for path in paths if os.path.normpath(path).lower() not in allowed
+        ]
     return paths
 
 
