@@ -98,6 +98,7 @@ class Gateway:
         self.clock = clock
         self.calls = defaultdict(deque)
         self.cooldowns = {}
+        self.transport_cooldowns = {}
         self.lock = asyncio.Lock()
         self.sleep = sleep
         self.free_wait_seconds = max(0, min(60, free_wait_seconds))
@@ -114,8 +115,10 @@ class Gateway:
                 window = self.calls[key]
                 while window and window[0] <= current - 60:
                     window.popleft()
-                delay = max(0, self.cooldowns.get(key, 0) - current)
-                reason = "Retry-After cooldown"
+                transport_until = self.transport_cooldowns.get(key, 0)
+                retry_until = self.cooldowns.get(key, 0)
+                delay = max(0, retry_until - current, transport_until - current)
+                reason = "transport failure cooldown" if transport_until > retry_until else "Retry-After cooldown"
                 if model.get("rpm") is not None and len(window) >= model["rpm"]:
                     delay = max(delay, window[0] + 60 - current) if window else float("inf")
                     reason = "local RPM limit"
@@ -287,10 +290,10 @@ class Gateway:
                     context = await ollama_running_context(self.client, model["id"]) or context
                 response_payload = payload
                 break
-            except httpx.TimeoutException:
-                attempt["reason"] = "timeout"
-            except httpx.RequestError:
-                attempt["reason"] = "upstream connection error"
+            except httpx.RequestError as error:
+                attempt["reason"] = "timeout" if isinstance(error, httpx.TimeoutException) else "upstream connection error"
+                if model["free"]:
+                    self.transport_cooldowns[key] = self.clock() + 300
             finally:
                 attempt["latency_ms"] = (self.clock() - request_start) * 1000
         if response_payload is None:
