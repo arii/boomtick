@@ -95,6 +95,9 @@ def normalize(provider, row, prices, router):
         "provider": provider["id"], "id": model_id, "chat": chat,
         "tools": tools, "json": json_mode, "json_schema": json_schema,
         "context_length": reference.get("context_length") or metadata.get("max_input_tokens"),
+        "max_output_tokens": (known.get("max_output_tokens")
+                              or (reference.get("top_provider") or {}).get("max_completion_tokens")
+                              or metadata.get("max_output_tokens")),
         "input_price": 0.0 if free else input_price, "output_price": 0.0 if free else output_price,
         "free": free, "rpm": rpm,
         "daily": known.get("daily"), "synced_source": provider.get("models_url") or base_url(provider) + "/models",

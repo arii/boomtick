@@ -73,7 +73,8 @@ class Store:
 
     def spend_today(self):
         day = datetime.now(timezone.utc).date().isoformat()
-        return sum(t["known_cost_usd"] for t in self.traces(day))
+        return sum(t["cost_upper_bound_usd"] if t.get("cost_basis") == "upper_bound"
+                   else t["known_cost_usd"] for t in self.traces(day))
 
     def repeated_tools(self, session, signatures):
         if not session:

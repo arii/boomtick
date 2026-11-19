@@ -14,6 +14,7 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
 from .audit import flags_for, usage
+from .costs import cost_upper_bound
 from .catalog import (
     base_url, catalog_models, configured_providers, headers, missing,
     ollama_running_context, require_local_ollama,
@@ -319,6 +320,8 @@ class Gateway:
                     self.transport_cooldowns[key] = self.clock() + 300
             finally:
                 attempt["latency_ms"] = (self.clock() - request_start) * 1000
+                if not model["free"] and attempt["cost_usd"] is None:
+                    attempt.update(cost_upper_bound(attempt["request"], model, attempt))
         if response_payload is None:
             reasons = "; ".join(f"{a['provider']}: {a['reason']}" for a in trace["attempts"])
             message = "No provider available. " + reasons
@@ -331,6 +334,9 @@ class Gateway:
         trace["known_cost_usd"] = sum(a["cost_usd"] for a in called if a["cost_usd"] is not None)
         trace["cost_complete"] = (bool(called) or trace["http_status"] == 499) and all(a["cost_usd"] is not None for a in called)
         trace["cost_usd"] = trace["known_cost_usd"] if trace["cost_complete"] else None
+        reserves = [a["cost_usd"] if a["cost_usd"] is not None else a.get("cost_upper_bound_usd") for a in called]
+        if called and not trace["cost_complete"] and all(value is not None for value in reserves):
+            trace.update(cost_upper_bound_usd=sum(reserves), cost_basis="upper_bound")
         trace["latency_ms"] = (self.clock() - started) * 1000
         trace["flags"] = flags_for(self.store, trace, context)
         self.store.save_trace(trace)
@@ -408,7 +414,8 @@ def create_app(store=None, client=None, configuration=None):
                     gateway.cancelled.add(trace_id)
                 continue
             result.append({key: trace.get(key) for key in (
-                "trace_id", "provider", "model", "cost_usd", "cost_complete", "prompt_tokens", "completion_tokens", "http_status"
+                "trace_id", "provider", "model", "cost_usd", "cost_complete", "prompt_tokens", "completion_tokens", "http_status",
+                "cost_upper_bound_usd", "cost_basis"
             )})
         return {"receipts": result}
 
