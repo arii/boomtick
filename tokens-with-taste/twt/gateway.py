@@ -148,6 +148,16 @@ class Gateway:
                          response={"error": {"message": "provider_models must map configured providers to nonempty model IDs on the default route"}})
             self.store.save_trace(trace)
             return trace["response"], 400, trace_headers(trace)
+        efforts = body.get("provider_reasoning_effort", {})
+        if (not isinstance(efforts, dict)
+                or any(key not in {p["id"] for p in self.providers}
+                       or value not in ("low", "high", "max")
+                       for key, value in efforts.items())
+                or (efforts and body.get("model", "default") not in ("default", "route:default"))):
+            trace.update(http_status=400, cost_usd=0, cost_complete=True,
+                         response={"error": {"message": "provider_reasoning_effort must map configured providers to low/high/max on the default route"}})
+            self.store.save_trace(trace)
+            return trace["response"], 400, trace_headers(trace)
         catalog = catalog_models(self.store, self.providers)
         absent = set()
         response_payload = None
@@ -216,6 +226,15 @@ class Gateway:
             trace["model"] = model["id"]
             attempt["request"] = {**body, "model": model["id"]}
             attempt["request"].pop("provider_models", None)
+            attempt["request"].pop("provider_reasoning_effort", None)
+            if provider["id"] in efforts:
+                attempt["request"]["reasoning_effort"] = efforts[provider["id"]]
+                if "glm-5.3" in model["id"].lower():
+                    attempt["request"]["chat_template_kwargs"] = {
+                        **body.get("chat_template_kwargs", {}),
+                        "reasoning_effort": efforts[provider["id"]],
+                        "clear_thinking": True,
+                    }
             if provider["id"] == "nebius" and model["id"].startswith("nvidia/NVIDIA-Nemotron-3-") and body.get("tools"):
                 attempt["request"]["chat_template_kwargs"] = {
                     "enable_thinking": False, **body.get("chat_template_kwargs", {})
