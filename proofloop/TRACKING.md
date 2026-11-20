@@ -1,3 +1,7 @@
+# Historical planning record, not current activation instructions
+
+Private no-TypeSafe patch prepared November 20: README.md describes the local Replay Gate, explicit activation and schema-v2 state. Earlier key transfer, TypeSafe re-enable, automatic credential loading and live-mode directions below are historical and superseded by that patch. Do not send secrets through chat. No live run or publication is established. Unique planning material is retained below, not treated as authorization.
+
 # ProofLoop — Tracking Document
 
 Live status for the Personal Agents Hackathon build (Fri Nov 20, 2026). Kiro updates this file as work progresses. Ari's CLI agents (agy, Copilot, Muse CLI) read this file to pick up work interactively. Do not delete this file. Keep it current.
