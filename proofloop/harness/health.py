@@ -23,7 +23,7 @@ def check_senso():
 def check_openrouter():
     if config.mode("llm") == "stub":
         return "STUB", "not explicitly enabled with credentials"
-    body = {"model": config.get("OPENROUTER_MODEL", "arcee-ai/trinity-large-thinking:free"),
+    body = {"model": config.get("OPENROUTER_MODEL", config.DEFAULT_LLM_MODEL),
             "messages": [{"role": "user", "content": "hi"}], "max_tokens": 1}
     headers = {"Authorization": f"Bearer {config.get('OPENROUTER_API_KEY')}"}
     status, response = clients.http_json("POST", f"{config.base_url('openrouter')}/api/v1/chat/completions", headers, body, timeout=60)
