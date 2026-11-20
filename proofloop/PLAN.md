@@ -1,7 +1,28 @@
 # ProofLoop: plan to build the assistant that was proposed
 
-Status: in progress. Section 4 was revised on 2026-11-20: the first assist is a pre-submit review, not a typing warning (see 4.0). Code for phases 0 to 2 of the slice exists (see TRACKING.md), but under section 2.1 no milestone is done until it is verified on the live site at a check-in. Milestone 1 is reported; milestones 2 to 5 are unverified. Phase 3 (Senso read) and phase 4 (Cognee recall) are not started.
+Status: in progress. Section 0 is the current direction; it replaces the city-field slice and the deterministic executor. Code for phases 0 to 2 of the slice exists (see TRACKING.md), but under section 2.1 no milestone is done until it is verified on the live site at a check-in. Milestone 1 is reported; milestones 2 to 5 are unverified. Phase 3 (Senso read) and phase 4 (Cognee recall) are not started.
 Deadline is not a constraint. Quality is.
+
+## 0. Current direction (Ari, 2026-11-20, supersedes conflicting text below)
+
+Three instructions from Ari override earlier sections where they conflict:
+
+1. **Stop hardcoding.** No hand-written rules, host lists, step maps, slot answers or injected failures. Rules, tasks and scopes come from the sessions through the LLM and Cognee, are validated by schema, and are promoted through the gate.
+2. **Drop the city-field slice entirely.** `data/cards.json`, `rule.city.sf` and the typing chip with "Use San Francisco" are removed. Sections 4.0 to 4.4 are history, not the plan.
+3. **Build in this order, committing to `feat/proofloop` and reporting at each milestone:**
+
+| # | Milestone | What it means in code |
+|---|-----------|-----------------------|
+| M1 | Auto-repeat loop | `replay_loop.py` repeats until it converges: K consecutive proposals that do not beat the active rule set by more than the measured noise, or a safety cap. Nothing is injected. A rollback happens only when a real proposal loses |
+| M2 | Conflict warning slice | The extension warns when a value on the page conflicts with a promoted rule (a forbidden value, a box that must stay unchecked) or with the same kind of value in another watched tab. Rules come from the active rule set, not a file in the repo |
+| M3 | Extension as observer | It watches fields, including values set by an agent, autofill or a picked suggestion. It never types, fills, checks or submits anything. Its only actions are showing warnings, holding one submit while a conflict is open (a setting, on by default), and recording feedback ("Got it", "Rule is wrong") |
+| M4 | Task determination | The page's task (job application, event registration, scheduling, and others) is worked out from page signals. Rules are scoped by task, not by host. The extension runs only on sites Ari turns on ("Watch this site"), granted through optional host permissions |
+| M5 | Live Cognee | Recall over the sessions drives the mutator and the page context. It is required for a live loop run unless explicitly disabled, and the ledger records which mode ran. Ari mentioned a "facer" key. The code reads `COGNEE_API_KEY` (plus URL and tenant), and if the facer key is a different service it needs a separate decision |
+| M6 | Real Senso and TWT | Every LLM call (task generation, executor, judge, mutator) goes through the TWT gateway, or OpenRouter if enabled. The rule set is promoted to Senso, read back, and served to the extension with its Senso node id. No runtime stub. Without these services the loop stops with a clear "blocked" message |
+
+**Testing split.** The sandbox has no Senso, Cognee or provider keys and cannot reach Ari's TWT gateway. Offline tests inject fakes in the test code only. Runtime code has no stubs. Each live step is reported as "not run" until Ari runs it.
+
+**Section 4.5** (page context, pill, micro-cards) stays the information design. Under M3 it is observe-only.
 
 ## 1. What went wrong
 
