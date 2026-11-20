@@ -13,6 +13,9 @@ parse_diff_into_file_chunks(diff_text) -> list[dict]
 
 """
 
+from __future__ import annotations
+
+
 import json
 import re
 import sys
