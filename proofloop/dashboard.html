@@ -1,0 +1,39 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>ProofLoop dashboard</title>
+<style>
+  body{font:14px system-ui,sans-serif;margin:24px;color:#1b1f24}
+  table{border-collapse:collapse;width:100%;margin-top:12px}
+  th,td{border:1px solid #d0d7de;padding:6px 10px;text-align:left}
+  th{background:#f6f8fa}
+  .promoted{color:#1a7f37;font-weight:600}.rolled_back{color:#cf222e;font-weight:600}
+  .badge{display:inline-block;background:#fff8c5;border:1px solid #d4a72c;border-radius:10px;padding:1px 8px;margin:2px 4px 2px 0;font-size:12px}
+  pre{background:#f6f8fa;padding:6px;margin:0}
+</style>
+<h1>ProofLoop</h1>
+<div id="svc"></div>
+<h2 id="head"></h2>
+<table id="t"><thead><tr>
+  <th>Version</th><th>Parent</th><th>Passed before → after</th><th>Delta</th>
+  <th>Jev decision</th><th>Confidence</th><th>Constraints p</th><th>Senso node</th><th>Status</th><th>Diff</th>
+</tr></thead><tbody></tbody></table>
+<script>
+fetch('/ledger').then(r=>r.json()).then(({ledger,run})=>{
+  const svc=run.services||{};
+  document.getElementById('svc').innerHTML=Object.values(svc).map(s=>`<span class="badge">${s.label}</span>`).join('');
+  const a=run.active||{};
+  document.getElementById('head').textContent=`Active ${ledger.active_version||'-'}: ${a.passed??'?'}/${a.total??'?'} replay pass`
+    + (run.initial?` (started ${run.initial.version} ${run.initial.passed}/${run.initial.total})`:'');
+  const tb=document.querySelector('tbody');
+  for(const e of ledger.entries){
+    const tr=document.createElement('tr');
+    const cells=[e.version,e.parent_version,`${e.tasks_passed_before}/${e.total_tasks} → ${e.tasks_passed_after}/${e.total_tasks}`,
+      (e.delta>=0?'+':'')+e.delta.toFixed(2),e.jev_gate.choice,e.jev_gate.confidence,e.jev_gate.constraints_prob,
+      e.senso_kb_node_id||'-'];
+    for(const c of cells){const td=document.createElement('td');td.textContent=c;tr.appendChild(td)}
+    const st=document.createElement('td');st.textContent=e.status;st.className=e.status;tr.appendChild(st);
+    const d=document.createElement('td');const p=document.createElement('pre');p.textContent=e.skill_diff;d.appendChild(p);tr.appendChild(d);
+    tb.appendChild(tr);
+  }
+});
+</script>

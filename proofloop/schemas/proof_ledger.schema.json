@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ProofLedger",
+  "type": "object",
+  "required": ["active_version", "entries"],
+  "properties": {
+    "active_version": {"type": "string"},
+    "entries": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["cycle_id", "timestamp", "version", "parent_version", "tasks_passed_before", "tasks_passed_after", "total_tasks", "pass_rate_before", "pass_rate_after", "delta", "skill_diff", "jev_gate", "senso_kb_node_id", "status"],
+        "properties": {
+          "cycle_id": {"type": "string"},
+          "timestamp": {"type": "string"},
+          "version": {"type": "string"},
+          "parent_version": {"type": "string"},
+          "tasks_passed_before": {"type": "integer"},
+          "tasks_passed_after": {"type": "integer"},
+          "total_tasks": {"type": "integer"},
+          "pass_rate_before": {"type": "number", "minimum": 0, "maximum": 1},
+          "pass_rate_after": {"type": "number", "minimum": 0, "maximum": 1},
+          "delta": {"type": "number"},
+          "skill_diff": {"type": "string"},
+          "jev_gate": {
+            "type": "object",
+            "required": ["model", "choice", "confidence", "constraints_prob", "utility_score"],
+            "properties": {
+              "model": {"type": "string"},
+              "choice": {"type": "string", "enum": ["promote", "reject_and_refine", "hold"]},
+              "confidence": {"type": "number", "minimum": 0, "maximum": 1},
+              "constraints_prob": {"type": "number", "minimum": 0, "maximum": 1},
+              "utility_score": {"type": "number", "minimum": 0, "maximum": 1}
+            }
+          },
+          "senso_kb_node_id": {"type": "string"},
+          "status": {"type": "string", "enum": ["promoted", "rolled_back"]}
+        }
+      }
+    }
+  }
+}

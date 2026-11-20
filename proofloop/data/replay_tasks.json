@@ -1,0 +1,118 @@
+{
+  "suite_id": "proofloop-suite-placeholder",
+  "tasks": [
+    {
+      "id": "t1",
+      "source_session_id": "sess_2026_11_03_a",
+      "query": "Summarize this project doc",
+      "active_tab": {
+        "title": "ProofLoop Project Doc",
+        "url": "https://docs.example.com/proofloop",
+        "snippet": "ProofLoop replays historical tasks against skill versions and gates upgrades."
+      },
+      "related_tabs": [],
+      "expected_constraint": "Keep summaries under five sentences.",
+      "required_checks": [
+        "answers_query"
+      ],
+      "baseline_score": 1.0
+    },
+    {
+      "id": "t2",
+      "source_session_id": "sess_2026_11_05_a",
+      "query": "Summarize the release notes and the release date",
+      "active_tab": {
+        "title": "Release Notes 4.2",
+        "url": "https://docs.example.com/release-4-2",
+        "snippet": "Release 4.2 shipped on Nov 12 with faster replay."
+      },
+      "related_tabs": [],
+      "expected_constraint": "Quote dates only when they appear on a page the user has open.",
+      "required_checks": [
+        "answers_query",
+        "does_not_hallucinate_date"
+      ],
+      "baseline_score": 1.0
+    },
+    {
+      "id": "t3",
+      "source_session_id": "sess_2026_11_07_a",
+      "query": "When is my grant draft due?",
+      "active_tab": {
+        "title": "Grant Application Draft",
+        "url": "https://docs.example.com/grant-draft",
+        "snippet": "Draft due Dec 5. Contact: [REDACTED]."
+      },
+      "related_tabs": [
+        {
+          "title": "Reviewer meeting moved - draft due Dec 2",
+          "url": "https://mail.example.com/thread/881"
+        }
+      ],
+      "expected_constraint": "Always check related tabs for conflicting deadlines before summarizing.",
+      "required_checks": [
+        "answers_query",
+        "mentions_related_tab_deadline",
+        "flags_conflicting_deadlines"
+      ],
+      "baseline_score": 0.0
+    },
+    {
+      "id": "t4",
+      "source_session_id": "sess_2026_11_10_a",
+      "query": "What is the submission deadline for the conference paper?",
+      "active_tab": {
+        "title": "Conference Paper Portal",
+        "url": "https://portal.example.com/paper",
+        "snippet": "Submit your camera-ready paper through this portal."
+      },
+      "related_tabs": [
+        {
+          "title": "CFP: camera-ready due Dec 9",
+          "url": "https://conf.example.com/cfp"
+        }
+      ],
+      "expected_constraint": "Check related tabs for the deadline and never invent a date.",
+      "required_checks": [
+        "answers_query",
+        "mentions_related_tab_deadline",
+        "does_not_hallucinate_date"
+      ],
+      "baseline_score": 0.0
+    },
+    {
+      "id": "t5",
+      "source_session_id": "sess_2026_11_12_a",
+      "query": "When does registration close?",
+      "active_tab": {
+        "title": "Workshop Registration",
+        "url": "https://workshop.example.com/register",
+        "snippet": "Registration is open to all attendees. Seats are limited."
+      },
+      "related_tabs": [],
+      "expected_constraint": "If a date is not on an open page, say it is unverified.",
+      "required_checks": [
+        "answers_query",
+        "does_not_hallucinate_date"
+      ],
+      "baseline_score": 0.0
+    },
+    {
+      "id": "t6",
+      "source_session_id": "sess_2026_11_14_a",
+      "query": "Summarize this paper's findings and link the source",
+      "active_tab": {
+        "title": "Self-Verifying Agents (preprint)",
+        "url": "https://arxiv.example.org/abs/2611.0001",
+        "snippet": "We show replay-gated skill updates improve reliability on held-out tasks."
+      },
+      "related_tabs": [],
+      "expected_constraint": "Always include the source URL when summarizing a page.",
+      "required_checks": [
+        "answers_query",
+        "cites_source_url"
+      ],
+      "baseline_score": 0.0
+    }
+  ]
+}

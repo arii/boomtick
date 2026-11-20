@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ReplayTaskSuite",
+  "type": "object",
+  "required": ["suite_id", "tasks"],
+  "properties": {
+    "suite_id": {"type": "string"},
+    "tasks": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["id", "source_session_id", "query", "active_tab", "related_tabs", "expected_constraint", "required_checks", "baseline_score"],
+        "properties": {
+          "id": {"type": "string"},
+          "source_session_id": {"type": "string"},
+          "query": {"type": "string"},
+          "active_tab": {
+            "type": "object",
+            "required": ["title", "url", "snippet"],
+            "properties": {
+              "title": {"type": "string"},
+              "url": {"type": "string"},
+              "snippet": {"type": "string"}
+            }
+          },
+          "related_tabs": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["title", "url"],
+              "properties": {
+                "title": {"type": "string"},
+                "url": {"type": "string"}
+              }
+            }
+          },
+          "expected_constraint": {"type": "string"},
+          "required_checks": {"type": "array", "items": {"type": "string"}},
+          "baseline_score": {"type": "number", "minimum": 0, "maximum": 1}
+        }
+      }
+    }
+  }
+}

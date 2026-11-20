@@ -1,0 +1,20 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>ProofLoop - Keys & Status</title>
+<style>
+  body{font:14px system-ui,sans-serif;margin:24px;max-width:640px}
+  label{display:block;margin:10px 0 2px;font-weight:600}
+  input{width:100%;padding:6px;box-sizing:border-box}
+  .row{margin:6px 0}.badge{display:inline-block;background:#fff8c5;border:1px solid #d4a72c;border-radius:10px;padding:1px 8px;margin:2px 4px 2px 0;font-size:12px}
+  .live{background:#dafbe1;border-color:#2da44e}
+</style>
+<h1>ProofLoop - Keys &amp; Status</h1>
+<p>Keys are stored in chrome.storage.local and sent to your local backend only (127.0.0.1).</p>
+<div id="status"></div>
+<label for="backend_url">Backend URL</label><input id="backend_url" placeholder="http://127.0.0.1:8787">
+<label for="SENSO_API_KEY">SENSO_API_KEY</label><input id="SENSO_API_KEY" type="password" autocomplete="off">
+<label for="TYPESAFE_API_KEY">TYPESAFE_API_KEY</label><input id="TYPESAFE_API_KEY" type="password" autocomplete="off">
+<label for="COGNEE_API_URL">COGNEE_API_URL</label><input id="COGNEE_API_URL" placeholder="http://localhost:8000">
+<label for="OPENROUTER_API_KEY">OPENROUTER_API_KEY</label><input id="OPENROUTER_API_KEY" type="password" autocomplete="off">
+<div class="row"><button id="save">Save</button> <span id="msg"></span></div>
+<script src="options.js"></script>

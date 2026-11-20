@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "SessionExcerpt (one JSONL line)",
+  "type": "object",
+  "required": ["session_id", "timestamp", "role", "query_or_task", "outcome_or_error", "constraint", "active_tab", "related_tabs"],
+  "properties": {
+    "session_id": {"type": "string"},
+    "timestamp": {"type": "string", "format": "date-time"},
+    "role": {"type": "string", "enum": ["user", "assistant", "tool"]},
+    "query_or_task": {"type": "string"},
+    "outcome_or_error": {"type": "string"},
+    "constraint": {"type": "string"},
+    "active_tab": {
+      "type": "object",
+      "required": ["title", "url", "snippet"],
+      "properties": {"title": {"type": "string"}, "url": {"type": "string"}, "snippet": {"type": "string"}}
+    },
+    "related_tabs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["title", "url"],
+        "properties": {"title": {"type": "string"}, "url": {"type": "string"}}
+      }
+    }
+  }
+}
