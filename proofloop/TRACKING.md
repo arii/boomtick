@@ -6,7 +6,7 @@ Patch prepared November 20 (PR #1350): README.md describes the local Replay Gate
 
 Live status for the Personal Agents Hackathon build (Fri Nov 20, 2026). Kiro updates this file as work progresses. Ari's CLI agents (agy, Copilot, Muse CLI) read this file to pick up work interactively. Do not delete this file. Keep it current.
 
-Last updated: 2026-11-20 01:36 PM PT (by Kiro). --probe-live result recorded: Senso GREEN, LLM GREEN via the Tokens with Taste gateway, Cognee STUB, gate LOCAL. Waiting on Ari for: Chrome load result, PR go-ahead. Submission deadline 4:30 PM PT.
+Last updated: 2026-11-20 01:39 PM PT (by Kiro). Chip not appearing in Chrome: diagnosed (see Chrome troubleshooting) and content.js fixed so it can no longer fail silently. Waiting on Ari for: Chrome re-check, PR go-ahead. Submission deadline 4:30 PM PT.
 
 ## Repo and branch
 - Repo: arii/boomtick (no new repo).
@@ -61,10 +61,23 @@ Last updated: 2026-11-20 01:36 PM PT (by Kiro). --probe-live result recorded: Se
 - **Still to add:** link to the backup video once recorded.
 - **PR:** drafted, not opened. Title and body are in the Kiro chat history and `/projects/sandbox/.pr/` in the Kiro sandbox. Kiro opens it on Ari's go (squash merge).
 
+## Chrome troubleshooting (chip not appearing)
+- **Where it injects:** every top-level `http://` and `https://` page, at document idle. Not on `chrome://` pages (including the New Tab page), the Chrome Web Store, `file://` pages, PDFs, or inside iframes. Tabs that were already open when the extension was loaded or reloaded need a page reload; new tabs and navigations pick it up automatically.
+- **What it looks like:** a dark green pill in the bottom-right corner, 16px from the edges, on top of the page (maximum z-index). It reads "ProofLoop v1.2: deterministic replay (6/6 replay pass) - N local tabs shown". Click it to open the proof table; the small x dismisses it for that page.
+- **Related-tabs opt-in is NOT needed** for the chip. With it off the chip just says "0 local tabs shown".
+- **Backend unreachable or 403:** the chip still appears and says "ProofLoop: no data (...)" with the error. A 403 means the backend was started without `PROOFLOOP_EXTENSION_ID` equal to the ID on the chrome://extensions card.
+- **No chip at all** now means the script did not run: wrong page type, page not reloaded, extension disabled or errored on load. After the fix (content.js), a dead background worker also shows a chip instead of nothing.
+
+Exact steps:
+1. Start the backend with state present: `cd proofloop/harness && python3 replay_loop.py --reset --bad-demo` (same `PROOFLOOP_STATE` as the server), then `PROOFLOOP_EXTENSION_ID=cbpokmfdbbcpgaookmhdgnbdcgkjkodl python3 server.py`. Check `curl http://127.0.0.1:8787/status` prints JSON.
+2. chrome://extensions: Developer mode on. Load unpacked and select the `proofloop/extension` folder (the one that contains `manifest.json`). The card must show ID `cbpokmfdbbcpgaookmhdgnbdcgkjkodl`, be enabled, and have no red "Errors" button. Click the reload arrow on the card after any code change.
+3. Open a NEW tab at http://127.0.0.1:8787/ (or https://example.com). Look at the bottom-right corner. Click the chip to expand the proof table.
+4. If nothing shows: on that page open DevTools, Console, and look for `[ProofLoop] content script running`. Or run `document.getElementById('proofloop-chip-host')` in the console: null means the script did not run (reload the page, check the page type and that the extension is enabled); an element means it ran. On the chrome://extensions card click "service worker" to see background errors.
+
 ## Next steps (in order) and blockers
 Activation rules: `.env` is NOT read. Export real environment variables and opt in with `PROOFLOOP_LIVE_SERVICES`. Do not send secrets through chat. Plan (Gemini) for the rest of the day, in this order:
 1. **Live Senso confirmation (Ari):** `--probe-live` is GREEN and a live readback was reported. Remaining: open the ledger and check the promoted entries are not `stub-node-*` and `retrieval.mode` is `live`. If it was the stub, rerun: `PROOFLOOP_LIVE_SERVICES=senso python3 proofloop/harness/replay_loop.py --reset --bad-demo` with `SENSO_API_KEY` exported. If the `[6]` line shows a failure, paste it here (no key values).
-2. **Real Chrome extension load (Ari):** chrome://extensions, Developer mode, Load unpacked, `proofloop/extension`. Check the ID is still `cbpokmfdbbcpgaookmhdgnbdcgkjkodl` (it changes if the folder path changes). Open `proofloop/extension/test/demo.html`. Enable the related-tabs option in the extension settings to see tab titles. Confirm the chip appears, the proof table expands, and the backend shows no 403. If the chip says "backend unreachable", the backend was started without the extension ID.
+2. **Real Chrome extension load (Ari):** see "Chrome troubleshooting" below for exact steps. The chip only appears on http/https pages opened after the extension is loaded. A `file://` page such as `extension/test/demo.html` opened from disk will never show it. Fastest test page: http://127.0.0.1:8787/ (the backend dashboard) or any https site.
 3. **PR decision (Ari):** open the drafted PR from feat/proofloop to main (title and description are in the Kiro chat; Kiro verified the CI scope check passes with that description). Squash merge matches the repo history.
 4. **Two timed dry runs** of the 3-minute demo (`bash proofloop/demo.sh`, add `--serve` for the backend), then the **90-second backup video**.
 5. **Submission by 4:30 PM PT.** Aim to be ready by 3:55 PM.
