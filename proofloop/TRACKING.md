@@ -6,7 +6,7 @@ Patch prepared November 20 (PR #1350): README.md describes the local Replay Gate
 
 Live status for the Personal Agents Hackathon build (Fri Nov 20, 2026). Kiro updates this file as work progresses. Ari's CLI agents (agy, Copilot, Muse CLI) read this file to pick up work interactively. Do not delete this file. Keep it current.
 
-Last updated: 2026-11-20 01:58 PM PT (by Kiro). Backend and gateway restarted with the correct extension ID; services live (Senso, LLM via gateway), Cognee stub, gate local. Waiting on Ari for: Chrome chip check, PR go-ahead. Milestones: dry runs, backup video by 3:55 PM PT, submission by 4:30 PM PT.
+Last updated: 2026-11-20 02:01 PM PT (by Kiro). Chrome chip CONFIRMED working by Ari (proof table, live Senso readback). Next: two timed dry runs, backup video by 3:55 PM PT, submission by 4:30 PM PT. PR not opened (Ari decides).
 
 ## Repo and branch
 - Repo: arii/boomtick (no new repo).
@@ -15,17 +15,34 @@ Last updated: 2026-11-20 01:58 PM PT (by Kiro). Backend and gateway restarted wi
 - PR #1350 and #1351 merged into feat/proofloop (not main). A PR from feat/proofloop to main is not open; decide after the live checks.
 
 ## Current status (latest)
+- **Chrome check result (reported by Ari, real Chrome, extension ID `cbpokmfdbbcpgaookmhdgnbdcgkjkodl`):**
+  - **Chip:** green banner at the bottom: "ProofLoop v1.1: deterministic replay (6/6 replay pass) - 5 local tabs shown".
+  - **Proof table (expanded):**
+
+    | Version | Pass | Delta | Gate | Senso node | Status |
+    |---|---|---|---|---|---|
+    | v1.1 | 2/6 -> 6/6 | +0.67 | promote | 821c47a2-506e-4362-95b5-3af669263bc4 | promoted (green) |
+    | v1.3-bad | 6/6 -> 4/6 | -0.33 | reject_and_refine | - | rolled_back (red) |
+
+  - **Sequence:** v1.1 goes directly to 6/6 in this live run, because the LLM mutation (through the Tokens with Taste gateway) proposed all the missing steps in one cycle. This is the case the `SUBMISSION.md` sentence about the LLM reaching 6/6 in a single cycle describes. The deterministic rule-based sequence (2/6, 5/6, 6/6) is a separate run.
+  - **Other tabs (local opt-in)** listed: 127.0.0.1:8787/status, the Gemini hackathon page (twice), (9) WhatsApp, Examine Attached Files, Kiro Web.
+  - **Services shown:** Cognee enabled (unverified), Senso enabled (unverified), Mutation LLM via local Tokens with Taste gateway enabled (unverified). The "unverified" wording is the chip's standing label for any enabled service; the readback line is the live evidence for Senso.
+  - **Footer lines:** "Measured deterministic replay only. No page data sent to backend or sponsors." and "Retrieval readback: live".
+  - **Flags for the demo and video:**
+    - **Personal tabs are visible in the chip.** The related-tabs list shows (9) WhatsApp and other tab titles. Close every non-demo tab, or turn the related-tabs option off, before the dry runs and before recording.
+    - **Cognee shows "enabled", not stub.** `--probe-live` earlier reported Cognee STUB, and the CLI agent has since changed the Cognee Cloud upload. Re-run `health.py --probe-live` before the submission text says Cognee was live. Until then `SUBMISSION.md` describes Cognee conservatively (API client plus built-in local graph).
+    - **Numbers for the submission:** if the live run is what gets shown in the demo and video, quote 2/6 -> 6/6 (v1.1 promoted) and 6/6 -> 4/6 (v1.3-bad rejected and rolled back), and say the LLM proposed the steps.
 - **Services restarted (reported by the CLI agent; only the two services were restarted):**
   - **ProofLoop backend:** 127.0.0.1:8787, pid 36873, dashboard HTTP 200, `/status` OK, reading state dir `proofloop/state/live-twt`, started with `PROOFLOOP_EXTENSION_ID=cbpokmfdbbcpgaookmhdgnbdcgkjkodl`.
   - **Tokens with Taste gateway:** 127.0.0.1:8000, pid 36872, `/v1/models` HTTP 200.
   - **Status:** Senso live, LLM live (via gateway), Cognee stub, gate local. `--probe-live`: Senso GREEN, LLM GREEN, Cognee STUB, Gate LOCAL.
-  - **Expected in the chip:** the proof table shows v1.1 at 6/6 and the rolled-back v1.3-bad. Chip appearing in real Chrome: NOT yet confirmed by Ari. Update this line when she reports.
+  - **Chip in real Chrome: CONFIRMED working by Ari** (see "Chrome check result" below). The earlier "backend unreachable" and "No ledger entries" messages are gone; the backend fetch works with the extension ID.
   - **Note on the numbers:** the live run reaches 6/6 at v1.1, not the 5/6 then 6/6 of the rule-based mutator. That is expected when the LLM (gateway) proposes all the missing steps in one cycle. The Replay Gate rules are the same; only the mutation proposal differs. Narrate whatever sequence the ledger shows. `SUBMISSION.md` and the video must quote the numbers from the final run that is actually shown.
 - **`health.py --probe-live` result (reported by the terminal agent on Ari's machine):**
   - **Senso: GREEN.** `GET /org/me` succeeded, so the key works. By design this does not prove ingest or search. Separately, the earlier live replay got a Senso readback that found content.
   - **LLM (mutation): GREEN, via the Tokens with Taste gateway.** The gateway is running now, so the mutation can be LLM-proposed. Pass rates are unchanged in principle (the rule-based mutator gives the same sequence); if the LLM proposes a different step set the sequence may differ, so re-check the printed pass rates on the next run.
   - **Cognee: STUB** (no live endpoint; local graph). **Gate: LOCAL** deterministic Replay Gate.
-  - **Live retrieval check for v1.2: not yet confirmed.** The report does not include the ledger values. Still to confirm in `proofloop/state/proof_ledger.json` on Ari's machine: the promoted v1.1 and v1.2 entries have a `senso_kb_node_id` that does NOT start with `stub-node-`, and `retrieval.mode` is `live` with `verified` true. If either shows `stub`, that run used the offline stub, and the Senso claim in SUBMISSION.md must not say live until a live run is recorded.
+  - **Live retrieval: CONFIRMED** by the chip panel ("Retrieval readback: live") and a real Senso node ID on the promoted entry (not `stub-node-*`). In this live run the active version is v1.1 (there is no v1.2 entry).
 - **Replay loop, run locally by Ari with Senso live (reported; Kiro has no keys and did not reproduce it):** v0 2/6, v1.1 5/6 promote, v1.2 6/6 promote, injected v1.3-bad 4/6 reject_and_refine and rollback, active v1.2 6/6. Ledger at `proofloop/state/proof_ledger.json` (git-ignored, local to Ari's machine). To confirm Senso was really live, not the stub: the promoted entries' `senso_kb_node_id` should NOT start with `stub-node-` and `retrieval.mode` should be `live`.
 - **Backend:** running on 127.0.0.1:8787 with `PROOFLOOP_EXTENSION_ID=cbpokmfdbbcpgaookmhdgnbdcgkjkodl` (32 characters, valid format).
 - **Tokens with Taste gateway:** was not running at the earlier check; now running and probed GREEN (see above). `twt` installs from `tokens-with-taste/` into its own environment, not into `proofloop/.venv`, and ProofLoop calls it over HTTP at 127.0.0.1:8000, so a ModuleNotFoundError for `twt` in `.venv` is expected and harmless.
@@ -58,7 +75,7 @@ Last updated: 2026-11-20 01:58 PM PT (by Kiro). Backend and gateway restarted wi
 - [ ] Confirm the v1.1/v1.2 ledger entries show live retrieval (see Current status: `senso_kb_node_id` not `stub-node-*`, `retrieval.mode` live). Probe is GREEN; ledger values not yet reported. Reported clean by Ari; Kiro cannot reproduce it. Cognee stays on the offline stub unless a URL is provided. Kiro exercised the live code paths only against harness/mock_sponsors.py and a keyless local gateway.
 - [ ] Luma session (consent/judge-applicant checkboxes) is not in the replay suite: slots model values, not checkbox state. Add a checkbox slot kind if Ari wants it in.
 - [ ] Optional: an LLM-backed executor (needs OPENROUTER_API_KEY) so pass rates reflect a real model, not the deterministic model.
-- [ ] Load the extension in real Chrome and verify chip/proof-table/tab detection (sandbox cannot start Chrome; must be done on Ari's machine).
+- [x] Extension loaded in real Chrome: chip, proof table, local tab list and live readback confirmed by Ari.
 - [ ] Backup video (90-second script) and two timed dry runs of the 3-minute demo.
 - [ ] PR decision (open now or wait until live runs are done).
 
@@ -124,7 +141,7 @@ Target: under 3:00, two clean runs in a row.
 
 ## Next steps (in order) and blockers
 Activation rules: `.env` is NOT read. Export real environment variables and opt in with `PROOFLOOP_LIVE_SERVICES`. Do not send secrets through chat.
-1. **Chrome check (Ari):** reload the page, look bottom-right (see Chrome troubleshooting). Expect the proof table with v1.1 at 6/6 and the rolled-back v1.3-bad. Report the result here; Kiro fixes anything that fails.
+1. ~~Chrome check (Ari)~~ DONE and confirmed (see Current status). Before recording: close personal tabs or turn off the related-tabs option.
 2. **Two timed dry runs** using the demo script and pre-flight above. Log them in the table.
 3. **Backup video** by 3:55 PM using the checklist.
 4. **PR decision (Ari):** not opened. Kiro opens it from feat/proofloop to main on Ari's go (squash merge).
@@ -135,6 +152,7 @@ Activation rules: `.env` is NOT read. Export real environment variables and opt 
 - Tokens with Taste gateway checked in the build sandbox with no provider keys: `twt sync` OK, `twt serve` OK, chat returns 503 listing missing credentials, harness falls back to rule-based and the offline results are unchanged (2/6, 5/6, 6/6, 4/6 rejected). Successful provider completion not yet exercised.
 - Ari's machine, after PR #1350/#1351 merged: full replay loop with Senso live completed, 2/6 -> 5/6 -> 6/6, injected regression 4/6 rejected and rolled back, active v1.2. Gateway not running, rule-based mutator used. demo.sh offline run completed. (Reported by Ari.)
 - `--probe-live` on Ari's machine: Senso GREEN (`GET /org/me`), LLM GREEN via the Tokens with Taste gateway, Cognee STUB, gate LOCAL. (Reported by the terminal agent.)
+- Real Chrome (Ari): chip works. Proof table shows v1.1 2/6 -> 6/6 promoted (Senso node 821c47a2-506e-4362-95b5-3af669263bc4, readback live) and v1.3-bad 6/6 -> 4/6 rolled back. Live-run sequence is v1.1 straight to 6/6 (LLM mutation).
 
 ## Needs from Ari
 1. **A provider key for the gateway, or Ollama** (optional, only for an LLM-proposed mutation): Groq, Google, NVIDIA, Mistral or SambaNova free key exported in the shell that runs `twt serve`. Without it the rule-based mutator is used and every result is unchanged.
@@ -148,7 +166,7 @@ Activation rules: `.env` is NOT read. Export real environment variables and opt 
 - [ ] Task 2 — Browser-first key entry + health checks (11:20–11:40 AM). Status: not started (needs keys from Ari or stub go-ahead).
 - [ ] Task 3 — Cognee ingestion smoke test (11:40 AM–12:10 PM). Status: stub path works; live path needs Cognee URL.
 - [ ] Task 4 — Core recursive loop, replay_loop.py (12:10–1:10 PM). Status: stub mode complete on real sessions (2/6 -> 5/6 -> 6/6, rollback works). Live mode needs keys.
-- [ ] Task 5 — Minimal MV3 Chrome extension (1:10–1:55 PM). Status: skeleton done, tested in jsdom. Needs real Chrome load on Ari's machine.
+- [x] Task 5 — Minimal MV3 Chrome extension (1:10–1:55 PM). Status: skeleton done, tested in jsdom. Needs real Chrome load on Ari's machine.
 - [ ] Task 6 — Proof table UI + demo dry run (2:30–3:00 PM). Status: dashboard done; dry runs and backup video not started. Needs Tasks 4 and 5 done.
 - [ ] Task 7 — Buffer / polish / submission prep (3:00–3:55 PM). Status: not started. Submission ready by 3:55 PM, 35 min slack before 4:30 PM deadline.
 
