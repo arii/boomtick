@@ -78,6 +78,26 @@ jobs:
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: python3 scripts/ci-docs-only.py
 
+  release-version-safety:
+    name: Release Version Safety
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+      - name: Test release version safety
+        run: python3 -m unittest discover -s cli/tests -p test_release_versions.py
+      - name: Reject reused or regressing release versions
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: python3 scripts/check-release-versions.py --base "$BASE_SHA" --head "$HEAD_SHA"
+
   tokens-with-taste:
     name: Tokens with Taste (Python 3.11)
     runs-on: ubuntu-latest
