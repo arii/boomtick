@@ -1,5 +1,4 @@
 import pytest
-
 from twt.catalog import providers
 from twt.store import Store
 
