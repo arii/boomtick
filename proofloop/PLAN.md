@@ -1,6 +1,6 @@
 # ProofLoop: plan to build the assistant that was proposed
 
-Status: in progress. Phases 0 to 2 of the slice are built and tested (see TRACKING.md, current status). Phase 3 (Senso read) and phase 4 (Cognee recall) are not started.
+Status: in progress. Code for phases 0 to 2 of the slice exists (see TRACKING.md), but under section 2.1 no milestone is done until it is verified on the live site at a check-in. Milestone 1 is reported; milestones 2 to 5 are unverified. Phase 3 (Senso read) and phase 4 (Cognee recall) are not started.
 Deadline is not a constraint. Quality is.
 
 ## 1. What went wrong
@@ -36,6 +36,26 @@ Quality bar:
 - A warning is rare, correct, and explained. A false positive costs more trust than a missed warning is worth. Track precision first.
 - Latency: the warning appears within 300 ms of a field change. Lookups against cloud services happen on page load and are cached, not per keystroke.
 - Private by default: page text and tab content leave the machine only for services she has enabled, after redaction, and never from tabs she has not opted in.
+
+### 2.1 Requirement: the UX works on top of the real site
+
+The chips, warnings and assists must work on the live Vouch and Luma pages. Fixtures are regression tests. They are not evidence that the assistant works.
+
+1. **Detection on the real page.** The field detector must find the target fields on the live Vouch and Luma pages, including custom components: React and Material UI wrappers, `role="combobox"` autocompletes, fields with no `<label>` (placeholder only), dialogs that only mount after a click, and fields re-rendered by the framework after load.
+2. **Rendering on top of the real page.** The chip must render on the live page without changing the page layout (fixed position, outside the page's flow), without covering any form field or its label (it moves to the side or is shortened when there is no free space next to the field), and without being restyled or blocked by the site's CSS or JavaScript (closed shadow root, constructed stylesheets, no dependence on page globals). It must follow the field when the page scrolls, a dialog scrolls, or the window resizes.
+3. **Buttons on the real page.** "Use San Francisco" changes the field only when clicked, and the site's own form state must keep the new value (checked by blurring and re-reading, and on Vouch by the site's address handling). "Keep" leaves the value unchanged and suppresses the chip for that value. Neither button submits the form or touches any other field.
+4. **Values set by the page.** When the site sets a value itself (picking an autocomplete suggestion, browser autofill), the warning must still appear. On live Vouch, typing "1 Main St San Jose" offers "1 South Main Street, San Jose, CA", so a selection that bypasses typing is a real case on the target site.
+5. **Live tests.** Each milestone is tested on the live site with the shipped manifest: load the extension, open the live Luma dialog or the live Vouch form, type "San Jose", check the chip message and both buttons. Never submit the form and never enter real personal data. A screenshot of the live page is recorded in TRACKING.md for each milestone.
+
+**Milestone gate.** A milestone is not done until it works on the live Vouch or Luma page. Passing on a fixture alone is "fixture-only" and is reported as such. The milestones, each followed by a check-in (Ari tests, Gemini reviews) before the next one starts:
+
+| # | Milestone | Done when, on the live site |
+|---|-----------|-----------------------------|
+| 1 | Snapshots of Vouch and Luma forms | Snapshot structure matches the live page (same fields, labels, components) |
+| 2 | Field detector | Detects the target field on live Luma and live Vouch, and nothing else on those forms |
+| 3 | Cards and deterministic matcher | Matcher decision on values typed into the live fields matches the test table, including near misses |
+| 4 | Chip with Use San Francisco and Keep | Renders on the live page without covering fields or shifting layout; both buttons work and the site keeps the value |
+| 5 | Playwright tests | Fixture e2e passes and the live-site tests pass for Luma and Vouch |
 
 ## 3. Target architecture
 
@@ -136,7 +156,7 @@ Second assist added in the same slice if time allows: when the page is a form an
 3. **Version change e2e:** seed Senso stub with v1 (no city rule) and v2 (rule present). Load page on v1: no chip. Promote v2. Refresh: chip appears and the badge reads v2. This is the demo climax as an automated test.
 4. **Live test (gated by env):** real Senso node read and real Cognee recall. Assert recall returns the Vouch session for a Vouch-like context, and record latency.
 5. **Assist eval (new, separate from skill replay):** a labeled set of saved page snapshots with (field, value, expected warn or not). Report precision and recall for the assist. Target precision of 1.0 on the labeled negative set before enabling by default. Without this there is no evidence the assistant is good, only that the code runs.
-6. **Manual check on the real Vouch and Luma pages**, with screenshots recorded in TRACKING.md.
+6. **Live-site tests on the real Vouch and Luma pages** (section 2.1), automated where possible (`extension/test/live_luma.cjs`, a Vouch equivalent to add) and checked by hand at each milestone, with screenshots recorded in TRACKING.md. These, not the fixtures, decide whether a milestone is done.
 
 Done means: on the real Vouch application page, typing San Jose triggers the chip, accepting the fix works, the chip cites a Senso rule read at runtime, and promoting a new rule set changes the behavior on refresh with no code edits.
 
