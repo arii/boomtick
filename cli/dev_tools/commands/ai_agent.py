@@ -260,11 +260,29 @@ def run(ctx, worktree, brief, model, repo, root_path, detach):
     is_flag=True,
     help="Bypass the scope gate (mirrors CI's [skip-scope-check])",
 )
+@click.option(
+    "--json",
+    "as_json",
+    is_flag=True,
+    default=False,
+    help="Output results in JSON format",
+)
 @click.pass_context
 def submit_pr(
-    ctx, worktree, title, body, base, draft, issue_number, repo, skip_scope_check
+    ctx,
+    worktree,
+    title,
+    body,
+    base,
+    draft,
+    issue_number,
+    repo,
+    skip_scope_check,
+    as_json=False,
 ):
     """Push a worktree branch and open a PR (scope-gated with --issue)."""
+    if as_json:
+        ctx.obj["JSON"] = True
     from dev_tools.services import submit_pr as sp
 
     try:

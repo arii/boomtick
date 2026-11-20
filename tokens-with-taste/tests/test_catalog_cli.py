@@ -74,6 +74,28 @@ def test_sync_public_and_skipped_providers(store):
     assert "nvidia: inference SKIPPED missing NVIDIA_API_KEY" in messages
 
 
+def test_cloudflare_static_models_sync(store, monkeypatch):
+    monkeypatch.setenv("CLOUDFLARE_API_TOKEN", "mock-token")
+    monkeypatch.setenv("CLOUDFLARE_ACCOUNT_ID", "mock-account")
+
+    def handler(request):
+        if str(request.url) == PRICE_URL:
+            return httpx.Response(200, json={})
+        if str(request.url) == OPENROUTER_URL:
+            return httpx.Response(200, json={"data": []})
+        return httpx.Response(200, json={"data": []})
+
+    async def scenario():
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+            return await sync(store, client)
+
+    messages = asyncio.run(scenario())
+    assert "cloudflare: synced 5 models" in messages
+    cf_models = [m for m in store.models() if m["provider"] == "cloudflare"]
+    assert len(cf_models) == 5
+    assert all(m["free"] and m["chat"] and m["context_length"] == 8192 for m in cf_models)
+
+
 def test_sync_failure_retains_catalog_and_empty_list_clears(store, monkeypatch):
     configuration = setup(store, monkeypatch, 1)
     configuration[0]["map_prefix"] = "p0"

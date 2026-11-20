@@ -83,7 +83,6 @@ def normalize(provider, row, prices, router):
     mode = metadata.get("mode")
     architecture = reference.get("architecture", {})
     outputs = architecture.get("output_modalities", [])
-    chat = "text" in outputs if outputs else mode == "chat"
     known = provider.get("models", {}).get(model_id, {})
     pricing = row.get("pricing", {}) if provider["id"] == "openrouter" else {}
     input_price = number(pricing.get("prompt"))
@@ -96,21 +95,24 @@ def normalize(provider, row, prices, router):
             number(pricing.get("prompt")) == 0 and number(pricing.get("completion")) == 0)
     if provider.get("free_prototyping"):
         free = True
+    chat = known.get("chat", "text" in outputs if outputs else mode == "chat")
     if "supported_parameters" in reference:
-        tools = "tools" in params
-        json_mode = "response_format" in params
-        json_schema = "structured_outputs" in params
+        tools = known.get("tools", "tools" in params)
+        json_mode = known.get("json", "response_format" in params)
+        json_schema = known.get("json_schema", "structured_outputs" in params)
     else:
-        tools = metadata.get("supports_function_calling") is True
-        json_mode = json_schema = metadata.get("supports_response_schema") is True
+        tools = known.get("tools", metadata.get("supports_function_calling") is True)
+        json_mode = known.get("json", metadata.get("supports_response_schema") is True)
+        json_schema = known.get("json_schema", metadata.get("supports_response_schema") is True)
     default_rpm = provider.get("rpm")
     if provider["id"] == "openrouter" and not model_id.endswith(":free"):
         default_rpm = None
     rpm = known.get("rpm", default_rpm)
+    context_length = known.get("context_length") or reference.get("context_length") or metadata.get("max_input_tokens")
     return {
         "provider": provider["id"], "id": model_id, "chat": chat,
         "tools": tools, "json": json_mode, "json_schema": json_schema,
-        "context_length": reference.get("context_length") or metadata.get("max_input_tokens"),
+        "context_length": context_length,
         "max_output_tokens": output_cap(provider, row, metadata, reference, prices),
         "input_price": 0.0 if free else input_price, "output_price": 0.0 if free else output_price,
         "free": free, "rpm": rpm,
@@ -203,8 +205,11 @@ async def sync(store, client=None, configuration=None):
                 messages.append(f"{provider['id']}: SKIPPED missing {', '.join(absent)}")
                 continue
             elif provider.get("discovery_blocked"):
-                messages.append(f"{provider['id']}: BLOCKED {provider['discovery_blocked']}")
-                continue
+                if provider.get("models"):
+                    rows = [{"id": m} for m in provider["models"]]
+                else:
+                    messages.append(f"{provider['id']}: BLOCKED {provider['discovery_blocked']}")
+                    continue
             else:
                 try:
                     response = await client.get(provider.get("models_url") or base_url(provider) + "/models",

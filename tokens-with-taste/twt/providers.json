@@ -98,7 +98,7 @@
       "base_url": "https://api.mistral.ai/v1",
       "key_env": "MISTRAL_API_KEY",
       "map_prefix": "mistral",
-      "free_only": true,
+      "free_only": false,
       "strict": false,
       "trains_on_free_tier": true,
       "models": {},
@@ -201,7 +201,38 @@
       "free_only": true,
       "strict": true,
       "trains_on_free_tier": false,
-      "models": {},
+      "models": {
+        "@cf/meta/llama-3.1-8b-instruct": {
+          "free": true,
+          "context_length": 8192,
+          "max_output_tokens": 2048,
+          "chat": true
+        },
+        "@cf/meta/llama-3.2-3b-instruct": {
+          "free": true,
+          "context_length": 8192,
+          "max_output_tokens": 2048,
+          "chat": true
+        },
+        "@cf/meta/llama-3.2-1b-instruct": {
+          "free": true,
+          "context_length": 8192,
+          "max_output_tokens": 2048,
+          "chat": true
+        },
+        "@cf/mistral/mistral-7b-instruct-v0.1": {
+          "free": true,
+          "context_length": 8192,
+          "max_output_tokens": 2048,
+          "chat": true
+        },
+        "@cf/qwen/qwen1.5-7b-chat-awq": {
+          "free": true,
+          "context_length": 8192,
+          "max_output_tokens": 2048,
+          "chat": true
+        }
+      },
       "verified": {
         "endpoint": {
           "checked": "2026-11-16",
