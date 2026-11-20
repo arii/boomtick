@@ -14,6 +14,15 @@ def providers():
     return json.loads(files("twt").joinpath("providers.json").read_text())["providers"]
 
 
+def disabled_providers():
+    """Explicit account exclusions override credentials and cached catalog rows."""
+    disabled = {item.strip().lower() for item in os.environ.get("TWT_DISABLED_PROVIDERS", "").split(",") if item.strip()}
+    unknown = disabled - {p["id"] for p in providers()}
+    if unknown:
+        raise ValueError("Unknown TWT_DISABLED_PROVIDERS: " + ", ".join(sorted(unknown)))
+    return disabled
+
+
 def configured_providers():
     model = os.environ.get("TWT_OLLAMA_MODEL")
     if model:
@@ -23,10 +32,11 @@ def configured_providers():
 
 
 def catalog_models(store, configuration):
+    disabled = disabled_providers()
     local_model = next((p["local_model"] for p in configuration if "local_model" in p), None)
     if local_model:
         return [m for m in store.models() if m["provider"] == "ollama" and m["id"] == local_model]
-    return [m for m in store.models() if m["provider"] != "ollama"]
+    return [m for m in store.models() if m["provider"] != "ollama" and m["provider"] not in disabled]
 
 
 def missing(provider):
@@ -179,6 +189,7 @@ async def sync_ollama(store, client, model):
 
 
 async def sync(store, client=None, configuration=None):
+    disabled = disabled_providers()
     configuration = configured_providers() if configuration is None else configuration
     local_model = next((p["local_model"] for p in configuration if "local_model" in p), None)
     owned = client is None
@@ -197,6 +208,9 @@ async def sync(store, client=None, configuration=None):
         messages.append(f"LiteLLM {LITELLM_SHA}: {len(prices)} entries")
         messages.append(f"OpenRouter public catalog: {len(router)} models (no key)")
         for provider in configuration:
+            if provider["id"] in disabled:
+                messages.append(f"{provider['id']}: DISABLED by account policy")
+                continue
             absent = missing(provider)
             if provider["id"] == "openrouter":
                 rows = router_rows
