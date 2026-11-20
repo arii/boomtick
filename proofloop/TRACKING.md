@@ -6,13 +6,13 @@ Patch prepared November 20 (PR #1350): README.md describes the local Replay Gate
 
 Live status for the Personal Agents Hackathon build (Fri Nov 20, 2026). Kiro updates this file as work progresses. Ari's CLI agents (agy, Copilot, Muse CLI) read this file to pick up work interactively. Do not delete this file. Keep it current.
 
-Last updated: 2026-11-20 12:58 PM PT (by Kiro). PR #1350 merged-forward with main and feat/proofloop (scope check and stale exports fixed). Added Tokens with Taste as the mutation LLM backend (OpenRouter free quota is gone). Extension ID recorded.
+Last updated: 2026-11-20 01:05 PM PT (by Kiro). PR #1350 (replay/activation safeguards, TypeSafe removed) and PR #1351 (Tokens with Taste mutation backend) are merged into feat/proofloop. feat/proofloop is NOT merged to main.
 
 ## Repo and branch
 - Repo: arii/boomtick (no new repo).
 - Directory: proofloop/
 - Branch: feat/proofloop — https://github.com/arii/boomtick/tree/feat/proofloop
-- No PR open yet. Decision pending: open a PR now or wait until live runs are done.
+- PR #1350 and #1351 merged into feat/proofloop (not main). A PR from feat/proofloop to main is not open; decide after the live checks.
 
 ## What is done
 - [x] proofloop/ scaffold (extension/, harness/, skills-local/).
@@ -41,13 +41,12 @@ Last updated: 2026-11-20 12:58 PM PT (by Kiro). PR #1350 merged-forward with mai
 - [ ] PR decision (open now or wait until live runs are done).
 
 ## Next steps (in order) and blockers
-Current activation rules (PR #1350): `.env` is NOT read. Export real environment variables and opt in with `PROOFLOOP_LIVE_SERVICES`. Do not send secrets through chat.
-1. Ari: merge PR #1350 (review the stacked Tokens with Taste PR into it first, or after).
-2. Ari, optional live mutation LLM: start the Tokens with Taste gateway with one provider key (README "Mutation LLM via Tokens with Taste"), then `PROOFLOOP_LIVE_SERVICES=twt python3 proofloop/harness/health.py --probe-live`.
-3. Ari, live Senso: `SENSO_API_KEY` exported in your shell, then `PROOFLOOP_LIVE_SERVICES=senso,twt python3 proofloop/harness/replay_loop.py --reset --bad-demo`. Senso field names are from docs and have not run against a real key yet; if it fails, paste the `[6]` line here (no key values).
-4. Ari: extension in real Chrome. ID is `cbpokmfdbbcpgaookmhdgnbdcgkjkodl`. Start the backend with `PROOFLOOP_EXTENSION_ID=cbpokmfdbbcpgaookmhdgnbdcgkjkodl python3 proofloop/harness/server.py` (the ID stays the same only while the extension is loaded from the same folder). Related-tab display is off by default: enable the `local_related_tabs` option, or the chip shows 0 related tabs. Confirm the chip appears and the proof table expands.
-5. Ari: two timed dry runs and a backup video.
-6. PR decision for feat/proofloop into main (not requested yet).
+Activation rules: `.env` is NOT read. Export real environment variables and opt in with `PROOFLOOP_LIVE_SERVICES`. Do not send secrets through chat.
+1. Ari, optional live mutation LLM: start the Tokens with Taste gateway with one provider key (README "Mutation LLM via Tokens with Taste"), then `PROOFLOOP_LIVE_SERVICES=twt python3 proofloop/harness/health.py --probe-live`. Skipping this changes nothing in the results (rule-based mutator).
+2. Ari, live Senso: export `SENSO_API_KEY` in your shell, then `PROOFLOOP_LIVE_SERVICES=senso,twt python3 proofloop/harness/replay_loop.py --reset --bad-demo`. Senso field names come from docs and have not run against a real key; if it fails, paste the `[6]` line here (no key values).
+3. Ari: extension in real Chrome. ID is `cbpokmfdbbcpgaookmhdgnbdcgkjkodl`. Start the backend with `PROOFLOOP_EXTENSION_ID=cbpokmfdbbcpgaookmhdgnbdcgkjkodl python3 proofloop/harness/server.py` (the ID is stable only while the extension loads from the same folder). Related-tab display is off by default: enable the `local_related_tabs` option or the chip shows 0 related tabs. Confirm the chip appears and the proof table expands.
+4. Ari: two timed dry runs and a backup video.
+5. Decision: open a PR from feat/proofloop to main (not requested yet).
 
 ## Live-run log
 - First live run (Ari's machine, before PR #1350): Senso `403 error code: 1010` (Cloudflare blocks the default Python User-Agent; fixed with a custom User-Agent) and OpenRouter `404` retired model (default now `openrouter/free`). Cycle 1 matched the offline result (v1.1 5/6) before stopping at the Senso call.
@@ -58,7 +57,7 @@ Current activation rules (PR #1350): `.env` is NOT read. Export real environment
 2. **SENSO_API_KEY exported in your shell** for live Senso (optional; offline stub otherwise, labeled on screen).
 3. **Real Chrome check** (Next steps 4) and the demo rehearsals (5).
 4. **Confirm phone masking** in data/sessions.jsonl ([PHONE-PRO], [PHONE-FAMILY]); the unmasked original is private and git-ignored.
-5. **Merge decision** for PR #1350 and the stacked Tokens with Taste PR.
+5. **Decision:** whether and when to open a PR from feat/proofloop to main.
 
 ## Task checklist (from the ProofLoop doc)
 - [x] Task 1 — Curate JSONL + replay_tasks.json (11:00–11:20 AM). Status: done. Real sessions validate; 6 tasks derived.
