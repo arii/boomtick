@@ -44,7 +44,9 @@
   const d = res.ok ? res.data : null;
   const relCount = res.related.length;
   let label;
-  if (!d) label = `ProofLoop: no data (${res.error}). Is the backend running with PROOFLOOP_EXTENSION_ID set? - ${relCount} local tabs shown`;
+  const extId = (chrome.runtime && chrome.runtime.id) || "(the ID on chrome://extensions)";
+  if (!d && /HTTP 403/.test(res.error || "")) label = `ProofLoop: the backend rejected this extension (HTTP 403). Restart it with PROOFLOOP_EXTENSION_ID=${extId} - ${relCount} local tabs shown`;
+  else if (!d) label = `ProofLoop: no data (${res.error}). Is the backend running on 127.0.0.1:8787 with PROOFLOOP_EXTENSION_ID=${extId}? - ${relCount} local tabs shown`;
   else if (!d.active_version) label = `ProofLoop: no current replay record - ${relCount} local tabs shown`;
   else label = `ProofLoop ${d.active_version}: deterministic replay (${d.pass}/${d.total} replay pass) - ${relCount} local tab${relCount === 1 ? "" : "s"} shown`;
 

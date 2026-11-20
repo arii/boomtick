@@ -184,6 +184,17 @@ class OfflineTests(unittest.TestCase):
         fake.headers = {"Host": "localhost:8787", "Origin": "http://localhost.evil:8787"}
         self.assertFalse(server.Handler._authorized(fake))
 
+    def test_rejected_extension_origin_prints_exact_id_hint_once(self):
+        server._HINTED.clear()
+        ext = "chrome-extension://" + "b" * 32
+        with contextlib.redirect_stderr(io.StringIO()) as err:
+            server.note_rejected_origin(ext)
+            server.note_rejected_origin(ext)
+            server.note_rejected_origin("https://evil.example")
+            server.note_rejected_origin("chrome-extension://short")
+        self.assertEqual(err.getvalue().count("PROOFLOOP_EXTENSION_ID=" + "b" * 32), 1)
+        self.assertEqual(err.getvalue().count("rejected"), 1)
+
     def test_config_post_cannot_write(self):
         sent = []
         fake = types.SimpleNamespace(_send=lambda *args: sent.append(args))

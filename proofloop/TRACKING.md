@@ -6,7 +6,7 @@ Patch prepared November 20 (PR #1350): README.md describes the local Replay Gate
 
 Live status for the Personal Agents Hackathon build (Fri Nov 20, 2026). Kiro updates this file as work progresses. Ari's CLI agents (agy, Copilot, Muse CLI) read this file to pick up work interactively. Do not delete this file. Keep it current.
 
-Last updated: 2026-11-20 01:39 PM PT (by Kiro). Chip not appearing in Chrome: diagnosed (see Chrome troubleshooting) and content.js fixed so it can no longer fail silently. Waiting on Ari for: Chrome re-check, PR go-ahead. Submission deadline 4:30 PM PT.
+Last updated: 2026-11-20 01:41 PM PT (by Kiro). Chip shows an error even though the dashboard loads: cause is the backend origin check (403 without PROOFLOOP_EXTENSION_ID); chip and server log now print the exact ID/command. Waiting on Ari for: Chrome re-check, PR go-ahead. Submission deadline 4:30 PM PT.
 
 ## Repo and branch
 - Repo: arii/boomtick (no new repo).
@@ -65,6 +65,7 @@ Last updated: 2026-11-20 01:39 PM PT (by Kiro). Chip not appearing in Chrome: di
 - **Where it injects:** every top-level `http://` and `https://` page, at document idle. Not on `chrome://` pages (including the New Tab page), the Chrome Web Store, `file://` pages, PDFs, or inside iframes. Tabs that were already open when the extension was loaded or reloaded need a page reload; new tabs and navigations pick it up automatically.
 - **What it looks like:** a dark green pill in the bottom-right corner, 16px from the edges, on top of the page (maximum z-index). It reads "ProofLoop v1.2: deterministic replay (6/6 replay pass) - N local tabs shown". Click it to open the proof table; the small x dismisses it for that page.
 - **Related-tabs opt-in is NOT needed** for the chip. With it off the chip just says "0 local tabs shown".
+- **Chip shows an error but the dashboard loads in a normal tab:** the extension uses `http://127.0.0.1:8787` (fixed in `background.js` and `options.js`, allowed in the manifest), so the address is right. The extension request carries `Origin: chrome-extension://<ID>`; the backend returns 403 unless started with `PROOFLOOP_EXTENSION_ID=<that exact ID>`. A normal tab sends no such origin, so it works. Fix: stop the backend and restart it as `PROOFLOOP_EXTENSION_ID=cbpokmfdbbcpgaookmhdgnbdcgkjkodl python3 proofloop/harness/server.py` (the chip text and the server's stderr now print the exact line), then reload the page. Also check the server is on port 8787; the extension cannot use another port.
 - **Backend unreachable or 403:** the chip still appears and says "ProofLoop: no data (...)" with the error. A 403 means the backend was started without `PROOFLOOP_EXTENSION_ID` equal to the ID on the chrome://extensions card.
 - **No chip at all** now means the script did not run: wrong page type, page not reloaded, extension disabled or errored on load. After the fix (content.js), a dead background worker also shows a chip instead of nothing.
 

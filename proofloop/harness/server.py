@@ -24,6 +24,16 @@ def allowed_origin(origin, port):
     return bool(re.fullmatch("[a-p]{32}", extension) and origin == f"chrome-extension://{extension}")
 
 
+_HINTED = set()
+
+
+def note_rejected_origin(origin):
+    """Print one stderr hint per rejected extension origin so the operator can copy the exact ID."""
+    if isinstance(origin, str) and re.fullmatch("chrome-extension://[a-p]{32}", origin) and origin not in _HINTED:
+        _HINTED.add(origin)
+        print(f"rejected {origin}: restart with PROOFLOOP_EXTENSION_ID={origin.split('//', 1)[1]}", file=sys.stderr, flush=True)
+
+
 def _read(name, default):
     p = config.STATE_DIR / name
     return json.loads(p.read_text()) if p.exists() else default
@@ -50,7 +60,10 @@ class Handler(BaseHTTPRequestHandler):
         if self.headers.get("Host") not in (f"127.0.0.1:{port}", f"localhost:{port}"):
             return False
         origin = self.headers.get("Origin")
-        return origin is None or allowed_origin(origin, port)
+        ok = origin is None or allowed_origin(origin, port)
+        if not ok:
+            note_rejected_origin(origin)
+        return ok
 
     def _send(self, code, obj, ctype="application/json"):
         body = obj if isinstance(obj, bytes) else json.dumps(obj).encode()
