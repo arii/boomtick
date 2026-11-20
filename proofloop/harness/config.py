@@ -1,10 +1,8 @@
-"""Single config for every sponsor call.
+"""Explicit per-process activation. Credentials alone never enable a service.
 
-Live vs stub is decided here from env vars (or state/keys.json, written by the
-extension's Keys & Status strip via the server's /config endpoint). Swapping a
-stub for the live API is a config change only.
+Only process environment is used. This module does not read .env, saved JSON keys,
+or Chrome storage. Supply secrets through an approved secret manager externally.
 """
-import json
 import os
 from pathlib import Path
 
@@ -13,80 +11,38 @@ STATE_DIR = Path(os.environ.get("PROOFLOOP_STATE", ROOT / "state"))
 DATA_DIR = ROOT / "data"
 SCHEMA_DIR = ROOT / "schemas"
 SKILLS_LOCAL = ROOT / "skills-local"
+KEY_NAMES = ["SENSO_API_KEY", "COGNEE_API_URL", "COGNEE_API_KEY", "COGNEE_TENANT_ID",
+             "OPENROUTER_API_KEY", "OPENROUTER_MODEL", "SENSO_POLL_S"]
+NEEDS = {"cognee": ("COGNEE_API_URL", "COGNEE_API_KEY"),
+         "senso": ("SENSO_API_KEY",), "llm": ("OPENROUTER_API_KEY",)}
 
-KEY_NAMES = ["SENSO_API_KEY", "TYPESAFE_API_KEY", "COGNEE_API_URL", "COGNEE_API_KEY", "COGNEE_TENANT_ID", "OPENROUTER_API_KEY", "TYPESAFE_MODEL", "OPENROUTER_MODEL", "SENSO_POLL_S"]
 
-JEV_MODEL = "typesafe/jev-1.14.0"
-# OpenRouter free models are retired often; this alias routes to whichever free model is up.
 DEFAULT_LLM_MODEL = "openrouter/free"
 
 
-def _dotenv() -> dict:
-    """Parse proofloop/.env (KEY=VALUE lines). Git-ignored; never committed."""
-    p = ROOT / ".env"
-    out = {}
-    if p.exists():
-        for line in p.read_text().splitlines():
-            line = line.strip()
-            if line and not line.startswith("#") and "=" in line:
-                k, v = line.split("=", 1)
-                out[k.strip()] = v.strip().strip('"').strip("'")
-    return out
-
-
-def _file_keys() -> dict:
-    p = STATE_DIR / "keys.json"
-    if p.exists():
-        try:
-            return json.loads(p.read_text())
-        except json.JSONDecodeError:
-            return {}
-    return {}
-
-
-def get(name: str, default: str = "") -> str:
+def get(name, default=""):
     if os.environ.get("PROOFLOOP_FORCE_STUB") == "1" and name in KEY_NAMES:
         return ""
-    return os.environ.get(name) or _dotenv().get(name) or _file_keys().get(name) or default
+    return os.environ.get(name) or default
 
 
-def base_url(service: str) -> str:
-    defaults = {
-        "jev": "https://api.typesafe.ai",
-        "senso": "https://apiv2.senso.ai",
-        "openrouter": "https://openrouter.ai",
-    }
-    env = {"jev": "TYPESAFE_BASE_URL", "senso": "SENSO_BASE_URL", "openrouter": "OPENROUTER_BASE_URL"}
-    if service != "cognee" and get(env[service]):
-        return get(env[service]).rstrip("/")
+def base_url(service):
     if service == "cognee":
         return get("COGNEE_API_URL").rstrip("/")
-    return (os.environ.get(env[service]) or defaults[service]).rstrip("/")
+    env, default = {"senso": ("SENSO_BASE_URL", "https://apiv2.senso.ai"),
+                    "openrouter": ("OPENROUTER_BASE_URL", "https://openrouter.ai")}[service]
+    return get(env, default).rstrip("/")
 
 
-def mode(service: str) -> str:
-    """Return 'live' or 'stub' for cognee | jev | senso | llm."""
-    needs = {"cognee": "COGNEE_API_URL", "jev": "TYPESAFE_API_KEY",
-             "senso": "SENSO_API_KEY", "llm": "OPENROUTER_API_KEY"}[service]
-    return "live" if get(needs) else "stub"
+def mode(service):
+    if os.environ.get("PROOFLOOP_FORCE_STUB") == "1":
+        return "stub"
+    enabled = {s.strip() for s in os.environ.get("PROOFLOOP_LIVE_SERVICES", "").split(",")}
+    return "live" if service in enabled and all(get(k) for k in NEEDS[service]) else "stub"
 
 
-def gate_mode() -> str:
-    """'local' (default, deterministic, no API) or 'jev' (PROOFLOOP_GATE=jev, needs TYPESAFE_API_KEY for live)."""
-    return "jev" if get("PROOFLOOP_GATE", "local").lower() == "jev" else "local"
-
-
-def status() -> dict:
-    labels = {
-        "cognee": ("Cognee (live)", "Cognee stub (local graph) - live Cognee pending"),
-        "senso": ("Senso (live)", "Senso (local stub - live API pending key)"),
-        "llm": ("OpenRouter LLM (live)", "Rule-based mutator (no LLM key) - live LLM pending"),
-    }
-    out = {s: {"mode": mode(s), "label": labels[s][0 if mode(s) == "live" else 1]} for s in labels}
-    if gate_mode() == "jev":
-        live = mode("jev") == "live"
-        out["gate"] = {"mode": "jev-live" if live else "jev-stub",
-                       "label": "TypeSafe Jev gate (live)" if live else "Jev stub (threshold gate) - live Jev pending key"}
-    else:
-        out["gate"] = {"mode": "local", "label": "Local deterministic threshold gate (no API)"}
-    return out
+def status():
+    names = {"cognee": "Cognee", "senso": "Senso", "llm": "OpenRouter mutation LLM"}
+    return {s: {"mode": mode(s), "verified": False,
+                "label": f"{name}: enabled, unverified (calls may use credits)" if mode(s) == "live"
+                else f"{name}: offline stub"} for s, name in names.items()}

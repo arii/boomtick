@@ -1,23 +1,27 @@
 #!/usr/bin/env python3
-"""Local backend for the extension and dashboard (127.0.0.1:8787).
+"""Read-only loopback backend. Never accepts credentials or searches page titles.
 
-GET  /augment?title=&url=   chip payload (active version, proof, Senso hits, service labels)
-GET  /ledger                proof_ledger.json + last_run.json
-GET  /status                live/stub mode per service
-POST /config                {SENSO_API_KEY, ...} -> state/keys.json (allow-listed names only)
-GET  /                      dashboard proof table
+GET /augment exposes local replay status only. Live sponsor work is performed
+by the separately activated harness, never by background browser requests.
 """
 import json
+import os
+import re
 import sys
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
-from urllib.parse import parse_qs, urlparse
+from urllib.parse import urlparse
 
-import clients
 import config
 
 DASH = Path(__file__).resolve().parent.parent / "dashboard.html"
-ALLOWED_ORIGIN_PREFIXES = ("chrome-extension://", "http://127.0.0.1", "http://localhost")
+
+
+def allowed_origin(origin, port):
+    if origin in (f"http://127.0.0.1:{port}", f"http://localhost:{port}"):
+        return True
+    extension = os.environ.get("PROOFLOOP_EXTENSION_ID", "")
+    return bool(re.fullmatch("[a-p]{32}", extension) and origin == f"chrome-extension://{extension}")
 
 
 def _read(name, default):
@@ -25,79 +29,71 @@ def _read(name, default):
     return json.loads(p.read_text()) if p.exists() else default
 
 
-def augment(title, url):
+def augment():
     ledger = _read("proof_ledger.json", {"active_version": "", "entries": []})
     run = _read("last_run.json", {})
-    promoted = [e for e in ledger["entries"] if e["status"] == "promoted"]
+    legacy = ledger.get("schema_version") != 2
+    history = [] if legacy else ledger["entries"]
+    promoted = [e for e in history if e["status"] == "promoted"]
     last = promoted[-1] if promoted else None
-    hits = []
-    try:
-        hits = clients.senso().search(title) if title else []
-    except clients.ApiError as e:
-        hits = [{"error": str(e)}]
-    return {
-        "active_version": ledger["active_version"] or None,
-        "pass": run.get("active", {}).get("passed"), "total": run.get("active", {}).get("total"),
-        "initial": run.get("initial"),
-        "last_promoted": last, "history": ledger["entries"],
-        "senso_hits": hits, "services": config.status(),
-    }
+    return {"active_version": None if legacy else ledger["active_version"],
+            "pass": run.get("active", {}).get("passed"), "total": run.get("active", {}).get("total"),
+            "last_promoted": last, "history": history, "services": config.status(),
+            "retrieval": last.get("retrieval") if last else None,
+            "legacy_state": legacy and bool(ledger.get("entries")),
+            "scope": "deterministic replay only; no page data sent to sponsors"}
 
 
 class Handler(BaseHTTPRequestHandler):
+    def _authorized(self):
+        port = self.server.server_port
+        if self.headers.get("Host") not in (f"127.0.0.1:{port}", f"localhost:{port}"):
+            return False
+        origin = self.headers.get("Origin")
+        return origin is None or allowed_origin(origin, port)
+
     def _send(self, code, obj, ctype="application/json"):
         body = obj if isinstance(obj, bytes) else json.dumps(obj).encode()
         self.send_response(code)
         self.send_header("Content-Type", ctype)
+        self.send_header("Cache-Control", "no-store")
+        self.send_header("X-Content-Type-Options", "nosniff")
         origin = self.headers.get("Origin", "")
-        if origin.startswith(ALLOWED_ORIGIN_PREFIXES):
+        if allowed_origin(origin, self.server.server_port):
             self.send_header("Access-Control-Allow-Origin", origin)
-            self.send_header("Access-Control-Allow-Headers", "Content-Type")
+            self.send_header("Vary", "Origin")
         self.send_header("Content-Length", str(len(body)))
         self.end_headers()
         self.wfile.write(body)
 
     def do_OPTIONS(self):
-        self._send(204, b"")
+        self._send(204 if self._authorized() else 403, b"")
 
     def do_GET(self):
-        u = urlparse(self.path)
-        q = {k: v[0] for k, v in parse_qs(u.query).items()}
-        if u.path == "/augment":
-            return self._send(200, augment(q.get("title", ""), q.get("url", "")))
-        if u.path == "/ledger":
-            return self._send(200, {"ledger": _read("proof_ledger.json", {"active_version": "", "entries": []}),
-                                    "run": _read("last_run.json", {})})
-        if u.path == "/status":
+        if not self._authorized():
+            return self._send(403, {"error": "host/origin not allowed"})
+        path = urlparse(self.path).path
+        if path == "/augment":
+            return self._send(200, augment())
+        if path == "/ledger":
+            ledger = _read("proof_ledger.json", {"schema_version": 2, "active_version": "", "entries": []})
+            if ledger.get("schema_version") != 2:
+                return self._send(409, {"error": "legacy ledger; select separate state directory or explicitly reset"})
+            return self._send(200, {"ledger": ledger, "run": _read("last_run.json", {})})
+        if path == "/status":
             return self._send(200, config.status())
-        if u.path in ("/", "/dashboard"):
+        if path in ("/", "/dashboard"):
             return self._send(200, DASH.read_bytes(), "text/html; charset=utf-8")
         self._send(404, {"error": "not found"})
 
     def do_POST(self):
-        if urlparse(self.path).path != "/config":
-            return self._send(404, {"error": "not found"})
-        origin = self.headers.get("Origin", "")
-        if origin and not origin.startswith(ALLOWED_ORIGIN_PREFIXES):
-            return self._send(403, {"error": "origin not allowed"})
-        try:
-            data = json.loads(self.rfile.read(int(self.headers.get("Content-Length", 0))) or b"{}")
-        except json.JSONDecodeError:
-            return self._send(400, {"error": "bad json"})
-        keys = {k: v for k, v in data.items() if k in config.KEY_NAMES and isinstance(v, str) and v}
-        p = config.STATE_DIR / "keys.json"
-        cur = json.loads(p.read_text()) if p.exists() else {}
-        cur.update(keys)
-        p.parent.mkdir(parents=True, exist_ok=True)
-        p.write_text(json.dumps(cur))
-        p.chmod(0o600)
-        self._send(200, {"saved": sorted(keys), "services": config.status()})
+        self._send(410, {"error": "credential/config writes disabled; no browser key storage"})
 
-    def log_message(self, *a):
+    def log_message(self, *args):
         pass
 
 
 if __name__ == "__main__":
     port = int(sys.argv[1]) if len(sys.argv) > 1 else 8787
-    print(f"ProofLoop server on http://127.0.0.1:{port}")
+    print(f"ProofLoop read-only backend on http://127.0.0.1:{port}")
     HTTPServer(("127.0.0.1", port), Handler).serve_forever()

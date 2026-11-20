@@ -4,7 +4,8 @@
   "type": "object",
   "required": [
     "active_version",
-    "entries"
+    "entries",
+    "schema_version"
   ],
   "properties": {
     "active_version": {
@@ -26,9 +27,10 @@
           "pass_rate_after",
           "delta",
           "skill_diff",
-          "jev_gate",
           "senso_kb_node_id",
-          "status"
+          "status",
+          "replay_gate",
+          "retrieval"
         ],
         "properties": {
           "cycle_id": {
@@ -68,47 +70,6 @@
           "skill_diff": {
             "type": "string"
           },
-          "jev_gate": {
-            "type": "object",
-            "required": [
-              "model",
-              "choice",
-              "confidence",
-              "constraints_prob",
-              "utility_score"
-            ],
-            "properties": {
-              "model": {
-                "type": "string"
-              },
-              "choice": {
-                "type": "string",
-                "enum": [
-                  "promote",
-                  "reject_and_refine",
-                  "hold"
-                ]
-              },
-              "confidence": {
-                "type": "number",
-                "minimum": -1,
-                "maximum": 1,
-                "description": "Local gate: candidate minus baseline pass rate. (Jev gate: model confidence 0-1.)"
-              },
-              "constraints_prob": {
-                "type": "number",
-                "minimum": 0,
-                "description": "Local gate: constraint violation count after the candidate. (Jev gate: probability 0-1.)"
-              },
-              "utility_score": {
-                "type": "number",
-                "minimum": 0,
-                "maximum": 1,
-                "description": "Candidate pass rate."
-              }
-            },
-            "description": "Promotion gate result. Key name kept for compatibility; the default gate is the local deterministic one."
-          },
           "senso_kb_node_id": {
             "type": "string"
           },
@@ -116,11 +77,85 @@
             "type": "string",
             "enum": [
               "promoted",
-              "rolled_back"
+              "rolled_back",
+              "held",
+              "promotion_failed"
             ]
+          },
+          "replay_gate": {
+            "type": "object",
+            "required": [
+              "policy",
+              "source",
+              "choice",
+              "reason",
+              "regressed_checks",
+              "failed_checks_before",
+              "failed_checks_after",
+              "scope"
+            ],
+            "properties": {
+              "policy": {
+                "const": "local-replay-v1"
+              },
+              "source": {
+                "const": "local"
+              },
+              "choice": {
+                "enum": [
+                  "promote",
+                  "hold",
+                  "reject_and_refine"
+                ]
+              },
+              "reason": {
+                "type": "string"
+              },
+              "scope": {
+                "const": "deterministic replay checks only"
+              },
+              "regressed_checks": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "failed_checks_before": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "failed_checks_after": {
+                "type": "integer",
+                "minimum": 0
+              }
+            }
+          },
+          "retrieval": {
+            "type": "object",
+            "required": [
+              "verified",
+              "mode"
+            ],
+            "properties": {
+              "verified": {
+                "type": "boolean"
+              },
+              "mode": {
+                "enum": [
+                  "live",
+                  "stub"
+                ]
+              },
+              "node_id": {
+                "type": "string"
+              }
+            }
           }
         }
       }
+    },
+    "schema_version": {
+      "const": 2
     }
   }
 }

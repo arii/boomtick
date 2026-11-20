@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Offline protocol mock of Cognee, TypeSafe Jev and Senso, built from their public docs.
+"""Offline protocol mock of Cognee and Senso, built from their public docs.
 Used only to exercise the harness's LIVE client code paths without keys. Not for the demo.
     python3 mock_sponsors.py 9001
 """
@@ -47,17 +47,6 @@ class H(BaseHTTPRequestHandler):
             return self._j(200, [{"text": d} for d in hits[:5]])
         if p == "/api/v1/chat/completions":
             return self._j(200, {"choices": [{"message": {"content": "hi"}}]})
-        if p == "/v1/systemone":
-            req = json.loads(raw)
-            if req["model"] != "jev-latest":
-                return self._j(400, {"error": "unknown model"})
-            nums = [float(x) for x in re.findall(r"pass rate (\d\.\d+)", req["state"])]
-            base, cand = nums
-            ch = "promote" if cand > base else "reject_and_refine"
-            return self._j(200, {"model": "jev-1.13.0", "answers": {
-                "decision": {"type": "choice", "choice": ch, "probabilities": {ch: .9}, "confidence": 0.9},
-                "utility": {"type": "score", "score": 3.0 if cand > base else 1.0, "legend": {"0": "a", "1": "b", "2": "c", "3": "d", "4": "e"}, "confidence": .8},
-                "violates_constraints": {"type": "noul", "noul": 0.1 if cand > base else 0.7}}})
         if p == "/api/v1/org/kb/raw":
             b = json.loads(raw)
             if any(n["text"] == b["text"] for n in NODES.values()):
