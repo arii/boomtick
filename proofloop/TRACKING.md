@@ -6,13 +6,24 @@ Patch prepared November 20 (PR #1350): README.md describes the local Replay Gate
 
 Live status for the Personal Agents Hackathon build (Fri Nov 20, 2026). Kiro updates this file as work progresses. Ari's CLI agents (agy, Copilot, Muse CLI) read this file to pick up work interactively. Do not delete this file. Keep it current.
 
-Last updated: 2026-11-20 01:05 PM PT (by Kiro). PR #1350 (replay/activation safeguards, TypeSafe removed) and PR #1351 (Tokens with Taste mutation backend) are merged into feat/proofloop. feat/proofloop is NOT merged to main.
+Last updated: 2026-11-20 01:30 PM PT (by Kiro). Status per Ari: replay loop ran clean locally with Senso live, backend up, extension ID known, Tokens with Taste gateway not running. Kiro verified the extension code path and PR readiness (below). Submission deadline 4:30 PM PT.
 
 ## Repo and branch
 - Repo: arii/boomtick (no new repo).
 - Directory: proofloop/
 - Branch: feat/proofloop — https://github.com/arii/boomtick/tree/feat/proofloop
 - PR #1350 and #1351 merged into feat/proofloop (not main). A PR from feat/proofloop to main is not open; decide after the live checks.
+
+## Current status (latest)
+- **Replay loop, run locally by Ari with Senso live (reported; Kiro has no keys and did not reproduce it):** v0 2/6, v1.1 5/6 promote, v1.2 6/6 promote, injected v1.3-bad 4/6 reject_and_refine and rollback, active v1.2 6/6. Ledger at `proofloop/state/proof_ledger.json` (git-ignored, local to Ari's machine). To confirm Senso was really live, not the stub: the promoted entries' `senso_kb_node_id` should NOT start with `stub-node-` and `retrieval.mode` should be `live`.
+- **Backend:** running on 127.0.0.1:8787 with `PROOFLOOP_EXTENSION_ID=cbpokmfdbbcpgaookmhdgnbdcgkjkodl` (32 characters, valid format).
+- **Tokens with Taste gateway: NOT running.** `twt` is not installed in `proofloop/.venv` (ModuleNotFoundError). That is expected, not a bug: `twt` installs from `tokens-with-taste/` into its own environment and runs as a separate process; ProofLoop only calls it over HTTP at 127.0.0.1:8000. Without it the LLM mutation falls back to the rule-based mutator, with identical pass rates.
+- **demo.sh:** ran in offline mode and completed.
+- **Kiro checks this turn (no keys, no Chrome):**
+  - Real server with the extension ID: `/augment` and `/status` return 200 for `chrome-extension://cbpokmfdbbcpgaookmhdgnbdcgkjkodl`; a different extension ID, a web-page origin and a bad Host header all return 403; `POST /config` returns 410. With no `PROOFLOOP_EXTENSION_ID` set, the extension origin gets 403 and the chip would say backend unreachable.
+  - Real `background.js` plus real `content.js` run against the real server in a simulated browser: chip renders ("ProofLoop v1.2: deterministic replay (6/6 replay pass)"), the proof table expands with the three ledger rows, dismiss works, and related tabs show 0 with the opt-in off and 2 with it on (the chrome:// tab is excluded).
+  - The extension ID does not appear in extension code and cannot: Chrome derives it. It is configured only through `PROOFLOOP_EXTENSION_ID` on the backend.
+  - Branch is merge-ready against main: 0 commits behind, no conflicts, 36 files (2 outside `proofloop/`: `package.json`, `.fallowrc.json`), no secrets or phone numbers in tracked files. PR is drafted but NOT opened.
 
 ## What is done
 - [x] proofloop/ scaffold (extension/, harness/, skills-local/).
@@ -33,7 +44,7 @@ Last updated: 2026-11-20 01:05 PM PT (by Kiro). PR #1350 (replay/activation safe
 - [x] TRACKING.md committed on feat/proofloop.
 
 ## What is still missing
-- [ ] Run against the real Senso API (needs SENSO_API_KEY in Ari's shell). Cognee stays on the offline stub unless a URL is provided. Live code paths only exercised against harness/mock_sponsors.py.
+- [ ] Confirm the live Senso run is real, not the stub (see Current status: `senso_kb_node_id` not `stub-node-*`, `retrieval.mode` live). Reported clean by Ari; Kiro cannot reproduce it. Cognee stays on the offline stub unless a URL is provided. Live code paths only exercised against harness/mock_sponsors.py.
 - [ ] Luma session (consent/judge-applicant checkboxes) is not in the replay suite: slots model values, not checkbox state. Add a checkbox slot kind if Ari wants it in.
 - [ ] Optional: an LLM-backed executor (needs OPENROUTER_API_KEY) so pass rates reflect a real model, not the deterministic model.
 - [ ] Load the extension in real Chrome and verify chip/proof-table/tab detection (sandbox cannot start Chrome; must be done on Ari's machine).
@@ -41,16 +52,18 @@ Last updated: 2026-11-20 01:05 PM PT (by Kiro). PR #1350 (replay/activation safe
 - [ ] PR decision (open now or wait until live runs are done).
 
 ## Next steps (in order) and blockers
-Activation rules: `.env` is NOT read. Export real environment variables and opt in with `PROOFLOOP_LIVE_SERVICES`. Do not send secrets through chat.
-1. Ari, optional live mutation LLM: start the Tokens with Taste gateway with one provider key (README "Mutation LLM via Tokens with Taste"), then `PROOFLOOP_LIVE_SERVICES=twt python3 proofloop/harness/health.py --probe-live`. Skipping this changes nothing in the results (rule-based mutator).
-2. Ari, live Senso: export `SENSO_API_KEY` in your shell, then `PROOFLOOP_LIVE_SERVICES=senso,twt python3 proofloop/harness/replay_loop.py --reset --bad-demo`. Senso field names come from docs and have not run against a real key; if it fails, paste the `[6]` line here (no key values).
-3. Ari: extension in real Chrome. ID is `cbpokmfdbbcpgaookmhdgnbdcgkjkodl`. Start the backend with `PROOFLOOP_EXTENSION_ID=cbpokmfdbbcpgaookmhdgnbdcgkjkodl python3 proofloop/harness/server.py` (the ID is stable only while the extension loads from the same folder). Related-tab display is off by default: enable the `local_related_tabs` option or the chip shows 0 related tabs. Confirm the chip appears and the proof table expands.
-4. Ari: two timed dry runs and a backup video.
-5. Decision: open a PR from feat/proofloop to main (not requested yet).
+Activation rules: `.env` is NOT read. Export real environment variables and opt in with `PROOFLOOP_LIVE_SERVICES`. Do not send secrets through chat. Plan (Gemini) for the rest of the day, in this order:
+1. **Live Senso confirmation (Ari):** open the ledger and check the promoted entries are not `stub-node-*` and `retrieval.mode` is `live`. If it was the stub, rerun: `PROOFLOOP_LIVE_SERVICES=senso python3 proofloop/harness/replay_loop.py --reset --bad-demo` with `SENSO_API_KEY` exported. If the `[6]` line shows a failure, paste it here (no key values).
+2. **Real Chrome extension load (Ari):** chrome://extensions, Developer mode, Load unpacked, `proofloop/extension`. Check the ID is still `cbpokmfdbbcpgaookmhdgnbdcgkjkodl` (it changes if the folder path changes). Open `proofloop/extension/test/demo.html`. Enable the related-tabs option in the extension settings to see tab titles. Confirm the chip appears, the proof table expands, and the backend shows no 403. If the chip says "backend unreachable", the backend was started without the extension ID.
+3. **PR decision (Ari):** open the drafted PR from feat/proofloop to main (title and description are in the Kiro chat; Kiro verified the CI scope check passes with that description). Squash merge matches the repo history.
+4. **Two timed dry runs** of the 3-minute demo (`bash proofloop/demo.sh`, add `--serve` for the backend), then the **90-second backup video**.
+5. **Submission by 4:30 PM PT.** Aim to be ready by 3:55 PM.
+Optional: start the Tokens with Taste gateway (README "Mutation LLM via Tokens with Taste") for an LLM-proposed mutation; results do not change without it.
 
 ## Live-run log
 - First live run (Ari's machine, before PR #1350): Senso `403 error code: 1010` (Cloudflare blocks the default Python User-Agent; fixed with a custom User-Agent) and OpenRouter `404` retired model (default now `openrouter/free`). Cycle 1 matched the offline result (v1.1 5/6) before stopping at the Senso call.
 - Tokens with Taste gateway checked in the build sandbox with no provider keys: `twt sync` OK, `twt serve` OK, chat returns 503 listing missing credentials, harness falls back to rule-based and the offline results are unchanged (2/6, 5/6, 6/6, 4/6 rejected). Successful provider completion not yet exercised.
+- Ari's machine, after PR #1350/#1351 merged: full replay loop with Senso live completed, 2/6 -> 5/6 -> 6/6, injected regression 4/6 rejected and rolled back, active v1.2. Gateway not running, rule-based mutator used. demo.sh offline run completed. (Reported by Ari.)
 
 ## Needs from Ari
 1. **A provider key for the gateway, or Ollama** (optional, only for an LLM-proposed mutation): Groq, Google, NVIDIA, Mistral or SambaNova free key exported in the shell that runs `twt serve`. Without it the rule-based mutator is used and every result is unchanged.
