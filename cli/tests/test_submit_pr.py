@@ -284,3 +284,61 @@ def test_root_session_json_excluded_from_scope(worktree):
         res = sp.submit(str(worktree), "T", "", "main", True, None, ISSUE)
     assert res["status"] == "submitted"
     assert "session.json" not in res["files"]
+
+
+@pytest.mark.parametrize("expected", ["other-branch", ""])
+def test_expected_branch_refuses_before_any_mutation(worktree, expected):
+    (worktree / "mcp/login.ts").write_text("dirty change\n")
+    real_run = sp._run
+    observed = []
+
+    def router(args, cwd):
+        observed.append(args)
+        assert args[:3] == ["git", "branch", "--show-current"]
+        return real_run(args, cwd)
+
+    with patch.object(sp, "_run", side_effect=router):
+        with pytest.raises(sp.SubmitError, match="Refusing to submit"):
+            sp.submit(str(worktree), "T", expected_branch=expected)
+    assert len(observed) == 1
+    assert (worktree / "mcp/login.ts").read_text() == "dirty change\n"
+
+
+def test_expected_branch_allows_matching_branch(worktree):
+    real_run = sp._run
+
+    def router(args, cwd):
+        if args[:2] == ["git", "push"] or args[0] == "gh":
+            return _router(_ok_push_pr())(args, cwd)
+        return real_run(args, cwd)
+
+    with patch.object(sp, "_run", side_effect=router):
+        result = sp.submit(str(worktree), "T", expected_branch="fix-login")
+    assert result["branch"] == "fix-login"
+
+
+def test_cli_forwards_expected_branch_before_submission(worktree):
+    from click.testing import CliRunner
+    from dev_tools.commands.ai_agent import submit_pr
+
+    result_data = {
+        "branch": "fix-login",
+        "url": "https://example.invalid/review",
+        "status": "submitted",
+    }
+    with patch.object(sp, "submit", return_value=result_data) as submit:
+        result = CliRunner().invoke(
+            submit_pr,
+            [
+                "--worktree",
+                str(worktree),
+                "--title",
+                "T",
+                "--expected-branch",
+                "fix-login",
+                "--json",
+            ],
+            obj={"JSON": True},
+        )
+    assert result.exit_code == 0, result.output
+    assert submit.call_args.kwargs["expected_branch"] == "fix-login"
