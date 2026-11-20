@@ -79,22 +79,18 @@ export async function pickGeminiModel(
 
   const availableIds = await resolveAvailableGeminiModels();
   const activeModels = GEMINI_MODELS_METADATA.filter(m =>
-    availableIds.includes(m.id) && !DEPRECATED_MODELS.includes(m.id)
+    availableIds.includes(m.id) && !DEPRECATED_MODELS.includes(m.id) &&
+    (!m.deprecatedAfter || Date.now() < Date.parse(m.deprecatedAfter)) &&
+    m.maxInputTokens >= estimatedInputTokens
   );
 
   if (activeModels.length === 0) {
-    return availableIds.find(id => id.includes('3.1') || id.includes('3.5')) ||
-           GEMINI_MODELS_METADATA.find(m => m.tier === preferredTier)?.id ||
-           GEMINI_MODELS_METADATA[1].id;
+    throw new Error('No verified active catalog Gemini model can handle this input; model discovery, access or catalog refresh is required.');
   }
 
-  let selected = activeModels.find(m => m.tier === preferredTier) ||
-                 activeModels.find(m => m.tier === 'lite') ||
-                 activeModels[0];
-
-  if (estimatedInputTokens > selected.maxInputTokens) {
-    selected = activeModels.find(m => m.maxInputTokens >= estimatedInputTokens) || selected;
-  }
+  const selected = activeModels.find(m => m.tier === preferredTier) ||
+                   activeModels.find(m => m.tier === 'lite') ||
+                   activeModels[0];
 
   return selected.id;
 }
