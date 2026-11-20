@@ -3,12 +3,14 @@
 import json
 import os
 import re
+import shlex
 import subprocess
 from collections import defaultdict
 from typing import Any, Dict, List, Optional, Tuple
-from dev_tools.utils import log_warn
-from dev_tools.orchestration.base import OrchestratorBase
+
 import dev_tools.orchestrator
+from dev_tools.orchestration.base import OrchestratorBase
+from dev_tools.utils import log_warn
 
 
 class ReviewMixin(OrchestratorBase):
@@ -219,15 +221,30 @@ class ReviewMixin(OrchestratorBase):
             )
         return findings
 
+    @staticmethod
+    def _review_files(diff: str) -> List[str]:
+        """Read file headers, including deleted, renamed and binary files."""
+        paths = set()
+        for line in (diff or "").splitlines():
+            if line.startswith("diff --git "):
+                try:
+                    headers = shlex.split(line)[2:]
+                except ValueError:
+                    continue
+            elif line.startswith(("+++ ", "--- ")):
+                headers = [line[4:].split("\t", 1)[0]]
+            else:
+                continue
+            for path in headers:
+                if path.startswith(("a/", "b/")):
+                    paths.add(path[2:])
+        return sorted(paths)
+
     def evaluate_pr_heuristics(
         self, pr: Dict[str, Any], diff: str, checks: Dict[str, Any]
     ) -> str:
         """Applies heuristic rules to a PR diff and checks, returning specific feedback."""
-        # Pre-process diff to get unique files for faster heuristic matching
-        files_in_diff = set()
-        for line in diff.splitlines():
-            if line.startswith("+++ b/"):
-                files_in_diff.add(line[6:])
+        files_in_diff = self._review_files(diff)
 
         is_ui = any(
             any(ind in f for ind in dev_tools.orchestrator.get_config().ui_indicators)
@@ -256,13 +273,23 @@ class ReviewMixin(OrchestratorBase):
             if c.get("conclusion") == "failure"
         ]
 
-        feedback = f"### Specific Review for PR #{pr['number']}\n\n"
-
-        # What's working
-        feedback += "**What is working well:**\n"
-        feedback += f"- The scope is clearly defined in branch `{pr.get('head', {}).get('ref', 'unknown')}`.\n"
-        if not fails:
-            feedback += "- All CI checks appear to be passing.\n"
+        feedback = f"### Deterministic heuristic review for PR #{pr['number']}\n\n"
+        feedback += "No model was called. This is a limited rule scan, not approval.\n"
+        feedback += "\n**Files observed in diff headers:**\n"
+        feedback += "".join(f"- `{path}`\n" for path in files_in_diff)
+        if not files_in_diff:
+            feedback += "- No file headers available; diff coverage is unverified.\n"
+        runs = checks.get("check_runs", [])
+        feedback += "\n**CI evidence:**\n"
+        if not runs:
+            feedback += "- No check runs returned; CI status is unverified.\n"
+        for run in runs:
+            feedback += (
+                f"- {run.get('name', '(unnamed)')}: "
+                f"{run.get('status', 'unknown')} / "
+                f"{run.get('conclusion') or 'no conclusion'}\n"
+            )
+        feedback += "- Required-check coverage and runtime/browser behavior were not verified.\n"
 
         feedback += "\n**Specific Issues & Actionable Fixes:**\n"
 
@@ -419,18 +446,9 @@ class ReviewMixin(OrchestratorBase):
                 f"functionality.\n"
             )
 
-        # Default if no specific issues caught by heuristics
         if feedback.endswith("**Specific Issues & Actionable Fixes:**\n"):
             feedback += (
-                "- "
-                "Review the "
-                "diff against "
-                "`audit` guidelines. "
-                "Ensure no "
-                "console errors "
-                "exist in "
-                "the target "
-                "components.\n"
+                "- No configured heuristic findings. Human review is still required.\n"
             )
 
         return feedback
@@ -451,15 +469,22 @@ class ReviewMixin(OrchestratorBase):
             pr_details, pr_diff, {"check_runs": check_runs}
         )
         fails = [c["name"] for c in check_runs if c.get("conclusion") == "failure"]
-        verdict = "Not Approved" if fails else "Approved"
+        findings = self.collect_pr_findings(
+            pr_details, pr_diff, {"check_runs": check_runs}
+        )
+        verdict = (
+            "Not Approved"
+            if fails or any(f["severity"] == "error" for f in findings)
+            else "Review Required"
+        )
 
         return {
             "prNumber": prNumber,
             "recommendation": verdict,
             "reviewComment": feedback,
-            "findings": self.collect_pr_findings(
-                pr_details, pr_diff, {"check_runs": check_runs}
-            ),
+            "findings": findings,
+            "reviewMode": "deterministic-heuristics",
+            "modelUsed": False,
         }
 
     def get_audit_results(
