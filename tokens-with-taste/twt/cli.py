@@ -1,7 +1,10 @@
 import argparse
 import asyncio
 import json
-from datetime import datetime, timezone
+import sqlite3
+from datetime import UTC, datetime
+
+import httpx
 
 from .audit import inspect_trace, report
 from .catalog import catalog_models, configured_providers, sync
@@ -10,10 +13,10 @@ from .store import Store
 
 def since_date(value):
     try:
-        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+        parsed = datetime.fromisoformat(value)
         if parsed.tzinfo is None:
-            parsed = parsed.replace(tzinfo=timezone.utc)
-        return parsed.astimezone(timezone.utc).isoformat()
+            parsed = parsed.replace(tzinfo=UTC)
+        return parsed.astimezone(UTC).isoformat()
     except ValueError as error:
         raise argparse.ArgumentTypeError("--since expects an ISO date or timestamp") from error
 
@@ -39,12 +42,13 @@ def main(argv=None):
     try:
         if args.command == "serve":
             import uvicorn
+
             from .gateway import create_app
             uvicorn.run(create_app(store=store), host="127.0.0.1", port=args.port)
         elif args.command == "sync":
             try:
                 print("\n".join(asyncio.run(sync(store))))
-            except Exception as error:
+            except (httpx.HTTPError, OSError, sqlite3.Error, ValueError, KeyError, TypeError) as error:
                 parser.exit(1, f"Catalog sync failed ({type(error).__name__}: {error}); existing catalog retained.\n")
         elif args.command == "models":
             rows = [m for m in catalog_models(store, configured_providers()) if m["chat"] and (not args.free or m["free"])
