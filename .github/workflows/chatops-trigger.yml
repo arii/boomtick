@@ -12,6 +12,7 @@ permissions:
 
 jobs:
   dispatch:
+    timeout-minutes: 10
     if: github.event.issue.pull_request
     runs-on: ubuntu-latest
     steps:
