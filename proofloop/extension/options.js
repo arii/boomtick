@@ -2,8 +2,11 @@ const $ = id => document.getElementById(id);
 (async () => {
   const { local_related_tabs = false } = await chrome.storage.local.get("local_related_tabs");
   $("local_related_tabs").checked = local_related_tabs;
+  const stored = await chrome.storage.local.get(["token", "show_ledger_chip"]);
+  $("token").value = stored.token || "";
+  $("show_ledger_chip").checked = !!stored.show_ledger_chip;
   try {
-    const r = await fetch("http://127.0.0.1:8787/status");
+    const r = await fetch("http://127.0.0.1:8787/status", { headers: stored.token ? { Authorization: `Bearer ${stored.token}` } : {} });
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
     const status = await r.json();
     $("status").textContent = "";
@@ -17,6 +20,6 @@ const $ = id => document.getElementById(id);
   }
 })();
 $("save").onclick = async () => {
-  await chrome.storage.local.set({ local_related_tabs: $("local_related_tabs").checked });
-  $("msg").textContent = "Local setting saved. No credentials collected.";
+  await chrome.storage.local.set({ local_related_tabs: $("local_related_tabs").checked, token: $("token").value.trim(), show_ledger_chip: $("show_ledger_chip").checked });
+  $("msg").textContent = "Saved. Reload open pages to apply.";
 };

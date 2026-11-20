@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "ProofLoop",
-  "version": "0.1.0",
-  "description": "Quiet inline chips backed by measured deterministic replay checks. No chat.",
+  "version": "0.2.0",
+  "description": "Quiet inline assistant: warns before a form field contradicts a rule from your own sessions. No chat.",
   "permissions": [
     "tabs",
     "storage",
@@ -18,10 +18,16 @@
   "content_scripts": [
     {
       "matches": [
-        "http://*/*",
-        "https://*/*"
+        "https://luma.com/*",
+        "https://lu.ma/*",
+        "https://*.luma.com/*",
+        "https://workatastartup.com/*",
+        "https://www.workatastartup.com/*"
       ],
       "js": [
+        "assist/detect.js",
+        "assist/match.js",
+        "assist/assist.js",
         "content.js"
       ],
       "run_at": "document_idle"

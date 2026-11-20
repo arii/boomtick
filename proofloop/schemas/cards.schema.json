@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ConstraintCardSet",
+  "type": "object",
+  "required": ["version", "cards"],
+  "additionalProperties": false,
+  "properties": {
+    "version": {"type": "integer", "minimum": 1},
+    "reviewed": {"type": "boolean"},
+    "cards": {"type": "array", "items": {"$ref": "#/$defs/card"}}
+  },
+  "$defs": {
+    "card": {
+      "type": "object",
+      "required": ["id", "kind", "field", "scope", "message", "provenance"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {"type": "string", "pattern": "^rule\\.[a-z0-9_.]+$"},
+        "kind": {"enum": ["forbid_value"]},
+        "field": {
+          "type": "object",
+          "required": ["semantic"],
+          "additionalProperties": false,
+          "properties": {"semantic": {"enum": ["city", "address"]}}
+        },
+        "forbid": {"type": "array", "items": {"type": "string"}, "minItems": 1},
+        "expect": {"type": "string"},
+        "scope": {
+          "type": "object",
+          "required": ["hosts"],
+          "additionalProperties": false,
+          "properties": {
+            "hosts": {"type": "array", "items": {"type": "string"}, "minItems": 1},
+            "path_prefixes": {"type": "array", "items": {"type": "string"}}
+          }
+        },
+        "message": {"type": "string", "maxLength": 200},
+        "provenance": {"type": "array", "items": {"type": "string"}, "minItems": 1},
+        "notes": {"type": "string"}
+      }
+    }
+  }
+}

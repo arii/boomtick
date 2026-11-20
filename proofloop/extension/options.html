@@ -8,9 +8,11 @@ label{display:block;margin:16px 0}button{padding:8px 16px;font:inherit}
 </style>
 <h1>ProofLoop - Local settings</h1>
 <p>The chip shows measured deterministic replay checks, not live-agent quality or a safety guarantee.</p>
-<p>No page title, URL or snippet is sent to the backend or sponsors. This page does not collect or save keys. Existing saved credentials are not used by this version.</p>
+<p>The assistant asks the local backend which rules apply to a page and sends only the page origin and path (no query string, title or page text). Form values are checked inside the browser and never leave it. This page stores only the local backend token, never sponsor keys.</p>
 <div id="status">Checking local backend...</div>
 <label><input type="checkbox" id="local_related_tabs"> Show other tab titles locally in the chip (off by default)</label>
+<label>Backend API token (from <code>state/server_token</code>; stored only in this browser profile)<br><input id="token" type="password" autocomplete="off" style="width:100%"></label>
+<label><input type="checkbox" id="show_ledger_chip"> Show the replay ledger chip on pages (off by default; the assistant chips appear inline next to form fields)</label>
 <button id="save">Save local setting</button> <span id="msg"></span>
 <p>Backend: http://127.0.0.1:8787. Configure the exact extension ID in the backend process before use. Sponsor activation is separate and may consume credits.</p>
 <script src="options.js"></script>

@@ -1,6 +1,9 @@
 // ProofLoop content script: one quiet, dismissible chip. No chat box.
 (async () => {
   if (window.top !== window || document.getElementById("proofloop-chip-host")) return;
+  // The ledger chip is a status view, not the assistant. Off unless enabled in options.
+  const { show_ledger_chip = false } = await chrome.storage.local.get("show_ledger_chip");
+  if (!show_ledger_chip) return;
 
   console.info("[ProofLoop] content script running; chip is bottom-right");
   // Never fail silently: if the background worker is missing or the extension was reloaded without

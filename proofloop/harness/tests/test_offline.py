@@ -197,7 +197,7 @@ class OfflineTests(unittest.TestCase):
 
     def test_config_post_cannot_write(self):
         sent = []
-        fake = types.SimpleNamespace(_send=lambda *args: sent.append(args))
+        fake = types.SimpleNamespace(path="/config", _send=lambda *args: sent.append(args))
         server.Handler.do_POST(fake)
         self.assertEqual(sent[0][0], 410)
         self.assertEqual(list(Path(self.tmp.name).iterdir()), [])
