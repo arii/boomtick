@@ -2,7 +2,7 @@
 """ProofLoop replay harness.
 
 Flow: ingest sessions -> Cognee recall -> replay tasks -> baseline replay ->
-mutation -> Jev gate -> Senso promotion -> proof ledger -> rollback on reject.
+mutation -> promotion gate -> Senso promotion -> proof ledger -> rollback on reject.
 
     python3 replay_loop.py --reset                 # full demo run
     python3 replay_loop.py --reset --bad-demo      # plus a bad mutation that gets rolled back
@@ -146,10 +146,14 @@ def run_cycle(n, active, steps, version, tasks, base_rep, ledger, senso_client):
         "step_count_delta": len(steps) - len(active["steps"]),
         "total_checks": rep["total_checks"], "total_tasks": rep["total"],
     }
-    gate = clients.jev_gate(state)
-    log(f"[5] Jev gate ({gate['model']}, {gate['source']}): {gate['choice']} "
-        f"confidence={gate['confidence']} constraints_prob={gate['constraints_prob']} "
-        f"utility={gate['utility_score']}")
+    gate = clients.decide(state)
+    if gate["source"] == "local":
+        detail = (f"delta={gate['confidence']} violations={gate['constraints_prob']} "
+                  f"candidate_pass_rate={gate['utility_score']}")
+    else:
+        detail = (f"confidence={gate['confidence']} constraints_prob={gate['constraints_prob']} "
+                  f"utility={gate['utility_score']}")
+    log(f"[5] Gate ({gate['model']}, {gate['source']}): {gate['choice']} {detail}")
 
     node_id = ""
     status = "rolled_back"
@@ -157,13 +161,13 @@ def run_cycle(n, active, steps, version, tasks, base_rep, ledger, senso_client):
              "pass_before": base_rep["passed"], "pass_after": rep["passed"], "total": rep["total"]}
     if gate["choice"] == "promote":
         cycle_id = f"cyc-{n:03d}"
-        text = json.dumps({"skill": cand, "proof": proof, "jev": gate, "promoted_at": now()}, indent=2)
+        text = json.dumps({"skill": cand, "proof": proof, "gate": gate, "promoted_at": now()}, indent=2)
         res = clients.senso_promote(senso_client, f"ProofLoop skill {version}", text, f"{version}+{cycle_id}")
         node_id = res["node_id"]
         status = "promoted"
         log(f"[6] {senso_client.label}: 202 -> complete, node {node_id}, search verified={res['verified']}")
     else:
-        log(f"[8] Rollback: Jev returned {gate['choice']}; active stays {active['version']}")
+        log(f"[8] Rollback: Gate returned {gate['choice']}; active stays {active['version']}")
 
     entry = {
         "cycle_id": f"cyc-{n:03d}", "timestamp": now(), "version": version,

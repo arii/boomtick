@@ -63,7 +63,7 @@
     panel = el("div", { className: "panel" });
     if (d && d.history.length) {
       const t = el("table");
-      t.append(el("tr", {}, ...["Version", "Pass", "Delta", "Jev", "Senso node", "Status"].map((h) => el("th", { textContent: h }))));
+      t.append(el("tr", {}, ...["Version", "Pass", "Delta", "Gate", "Senso node", "Status"].map((h) => el("th", { textContent: h }))));
       for (const e of d.history) {
         t.append(el("tr", {},
           el("td", { textContent: e.version }),

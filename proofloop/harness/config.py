@@ -69,11 +69,22 @@ def mode(service: str) -> str:
     return "live" if get(needs) else "stub"
 
 
+def gate_mode() -> str:
+    """'local' (default, deterministic, no API) or 'jev' (PROOFLOOP_GATE=jev, needs TYPESAFE_API_KEY for live)."""
+    return "jev" if get("PROOFLOOP_GATE", "local").lower() == "jev" else "local"
+
+
 def status() -> dict:
     labels = {
         "cognee": ("Cognee (live)", "Cognee stub (local graph) - live Cognee pending"),
-        "jev": ("TypeSafe Jev (live)", "Jev stub (threshold gate) - live Jev pending key"),
         "senso": ("Senso (live)", "Senso (local stub - live API pending key)"),
         "llm": ("OpenRouter LLM (live)", "Rule-based mutator (no LLM key) - live LLM pending"),
     }
-    return {s: {"mode": mode(s), "label": labels[s][0 if mode(s) == "live" else 1]} for s in labels}
+    out = {s: {"mode": mode(s), "label": labels[s][0 if mode(s) == "live" else 1]} for s in labels}
+    if gate_mode() == "jev":
+        live = mode("jev") == "live"
+        out["gate"] = {"mode": "jev-live" if live else "jev-stub",
+                       "label": "TypeSafe Jev gate (live)" if live else "Jev stub (threshold gate) - live Jev pending key"}
+    else:
+        out["gate"] = {"mode": "local", "label": "Local deterministic threshold gate (no API)"}
+    return out

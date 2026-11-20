@@ -171,7 +171,38 @@ def cognee():
     return CogneeLive() if config.mode("cognee") == "live" else CogneeStub()
 
 
-# ---------------------------------------------------------------- Jev
+# ---------------------------------------------------------------- Gate
+LOCAL_GATE_MODEL = "local-threshold-gate-v1"
+
+
+def local_gate(state):
+    """Deterministic, auditable promotion gate. No API call.
+
+    promote            candidate pass rate > baseline AND violations did not increase
+    reject_and_refine  candidate pass rate < baseline OR violations increased
+    hold               otherwise (equal pass rate, no violation increase)
+
+    Ledger fields: confidence = candidate - baseline pass rate (delta),
+    constraints_prob = violation count after the candidate, utility_score = candidate pass rate.
+    """
+    base, cand = state["baseline_pass_rate"], state["candidate_pass_rate"]
+    before, after = state["constraint_violations_before"], state["constraint_violations_after"]
+    if cand < base or after > before:
+        choice = "reject_and_refine"
+    elif cand > base:
+        choice = "promote"
+    else:
+        choice = "hold"
+    return {"model": LOCAL_GATE_MODEL, "choice": choice, "confidence": round(cand - base, 4),
+            "constraints_prob": after, "utility_score": round(cand, 4), "source": "local"}
+
+
+def decide(state):
+    """Gate dispatcher. Default is the local gate; PROOFLOOP_GATE=jev re-enables the Jev path."""
+    return jev_gate(state) if config.gate_mode() == "jev" else local_gate(state)
+
+
+# ---------------------------------------------------------------- Jev (disabled by default; PROOFLOOP_GATE=jev)
 def jev_stub(state):
     """Deterministic threshold gate. Same output shape as the live gate."""
     base, cand = state["baseline_pass_rate"], state["candidate_pass_rate"]

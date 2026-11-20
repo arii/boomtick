@@ -1,6 +1,6 @@
 # ProofLoop
 
-Replay-gated skill upgrades (Cognee memory, TypeSafe Jev gate, Senso promotion) plus a quiet Chrome chip.
+Replay-gated skill upgrades (Cognee memory, local deterministic promotion gate, Senso promotion) plus a quiet Chrome chip.
 
 ## Run (stub mode needs no keys)
 ```sh
@@ -21,7 +21,7 @@ Chosen per service in `harness/config.py` from env vars or `state/keys.json`
 | Service | Live when set | Stub |
 |---|---|---|
 | Cognee | `COGNEE_API_URL` (+ `COGNEE_API_KEY`) | `state/cognee_stub.json` |
-| Jev | `TYPESAFE_API_KEY` | threshold gate |
+| Gate | local deterministic gate (default, no API) | `PROOFLOOP_GATE=jev` + `TYPESAFE_API_KEY` re-enables the Jev client (disabled, no sponsor credits) |
 | Senso | `SENSO_API_KEY` | `state/senso_stub.json` |
 | Mutation LLM | `OPENROUTER_API_KEY` | rule-based mutator |
 
