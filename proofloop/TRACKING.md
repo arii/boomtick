@@ -2,7 +2,7 @@
 
 Live status for the Personal Agents Hackathon build (Fri Nov 20, 2026). Kiro updates this file as work progresses. Ari's CLI agents (agy, Copilot, Muse CLI) read this file to pick up work interactively. Do not delete this file. Keep it current.
 
-Last updated: 2026-11-20 12:02 PM PT (by Kiro). Jev removed (no sponsor, no credits); local deterministic gate in place. Stub run on real sessions unchanged: 2/6 -> 5/6 -> 6/6, bad mutation rolled back at 4/6.
+Last updated: 2026-11-20 12:02 PM PT (by Kiro). Focus is Senso + OpenRouter only (Jev and TypeSafe are out of the challenge). Local gate in place. Neither key has reached the Kiro sandbox yet.
 
 ## Repo and branch
 - Repo: arii/boomtick (no new repo).
@@ -18,6 +18,7 @@ Last updated: 2026-11-20 12:02 PM PT (by Kiro). Jev removed (no sponsor, no cred
 - [x] harness/mock_sponsors.py for offline live-path testing.
 - [x] replay_loop.py runs all 8 steps in stub mode on the REAL sessions: v0 2/6; cycle 1 v1.1 5/6 (gate promote, Senso node complete); cycle 2 v1.2 6/6 promoted; injected v1.3-bad 4/6 (gate reject_and_refine, rolled back, active stays v1.2). Pass rates come from running the task checks, not hardcoded values. Caveat: the executor in harness/agent.py is a deterministic MODEL of agent behavior (slot baselines come from the recorded session outcomes), not an LLM run.
 - [x] harness/server.py serving /augment, /config, /status and dashboard /.
+- [x] harness/health.py: per-service GREEN / STUB / RED check (Senso GET /org/me, OpenRouter 1-token completion, Cognee round trip). Run `python3 harness/health.py` after keys are set. Tested against the mock only.
 - [x] harness/validate.py, harness/make_tasks.py (derives replay_tasks.json: 6 tasks = vouch, waas, sfpromises, feels_mockup, adsense, hrm; left out: luma, feels_honest).
 - [x] MV3 extension skeleton in proofloop/extension/ (manifest, background worker with chrome.tabs.query, content script, options Keys & Status page, Gemini Nano guard with backend fallback). Chip/proof-table/tab detection tested in jsdom against the local backend, not real Chrome.
 - [x] skills-local/ with 3 skills copied from arii/hello (lane-coder, independent-tests, caffeinated-guardrails). Git-ignored because arii/hello is private and boomtick is public.
@@ -34,9 +35,16 @@ Last updated: 2026-11-20 12:02 PM PT (by Kiro). Jev removed (no sponsor, no cred
 - [ ] Backup video (90-second script) and two timed dry runs of the 3-minute demo.
 - [ ] PR decision (open now or wait until live runs are done).
 
+## Next steps (in order) and blockers
+1. BLOCKER: Senso + OpenRouter keys must reach the Kiro sandbox (see Needs from Ari 2). Then: `python3 harness/health.py` (expect senso GREEN, openrouter GREEN, cognee STUB).
+2. Run `replay_loop.py --reset --bad-demo` with Senso live and OpenRouter live (LLM proposes the mutation; rule-based mutator is the fallback). Record the pass rates here. They may differ from 2/6 -> 5/6 -> 6/6 if the LLM picks different steps.
+3. If Senso live fails, check the first error: field names for POST /org/kb/raw and search are from docs, not yet run live.
+4. Ari: load the extension in real Chrome (Needs item 6), then backup video and two timed dry runs.
+5. PR decision.
+
 ## Needs from Ari
 1. **Confirm the phone-number masking** — the real file contained both full phone numbers; Kiro committed a masked copy ([PHONE-PRO], [PHONE-FAMILY]) because boomtick is public. Say so if you want it handled differently. Also confirm you are fine with these staying public in data/sessions.jsonl: onasafari.ddns.net, the AdSense publisher ID (public in ads.txt), and the dhyuti-n Hugging Face dataset URL.
-2. **API keys, or go-ahead to proceed on stubs** — SENSO_API_KEY, Cognee URL (+key/tenant if Cloud), OPENROUTER_API_KEY. TYPESAFE_API_KEY is no longer needed. Put them in proofloop/.env (git-ignored) or paste them in the Kiro chat; keys are used only as env vars, never committed. Discord #senso, #cognee.
+2. **Get SENSO_API_KEY and OPENROUTER_API_KEY into the Kiro sandbox.** Your secrets store is not visible here (both vars are unset, no .env). Either paste the two values in the Kiro chat as text (use rotatable hackathon keys; they stay in a git-ignored proofloop/.env), or run it on your machine: copy proofloop/.env.example to proofloop/.env, fill both, then `python3 harness/health.py && python3 harness/replay_loop.py --reset --bad-demo`. Cognee is optional: with no COGNEE_API_URL the local Cognee stub is used (labeled on screen). TypeSafe key is NOT needed.
 3. ~~typesafe/jev-1.14.0 confirmation~~ — moot: Jev removed.
 4. **arii/hello skills decision** — Whether to commit the 3 git-ignored skills (lane-coder, independent-tests, caffeinated-guardrails) or keep them git-ignored. They are in skills-local/ but ignored because arii/hello is private and boomtick is public.
 5. **PR decision** — Open a PR now on feat/proofloop, or wait until live runs are done.

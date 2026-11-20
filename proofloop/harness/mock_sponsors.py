@@ -45,6 +45,8 @@ class H(BaseHTTPRequestHandler):
             q = set(re.findall(r"[a-z0-9]+", json.loads(raw)["query"].lower()))
             hits = [d for d in DOCS if len(q & set(re.findall(r"[a-z0-9]+", d.lower()))) >= 3]
             return self._j(200, [{"text": d} for d in hits[:5]])
+        if p == "/api/v1/chat/completions":
+            return self._j(200, {"choices": [{"message": {"content": "hi"}}]})
         if p == "/v1/systemone":
             req = json.loads(raw)
             if req["model"] != "jev-latest":
