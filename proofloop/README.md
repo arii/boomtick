@@ -39,7 +39,7 @@ A credential alone does not activate calls. The process must also explicitly lis
 | Senso | `SENSO_API_KEY` | Candidate skill, replay proof, gate decision, timestamps and search query |
 | Mutation LLM | `OPENROUTER_API_KEY` | Known step definitions, current step IDs and failure counts |
 
-The existing OpenRouter default model is unverified. Do not assume a `:free` slug establishes availability, privacy or zero cost. Live integration claims require actual successful evidence, separate from config labels and protocol mocks.
+The OpenRouter default is `openrouter/free`, preserving the upstream replacement for its reported retired model; routing, successful calls and account terms remain unverified here. All harness HTTP clients retain the upstream custom User-Agent fix. Do not assume a `:free` slug establishes availability, privacy or zero cost. Live integration claims require actual successful evidence, separate from config labels and protocol mocks.
 
 ## Browser status, not background sponsor calls
 
