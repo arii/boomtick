@@ -2,25 +2,7 @@
 (async () => {
   if (window.top !== window || document.getElementById("proofloop-chip-host")) return;
 
-  // Optional Chrome built-in AI: pre-filter snippet locally; backend path otherwise.
-  async function localAssist(text) {
-    try {
-      if (typeof LanguageModel === "undefined") return { used: false, text };
-      const avail = await LanguageModel.availability();
-      if (avail !== "available") return { used: false, text };
-      const s = await LanguageModel.create();
-      const out = await s.prompt("Return the 300 most relevant characters of this text, verbatim:\n" + text.slice(0, 2000));
-      return { used: true, text: String(out).slice(0, 400) };
-    } catch {
-      return { used: false, text };
-    }
-  }
-
-  const raw = (document.body?.innerText || "").replace(/\s+/g, " ").slice(0, 600);
-  const assist = await localAssist(raw);
-  const res = await chrome.runtime.sendMessage({
-    type: "augment", title: document.title, url: location.href, snippet: assist.text,
-  });
+  const res = await chrome.runtime.sendMessage({ type: "augment" });
   if (!res) return;
 
   const host = document.createElement("div");
@@ -48,9 +30,9 @@
   const d = res.ok ? res.data : null;
   const relCount = res.related.length;
   let label;
-  if (!d) label = `ProofLoop backend unreachable (${res.error}) - cross-tab: ${relCount} related tabs`;
-  else if (!d.active_version) label = `ProofLoop: no verified skill yet - cross-tab: ${relCount} related tabs`;
-  else label = `ProofLoop ${d.active_version} verified (${d.pass}/${d.total} replay pass) - cross-tab: ${relCount} related tab${relCount === 1 ? "" : "s"} detected`;
+  if (!d) label = `ProofLoop backend unreachable (${res.error}) - ${relCount} local tabs shown`;
+  else if (!d.active_version) label = `ProofLoop: no current replay record - ${relCount} local tabs shown`;
+  else label = `ProofLoop ${d.active_version}: deterministic replay (${d.pass}/${d.total} replay pass) - ${relCount} local tab${relCount === 1 ? "" : "s"} shown`;
 
   const chip = el("div", { className: "chip" }, el("span", { textContent: label }));
   const close = el("span", { className: "x", textContent: "x", title: "Dismiss" });
@@ -63,13 +45,13 @@
     panel = el("div", { className: "panel" });
     if (d && d.history.length) {
       const t = el("table");
-      t.append(el("tr", {}, ...["Version", "Pass", "Delta", "Gate", "Senso node", "Status"].map((h) => el("th", { textContent: h }))));
+      t.append(el("tr", {}, ...["Version", "Pass", "Delta", "Replay gate", "Senso node", "Status"].map((h) => el("th", { textContent: h }))));
       for (const e of d.history) {
         t.append(el("tr", {},
           el("td", { textContent: e.version }),
           el("td", { textContent: `${e.tasks_passed_before}/${e.total_tasks} -> ${e.tasks_passed_after}/${e.total_tasks}` }),
           el("td", { textContent: (e.delta >= 0 ? "+" : "") + e.delta.toFixed(2) }),
-          el("td", { textContent: `${e.jev_gate.choice} ${e.jev_gate.confidence}` }),
+          el("td", { textContent: e.replay_gate.choice }),
           el("td", { textContent: e.senso_kb_node_id || "-" }),
           el("td", { className: e.status, textContent: e.status })));
       }
@@ -77,9 +59,10 @@
     } else {
       panel.append(el("div", { textContent: "No ledger entries. Run harness/replay_loop.py --reset." }));
     }
-    panel.append(el("div", { className: "small", textContent: "Related tabs: " + (res.related.map((r) => r.title || r.url).join(" | ") || "none") }));
+    panel.append(el("div", { className: "small", textContent: "Other tabs (local opt-in): " + (res.related.map((r) => r.title || r.url).join(" | ") || "none") }));
     if (d) panel.append(el("div", { className: "small", textContent: Object.values(d.services).map((s) => s.label).join(" / ") }));
-    panel.append(el("div", { className: "small", textContent: "Local assist (Gemini Nano): " + (assist.used ? "used" : "unavailable, backend path") }));
+    panel.append(el("div", { className: "small", textContent: "Measured deterministic replay only. No page data sent to backend or sponsors." }));
+    if (d?.retrieval) panel.append(el("div", { className: "small", textContent: "Retrieval readback: " + (d.retrieval.verified ? d.retrieval.mode : "not confirmed") }));
     root.insertBefore(panel, chip);
   };
 
