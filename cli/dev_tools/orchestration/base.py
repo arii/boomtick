@@ -1,6 +1,5 @@
 """Orchestrator base: init, client access, and small utilities."""
 
-import hashlib
 import json
 import os
 import re
@@ -87,9 +86,6 @@ class OrchestratorBase:
             return script_name in pkg_data.get("scripts", {})
         except Exception:
             return False
-
-    def _hash_content(self, content: str) -> str:
-        return hashlib.md5(content.encode("utf-8")).hexdigest()
 
     def _cleanup_worktree(self, worktree_path: str) -> None:
         """Robustly cleans up a git worktree and its directory."""
