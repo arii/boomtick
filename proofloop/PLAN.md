@@ -193,37 +193,51 @@ On a held submit with problems:
 
 Done means: on the live Luma dialog and the live Vouch form, a submit with a broken rule is held with a panel that cites the source session, each button works and the site keeps the fixed values, a clean submit is not held, and promoting a new rule set changes the panel on refresh with no code edits.
 
-### 4.5 Search and information from past sessions
+### 4.5 Context and information on the page (revised after Gemini's review)
 
-Ari asked what the extension does for search and for providing information. **The plan had no search until now, and the slice does not include it.** Here is what it will do, and when.
+Ari asked what the extension does for search and providing information. Gemini's answer, adopted here: **context and matching rules for the current page are core.** That is what makes the extension a live assistant rather than a demo table. **A free-form search box is a later addition.** Putting a query prompt on every page first would make it a chatbot in disguise and widen scope before the focused page assist is proven.
 
-**Data it can draw on:**
-- The rule cards: structured rules such as "professional phone for applications" or "never check sponsor consent".
-- The session excerpts: what went wrong, what was corrected, and where.
-- Senso holds promoted rule sets and has a search API (already used for readback). Cognee holds the session excerpts and answers recall queries.
+Gemini's reply arrived cut off mid-sentence, partway through "what the extension shows", and its answer to the second question (is the city warning the right slice) did not arrive. This section records what was received. The pre-submit slice in 4.0 stands until that answer comes.
 
-What exists today is narrow: 8 sessions plus 5 candidates. They are about form filling and verifying claims. Without a larger import (Takeout, more agent logs), most pages Ari visits will match nothing. The plan states this rather than implying broad coverage.
+**Sources, in priority order**
 
-**A. "Last time here" note (phase 4, on page load, no typing):**
-- When the page matches a past session, a small dismissible note appears in the corner. Example on the Luma registration page: "Nov 16: an agent filled this form with San Jose and checked the sponsor-consent and judge boxes. You corrected all three. [Show rules]". Example on the Work at a Startup application page: "Nov 18: three applications went out with your friends/family phone."
-- Matching works first by origin and path against the session URLs (local, deterministic), then by Cognee recall on origin, path and page title once Cognee is wired in.
-- The note cites the session id and date and links to the rules it produced.
-- It shows at most once per page per day. Notes for pages with no match never appear.
-- Privacy: origin and path only, as in `/assist`. The title is sent to Cognee only if Ari turns on "use page titles for recall" in options.
+1. **Senso, primary.** Verified rules, constraints and promoted skills, through `POST /api/v1/org/search` (the endpoint `SensoLive.search` in `harness/clients.py` already calls). Senso supplies the "why" citation on the page.
+2. **Cognee and the session logs, secondary.** Past session context, prior resolutions and related open-tab links, from Cognee recall over `sessions.jsonl`. This is used when Senso has no direct rule yet but a past session explains the pattern.
+3. **Never raw transcripts.** The page shows only the relevant extracted item: a constraint, a past decision or resolution, or a cross-tab fact. Redaction stays intact (`[PHONE-PRO]`, `[PHONE-FAMILY]`). Real values appear only where a "Fix" button needs them, and they come from the git-ignored private values file (4.2), never from Senso or Cognee.
 
-**B. Search popup (new phase 5b, after the assist eval):**
-- Clicking the toolbar icon opens a search box. Ari types a question: "which phone for recruiters", "what did I decide about consent boxes", "how did I verify AdSense".
-- The backend searches three sources and returns ranked results, each labeled with its source:
-  1. Rule cards (local, keyword match on id, message and provenance).
-  2. Senso (promoted rules, `search` API).
-  3. Cognee (past sessions, recall).
-- Each result shows the rule or excerpt, the session date and the site.
-- Rules found this way can also be inserted into the current page's field, only on click and only into a focused field of a matching type.
-- What is sent: only the query text Ari types, after the S4 redaction pass, and only when she presses Enter. No page content is sent with the query.
-- What it does not do: no web search and no chat. It does not answer from the LLM's general knowledge. A result is either a stored rule or session, or nothing. This keeps every answer traceable to her own history, which is the product's rule (sessions `sess_2026_11_10_sfpromises` and `sess_2026_10_30_feels_honest`: never state what cannot be traced).
-- Estimate: 1.5 to 2 days, mostly the backend search merge and the popup.
+**User experience**
 
-**C. Context from other tabs (phase 10, unchanged):** while Ari is on a form, a value in another opted-in tab that conflicts with a field is surfaced with the same item UI as the review panel. Example: her profile tab lists the professional phone while the form has the family one.
+- **Passive, on page load and tab switch.** The background worker sends page context to `/augment`, and the page shows at most a quiet, collapsed corner pill ("1 rule", "2 matches"). There are no popups, no walls and no chat box. Pages with no match show nothing.
+- **Focused lookup on focus, input or click.** Focusing or typing in a relevant field, clicking a relevant action (a submit button), or selecting text or a page element triggers a lookup for that field or action, not a generic page search. Example: focusing the Luma city question returns the city rule and the Nov 16 Luma correction.
+- **On demand.** Clicking "Context & Rules" on the pill or chip asks the backend for matching Senso rules plus past-session and open-tab context for the current page.
+- **What it shows.** A compact micro-card attached to the chip or pill. It has the rule or past-session fact in 1 to 2 lines, and a source tag: "Senso rule" with version and date, or "Session log" with the session date and site. Gemini's text was cut off here, so the rest of the card design is open.
+- **Relation to the pre-submit review (4.0).** They share the same cards and the same item UI. The review is the guard at submit time. The pill and micro-cards provide information before submit. Both are part of the core.
+
+**Privacy constraints on Gemini's passive context (section 9, S1 and S5)**
+
+Gemini's flow sends the active tab's title, URL and domain, plus other tabs' titles and URLs, to `/augment` on every page load and tab switch. That is more than the security section allows today, so the plan adopts it with these limits:
+
+- **Endpoint.** Context goes only to the local backend on 127.0.0.1, with the token.
+- **URLs.** Query strings and fragments are stripped, since they often carry tokens. Titles are cut to 120 characters.
+- **Other tabs.** Off by default, opt-in per tab or per site in options. Tabs on sites outside an allowlist (banking, health, mail) are never read.
+- **Forwarding.** The backend matches locally first, by origin and path against session URLs and card scopes. It forwards to Senso or Cognee only:
+  - when "use page context for cloud lookups" is on in options, and only redacted titles and origins, never full URLs or page text; or
+  - when Ari clicks "Context & Rules".
+- **Selected text.** It is page content. It is used for lookup only when Ari selects it and clicks the lookup action, it is redacted first, and it is never written to Senso or Cognee (S5, rule poisoning).
+- **Never sent.** Form values never leave the browser. The matcher runs locally.
+
+**Phasing**
+
+| What | Phase |
+|------|-------|
+| Corner pill with local matches (cards plus session URLs) on page load | 4, with Cognee recall in `/assist` |
+| Focused lookup on focus, click or selection; "Context & Rules"; micro-card with source tag | 4 |
+| Senso as the primary source and citation (`/org/search`) | 3 (Senso read path) |
+| Other-tab context in the pill (opt-in) | 4 (moved up from 10, per Gemini) |
+| Cross-tab value conflicts on a form (profile tab says the professional phone, form has the family one) | 10 |
+| Free-form search box (toolbar popup over cards, Senso and Cognee; query text only, redacted, on Enter; results always cite a stored rule or session; no LLM answers) | 5b, explicitly later |
+
+Coverage is thin. With 13 recorded sessions, the pill will be empty on most pages until more sessions are imported. The plan states this rather than implying broad coverage.
 
 ## 5. Making the loop real
 
@@ -311,14 +325,14 @@ Gemini's four steps (verify, build, test, defer) are folded in as follows. Step 
 | 1 | Card schema, LLM extractor over `sessions.jsonl`, hand review of the 8 existing constraints, validation. Cards carry provenance and a content hash (S5) | 1 to 1.5 d | Everything else consumes cards |
 | 2 | Slice step A: field detector (city, address, phone, consent checkboxes), local matcher, pre-submit hold and review panel (section 4.0), inline field markers, fixtures, unit tests, matcher precision cases. Phone cards hold hashed numbers and the real values stay in git-ignored `data/private/` (S4). Backend serves seeded cards, no cloud yet. Manifest narrowed, UI built with `createElement` and `textContent` only (S1). Verified on live Luma and live Vouch (section 2.1) | 3 to 4 d (city detector, matcher and chip already exist) | Proves the on-page experience on real form markup, against the mistakes that actually happened |
 | 3 | Slice step B: Senso read path, `/skill`, version badge, refresh behavior, version-change e2e. Per-run bearer token on the new endpoints (S2). Provenance tags and PII strip before any Senso write (S5) | 1 to 1.5 d | Delivers the demo climax and read path |
-| 4 | Slice step C: Cognee recall in `/assist`, evidence in the panel, "last time here" note on pages that match a past session (section 4.5 A), latency and quality measurement, fallback when recall is slow. `/status` reports stub versus live explicitly so a stub cannot pass as recall (S5). Cross-tab constraint matching: other-tab metadata only, per-tab opt-in (S1) | 1 to 2 d | Validates the Cognee claim and the cross-tab claim. If recall is poor, find out here |
+| 4 | Slice step C: Cognee recall in `/assist`, evidence in the panel, corner pill, focused lookup and "Context & Rules" micro-cards (section 4.5), latency and quality measurement, fallback when recall is slow. `/status` reports stub versus live explicitly so a stub cannot pass as recall (S5). Cross-tab constraint matching: other-tab metadata only, per-tab opt-in (S1) | 1 to 2 d | Validates the Cognee claim and the cross-tab claim. If recall is poor, find out here |
 | 5 | Assist eval set and precision report, real-page checks on Vouch and Luma, `/feedback` (authenticated, S2) | 1.5 to 2 d | Evidence the assistant is good |
-| 5b | Search popup over rule cards, Senso and Cognee (section 4.5 B). Query text only, redacted, on Enter. Results always cite a stored rule or session; no LLM answers | 1.5 to 2 d | First explicit info-provision feature, after the eval shows the rules are precise |
+| 5b | Free-form search popup over rule cards, Senso and Cognee (section 4.5, later addition per Gemini). Query text only, redacted, on Enter. Results always cite a stored rule or session; no LLM answers | 1.5 to 2 d | First explicit info-provision feature, after the eval shows the rules are precise |
 | 6 | LLM executor through the local TWT gateway, repeated runs, judge, held-out split, noise margin, mock executor kept. Page text enters prompts only as delimited, escaped data (S5) | 2 to 3 d | Makes the loop honest |
 | 7 | Recall-driven free-form mutator, schema-validated proposals, evidence in ledger, recall ablation. Convergence and stop criteria replace the 4-step gate (section 5.4) | 2 to 3 d | Makes Cognee drive the loop and ends the "ran out of steps" stopping rule |
 | 8 | Task growth from dismissals, Takeout and Muse sessions, user feedback drives rule updates. Every derived artifact passes the redaction pass (S4) | 1.5 to 2 d | Open-ended loop |
 | 9 (Gemini step 3: test) | Security and regression suite, see section 9.3. Multi-tab e2e. LLM plus Senso plus loop integration test | 2 to 3 d | Locks the guarantees in. Tests for each S item are written in the phase that adds the exposure, and this phase makes them a single gate that runs before any release |
-| 10 | More assists: `ask_when_missing` (the Vouch work-type choice), cross-tab value mismatch (section 4.5 C), more sites | 3 to 4 d | Breadth after the first is proven |
+| 10 | More assists: `ask_when_missing` (the Vouch work-type choice), cross-tab value conflicts on forms (section 4.5), more sites | 3 to 4 d | Breadth after the first is proven |
 | 11 | `trace_claim` assist for pages she is authoring | 3 to 5 d | Hardest, least certain, last |
 
 Totals: the slice (phases 0 to 4) is about 8 to 11 working days. Through phase 10, including the search popup, is about 4 to 5 weeks. Phase 11 is open-ended research. Do not describe the project as finished before phase 5, because before then there is no measured evidence the assistant helps, and do not enable the assistant by default before phase 9, because before then the security guarantees are not tested.
