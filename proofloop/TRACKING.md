@@ -6,7 +6,7 @@ Patch prepared November 20 (PR #1350): README.md describes the local Replay Gate
 
 Live status for the Personal Agents Hackathon build (Fri Nov 20, 2026). Kiro updates this file as work progresses. Ari's CLI agents (agy, Copilot, Muse CLI) read this file to pick up work interactively. Do not delete this file. Keep it current.
 
-Last updated: 2026-11-20 01:30 PM PT (by Kiro). Status per Ari: replay loop ran clean locally with Senso live, backend up, extension ID known, Tokens with Taste gateway not running. Kiro verified the extension code path and PR readiness (below). Submission deadline 4:30 PM PT.
+Last updated: 2026-11-20 01:34 PM PT (by Kiro). Submission text drafted (proofloop/SUBMISSION.md). Waiting on Ari for: Chrome load result, --probe-live Senso result, PR go-ahead. Submission deadline 4:30 PM PT.
 
 ## Repo and branch
 - Repo: arii/boomtick (no new repo).
@@ -50,6 +50,11 @@ Last updated: 2026-11-20 01:30 PM PT (by Kiro). Status per Ari: replay loop ran 
 - [ ] Load the extension in real Chrome and verify chip/proof-table/tab detection (sandbox cannot start Chrome; must be done on Ari's machine).
 - [ ] Backup video (90-second script) and two timed dry runs of the 3-minute demo.
 - [ ] PR decision (open now or wait until live runs are done).
+
+## Submission
+- **Submission text:** `proofloop/SUBMISSION.md` (short form description, what it does, demo results, tools, privacy, honest limits, links). Edit before submitting if any detail differs from what actually ran: it says Cognee has an API client plus a built-in local graph (update if a live Cognee endpoint was used), and that Senso stores and reads back promoted skills (true only if the Senso run was live, see Current status).
+- **Still to add:** link to the backup video once recorded.
+- **PR:** drafted, not opened. Title and body are in the Kiro chat history and `/projects/sandbox/.pr/` in the Kiro sandbox. Kiro opens it on Ari's go (squash merge).
 
 ## Next steps (in order) and blockers
 Activation rules: `.env` is NOT read. Export real environment variables and opt in with `PROOFLOOP_LIVE_SERVICES`. Do not send secrets through chat. Plan (Gemini) for the rest of the day, in this order:
