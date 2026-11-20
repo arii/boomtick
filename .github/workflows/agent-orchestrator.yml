@@ -81,6 +81,7 @@ permissions:
 
 jobs:
   audit:
+    timeout-minutes: 120
     name: Audit Task
     runs-on: ubuntu-latest
     if: |
@@ -172,6 +173,7 @@ jobs:
         shell: bash
 
   repair:
+    timeout-minutes: 120
     name: CI Repair Task
     runs-on: ubuntu-latest
     if: |
@@ -234,6 +236,7 @@ jobs:
           github_token: ${{ steps.app-token.outputs.token }}
 
   dependabot:
+    timeout-minutes: 120
     name: Dependabot Alert Handler Task
     runs-on: ubuntu-latest
     if: |
