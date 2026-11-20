@@ -1,20 +1,16 @@
 <!doctype html>
 <meta charset="utf-8">
-<title>ProofLoop - Keys & Status</title>
+<title>ProofLoop - Local settings</title>
 <style>
-  body{font:14px system-ui,sans-serif;margin:24px;max-width:640px}
-  label{display:block;margin:10px 0 2px;font-weight:600}
-  input{width:100%;padding:6px;box-sizing:border-box}
-  .row{margin:6px 0}.badge{display:inline-block;background:#fff8c5;border:1px solid #d4a72c;border-radius:10px;padding:1px 8px;margin:2px 4px 2px 0;font-size:12px}
-  .live{background:#dafbe1;border-color:#2da44e}
+body{font:16px system-ui,sans-serif;margin:32px;max-width:640px;color:#1b1f24;line-height:1.6}
+label{display:block;margin:16px 0}button{padding:8px 16px;font:inherit}
+#status{padding:12px;background:#f6f8fa;border-radius:8px}#status div{margin:4px 0}
 </style>
-<h1>ProofLoop - Keys &amp; Status</h1>
-<p>Keys are stored in chrome.storage.local and sent to your local backend only (127.0.0.1).</p>
-<div id="status"></div>
-<label for="backend_url">Backend URL</label><input id="backend_url" placeholder="http://127.0.0.1:8787">
-<label for="SENSO_API_KEY">SENSO_API_KEY</label><input id="SENSO_API_KEY" type="password" autocomplete="off">
-<label for="TYPESAFE_API_KEY">TYPESAFE_API_KEY</label><input id="TYPESAFE_API_KEY" type="password" autocomplete="off">
-<label for="COGNEE_API_URL">COGNEE_API_URL</label><input id="COGNEE_API_URL" placeholder="http://localhost:8000">
-<label for="OPENROUTER_API_KEY">OPENROUTER_API_KEY</label><input id="OPENROUTER_API_KEY" type="password" autocomplete="off">
-<div class="row"><button id="save">Save</button> <span id="msg"></span></div>
+<h1>ProofLoop - Local settings</h1>
+<p>The chip shows measured deterministic replay checks, not live-agent quality or a safety guarantee.</p>
+<p>No page title, URL or snippet is sent to the backend or sponsors. This page does not collect or save keys. Existing saved credentials are not used by this version.</p>
+<div id="status">Checking local backend...</div>
+<label><input type="checkbox" id="local_related_tabs"> Show other tab titles locally in the chip (off by default)</label>
+<button id="save">Save local setting</button> <span id="msg"></span>
+<p>Backend: http://127.0.0.1:8787. Configure the exact extension ID in the backend process before use. Sponsor activation is separate and may consume credits.</p>
 <script src="options.js"></script>
