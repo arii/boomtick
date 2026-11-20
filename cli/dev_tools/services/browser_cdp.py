@@ -192,7 +192,7 @@ def capture_dom_and_visual_snapshot(
                     raise ValueError(f"HTTP {response.status}")
                 if ready_selector:
                     page.wait_for_selector(ready_selector, timeout=20000)
-                if save_dom:
+                if dom_path is not None:
                     dom_path.write_text(page.content(), encoding="utf-8")
                     final_url = page.url
                 # Single JS string literal: JS has no Python-style
