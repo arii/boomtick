@@ -104,8 +104,8 @@ def capture_revision_pair(
                 "base": records["base"],
                 "head": records["head"],
                 "screenshot_bytes_equal": (
-                    Path(snapshots["base"].screenshot_path).read_bytes()
-                    == Path(snapshots["head"].screenshot_path).read_bytes()
+                    Path(snapshots["base"].screenshot_path or "").read_bytes()
+                    == Path(snapshots["head"].screenshot_path or "").read_bytes()
                 )
                 if complete
                 else None,
