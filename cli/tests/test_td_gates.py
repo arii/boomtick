@@ -540,6 +540,7 @@ def test_scope_path_extraction_ignores_explanatory_identifiers():
         "inside `deep-agent/deep_chat.py`.\n"
         "- `deep-agent/` modules other than `deep_chat.py`\n"
         "- `LICENSE` and `.env`\n"
+        "- `settings`\n"
     )
     assert _spec_backtick_paths(body, "forbidden files") == [
         "deep-agent/deep_chat.py",
@@ -547,4 +548,5 @@ def test_scope_path_extraction_ignores_explanatory_identifiers():
         "deep_chat.py",
         "LICENSE",
         ".env",
+        "settings",
     ]
