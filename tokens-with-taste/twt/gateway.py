@@ -18,6 +18,7 @@ from .catalog import (
     base_url,
     catalog_models,
     configured_providers,
+    disabled_providers,
     headers,
     missing,
     ollama_running_context,
@@ -98,6 +99,7 @@ def eligible_models(catalog, provider, body):
 class Gateway:
     def __init__(self, store, client, configuration=None, clock=time.monotonic,
                  sleep=asyncio.sleep, free_wait_seconds=60):
+        disabled_providers()  # Reject misspelled exclusions before serving requests.
         self.store = store
         self.client = client
         self.providers = configuration if configuration is not None else configured_providers()
@@ -209,6 +211,9 @@ class Gateway:
                        "request": None, "response": None, "prompt_tokens": None,
                        "completion_tokens": None, "reasoning_tokens": None, "cost_usd": None}
             trace["attempts"].append(attempt)
+            if provider["id"] in disabled_providers():
+                attempt["reason"] = "disabled by account policy"
+                continue
             missing_keys = missing(provider)
             if missing_keys:
                 absent.update(missing_keys)
