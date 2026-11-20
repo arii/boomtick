@@ -1,6 +1,6 @@
 # ProofLoop: plan to build the assistant that was proposed
 
-Status: in progress. Code for phases 0 to 2 of the slice exists (see TRACKING.md), but under section 2.1 no milestone is done until it is verified on the live site at a check-in. Milestone 1 is reported; milestones 2 to 5 are unverified. Phase 3 (Senso read) and phase 4 (Cognee recall) are not started.
+Status: in progress. Section 4 was revised on 2026-11-20: the first assist is a pre-submit review, not a typing warning (see 4.0). Code for phases 0 to 2 of the slice exists (see TRACKING.md), but under section 2.1 no milestone is done until it is verified on the live site at a check-in. Milestone 1 is reported; milestones 2 to 5 are unverified. Phase 3 (Senso read) and phase 4 (Cognee recall) are not started.
 Deadline is not a constraint. Quality is.
 
 ## 1. What went wrong
@@ -52,9 +52,9 @@ The chips, warnings and assists must work on the live Vouch and Luma pages. Fixt
 | # | Milestone | Done when, on the live site |
 |---|-----------|-----------------------------|
 | 1 | Snapshots of Vouch and Luma forms | Snapshot structure matches the live page (same fields, labels, components) |
-| 2 | Field detector | Detects the target field on live Luma and live Vouch, and nothing else on those forms |
-| 3 | Cards and deterministic matcher | Matcher decision on values typed into the live fields matches the test table, including near misses |
-| 4 | Chip with Use San Francisco and Keep | Renders on the live page without covering fields or shifting layout; both buttons work and the site keeps the value |
+| 2 | Field detector | Detects city, address, phone and the consent and judge checkboxes on live Luma and live Vouch, and nothing else on those forms. Detects the submit control on both |
+| 3 | Cards and deterministic matcher | Matcher decision on values in the live fields (typed or picked from a suggestion) matches the test table, including near misses. Phone cards use hashes only |
+| 4 | Pre-submit review panel with Fix / It's right per item, Submit anyway, inline markers | A live submit with a broken rule is held and nothing is sent. The panel covers no field and shifts no layout. Each button works and the site keeps the value. A clean submit is not held |
 | 5 | Playwright tests | Fixture e2e passes and the live-site tests pass for Luma and Vouch |
 
 ## 3. Target architecture
@@ -108,57 +108,122 @@ Cards are the unit stored in Senso (one node per rule set version) and the unit 
 
 ## 4. The smallest end-to-end slice
 
-**Assist: a city-field warning on a job or event application form.**
+### 4.0 Which slice, and why (revised after Ari's question)
 
-This is the Vouch/Luma lesson. It proves every claim in the proposal at the smallest size: structured constraint, Senso read, Cognee recall, on-page UI, cross-session grounding, a version change visible on the page.
+**The city warning as first built, a chip that appears while Ari types "San Jose", is a toy.** The session logs show why. In all three form sessions the wrong value came from an AI agent filling or submitting the form for Ari (`role: assistant` in every record), or from a profile value already on file. None came from Ari's typing:
+
+| Session | What went wrong | Who caused it | Caught by a typing warning? |
+|---------|-----------------|---------------|-----------------------------|
+| `sess_2026_11_16_vouch` | Submitted with San Jose, and Full-time chosen without asking | Agent submitted the form | No. Ari never typed in the field |
+| `sess_2026_11_16_luma` | Sponsor-consent and judge-applicant boxes checked, San Jose entered | Agent filled the form | No |
+| `sess_2026_11_18_waas` | Three applications submitted with the friends/family phone instead of the professional one | Phone already on the profile | No. Nobody typed the phone |
+
+Ari knows she lives in San Francisco. She will not type San Jose. A warning on her typing catches a mistake she doesn't make and misses the ones that happened. Of all the cases, the phone mistake did the most damage: three recruiters received a family number. The city mistake is the least important of the five errors in these sessions.
+
+**Revised slice: a pre-submit review on application and registration forms.** When a form on an in-scope site is about to be submitted, the extension reads the current value of every field, wherever it came from: an agent, autofill, a prefilled profile, a picked suggestion, or typing. It checks those values against the rule cards. If any rule is broken, it holds the submit once and shows one review panel listing each problem with its source session. Ari fixes items or confirms them, then submits.
+
+Why this is the right first assist:
+- It catches all five recorded form errors: city (Vouch and Luma), consent box, judge-applicant box, phone (Work at a Startup), and the unasked work-type choice (Vouch, as `ask_when_missing`, see below).
+- It catches mistakes made by agents operating the browser. Those mistakes are the actual failure pattern, and this is the most personal-assistant job the data supports: watching what her agents do on her behalf.
+- It works no matter how the value got there. That solves requirement 4 of section 2.1 (values set by the page) by design, not by event-listener coverage.
+- One interruption per submit, only when something is wrong, fits the quality bar in section 2 (rare and explained).
+
+The work-type choice is deferred inside the slice. "Full-time chosen without asking" needs the extension to know Ari's preference wasn't stated, and that isn't checkable from the form alone. It moves to phase 10 with the rest of `ask_when_missing`.
+
+What stays from the code already built: the detector, matcher, cards schema, chip UI, `/skill`, `/assist`, `/feedback`, token auth and the e2e harness. The field-typing chip stays as a secondary inline marker on the offending field. It is not the trigger.
 
 ### 4.1 What the extension detects
 
-- Inputs and comboboxes whose label, `name`, `id`, `placeholder`, `aria-label` or `autocomplete` indicates a city or location. Classify with a scored matcher (label text and `autocomplete="address-level2"` weigh most). Handle `<label for>`, wrapping labels, `aria-labelledby`, and React-controlled inputs (listen to `input`, `change` and `blur`, not just attribute reads).
-- Page kind: URL and title heuristics plus presence of an application form (a `<form>` with a submit button and 3 or more fields).
-- Out of scope for the slice: shadow-DOM-heavy widgets, iframes from other origins, address autocomplete popups that set the value programmatically. Record which target pages need these.
+- **Fields:**
+  - City: label, `autocomplete="address-level2"`, name, short placeholder. Already built.
+  - Single-line address: placeholder or `street-address`. Already built.
+  - Phone: `type="tel"`, `autocomplete="tel"`, a label matching phone or mobile. New.
+  - Checkboxes whose label matches a `never_check` card, such as sponsor consent or judge applicant. New.
+- **Custom components:** React and Material UI wrappers around real inputs (both targets), `role="combobox"` autocompletes (both), dialogs that mount after a click (Luma), and placeholder-only fields (Vouch). Fields inside cross-origin iframes are out of scope and are recorded if a target page uses them.
+- **Submit intent:** a `submit` event on a form, or a click (capture phase, at `window`) on a submit button. That means `type="submit"`, or a button whose text matches the site's submit wording ("Request to Join", "Apply", "Submit", "Start Application"). Vouch's "Start Application" is `type="button"`, so the text match is required. The listener runs in the capture phase before React's root listener, so `preventDefault` and `stopPropagation` hold the submit.
 
 ### 4.2 What it queries
 
-On page load, one call: `POST /assist {url, title, fields: [{semantic, label}], other_tabs: [{title, url}]}`.
-
-The backend:
-1. Reads the active rule set from Senso (cached server-side by version).
-2. Calls Cognee `recall()` with the page context. Returns the matching sessions.
-3. Returns `{version, senso_node, cards: [...applicable], evidence: [{session_id, excerpt}]}`.
-
-The extension caches the cards for the page. The per-keystroke decision is the local matcher on the cached cards. If the backend is down, the last cached cards still work.
+- **On page load:** `POST /assist {origin, path}` returns the applicable cards (built) and, from phase 3, the Senso version.
+- **Phone cards** need Ari's real numbers, which must never be in the repo. The card stores a SHA-256 hash of the normalized digits of the forbidden number. The matcher hashes the digits in the field and compares. The professional number used by "Fix" comes from a git-ignored file (`data/private/values.json`) served only to the authenticated extension. No real number ever appears in tracked files, logs or feedback.
+- **On submit:** no network call. The check is local and deterministic on cached cards, so a slow or down backend cannot let a bad submit through or block a good one.
 
 ### 4.3 What it shows
 
-When she types or selects "San Jose" in a city field covered by `rule.city.sf`:
+On a held submit with problems:
 
 ```
-San Jose  ┌──────────────────────────────────────────────┐
-          │ Your sessions say San Francisco here.        │
-          │ Rule city.sf v3 · from Vouch, Nov 16         │
-          │ [Use San Francisco]  [Keep San Jose]         │
-          └──────────────────────────────────────────────┘
+┌ Before you submit ─────────────────────────────────────────┐
+│ ● City is "San Jose". Your sessions say San Francisco.     │
+│   from Vouch 11/16, Luma 11/16          [Fix]  [It's right]│
+│ ● "Consent to share contact info with sponsors" is checked.│
+│   You did not want this. from Luma 11/16 [Uncheck] [Keep]  │
+│ ● Phone is your friends/family number.                     │
+│   from Work at a Startup 11/18   [Use professional] [Keep] │
+│                         [Back to form]  [Submit anyway]    │
+│ Rules v2 · local rule file                                 │
+└────────────────────────────────────────────────────────────┘
 ```
 
-- Small shadow-DOM chip anchored below the field. No overlay, no modal, no chat.
-- "Use San Francisco" sets the value using the native setter plus dispatched `input` and `change` events, so React forms register it. This only happens on her click.
-- "Keep San Jose" suppresses the chip for that field and logs a dismissal to `/feedback`.
-- No warning when the value is San Francisco, empty, or the field is outside the rule's scope.
-- A header badge shows the active rule set version and Senso status ("v2 · Senso verified" only when the node was actually read, otherwise "offline cache").
-
-Second assist added in the same slice if time allows: when the page is a form and another open tab is a profile page with a different value, surface it with the same card UI. That covers the cross-tab claim.
+- A panel anchored next to the submit button (fixed position, closed shadow root). The offending fields get an outline marker that changes no layout.
+- **Fix, Uncheck and Use professional** change only that field, through the native setter or a click on the checkbox, so the site's state updates. They run only when clicked.
+- **It's right and Keep** dismiss that item for that value and log it to `/feedback`. Repeated dismissals of a rule are evidence that the rule is wrong (phase 8).
+- **Submit anyway** re-submits once. The submit also goes through without the panel when nothing is wrong.
+- If an agent operates the page, it sees the same panel. An agent can click "Submit anyway" just as it clicked Submit. This is a known limit: the panel stops silent mistakes, but it is not an access control. A per-site setting can require a trusted click, and that is listed in the risks.
 
 ### 4.4 How it is tested
 
-1. **Unit (Node):** field classifier on a corpus of saved label/attribute combinations. Matcher on card x value cases, including `san jose`, `San José`, `SJ`, `San Jose, CA`, and a near miss like `San Jose Street` in an address line (must not fire). These are the cases that decide precision.
-2. **Fixture e2e (Playwright with the unpacked extension):** local HTML fixtures `vouch_form.html`, `luma_form.html`, a plain React-style controlled-input form, and a negative fixture (shipping address form, out of scope). Backend runs in stub mode with a seeded rule set. Assert: chip appears on San Jose, not on San Francisco, not on the shipping form, "Use San Francisco" produces a value React reads, "Keep" persists the dismissal.
-3. **Version change e2e:** seed Senso stub with v1 (no city rule) and v2 (rule present). Load page on v1: no chip. Promote v2. Refresh: chip appears and the badge reads v2. This is the demo climax as an automated test.
-4. **Live test (gated by env):** real Senso node read and real Cognee recall. Assert recall returns the Vouch session for a Vouch-like context, and record latency.
-5. **Assist eval (new, separate from skill replay):** a labeled set of saved page snapshots with (field, value, expected warn or not). Report precision and recall for the assist. Target precision of 1.0 on the labeled negative set before enabling by default. Without this there is no evidence the assistant is good, only that the code runs.
-6. **Live-site tests on the real Vouch and Luma pages** (section 2.1), automated where possible (`extension/test/live_luma.cjs`, a Vouch equivalent to add) and checked by hand at each milestone, with screenshots recorded in TRACKING.md. These, not the fixtures, decide whether a milestone is done.
+1. **Unit (Node):**
+   - The detector on the captured Luma and Vouch markup and on synthetic cases.
+   - The matcher on city, address and phone values, including near misses: San Jose Ave, North San Jose, a phone with different formatting but the same digits, and a different number that shares the last 4 digits.
+   - Checkbox labels: consent wording that should and should not match.
+2. **Fixture e2e (Playwright, unpacked extension, real backend):**
+   - A submit with a bad city, checked consent or a family phone is held, and the panel lists exactly those items.
+   - A clean submit passes with no panel.
+   - Fix, Uncheck, Keep and Submit anyway each work.
+   - A programmatic value set (an autocomplete pick) is caught at submit.
+   - Out-of-scope sites are untouched.
+   - Injected markup renders as text only.
+3. **Version change e2e:** v1 has no consent rule and v2 adds it. After a refresh the panel includes the new item.
+4. **Live-site tests (section 2.1), the deciding test:**
+   - **Live Luma:** fill the city question and check the consent box, then click "Request to Join". The panel must appear and the form must not be sent. The test asserts no network request to Luma's registration endpoint was made while the panel was up, then closes the page without submitting.
+   - **Live Vouch (`apply.vouch.us`):** put a San Jose address in the address box and a test phone number whose hash is seeded as forbidden in a test-only card, then click "Start Application". The panel must appear and nothing is sent.
+   - **Work at a Startup** needs Ari's login, so Ari tests it by hand at the check-in with her own profile.
+5. **Assist eval:** labeled form states (values plus expected held or not held), with precision reported. Target precision 1.0 on the negative set before default-on.
 
-Done means: on the real Vouch application page, typing San Jose triggers the chip, accepting the fix works, the chip cites a Senso rule read at runtime, and promoting a new rule set changes the behavior on refresh with no code edits.
+Done means: on the live Luma dialog and the live Vouch form, a submit with a broken rule is held with a panel that cites the source session, each button works and the site keeps the fixed values, a clean submit is not held, and promoting a new rule set changes the panel on refresh with no code edits.
+
+### 4.5 Search and information from past sessions
+
+Ari asked what the extension does for search and for providing information. **The plan had no search until now, and the slice does not include it.** Here is what it will do, and when.
+
+**Data it can draw on:**
+- The rule cards: structured rules such as "professional phone for applications" or "never check sponsor consent".
+- The session excerpts: what went wrong, what was corrected, and where.
+- Senso holds promoted rule sets and has a search API (already used for readback). Cognee holds the session excerpts and answers recall queries.
+
+What exists today is narrow: 8 sessions plus 5 candidates. They are about form filling and verifying claims. Without a larger import (Takeout, more agent logs), most pages Ari visits will match nothing. The plan states this rather than implying broad coverage.
+
+**A. "Last time here" note (phase 4, on page load, no typing):**
+- When the page matches a past session, a small dismissible note appears in the corner. Example on the Luma registration page: "Nov 16: an agent filled this form with San Jose and checked the sponsor-consent and judge boxes. You corrected all three. [Show rules]". Example on the Work at a Startup application page: "Nov 18: three applications went out with your friends/family phone."
+- Matching works first by origin and path against the session URLs (local, deterministic), then by Cognee recall on origin, path and page title once Cognee is wired in.
+- The note cites the session id and date and links to the rules it produced.
+- It shows at most once per page per day. Notes for pages with no match never appear.
+- Privacy: origin and path only, as in `/assist`. The title is sent to Cognee only if Ari turns on "use page titles for recall" in options.
+
+**B. Search popup (new phase 5b, after the assist eval):**
+- Clicking the toolbar icon opens a search box. Ari types a question: "which phone for recruiters", "what did I decide about consent boxes", "how did I verify AdSense".
+- The backend searches three sources and returns ranked results, each labeled with its source:
+  1. Rule cards (local, keyword match on id, message and provenance).
+  2. Senso (promoted rules, `search` API).
+  3. Cognee (past sessions, recall).
+- Each result shows the rule or excerpt, the session date and the site.
+- Rules found this way can also be inserted into the current page's field, only on click and only into a focused field of a matching type.
+- What is sent: only the query text Ari types, after the S4 redaction pass, and only when she presses Enter. No page content is sent with the query.
+- What it does not do: no web search and no chat. It does not answer from the LLM's general knowledge. A result is either a stored rule or session, or nothing. This keeps every answer traceable to her own history, which is the product's rule (sessions `sess_2026_11_10_sfpromises` and `sess_2026_10_30_feels_honest`: never state what cannot be traced).
+- Estimate: 1.5 to 2 days, mostly the backend search merge and the popup.
+
+**C. Context from other tabs (phase 10, unchanged):** while Ari is on a form, a value in another opted-in tab that conflicts with a field is surfaced with the same item UI as the review panel. Example: her profile tab lists the professional phone while the form has the family one.
 
 ## 5. Making the loop real
 
@@ -244,18 +309,19 @@ Gemini's four steps (verify, build, test, defer) are folded in as follows. Step 
 |-------|-------|------|----------------|
 | 0 (Gemini step 1: verify first) | Audit this plan against the code and write the result into TRACKING.md: what works, what is a gap. Verify live round trips: TWT completes a real prompt, Senso writes a rule and reads it back with its citation, extension origin validation returns 403 for a wrong origin and for a missing one. Verify privacy boundaries: `data/private/` is read by no tracked script except `import_takeout.py` output, redaction is intact. Fix the two small items found in section 9 (missing-Origin and non-atomic writes) since they are cheap and block later work. Reframe README, SUBMISSION and TRACKING to describe the current build honestly | 1 to 1.5 d | Stops misdescribing the project and establishes a measured baseline before building (S2, S6) |
 | 1 | Card schema, LLM extractor over `sessions.jsonl`, hand review of the 8 existing constraints, validation. Cards carry provenance and a content hash (S5) | 1 to 1.5 d | Everything else consumes cards |
-| 2 | Slice step A: field detector, local matcher, shadow-DOM chip, fixtures, unit tests, matcher precision cases. Backend serves seeded cards, no cloud yet. Manifest narrowed, chip built with `createElement` and `textContent` only (S1) | 2 to 3 d | Proves the on-page experience, the hardest unknown (real form markup) |
+| 2 | Slice step A: field detector (city, address, phone, consent checkboxes), local matcher, pre-submit hold and review panel (section 4.0), inline field markers, fixtures, unit tests, matcher precision cases. Phone cards hold hashed numbers and the real values stay in git-ignored `data/private/` (S4). Backend serves seeded cards, no cloud yet. Manifest narrowed, UI built with `createElement` and `textContent` only (S1). Verified on live Luma and live Vouch (section 2.1) | 3 to 4 d (city detector, matcher and chip already exist) | Proves the on-page experience on real form markup, against the mistakes that actually happened |
 | 3 | Slice step B: Senso read path, `/skill`, version badge, refresh behavior, version-change e2e. Per-run bearer token on the new endpoints (S2). Provenance tags and PII strip before any Senso write (S5) | 1 to 1.5 d | Delivers the demo climax and read path |
-| 4 | Slice step C: Cognee recall in `/assist`, evidence in chip, latency and quality measurement, fallback when recall is slow. `/status` reports stub versus live explicitly so a stub cannot pass as recall (S5). Cross-tab constraint matching: other-tab metadata only, per-tab opt-in (S1) | 1 to 2 d | Validates the Cognee claim and the cross-tab claim. If recall is poor, find out here |
+| 4 | Slice step C: Cognee recall in `/assist`, evidence in the panel, "last time here" note on pages that match a past session (section 4.5 A), latency and quality measurement, fallback when recall is slow. `/status` reports stub versus live explicitly so a stub cannot pass as recall (S5). Cross-tab constraint matching: other-tab metadata only, per-tab opt-in (S1) | 1 to 2 d | Validates the Cognee claim and the cross-tab claim. If recall is poor, find out here |
 | 5 | Assist eval set and precision report, real-page checks on Vouch and Luma, `/feedback` (authenticated, S2) | 1.5 to 2 d | Evidence the assistant is good |
+| 5b | Search popup over rule cards, Senso and Cognee (section 4.5 B). Query text only, redacted, on Enter. Results always cite a stored rule or session; no LLM answers | 1.5 to 2 d | First explicit info-provision feature, after the eval shows the rules are precise |
 | 6 | LLM executor through the local TWT gateway, repeated runs, judge, held-out split, noise margin, mock executor kept. Page text enters prompts only as delimited, escaped data (S5) | 2 to 3 d | Makes the loop honest |
 | 7 | Recall-driven free-form mutator, schema-validated proposals, evidence in ledger, recall ablation. Convergence and stop criteria replace the 4-step gate (section 5.4) | 2 to 3 d | Makes Cognee drive the loop and ends the "ran out of steps" stopping rule |
 | 8 | Task growth from dismissals, Takeout and Muse sessions, user feedback drives rule updates. Every derived artifact passes the redaction pass (S4) | 1.5 to 2 d | Open-ended loop |
 | 9 (Gemini step 3: test) | Security and regression suite, see section 9.3. Multi-tab e2e. LLM plus Senso plus loop integration test | 2 to 3 d | Locks the guarantees in. Tests for each S item are written in the phase that adds the exposure, and this phase makes them a single gate that runs before any release |
-| 10 | More assists: phone card, `ask_when_missing`, consent checkboxes, cross-tab value mismatch | 3 to 4 d | Breadth after the first is proven |
+| 10 | More assists: `ask_when_missing` (the Vouch work-type choice), cross-tab value mismatch (section 4.5 C), more sites | 3 to 4 d | Breadth after the first is proven |
 | 11 | `trace_claim` assist for pages she is authoring | 3 to 5 d | Hardest, least certain, last |
 
-Totals: the slice (phases 0 to 4) is about 7 to 10 working days. Through phase 10 is about 4 weeks. Phase 11 is open-ended research. Do not describe the project as finished before phase 5, because before then there is no measured evidence the assistant helps, and do not enable the assistant by default before phase 9, because before then the security guarantees are not tested.
+Totals: the slice (phases 0 to 4) is about 8 to 11 working days. Through phase 10, including the search popup, is about 4 to 5 weeks. Phase 11 is open-ended research. Do not describe the project as finished before phase 5, because before then there is no measured evidence the assistant helps, and do not enable the assistant by default before phase 9, because before then the security guarantees are not tested.
 
 ### 7.2 Deferred (Gemini step 4)
 
@@ -274,6 +340,8 @@ Not planned in this document, to be revisited only after phase 9:
 - **False positives:** a "city" rule scoped too broadly will fire on shipping forms. Scope fields and the negative set are mandatory, not optional.
 - **LLM variance and cost:** N=3 runs over a growing task set multiplies calls. Caching and a small held-out set manage this. Gateway rate limits are unmeasured.
 - **Privacy and security:** sending page and tab content to cloud services needs per-tab opt-in, redaction before send, and a visible indicator. Raw transcripts remain out of the repo. The full review and fixes are in section 9.
+- **Submit interception:** sites can submit through handlers our capture listener does not see (a keyboard shortcut handled in JavaScript, a programmatic `fetch` on a `type="button"` click with unusual wording). Each target site's submit path is verified live. A missed path means the review never shows, so the live tests assert the hold. Agents driving the browser can click "Submit anyway". The panel prevents silent mistakes, not determined ones.
+- **Search coverage:** with 13 recorded sessions, search and "last time here" will return nothing on most pages until more sessions are imported.
 - **Judge reliability:** an LLM judge can be wrong in the same direction as the executor. Use a different model and hand-label a sample to report agreement.
 - **Gate strength:** with Jev gone there is no formal verification. Claims about the gate must say "measured on N tasks with a noise margin of X", not "verified".
 - **Scope of the "personal" claim:** most of the 183 Takeout conversations are writing and resume work. The code-related subset is about 49. The assistant's first rules come from form-filling and verification lessons. Broader personal-assistant behavior is not evidenced by current data.
