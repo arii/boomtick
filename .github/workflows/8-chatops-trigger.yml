@@ -1,0 +1,40 @@
+name: ChatOps Trigger
+
+on:
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+  actions: write
+
+jobs:
+  dispatch:
+    if: github.event.issue.pull_request
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 1
+
+      # Standardized to use generate-token for App token authentication
+      - name: Generate App Token
+        id: app-token
+        uses: ./.github/actions/generate-token
+        with:
+          app_id: ${{ secrets.APP_ID }}
+          app_private_key: ${{ secrets.APP_PRIVATE_KEY }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: BoomTick ChatOps Dispatcher
+        uses: arii/boomtick/.github/actions/chatops-trigger@3e970a570aee0a550ec6409de769c201c9a5b900 # boomtick main (cli-v0.20.2 + unreleased fixes) # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
+        with:
+          comment_body: '${{ github.event.comment.body }}'
+          author_association: '${{ github.event.comment.author_association }}'
+          issue_number: '${{ github.event.issue.number }}'
+          github_token: '${{ steps.app-token.outputs.token }}'
+

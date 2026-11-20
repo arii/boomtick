@@ -1,0 +1,219 @@
+name: Issue Operations
+
+on:
+  issues:
+    types: [opened, edited, labeled]
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'Action to perform'
+        required: true
+        type: choice
+        options:
+          - ai-review
+          - resolve-conflicts
+          - update-snapshots
+      issue_number:
+        description: 'Issue or PR number'
+        required: true
+        type: string
+      comment_body:
+        description: 'Comment body (optional)'
+        required: false
+        type: string
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+  actions: write
+
+jobs:
+  validate-quality:
+    name: Validate Issue Quality
+    if: |
+      github.event_name == 'issues' &&
+      (github.event.action == 'edited' ||
+       (github.event.action == 'labeled' && github.event.label.name == 'spec-driven')) &&
+      contains(github.event.issue.labels.*.name, 'spec-driven') &&
+      !startsWith(github.event.issue.title, 'fix(ci):') &&
+      !contains(github.event.issue.title, 'CI failure') &&
+      !contains(github.event.issue.labels.*.name, 'automated') &&
+      !contains(github.event.issue.labels.*.name, 'ci-failure') &&
+      github.event.issue.user.login != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v7 # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
+        with:
+          fetch-depth: 1
+
+      # Standardized to use generate-token for App token authentication
+      - name: Generate App Token
+        id: app-token
+        uses: ./.github/actions/generate-token
+        with:
+          app_id: ${{ secrets.APP_ID }}
+          app_private_key: ${{ secrets.APP_PRIVATE_KEY }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Run Issue Operations - Validate Quality
+        uses: arii/boomtick/.github/actions/issue-operations@main # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
+        with:
+          operation: 'validate-quality'
+          issue_number: ${{ github.event.issue.number }}
+          github_token: ${{ steps.app-token.outputs.token }}
+
+  validate-spec:
+    name: Validate Design Spec
+    if: |
+      github.event_name == 'issues' &&
+      github.event.action != 'labeled' &&
+      (contains(toJSON(github.event.issue.body), '## Agent scope') ||
+       contains(github.event.issue.labels.*.name, 'spec')) &&
+      !startsWith(github.event.issue.title, 'fix(ci):') &&
+      !contains(github.event.issue.title, 'CI failure') &&
+      !contains(github.event.issue.labels.*.name, 'automated') &&
+      !contains(github.event.issue.labels.*.name, 'ci-failure') &&
+      github.event.issue.user.login != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v7 # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
+        with:
+          fetch-depth: 1
+
+      # Standardized to use generate-token for App token authentication
+      - name: Generate App Token
+        id: app-token
+        uses: ./.github/actions/generate-token
+        with:
+          app_id: ${{ secrets.APP_ID }}
+          app_private_key: ${{ secrets.APP_PRIVATE_KEY }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Run Issue Operations - Validate Spec
+        uses: arii/boomtick/.github/actions/issue-operations@main # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
+        with:
+          operation: 'validate-spec'
+          issue_number: ${{ github.event.issue.number }}
+          github_token: ${{ steps.app-token.outputs.token }}
+
+  create-pr:
+    name: Issue to Content PR
+    if: |
+      github.event_name == 'issues' &&
+      github.event.action != 'labeled' &&
+      startsWith(github.event.issue.title, 'Draft') &&
+      contains(github.event.issue.title, ':') &&
+      (github.event.issue.author_association == 'OWNER' ||
+       github.event.issue.author_association == 'MEMBER' ||
+       github.event.issue.author_association == 'COLLABORATOR')
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7 # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
+        with:
+          fetch-depth: 1
+
+      - name: Generate App Token
+        id: app-token
+        uses: ./.github/actions/generate-token
+        with:
+          app_id: ${{ secrets.APP_ID }}
+          app_private_key: ${{ secrets.APP_PRIVATE_KEY }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Run Issue Operations - Create PR
+        uses: arii/boomtick/.github/actions/issue-operations@main # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
+        with:
+          operation: 'create-pr'
+          issue_number: ${{ github.event.issue.number }}
+          github_token: ${{ steps.app-token.outputs.token }}
+
+  ai-review:
+    name: AI Review
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'ai-review'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v7 # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
+        with:
+          fetch-depth: 1
+
+      - name: Generate App Token
+        id: app-token
+        uses: ./.github/actions/generate-token
+        with:
+          app_id: ${{ secrets.APP_ID }}
+          app_private_key: ${{ secrets.APP_PRIVATE_KEY }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Run Issue Operations - AI Review
+        uses: arii/boomtick/.github/actions/issue-operations@main # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
+        with:
+          operation: 'ai-review'
+          issue_number: ${{ github.event.inputs.issue_number }}
+          comment_body: ${{ github.event.inputs.comment_body }}
+          github_token: ${{ steps.app-token.outputs.token }}
+          gemini_api_key: ${{ secrets.GEMINI_API_KEY }}
+          openai_api_key: ${{ secrets.OPENAI_API_KEY }}
+
+  resolve-conflicts:
+    name: Resolve PR Conflicts
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'resolve-conflicts'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v7 # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
+        with:
+          fetch-depth: 0
+
+      - name: Generate App Token
+        id: app-token
+        uses: ./.github/actions/generate-token
+        with:
+          app_id: ${{ secrets.APP_ID }}
+          app_private_key: ${{ secrets.APP_PRIVATE_KEY }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Run Issue Operations - Resolve Conflicts
+        uses: arii/boomtick/.github/actions/issue-operations@main # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
+        with:
+          operation: 'resolve-conflicts'
+          issue_number: ${{ github.event.inputs.issue_number }}
+          comment_body: ${{ github.event.inputs.comment_body }}
+          github_token: ${{ steps.app-token.outputs.token }}
+
+  update-snapshots:
+    name: Update Playwright Snapshots
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'update-snapshots'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v7 # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
+        with:
+          fetch-depth: 1
+
+      - name: Generate App Token
+        id: app-token
+        uses: ./.github/actions/generate-token
+        with:
+          app_id: ${{ secrets.APP_ID }}
+          app_private_key: ${{ secrets.APP_PRIVATE_KEY }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Run Issue Operations - Update Snapshots
+        uses: arii/boomtick/.github/actions/issue-operations@main # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
+        with:
+          operation: 'update-snapshots'
+          issue_number: ${{ github.event.inputs.issue_number }}
+          comment_body: ${{ github.event.inputs.comment_body }}
+          github_token: ${{ steps.app-token.outputs.token }}
+

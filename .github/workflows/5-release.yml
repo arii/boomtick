@@ -1,0 +1,228 @@
+name: Release Orchestrator
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - 'cli-v*'
+      - 'mcp-v*'
+      - 'action-v*'
+  workflow_dispatch:
+    inputs:
+      target:
+        description: 'Target to release'
+        required: true
+        type: choice
+        options:
+          - cli
+          - mcp
+          - action
+          - all
+        default: cli
+      dry_run:
+        description: 'Dry run'
+        type: boolean
+        default: true
+
+permissions:
+  contents: write
+  id-token: write
+  packages: write
+  pull-requests: write
+  issues: write
+
+jobs:
+  release-please:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    steps:
+      - name: Generate Token
+        id: generate_token
+        uses: actions/create-github-app-token@v3
+        with:
+          app-id: ${{ secrets.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+
+      - uses: googleapis/release-please-action@v4
+        with:
+          token: ${{ steps.generate_token.outputs.token }}
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    if: github.event_name != 'push' || (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/'))
+    permissions:
+      contents: write
+      id-token: write
+      packages: write
+    steps:
+      - name: Determine Release Target
+        id: determine_target
+        env:
+          GITHUB_REF_VAL: ${{ github.ref }}
+          GITHUB_EVENT_NAME: ${{ github.event_name }}
+          INPUT_TARGET: ${{ inputs.target }}
+          INPUT_DRY_RUN: ${{ inputs.dry_run }}
+        run: |
+          TARGET="$INPUT_TARGET"
+          DRY_RUN="$INPUT_DRY_RUN"
+          if [ "$GITHUB_EVENT_NAME" = "push" ]; then
+            DRY_RUN="false"
+            if [[ "$GITHUB_REF_VAL" == refs/tags/cli-v* ]]; then
+              TARGET="cli"
+            elif [[ "$GITHUB_REF_VAL" == refs/tags/mcp-v* ]]; then
+              TARGET="mcp"
+            elif [[ "$GITHUB_REF_VAL" == refs/tags/action-v* ]]; then
+              TARGET="action"
+            fi
+          fi
+
+          # Strictly validate output parameters to satisfy security reviewers
+          if [[ ! "$TARGET" =~ ^(cli|mcp|action|all)$ ]]; then
+            echo "Error: Invalid target '$TARGET'"
+            exit 1
+          fi
+          if [[ ! "$DRY_RUN" =~ ^(true|false)$ ]]; then
+            echo "Error: Invalid dry_run '$DRY_RUN'"
+            exit 1
+          fi
+
+          echo "target=$TARGET" >> "$GITHUB_OUTPUT"
+          echo "dry_run=$DRY_RUN" >> "$GITHUB_OUTPUT"
+          echo "Target determined: $TARGET"
+          echo "Dry run: $DRY_RUN"
+        shell: bash
+
+      - name: Checkout code
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Setup Environment
+        uses: arii/boomtick/.github/actions/setup-workspace@3e970a570aee0a550ec6409de769c201c9a5b900 # boomtick main (cli-v0.20.2 + unreleased fixes) # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
+        with:
+          setup-python: 'true'
+
+      - name: Install Node Dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run MCP Tests
+        if: steps.determine_target.outputs.target == 'mcp' || steps.determine_target.outputs.target == 'all'
+        run: pnpm --filter @arii/boomtick-mcp test
+
+      - name: Run CLI Tests
+        if: steps.determine_target.outputs.target == 'cli' || steps.determine_target.outputs.target == 'all'
+        run: |
+          cd cli
+          pip install -e .
+          pytest tests/
+
+      - name: Build MCP Tool
+        run: pnpm --filter @arii/boomtick-mcp build
+
+      - name: Sync schemas/contracts
+        run: pnpm run verify:schemas
+
+      - name: Bundle MCP into CLI
+        if: steps.determine_target.outputs.target == 'cli' || steps.determine_target.outputs.target == 'all'
+        run: |
+          mkdir -p cli/dev_tools/dist
+          cp -r mcp/dist/* cli/dev_tools/dist/
+
+      - name: Build Python Package
+        if: steps.determine_target.outputs.target == 'cli' || steps.determine_target.outputs.target == 'all'
+        run: |
+          cd cli
+          python3 -m pip install --upgrade build
+          python3 -m build
+
+      - name: Publish MCP to npm
+        # Publish only if the determined target is 'mcp' or 'all', and the event is a git push or a non-dry-run workflow dispatch.
+        if: (steps.determine_target.outputs.target == 'mcp' || steps.determine_target.outputs.target == 'all') && (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && steps.determine_target.outputs.dry_run == 'false'))
+        run: pnpm --filter @arii/boomtick-mcp publish --no-git-checks --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Publish CLI to PyPI
+        if: (steps.determine_target.outputs.target == 'cli' || steps.determine_target.outputs.target == 'all') && (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && steps.determine_target.outputs.dry_run == 'false'))
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: cli/dist/
+
+      - name: Create GitHub Release
+        if: github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REF_NAME: ${{ github.ref_name }}
+        run: |
+          if [[ ! "$GH_REF_NAME" =~ ^[a-zA-Z0-9_.-]+$ ]]; then
+            echo "Error: Invalid GH_REF_NAME value."
+            exit 1
+          fi
+
+          HAS_ASSETS=false
+          if [ -d "cli/dist" ] && [ "$(ls -A cli/dist)" ]; then
+            HAS_ASSETS=true
+          fi
+
+          RELEASE_EXISTS=false
+          if gh release view "$GH_REF_NAME" >/dev/null 2>&1; then
+            RELEASE_EXISTS=true
+          fi
+
+          if [ "$RELEASE_EXISTS" = true ] && [ "$HAS_ASSETS" = true ]; then
+            gh release upload "$GH_REF_NAME" cli/dist/* --clobber
+          elif [ "$RELEASE_EXISTS" = false ] && [ "$HAS_ASSETS" = true ]; then
+            gh release create "$GH_REF_NAME" --title "Release $GH_REF_NAME" --generate-notes cli/dist/*
+          elif [ "$RELEASE_EXISTS" = false ] && [ "$HAS_ASSETS" = false ]; then
+            gh release create "$GH_REF_NAME" --title "Release $GH_REF_NAME" --generate-notes
+          fi
+
+      - name: Set up Docker Buildx and Registry Login
+        if: (steps.determine_target.outputs.target == 'all' || steps.determine_target.outputs.target == 'cli') && (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && steps.determine_target.outputs.dry_run == 'false'))
+        uses: arii/boomtick/.github/actions/setup-docker-buildx@3e970a570aee0a550ec6409de769c201c9a5b900 # boomtick main (cli-v0.20.2 + unreleased fixes) # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
+        with:
+          login: 'true'
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract Docker metadata
+        if: (steps.determine_target.outputs.target == 'all' || steps.determine_target.outputs.target == 'cli') && (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && steps.determine_target.outputs.dry_run == 'false'))
+        id: meta
+        uses: docker/metadata-action@v6
+        with:
+          images: ghcr.io/${{ github.repository }}
+          tags: |
+            type=match,pattern=cli-v(.*),group=1
+            type=match,pattern=cli-v([0-9]+\.[0-9]+).*,group=1
+            type=ref,event=branch
+            type=sha
+
+      - name: Build and push Docker image
+        if: (steps.determine_target.outputs.target == 'all' || steps.determine_target.outputs.target == 'cli') && (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && steps.determine_target.outputs.dry_run == 'false'))
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Update Floating Major Tag
+        # Specifically for 'action' target, we maintain floating major version tags (e.g. action-v1)
+        # to allow consumers to track stable major versions of the composite action.
+        if: steps.determine_target.outputs.target == 'action' && github.event_name == 'push' && startsWith(github.ref, 'refs/tags/action-v')
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          TAG_NAME=${GITHUB_REF_NAME}
+          MAJOR_VERSION=$(echo "$TAG_NAME" | cut -d. -f1)
+          echo "Updating floating tag $MAJOR_VERSION to $TAG_NAME"
+          git tag -fa "$MAJOR_VERSION" -m "Update floating tag $MAJOR_VERSION to $TAG_NAME"
+          git push origin "$MAJOR_VERSION" --force
+
