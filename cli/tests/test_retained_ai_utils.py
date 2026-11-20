@@ -8,7 +8,7 @@ from dev_tools import utils
 def test_downstream_ai_helpers_remain_available():
     # Known downstream experiments import these names directly.
     assert utils.call_ai("offline compatibility probe") is None
-    assert utils.clean_llm_output("```json\n{\"ok\": true}\n```") == '{"ok": true}'
+    assert utils.clean_llm_output('```json\n{"ok": true}\n```') == '{"ok": true}'
 
 
 def test_schema_normalization_remains_recursive():
