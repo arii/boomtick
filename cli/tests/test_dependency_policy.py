@@ -8,9 +8,14 @@ RAG embedding backend (index_available=false, 0 hits). Telemetry arrives
 transitively via chromadb/semgrep; pins here can only reintroduce skew.
 """
 
+import importlib
 import os
 import re
-import tomllib
+
+try:
+    tomllib = importlib.import_module("tomllib")
+except ModuleNotFoundError:
+    tomllib = importlib.import_module("tomli")
 
 PYPROJECT = os.path.join(os.path.dirname(__file__), "..", "pyproject.toml")
 
