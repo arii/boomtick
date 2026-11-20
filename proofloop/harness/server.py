@@ -4,6 +4,7 @@
 GET /augment exposes local replay status only. Live sponsor work is performed
 by the separately activated harness, never by background browser requests.
 """
+import hashlib
 import json
 import os
 import re
@@ -39,6 +40,16 @@ def _read(name, default):
     return json.loads(p.read_text()) if p.exists() else default
 
 
+def prompt_payload():
+    """Active prompt text written by the replay loop, or None before the first run."""
+    path = config.STATE_DIR / "active_prompt.md"
+    if not path.exists():
+        return None
+    text = path.read_text()
+    return {"version": _read("last_run.json", {}).get("prompt", {}).get("version"),
+            "sha256": hashlib.sha256(text.encode()).hexdigest(), "text": text}
+
+
 def augment():
     ledger = _read("proof_ledger.json", {"active_version": "", "entries": []})
     run = _read("last_run.json", {})
@@ -46,7 +57,9 @@ def augment():
     history = [] if legacy else ledger["entries"]
     promoted = [e for e in history if e["status"] == "promoted"]
     last = promoted[-1] if promoted else None
+    pp = prompt_payload()
     return {"active_version": None if legacy else ledger["active_version"],
+            "prompt": {"version": pp["version"], "sha256": pp["sha256"]} if pp else None,
             "pass": run.get("active", {}).get("passed"), "total": run.get("active", {}).get("total"),
             "last_promoted": last, "history": history, "services": config.status(),
             "retrieval": last.get("retrieval") if last else None,
@@ -93,6 +106,9 @@ class Handler(BaseHTTPRequestHandler):
             if ledger.get("schema_version") != 2:
                 return self._send(409, {"error": "legacy ledger; select separate state directory or explicitly reset"})
             return self._send(200, {"ledger": ledger, "run": _read("last_run.json", {})})
+        if path == "/prompt":
+            pp = prompt_payload()
+            return self._send(200, pp) if pp else self._send(404, {"error": "no active prompt yet; run replay_loop.py"})
         if path == "/status":
             return self._send(200, config.status())
         if path in ("/", "/dashboard"):

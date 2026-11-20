@@ -18,7 +18,21 @@ async function augment(senderTab) {
   }
 }
 
+async function fetchPrompt() {
+  try {
+    const r = await fetch(`${BACKEND}/prompt`);
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    return { ok: true, data: await r.json() };
+  } catch (e) {
+    return { ok: false, error: String(e) };
+  }
+}
+
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
+  if (msg?.type === "prompt" && sender.tab) {
+    fetchPrompt().then(sendResponse);
+    return true;
+  }
   if (msg?.type === "augment" && sender.tab) {
     augment(sender.tab).then(sendResponse);
     return true;

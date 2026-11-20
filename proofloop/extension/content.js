@@ -75,6 +75,33 @@
     } else {
       panel.append(el("div", { textContent: "No ledger entries. Run harness/replay_loop.py --reset." }));
     }
+    if (d && d.prompt) {
+      const note = el("span", { className: "small" });
+      const copy = el("button", { textContent: `Copy active prompt (${d.prompt.version || "current"})` });
+      copy.onclick = async (ev) => {
+        ev.stopPropagation();
+        try {
+          const r = await chrome.runtime.sendMessage({ type: "prompt" });
+          if (!r || !r.ok) throw new Error(r && r.error ? r.error : "no response from extension background");
+          try {
+            await navigator.clipboard.writeText(r.data.text);
+          } catch {
+            const ta = document.createElement("textarea");
+            ta.value = r.data.text;
+            ta.style.cssText = "position:fixed;opacity:0;";
+            document.documentElement.append(ta);
+            ta.select();
+            const done = document.execCommand("copy");
+            ta.remove();
+            if (!done) throw new Error("clipboard blocked on this page");
+          }
+          note.textContent = ` Copied ${r.data.version || "prompt"}. Paste it into your agent instructions.`;
+        } catch (err) {
+          note.textContent = ` Could not copy: ${err && err.message ? err.message : err}`;
+        }
+      };
+      panel.append(copy, note);
+    }
     panel.append(el("div", { className: "small", textContent: "Other tabs (local opt-in): " + (res.related.map((r) => r.title || r.url).join(" | ") || "none") }));
     if (d) panel.append(el("div", { className: "small", textContent: Object.values(d.services).map((s) => s.label).join(" / ") }));
     panel.append(el("div", { className: "small", textContent: "Measured deterministic replay only. No page data sent to backend or sponsors." }));

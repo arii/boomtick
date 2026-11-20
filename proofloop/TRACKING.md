@@ -6,7 +6,7 @@ Patch prepared November 20 (PR #1350): README.md describes the local Replay Gate
 
 Live status for the Personal Agents Hackathon build (Fri Nov 20, 2026). Kiro updates this file as work progresses. Ari's CLI agents (agy, Copilot, Muse CLI) read this file to pick up work interactively. Do not delete this file. Keep it current.
 
-Last updated: 2026-11-20 02:10 PM PT (by Kiro). CLI agent session transcript folded in: Cognee is now LIVE (probe GREEN, 8 sessions ingested, 6/6 tasks recalled), three harness fixes pushed (51887d1). Next: dry runs, backup video by 3:55 PM PT, submission by 4:30 PM PT. PR not opened.
+Last updated: 2026-11-20 02:14 PM PT (by Kiro). Added auto-updating agent prompt (active skill rendered into a marked block that can be synced into an agent instruction file). Honest assessment of the loop recorded under "What the loop is and is not". PR not opened.
 
 ## Repo and branch
 - Repo: arii/boomtick (no new repo).
@@ -110,6 +110,17 @@ Exact steps:
 3. Open a NEW tab at http://127.0.0.1:8787/ (or https://example.com). Look at the bottom-right corner. Click the chip to expand the proof table.
 4. If nothing shows: on that page open DevTools, Console, and look for `[ProofLoop] content script running`. Or run `document.getElementById('proofloop-chip-host')` in the console: null means the script did not run (reload the page, check the page type and that the extension is enabled); an element means it ran. On the chrome://extensions card click "service worker" to see background errors.
 
+## What the loop is and is not (assessed 2026-11-20, from the code)
+- **Is:** a bounded propose, replay, gate, promote loop (`replay_loop.py`, default `--max-cycles 4`). A promoted candidate becomes the new baseline, and the next cycle proposes changes from that skill's remaining failures. It stops when all tasks pass, when no change is available, when the gate rejects or holds, or at the cycle cap. A second run on an already-passing skill does nothing.
+- **Is not open-ended improvement.** The only thing a mutation can change is which of 4 fixed step names are in the skill (`agent.KNOWN_STEPS`). The rule-based mutator maps a failed check to its step through a fixed table (`CHECK_FIX`). The LLM path may only pick from the same 4 names (anything else is dropped). After at most three additions nothing is left to add, so the loop ends because the vocabulary is used up, not because it found no further improvement. There is no step or rule generation and no rewriting of prompt text.
+- **Fixed inputs.** The six tasks come from a committed file and do not grow. Cognee recall is reported but does not change the suite. Senso is written to and read back to gate activation but never read as input to a later round.
+- **The injected bad cycle is scripted** (`--bad-demo` drops the grounding step). It shows the gate rejecting a regression; it is not something the loop discovered.
+- **The executor is a deterministic model, not an agent run.** `agent.run_task` builds an answer string from each task's slots: with `ground_in_related_tabs` it substitutes the slot's `source_hint`, with `ask_when_unstated` it emits "Clarify: ...", and so on. The `baseline` value is copied from what the real session got wrong. The checks are string tests on that output. No LLM or real agent produces the answers. The LLM is used only to choose among the 4 step names, and that choice is replayed through the same model.
+- **Partly built in.** Kiro wrote each task's slots and hints and the check-to-step table, so the right steps fix the right tasks by construction. The pass counts are real computations, but they show the gate and ledger working, not that an agent improved.
+- **What the demo honestly shows:** replay, per-check gate, promote and rollback on a fixed six-task set, with live Cognee, Senso and an LLM in the pipeline, plus a prompt block rendered from the promoted skill.
+- **What changed today:** after each run the active skill is rendered into `state/.../active_prompt.md` (rules for the steps in the skill, plus the constraints of tasks that pass). `--sync-prompt PATH` (or `PROOFLOOP_PROMPT_TARGET`) writes that block into an agent instruction file between PROOFLOOP markers, only for `.md/.mdc/.txt` files, never `.env` or `.git`, and never from an unpromoted v0. A rollback leaves the previous block. The backend serves it at `/prompt`; the chip and dashboard have a copy button. The rules are fixed text per step, so this makes the output usable, not smarter.
+- **A real loop (post-hackathon):** (1) replace `run_task` with a real LLM call that answers each task with the rendered prompt and keep the same checks; (2) let the LLM rewrite or extend the prompt text from failing outputs instead of picking step names; (3) repeat until no improvement for k rounds or a budget is hit, replaying each candidate more than once because LLM output varies; (4) keep a held-out task split to avoid overfitting; (5) feed new tasks from fresh session logs (see `data/candidates/`) each round. Roughly 250 to 400 lines plus tests, and several hours to make stable. It is not safe to do before the 4:30 PM deadline.
+
 ## Timeline (PT)
 - Now to 2:30: Ari confirms the chip in Chrome. Kiro fixes anything it reports.
 - 2:30 to 3:00: two timed dry runs of the 3-minute demo (fill in the log below).
@@ -131,7 +142,7 @@ Live runs write new content to Senso each time (small credit use). Run the on-st
 | 0:00-0:35 | A normal web page with the quiet chip bottom-right. Click it: proof table. | "No chat box. ProofLoop lives on the page. The chip shows the active skill version and the replay record: each version, pass count, gate decision, Senso node, status. It also shows my other tabs, locally only." | none (open the dashboard tab) |
 | 0:35-1:15 | Terminal: baseline replay. | "These six tasks come from my real past sessions: wrong city, wrong phone number, fabricated numbers. The baseline skill passes 2 of 6, and each failure names the check it broke." | `PROOFLOOP_LIVE_SERVICES=senso,twt PROOFLOOP_STATE=proofloop/state/demo-run python3 proofloop/harness/replay_loop.py --reset --bad-demo` (let it run; the baseline prints first) |
 | 1:15-2:15 | Same terminal: mutation, gate, Senso. | "It proposes a new skill version (here the LLM through a local gateway). The local Replay Gate decides with plain rules: promote only if more tasks pass and no passing check breaks. No model decides promotion. Then Senso stores it and we read it back before it goes live." | same run, lines `[4]` to `[7]` |
-| 2:15-3:00 | Terminal: the injected bad version; then the chip/proof table. | "A deliberately bad version drops to 4 of 6. The gate rejects it and rolls back; the active skill is unchanged. ProofLoop does not just learn: it proves each upgrade on past tasks and refuses regressions." Close on the proof table row marked `rolled_back`. | same run, line `[8]`; click the chip again |
+| 2:15-3:00 | Terminal: the injected bad version; then the chip/proof table. | "A deliberately bad version drops to 4 of 6. The gate rejects it and rolls back; the active skill is unchanged. ProofLoop accepts a change only when replaying your past tasks shows more of them pass with no regression." Close on the proof table row marked `rolled_back`. | same run, line `[8]`; click the chip again |
 
 Rules for the narration: quote only numbers on screen; say "deterministic replay on six tasks", not "improves the model"; if a service shows `stub`, say so.
 
@@ -177,7 +188,7 @@ Activation rules: `.env` is NOT read. Export real environment variables and opt 
 - [x] Task 1 — Curate JSONL + replay_tasks.json (11:00–11:20 AM). Status: done. Real sessions validate; 6 tasks derived.
 - [ ] Task 2 — Browser-first key entry + health checks (11:20–11:40 AM). Status: not started (needs keys from Ari or stub go-ahead).
 - [x] Task 3 — Cognee ingestion smoke test (11:40 AM–12:10 PM). Status: DONE on live Cognee Cloud (probe GREEN; 8 sessions ingested; 6/6 tasks recalled).
-- [ ] Task 4 — Core recursive loop, replay_loop.py (12:10–1:10 PM). Status: stub mode complete on real sessions (2/6 -> 5/6 -> 6/6, rollback works). Live mode needs keys.
+- [ ] Task 4 — Core propose/replay/gate loop, replay_loop.py (bounded, see "What the loop is and is not") (12:10–1:10 PM). Status: stub mode complete on real sessions (2/6 -> 5/6 -> 6/6, rollback works). Live mode needs keys.
 - [x] Task 5 — Minimal MV3 Chrome extension (1:10–1:55 PM). Status: DONE. Loaded in real Chrome and confirmed by Ari: chip, proof table, local tab list, live readback.
 - [ ] Task 6 — Proof table UI + demo dry run (2:30–3:00 PM). Status: dashboard done; dry runs and backup video not started. Needs Tasks 4 and 5 done.
 - [ ] Task 7 — Buffer / polish / submission prep (3:00–3:55 PM). Status: not started. Submission ready by 3:55 PM, 35 min slack before 4:30 PM deadline.

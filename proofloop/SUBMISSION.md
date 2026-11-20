@@ -48,6 +48,8 @@ Latest live run (Cognee, Senso and the mutation LLM all live): v0 2/6, v1.1 6/6 
 
 - The replay executor is a deterministic model of agent behavior on six tasks. A 6/6 result is a result on that suite, not evidence of better live-LLM behavior or a safety guarantee.
 - The proof shown is measured replay of past tasks, not a claim about future ones.
+- The loop is bounded, not open-ended. A mutation can only switch on or off four fixed skill steps, the six tasks are a fixed set, and the loop ends when all of them pass or the steps run out. It does not write new rules or learn from new data on its own.
+- The replay executor is a deterministic model and does not run an agent. The promoted skill is rendered into a prompt block (rules plus the constraints it passed) that can be written into an agent instruction file; whether that prompt improves a live agent has not been measured.
 
 ## Links
 

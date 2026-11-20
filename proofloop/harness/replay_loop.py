@@ -10,6 +10,7 @@ mutation -> local Replay Gate -> Senso promotion -> proof ledger -> rollback on 
 """
 import argparse
 import json
+import os
 import re
 import sys
 from datetime import datetime, timezone
@@ -18,6 +19,7 @@ import agent
 import clients
 import replay_gate
 import config
+import skill_prompt
 import validate
 
 BASE_SKILL = {"version": "v0", "steps": [agent.BASE_STEP]}
@@ -192,6 +194,9 @@ def main():
     ap.add_argument("--bad-demo", action="store_true", help="after evolving, try a bad mutation (expect rollback)")
     ap.add_argument("--max-cycles", type=int, default=4)
     ap.add_argument("--status", action="store_true")
+    ap.add_argument("--sync-prompt", metavar="PATH", help="write the active prompt into PATH between PROOFLOOP markers "
+                    "(also PROOFLOOP_PROMPT_TARGET). Only .md/.mdc/.txt files; never .env or .git")
+    ap.add_argument("--create-target", action="store_true", help="create the --sync-prompt file if it does not exist")
     args = ap.parse_args()
 
     if args.status:
@@ -254,7 +259,23 @@ def main():
     save_json(skill_p, active)
     save_json(ledger_p, ledger)
     validate.check_ledger(ledger)
+    promoted_entry = next((e for e in reversed(ledger["entries"])
+                           if e["status"] == "promoted" and e["version"] == active["version"]), None)
+    pinfo = skill_prompt.write_active(active, tasks, base_rep, promoted_entry)
+    log(f"[9] Active prompt for {active['version']}: {pinfo['path']} ({pinfo['rules']} rules, sha256 {pinfo['sha256'][:12]})")
+    target = args.sync_prompt or os.environ.get("PROOFLOOP_PROMPT_TARGET")
+    prompt_sync = None
+    if target and active["version"] == BASE_SKILL["version"]:
+        log("[9] Prompt target left unchanged: no promoted skill yet, so the existing prompt is not downgraded")
+    elif target:
+        try:
+            prompt_sync = skill_prompt.sync_block(target, pinfo["block"], create=args.create_target)
+            log(f"[9] Prompt synced to {target}: {prompt_sync}")
+        except (OSError, ValueError) as e:
+            log(f"[9] Prompt sync FAILED, target not changed: {e}")
+            prompt_sync = "failed"
     save_json(run_p, {
+        "prompt": {k: pinfo[k] for k in ("path", "sha256", "version", "rules")} | {"target": target, "sync": prompt_sync},
         "generated": now(), "services": config.status(), "recall": recall_note,
         "initial": initial, "active": {"version": active["version"], "passed": base_rep["passed"],
                                        "total": base_rep["total"], "steps": active["steps"]},

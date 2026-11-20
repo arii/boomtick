@@ -20,6 +20,14 @@ KNOWN_STEPS = {
     "trace_to_source": "Only state claims (numbers, URLs, dates) that appear in an open tab; omit the rest.",
 }
 
+# step -> instruction written into the agent prompt when the step is part of the active skill
+PROMPT_RULES = {
+    "answer_from_active_tab": "Answer from the page the user has open, and say which page you used.",
+    "ground_in_related_tabs": "Before filling a form field or stating a fact, look for it in the open tabs and use that value. Never substitute a guess or a default, such as a different city or a different phone number.",
+    "ask_when_unstated": "If a required value is not stated in any open tab or by the user, ask the user instead of assuming it.",
+    "trace_to_source": "Only state numbers, URLs, dates or results that appear in an open tab, a script or a recorded run. If you cannot trace a claim to a source, leave it out or say it is unverified.",
+}
+
 # check name (before ':') -> step that fixes it
 CHECK_FIX = {
     "must_include": "ground_in_related_tabs",

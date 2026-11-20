@@ -3,11 +3,29 @@
   "name": "ProofLoop",
   "version": "0.1.0",
   "description": "Quiet inline chips backed by measured deterministic replay checks. No chat.",
-  "permissions": ["tabs", "storage"],
-  "host_permissions": ["http://127.0.0.1:8787/*", "http://localhost:8787/*"],
-  "background": { "service_worker": "background.js" },
+  "permissions": [
+    "tabs",
+    "storage",
+    "clipboardWrite"
+  ],
+  "host_permissions": [
+    "http://127.0.0.1:8787/*",
+    "http://localhost:8787/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
   "content_scripts": [
-    { "matches": ["http://*/*", "https://*/*"], "js": ["content.js"], "run_at": "document_idle" }
+    {
+      "matches": [
+        "http://*/*",
+        "https://*/*"
+      ],
+      "js": [
+        "content.js"
+      ],
+      "run_at": "document_idle"
+    }
   ],
   "options_page": "options.html"
 }

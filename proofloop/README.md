@@ -49,6 +49,18 @@ No provider keys at all: run Ollama locally and `export TWT_OLLAMA_MODEL=qwen2.5
 - If the gateway is down or the waterfall is exhausted (it returns 503 listing missing credentials, never a fake completion), the harness logs the failure and uses the rule-based mutator. Replay results and the gate do not depend on the LLM.
 - Checked against the real gateway with no provider keys: sync, serve, 503 with missing-env list, harness fallback. A successful provider completion has not been exercised (no provider key in the build sandbox).
 
+## Auto-updating agent prompt
+
+After every run the active skill is rendered into `state/active_prompt.md`: one rule per step in the skill, plus the constraints of the replayed tasks that pass. To keep an agent's instructions current, name a file:
+
+```sh
+python3 harness/replay_loop.py --reset --sync-prompt ~/AGENTS-or-GEMINI.md --create-target   # or PROOFLOOP_PROMPT_TARGET
+```
+
+Only the text between `<!-- PROOFLOOP:BEGIN -->` and `<!-- PROOFLOOP:END -->` is replaced; the rest of the file is never touched. It refuses `.env`, anything under `.git`, and any file that is not `.md`, `.mdc` or `.txt`. A rejected or rolled-back candidate leaves the previous block, and an unpromoted v0 never overwrites an existing block. The backend serves the text at `GET /prompt`, the chip has a "Copy active prompt" button, and the dashboard shows it.
+
+Scope: the rules are fixed text per step, and the loop is bounded to four fixed steps. See TRACKING.md, "What the loop is and is not".
+
 ## Credential and activation boundaries
 
 This version does not read `.env`, `state/keys.json` or Chrome-saved credentials. It accepts credentials only from the process environment supplied by an approved secret manager. The options page neither collects nor sends keys. Old secret files/storage are not deleted; this patch does not claim to remove existing copies.

@@ -27,10 +27,17 @@ const root = path.resolve(__dirname, '../../extension');
   assert.equal(tabReads, 1);
   assert.equal(second.related[0].title, 'LOCAL ONLY');
   assert.deepEqual(requested, ['http://127.0.0.1:8787/augment', 'http://127.0.0.1:8787/augment']);
+  // Prompt copy: fixed loopback URL, no page data in the request.
+  context.fetch = async url => { requested.push(url); return { ok: true, json: async () => ({ version: 'v1', text: 'rules' }) }; };
+  const prompt = await new Promise(resolve => listener({ type: 'prompt', title: 'PRIVATE TITLE', url: 'https://private.invalid' }, { tab: { id: 1, windowId: 1 } }, resolve));
+  assert.equal(prompt.ok, true);
+  assert.equal(prompt.data.text, 'rules');
+  assert.equal(requested[requested.length - 1], 'http://127.0.0.1:8787/prompt');
+  assert.equal(await new Promise(resolve => { const r = listener({ type: 'prompt' }, {}, resolve); setTimeout(() => resolve('ignored'), 20); return r; }), 'ignored'); // no tab, no answer
   const content = fs.readFileSync(path.join(root, 'content.js'), 'utf8');
   for (const forbidden of ['document.title', 'location.href', 'innerText', 'LanguageModel', 'snippet:']) assert(!content.includes(forbidden), forbidden);
   const options = fs.readFileSync(path.join(root, 'options.js'), 'utf8');
   assert(!/API_KEY|\/config|backend_url/.test(options));
   assert(!content.includes(' verified'));
-  console.log('7 offline extension contracts passed: fixed status URL, no metadata/body upload, tab lookup opt-in, local-only tab results, no key form/config writes, no verified claim, no local model invocation.');
+  console.log('8 offline extension contracts passed (incl. prompt copy uses a fixed URL): fixed status URL, no metadata/body upload, tab lookup opt-in, local-only tab results, no key form/config writes, no verified claim, no local model invocation.');
 })();
