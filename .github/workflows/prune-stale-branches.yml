@@ -11,7 +11,7 @@ concurrency:
   # security-safe: This string is used solely as an internal GitHub identifier to queue/cancel runs.
   # It is never evaluated or executed in a shell or command context, so there is zero risk of script/command injection.
   group: prune-stale-branches-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
   contents: write
@@ -19,6 +19,7 @@ permissions:
 
 jobs:
   prune-branches:
+    timeout-minutes: 15
     name: Identify and Prune Stale Branches
     runs-on: ubuntu-latest
     steps:

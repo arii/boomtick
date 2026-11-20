@@ -23,6 +23,7 @@ permissions:
 
 jobs:
   publish-artifacts:
+    timeout-minutes: 60
     name: Build & Publish Synchronized Artifacts
     runs-on: ubuntu-latest
     steps:
