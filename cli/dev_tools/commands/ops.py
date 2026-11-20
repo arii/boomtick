@@ -154,17 +154,23 @@ def test():
 def test_cli(ctx):
     """Run CLI package tests"""
     orch = ctx.obj["ORCHESTRATOR"]
-    orch.runtime_check()
-    # pytest options are now in pyproject.toml
-    # Get the directory of the current file to find the cli package root
-    cli_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    cli_dir = os.path.dirname(
+        os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    )
+    # Runtime contract files live beside the CLI package in a source checkout.
+    # Anchor the check there too, so a nested caller does not fail before pytest.
+    caller_dir = os.getcwd()
     try:
+        os.chdir(os.path.dirname(cli_dir))
+        orch.runtime_check()
         subprocess.run(
             [sys.executable, "-m", "pytest", "tests/"], cwd=cli_dir, check=True
         )
         out(ctx, "✅ CLI tests passed")
     except subprocess.CalledProcessError as e:
         err(ctx, f"CLI tests failed with exit code {e.returncode}")
+    finally:
+        os.chdir(caller_dir)
 
 
 @cli.command(name="context-warm")

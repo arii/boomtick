@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 // Catalog visible to the picker in these tests only: one model that exists
 // nowhere in the shipped data file, plus a distinctive default. If the picker
