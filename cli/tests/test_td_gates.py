@@ -531,3 +531,22 @@ def test_audit_code_skips_slang_without_config(tmp_path):
         "suppressions_added",
         "ast_violations",
     }
+
+
+def test_scope_path_extraction_ignores_explanatory_identifiers():
+    body = (
+        "### Forbidden Files (Do Not Modify)\n"
+        "- Keep `trim_history_by_count` and `trim_thread_history` unchanged "
+        "inside `deep-agent/deep_chat.py`.\n"
+        "- `deep-agent/` modules other than `deep_chat.py`\n"
+        "- `LICENSE` and `.env`\n"
+        "- `settings`\n"
+    )
+    assert _spec_backtick_paths(body, "forbidden files") == [
+        "deep-agent/deep_chat.py",
+        "deep-agent/",
+        "deep_chat.py",
+        "LICENSE",
+        ".env",
+        "settings",
+    ]
