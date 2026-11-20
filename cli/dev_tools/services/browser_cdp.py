@@ -118,15 +118,13 @@ def _compare_png_bytes(baseline_png: Path, candidate_png: Path) -> float:
         from PIL import Image, ImageChops
         import io
 
-        with (
-            Image.open(io.BytesIO(baseline)).convert("RGB") as img1,
-            Image.open(io.BytesIO(candidate)).convert("RGB") as img2,
-        ):
-            if img1.size != img2.size:
-                img2 = img2.resize(img1.size)
-            diff = ImageChops.difference(img1, img2)
-            non_zero = sum(1 for px in diff.getdata() if px != (0, 0, 0))
-            return round(non_zero / max(img1.size[0] * img1.size[1], 1) * 100.0, 3)
+        with Image.open(io.BytesIO(baseline)).convert("RGB") as img1:
+            with Image.open(io.BytesIO(candidate)).convert("RGB") as img2:
+                if img1.size != img2.size:
+                    img2 = img2.resize(img1.size)
+                diff = ImageChops.difference(img1, img2)
+                non_zero = sum(1 for px in diff.getdata() if px != (0, 0, 0))
+                return round(non_zero / max(img1.size[0] * img1.size[1], 1) * 100.0, 3)
     except Exception:
         return 100.0
 

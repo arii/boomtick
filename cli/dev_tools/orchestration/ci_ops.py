@@ -1,5 +1,8 @@
 """CI logs, merge conflicts, and shaped PR views."""
 
+from __future__ import annotations
+
+
 import json
 import os
 import shutil

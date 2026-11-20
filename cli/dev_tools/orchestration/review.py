@@ -1,5 +1,8 @@
 """PR review heuristics and finding collection."""
 
+from __future__ import annotations
+
+
 import json
 import os
 import re

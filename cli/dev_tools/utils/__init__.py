@@ -1,4 +1,6 @@
 # pylint: disable=too-many-lines,import-outside-toplevel,line-too-long,missing-docstring,no-else-return,raise-missing-from,redefined-outer-name,reimported,too-many-locals,unused-argument,unused-variable,cyclic-import
+from __future__ import annotations
+
 import hashlib
 import json
 import os
