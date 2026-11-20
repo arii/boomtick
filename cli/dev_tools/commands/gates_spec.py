@@ -48,7 +48,14 @@ def _spec_backtick_paths(body, *headings):
     for line in _spec_section_lines(body, *headings):
         for path in re.findall(r"`([^`]+)`", line):
             path = path.strip()
-            if path and path not in paths:
+            # Function names and other inline identifiers are explanatory prose,
+            # not file boundaries. Keep filenames, directories and dotfiles.
+            is_path = (
+                "/" in path
+                or "." in path
+                or path in {"LICENSE", "Dockerfile", "Makefile", "NOTICE"}
+            )
+            if path and is_path and path not in paths:
                 paths.append(path)
     return paths
 
