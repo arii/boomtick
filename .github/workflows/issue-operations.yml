@@ -30,6 +30,7 @@ permissions:
 
 jobs:
   validate-quality:
+    timeout-minutes: 45
     name: Validate Issue Quality
     if: |
       github.event_name == 'issues' &&
@@ -65,6 +66,7 @@ jobs:
           github_token: ${{ steps.app-token.outputs.token }}
 
   validate-spec:
+    timeout-minutes: 45
     name: Validate Design Spec
     if: |
       github.event_name == 'issues' &&
@@ -100,6 +102,7 @@ jobs:
           github_token: ${{ steps.app-token.outputs.token }}
 
   create-pr:
+    timeout-minutes: 45
     name: Issue to Content PR
     if: |
       github.event_name == 'issues' &&
@@ -132,6 +135,7 @@ jobs:
           github_token: ${{ steps.app-token.outputs.token }}
 
   ai-review:
+    timeout-minutes: 45
     name: AI Review
     if: github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'ai-review'
     runs-on: ubuntu-latest
@@ -160,6 +164,7 @@ jobs:
           openai_api_key: ${{ secrets.OPENAI_API_KEY }}
 
   resolve-conflicts:
+    timeout-minutes: 45
     name: Resolve PR Conflicts
     if: github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'resolve-conflicts'
     runs-on: ubuntu-latest
@@ -186,6 +191,7 @@ jobs:
           github_token: ${{ steps.app-token.outputs.token }}
 
   update-snapshots:
+    timeout-minutes: 45
     name: Update Playwright Snapshots
     if: github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'update-snapshots'
     runs-on: ubuntu-latest
