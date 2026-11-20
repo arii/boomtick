@@ -115,7 +115,7 @@ async function fetchViewSections(
 }
 
 /** CI logs for a PR (absorbed repo_read_ci_logs). */
-export async function fetchCiLogs(prNumber: number, targetRepo: string): Promise<Record<string, unknown>> {
+async function fetchCiLogs(prNumber: number, targetRepo: string): Promise<Record<string, unknown>> {
   const output = await runTDCli(["repo", "ci-logs", prNumber.toString(), "--repo", targetRepo], "fetch CI logs");
   return {
     checks: output.checks,
