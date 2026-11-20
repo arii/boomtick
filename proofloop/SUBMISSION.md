@@ -8,7 +8,7 @@ Most personal agents sit in a chat box and forget what went wrong last time. Pro
 
 ## What it does
 
-1. **Ingest.** Eight real session excerpts (cross-tab misses, fabricated or unverified claims, and successes; personal data redacted) go into a Cognee-style memory graph, and six replay tasks are derived from them.
+1. **Ingest.** Eight real session excerpts (cross-tab misses, fabricated or unverified claims, and successes; personal data redacted) are ingested into Cognee, which recalls the matching sessions for the six replay tasks derived from them.
 2. **Replay.** The engine runs the six tasks against the v0 baseline skill and records which individual checks pass or fail.
 3. **Mutate.** A new skill version is proposed from the failure pattern. The default is a rule-based mutator; an LLM through the local Tokens with Taste gateway or OpenRouter is optional.
 4. **Gate.** A local deterministic Replay Gate decides: promote only if strictly more tasks pass, no previously passing check newly fails, and failed checks do not increase. Equal results hold. Any regression is rejected and rolled back. There is no model call in the decision, so every decision can be audited from the ledger.
@@ -26,14 +26,16 @@ Measured on the six replay tasks derived from real sessions:
 | v1.2 | 6/6 | promote (active) |
 | v1.3 (deliberately bad) | 4/6 | reject and roll back; v1.2 stays active |
 
-The pass counts come from running the task checks, not from fixed numbers. The sequence above is from the rule-based mutator. When an LLM proposes the new steps (through the local gateway), the engine can reach 6/6 in a single cycle (v0 2/6, v1.1 6/6, then the bad version rejected). The Replay Gate rules and the rollback behavior are identical either way.
+The pass counts come from running the task checks, not from fixed numbers. The table above is the run with the rule-based mutator.
+
+Latest live run (Cognee, Senso and the mutation LLM all live): v0 2/6, v1.1 6/6 promoted, deliberately bad v1.3 4/6 rejected and rolled back, v1.1 stays active. When an LLM proposes the new steps (through the local gateway), the engine can reach 6/6 in a single cycle. The Replay Gate rules and the rollback behavior are identical either way.
 
 ## Tools used
 
-- **Cognee**: memory graph for session history and recall (HTTP client written to the Cognee API; the demo path also has a built-in local graph).
+- **Cognee (Cognee Cloud)**: memory graph for session history. The eight sessions are ingested through the Cognee HTTP API and the replay recalls all six task sessions from it. A built-in local graph is the offline fallback.
 - **Senso**: storage and verified readback of promoted skills and their proof.
 - **Chrome extension (Manifest V3)**: content script chip, background service worker, options page.
-- **Python replay harness**: replay engine, deterministic Replay Gate, proof ledger, read-only local backend, 38 offline tests.
+- **Python replay harness**: replay engine, deterministic Replay Gate, proof ledger, read-only local backend, 39 offline tests.
 - **Tokens with Taste (optional)**: local OpenAI-compatible gateway that routes the mutation call across free providers.
 
 ## Privacy and safety
