@@ -15,6 +15,7 @@ Selection (2 cross-tab misses, 2 fabrications, 2 successes). Left out: sess_2026
 import json
 
 import config
+from atomic import atomic_write_json
 import validate
 
 SPEC = {
@@ -77,7 +78,7 @@ def main():
             "baseline_score": spec["baseline_score"], "slots": spec["slots"],
         })
     out = {"suite_id": "proofloop-suite-real-v1", "tasks": tasks}
-    (config.DATA_DIR / "replay_tasks.json").write_text(json.dumps(out, indent=2) + "\n")
+    atomic_write_json(config.DATA_DIR / "replay_tasks.json", out)
     validate.load_suite()
     left_out = sorted(set(sessions) - set(SPEC))
     print(f"wrote {len(tasks)} tasks; left out: {left_out}")

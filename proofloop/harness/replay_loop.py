@@ -19,6 +19,7 @@ import agent
 import clients
 import replay_gate
 import config
+from atomic import atomic_write_json
 import skill_prompt
 import validate
 
@@ -39,8 +40,7 @@ def load_json(path, default):
 
 
 def save_json(path, obj):
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(obj, indent=2) + "\n")
+    atomic_write_json(path, obj)
 
 
 def state_paths():

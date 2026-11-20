@@ -11,6 +11,7 @@ import urllib.request
 from pathlib import Path
 
 import config
+from atomic import atomic_write_json
 
 TIMEOUT = 15
 # Python's default urllib User-Agent is blocked by Cloudflare (Senso returns 403 "error code: 1010").
@@ -60,9 +61,7 @@ def _load(path, default):
 
 
 def _save(path, obj):
-    p = Path(path)
-    p.parent.mkdir(parents=True, exist_ok=True)
-    p.write_text(json.dumps(obj, indent=2) + "\n")
+    atomic_write_json(path, obj)
 
 
 def _tokens(text):
