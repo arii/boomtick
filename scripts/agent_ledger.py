@@ -30,25 +30,37 @@ Fails closed: without a token or store file, read/history exit 1.
 Config: AGENT_LEDGER_FORM_URL (or --form-url) is required for post/new/
 update/claim. No default is baked in.
 """
+
 import argparse, json, sys, time, uuid, urllib.parse, urllib.request
 
-ENTRY_SOURCE = "entry.421540333"   # Agent / Source
-ENTRY_NOTE   = "entry.526880121"   # Item / Note
-ENTRY_STATUS = "entry.910915240"   # Status (Act / Later / Needs Okay / Done)
-ENTRY_LINK   = "entry.1391612799"  # Link (doubles as the stable task key)
+ENTRY_SOURCE = "entry.421540333"  # Agent / Source
+ENTRY_NOTE = "entry.526880121"  # Item / Note
+ENTRY_STATUS = "entry.910915240"  # Status (Act / Later / Needs Okay / Done)
+ENTRY_LINK = "entry.1391612799"  # Link (doubles as the stable task key)
 
 STATUSES = ["Act", "Later", "Needs Okay", "Done"]
 
 
 def post_row(form_url, source, note, status, link, dry_run):
-    data = {ENTRY_SOURCE: source, ENTRY_NOTE: note, ENTRY_STATUS: status, ENTRY_LINK: link or ""}
+    data = {
+        ENTRY_SOURCE: source,
+        ENTRY_NOTE: note,
+        ENTRY_STATUS: status,
+        ENTRY_LINK: link or "",
+    }
     if dry_run:
         return {"dry_run": True, "fields": data}
     body = urllib.parse.urlencode(data).encode()
     req = urllib.request.Request(form_url, data=body)
     with urllib.request.urlopen(req, timeout=30) as resp:
-        return {"submitted": resp.status == 200, "http_status": resp.status,
-                "source": source, "note": note, "status": status, "link": link or None}
+        return {
+            "submitted": resp.status == 200,
+            "http_status": resp.status,
+            "source": source,
+            "note": note,
+            "status": status,
+            "link": link or None,
+        }
 
 
 def load_snapshots(args):
@@ -57,20 +69,27 @@ def load_snapshots(args):
             lines = [l for l in f if l.strip()]
     else:
         import os
+
         token = os.environ.get("AGENT_LEDGER_TOKEN")
         file_id = os.environ.get("AGENT_LEDGER_FILE_ID")
         if not token or not file_id:
-            print(json.dumps({"error": "live read needs AGENT_LEDGER_TOKEN and "
-                                       "AGENT_LEDGER_FILE_ID (assistant's own Google "
-                                       "credential), or --store-file for a local copy"}))
+            print(
+                json.dumps(
+                    {
+                        "error": "live read needs AGENT_LEDGER_TOKEN and "
+                        "AGENT_LEDGER_FILE_ID (assistant's own Google "
+                        "credential), or --store-file for a local copy"
+                    }
+                )
+            )
             sys.exit(1)
         req = urllib.request.Request(
             "https://www.googleapis.com/drive/v3/files/%s?alt=media" % file_id,
-            headers={"Authorization": "Bearer " + token})
+            headers={"Authorization": "Bearer " + token},
+        )
         with urllib.request.urlopen(req, timeout=30) as resp:
             lines = [l for l in resp.read().decode().splitlines() if l.strip()]
-    return [json.loads(l) for l in lines
-            if json.loads(l).get("type") == "snapshot"]
+    return [json.loads(l) for l in lines if json.loads(l).get("type") == "snapshot"]
 
 
 def cmd_read(args):
@@ -81,18 +100,32 @@ def cmd_read(args):
     latest = snaps[-1]
     out = []
     for r in latest["rows"]:
-        out.append({"key": r["key"], "status": r["status"],
-                    "owner": r.get("owner") or r.get("source"),
-                    "updated": r.get("updated"), "note": r["note"]})
+        out.append(
+            {
+                "key": r["key"],
+                "status": r["status"],
+                "owner": r.get("owner") or r.get("source"),
+                "updated": r.get("updated"),
+                "note": r["note"],
+            }
+        )
     # the store lags live state by the export cadence; warn rather than let
     # stale state read as fresh
     stale = None
     try:
         import datetime
-        cap = datetime.datetime.fromisoformat(latest["captured_at"].replace("Z", "+00:00"))
-        age_min = (datetime.datetime.now(datetime.timezone.utc) - cap).total_seconds() / 60
+
+        cap = datetime.datetime.fromisoformat(
+            latest["captured_at"].replace("Z", "+00:00")
+        )
+        age_min = (
+            datetime.datetime.now(datetime.timezone.utc) - cap
+        ).total_seconds() / 60
         if age_min > 75:
-            stale = "snapshot is %d minutes old (export cadence ~60m); state may have changed since" % age_min
+            stale = (
+                "snapshot is %d minutes old (export cadence ~60m); state may have changed since"
+                % age_min
+            )
     except Exception:
         stale = "snapshot timestamp unparsable; freshness unknown"
     result = {"seq": latest["seq"], "captured_at": latest["captured_at"], "items": out}
@@ -107,9 +140,15 @@ def cmd_history(args):
     for s in snaps:
         for r in s["rows"]:
             if r["key"] == args.key:
-                states.append({"seq": s["seq"], "captured_at": s["captured_at"],
-                               "status": r["status"], "source": r.get("source"),
-                               "note": r["note"]})
+                states.append(
+                    {
+                        "seq": s["seq"],
+                        "captured_at": s["captured_at"],
+                        "status": r["status"],
+                        "source": r.get("source"),
+                        "note": r["note"],
+                    }
+                )
     if not states:
         print(json.dumps({"error": "key not found", "key": args.key}))
         sys.exit(1)
@@ -118,26 +157,39 @@ def cmd_history(args):
 
 def main():
     ap = argparse.ArgumentParser(prog="agent_ledger.py")
-    ap.add_argument("--form-url", default=__import__("os").environ.get("AGENT_LEDGER_FORM_URL"))
+    ap.add_argument(
+        "--form-url", default=__import__("os").environ.get("AGENT_LEDGER_FORM_URL")
+    )
     ap.add_argument("--dry-run", action="store_true")
     sub = ap.add_subparsers(dest="cmd", required=True)
 
     def add_write(p, need_note=True, need_key=False):
-        p.add_argument("--source", required=True, help="your assistant name (becomes owner on claim)")
+        p.add_argument(
+            "--source",
+            required=True,
+            help="your assistant name (becomes owner on claim)",
+        )
         p.add_argument("--status", choices=STATUSES, default=None)
         if need_note:
             p.add_argument("--note", required=True)
         if need_key:
-            p.add_argument("--key", required=True, help="URL or task-<id> from 'new'/'read'")
+            p.add_argument(
+                "--key", required=True, help="URL or task-<id> from 'new'/'read'"
+            )
         else:
             p.add_argument("--link", default="")
 
     add_write(sub.add_parser("post"))
     add_write(sub.add_parser("new"))
-    p = sub.add_parser("update"); add_write(p, need_key=True)
-    p = sub.add_parser("claim"); add_write(p, need_note=False, need_key=True)
-    p = sub.add_parser("read"); p.add_argument("--store-file")
-    p = sub.add_parser("history"); p.add_argument("--key", required=True); p.add_argument("--store-file")
+    p = sub.add_parser("update")
+    add_write(p, need_key=True)
+    p = sub.add_parser("claim")
+    add_write(p, need_note=False, need_key=True)
+    p = sub.add_parser("read")
+    p.add_argument("--store-file")
+    p = sub.add_parser("history")
+    p.add_argument("--key", required=True)
+    p.add_argument("--store-file")
 
     args = ap.parse_args()
 
@@ -146,21 +198,59 @@ def main():
         return 0
 
     if not args.form_url:
-        print(json.dumps({"error": "form URL required: set AGENT_LEDGER_FORM_URL or pass --form-url"}))
+        print(
+            json.dumps(
+                {
+                    "error": "form URL required: set AGENT_LEDGER_FORM_URL or pass --form-url"
+                }
+            )
+        )
         return 1
+    # Submissions only land at /formResponse; accept the shareable /viewform
+    # link too and convert it (posting to /viewform answers 405).
+    if "/viewform" in args.form_url:
+        args.form_url = args.form_url.split("/viewform", 1)[0] + "/formResponse"
 
     if args.cmd == "new":
         key = "task-" + uuid.uuid4().hex[:12]
-        res = post_row(args.form_url, args.source, args.note, args.status or "Act", key, args.dry_run)
+        res = post_row(
+            args.form_url,
+            args.source,
+            args.note,
+            args.status or "Act",
+            key,
+            args.dry_run,
+        )
         res["key"] = key
     elif args.cmd == "claim":
-        res = post_row(args.form_url, args.source, "claimed by " + args.source, "Act", args.key, args.dry_run)
+        res = post_row(
+            args.form_url,
+            args.source,
+            "claimed by " + args.source,
+            "Act",
+            args.key,
+            args.dry_run,
+        )
         res["key"] = args.key
     elif args.cmd == "update":
-        res = post_row(args.form_url, args.source, args.note, args.status or "Act", args.key, args.dry_run)
+        res = post_row(
+            args.form_url,
+            args.source,
+            args.note,
+            args.status or "Act",
+            args.key,
+            args.dry_run,
+        )
         res["key"] = args.key
     else:
-        res = post_row(args.form_url, args.source, args.note, args.status or "Act", args.link, args.dry_run)
+        res = post_row(
+            args.form_url,
+            args.source,
+            args.note,
+            args.status or "Act",
+            args.link,
+            args.dry_run,
+        )
     print(json.dumps(res))
     return 0
 
