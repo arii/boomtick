@@ -315,3 +315,56 @@ def test_type_text_clears_types_and_enters():
 
 def test_cursor_js_has_no_adjacent_string_literals():
     assert re.search(r"'[^'\n]*'\s*'", browser_cdp.CURSOR_INJECTION_JS) is None
+
+
+def test_paired_capture_isolates_profile_and_saves_dom(tmp_path, monkeypatch):
+    deleted = []
+    _install_fake_grid(monkeypatch, deleted)
+    browser = _install_fake_playwright(monkeypatch)
+
+    class SavedContext:
+        def new_page(self):
+            pytest.fail("must not reuse saved browser context")
+
+    browser.contexts = [SavedContext()]
+    monkeypatch.setattr(
+        _FakePage, "content", lambda self: "<html>test</html>", raising=False
+    )
+    monkeypatch.setattr(_FakePage, "url", "http://example.test/final", raising=False)
+    selectors = []
+    monkeypatch.setattr(
+        _FakePage,
+        "wait_for_selector",
+        lambda self, selector, **kw: selectors.append(selector),
+        raising=False,
+    )
+    result = capture_dom_and_visual_snapshot(
+        "http://example.test/",
+        tmp_path,
+        save_dom=True,
+        isolated_context=True,
+        ready_selector="#ready",
+    )
+    from pathlib import Path
+
+    assert result.reachable
+    assert Path(result.dom_path).read_text() == "<html>test</html>"
+    assert result.final_url == "http://example.test/final"
+    assert selectors == ["#ready"]
+    assert deleted == ["fake-session-id"]
+
+
+def test_paired_capture_rejects_http_error(tmp_path, monkeypatch):
+    deleted = []
+    _install_fake_grid(monkeypatch, deleted)
+    _install_fake_playwright(monkeypatch)
+    monkeypatch.setattr(
+        _FakePage, "goto", lambda *a, **kw: types.SimpleNamespace(status=404)
+    )
+    result = capture_dom_and_visual_snapshot(
+        "http://example.test/", tmp_path, save_dom=True
+    )
+    assert not result.reachable
+    assert "HTTP 404" in result.error
+    assert not (tmp_path / "candidate_viewport.png").exists()
+    assert deleted == ["fake-session-id"]
