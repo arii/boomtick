@@ -25,7 +25,7 @@ interface AgentContext {
   config: Record<string, unknown>;
 }
 
-export const loadStandaloneAgentContext = (repoRoot: string = process.cwd()): AgentContext => {
+const loadStandaloneAgentContext = (repoRoot: string = process.cwd()): AgentContext => {
   const configPath = path.join(repoRoot, "project_config.json");
   let projectConfig: Record<string, unknown> = {};
 
@@ -53,7 +53,7 @@ export const loadStandaloneAgentContext = (repoRoot: string = process.cwd()): Ag
   };
 };
 
-export class RepoResolutionError extends Error {
+class RepoResolutionError extends Error {
   constructor(repo: string) {
     super(
       `Unknown repository "${repo}": not resolvable via "td multi-repo status", not registered in ecosystem_repos (project_config.json), and no matching sibling directory of the server cwd exists. Register the repo in project_config.json ecosystem_repos or pass an explicit path.`
@@ -68,7 +68,7 @@ export class RepoResolutionError extends Error {
  * itself) or an ecosystem_repos entry. Returns the resolved absolute path, or
  * null when there is no match / the config is unreadable.
  */
-export function matchRepoInProjectConfig(rootPath: string, rawRepo: string): string | null {
+function matchRepoInProjectConfig(rootPath: string, rawRepo: string): string | null {
   const repoName = rawRepo.includes("/") ? rawRepo.split("/")[1] : rawRepo;
   const projectConfigPath = path.join(rootPath, "project_config.json");
   if (!fs.existsSync(projectConfigPath)) {
@@ -96,7 +96,7 @@ export function matchRepoInProjectConfig(rootPath: string, rawRepo: string): str
   return null;
 }
 
-export async function resolveTargetRepoPath(args: {
+async function resolveTargetRepoPath(args: {
   repo?: string | null;
 }): Promise<string> {
   if (!args.repo) {
@@ -141,7 +141,7 @@ export async function resolveTargetRepoPath(args: {
   throw new RepoResolutionError(rawRepo);
 }
 
-export function readAgentContractSection(targetPath: string): {
+function readAgentContractSection(targetPath: string): {
   found: boolean;
   path: string;
   content: string | null;
@@ -183,7 +183,7 @@ export function readAgentContractSection(targetPath: string): {
   return { found: true, path: contractPath, content: markdownBody, config: parsed };
 }
 
-export function getPackageScriptsSection(targetPath: string): Record<string, string> {
+function getPackageScriptsSection(targetPath: string): Record<string, string> {
   const packageJsonPath = path.join(targetPath, "package.json");
   if (!fs.existsSync(packageJsonPath)) {
     return {};
@@ -196,7 +196,7 @@ export function getPackageScriptsSection(targetPath: string): Record<string, str
   }
 }
 
-export function getVectorIndexStatus(targetPath: string): {
+function getVectorIndexStatus(targetPath: string): {
   warm: boolean;
   lastWarmedAt: string | null;
   path: string;
