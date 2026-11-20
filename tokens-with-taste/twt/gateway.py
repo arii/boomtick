@@ -413,10 +413,25 @@ def create_app(store=None, client=None, configuration=None):
                 if body.get("cancel") is True:
                     gateway.cancelled.add(trace_id)
                 continue
-            result.append({key: trace.get(key) for key in (
+            receipt = {key: trace.get(key) for key in (
                 "trace_id", "provider", "model", "cost_usd", "cost_complete", "prompt_tokens", "completion_tokens", "http_status",
                 "cost_upper_bound_usd", "cost_basis"
-            )})
+            )}
+            # Receipt tokens cover every dispatched attempt, not just the
+            # successful reply. Keep response-level trace usage unchanged for
+            # response quality flags, but reconcile receipts with the report.
+            attempts = [a for a in trace["attempts"] if a["called"]]
+            receipt["usage_complete"] = bool(attempts) and all(
+                a.get(field) is not None
+                for a in attempts for field in ("prompt_tokens", "completion_tokens")
+            )
+            for field in ("prompt_tokens", "completion_tokens"):
+                known = sum(a.get(field) or 0 for a in attempts)
+                receipt["known_" + field] = known
+                receipt[field] = known if attempts and all(
+                    a.get(field) is not None for a in attempts
+                ) else None
+            result.append(receipt)
         return {"receipts": result}
 
     return app
