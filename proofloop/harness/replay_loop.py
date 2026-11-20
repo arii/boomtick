@@ -154,7 +154,7 @@ def run_cycle(n, active, steps, version, tasks, base_rep, ledger, senso_client):
         cycle_id = f"cyc-{n:03d}"
         text = json.dumps({"skill": cand, "proof": proof, "replay_gate": gate, "promoted_at": now()}, indent=2)
         try:
-            result = clients.senso_promote(senso_client, f"ProofLoop skill {version}", text, f"{version}+{cycle_id}")
+            result = clients.senso_promote(senso_client, f"ProofLoop skill {version} {cycle_id} {now()}", text, f"{version}+{cycle_id}")
             if not result.get("verified"):
                 raise clients.ApiError(0, "promotion readback not verified")
             retrieval = {**result, "mode": config.mode("senso")}

@@ -35,10 +35,12 @@ class H(BaseHTTPRequestHandler):
         if p == "/api/v1/add":
             if not (self.headers.get("X-Api-Key") or self.headers.get("Authorization")):
                 return self._j(401, {})
+            added = 0
             for part in raw.decode().split("--")[1:]:
-                m = re.search(r'name="raw_data"\r\n\r\n(.*)\r\n$', part, re.S)
-                if m: DOCS.append(m.group(1))
-            return self._j(200, {"status": "ok", "n": len(DOCS)})
+                # Real Cognee only stores file uploads under "data"; plain fields are ignored.
+                m = re.search(r'name="data"; filename="[^"]*"\r\n(?:[^\r\n]+\r\n)*\r\n(.*)\r\n$', part, re.S)
+                if m: DOCS.append(m.group(1)); added += 1
+            return self._j(200, {"status": "PipelineRunCompleted", "data_ingestion_info": [{}] * added, "data_ids": [], "n": len(DOCS)})
         if p == "/api/v1/cognify":
             return self._j(200, {"status": "done"})
         if p == "/api/v1/search":

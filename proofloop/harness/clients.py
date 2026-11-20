@@ -133,12 +133,16 @@ class CogneeLive:
     def _post_json(self, path, body):
         return http_json("POST", f"{self.base}{path}", self.headers, body, timeout=120)[1]
 
-    def _post_multipart(self, path, fields):
+    def _post_multipart(self, path, fields, files=()):
+        """fields: (name, value) form fields. files: (field, filename, text) uploads."""
         boundary = "----proofloop" + str(int(time.time() * 1000))
-        parts = []
+        body = b""
         for name, value in fields:
-            parts.append(f'--{boundary}\r\nContent-Disposition: form-data; name="{name}"\r\n\r\n{value}\r\n')
-        body = ("".join(parts) + f"--{boundary}--\r\n").encode()
+            body += f'--{boundary}\r\nContent-Disposition: form-data; name="{name}"\r\n\r\n{value}\r\n'.encode()
+        for name, filename, text in files:
+            body += (f'--{boundary}\r\nContent-Disposition: form-data; name="{name}"; filename="{filename}"\r\n'
+                     f'Content-Type: text/plain\r\n\r\n').encode() + text.encode() + b"\r\n"
+        body += f"--{boundary}--\r\n".encode()
         req = urllib.request.Request(f"{self.base}{path}", data=body, method="POST",
                                      headers={"User-Agent": USER_AGENT, **self.headers, "Content-Type": f"multipart/form-data; boundary={boundary}"})
         try:
@@ -150,12 +154,24 @@ class CogneeLive:
             raise ApiError(0, str(e))
 
     def ingest(self, sessions, extra_docs=()):
-        fields = [("datasetName", self.DATASET)]
-        fields += [("raw_data", json.dumps(s)) for s in sessions]
-        fields += [("raw_data", t[:4000]) for _, t in extra_docs]
-        self._post_multipart("/api/v1/add", fields)
+        # Cognee ignores plain form fields; each item must be a file upload under "data".
+        files = [("data", f"session_{i}.txt", json.dumps(s)) for i, s in enumerate(sessions)]
+        files += [("data", f"doc_{i}.txt", t[:4000]) for i, (_, t) in enumerate(extra_docs)]
+        res = self._post_multipart("/api/v1/add", [("datasetName", self.DATASET)], files)
+        if not res.get("data_ingestion_info") and not res.get("data_ids"):
+            raise ApiError(0, f"Cognee stored no data: {str(res)[:300]}")
         self._post_json("/api/v1/cognify", {"datasets": [self.DATASET]})
-        return {"added": len(sessions) + len(extra_docs)}
+        # cognify runs in the background: wait until the dataset is searchable (max ~120 s).
+        deadline = time.time() + 120
+        while True:
+            try:
+                self.search("ready")
+                break
+            except ApiError as e:
+                if e.status != 404 or time.time() > deadline:
+                    raise
+                time.sleep(5)
+        return {"added": len(files)}
 
     def search(self, query):
         # CHUNKS returns raw passages, which contain the session JSON (we regex the session ids out).

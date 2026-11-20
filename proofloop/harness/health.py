@@ -24,7 +24,7 @@ def check_llm():
     backend = config.llm_backend()
     if backend is None:
         return "STUB", "not explicitly enabled (twt needs PROOFLOOP_LIVE_SERVICES=twt; openrouter needs llm + key)"
-    text = clients.llm_chat("hi", max_tokens=1)
+    text = clients.llm_chat("hi", max_tokens=64)
     if text is None:
         raise clients.ApiError(0, "completion response missing choices")
     return "GREEN", f"synthetic one-token completion via {backend} succeeded (not replay/executor proof)"
