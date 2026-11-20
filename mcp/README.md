@@ -28,7 +28,7 @@ A Model Context Protocol (MCP) server designed to empower AI agents with structu
 
 ## Safety First
 - **Isolated Worktrees**: All repair and merge operations happen in temporary git worktrees to prevent mutating your local working directory.
-- **Safe Shell**: All commands are restricted via an allowlist with automatic token redaction and timeouts.
+- **Safe Shell**: All commands are restricted via an allowlist with automatic token redaction and timeouts. On POSIX systems, timeout signals target the command process group, including descendants that stay in that group. Windows uses direct-child termination only. A timeout is not a sandbox: processes that create a new session/group can escape group termination.
 - **Write Guards**: Mutating operations (commits, branch creation, PR opening) require explicit `writeMode: true` or `pushMode: true` flags.
 
 ## Setup

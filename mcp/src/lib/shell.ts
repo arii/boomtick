@@ -95,12 +95,27 @@ export async function runCommand(
     // Grace window after SIGTERM before escalating to SIGKILL.
     const KILL_GRACE_MS = 2000;
     let killGraceTimer: NodeJS.Timeout | undefined;
+    let timedOut = false;
+    const processGroup = process.platform !== "win32";
 
     // nosemgrep
     const child = spawn(finalCmd, args, {
       cwd: options.cwd || config.repoPath,
-      env
+      env,
+      detached: processGroup,
     });
+
+    const signalCommand = (signal: NodeJS.Signals) => {
+      try {
+        if (processGroup && child.pid !== undefined) {
+          process.kill(-child.pid, signal);
+        } else {
+          child.kill(signal);
+        }
+      } catch {
+        // The process or group may already have exited.
+      }
+    };
 
     let stdout = "";
     let stderr = "";
@@ -115,21 +130,18 @@ export async function runCommand(
 
     const timer = setTimeout(() => {
       // Escalate: SIGTERM first, then SIGKILL after a short grace period so
-      // stuck Python children cannot survive the timeout and hold locks.
-      child.kill("SIGTERM");
-      killGraceTimer = setTimeout(() => {
-        try {
-          child.kill("SIGKILL");
-        } catch {
-          // Process already exited between the grace timer and the kill.
-        }
-      }, KILL_GRACE_MS);
+      // POSIX descendants in the command group are terminated as well.
+      // Windows retains direct-child termination, not a process-tree guarantee.
+      timedOut = true;
+      signalCommand("SIGTERM");
+      killGraceTimer = setTimeout(() => signalCommand("SIGKILL"), KILL_GRACE_MS);
       reject(new Error(`Command timed out: ${cmd} ${args.join(" ")}`));
     }, timeout);
 
     child.on("close", (code) => {
       clearTimeout(timer);
-      if (killGraceTimer) {
+      // A direct child can exit while a descendant still needs SIGKILL.
+      if (killGraceTimer && !timedOut) {
         clearTimeout(killGraceTimer);
       }
       const durationMs = Date.now() - start;

@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
 import path from "path";
 import fs from "fs";
+import os from "os";
 import { resolveTdPath, resetTdPathForTests, runCommand } from "./shell.js";
 
 // Simple test to verify environment and vitest setup
@@ -64,4 +65,27 @@ describe("timeout kill escalation", () => {
     const ps = execSync("ps -eo args", { encoding: "utf-8" });
     expect(ps).not.toContain(marker);
   }, 15000);
+});
+
+
+describe.skipIf(process.platform === "win32")("POSIX timeout process group", () => {
+  it("kills descendants even after their direct parent exits", async () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "boomtick-timeout-"));
+    const marker = path.join(dir, "descendant-finished");
+    const descendant = "import signal,time,pathlib; " +
+      "signal.signal(signal.SIGTERM, signal.SIG_IGN); " +
+      `time.sleep(3.5); pathlib.Path(${JSON.stringify(marker)}).write_text('survived')`;
+    const parent = "import subprocess,time\n" +
+      `subprocess.Popen(['python3', '-c', ${JSON.stringify(descendant)}], ` +
+      "stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)\n" +
+      "time.sleep(6)";
+    try {
+      await expect(runCommand("python3", ["-c", parent], { timeout: 500 }))
+        .rejects.toThrow("Command timed out");
+      await new Promise(resolve => setTimeout(resolve, 3800));
+      expect(fs.existsSync(marker)).toBe(false);
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  }, 10000);
 });
