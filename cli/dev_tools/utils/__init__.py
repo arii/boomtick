@@ -140,11 +140,6 @@ def _call_api_with_retry(method: str, url: str, **kwargs) -> requests.Response:
     return response
 
 
-def post_api_result(url: str, payload: Dict[str, Any]):
-    """Standardizes API results back to a provided webhook or service."""
-    _call_api_with_retry("POST", url, json=payload, timeout=10, max_retries=5)
-
-
 class CLIError(Exception):
     """Base class for CLI errors with optional exit code and data."""
 
@@ -153,11 +148,6 @@ class CLIError(Exception):
         self.code = code
         self.data = data
         super().__init__(self.message)
-
-
-def get_base_dir() -> str:
-    """Returns the absolute path to the CLI package root."""
-    return os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 
 
 def resolve_resource_path(resource_name: str) -> str:
@@ -212,14 +202,6 @@ def get_workspace_log_dir() -> Path:
     """Returns the path to the workspace log directory (.boomtick/logs)."""
     # Use CWD for workspace-based logging
     return Path(os.getcwd()) / ".boomtick" / "logs"
-
-
-def ensure_dir(*parts: str) -> str:
-    """Joins path parts, ensures the directory exists, and returns the absolute path."""
-    # Prioritize workspace-based logging
-    path = get_workspace_log_dir().joinpath(*parts)
-    path.mkdir(parents=True, exist_ok=True)
-    return str(path)
 
 
 def safe_write_file(filepath: str, content: str):
@@ -371,42 +353,6 @@ class DiskCache:
             log_warn(f"Failed to clear cache: {e}")
 
 
-class APIConnectionError(Exception):
-    """Custom exception for retriable API connection issues."""
-
-
-def _get_model_config(env_key: str, config_attr: str, fallback: str) -> str:
-    """Helper to resolve AI models from env, then project_config, then fallback."""
-    env_val = os.environ.get(env_key)
-    if env_val:
-        return env_val
-    try:
-        from dev_tools.config import get_config
-
-        config = get_config()
-        return getattr(config, config_attr)
-    except Exception:
-        return fallback
-
-
-def get_ai_review_model() -> str:
-    """Dynamic getter for the dedicated Code Reviewer model."""
-    return _get_model_config("AI_REVIEW_MODEL", "ai_review_model", "gpt-4o")
-
-
-def get_ai_model() -> str:
-    """Dynamic getter for the primary AI model."""
-    return _get_model_config("AI_MODEL", "ai_synthesis_model", "gpt-4o-mini")
-
-
-def get_gemini_model() -> str:
-    """Dynamic getter for the Gemini model."""
-    model = os.environ.get("GEMINI_MODEL")
-    if model and "gemini" in model.lower():
-        return model
-    return "gemini-2.5-flash"
-
-
 def clean_llm_output(text: str) -> str:
     """
     Removes markdown code blocks if present, or extracts from <findings> tags if present.
@@ -436,11 +382,6 @@ def clean_llm_output(text: str) -> str:
         return code_block_match.group(1).strip()
 
     return text.strip()
-
-
-def is_ai_available() -> bool:
-    """Checks if AI API token is present."""
-    return bool(os.getenv("OPENAI_API_KEY") or os.getenv("OPEN_API_KEY"))
 
 
 def to_standard_schema(schema):
@@ -473,29 +414,6 @@ def call_ai(
     schema: Optional[Dict[str, Any]] = None,
 ) -> Optional[str]:
     """Offline stub for call_ai."""
-    return None
-
-
-def log_ai_run(entry: dict):
-    try:
-        log_dir = get_or_create_log_dir("ai")
-        log_file = os.path.join(log_dir, "review-run.jsonl")
-        from datetime import datetime
-
-        entry["timestamp"] = datetime.utcnow().isoformat() + "Z"
-        with open(log_file, "a", encoding="utf-8") as f:
-            f.write(json.dumps(entry) + "\n")
-    except Exception as e:
-        log_error(f"Failed to append to AI run log: {e}")
-
-
-def call_github_models(
-    prompt: str,
-    model: Optional[str] = None,
-    max_retries: int = 3,
-    schema: Optional[Dict[str, Any]] = None,
-) -> Optional[str]:
-    """Offline stub for call_github_models."""
     return None
 
 
@@ -594,23 +512,6 @@ def verify_ci_metrics(
         "message": "AI Token usage is within limits.",
         "metrics": result,
     }
-
-
-def call_gemini(
-    prompt: str,
-    model: Optional[str] = None,
-    max_retries: int = 3,
-    schema: Optional[Dict[str, Any]] = None,
-) -> Optional[str]:
-    """Offline stub for call_gemini."""
-    return None
-
-
-def call_ai_service(
-    prompt: str, model: Optional[str] = None, schema: Optional[Dict[str, Any]] = None
-) -> Optional[str]:
-    """Offline stub for call_ai_service."""
-    return None
 
 
 @overload
