@@ -107,7 +107,7 @@
     }
     panel.append(el("div", { className: "small", textContent: "Other tabs (local opt-in): " + (res.related.map((r) => r.title || r.url).join(" | ") || "none") }));
     if (d) panel.append(el("div", { className: "small", textContent: Object.values(d.services).map((s) => s.label).join(" / ") }));
-    panel.append(el("div", { className: "small", textContent: "Measured deterministic replay only. No page data sent to backend or sponsors." }));
+    panel.append(el("div", { className: "small", textContent: "Measured deterministic replay only. The assistant sends this page's origin and path to the local backend; no page data goes to sponsors." }));
     if (d?.retrieval) panel.append(el("div", { className: "small", textContent: "Retrieval readback: " + (d.retrieval.verified ? d.retrieval.mode : "not confirmed") }));
     root.insertBefore(panel, chip);
   };

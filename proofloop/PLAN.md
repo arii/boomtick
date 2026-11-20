@@ -1,6 +1,6 @@
 # ProofLoop: plan to build the assistant that was proposed
 
-Status: plan only. Nothing in this document is built yet.
+Status: in progress. Phases 0 to 2 of the slice are built and tested (see TRACKING.md, current status). Phase 3 (Senso read) and phase 4 (Cognee recall) are not started.
 Deadline is not a constraint. Quality is.
 
 ## 1. What went wrong

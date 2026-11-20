@@ -39,8 +39,8 @@
     if (/address-level2/.test(ac)) city += 10;
     if (/street-address|address-line|postal-code/.test(ac)) address += 8;
     if (CITY_LABEL.test(label)) city += 6;
-    if (NAME_CITY.test(name)) city += 4;
-    if (/^city\b/i.test(ph)) city += 3;
+    if (NAME_CITY.test(name)) city += 5;
+    if (ph.length <= 24 && /^(your )?(city|town)\b/i.test(ph)) city += 5;
     for (const text of [label, ph]) if (ADDRESS_TEXT.test(text) && !NOT_ADDRESS.test(text)) address += 6;
     if (address >= 5 && address >= city) return { semantic: "address", label: label || ph, score: address };
     if (city >= 5) return { semantic: "city", label: label || ph, score: city };

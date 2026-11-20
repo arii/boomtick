@@ -6,7 +6,7 @@ Patch prepared November 20 (PR #1350): README.md describes the local Replay Gate
 
 Live status for the Personal Agents Hackathon build (Fri Nov 20, 2026). Kiro updates this file as work progresses. Ari's CLI agents (agy, Copilot, Muse CLI) read this file to pick up work interactively. Do not delete this file. Keep it current.
 
-Last updated: 2026-11-20 02:14 PM PT (by Kiro). Added auto-updating agent prompt (active skill rendered into a marked block that can be synced into an agent instruction file). Honest assessment of the loop recorded under "What the loop is and is not". PR not opened.
+Last updated: 2026-11-20 02:55 PM PT (by Kiro). Started the assistant rebuild in PLAN.md: city-field warning slice built and tested on fixtures and on the live Luma dialog. PR not opened.
 
 ## Repo and branch
 - Repo: arii/boomtick (no new repo).
@@ -15,6 +15,13 @@ Last updated: 2026-11-20 02:14 PM PT (by Kiro). Added auto-updating agent prompt
 - PR #1350 and #1351 merged into feat/proofloop (not main). A PR from feat/proofloop to main is not open; decide after the live checks.
 
 ## Current status (latest)
+- **Assistant slice (PLAN.md phases 0 to 2, plus a local /skill for phase 3).** Run the backend once, then paste `state/server_token` into the extension options page and reload the extension.
+  - Built: constraint cards (`data/cards.json`, schema `schemas/cards.schema.json`, hand-reviewed, 2 cards), field detector (`extension/assist/detect.js`), deterministic matcher (`assist/match.js`), inline chip with Use San Francisco and Keep (`assist/assist.js`), `/skill`, `/assist` (origin and path only), `/feedback` (card id and action only).
+  - Security from PLAN section 9: per-run bearer token on every API route (closes the missing-Origin hole, S2), JSON content type and 16 KB body limit, manifest narrowed from all sites to Luma and Work at a Startup (S1), closed shadow root and text-only rendering with a source lint (S1), atomic writes for state, ledger and task files (S6).
+  - The old ledger chip is off by default (options page toggle).
+  - Tests: 62 Python, 8 + 1 Node offline suites, and `extension/test/e2e_assist.cjs` (real Chromium, unpacked extension, real backend, 10 scenarios including the v1 to v2 rule change on refresh). `extension/test/live_luma.cjs` passed against the real luma.com/personalagenthack dialog (types into the city field, never submits).
+  - Snapshots: `extension/test/fixtures/luma_registration.html` (city field identified only by its label, no autocomplete) and `vouch_apply.html` (apply.vouch.us has no city field, only a placeholder-only address combobox). The Vouch form from the Nov 16 session is not identified, so Vouch is out of scope in the cards.
+  - Not built yet: Senso read path (cards come from the local file and the chip says so), Cognee recall in /assist (`recall.mode` is reported as `none`).
 - **CLI agent session (from its transcript, commit 51887d1, pushed to feat/proofloop):**
   - **Cognee is now LIVE.** Cognee Cloud URL, key and tenant ID are in Ari's `.env`; `PROOFLOOP_LIVE_SERVICES=senso,twt,cognee` and `PROOFLOOP_ALLOW_SESSION_UPLOAD=1`. `--probe-live`: Senso GREEN, LLM GREEN (via the gateway), Cognee GREEN, gate LOCAL. The replay ingests the 8 sessions and recalls 6/6 tasks. This supersedes every earlier "Cognee STUB" line below.
   - **Latest live run (state dir `proofloop/state/live-twt`):** v0 2/6; v1.1 6/6 promoted (LLM mutation via the gateway, Senso readback live); injected v1.3-bad 4/6 rejected and rolled back; active v1.1. The chip shows the same table.
