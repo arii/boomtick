@@ -245,6 +245,11 @@ def run(ctx, worktree, brief, model, repo, root_path, detach):
 @agent_group.command(name="submit-pr")
 @click.option("--worktree", required=True, help="Worktree path holding the branch")
 @click.option("--title", required=True, help="PR title")
+@click.option(
+    "--expected-branch",
+    default=None,
+    help="Refuse before commit/push if the worktree is on another branch",
+)
 @click.option("--body", default="", help="PR body")
 @click.option("--base", default="main", help="Base branch for the PR")
 @click.option(
@@ -284,6 +289,7 @@ def submit_pr(
     repo,
     skip_scope_check,
     as_json=False,
+    expected_branch=None,
 ):
     """Push a worktree branch and open a PR (scope-gated with --issue)."""
     if as_json:
@@ -310,6 +316,7 @@ def submit_pr(
             issue_text,
             skip_scope_check,
             issue=issue_number,
+            expected_branch=expected_branch,
         )
         if not ctx.obj["JSON"]:
             click.echo(f"submitted {res['branch']} -> {res['url']}")
