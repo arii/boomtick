@@ -36,7 +36,7 @@ Last updated: 2026-11-20 02:01 PM PT (by Kiro). Chrome chip CONFIRMED working by
   - **ProofLoop backend:** 127.0.0.1:8787, pid 36873, dashboard HTTP 200, `/status` OK, reading state dir `proofloop/state/live-twt`, started with `PROOFLOOP_EXTENSION_ID=cbpokmfdbbcpgaookmhdgnbdcgkjkodl`.
   - **Tokens with Taste gateway:** 127.0.0.1:8000, pid 36872, `/v1/models` HTTP 200.
   - **Status:** Senso live, LLM live (via gateway), Cognee stub, gate local. `--probe-live`: Senso GREEN, LLM GREEN, Cognee STUB, Gate LOCAL.
-  - **Chip in real Chrome: CONFIRMED working by Ari** (see "Chrome check result" below). The earlier "backend unreachable" and "No ledger entries" messages are gone; the backend fetch works with the extension ID.
+  - **Chip in real Chrome: CONFIRMED working by Ari** (see "Chrome check result" above). The earlier "backend unreachable" and "No ledger entries" messages are gone; the backend fetch works with the extension ID.
   - **Note on the numbers:** the live run reaches 6/6 at v1.1, not the 5/6 then 6/6 of the rule-based mutator. That is expected when the LLM (gateway) proposes all the missing steps in one cycle. The Replay Gate rules are the same; only the mutation proposal differs. Narrate whatever sequence the ledger shows. `SUBMISSION.md` and the video must quote the numbers from the final run that is actually shown.
 - **`health.py --probe-live` result (reported by the terminal agent on Ari's machine):**
   - **Senso: GREEN.** `GET /org/me` succeeded, so the key works. By design this does not prove ingest or search. Separately, the earlier live replay got a Senso readback that found content.
