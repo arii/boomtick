@@ -10,7 +10,6 @@ from twt.catalog import normalize
 from twt.costs import cost_upper_bound
 from twt.gateway import create_app
 
-
 MODEL = {"input_price": 0.00000015, "output_price": 0.0000005, "max_output_tokens": 8192}
 OVERLOAD = {"error": {"type": "server_error", "message": "System is overloaded", "param": None, "code": None},
             "detail": "System is overloaded"}
