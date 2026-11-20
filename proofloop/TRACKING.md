@@ -44,7 +44,7 @@ Last updated: 2026-11-20 01:30 PM PT (by Kiro). Status per Ari: replay loop ran 
 - [x] TRACKING.md committed on feat/proofloop.
 
 ## What is still missing
-- [ ] Confirm the live Senso run is real, not the stub (see Current status: `senso_kb_node_id` not `stub-node-*`, `retrieval.mode` live). Reported clean by Ari; Kiro cannot reproduce it. Cognee stays on the offline stub unless a URL is provided. Live code paths only exercised against harness/mock_sponsors.py.
+- [ ] Confirm the live Senso run is real, not the stub (see Current status: `senso_kb_node_id` not `stub-node-*`, `retrieval.mode` live). Reported clean by Ari; Kiro cannot reproduce it. Cognee stays on the offline stub unless a URL is provided. Kiro exercised the live code paths only against harness/mock_sponsors.py and a keyless local gateway.
 - [ ] Luma session (consent/judge-applicant checkboxes) is not in the replay suite: slots model values, not checkbox state. Add a checkbox slot kind if Ari wants it in.
 - [ ] Optional: an LLM-backed executor (needs OPENROUTER_API_KEY) so pass rates reflect a real model, not the deterministic model.
 - [ ] Load the extension in real Chrome and verify chip/proof-table/tab detection (sandbox cannot start Chrome; must be done on Ari's machine).
