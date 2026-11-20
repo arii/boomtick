@@ -48,12 +48,6 @@ Boomtick uses a direct standalone package, container, and composite action integ
 
 ---
 
-## Planned Updates
-* Docker Container Packages & PyPI Packaging
-* Advanced RAG / Vector Store enhancements
-
----
-
 ## Documentation Index
 
 * [Reusable Agent Skills](.agents/README.md#installable-skills) — Install the GitHub Actions health check or BoomTick review setup in your agent.
