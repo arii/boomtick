@@ -45,12 +45,15 @@ def ux_audit(ctx, route, all_routes, desktop, mobile):
 @click.option("--head-url", required=True, help="Already-served head revision URL")
 @click.option("--base-ref", required=True, help="Base revision label (not verified)")
 @click.option("--head-ref", required=True, help="Head revision label (not verified)")
-@click.option("--route", "routes", multiple=True, required=True, help="Route to pair; repeat")
+@click.option(
+    "--route", "routes", multiple=True, required=True, help="Route to pair; repeat"
+)
 @click.option("--output-dir", required=True, type=click.Path(file_okay=False))
 @click.option("--ready-selector", help="Optional selector awaited on both revisions")
 @click.pass_context
-def ux_capture(ctx, base_url, head_url, base_ref, head_ref, routes, output_dir,
-               ready_selector):
+def ux_capture(
+    ctx, base_url, head_url, base_ref, head_ref, routes, output_dir, ready_selector
+):
     """Pair local DOM and screenshots from explicitly served revisions.
 
     Does not checkout/build refs, discover routes, publish artifacts, or render
@@ -64,13 +67,23 @@ def ux_capture(ctx, base_url, head_url, base_ref, head_ref, routes, output_dir,
 
     try:
         result = capture_revision_pair(
-            base_url, head_url, base_ref, head_ref, routes, Path(output_dir),
+            base_url,
+            head_url,
+            base_ref,
+            head_ref,
+            routes,
+            Path(output_dir),
             ready_selector=ready_selector,
         )
     except ValueError as exc:
         raise click.BadParameter(str(exc)) from exc
-    out(ctx, "Paired capture complete." if result["complete"] else
-        "Paired capture unavailable.", data=result)
+    out(
+        ctx,
+        "Paired capture complete."
+        if result["complete"]
+        else "Paired capture unavailable.",
+        data=result,
+    )
     if not result["complete"]:
         ctx.exit(1)
 
