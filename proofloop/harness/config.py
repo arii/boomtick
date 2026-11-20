@@ -14,7 +14,7 @@ DATA_DIR = ROOT / "data"
 SCHEMA_DIR = ROOT / "schemas"
 SKILLS_LOCAL = ROOT / "skills-local"
 
-KEY_NAMES = ["SENSO_API_KEY", "TYPESAFE_API_KEY", "COGNEE_API_URL", "COGNEE_API_KEY", "OPENROUTER_API_KEY"]
+KEY_NAMES = ["SENSO_API_KEY", "TYPESAFE_API_KEY", "COGNEE_API_URL", "COGNEE_API_KEY", "COGNEE_TENANT_ID", "OPENROUTER_API_KEY", "TYPESAFE_MODEL", "OPENROUTER_MODEL", "SENSO_POLL_S"]
 
 JEV_MODEL = "typesafe/jev-1.14.0"
 
@@ -38,7 +38,7 @@ def get(name: str, default: str = "") -> str:
 def base_url(service: str) -> str:
     defaults = {
         "jev": "https://api.typesafe.ai",
-        "senso": "https://api.senso.ai",
+        "senso": "https://apiv2.senso.ai",
         "openrouter": "https://openrouter.ai",
     }
     env = {"jev": "TYPESAFE_BASE_URL", "senso": "SENSO_BASE_URL", "openrouter": "OPENROUTER_BASE_URL"}

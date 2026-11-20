@@ -139,7 +139,7 @@ def run_cycle(n, active, steps, version, tasks, base_rep, ledger, senso_client):
         "constraint_violations_before": base_rep["violations"],
         "constraint_violations_after": rep["violations"],
         "step_count_delta": len(steps) - len(active["steps"]),
-        "total_checks": rep["total_checks"],
+        "total_checks": rep["total_checks"], "total_tasks": rep["total"],
     }
     gate = clients.jev_gate(state)
     log(f"[5] Jev gate ({gate['model']}, {gate['source']}): {gate['choice']} "
@@ -152,7 +152,7 @@ def run_cycle(n, active, steps, version, tasks, base_rep, ledger, senso_client):
              "pass_before": base_rep["passed"], "pass_after": rep["passed"], "total": rep["total"]}
     if gate["choice"] == "promote":
         cycle_id = f"cyc-{n:03d}"
-        text = json.dumps({"skill": cand, "proof": proof, "jev": gate}, indent=2)
+        text = json.dumps({"skill": cand, "proof": proof, "jev": gate, "promoted_at": now()}, indent=2)
         res = clients.senso_promote(senso_client, f"ProofLoop skill {version}", text, f"{version}+{cycle_id}")
         node_id = res["node_id"]
         status = "promoted"

@@ -111,28 +111,53 @@ class CogneeStub:
 
 
 class CogneeLive:
-    """POST /api/v1/remember, /add, /cognify, /search on COGNEE_API_URL.
-    Body field names are UNVERIFIED (spec gives endpoints only)."""
+    """Cognee HTTP API (docs.cognee.ai/cognee-cloud/http-api).
+    Cloud auth: X-Api-Key (+ X-Tenant-Id if COGNEE_TENANT_ID set). Self-hosted with auth: Bearer.
+    add = multipart (datasetName + repeated raw_data); cognify = JSON {"datasets": [...]};
+    search = JSON {"query", "search_type"}. We use add + cognify (remember is the combined call)."""
     label = "Cognee (live)"
+    DATASET = "proofloop_sessions"
 
     def __init__(self):
         self.base = config.base_url("cognee")
         key = config.get("COGNEE_API_KEY")
-        self.headers = {"Authorization": f"Bearer {key}"} if key else {}
+        tenant = config.get("COGNEE_TENANT_ID")
+        self.headers = {}
+        if key and tenant:
+            self.headers = {"X-Api-Key": key, "X-Tenant-Id": tenant}
+        elif key:
+            self.headers = {"X-Api-Key": key} if "cognee.ai" in self.base else {"Authorization": f"Bearer {key}"}
 
-    def _post(self, path, body):
-        return http_json("POST", f"{self.base}{path}", self.headers, body, timeout=60)[1]
+    def _post_json(self, path, body):
+        return http_json("POST", f"{self.base}{path}", self.headers, body, timeout=120)[1]
+
+    def _post_multipart(self, path, fields):
+        boundary = "----proofloop" + str(int(time.time() * 1000))
+        parts = []
+        for name, value in fields:
+            parts.append(f'--{boundary}\r\nContent-Disposition: form-data; name="{name}"\r\n\r\n{value}\r\n')
+        body = ("".join(parts) + f"--{boundary}--\r\n").encode()
+        req = urllib.request.Request(f"{self.base}{path}", data=body, method="POST",
+                                     headers={**self.headers, "Content-Type": f"multipart/form-data; boundary={boundary}"})
+        try:
+            with urllib.request.urlopen(req, timeout=120) as r:
+                return json.loads(r.read().decode() or "{}")
+        except urllib.error.HTTPError as e:
+            raise ApiError(e.code, e.read().decode())
+        except (urllib.error.URLError, TimeoutError) as e:
+            raise ApiError(0, str(e))
 
     def ingest(self, sessions, extra_docs=()):
-        for s in sessions:
-            self._post("/api/v1/remember", {"data": json.dumps(s)})
-        docs = [json.dumps(s) for s in sessions] + [t for _, t in extra_docs]
-        self._post("/api/v1/add", {"data": docs})
-        self._post("/api/v1/cognify", {})
-        return {"remembered": len(sessions)}
+        fields = [("datasetName", self.DATASET)]
+        fields += [("raw_data", json.dumps(s)) for s in sessions]
+        fields += [("raw_data", t[:4000]) for _, t in extra_docs]
+        self._post_multipart("/api/v1/add", fields)
+        self._post_json("/api/v1/cognify", {"datasets": [self.DATASET]})
+        return {"added": len(sessions) + len(extra_docs)}
 
     def search(self, query):
-        res = self._post("/api/v1/search", {"query": query})
+        # CHUNKS returns raw passages, which contain the session JSON (we regex the session ids out).
+        res = self._post_json("/api/v1/search", {"query": query, "search_type": "CHUNKS", "datasets": [self.DATASET]})
         items = res if isinstance(res, list) else res.get("results", [])
         out = []
         for it in items:
@@ -165,51 +190,67 @@ def jev_stub(state):
             "constraints_prob": cp, "utility_score": utility, "source": "stub"}
 
 
+def jev_request_body(state, model):
+    """POST /v1/systemone body per the TypeSafe HTTP API reference: questions is a map of
+    id -> {type: choice|score|noul, instructions, criteria}. Jev is weak at arithmetic, so the
+    state is described in words; numeric decisions are re-checked in code (see gate_guard)."""
+    text = (
+        f"A candidate skill upgrade was replayed against {state['total_tasks']} historical tasks. "
+        f"Baseline pass rate {state['baseline_pass_rate']:.2f}, candidate pass rate {state['candidate_pass_rate']:.2f}. "
+        f"Constraint violations before: {state['constraint_violations_before']}, after: {state['constraint_violations_after']} "
+        f"(out of {state['total_checks']} checks). Steps added or removed: {state['step_count_delta']}.")
+    return {
+        "model": model,
+        "state": text,
+        "questions": {
+            "decision": {"type": "choice", "instructions": "Should this skill upgrade be promoted?",
+                         "criteria": {"promote": "Candidate clearly beats baseline with few violations",
+                                      "reject_and_refine": "Candidate is worse than baseline",
+                                      "hold": "No clear improvement or too many violations"}},
+            "utility": {"type": "score", "instructions": "How useful is this upgrade overall?",
+                        "criteria": ["Harmful", "No benefit", "Some benefit", "Clear benefit", "Excellent"]},
+            "violates_constraints": {"type": "noul",
+                                     "instructions": "The candidate still violates stored user constraints."},
+        },
+    }
+
+
 def jev_gate(state):
     if config.mode("jev") == "stub":
         return jev_stub(state)
-    body = {  # UNVERIFIED field names: spec specifies model, state, typed questions
-        "model": config.JEV_MODEL,
-        "state": state,
-        "questions": [
-            {"type": "Choice", "id": "decision", "options": ["promote", "reject_and_refine", "hold"],
-             "prompt": "Should this skill mutation be promoted?"},
-            {"type": "Score", "id": "confidence", "range": [0, 1], "prompt": "Confidence in the decision."},
-            {"type": "Noul", "id": "constraints", "outputs": ["constraints_prob", "utility_score"],
-             "prompt": "Probability the mutation violates a stored constraint; utility of the mutation."},
-        ],
-    }
     headers = {"Authorization": f"Bearer {config.get('TYPESAFE_API_KEY')}"}
-    _, res = http_json("POST", f"{config.base_url('jev')}/v1/systemone", headers, body, timeout=15, retries=1)
-    return _parse_jev(res)
-
-
-def _find(obj, key):
-    if isinstance(obj, dict):
-        if key in obj:
-            return obj[key]
-        for v in obj.values():
-            r = _find(v, key)
-            if r is not None:
-                return r
-    elif isinstance(obj, list):
-        for v in obj:
-            r = _find(v, key)
-            if r is not None:
-                return r
-    return None
+    url = f"{config.base_url('jev')}/v1/systemone"
+    model = config.get("TYPESAFE_MODEL", config.JEV_MODEL)
+    try:
+        _, res = http_json("POST", url, headers, jev_request_body(state, model), timeout=15, retries=1)
+    except ApiError as e:
+        if e.status in (400, 404, 422) and model != "jev-latest":
+            # The spec's model slug may not be accepted; the HTTP reference documents "jev-latest".
+            _, res = http_json("POST", url, headers, jev_request_body(state, "jev-latest"), timeout=15, retries=1)
+        else:
+            raise
+    return gate_guard(_parse_jev(res), state)
 
 
 def _parse_jev(res):
-    choice = _find(res, "choice") or _find(res, "decision")
-    if isinstance(choice, dict):
-        choice = choice.get("value") or choice.get("answer")
+    ans = res.get("answers", {})
+    dec, util, viol = ans.get("decision", {}), ans.get("utility", {}), ans.get("violates_constraints", {})
+    choice = dec.get("choice")
     if choice not in ("promote", "reject_and_refine", "hold"):
-        raise ApiError(200, f"unrecognized Jev response shape: {json.dumps(res)[:200]}")
-    num = lambda k: float(_find(res, k) or 0.0)
-    return {"model": config.JEV_MODEL, "choice": choice, "confidence": num("confidence"),
-            "constraints_prob": num("constraints_prob"), "utility_score": num("utility_score"),
-            "source": "live"}
+        raise ApiError(200, f"unrecognized Jev response: {json.dumps(res)[:200]}")
+    legend = util.get("legend") or {}
+    top = max((int(k) for k in legend), default=4) or 1
+    return {"model": res.get("model", config.JEV_MODEL), "choice": choice,
+            "confidence": round(float(dec.get("confidence", 0.0)), 2),
+            "constraints_prob": round(float(viol.get("noul", 0.0)), 2),
+            "utility_score": round(float(util.get("score", 0.0)) / top, 2), "source": "live"}
+
+
+def gate_guard(gate, state):
+    """Deterministic floor: Jev cannot promote a candidate that is not strictly better."""
+    if gate["choice"] == "promote" and state["candidate_pass_rate"] <= state["baseline_pass_rate"]:
+        return {**gate, "choice": "hold", "source": "live+guard"}
+    return gate
 
 
 # ---------------------------------------------------------------- Senso
@@ -228,17 +269,16 @@ class SensoStub:
 
     def post_raw(self, title, text, version):
         db = self._db()
-        key = f"{title}@{version}"
-        if any(n["key"] == key for n in db["nodes"].values()):
-            raise ApiError(409, "conflict: duplicate title/version")
+        if any(n["text"] == text for n in db["nodes"].values()):
+            raise ApiError(409, "conflict: same text already stored")
         nid = f"stub-node-{len(db['nodes']) + 1:04d}"
-        db["nodes"][nid] = {"id": nid, "key": key, "title": title, "text": text, "version": version,
-                            "processing_status": "complete"}
+        db["nodes"][nid] = {"id": nid, "title": title, "text": text, "version": version}
         _save(self.path, db)
-        return 202, {"id": nid}
+        return 202, {"id": nid, "kb_node_id": nid, "processing_status": "processing"}
 
     def get_node(self, nid):
-        return self._db()["nodes"][nid]
+        n = self._db()["nodes"][nid]
+        return {"kb_node_id": nid, "name": n["title"], "content": {"processing_status": "complete"}}
 
     def search(self, query):
         q = _tokens(query)
@@ -246,58 +286,60 @@ class SensoStub:
         for n in self._db()["nodes"].values():
             s = len(q & _tokens(n["title"] + " " + n["text"]))
             if s:
-                res.append((s, {"id": n["id"], "title": n["title"], "version": n["version"]}))
+                res.append((s, {"content_id": n["id"], "title": n["title"]}))
         res.sort(key=lambda x: -x[0])
         return [r for _, r in res]
 
 
 class SensoLive:
-    """Endpoints per spec. Body field names are UNVERIFIED."""
+    """Senso API (docs.senso.ai quickstart): base https://apiv2.senso.ai, header X-API-Key.
+    POST /org/kb/raw {title,text} -> 202 {id, kb_node_id}; poll GET /org/kb/nodes/{kb_node_id}
+    until content.processing_status == complete; POST /org/search -> results[].content_id == id.
+    Identical text returns 409, so promoted text always carries version, cycle and timestamp."""
     label = "Senso (live)"
 
     def __init__(self):
-        self.base = config.base_url("senso")
-        self.headers = {"Authorization": f"Bearer {config.get('SENSO_API_KEY')}"}
+        self.base = config.base_url("senso") + "/api/v1"
+        self.headers = {"X-API-Key": config.get("SENSO_API_KEY")}
 
     def health(self):
-        s, b = http_json("GET", f"{self.base}/api/v1/org/me", self.headers)
+        s, b = http_json("GET", f"{self.base}/org/me", self.headers)
         return {"status": s, "org": b}
 
     def post_raw(self, title, text, version):
-        s, b = http_json("POST", f"{self.base}/api/v1/org/kb/raw", self.headers,
-                         {"title": title, "text": text, "version": version})
-        return s, {"id": b.get("id") or b.get("node_id") or _find(b, "id")}
+        s, b = http_json("POST", f"{self.base}/org/kb/raw", self.headers, {"title": title, "text": text})
+        return s, {"id": b.get("id"), "kb_node_id": b.get("kb_node_id")}
 
     def get_node(self, nid):
-        return http_json("GET", f"{self.base}/api/v1/org/kb/nodes/{nid}", self.headers)[1]
+        return http_json("GET", f"{self.base}/org/kb/nodes/{nid}", self.headers)[1]
 
     def search(self, query):
-        b = http_json("POST", f"{self.base}/api/v1/org/search", self.headers, {"query": query})[1]
-        items = b if isinstance(b, list) else b.get("results", [])
-        return [{"id": i.get("id") or i.get("node_id"), "title": i.get("title", ""), "version": i.get("version", "")}
-                for i in items if isinstance(i, dict)]
+        b = http_json("POST", f"{self.base}/org/search", self.headers, {"query": query})[1]
+        return [{"content_id": r.get("content_id"), "title": r.get("title", "")} for r in b.get("results", [])]
 
 
 def senso():
     return SensoLive() if config.mode("senso") == "live" else SensoStub()
 
 
-def senso_promote(client, title, text, version, poll_s=1.0, max_polls=30):
-    """POST raw (expect 202) -> poll until complete -> verify via search."""
+def senso_promote(client, title, text, version, poll_s=None, max_polls=24):
+    """POST raw (expect 202) -> poll kb node until complete -> verify via search."""
     status, body = client.post_raw(title, text, version)
     if status != 202:
         raise ApiError(status, body)
-    nid = body["id"]
+    content_id, nid = body["id"], body["kb_node_id"]
     for _ in range(max_polls):
         node = client.get_node(nid)
-        if node.get("processing_status") == "complete":
+        st = (node.get("content") or {}).get("processing_status")
+        if st == "complete":
             break
-        time.sleep(poll_s)
+        if st == "failed":
+            raise ApiError(0, f"node {nid} processing failed: {node}")
+        time.sleep(0 if config.mode("senso") == "stub" else float(config.get("SENSO_POLL_S", "5")))
     else:
         raise ApiError(0, f"node {nid} not complete after {max_polls} polls")
     hits = client.search(title)
-    verified = any(h.get("id") == nid or h.get("version") == version for h in hits)
-    return {"node_id": nid, "verified": verified}
+    return {"node_id": nid, "verified": any(h.get("content_id") == content_id for h in hits)}
 
 
 # ---------------------------------------------------------------- LLM
@@ -308,7 +350,7 @@ def llm_propose_steps(failures, known_steps, current_steps):
         + json.dumps(known_steps) + ". Current steps: " + json.dumps(current_steps)
         + ". Replay failures (check -> count): " + json.dumps(failures)
         + '. Reply with JSON only: {"add": ["step_id", ...]} using known ids not already present.')
-    body = {"model": "arcee-ai/trinity-large-thinking", "messages": [{"role": "user", "content": prompt}],
+    body = {"model": config.get("OPENROUTER_MODEL", "arcee-ai/trinity-large-thinking:free"), "messages": [{"role": "user", "content": prompt}],
             "max_tokens": 200}
     headers = {"Authorization": f"Bearer {config.get('OPENROUTER_API_KEY')}"}
     _, res = http_json("POST", f"{config.base_url('openrouter')}/api/v1/chat/completions", headers, body, timeout=60)
