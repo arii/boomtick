@@ -1,7 +1,6 @@
 """Merge readiness, approvals, session helpers, aggregation."""
 
 import os
-import re
 import subprocess
 import textwrap
 from typing import Any, Dict, List, Optional
@@ -439,61 +438,6 @@ class MergeGateMixin(CIOpsMixin):
                 for c in review_comments
             ],
         }
-
-    def get_repo_for_session(self, session: Dict[str, Any]) -> Optional[str]:
-        """Extracts the repository name (owner/repo) associated with a session."""
-        if session.get("outputs") and isinstance(session["outputs"], list):
-            for output in session["outputs"]:
-                if output.get("pullRequest") and output["pullRequest"].get("url"):
-                    match = re.search(
-                        r"github\.com/([^/]+/[^/]+)/pull/\d+",
-                        output["pullRequest"]["url"],
-                    )
-                    if match:
-                        return match.group(1)
-
-        src = session.get("sourceContext", {}).get("source", "")
-        if src.startswith("sources/github/"):
-            return src.replace("sources/github/", "")
-
-        return None
-
-    def get_pr_for_session(self, session: Dict[str, Any]) -> Optional[int]:
-        """Optimized PR lookup for a session."""
-        session_id = session.get("name", "").replace("sessions/", "")
-
-        # 1. Try metadata/outputs first if available (fastest)
-        if session.get("outputs") and isinstance(session["outputs"], list):
-            for output in session["outputs"]:
-                if output.get("pullRequest") and output["pullRequest"].get("url"):
-                    match = re.search(r"/pull/(\d+)", output["pullRequest"]["url"])
-                    if match:
-                        return int(match.group(1))
-
-        # 2. Try branch name from sourceContext (fast - targeted search)
-        branch = None
-        if session.get("sourceContext"):
-            branch = (
-                session["sourceContext"]
-                .get("githubRepoContext", {})
-                .get("startingBranch")
-            )
-
-        if branch:
-            # Use search API for targeted branch lookup
-            prs = self.github.search_pull_requests(f"head:{branch} state:open", limit=1)
-            if prs:
-                return prs[0]["number"]
-
-        # 3. Fallback to session ID in body
-        safe_id = f'"{session_id}"'
-        prs = self.github.search_pull_requests(
-            f"{safe_id} in:body,title state:open", limit=1
-        )
-        if prs:
-            return prs[0]["number"]
-
-        return None
 
     def aggregate_prs(self, target_branch: str, prNumbers: List[int]) -> Dict[str, Any]:
         """
