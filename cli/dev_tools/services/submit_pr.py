@@ -53,6 +53,7 @@ def submit(
     issue_text=None,
     skip_scope=False,
     issue=None,
+    expected_branch=None,
 ):
     """Commit, push the worktree branch and open a PR. Returns a dict.
 
@@ -69,6 +70,10 @@ def submit(
     branch = _branch(worktree)
     if not branch:
         raise SubmitError("Worktree has no current branch (detached?)")
+    if expected_branch is not None and branch != expected_branch:
+        raise SubmitError(
+            f"Refusing to submit: worktree is on {branch}, request asked for {expected_branch}."
+        )
     dirty = [f for f in ls.changed_files(worktree) if f != "session.json"]
     commit_sha = None
     if dirty:
