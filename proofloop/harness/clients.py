@@ -13,6 +13,8 @@ from pathlib import Path
 import config
 
 TIMEOUT = 15
+# Python's default urllib User-Agent is blocked by Cloudflare (Senso returns 403 "error code: 1010").
+USER_AGENT = "proofloop-harness/0.1 (+https://github.com/arii/boomtick)"
 
 
 class ApiError(Exception):
@@ -24,7 +26,7 @@ class ApiError(Exception):
 
 def http_json(method, url, headers=None, body=None, timeout=TIMEOUT, retries=1):
     data = json.dumps(body).encode() if body is not None else None
-    h = {"Content-Type": "application/json", **(headers or {})}
+    h = {"Content-Type": "application/json", "User-Agent": USER_AGENT, **(headers or {})}
     last = None
     for attempt in range(retries + 1):
         req = urllib.request.Request(url, data=data, headers=h, method=method)
@@ -138,7 +140,7 @@ class CogneeLive:
             parts.append(f'--{boundary}\r\nContent-Disposition: form-data; name="{name}"\r\n\r\n{value}\r\n')
         body = ("".join(parts) + f"--{boundary}--\r\n").encode()
         req = urllib.request.Request(f"{self.base}{path}", data=body, method="POST",
-                                     headers={**self.headers, "Content-Type": f"multipart/form-data; boundary={boundary}"})
+                                     headers={"User-Agent": USER_AGENT, **self.headers, "Content-Type": f"multipart/form-data; boundary={boundary}"})
         try:
             with urllib.request.urlopen(req, timeout=120) as r:
                 return json.loads(r.read().decode() or "{}")
@@ -272,11 +274,11 @@ def llm_propose_steps(failures, known_steps, current_steps):
         + json.dumps(known_steps) + ". Current steps: " + json.dumps(current_steps)
         + ". Replay failures (check -> count): " + json.dumps(failures)
         + '. Reply with JSON only: {"add": ["step_id", ...]} using known ids not already present.')
-    body = {"model": config.get("OPENROUTER_MODEL", "arcee-ai/trinity-large-thinking:free"), "messages": [{"role": "user", "content": prompt}],
-            "max_tokens": 200}
+    body = {"model": config.get("OPENROUTER_MODEL", config.DEFAULT_LLM_MODEL), "messages": [{"role": "user", "content": prompt}],
+            "max_tokens": 400}
     headers = {"Authorization": f"Bearer {config.get('OPENROUTER_API_KEY')}"}
     _, res = http_json("POST", f"{config.base_url('openrouter')}/api/v1/chat/completions", headers, body, timeout=60)
-    content = res["choices"][0]["message"]["content"]
+    content = res["choices"][0]["message"].get("content") or ""
     m = re.search(r"\{.*\}", content, re.S)
     add = json.loads(m.group(0)).get("add", []) if m else []
     return [a for a in add if a in known_steps and a not in current_steps]
