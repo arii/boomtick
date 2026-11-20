@@ -26,7 +26,7 @@ Measured on the six replay tasks derived from real sessions:
 | v1.2 | 6/6 | promote (active) |
 | v1.3 (deliberately bad) | 4/6 | reject and roll back; v1.2 stays active |
 
-The pass counts come from running the task checks, not from fixed numbers.
+The pass counts come from running the task checks, not from fixed numbers. The sequence above is from the rule-based mutator. When an LLM proposes the new steps (through the local gateway), the engine can reach 6/6 in a single cycle (v0 2/6, v1.1 6/6, then the bad version rejected). The Replay Gate rules and the rollback behavior are identical either way.
 
 ## Tools used
 

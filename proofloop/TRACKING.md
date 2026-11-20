@@ -6,7 +6,7 @@ Patch prepared November 20 (PR #1350): README.md describes the local Replay Gate
 
 Live status for the Personal Agents Hackathon build (Fri Nov 20, 2026). Kiro updates this file as work progresses. Ari's CLI agents (agy, Copilot, Muse CLI) read this file to pick up work interactively. Do not delete this file. Keep it current.
 
-Last updated: 2026-11-20 01:41 PM PT (by Kiro). Chip shows an error even though the dashboard loads: cause is the backend origin check (403 without PROOFLOOP_EXTENSION_ID); chip and server log now print the exact ID/command. Waiting on Ari for: Chrome re-check, PR go-ahead. Submission deadline 4:30 PM PT.
+Last updated: 2026-11-20 01:58 PM PT (by Kiro). Backend and gateway restarted with the correct extension ID; services live (Senso, LLM via gateway), Cognee stub, gate local. Waiting on Ari for: Chrome chip check, PR go-ahead. Milestones: dry runs, backup video by 3:55 PM PT, submission by 4:30 PM PT.
 
 ## Repo and branch
 - Repo: arii/boomtick (no new repo).
@@ -15,6 +15,12 @@ Last updated: 2026-11-20 01:41 PM PT (by Kiro). Chip shows an error even though 
 - PR #1350 and #1351 merged into feat/proofloop (not main). A PR from feat/proofloop to main is not open; decide after the live checks.
 
 ## Current status (latest)
+- **Services restarted (reported by the CLI agent; only the two services were restarted):**
+  - **ProofLoop backend:** 127.0.0.1:8787, pid 36873, dashboard HTTP 200, `/status` OK, reading state dir `proofloop/state/live-twt`, started with `PROOFLOOP_EXTENSION_ID=cbpokmfdbbcpgaookmhdgnbdcgkjkodl`.
+  - **Tokens with Taste gateway:** 127.0.0.1:8000, pid 36872, `/v1/models` HTTP 200.
+  - **Status:** Senso live, LLM live (via gateway), Cognee stub, gate local. `--probe-live`: Senso GREEN, LLM GREEN, Cognee STUB, Gate LOCAL.
+  - **Expected in the chip:** the proof table shows v1.1 at 6/6 and the rolled-back v1.3-bad. Chip appearing in real Chrome: NOT yet confirmed by Ari. Update this line when she reports.
+  - **Note on the numbers:** the live run reaches 6/6 at v1.1, not the 5/6 then 6/6 of the rule-based mutator. That is expected when the LLM (gateway) proposes all the missing steps in one cycle. The Replay Gate rules are the same; only the mutation proposal differs. Narrate whatever sequence the ledger shows. `SUBMISSION.md` and the video must quote the numbers from the final run that is actually shown.
 - **`health.py --probe-live` result (reported by the terminal agent on Ari's machine):**
   - **Senso: GREEN.** `GET /org/me` succeeded, so the key works. By design this does not prove ingest or search. Separately, the earlier live replay got a Senso readback that found content.
   - **LLM (mutation): GREEN, via the Tokens with Taste gateway.** The gateway is running now, so the mutation can be LLM-proposed. Pass rates are unchanged in principle (the rule-based mutator gives the same sequence); if the LLM proposes a different step set the sequence may differ, so re-check the printed pass rates on the next run.
@@ -75,14 +81,54 @@ Exact steps:
 3. Open a NEW tab at http://127.0.0.1:8787/ (or https://example.com). Look at the bottom-right corner. Click the chip to expand the proof table.
 4. If nothing shows: on that page open DevTools, Console, and look for `[ProofLoop] content script running`. Or run `document.getElementById('proofloop-chip-host')` in the console: null means the script did not run (reload the page, check the page type and that the extension is enabled); an element means it ran. On the chrome://extensions card click "service worker" to see background errors.
 
+## Timeline (PT)
+- Now to 2:30: Ari confirms the chip in Chrome. Kiro fixes anything it reports.
+- 2:30 to 3:00: two timed dry runs of the 3-minute demo (fill in the log below).
+- 3:00 to 3:55: record the 90-second backup video, add the link to `SUBMISSION.md`. Video done by 3:55.
+- 3:55 to 4:10: final check of `SUBMISSION.md` numbers against the last run, submit. Hard deadline 4:30.
+
+## Pre-flight (before each dry run, before recording)
+1. Backend up with the ID: `curl -s http://127.0.0.1:8787/status` returns JSON. Gateway up: `curl -s http://127.0.0.1:8000/v1/models` returns 200.
+2. Clean browser window with ONLY demo tabs: the dashboard `http://127.0.0.1:8787/` plus two related tabs (for example the repo page and `proofloop/SUBMISSION.md` on GitHub). With the related-tabs option on, the chip and panel list other tab titles, so close personal tabs first. Related-tabs option on in the extension settings.
+3. Terminal shows no secrets: keys exported in the shell beforehand, never `echo`ed, no `.env` or `env` output on screen. Large font, one terminal for the run.
+4. Pre-run once so a fallback ledger exists: `PROOFLOOP_LIVE_SERVICES=senso,twt PROOFLOOP_STATE=proofloop/state/live-twt python3 proofloop/harness/replay_loop.py --reset --bad-demo`. The backend reads `live-twt`, so the chip and dashboard always show that finished run.
+5. Offline fallback if Senso or the gateway misbehaves on stage: `bash proofloop/demo.sh` (always offline, labeled stub, deterministic 2/6, 5/6, 6/6, 4/6 rejected). Say plainly that it is the offline stub.
+
+## Demo script (3 minutes)
+Live runs write new content to Senso each time (small credit use). Run the on-stage replay into its own state dir so the chip keeps showing the pre-run ledger: `PROOFLOOP_STATE=proofloop/state/demo-run`.
+
+| Time | Show | Say / point at | Command |
+|---|---|---|---|
+| 0:00-0:35 | A normal web page with the quiet chip bottom-right. Click it: proof table. | "No chat box. ProofLoop lives on the page. The chip shows the active skill version and the replay record: each version, pass count, gate decision, Senso node, status. It also shows my other tabs, locally only." | none (open the dashboard tab) |
+| 0:35-1:15 | Terminal: baseline replay. | "These six tasks come from my real past sessions: wrong city, wrong phone number, fabricated numbers. The baseline skill passes 2 of 6, and each failure names the check it broke." | `PROOFLOOP_LIVE_SERVICES=senso,twt PROOFLOOP_STATE=proofloop/state/demo-run python3 proofloop/harness/replay_loop.py --reset --bad-demo` (let it run; the baseline prints first) |
+| 1:15-2:15 | Same terminal: mutation, gate, Senso. | "It proposes a new skill version (here the LLM through a local gateway). The local Replay Gate decides with plain rules: promote only if more tasks pass and no passing check breaks. No model decides promotion. Then Senso stores it and we read it back before it goes live." | same run, lines `[4]` to `[7]` |
+| 2:15-3:00 | Terminal: the injected bad version; then the chip/proof table. | "A deliberately bad version drops to 4 of 6. The gate rejects it and rolls back; the active skill is unchanged. ProofLoop does not just learn: it proves each upgrade on past tasks and refuses regressions." Close on the proof table row marked `rolled_back`. | same run, line `[8]`; click the chip again |
+
+Rules for the narration: quote only numbers on screen; say "deterministic replay on six tasks", not "improves the model"; if a service shows `stub`, say so.
+
+## Dry run log (fill in)
+| Run | Start | Duration | Sequence shown | Chip ok | Issues |
+|---|---|---|---|---|---|
+| 1 | | | | | |
+| 2 | | | | | |
+Target: under 3:00, two clean runs in a row.
+
+## Backup video checklist (90 seconds, done by 3:55 PM)
+- [ ] Screen recorder ready (macOS Shift-Cmd-5, Loom, or OBS), 1080p, microphone check, notifications off, do-not-disturb on.
+- [ ] Pre-flight above done; clean window; no secrets, no personal tabs, no password manager popups.
+- [ ] Script (about 90 s): 0:00-0:12 "Personal agents live in a chat box and forget what went wrong." Show a page with the quiet chip. 0:12-0:30 click the chip: proof table, local tabs. 0:30-0:55 terminal: baseline 2/6 with the failing checks. 0:55-1:15 mutation, Replay Gate promote, Senso readback, result. 1:15-1:30 bad version rejected and rolled back; end card "ProofLoop: Cognee memory, Senso proof store, local Replay Gate. No chat. Just proof."
+- [ ] One take is fine; if it fails, use the offline stub run and say "offline stub".
+- [ ] Export, watch it once with sound, check for secrets or personal tab titles.
+- [ ] Upload (YouTube unlisted or Drive link anyone can view), test the link in a private window.
+- [ ] Add the link to `proofloop/SUBMISSION.md` and the submission form. Keep a local copy of the file as backup.
+
 ## Next steps (in order) and blockers
-Activation rules: `.env` is NOT read. Export real environment variables and opt in with `PROOFLOOP_LIVE_SERVICES`. Do not send secrets through chat. Plan (Gemini) for the rest of the day, in this order:
-1. **Live Senso confirmation (Ari):** `--probe-live` is GREEN and a live readback was reported. Remaining: open the ledger and check the promoted entries are not `stub-node-*` and `retrieval.mode` is `live`. If it was the stub, rerun: `PROOFLOOP_LIVE_SERVICES=senso python3 proofloop/harness/replay_loop.py --reset --bad-demo` with `SENSO_API_KEY` exported. If the `[6]` line shows a failure, paste it here (no key values).
-2. **Real Chrome extension load (Ari):** see "Chrome troubleshooting" below for exact steps. The chip only appears on http/https pages opened after the extension is loaded. A `file://` page such as `extension/test/demo.html` opened from disk will never show it. Fastest test page: http://127.0.0.1:8787/ (the backend dashboard) or any https site.
-3. **PR decision (Ari):** open the drafted PR from feat/proofloop to main (title and description are in the Kiro chat; Kiro verified the CI scope check passes with that description). Squash merge matches the repo history.
-4. **Two timed dry runs** of the 3-minute demo (`bash proofloop/demo.sh`, add `--serve` for the backend), then the **90-second backup video**.
-5. **Submission by 4:30 PM PT.** Aim to be ready by 3:55 PM.
-Optional: start the Tokens with Taste gateway (README "Mutation LLM via Tokens with Taste") for an LLM-proposed mutation; results do not change without it.
+Activation rules: `.env` is NOT read. Export real environment variables and opt in with `PROOFLOOP_LIVE_SERVICES`. Do not send secrets through chat.
+1. **Chrome check (Ari):** reload the page, look bottom-right (see Chrome troubleshooting). Expect the proof table with v1.1 at 6/6 and the rolled-back v1.3-bad. Report the result here; Kiro fixes anything that fails.
+2. **Two timed dry runs** using the demo script and pre-flight above. Log them in the table.
+3. **Backup video** by 3:55 PM using the checklist.
+4. **PR decision (Ari):** not opened. Kiro opens it from feat/proofloop to main on Ari's go (squash merge).
+5. **Submission** by 4:30 PM PT, with `SUBMISSION.md` numbers matching the final run and the video link added.
 
 ## Live-run log
 - First live run (Ari's machine, before PR #1350): Senso `403 error code: 1010` (Cloudflare blocks the default Python User-Agent; fixed with a custom User-Agent) and OpenRouter `404` retired model (default now `openrouter/free`). Cycle 1 matched the offline result (v1.1 5/6) before stopping at the Senso call.
