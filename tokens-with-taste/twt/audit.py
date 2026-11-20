@@ -61,8 +61,8 @@ def inspect_trace(trace):
         f"Route: {trace['route']} | Privacy: {trace['privacy']} | Session: {trace['session_id'] or '(none)'}",
         f"Provider/model: {trace['provider']}/{trace['model']}",
         f"HTTP: {trace['http_status']} | Latency: {trace['latency_ms']:.1f} ms | Cost USD: {trace['cost_usd']}",
-        f"Tokens: prompt={trace['prompt_tokens']} completion={trace['completion_tokens']} "
-        f"reasoning={trace['reasoning_tokens']} visible={trace['visible_tokens']}",
+        (f"Tokens: prompt={trace['prompt_tokens']} completion={trace['completion_tokens']} "
+         f"reasoning={trace['reasoning_tokens']} visible={trace['visible_tokens']}"),
         f"Flags: {', '.join(trace['flags']) or 'none'}", "## Waterfall attempts",
         *[f"- {a['provider']}/{a['model']}: {a['reason']} (HTTP {a['http_status']}, {a['latency_ms']:.1f} ms)"
           for a in trace["attempts"]],

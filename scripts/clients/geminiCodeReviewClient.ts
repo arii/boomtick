@@ -31,13 +31,8 @@ export const geminiCodeReviewClient: CodeReviewClientStrategy = {
     // For code review, we prefer Flash if the diff is complex/large, otherwise Lite.
     const preferredTier = (estimatedInputTokens > 15000 || (summary.previousState?.findings.length ?? 0) > 5) ? 'flash' : 'lite';
 
-    let modelName: string;
-    try {
-      modelName = await pickGeminiModel(preferredTier, estimatedInputTokens);
-    } catch (err) {
-      console.error('Failed to pick Gemini model, falling back based on input tokens:', err);
-      modelName = estimatedInputTokens > 1000000 ? 'gemini-2.5-flash' : 'gemini-2.5-flash-lite';
-    }
+    // Discovery failures must not silently select an unverified legacy model.
+    const modelName = await pickGeminiModel(preferredTier, estimatedInputTokens);
 
     let thinkingBudget = estimatedInputTokens > 10000 ? 4096 : 2048;
     const maxOutputTokens = forceMaxOutputTokens ?? estimateMaxOutputTokens(summary, systemPrompt.length, thinkingBudget);
