@@ -70,6 +70,8 @@ export async function agentSubmitPrHandler(
     "submit-pr",
     "--worktree",
     cwd,
+    "--expected-branch",
+    parsed.branch,
     "--title",
     parsed.title,
     "--body",
