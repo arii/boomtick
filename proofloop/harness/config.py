@@ -19,6 +19,19 @@ KEY_NAMES = ["SENSO_API_KEY", "TYPESAFE_API_KEY", "COGNEE_API_URL", "COGNEE_API_
 JEV_MODEL = "typesafe/jev-1.14.0"
 
 
+def _dotenv() -> dict:
+    """Parse proofloop/.env (KEY=VALUE lines). Git-ignored; never committed."""
+    p = ROOT / ".env"
+    out = {}
+    if p.exists():
+        for line in p.read_text().splitlines():
+            line = line.strip()
+            if line and not line.startswith("#") and "=" in line:
+                k, v = line.split("=", 1)
+                out[k.strip()] = v.strip().strip('"').strip("'")
+    return out
+
+
 def _file_keys() -> dict:
     p = STATE_DIR / "keys.json"
     if p.exists():
@@ -32,7 +45,7 @@ def _file_keys() -> dict:
 def get(name: str, default: str = "") -> str:
     if os.environ.get("PROOFLOOP_FORCE_STUB") == "1" and name in KEY_NAMES:
         return ""
-    return os.environ.get(name) or _file_keys().get(name) or default
+    return os.environ.get(name) or _dotenv().get(name) or _file_keys().get(name) or default
 
 
 def base_url(service: str) -> str:
@@ -42,6 +55,8 @@ def base_url(service: str) -> str:
         "openrouter": "https://openrouter.ai",
     }
     env = {"jev": "TYPESAFE_BASE_URL", "senso": "SENSO_BASE_URL", "openrouter": "OPENROUTER_BASE_URL"}
+    if service != "cognee" and get(env[service]):
+        return get(env[service]).rstrip("/")
     if service == "cognee":
         return get("COGNEE_API_URL").rstrip("/")
     return (os.environ.get(env[service]) or defaults[service]).rstrip("/")
