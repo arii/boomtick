@@ -1,85 +1,97 @@
 """Skill executor and checks for the replay harness.
 
-A skill is {"version", "steps": [step_id, ...]}. The executor interprets the
-steps against a task's tab context and produces an answer; each required check
-is then evaluated on that answer. No pass rate is hardcoded: it comes from
-running these functions over the task suite.
+A skill is {"version", "steps": [step_id, ...]}. The executor is a deterministic MODEL of an
+agent, not an LLM run: for each slot in a task it decides what the agent would write given
+the skill's steps. The un-upgraded value (slot.baseline) comes from the recorded outcome of
+the real session. Steps change behavior:
+
+  answer_from_active_tab  (base) emit slot values; without other steps, emit slot.baseline
+  ground_in_related_tabs  use slot.source_hint when an open tab (active or related) contains it
+  ask_when_unstated       field with no grounding value -> "Clarify: what is your <slot>?"
+  trace_to_source         claim with no grounding value -> "Omitted (unverifiable): <slot>"
+
+Checks are then evaluated on the answer text. No pass rate is hardcoded.
 """
-import re
 
-# step id -> what it does (also used as the vocabulary for LLM mutation)
 KNOWN_STEPS = {
-    "summarize_page": "Answer the query from the active tab snippet.",
-    "check_related_tabs": "Scan related tab titles for deadlines and flag conflicts with the active page.",
-    "verify_dates": "Only state dates found on open pages; otherwise say the date is unverified.",
-    "cite_sources": "Append the active tab URL as the source.",
+    "answer_from_active_tab": "Answer the query from the active tab.",
+    "ground_in_related_tabs": "Fill values from facts found in the active and related tabs, not from assumptions.",
+    "ask_when_unstated": "When a form value is not stated in any open tab, ask instead of assuming.",
+    "trace_to_source": "Only state claims (numbers, URLs, dates) that appear in an open tab; omit the rest.",
 }
 
-# check -> step that fixes it (used by the rule-based mutator)
+# check name (before ':') -> step that fixes it
 CHECK_FIX = {
-    "mentions_related_tab_deadline": "check_related_tabs",
-    "flags_conflicting_deadlines": "check_related_tabs",
-    "does_not_hallucinate_date": "verify_dates",
-    "cites_source_url": "cite_sources",
+    "must_include": "ground_in_related_tabs",
+    "must_not_include": "ground_in_related_tabs",
+    "asks_clarification": "ask_when_unstated",
+    "no_unsupported_claims": "trace_to_source",
 }
 
-DATE_RE = re.compile(r"\b(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\.? \d{1,2}\b")
-DATE_QUERY_RE = re.compile(r"\b(when|deadline|due|close|closes|date)\b", re.I)
-# What an unconstrained model does when asked for a date it cannot see.
-GUESSED_DATE = "Nov 27"
+BASE_STEP = "answer_from_active_tab"
 
 
-def dates_in(text):
-    return DATE_RE.findall(text)
+def check_name(check):
+    return check.split(":", 1)[0]
+
+
+def _tab_texts(task):
+    tabs = [task["active_tab"]] + task["related_tabs"]
+    return [" ".join(t.get(k, "") for k in ("title", "url", "snippet")) for t in tabs]
+
+
+def resolve_slot(slot, steps, task):
+    hint, kind = slot.get("source_hint"), slot["kind"]
+    texts = _tab_texts(task)
+    if "ground_in_related_tabs" in steps and hint and any(hint in t for t in texts):
+        return hint
+    if hint is None:
+        if kind == "field" and "ask_when_unstated" in steps:
+            return f"Clarify: what is your {slot['slot']}?"
+        if kind == "claim" and "trace_to_source" in steps:
+            return f"Omitted (unverifiable): {slot['slot']}"
+    return slot["baseline"]
 
 
 def run_task(skill, task):
     steps = set(skill["steps"])
-    active, related = task["active_tab"], task["related_tabs"]
-    parts = []
-    asked_date = bool(DATE_QUERY_RE.search(task["query"]))
-    active_dates = dates_in(active["snippet"])
-
-    if "summarize_page" in steps:
-        parts.append(f'Answering "{task["query"]}" from {active["title"]}.')
-    if asked_date:
-        if active_dates:
-            parts.append(f"Page date: {active_dates[0]}.")
-        elif "verify_dates" in steps:
-            parts.append("Date unverified: no open page states it.")
-        else:
-            parts.append(f"Date: {GUESSED_DATE}.")
-    if "check_related_tabs" in steps:
-        rel = [(t["title"], d) for t in related for d in dates_in(t["title"])]
-        for title, d in rel:
-            parts.append(f"Related tab deadline: {d} ({title}).")
-        if rel and active_dates and rel[0][1] != active_dates[0]:
-            parts.append(f"Conflict: page says {active_dates[0]}, related tab says {rel[0][1]}.")
-    if "cite_sources" in steps:
-        parts.append(f'Source: {active["url"]}')
-    return " ".join(parts)
-
-
-def _source_dates(task):
-    out = set(dates_in(task["active_tab"]["snippet"]))
-    for t in task["related_tabs"]:
-        out |= set(dates_in(t["title"]))
-    return out
+    if BASE_STEP not in steps:
+        return ""
+    parts = [f'Answering "{task["query"]}" from {task["active_tab"]["title"]}.']
+    for slot in task.get("slots", []):
+        parts.append(f'{slot["slot"]}: {resolve_slot(slot, steps, task)}')
+    return " | ".join(parts)
 
 
 def evaluate_check(check, task, answer):
-    if check == "answers_query":
-        return bool(answer.strip()) and task["active_tab"]["title"] in answer
-    if check == "mentions_related_tab_deadline":
-        want = {d for t in task["related_tabs"] for d in dates_in(t["title"])}
-        return bool(want) and all(d in answer for d in want)
-    if check == "flags_conflicting_deadlines":
-        return "Conflict:" in answer
-    if check == "does_not_hallucinate_date":
-        return set(dates_in(answer)) <= _source_dates(task)
-    if check == "cites_source_url":
-        return task["active_tab"]["url"] in answer
+    name, _, arg = check.partition(":")
+    if name == "answers_query":
+        return bool(answer) and task["active_tab"]["title"] in answer
+    if name == "must_include":
+        return arg in answer
+    if name == "must_not_include":
+        return arg not in answer
+    if name == "asks_clarification":
+        return f"Clarify: what is your {arg}?" in answer
+    if name == "no_unsupported_claims":
+        return _claims_supported(task, answer, " ".join(_tab_texts(task)))
     raise ValueError(f"unknown check: {check}")
+
+
+def _claims_supported(task, answer, sources):
+    """Every claim slot's emitted value must appear in an open tab (or be an explicit omission)."""
+    for slot in task.get("slots", []):
+        if slot["kind"] != "claim":
+            continue
+        line = next((p for p in answer.split(" | ") if p.startswith(slot["slot"] + ": ")), None)
+        if line is None:
+            continue
+        value = line[len(slot["slot"]) + 2:]
+        if value.startswith("Omitted"):
+            continue
+        if value not in sources:
+            return False
+    return True
 
 
 def replay(skill, tasks):

@@ -28,8 +28,13 @@ def _check(obj, schema_name, label):
 def load_sessions():
     lines = [l for l in (config.DATA_DIR / "sessions.jsonl").read_text().splitlines() if l.strip()]
     sessions = [json.loads(l) for l in lines]
+    from datetime import datetime
     for i, s in enumerate(sessions, 1):
         _check(s, "sessions.schema.json", f"sessions.jsonl line {i}")
+        try:
+            datetime.fromisoformat(s["timestamp"].replace("Z", "+00:00"))
+        except ValueError:
+            raise SystemExit(f"INVALID sessions.jsonl line {i}: timestamp not ISO 8601")
     return sessions
 
 

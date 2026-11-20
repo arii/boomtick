@@ -162,7 +162,7 @@ class CogneeLive:
         out = []
         for it in items:
             text = it if isinstance(it, str) else json.dumps(it)
-            sids = re.findall(r"sess_\d{4}_\d{2}_\d{2}_[a-z]", text)
+            sids = re.findall(r"sess_\d{4}_\d{2}_\d{2}_[a-z0-9_]+", text)
             out.append({"type": "constraint", "text": text[:300], "session_ids": sorted(set(sids))})
         return out
 

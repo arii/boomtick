@@ -6,7 +6,7 @@ Replay-gated skill upgrades (Cognee memory, TypeSafe Jev gate, Senso promotion) 
 ```sh
 python3 -m venv .venv && .venv/bin/pip install jsonschema   # validation only
 cd harness
-../.venv/bin/python make_seed_data.py      # placeholder sessions + tasks (replace with real excerpts)
+../.venv/bin/python make_tasks.py          # derive data/replay_tasks.json from data/sessions.jsonl
 ../.venv/bin/python validate.py
 ../.venv/bin/python replay_loop.py --reset --bad-demo
 python3 server.py                          # http://127.0.0.1:8787 (dashboard at /, /augment, /config)

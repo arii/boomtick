@@ -19,7 +19,7 @@ import clients
 import config
 import validate
 
-BASE_SKILL = {"version": "v0", "steps": ["summarize_page"]}
+BASE_SKILL = {"version": "v0", "steps": [agent.BASE_STEP]}
 
 
 def now():
@@ -53,20 +53,22 @@ def reset_state():
 
 # ------------------------------------------------------------- steps 1-2
 def ingest_and_recall(sessions, suite):
+    """Ingest into Cognee and check recall coverage. The replay suite always stays the full
+    curated set, so pass rates are comparable run to run; partial recall is reported, not hidden."""
     cg = clients.cognee()
     log(f"[1] Cognee ingest via: {cg.label}")
     log(f"    {cg.ingest(sessions)}")
-    tasks, note = recall_tasks(cg, suite)
-    if not tasks:
+    kept, note = recall_tasks(cg, suite)
+    if not kept:
         docs = [(p.name, p.read_text()) for p in sorted(config.SKILLS_LOCAL.glob("*.md"))]
         if docs:
             log(f"    recall empty; seeding graph with {len(docs)} local skill docs")
             cg.ingest(sessions, extra_docs=docs)
-            tasks, note = recall_tasks(cg, suite)
-    if not tasks:
-        log("    recall still empty; using committed replay_tasks.json unchanged")
-        tasks, note = suite["tasks"], "fallback: committed suite (Cognee recall returned nothing)"
-    return tasks, note, cg.label
+            kept, note = recall_tasks(cg, suite)
+    total = len(suite["tasks"])
+    if len(kept) < total:
+        note += f"; WARNING partial recall, replaying the full {total}-task suite"
+    return suite["tasks"], note, cg.label
 
 
 def recall_tasks(cg, suite):
@@ -89,9 +91,10 @@ def next_version(v):
 def mutate(skill, rep):
     """Return (new_steps, how). Uses OpenRouter when keyed, else rule-based."""
     counts = {}
-    for r in rep["results"]:
-        for c in r["failed_checks"]:
-            counts[c] = counts.get(c, 0) + 1
+    for res in rep["results"]:
+        for c in res["failed_checks"]:
+            n = agent.check_name(c)
+            counts[n] = counts.get(n, 0) + 1
     if not counts:
         return None, "no failures"
     if config.mode("llm") == "live":
@@ -101,19 +104,21 @@ def mutate(skill, rep):
                 return skill["steps"] + add, "llm (OpenRouter)"
         except clients.ApiError as e:
             log(f"    LLM mutation failed ({e}); falling back to rule-based mutator")
-    ranked = sorted(counts, key=lambda c: (-counts[c], c))[:2]
     add = []
-    for c in ranked:
+    for c in sorted(counts, key=lambda c: (-counts[c], c)):
         step = agent.CHECK_FIX.get(c)
         if step and step not in skill["steps"] and step not in add:
             add.append(step)
+        if len(add) == 2:
+            break
     if not add:
         return None, "no applicable fix"
     return skill["steps"] + add, "rule-based (no LLM key)"
 
 
 def bad_mutation(skill):
-    steps = [s for s in skill["steps"] if s != "verify_dates"]
+    """A regression: drop the grounding step."""
+    steps = [s for s in skill["steps"] if s != "ground_in_related_tabs"]
     return steps if steps != skill["steps"] else skill["steps"][:-1]
 
 

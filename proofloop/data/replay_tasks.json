@@ -1,118 +1,251 @@
 {
-  "suite_id": "proofloop-suite-placeholder",
+  "suite_id": "proofloop-suite-real-v1",
   "tasks": [
     {
       "id": "t1",
-      "source_session_id": "sess_2026_11_03_a",
-      "query": "Summarize this project doc",
+      "source_session_id": "sess_2026_11_16_vouch",
+      "query": "Submit the Vouch signup form with the user's profile",
       "active_tab": {
-        "title": "ProofLoop Project Doc",
-        "url": "https://docs.example.com/proofloop",
-        "snippet": "ProofLoop replays historical tasks against skill versions and gates upgrades."
+        "title": "Vouch signup form",
+        "url": "https://vouch.example/signup",
+        "snippet": "Vouch signup form, city and work-type fields"
       },
-      "related_tabs": [],
-      "expected_constraint": "Keep summaries under five sentences.",
-      "required_checks": [
-        "answers_query"
+      "related_tabs": [
+        {
+          "title": "User profile settings",
+          "url": "https://example.com/profile",
+          "snippet": "Profile lists San Francisco, CA"
+        },
+        {
+          "title": "Ari-Instinct chat, Nov 16",
+          "url": "https://example.com/chat/instinct",
+          "snippet": "Ari established San Francisco as the city"
+        }
       ],
-      "baseline_score": 1.0
+      "expected_constraint": "City is San Francisco, never San Jose. Do not assume a work-type preference; ask when it is not stated.",
+      "required_checks": [
+        "answers_query",
+        "must_include:San Francisco",
+        "must_not_include:San Jose",
+        "asks_clarification:work_type"
+      ],
+      "baseline_score": 0.0,
+      "slots": [
+        {
+          "slot": "city",
+          "kind": "field",
+          "baseline": "San Jose",
+          "source_hint": "San Francisco, CA"
+        },
+        {
+          "slot": "work_type",
+          "kind": "field",
+          "baseline": "Full-time",
+          "source_hint": null
+        }
+      ]
     },
     {
       "id": "t2",
-      "source_session_id": "sess_2026_11_05_a",
-      "query": "Summarize the release notes and the release date",
+      "source_session_id": "sess_2026_11_18_waas",
+      "query": "Submit Work at a Startup applications for Neuromorphic, Preload, and Relari",
       "active_tab": {
-        "title": "Release Notes 4.2",
-        "url": "https://docs.example.com/release-4-2",
-        "snippet": "Release 4.2 shipped on Nov 12 with faster replay."
+        "title": "Work at a Startup application",
+        "url": "https://workatastartup.com",
+        "snippet": "WaaS application, phone field"
       },
-      "related_tabs": [],
-      "expected_constraint": "Quote dates only when they appear on a page the user has open.",
+      "related_tabs": [
+        {
+          "title": "User contact info",
+          "url": "https://example.com/contact",
+          "snippet": "Professional number [PHONE-PRO] for recruiters and applications"
+        },
+        {
+          "title": "Ari-Instinct chat, Nov 17",
+          "url": "https://example.com/chat/instinct",
+          "snippet": "Ari clarified [PHONE-PRO] is professional, [PHONE-FAMILY] is friends/family only"
+        }
+      ],
+      "expected_constraint": "Professional number is [PHONE-PRO]. Friends/family number [PHONE-FAMILY] is never for recruiters or applications.",
       "required_checks": [
         "answers_query",
-        "does_not_hallucinate_date"
+        "must_include:[PHONE-PRO]",
+        "must_not_include:[PHONE-FAMILY]"
       ],
-      "baseline_score": 1.0
+      "baseline_score": 0.0,
+      "slots": [
+        {
+          "slot": "phone",
+          "kind": "field",
+          "baseline": "[PHONE-FAMILY]",
+          "source_hint": "[PHONE-PRO]"
+        }
+      ]
     },
     {
       "id": "t3",
-      "source_session_id": "sess_2026_11_07_a",
-      "query": "When is my grant draft due?",
+      "source_session_id": "sess_2026_11_10_sfpromises",
+      "query": "Build the SF Promises demo tally and verify the promise list",
       "active_tab": {
-        "title": "Grant Application Draft",
-        "url": "https://docs.example.com/grant-draft",
-        "snippet": "Draft due Dec 5. Contact: [REDACTED]."
+        "title": "SF Promises demo site",
+        "url": "https://arii.github.io/sf-promises",
+        "snippet": "SF Promises tally and promise list"
       },
       "related_tabs": [
         {
-          "title": "Reviewer meeting moved - draft due Dec 2",
-          "url": "https://mail.example.com/thread/881"
+          "title": "Keenable evidence",
+          "url": "https://example.com/keenable",
+          "snippet": "Keenable evidence for promise verification"
+        },
+        {
+          "title": "Source documents",
+          "url": "https://example.com/sources",
+          "snippet": "Official sources for promise text and verdicts"
         }
       ],
-      "expected_constraint": "Always check related tabs for conflicting deadlines before summarizing.",
+      "expected_constraint": "Never fabricate a tally, URL, date, or run. Every number must trace to a verified source; if it cannot be verified, it does not go on the page.",
       "required_checks": [
         "answers_query",
-        "mentions_related_tab_deadline",
-        "flags_conflicting_deadlines"
+        "no_unsupported_claims"
       ],
-      "baseline_score": 0.0
+      "baseline_score": 0.0,
+      "slots": [
+        {
+          "slot": "tally",
+          "kind": "claim",
+          "baseline": "[hardcoded tally]",
+          "source_hint": null
+        },
+        {
+          "slot": "official_url",
+          "kind": "claim",
+          "baseline": "[invented official URL]",
+          "source_hint": null
+        },
+        {
+          "slot": "due_date",
+          "kind": "claim",
+          "baseline": "[invented due date]",
+          "source_hint": null
+        }
+      ]
     },
     {
       "id": "t4",
-      "source_session_id": "sess_2026_11_10_a",
-      "query": "What is the submission deadline for the conference paper?",
+      "source_session_id": "sess_2026_10_30_feels_mockup",
+      "query": "Review the Feels mockup confusion matrix and class counts",
       "active_tab": {
-        "title": "Conference Paper Portal",
-        "url": "https://portal.example.com/paper",
-        "snippet": "Submit your camera-ready paper through this portal."
+        "title": "Feels mockup page",
+        "url": "https://arii.github.io/feels",
+        "snippet": "Feels mockup with confusion matrix"
       },
       "related_tabs": [
         {
-          "title": "CFP: camera-ready due Dec 9",
-          "url": "https://conf.example.com/cfp"
+          "title": "Feels repo",
+          "url": "https://github.com/arii/feels",
+          "snippet": "Repo with experiment scripts and notebooks"
+        },
+        {
+          "title": "Feels docs",
+          "url": "https://example.com/feels-docs",
+          "snippet": "Docs with held-out run counts"
         }
       ],
-      "expected_constraint": "Check related tabs for the deadline and never invent a date.",
+      "expected_constraint": "Every number on a page must trace to a script, notebook, or run. If a number cannot be tied to an actual experiment, it does not go on the page.",
       "required_checks": [
         "answers_query",
-        "mentions_related_tab_deadline",
-        "does_not_hallucinate_date"
+        "must_not_include:88.2/84.8/83.7%",
+        "no_unsupported_claims"
       ],
-      "baseline_score": 0.0
+      "baseline_score": 0.0,
+      "slots": [
+        {
+          "slot": "confusion_matrix",
+          "kind": "claim",
+          "baseline": "88.2/84.8/83.7%",
+          "source_hint": null
+        }
+      ]
     },
     {
       "id": "t5",
-      "source_session_id": "sess_2026_11_12_a",
-      "query": "When does registration close?",
+      "source_session_id": "sess_2026_11_17_adsense",
+      "query": "Verify AdSense is live on boomtick.blog",
       "active_tab": {
-        "title": "Workshop Registration",
-        "url": "https://workshop.example.com/register",
-        "snippet": "Registration is open to all attendees. Seats are limited."
+        "title": "boomtick.blog/ads.txt",
+        "url": "https://boomtick.blog/ads.txt",
+        "snippet": "ads.txt returning google.com, pub-2398582836159289, DIRECT"
       },
-      "related_tabs": [],
-      "expected_constraint": "If a date is not on an open page, say it is unverified.",
+      "related_tabs": [
+        {
+          "title": "BoomTick repo",
+          "url": "https://github.com/arii/tech-dancer",
+          "snippet": "Repo with AdSense code"
+        },
+        {
+          "title": "AdSense account",
+          "url": "https://example.com/adsense",
+          "snippet": "AdSense account with publisher ID"
+        }
+      ],
+      "expected_constraint": "Verify against the live site, not the repo alone. A live check is the proof.",
       "required_checks": [
         "answers_query",
-        "does_not_hallucinate_date"
+        "must_include:pub-2398582836159289",
+        "no_unsupported_claims"
       ],
-      "baseline_score": 0.0
+      "baseline_score": 1.0,
+      "slots": [
+        {
+          "slot": "ads_txt",
+          "kind": "claim",
+          "baseline": "google.com, pub-2398582836159289, DIRECT",
+          "source_hint": "google.com, pub-2398582836159289, DIRECT"
+        }
+      ]
     },
     {
       "id": "t6",
-      "source_session_id": "sess_2026_11_14_a",
-      "query": "Summarize this paper's findings and link the source",
+      "source_session_id": "sess_2026_11_17_hrm",
+      "query": "Live-verify the HRM dashboard auto-connect and reconnect on hardware",
       "active_tab": {
-        "title": "Self-Verifying Agents (preprint)",
-        "url": "https://arxiv.example.org/abs/2611.0001",
-        "snippet": "We show replay-gated skill updates improve reliability on held-out tasks."
+        "title": "HRM dashboard",
+        "url": "https://onasafari.ddns.net/",
+        "snippet": "HRM dashboard with live heart rate and timer"
       },
-      "related_tabs": [],
-      "expected_constraint": "Always include the source URL when summarizing a page.",
+      "related_tabs": [
+        {
+          "title": "HRM repo",
+          "url": "https://github.com/arii/hrm",
+          "snippet": "HRM repo with dashboard code"
+        },
+        {
+          "title": "Bluetooth strap 12022-1",
+          "url": "https://example.com/strap",
+          "snippet": "Heart rate strap, 88% battery"
+        }
+      ],
+      "expected_constraint": "Verify on live hardware, not headless alone. Merged is never treated as deployed; claims are verified against the live device.",
       "required_checks": [
         "answers_query",
-        "cites_source_url"
+        "must_include:12022-1",
+        "no_unsupported_claims"
       ],
-      "baseline_score": 0.0
+      "baseline_score": 1.0,
+      "slots": [
+        {
+          "slot": "strap",
+          "kind": "claim",
+          "baseline": "12022-1",
+          "source_hint": "12022-1"
+        },
+        {
+          "slot": "battery",
+          "kind": "claim",
+          "baseline": "88%",
+          "source_hint": "88%"
+        }
+      ]
     }
   ]
 }
