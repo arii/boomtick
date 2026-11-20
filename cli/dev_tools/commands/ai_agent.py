@@ -32,10 +32,11 @@ def ai():
     "--no-cache",
     is_flag=True,
     default=False,
-    help="Bust the diff cache and force a fresh review call",
+    help="Refresh cached inputs for a deterministic heuristic review (no model call)",
 )
 @click.pass_context
 def review(ctx, pr_number, no_cache):
+    """Run deterministic PR rules; this command does not call a model."""
     # Optionally bust the review cache so stale results are not silently returned
     if no_cache:
         review_dir = get_or_create_log_dir("reviews")
@@ -62,7 +63,11 @@ def review(ctx, pr_number, no_cache):
     recommendation : {res.get("recommendation")}
     reviewComment  : {res.get("reviewComment", "")[:500]}""")
 
-    out(ctx, f"✅ Generated review for PR #{pr_number}", data=res)
+    out(
+        ctx,
+        f"Generated deterministic heuristic review for PR #{pr_number} (no model)",
+        data=res,
+    )
 
 
 @ai.command(name="get-context")
