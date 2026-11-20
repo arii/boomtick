@@ -84,8 +84,21 @@ def cmd_read(args):
         out.append({"key": r["key"], "status": r["status"],
                     "owner": r.get("owner") or r.get("source"),
                     "updated": r.get("updated"), "note": r["note"]})
-    print(json.dumps({"seq": latest["seq"], "captured_at": latest["captured_at"],
-                      "items": out}, indent=2))
+    # the store lags live state by the export cadence; warn rather than let
+    # stale state read as fresh
+    stale = None
+    try:
+        import datetime
+        cap = datetime.datetime.fromisoformat(latest["captured_at"].replace("Z", "+00:00"))
+        age_min = (datetime.datetime.now(datetime.timezone.utc) - cap).total_seconds() / 60
+        if age_min > 75:
+            stale = "snapshot is %d minutes old (export cadence ~60m); state may have changed since" % age_min
+    except Exception:
+        stale = "snapshot timestamp unparsable; freshness unknown"
+    result = {"seq": latest["seq"], "captured_at": latest["captured_at"], "items": out}
+    if stale:
+        result["warning"] = stale
+    print(json.dumps(result, indent=2))
 
 
 def cmd_history(args):
