@@ -8,14 +8,23 @@ const { classify, collect } = require(path.join(ext, 'assist/detect.js'));
 const { evaluate } = require(path.join(ext, 'assist/match.js'));
 const fixture = (n) => new JSDOM(fs.readFileSync(path.join(ext, 'test/fixtures', n), 'utf8')).window.document;
 
-// --- detector on the captured pages
-const luma = collect(fixture('luma_registration.html'));
-assert.deepEqual(luma.map((f) => [f.el.id, f.semantic]), [['_r_n_', 'city']], 'Luma: only the city question is a city field');
+// --- detector on the captured pages (fixtures re-captured from the live sites by extension/test/capture_fixtures.cjs)
+const sem = (fs_) => fs_.map((f) => [f.el.id || null, f.semantic]);
+const { submitControls } = require(path.join(ext, 'assist/detect.js'));
+const lumaDoc = fixture('luma_registration.html');
+const luma = collect(lumaDoc);
+assert.deepEqual(sem(luma), [['_r_n_', 'city'], [null, 'checkbox'], [null, 'checkbox']], 'Luma: city question plus the two checkboxes, nothing else');
 assert.match(luma[0].label, /^What city are you based in\?/);
 assert.equal(luma[0].el.getAttribute('autocomplete'), '', 'Luma city field has no autocomplete, so the label is the only signal');
+assert.match(luma[1].label, /^Judge applicants/);
+assert.match(luma[2].label, /third-party event sponsors/);
+assert.ok(submitControls(lumaDoc).some((s) => s.text === 'Request to Join'));
 
-const vouch = collect(fixture('vouch_apply.html'));
-assert.deepEqual(vouch.map((f) => [f.el.id, f.semantic]), [[':r3:', 'address']], 'Vouch Apply: the placeholder-only address combobox is an address, not a city');
+const vouchDoc = fixture('vouch_apply.html');
+const vouch = collect(vouchDoc);
+assert.deepEqual(sem(vouch), [[null, 'checkbox'], [':r3:', 'address'], [':re:', 'phone'], [null, 'checkbox']], 'Vouch Apply: address combobox, phone and two checkboxes');
+assert.match(vouch[3].label, /Communications Consent/, 'the Vouch terms box mentions "Consent": a consent rule must not match on that word alone');
+assert.deepEqual(submitControls(vouchDoc).map((s) => s.text), ['Start Application'], 'Vouch submit is a type=button found by its text');
 
 // --- detector on synthetic markup
 const doc = (html) => new JSDOM(`<body>${html}</body>`).window.document;
@@ -28,8 +37,21 @@ assert.equal(one('<input placeholder="City">').semantic, 'city');
 assert.equal(one('<span id=l>Where are you based?</span><input aria-labelledby=l>').semantic, 'city');
 assert.equal(one('<label>Street address <input></label>').semantic, 'address');
 assert.equal(one('<input autocomplete="street-address">').semantic, 'address');
+assert.equal(one('<input type="tel">').semantic, 'phone');
+assert.equal(one('<input autocomplete="tel">').semantic, 'phone');
+assert.equal(one('<label>Mobile number <input></label>').semantic, 'phone');
+assert.equal(one('<input name="applicant[phone]">').semantic, 'phone');
+assert.equal(one('<label><input type="checkbox"> Share my info with sponsors</label>').semantic, 'checkbox');
+assert.equal(one('<input type="checkbox">'), null, 'unlabeled checkbox is not reported');
+assert.equal(one('<label>Phone email <input type="email"></label>'), null);
+assert.equal(one('<label>Headphones brand <input></label>'), null);
+const subs = (html) => submitControls(doc(html)).map((s) => s.text);
+assert.deepEqual(subs('<form><input name=a><button>Send it</button></form>'), ['Send it'], 'a plain <button> in a form submits');
+assert.deepEqual(subs('<form><button type="button">Add another</button></form>'), []);
+assert.deepEqual(subs('<div><button type="button">Apply now</button></div>'), ['Apply now']);
+assert.deepEqual(subs('<div><button type="button">Apply filters</button></div>'), []);
 for (const html of ['<label>Capacity <input></label>', '<label>Velocity <input></label>', '<label>Email address <input></label>',
-  '<label>Company <input></label>', '<input type="password" aria-label="City">', '<input type="checkbox" aria-label="City">',
+  '<label>Company <input></label>', '<input type="password" aria-label="City">',
   '<input type="email" aria-label="City">', '<textarea aria-label="City"></textarea>', '<input placeholder="Search the city archive">']) {
   const d = doc(html), n = d.querySelector('input,textarea');
   assert.equal(classify(n), null, html);
@@ -55,4 +77,4 @@ assert.match(fs.readFileSync(path.join(ext, 'assist/assist.js'), 'utf8'), /attac
 const manifest = JSON.parse(fs.readFileSync(path.join(ext, 'manifest.json'), 'utf8'));
 for (const cs of manifest.content_scripts) for (const m of cs.matches) assert.doesNotMatch(m, /^(https?|\*):\/\/\*\/|<all_urls>/, `manifest match too broad: ${m}`);
 
-console.log('assist offline tests passed: detector on Luma and Vouch captures, ambiguous labels, matcher cases, source sink rules, narrow manifest.');
+console.log('assist offline tests passed: detector (city, address, phone, checkboxes, submit) on live-captured Luma and Vouch, ambiguous labels, matcher cases, source sink rules, narrow manifest.');
