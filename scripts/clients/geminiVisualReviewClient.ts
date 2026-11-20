@@ -21,14 +21,9 @@ export const geminiVisualReviewClient: LLMClientStrategy = {
   reportFileName: 'gemini-review.md',
 
   invokeReview: async (summary: VisualRouteSummary, role: AgentRole = 'UX'): Promise<RouteReview> => {
-    let modelName: string;
     const estimatedInputTokens = summary.tokens ?? 0;
-    try {
-      modelName = await pickGeminiModel('lite', estimatedInputTokens);
-    } catch (err) {
-      console.error('Failed to pick Gemini model, falling back based on input tokens:', err);
-      modelName = estimatedInputTokens > 1000000 ? 'gemini-2.5-flash' : 'gemini-2.5-flash-lite';
-    }
+    // Discovery failures must not silently select an unverified legacy model.
+    const modelName = await pickGeminiModel('lite', estimatedInputTokens);
 
     let maxOutputTokens = 4096;
     let thinkingBudget = 1024;

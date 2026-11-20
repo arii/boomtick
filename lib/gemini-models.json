@@ -45,7 +45,7 @@
       "inputCostPerM": 0.3,
       "outputCostPerM": 2.5,
       "reviewAfter": "2027-05-08",
-      "deprecatedAfter": null
+      "deprecatedAfter": "2026-12-01"
     },
     {
       "id": "gemini-2.5-flash-lite",

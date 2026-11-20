@@ -9,6 +9,8 @@ const __dirname = path.dirname(__filename);
 const REPO_ROOT = path.resolve(__dirname, '../..');
 const DATA_PATH = path.join(REPO_ROOT, 'lib/gemini-models.json');
 const PICKER_PATH = path.join(REPO_ROOT, 'lib/geminiModelPicker.ts');
+const CODE_REVIEW_CLIENT_PATH = path.join(REPO_ROOT, 'scripts/clients/geminiCodeReviewClient.ts');
+const VISUAL_REVIEW_CLIENT_PATH = path.join(REPO_ROOT, 'scripts/clients/geminiVisualReviewClient.ts');
 
 interface CatalogModel {
   id: string;
@@ -55,6 +57,15 @@ describe('geminiModelPicker file-driven catalog (issue #1227)', () => {
     expect(source).toContain('gemini-models.json');
     expect(source).not.toContain('gemini-1.5');
     expect(source).not.toContain('gemini-2.0');
+  });
+
+  it('carries no hardcoded fallback model ids in review clients', () => {
+    const codeClient = fs.readFileSync(CODE_REVIEW_CLIENT_PATH, 'utf8');
+    const visualClient = fs.readFileSync(VISUAL_REVIEW_CLIENT_PATH, 'utf8');
+    for (const source of [codeClient, visualClient]) {
+      expect(source).not.toContain("'gemini-2.5-flash'");
+      expect(source).not.toContain("'gemini-2.5-flash-lite'");
+    }
   });
 
   it('warns visibly when a catalog entry passes its review date', async () => {
