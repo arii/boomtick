@@ -69,6 +69,7 @@ def capture_revision_pair(
 
     A complete capture means files exist, not that the labels match the served
     revisions, that routes cover the diff, or that visual intent is correct.
+    Final redirect URLs are evidence for review, not proof of revision identity.
     """
     base_url, head_url = _base_url(base_url), _base_url(head_url)
     routes = list(dict.fromkeys(_route(route) for route in routes))
