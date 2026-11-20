@@ -45,7 +45,7 @@ export function normalizeTdIssue(raw: unknown): NormalizedIssue {
   };
 }
 
-export function normalizeTdComment(raw: unknown): NormalizedComment {
+function normalizeTdComment(raw: unknown): NormalizedComment {
   const comment = (raw && typeof raw === "object" ? raw : {}) as Record<string, unknown>;
   const user = (comment.user && typeof comment.user === "object" ? comment.user : null) as
     | { login?: unknown }
