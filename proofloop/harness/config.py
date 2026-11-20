@@ -17,6 +17,9 @@ NEEDS = {"cognee": ("COGNEE_API_URL", "COGNEE_API_KEY"),
          "senso": ("SENSO_API_KEY",), "llm": ("OPENROUTER_API_KEY",)}
 
 
+DEFAULT_LLM_MODEL = "openrouter/free"
+
+
 def get(name, default=""):
     if os.environ.get("PROOFLOOP_FORCE_STUB") == "1" and name in KEY_NAMES:
         return ""
