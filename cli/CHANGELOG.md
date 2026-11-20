@@ -1,5 +1,41 @@
 # Changelog
 
+## [0.22.0](https://github.com/arii/boomtick/compare/cli-v0.21.0...cli-v0.22.0) (2026-11-20)
+
+
+### Features
+
+* add LangGraph.js workflows package with run_workflow MCP gateway ([#1263](https://github.com/arii/boomtick/issues/1263)) ([ad3b686](https://github.com/arii/boomtick/commit/ad3b68612750e2d39e6d65ebcff6aad650112e91))
+* consolidate MCP tool surface with typed schemas and explicit modes ([#1259](https://github.com/arii/boomtick/issues/1259)) ([5a4d93c](https://github.com/arii/boomtick/commit/5a4d93c7f280e2862bfb383b1c5166cf0becec44))
+* scaffold offline shopping audit demo ([#1342](https://github.com/arii/boomtick/issues/1342)) ([4476093](https://github.com/arii/boomtick/commit/447609352e1d3603b086429b4150a1f8f42d7db8))
+* **twt:** support Cloudflare static discovery, reclassify Mistral, and add --json to submit-pr ([#1317](https://github.com/arii/boomtick/issues/1317)) ([00b44bf](https://github.com/arii/boomtick/commit/00b44bfa25c6af44d28111e0ebaaf4f279376529))
+
+
+### Bug Fixes
+
+* **agent-ledger:** collision-safe task keys for URL-referencing tasks ([#1322](https://github.com/arii/boomtick/issues/1322)) ([aa0fce2](https://github.com/arii/boomtick/commit/aa0fce2a1b033844cf318b5fd4811a5cb486f0bb))
+* audit batch [#1231](https://github.com/arii/boomtick/issues/1231) [#1232](https://github.com/arii/boomtick/issues/1232) [#1233](https://github.com/arii/boomtick/issues/1233) [#1234](https://github.com/arii/boomtick/issues/1234) [#1235](https://github.com/arii/boomtick/issues/1235) + [#1236](https://github.com/arii/boomtick/issues/1236) verified cuts ([#1237](https://github.com/arii/boomtick/issues/1237)) ([4a200e4](https://github.com/arii/boomtick/commit/4a200e44875c2b55e93e3ced05f87480dc87f245))
+* **cli:** exit non-zero when td preflight reports errors ([#1287](https://github.com/arii/boomtick/issues/1287)) ([16459ca](https://github.com/arii/boomtick/commit/16459caf826370a00c5e5f4b69270ad5a8333828))
+* cwd-independent verify-scope test paths (closes [#1217](https://github.com/arii/boomtick/issues/1217)) ([#1221](https://github.com/arii/boomtick/issues/1221)) ([178a2a3](https://github.com/arii/boomtick/commit/178a2a3f1369f49578a67947b8883a938bdf1173))
+* declare RAG backend deps (chromadb + sentence-transformers) ([#1212](https://github.com/arii/boomtick/issues/1212)) ([037c8fc](https://github.com/arii/boomtick/commit/037c8fcb1b3ca182194c600118ae9d7a35ac01ef))
+* fail loud on repo-resolve and sessions-unknown gate + provider scorecard ([#1216](https://github.com/arii/boomtick/issues/1216)) ([1aae0ba](https://github.com/arii/boomtick/commit/1aae0ba3a90270eb330c28396bebdd825649f78f))
+* ground deterministic PR reviews without automatic approval ([#1340](https://github.com/arii/boomtick/issues/1340)) ([cd02ad2](https://github.com/arii/boomtick/commit/cd02ad2b19626e0580986515c33505527e300bd0))
+* ignore explanatory identifiers in scope file lists ([#1334](https://github.com/arii/boomtick/issues/1334)) ([2bc6ec9](https://github.com/arii/boomtick/commit/2bc6ec9d20e4bb3669f3ebccf5c9b9b292dbc730))
+* make CLI and root unit test entrypoints reliable ([#1333](https://github.com/arii/boomtick/issues/1333)) ([0bd754d](https://github.com/arii/boomtick/commit/0bd754de2889af098ecbbd2d3f84e8a7e76a8075))
+* mark audit downgrades loudly (closes [#1215](https://github.com/arii/boomtick/issues/1215)) ([#1220](https://github.com/arii/boomtick/issues/1220)) ([051c5db](https://github.com/arii/boomtick/commit/051c5db057363cc5221a262c5a79cb8b433f5840))
+* preserve advertised Python 3.8 and 3.9 CLI imports ([#1344](https://github.com/arii/boomtick/issues/1344)) ([a897c83](https://github.com/arii/boomtick/commit/a897c83a7636999a33aa901facf1067cd8356ae4))
+* preserve Python 3.10 developer gate compatibility ([#1338](https://github.com/arii/boomtick/issues/1338)) ([316e534](https://github.com/arii/boomtick/commit/316e534784592c82a0e0da1b84d7472d2087bd33))
+* preserve worktree data across main updates and cleanup ([#1346](https://github.com/arii/boomtick/issues/1346)) ([6f28c9a](https://github.com/arii/boomtick/commit/6f28c9ac9ae424ba5fbfb9651ebeb9b1f66ab29c))
+* python best-practices batch (td_cli guard, f-strings, dead code, availability probe) ([#1219](https://github.com/arii/boomtick/issues/1219)) ([c76b009](https://github.com/arii/boomtick/commit/c76b009fe31c4a966390854b2f84b09a868b81cc))
+* RAG backend skew from transitive OTEL pins ([#1207](https://github.com/arii/boomtick/issues/1207)) ([f6691bd](https://github.com/arii/boomtick/commit/f6691bd72945bd8f9d9baf0a8f09ce09c94dad17))
+* **rag:** fail loud on unverified empty index in incremental path ([#1199](https://github.com/arii/boomtick/issues/1199)) ([7beb5e4](https://github.com/arii/boomtick/commit/7beb5e4154af872c89f4959b1fdf8ad40cb983cd))
+* reject wrong submission branch before commit and push ([#1345](https://github.com/arii/boomtick/issues/1345)) ([7807370](https://github.com/arii/boomtick/commit/7807370abce9da9a4bfe1d8ebdd0e38ad1d9ae9e))
+* repair the two failing optional CI jobs (preflight test on py3.14, verify:schemas venv) ([#1266](https://github.com/arii/boomtick/issues/1266)) ([8d15065](https://github.com/arii/boomtick/commit/8d150656f82e8552a9d1b75219dc90f65e5d27e9))
+* scope gate bypass window (closes [#1206](https://github.com/arii/boomtick/issues/1206)) ([#1209](https://github.com/arii/boomtick/issues/1209)) ([6f7e841](https://github.com/arii/boomtick/commit/6f7e8417d6317987f3fc48139f36541b0e9df1e4))
+* scope probe single range, fail closed (no retry) ([#1214](https://github.com/arii/boomtick/issues/1214)) ([002eeeb](https://github.com/arii/boomtick/commit/002eeeb44e8b5413bad044ef91ebfa039cfa54e3))
+* **setup-workspace:** work in container jobs and for consumers without cli/ ([#1283](https://github.com/arii/boomtick/issues/1283)) ([c8e6a3f](https://github.com/arii/boomtick/commit/c8e6a3fe0697db1f3cc0272202dcecc4b0e06586))
+* **tests:** gate RAG backend tests on real import, not find_spec ([#1193](https://github.com/arii/boomtick/issues/1193)) ([fc53afd](https://github.com/arii/boomtick/commit/fc53afd4fbfd0e42b6bca376322e6e799832e21e))
+
 ## [0.21.0](https://github.com/arii/boomtick/compare/cli-v0.20.2...cli-v0.21.0) (2026-11-20)
 
 
