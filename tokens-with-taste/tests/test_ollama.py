@@ -3,11 +3,9 @@ import json
 
 import httpx
 import pytest
-
+from test_gateway import reply
 from twt.catalog import sync
 from twt.gateway import create_app
-from test_gateway import reply
-
 
 MODEL = "test-chat:latest"
 REQUEST = {"model": "default", "messages": [{"role": "user", "content": "Hello"}]}
