@@ -211,7 +211,7 @@ def _advance_origin(origin_repo):
 
 
 def test_fast_forward_main_ref_without_checkout(tmp_path, origin_repo):
-    # #1139 item 6: local main advances via update-ref while a feature
+    # #1139 item 6: local main advances through the checked-worktree guard while a feature
     # branch (not main) is checked out; the feature branch is untouched.
     work = _clone_to(tmp_path, origin_repo, "work")
     stale_main = _rev(work, "refs/heads/main")
@@ -256,3 +256,105 @@ def test_cli_create_issue(origin_repo):
     payload = json.loads(created.output)
     assert payload["worktreeId"] == "issue-99"
     assert payload["status"] == "ready"
+
+
+@pytest.mark.parametrize("dirty", [False, True])
+def test_fast_forward_main_ref_preserves_main_in_another_worktree(
+    tmp_path, origin_repo, dirty
+):
+    work = _clone_to(tmp_path, origin_repo, "main-work")
+    feature = tmp_path / "feature-work"
+    _git(["worktree", "add", "-q", "-b", "feature", str(feature)], work)
+    if dirty:
+        (work / "README.md").write_text("owner edits\n")
+    old_head = _rev(work, "HEAD")
+    before_status = subprocess.check_output(["git", "status", "--porcelain"], cwd=work)
+    before_files = {p.name: p.read_bytes() for p in work.iterdir() if p.is_file()}
+    _advance_origin(origin_repo)
+    updated, note = wt.fast_forward_main_ref(str(feature))
+    assert updated is False
+    assert "checked out in another worktree" in note
+    assert _rev(work, "HEAD") == old_head
+    assert (
+        subprocess.check_output(["git", "status", "--porcelain"], cwd=work)
+        == before_status
+    )
+    assert {
+        p.name: p.read_bytes() for p in work.iterdir() if p.is_file()
+    } == before_files
+
+
+def test_fast_forward_main_ref_fails_closed_on_worktree_check(
+    tmp_path, origin_repo, monkeypatch
+):
+    work = _clone_to(tmp_path, origin_repo, "fail-work")
+    _git(["checkout", "-qb", "feature"], work)
+    old_main = _rev(work, "refs/heads/main")
+    _advance_origin(origin_repo)
+    real_git = wt._git
+
+    def checked_git(args, root):
+        if args[:2] == ["worktree", "list"]:
+            return subprocess.CompletedProcess(args, 1, "", "cannot enumerate")
+        return real_git(args, root)
+
+    monkeypatch.setattr(wt, "_git", checked_git)
+    updated, note = wt.fast_forward_main_ref(str(work))
+    assert updated is False
+    assert "could not verify" in note
+    assert _rev(work, "refs/heads/main") == old_main
+
+
+def test_fast_forward_main_ref_updates_current_clean_main(tmp_path, origin_repo):
+    work = _clone_to(tmp_path, origin_repo, "current-main")
+    _advance_origin(origin_repo)
+    updated, _note = wt.fast_forward_main_ref(str(work))
+    assert updated is True
+    assert _rev(work, "HEAD") == _rev(origin_repo, "HEAD")
+    assert (work / "bump.txt").read_text() == "bump\n"
+    assert subprocess.check_output(["git", "status", "--porcelain"], cwd=work) == b""
+
+
+def test_remove_refuses_unknown_status_before_effects(repo, monkeypatch):
+    wid, path, _branch = wt.create(str(repo), "status-failure")
+    dirty = __import__("pathlib").Path(path) / "owner.txt"
+    dirty.write_text("unsaved edits\n")
+    real_git = wt._git
+    calls = []
+
+    def failed_status(args, root):
+        calls.append(args)
+        if args[:2] == ["status", "--porcelain"]:
+            return subprocess.CompletedProcess(args, 1, "", "status unavailable")
+        return real_git(args, root)
+
+    def no_abandon(*_args):
+        pytest.fail("sessions must not be abandoned on unknown dirtiness")
+
+    monkeypatch.setattr(wt, "_git", failed_status)
+    monkeypatch.setattr(wt.local_sessions, "abandon_sessions_in_worktree", no_abandon)
+    with pytest.raises(wt.WorktreeError, match="Cannot verify"):
+        wt.remove(str(repo), wid)
+    assert dirty.read_text() == "unsaved edits\n"
+    assert calls == [["status", "--porcelain"]]
+
+
+def test_remove_rechecks_dirtiness_in_git(repo, monkeypatch):
+    wid, path, _branch = wt.create(str(repo), "dirty-race")
+    dirty = __import__("pathlib").Path(path) / "owner.txt"
+    real_git = wt._git
+
+    def concurrent_edit(args, root):
+        if args[:2] == ["worktree", "remove"]:
+            assert "--force" not in args
+            dirty.write_text("new edits after precheck\n")
+        return real_git(args, root)
+
+    def no_abandon(*_args):
+        pytest.fail("sessions must remain active when Git refuses removal")
+
+    monkeypatch.setattr(wt.local_sessions, "abandon_sessions_in_worktree", no_abandon)
+    monkeypatch.setattr(wt, "_git", concurrent_edit)
+    with pytest.raises(wt.WorktreeError, match="git worktree remove failed"):
+        wt.remove(str(repo), wid)
+    assert dirty.read_text() == "new edits after precheck\n"
