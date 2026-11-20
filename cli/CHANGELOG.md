@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.21.0](https://github.com/arii/boomtick/compare/cli-v0.20.2...cli-v0.21.0) (2026-11-20)
+
+
+### Features
+
+* add LangGraph.js workflows package with run_workflow MCP gateway ([#1263](https://github.com/arii/boomtick/issues/1263)) ([ad3b686](https://github.com/arii/boomtick/commit/ad3b68612750e2d39e6d65ebcff6aad650112e91))
+* consolidate MCP tool surface with typed schemas and explicit modes ([#1259](https://github.com/arii/boomtick/issues/1259)) ([5a4d93c](https://github.com/arii/boomtick/commit/5a4d93c7f280e2862bfb383b1c5166cf0becec44))
+* **twt:** support Cloudflare static discovery, reclassify Mistral, and add --json to submit-pr ([#1317](https://github.com/arii/boomtick/issues/1317)) ([00b44bf](https://github.com/arii/boomtick/commit/00b44bfa25c6af44d28111e0ebaaf4f279376529))
+
+
+### Bug Fixes
+
+* **agent-ledger:** collision-safe task keys for URL-referencing tasks ([#1322](https://github.com/arii/boomtick/issues/1322)) ([aa0fce2](https://github.com/arii/boomtick/commit/aa0fce2a1b033844cf318b5fd4811a5cb486f0bb))
+* audit batch [#1231](https://github.com/arii/boomtick/issues/1231) [#1232](https://github.com/arii/boomtick/issues/1232) [#1233](https://github.com/arii/boomtick/issues/1233) [#1234](https://github.com/arii/boomtick/issues/1234) [#1235](https://github.com/arii/boomtick/issues/1235) + [#1236](https://github.com/arii/boomtick/issues/1236) verified cuts ([#1237](https://github.com/arii/boomtick/issues/1237)) ([4a200e4](https://github.com/arii/boomtick/commit/4a200e44875c2b55e93e3ced05f87480dc87f245))
+* **cli:** exit non-zero when td preflight reports errors ([#1287](https://github.com/arii/boomtick/issues/1287)) ([16459ca](https://github.com/arii/boomtick/commit/16459caf826370a00c5e5f4b69270ad5a8333828))
+* repair the two failing optional CI jobs (preflight test on py3.14, verify:schemas venv) ([#1266](https://github.com/arii/boomtick/issues/1266)) ([8d15065](https://github.com/arii/boomtick/commit/8d150656f82e8552a9d1b75219dc90f65e5d27e9))
+* **setup-workspace:** work in container jobs and for consumers without cli/ ([#1283](https://github.com/arii/boomtick/issues/1283)) ([c8e6a3f](https://github.com/arii/boomtick/commit/c8e6a3fe0697db1f3cc0272202dcecc4b0e06586))
+
 ## [0.20.2](https://github.com/arii/boomtick/compare/cli-v0.20.1...cli-v0.20.2) (2026-11-08)
 
 
