@@ -115,7 +115,7 @@ class CogneeLive:
     Cloud auth: X-Api-Key (+ X-Tenant-Id if COGNEE_TENANT_ID set). Self-hosted with auth: Bearer.
     add = multipart (datasetName + repeated raw_data); cognify = JSON {"datasets": [...]};
     search = JSON {"query", "search_type"}. We use add + cognify (remember is the combined call)."""
-    label = "Cognee (live)"
+    label = "Cognee (enabled; live execution requires evidence)"
     DATASET = "proofloop_sessions"
 
     def __init__(self):
@@ -171,119 +171,6 @@ def cognee():
     return CogneeLive() if config.mode("cognee") == "live" else CogneeStub()
 
 
-# ---------------------------------------------------------------- Gate
-LOCAL_GATE_MODEL = "local-threshold-gate-v1"
-
-
-def local_gate(state):
-    """Deterministic, auditable promotion gate. No API call.
-
-    promote            candidate pass rate > baseline AND violations did not increase
-    reject_and_refine  candidate pass rate < baseline OR violations increased
-    hold               otherwise (equal pass rate, no violation increase)
-
-    Ledger fields: confidence = candidate - baseline pass rate (delta),
-    constraints_prob = violation count after the candidate, utility_score = candidate pass rate.
-    """
-    base, cand = state["baseline_pass_rate"], state["candidate_pass_rate"]
-    before, after = state["constraint_violations_before"], state["constraint_violations_after"]
-    if cand < base or after > before:
-        choice = "reject_and_refine"
-    elif cand > base:
-        choice = "promote"
-    else:
-        choice = "hold"
-    return {"model": LOCAL_GATE_MODEL, "choice": choice, "confidence": round(cand - base, 4),
-            "constraints_prob": after, "utility_score": round(cand, 4), "source": "local"}
-
-
-def decide(state):
-    """Gate dispatcher. Default is the local gate; PROOFLOOP_GATE=jev re-enables the Jev path."""
-    return jev_gate(state) if config.gate_mode() == "jev" else local_gate(state)
-
-
-# ---------------------------------------------------------------- Jev (disabled by default; PROOFLOOP_GATE=jev)
-def jev_stub(state):
-    """Deterministic threshold gate. Same output shape as the live gate."""
-    base, cand = state["baseline_pass_rate"], state["candidate_pass_rate"]
-    total_checks = max(1, state.get("total_checks", 1))
-    cp = round(state["constraint_violations_after"] / total_checks, 2)
-    if cand < base:
-        choice = "reject_and_refine"
-    elif cand > base and cp < 0.3:
-        choice = "promote"
-    else:
-        choice = "hold"
-    delta = cand - base
-    confidence = round(min(0.99, max(0.5, 0.6 + abs(delta) * 0.6 + (0.1 if cp < 0.3 else 0))), 2)
-    utility = round(max(0.0, min(1.0, cand - 0.5 * cp * (1 if cand < 1 else 0))), 2)
-    return {"model": "jev-stub-threshold-gate", "choice": choice, "confidence": confidence,
-            "constraints_prob": cp, "utility_score": utility, "source": "stub"}
-
-
-def jev_request_body(state, model):
-    """POST /v1/systemone body per the TypeSafe HTTP API reference: questions is a map of
-    id -> {type: choice|score|noul, instructions, criteria}. Jev is weak at arithmetic, so the
-    state is described in words; numeric decisions are re-checked in code (see gate_guard)."""
-    text = (
-        f"A candidate skill upgrade was replayed against {state['total_tasks']} historical tasks. "
-        f"Baseline pass rate {state['baseline_pass_rate']:.2f}, candidate pass rate {state['candidate_pass_rate']:.2f}. "
-        f"Constraint violations before: {state['constraint_violations_before']}, after: {state['constraint_violations_after']} "
-        f"(out of {state['total_checks']} checks). Steps added or removed: {state['step_count_delta']}.")
-    return {
-        "model": model,
-        "state": text,
-        "questions": {
-            "decision": {"type": "choice", "instructions": "Should this skill upgrade be promoted?",
-                         "criteria": {"promote": "Candidate clearly beats baseline with few violations",
-                                      "reject_and_refine": "Candidate is worse than baseline",
-                                      "hold": "No clear improvement or too many violations"}},
-            "utility": {"type": "score", "instructions": "How useful is this upgrade overall?",
-                        "criteria": ["Harmful", "No benefit", "Some benefit", "Clear benefit", "Excellent"]},
-            "violates_constraints": {"type": "noul",
-                                     "instructions": "The candidate still violates stored user constraints."},
-        },
-    }
-
-
-def jev_gate(state):
-    if config.mode("jev") == "stub":
-        return jev_stub(state)
-    headers = {"Authorization": f"Bearer {config.get('TYPESAFE_API_KEY')}"}
-    url = f"{config.base_url('jev')}/v1/systemone"
-    model = config.get("TYPESAFE_MODEL", config.JEV_MODEL)
-    try:
-        _, res = http_json("POST", url, headers, jev_request_body(state, model), timeout=15, retries=1)
-    except ApiError as e:
-        if e.status in (400, 404, 422) and model != "jev-latest":
-            # The spec's model slug may not be accepted; the HTTP reference documents "jev-latest".
-            _, res = http_json("POST", url, headers, jev_request_body(state, "jev-latest"), timeout=15, retries=1)
-        else:
-            raise
-    return gate_guard(_parse_jev(res), state)
-
-
-def _parse_jev(res):
-    ans = res.get("answers", {})
-    dec, util, viol = ans.get("decision", {}), ans.get("utility", {}), ans.get("violates_constraints", {})
-    choice = dec.get("choice")
-    if choice not in ("promote", "reject_and_refine", "hold"):
-        raise ApiError(200, f"unrecognized Jev response: {json.dumps(res)[:200]}")
-    legend = util.get("legend") or {}
-    top = max((int(k) for k in legend), default=4) or 1
-    return {"model": res.get("model", config.JEV_MODEL), "choice": choice,
-            "confidence": round(float(dec.get("confidence", 0.0)), 2),
-            "constraints_prob": round(float(viol.get("noul", 0.0)), 2),
-            "utility_score": round(float(util.get("score", 0.0)) / top, 2), "source": "live"}
-
-
-def gate_guard(gate, state):
-    """Deterministic floor: Jev cannot promote a candidate that is not strictly better."""
-    if gate["choice"] == "promote" and state["candidate_pass_rate"] <= state["baseline_pass_rate"]:
-        return {**gate, "choice": "hold", "source": "live+guard"}
-    return gate
-
-
 # ---------------------------------------------------------------- Senso
 class SensoStub:
     """JSON file store mimicking POST /kb/raw, GET /kb/nodes/{id}, POST /search."""
@@ -327,7 +214,7 @@ class SensoLive:
     POST /org/kb/raw {title,text} -> 202 {id, kb_node_id}; poll GET /org/kb/nodes/{kb_node_id}
     until content.processing_status == complete; POST /org/search -> results[].content_id == id.
     Identical text returns 409, so promoted text always carries version, cycle and timestamp."""
-    label = "Senso (live)"
+    label = "Senso (enabled; live execution requires evidence)"
 
     def __init__(self):
         self.base = config.base_url("senso") + "/api/v1"
@@ -358,7 +245,9 @@ def senso_promote(client, title, text, version, poll_s=None, max_polls=24):
     status, body = client.post_raw(title, text, version)
     if status != 202:
         raise ApiError(status, body)
-    content_id, nid = body["id"], body["kb_node_id"]
+    content_id, nid = body.get("id"), body.get("kb_node_id")
+    if not content_id or not nid:
+        raise ApiError(0, "promotion response missing content/node id")
     for _ in range(max_polls):
         node = client.get_node(nid)
         st = (node.get("content") or {}).get("processing_status")
@@ -370,7 +259,9 @@ def senso_promote(client, title, text, version, poll_s=None, max_polls=24):
     else:
         raise ApiError(0, f"node {nid} not complete after {max_polls} polls")
     hits = client.search(title)
-    return {"node_id": nid, "verified": any(h.get("content_id") == content_id for h in hits)}
+    if not any(h.get("content_id") == content_id for h in hits):
+        raise ApiError(0, "promotion search readback did not find uploaded content; active skill unchanged")
+    return {"node_id": nid, "verified": True, "mode": config.mode("senso")}
 
 
 # ---------------------------------------------------------------- LLM
