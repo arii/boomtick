@@ -1,27 +1,11 @@
 """GitHub issue resource."""
 
-import subprocess
 from typing import Any, Dict, List, Optional
-from dev_tools.utils import log_warn
 from dev_tools.services.gh.checks import ChecksMixin
 
 
 class IssuesMixin(ChecksMixin):
     """GitHub issue resource."""
-
-    def close_issue(
-        self, number: int, repo: Optional[str] = None, comment: Optional[str] = None
-    ) -> bool:
-        """Closes an issue with an optional comment."""
-        target_repo = repo or self.repo
-        cmd = ["gh", "issue", "close", str(number), "-R", target_repo]
-        if comment:
-            cmd.extend(["--comment", comment])
-        res = subprocess.run(cmd, capture_output=True, text=True, check=False)
-        if res.returncode == 0:
-            return True
-        log_warn(f"gh issue close failed for #{number} in {target_repo}: {res.stderr}")
-        return False
 
     def create_issue_comment(
         self, number: int, body: str, repo: Optional[str] = None
