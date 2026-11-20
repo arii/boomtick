@@ -4,7 +4,6 @@ from importlib.resources import files
 
 import httpx
 
-
 LITELLM_SHA = "d034fb681ca296a0f082a224043eda62a2ce82d4"
 PRICE_URL = f"https://raw.githubusercontent.com/BerriAI/litellm/{LITELLM_SHA}/model_prices_and_context_window.json"
 OPENROUTER_URL = "https://openrouter.ai/api/v1/models"

@@ -2,11 +2,11 @@ import asyncio
 import os
 import time
 import uuid
-from ipaddress import ip_address
 from collections import defaultdict, deque
 from contextlib import asynccontextmanager
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from email.utils import parsedate_to_datetime
+from ipaddress import ip_address
 from urllib.parse import urlsplit
 
 import httpx
@@ -14,11 +14,16 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
 from .audit import flags_for, usage
-from .costs import cost_upper_bound
 from .catalog import (
-    base_url, catalog_models, configured_providers, headers, missing,
-    ollama_running_context, require_local_ollama,
+    base_url,
+    catalog_models,
+    configured_providers,
+    headers,
+    missing,
+    ollama_running_context,
+    require_local_ollama,
 )
+from .costs import cost_upper_bound
 from .store import Store, now
 
 
@@ -41,7 +46,7 @@ def retry_seconds(value):
         return max(0, seconds) if seconds < float("inf") else 60
     except (TypeError, ValueError):
         try:
-            return max(0, (parsedate_to_datetime(value) - datetime.now(timezone.utc)).total_seconds())
+            return max(0, (parsedate_to_datetime(value) - datetime.now(UTC)).total_seconds())
         except (TypeError, ValueError, OverflowError):
             return 60
 

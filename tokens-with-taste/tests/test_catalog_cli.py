@@ -3,10 +3,9 @@ import json
 
 import httpx
 import pytest
-
+from test_gateway import reply, run, setup
 from twt.catalog import OPENROUTER_URL, PRICE_URL, normalize, providers, sync
 from twt.cli import main
-from test_gateway import reply, run, setup
 
 
 def test_provider_policy():
@@ -172,3 +171,28 @@ def test_cli_sync_failure(store, monkeypatch, capsys):
     with pytest.raises(SystemExit, match="1"):
         main(["--db", str(store.path), "sync"])
     assert "Catalog sync failed (ConnectError: DNS resolution failed)" in capsys.readouterr().err
+
+
+@pytest.mark.parametrize("value,expected", [
+    ("2026-11-20", "2026-11-20T00:00:00+00:00"),
+    ("2026-11-20T07:00:00Z", "2026-11-20T07:00:00+00:00"),
+    ("2026-11-20T07:00:00-08:00", "2026-11-20T15:00:00+00:00"),
+])
+def test_since_date_preserves_utc_semantics(value, expected):
+    from twt.cli import since_date
+
+    assert since_date(value) == expected
+
+
+@pytest.mark.parametrize("error", [
+    httpx.ConnectError("offline"), ValueError("invalid catalog"),
+    KeyError("data"), TypeError("bad row"), OSError("disk failed"),
+])
+def test_sync_expected_failures_are_reported(store, monkeypatch, capsys, error):
+    async def failed(storage):
+        raise error
+
+    monkeypatch.setattr("twt.cli.sync", failed)
+    with pytest.raises(SystemExit, match="1"):
+        main(["--db", str(store.path), "sync"])
+    assert "Catalog sync failed" in capsys.readouterr().err

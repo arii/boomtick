@@ -1,14 +1,12 @@
 import asyncio
 import json
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from email.utils import format_datetime
 
 import httpx
 import pytest
-
 from twt.catalog import providers
 from twt.gateway import Gateway, create_app, retry_seconds
-
 
 REQUEST = {"model": "default", "messages": [{"role": "user", "content": "hello"}], "stream": True}
 
@@ -204,7 +202,7 @@ def test_retry_after_values():
     assert retry_seconds("nonsense") == 60
     assert retry_seconds("-2") == 0
     assert retry_seconds("inf") == 60
-    future = format_datetime(datetime.now(timezone.utc) + timedelta(seconds=90), usegmt=True)
+    future = format_datetime(datetime.now(UTC) + timedelta(seconds=90), usegmt=True)
     assert 88 < retry_seconds(future) <= 90
 
 

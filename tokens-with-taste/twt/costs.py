@@ -1,6 +1,6 @@
 import json
 import math
-from decimal import Decimal, DecimalException, ROUND_CEILING
+from decimal import ROUND_CEILING, Decimal, DecimalException
 
 
 def cost_upper_bound(request, model, observed=None):

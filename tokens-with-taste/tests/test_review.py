@@ -3,10 +3,9 @@ import json
 
 import httpx
 import pytest
-
-from twt.gateway import Gateway, create_app
-from twt.audit import report
 from test_gateway import REQUEST, reply, run, setup
+from twt.audit import report
+from twt.gateway import Gateway, create_app
 
 
 def test_slow_upstream_requests_overlap(store, monkeypatch):
@@ -101,10 +100,12 @@ def test_hostile_origin_cannot_spend(store, monkeypatch, origin):
     configuration = setup(store, monkeypatch, 1)
 
     async def scenario():
-        async with httpx.AsyncClient(transport=httpx.MockTransport(lambda r: pytest.fail("must not spend"))) as upstream:
-            async with httpx.AsyncClient(transport=httpx.ASGITransport(create_app(store, upstream, configuration)), base_url="http://test") as api:
-                response = await api.post("/v1/chat/completions", json=REQUEST, headers={"Origin": origin})
-                assert response.status_code == 403
+        async with (
+            httpx.AsyncClient(transport=httpx.MockTransport(lambda r: pytest.fail("must not spend"))) as upstream,
+            httpx.AsyncClient(transport=httpx.ASGITransport(create_app(store, upstream, configuration)), base_url="http://test") as api,
+        ):
+            response = await api.post("/v1/chat/completions", json=REQUEST, headers={"Origin": origin})
+            assert response.status_code == 403
     asyncio.run(scenario())
 
 
@@ -113,10 +114,12 @@ def test_non_json_request_cannot_spend(store, monkeypatch, content_type):
     configuration = setup(store, monkeypatch, 1)
 
     async def scenario():
-        async with httpx.AsyncClient(transport=httpx.MockTransport(lambda r: pytest.fail("must not spend"))) as upstream:
-            async with httpx.AsyncClient(transport=httpx.ASGITransport(create_app(store, upstream, configuration)), base_url="http://test") as api:
-                response = await api.post("/v1/chat/completions", content=json.dumps(REQUEST), headers={"Content-Type": content_type} if content_type else {})
-                assert response.status_code == 415
+        async with (
+            httpx.AsyncClient(transport=httpx.MockTransport(lambda r: pytest.fail("must not spend"))) as upstream,
+            httpx.AsyncClient(transport=httpx.ASGITransport(create_app(store, upstream, configuration)), base_url="http://test") as api,
+        ):
+            response = await api.post("/v1/chat/completions", content=json.dumps(REQUEST), headers={"Content-Type": content_type} if content_type else {})
+            assert response.status_code == 415
     asyncio.run(scenario())
 
 
@@ -125,12 +128,14 @@ def test_loopback_json_request_allowed(store, monkeypatch, origin):
     configuration = setup(store, monkeypatch, 1)
 
     async def scenario():
-        async with httpx.AsyncClient(transport=httpx.MockTransport(lambda r: httpx.Response(200, json=reply()))) as upstream:
-            async with httpx.AsyncClient(transport=httpx.ASGITransport(create_app(store, upstream, configuration)), base_url="http://test") as api:
-                headers = {"Content-Type": "application/json; charset=utf-8"}
-                if origin:
-                    headers["Origin"] = origin
-                assert (await api.post("/v1/chat/completions", content=json.dumps(REQUEST), headers=headers)).status_code == 200
+        async with (
+            httpx.AsyncClient(transport=httpx.MockTransport(lambda r: httpx.Response(200, json=reply()))) as upstream,
+            httpx.AsyncClient(transport=httpx.ASGITransport(create_app(store, upstream, configuration)), base_url="http://test") as api,
+        ):
+            headers = {"Content-Type": "application/json; charset=utf-8"}
+            if origin:
+                headers["Origin"] = origin
+            assert (await api.post("/v1/chat/completions", content=json.dumps(REQUEST), headers=headers)).status_code == 200
     asyncio.run(scenario())
 
 

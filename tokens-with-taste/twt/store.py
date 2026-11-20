@@ -2,12 +2,12 @@ import json
 import math
 import os
 import sqlite3
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 
 def now():
-    return datetime.now(timezone.utc).isoformat()
+    return datetime.now(UTC).isoformat()
 
 
 class Store:
@@ -74,7 +74,7 @@ class Store:
 
     def spend_today(self):
         """Count each dispatched attempt; unbounded spend exhausts any budget."""
-        day = datetime.now(timezone.utc).date().isoformat()
+        day = datetime.now(UTC).date().isoformat()
         total = 0.0
         for trace in self.traces(day):
             for attempt in trace["attempts"]:
