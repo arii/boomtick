@@ -5,9 +5,16 @@ One shared task store (intake form -> response Sheet -> hourly versioned
 ledger snapshots in Drive) that any assistant can use from the command line:
 
   post     agent_ledger.py post --source NAME --note "task" --status Act [--link URL]
-  new      agent_ledger.py new --source NAME --note "task" --status Act
-           (mints a stable task-<id> key into the Link field - use this for
-           tasks that have no URL, otherwise they get no stable identity)
+  new      agent_ledger.py new --source NAME --note "task" --status Act [--link URL]
+           (mints a stable task-<id> key into the Link field; with --link the
+           URL is appended to the note, so the task keeps a unique key)
+
+Key identity: the Link field doubles as the task key and the store folds
+latest-row-per-key. Two DISTINCT tasks posted with the same --link URL share
+one key and merge in the read view - the latest note wins and the earlier
+task becomes invisible to read/history. Use new [--link URL] for any task
+that merely references a URL; reserve post --link for the one task that IS
+about that URL.
   update   agent_ledger.py update --key KEY --source NAME --status STATUS [--note "..."]
            (appends a new intake row under the same key: this is how status
            changes and owner changes are recorded; latest row per key wins)
@@ -213,15 +220,20 @@ def main():
 
     if args.cmd == "new":
         key = "task-" + uuid.uuid4().hex[:12]
+        note = args.note
+        if args.link:
+            note = note + " Link: " + args.link
         res = post_row(
             args.form_url,
             args.source,
-            args.note,
+            note,
             args.status or "Act",
             key,
             args.dry_run,
         )
         res["key"] = key
+        if args.link:
+            res["link"] = args.link
     elif args.cmd == "claim":
         res = post_row(
             args.form_url,
@@ -251,6 +263,13 @@ def main():
             args.link,
             args.dry_run,
         )
+        if args.link and "://" in args.link:
+            res["warning"] = (
+                "the URL doubles as the task key: a second distinct task "
+                "posted with the same URL merges under latest-per-key "
+                "folding. Use 'new --link URL' to mint a unique task-<id> "
+                "key instead."
+            )
     print(json.dumps(res))
     return 0
 
