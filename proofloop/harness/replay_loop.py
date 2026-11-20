@@ -2,7 +2,7 @@
 """ProofLoop replay harness.
 
 Flow: ingest sessions -> Cognee recall -> replay tasks -> baseline replay ->
-mutation -> promotion gate -> Senso promotion -> proof ledger -> rollback on reject.
+mutation -> local Replay Gate -> Senso promotion -> proof ledger -> rollback on reject.
 
     python3 replay_loop.py --reset                 # full demo run
     python3 replay_loop.py --reset --bad-demo      # plus a bad mutation that gets rolled back
@@ -16,6 +16,7 @@ from datetime import datetime, timezone
 
 import agent
 import clients
+import replay_gate
 import config
 import validate
 
@@ -55,11 +56,13 @@ def reset_state():
 def ingest_and_recall(sessions, suite):
     """Ingest into Cognee and check recall coverage. The replay suite always stays the full
     curated set, so pass rates are comparable run to run; partial recall is reported, not hidden."""
+    if config.mode("cognee") == "live" and config.get("PROOFLOOP_ALLOW_SESSION_UPLOAD") != "1":
+        raise SystemExit("Session upload disabled: authorize the specific input dataset before setting PROOFLOOP_ALLOW_SESSION_UPLOAD=1")
     cg = clients.cognee()
     log(f"[1] Cognee ingest via: {cg.label}")
     log(f"    {cg.ingest(sessions)}")
     kept, note = recall_tasks(cg, suite)
-    if not kept:
+    if not kept and config.get("PROOFLOOP_INCLUDE_LOCAL_SKILLS") == "1":
         docs = [(p.name, p.read_text()) for p in sorted(config.SKILLS_LOCAL.glob("*.md"))]
         if docs:
             log(f"    recall empty; seeding graph with {len(docs)} local skill docs")
@@ -113,7 +116,7 @@ def mutate(skill, rep):
             break
     if not add:
         return None, "no applicable fix"
-    return skill["steps"] + add, "rule-based (no LLM key)"
+    return skill["steps"] + add, "rule-based (offline mutation)"
 
 
 def bad_mutation(skill):
@@ -139,35 +142,30 @@ def run_cycle(n, active, steps, version, tasks, base_rep, ledger, senso_client):
         if not r["passed"]:
             log(f"    - {r['task_id']} fails: {', '.join(r['failed_checks'])}")
 
-    state = {
-        "baseline_pass_rate": base_rep["pass_rate"], "candidate_pass_rate": rep["pass_rate"],
-        "constraint_violations_before": base_rep["violations"],
-        "constraint_violations_after": rep["violations"],
-        "step_count_delta": len(steps) - len(active["steps"]),
-        "total_checks": rep["total_checks"], "total_tasks": rep["total"],
-    }
-    gate = clients.decide(state)
-    if gate["source"] == "local":
-        detail = (f"delta={gate['confidence']} violations={gate['constraints_prob']} "
-                  f"candidate_pass_rate={gate['utility_score']}")
-    else:
-        detail = (f"confidence={gate['confidence']} constraints_prob={gate['constraints_prob']} "
-                  f"utility={gate['utility_score']}")
-    log(f"[5] Gate ({gate['model']}, {gate['source']}): {gate['choice']} {detail}")
+    gate = replay_gate.decide(base_rep, rep, tasks)
+    log(f"[5] Local Replay Gate: {gate['choice']} ({gate['reason']})")
 
     node_id = ""
-    status = "rolled_back"
+    status = "held" if gate["choice"] == "hold" else "rolled_back"
+    retrieval = {"verified": False, "mode": config.mode("senso")}
     proof = {"cycle": n, "version": version, "parent": active["version"],
              "pass_before": base_rep["passed"], "pass_after": rep["passed"], "total": rep["total"]}
     if gate["choice"] == "promote":
         cycle_id = f"cyc-{n:03d}"
-        text = json.dumps({"skill": cand, "proof": proof, "gate": gate, "promoted_at": now()}, indent=2)
-        res = clients.senso_promote(senso_client, f"ProofLoop skill {version}", text, f"{version}+{cycle_id}")
-        node_id = res["node_id"]
-        status = "promoted"
-        log(f"[6] {senso_client.label}: 202 -> complete, node {node_id}, search verified={res['verified']}")
+        text = json.dumps({"skill": cand, "proof": proof, "replay_gate": gate, "promoted_at": now()}, indent=2)
+        try:
+            result = clients.senso_promote(senso_client, f"ProofLoop skill {version}", text, f"{version}+{cycle_id}")
+            if not result.get("verified"):
+                raise clients.ApiError(0, "promotion readback not verified")
+            retrieval = {**result, "mode": config.mode("senso")}
+            node_id = retrieval["node_id"]
+            status = "promoted"
+            log(f"[6] {senso_client.label}: readback found content ({retrieval['mode']})")
+        except clients.ApiError:
+            status = "promotion_failed"
+            log("[6] Promotion/readback failed; active skill unchanged. Remote content may remain.")
     else:
-        log(f"[8] Rollback: Gate returned {gate['choice']}; active stays {active['version']}")
+        log(f"[8] {status}: local Replay Gate returned {gate['choice']}; active stays {active['version']}")
 
     entry = {
         "cycle_id": f"cyc-{n:03d}", "timestamp": now(), "version": version,
@@ -176,7 +174,7 @@ def run_cycle(n, active, steps, version, tasks, base_rep, ledger, senso_client):
         "total_tasks": rep["total"], "pass_rate_before": base_rep["pass_rate"],
         "pass_rate_after": rep["pass_rate"], "delta": round(rep["pass_rate"] - base_rep["pass_rate"], 4),
         "skill_diff": d,
-        "jev_gate": {k: gate[k] for k in ("model", "choice", "confidence", "constraints_prob", "utility_score")},
+        "replay_gate": gate, "retrieval": retrieval,
         "senso_kb_node_id": node_id, "status": status,
     }
     ledger["entries"].append(entry)
@@ -202,6 +200,13 @@ def main():
     if args.reset:
         reset_state()
 
+    skill_p, ledger_p, run_p = state_paths()
+    active = load_json(skill_p, BASE_SKILL)
+    ledger = load_json(ledger_p, {"active_version": active["version"], "entries": []})
+    if ledger.get("schema_version") != 2 and ledger.get("entries"):
+        raise SystemExit("Legacy ledger: use a separate PROOFLOOP_STATE directory or explicitly --reset; no silent migration.")
+    ledger["schema_version"] = 2
+
     sessions = validate.load_sessions()
     suite = validate.load_suite()
     log("Service modes: " + "; ".join(f"{k}={v['mode']}" for k, v in config.status().items()))
@@ -210,9 +215,6 @@ def main():
     log(f"[2] {recall_note}")
     save_json(config.STATE_DIR / "replay_tasks.generated.json", {"suite_id": suite["suite_id"], "tasks": tasks})
 
-    skill_p, ledger_p, run_p = state_paths()
-    active = load_json(skill_p, BASE_SKILL)
-    ledger = load_json(ledger_p, {"active_version": active["version"], "entries": []})
     base_rep = agent.replay(active, tasks)
     log(f"[3] Baseline {active['version']}: {base_rep['passed']}/{base_rep['total']} passed")
     for r in base_rep["results"]:
