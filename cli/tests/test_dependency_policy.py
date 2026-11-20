@@ -10,7 +10,11 @@ transitively via chromadb/semgrep; pins here can only reintroduce skew.
 
 import os
 import re
-import tomllib
+
+try:
+    import tomllib
+except ModuleNotFoundError:
+    import tomli as tomllib
 
 PYPROJECT = os.path.join(os.path.dirname(__file__), "..", "pyproject.toml")
 
