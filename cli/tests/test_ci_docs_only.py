@@ -10,6 +10,7 @@ from unittest.mock import patch
 
 SCRIPT = Path(__file__).resolve().parents[2] / "scripts" / "ci-docs-only.py"
 SPEC = importlib.util.spec_from_file_location("ci_docs_only", SCRIPT)
+assert SPEC is not None and SPEC.loader is not None
 GATE = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(GATE)
 
