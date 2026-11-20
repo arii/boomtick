@@ -46,15 +46,13 @@ def _spec_backtick_paths(body, *headings):
     """Backtick-quoted paths inside the given sections."""
     paths = []
     for line in _spec_section_lines(body, *headings):
-        for path in re.findall(r"`([^`]+)`", line):
+        entries = re.findall(r"`([^`]+)`", line)
+        for index, path in enumerate(entries):
             path = path.strip()
-            # Function names and other inline identifiers are explanatory prose,
-            # not file boundaries. Keep filenames, directories and dotfiles.
-            is_path = (
-                "/" in path
-                or "." in path
-                or path in {"LICENSE", "Dockerfile", "Makefile", "NOTICE"}
-            )
+            # A leading list entry can name an extensionless file. Elsewhere,
+            # bare identifiers in explanation prose are not file boundaries.
+            listed_path = index == 0 and re.match(r"^\s*(?:[-*+]|\d+[.)])\s+`", line)
+            is_path = "/" in path or "." in path or listed_path
             if path and is_path and path not in paths:
                 paths.append(path)
     return paths
