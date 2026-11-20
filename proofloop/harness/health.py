@@ -12,8 +12,8 @@ import config
 
 
 def check_senso():
-    if config.mode("senso") == "stub":
-        return "STUB", "not explicitly enabled with credentials"
+    if config.mode("senso") != "live":
+        return "OFF", "not enabled (PROOFLOOP_LIVE_SERVICES=senso and SENSO_API_KEY)"
     result = clients.SensoLive().health()
     if result["status"] != 200:
         raise clients.ApiError(result["status"], "health request not successful")
@@ -23,16 +23,14 @@ def check_senso():
 def check_llm():
     backend = config.llm_backend()
     if backend is None:
-        return "STUB", "not explicitly enabled (twt needs PROOFLOOP_LIVE_SERVICES=twt; openrouter needs llm + key)"
-    text = clients.llm_chat("hi", max_tokens=64)
-    if text is None:
-        raise clients.ApiError(0, "completion response missing choices")
-    return "GREEN", f"synthetic one-token completion via {backend} succeeded (not replay/executor proof)"
+        return "OFF", "not enabled (twt needs PROOFLOOP_LIVE_SERVICES=twt; openrouter needs llm + key)"
+    clients.llm_chat("Reply with the word ok.", max_tokens=16)
+    return "GREEN", f"one completion via {backend} succeeded (not proof of replay quality)"
 
 
 def check_cognee():
-    if config.mode("cognee") == "stub":
-        return "STUB", "not explicitly enabled with credentials"
+    if config.mode("cognee") != "live":
+        return "OFF", "not enabled (PROOFLOOP_LIVE_SERVICES=cognee, COGNEE_API_URL, COGNEE_API_KEY)"
     client = clients.CogneeLive()
     client.DATASET = "proofloop_healthcheck"
     client.ingest([{"session_id": "sess_0000_00_00_healthcheck", "constraint": "healthcheck"}])
@@ -58,7 +56,7 @@ def main():
         except clients.ApiError:
             state, message, red = "RED", "probe failed; no live execution claim", True
         print(f"{name:11s} {state:5s} {message}")
-    print("gate        LOCAL measured deterministic replay checks")
+    print("gate        LOCAL scores real LLM answers on replay tasks (needs llm)")
     return 1 if red else 0
 
 

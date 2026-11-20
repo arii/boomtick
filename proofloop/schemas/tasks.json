@@ -1,0 +1,22 @@
+{
+  "_comment": "Task vocabulary shared by the replay task generator, the mutator (rule scopes) and the extension's task classifier. Signals are weak page cues for the local classifier, not site lists: no hostnames appear here.",
+  "tasks": [
+    {"id": "job_application", "description": "Applying for a job or submitting a candidate profile to a recruiter or company.",
+     "signals": {"text": ["apply", "application", "resume", "cv", "cover letter", "linkedin", "recruiter", "position", "role", "job"], "fields": ["phone", "email", "name"]}},
+    {"id": "event_registration", "description": "Registering or requesting to join an event, meetup, hackathon or conference.",
+     "signals": {"text": ["register", "registration", "rsvp", "request to join", "ticket", "event", "attend", "hackathon", "in-person"], "fields": ["email", "name", "city"]}},
+    {"id": "insurance_or_service_quote", "description": "Requesting a quote or starting an application for a business or personal service such as insurance.",
+     "signals": {"text": ["quote", "coverage", "policy", "insure", "insurance", "start application"], "fields": ["address", "phone"]}},
+    {"id": "account_signup", "description": "Creating an account or signing up for a product.",
+     "signals": {"text": ["sign up", "create account", "get started", "password", "join now"], "fields": ["email"]}},
+    {"id": "profile_edit", "description": "Editing saved personal or contact details in a profile or settings page.",
+     "signals": {"text": ["profile", "settings", "account details", "contact info", "edit profile", "save changes"], "fields": ["phone", "email", "city"]}},
+    {"id": "scheduling", "description": "Booking or proposing a meeting time, call or appointment.",
+     "signals": {"text": ["schedule", "book", "availability", "time zone", "meeting", "appointment", "calendar"], "fields": ["email", "name"]}},
+    {"id": "publishing_claims", "description": "Writing or reviewing a page, report or demo that states numbers, results or links.",
+     "signals": {"text": ["results", "accuracy", "benchmark", "tally", "dashboard", "report", "publish"], "fields": []}},
+    {"id": "verification", "description": "Checking that something is live, deployed or working, rather than assuming it.",
+     "signals": {"text": ["verify", "deployed", "live", "status", "health"], "fields": []}},
+    {"id": "other", "description": "Anything else.", "signals": {"text": [], "fields": []}}
+  ]
+}

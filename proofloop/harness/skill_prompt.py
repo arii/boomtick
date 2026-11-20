@@ -1,18 +1,18 @@
 """Turn the active (promoted) skill into a prompt agents can follow, and keep it current.
 
-After a promotion the replay loop renders the active skill's steps and the constraints it passed
-into one marked block. The block is written to <state>/active_prompt.md and, when the operator
+After a promotion the replay loop renders the active rule set into one marked block. The block is written to <state>/active_prompt.md and, when the operator
 names a target file, into that file between PROOFLOOP markers. Nothing outside the markers is
 touched. A rollback or a rejected candidate leaves the previous block in place, because the block
-is rendered only from the active skill.
+is rendered only from the active rule set.
 """
 import hashlib
 import os
 import re
 from pathlib import Path
 
-import agent
 import config
+import rules as rules_mod
+from atomic import atomic_write_text
 
 BEGIN = "<!-- PROOFLOOP:BEGIN -->"
 END = "<!-- PROOFLOOP:END -->"
@@ -20,44 +20,26 @@ ALLOWED_SUFFIXES = {".md", ".mdc", ".txt"}
 _BLOCK_RE = re.compile(re.escape(BEGIN) + r".*?" + re.escape(END) + r"\n?", re.S)
 
 
-def render(skill, tasks, report, entry=None):
-    """Prompt block for `skill`. `report` is agent.replay(skill, tasks); `entry` the promoted ledger entry."""
-    rules = [agent.PROMPT_RULES[s] for s in skill["steps"] if s in agent.PROMPT_RULES]
-    passed = {r["task_id"] for r in report["results"] if r["passed"]}
-    constraints = []
-    for t in tasks:
-        c = t["expected_constraint"]
-        if t["id"] in passed and c not in constraints:
-            constraints.append(c)
-    lines = [
-        BEGIN,
-        f"## ProofLoop rules for agents (skill {skill['version']})",
-        "",
-        f"A local replay gate promoted this skill after it passed {report['passed']}/{report['total']} "
-        "replayed tasks from past sessions. That is a measured replay result, not a guarantee.",
-        "",
-        "Follow these rules when acting for the user:",
-    ]
-    lines += [f"{i}. {r}" for i, r in enumerate(rules, 1)]
-    if constraints:
-        lines += ["", "Constraints learned from past sessions (each one passed replay under this skill):"]
-        lines += [f"- {c}" for c in constraints]
-    if entry and entry.get("senso_kb_node_id"):
-        mode = (entry.get("retrieval") or {}).get("mode", "unknown")
-        lines += ["", f"Stored in Senso as node {entry['senso_kb_node_id']} (retrieval mode: {mode})."]
+def render(rules, scores=None, senso=None):
+    """Prompt block for the active rule set. `scores` is executor.summary(); `senso` the promotion record."""
+    lines = [BEGIN, f"## ProofLoop rules for agents ({rules['version']})", ""]
+    if scores:
+        lines += [f"Promoted by the replay gate: train {scores.get('train')}, holdout {scores.get('holdout')} "
+                  "(mean pass rate of real LLM answers on replayed past sessions). A measured result, not a guarantee.", ""]
+    lines.append(rules_mod.render_prompt(rules))
+    if senso and senso.get("node_id"):
+        lines += ["", f"Stored in Senso as node {senso['node_id']}."]
     lines.append(END)
     return "\n".join(lines) + "\n"
 
 
-def write_active(skill, tasks, report, entry=None):
+def write_active(rules, scores=None, senso=None):
     """Write <state>/active_prompt.md. Returns {path, sha256, version, rules, block}."""
-    block = render(skill, tasks, report, entry)
+    block = render(rules, scores, senso)
     path = config.STATE_DIR / "active_prompt.md"
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(block)
-    return {"path": str(path), "sha256": hashlib.sha256(block.encode()).hexdigest(),
-            "version": skill["version"], "rules": len([s for s in skill["steps"] if s in agent.PROMPT_RULES]),
-            "block": block}
+    atomic_write_text(path, block)
+    return {"path": str(path), "sha256": hashlib.sha256(block.encode()).hexdigest(), "version": rules["version"],
+            "rules": len(rules["instructions"]) + len(rules["page_rules"]), "block": block}
 
 
 def _safe_target(target):
@@ -88,9 +70,8 @@ def sync_block(target, block, create=False):
         new = old + ("" if old.endswith("\n\n") or not old else ("\n" if old.endswith("\n") else "\n\n")) + block
         status = "updated"
     if status != "unchanged":
-        tmp = p.with_name(p.name + ".proofloop.tmp")
-        tmp.write_text(new)
-        if p.exists():
-            os.chmod(tmp, p.stat().st_mode & 0o777)
-        os.replace(tmp, p)
+        mode = p.stat().st_mode & 0o777 if p.exists() else None
+        atomic_write_text(p, new)
+        if mode is not None:
+            os.chmod(p, mode)
     return status

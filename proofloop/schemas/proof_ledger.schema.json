@@ -2,160 +2,31 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "ProofLedger",
   "type": "object",
-  "required": [
-    "active_version",
-    "entries",
-    "schema_version"
-  ],
+  "required": ["schema_version", "active_version", "entries"],
   "properties": {
-    "active_version": {
-      "type": "string"
-    },
+    "schema_version": {"const": 3},
+    "active_version": {"type": "string"},
     "entries": {
       "type": "array",
       "items": {
         "type": "object",
-        "required": [
-          "cycle_id",
-          "timestamp",
-          "version",
-          "parent_version",
-          "tasks_passed_before",
-          "tasks_passed_after",
-          "total_tasks",
-          "pass_rate_before",
-          "pass_rate_after",
-          "delta",
-          "skill_diff",
-          "senso_kb_node_id",
-          "status",
-          "replay_gate",
-          "retrieval"
-        ],
+        "required": ["cycle", "timestamp", "version", "parent_version", "status", "gate", "scores", "recall", "llm", "rules_sha256"],
         "properties": {
-          "cycle_id": {
-            "type": "string"
-          },
-          "timestamp": {
-            "type": "string"
-          },
-          "version": {
-            "type": "string"
-          },
-          "parent_version": {
-            "type": "string"
-          },
-          "tasks_passed_before": {
-            "type": "integer"
-          },
-          "tasks_passed_after": {
-            "type": "integer"
-          },
-          "total_tasks": {
-            "type": "integer"
-          },
-          "pass_rate_before": {
-            "type": "number",
-            "minimum": 0,
-            "maximum": 1
-          },
-          "pass_rate_after": {
-            "type": "number",
-            "minimum": 0,
-            "maximum": 1
-          },
-          "delta": {
-            "type": "number"
-          },
-          "skill_diff": {
-            "type": "string"
-          },
-          "senso_kb_node_id": {
-            "type": "string"
-          },
-          "status": {
-            "type": "string",
-            "enum": [
-              "promoted",
-              "rolled_back",
-              "held",
-              "promotion_failed"
-            ]
-          },
-          "replay_gate": {
-            "type": "object",
-            "required": [
-              "policy",
-              "source",
-              "choice",
-              "reason",
-              "regressed_checks",
-              "failed_checks_before",
-              "failed_checks_after",
-              "scope"
-            ],
-            "properties": {
-              "policy": {
-                "const": "local-replay-v1"
-              },
-              "source": {
-                "const": "local"
-              },
-              "choice": {
-                "enum": [
-                  "promote",
-                  "hold",
-                  "reject_and_refine"
-                ]
-              },
-              "reason": {
-                "type": "string"
-              },
-              "scope": {
-                "const": "deterministic replay checks only"
-              },
-              "regressed_checks": {
-                "type": "array",
-                "items": {
-                  "type": "string"
-                }
-              },
-              "failed_checks_before": {
-                "type": "integer",
-                "minimum": 0
-              },
-              "failed_checks_after": {
-                "type": "integer",
-                "minimum": 0
-              }
-            }
-          },
-          "retrieval": {
-            "type": "object",
-            "required": [
-              "verified",
-              "mode"
-            ],
-            "properties": {
-              "verified": {
-                "type": "boolean"
-              },
-              "mode": {
-                "enum": [
-                  "live",
-                  "stub"
-                ]
-              },
-              "node_id": {
-                "type": "string"
-              }
-            }
-          }
+          "cycle": {"type": "integer", "minimum": 0},
+          "timestamp": {"type": "string"},
+          "version": {"type": "string"},
+          "parent_version": {"type": ["string", "null"]},
+          "status": {"enum": ["baseline", "promoted", "rejected", "held", "promotion_failed", "invalid_proposal"]},
+          "gate": {"type": "object"},
+          "scores": {"type": "object"},
+          "recall": {"type": "object", "required": ["mode"], "properties": {"mode": {"enum": ["live", "disabled"]}}},
+          "llm": {"type": "object", "required": ["backend"]},
+          "rules_sha256": {"type": "string"},
+          "diff": {"type": "string"},
+          "evidence_sessions": {"type": "array", "items": {"type": "string"}},
+          "senso": {"type": "object"}
         }
       }
-    },
-    "schema_version": {
-      "const": 2
     }
   }
 }

@@ -5,9 +5,12 @@ Every API route needs `Authorization: Bearer <token>` (per-run token, see main()
 and Origin that pass the loopback / extension-ID check. A request with no Origin header (curl,
 local scripts) is therefore rejected unless it carries the token.
 
-GET /augment exposes local replay status only. GET /skill and POST /assist return constraint
-cards (see cards.py); POST /assist receives only origin, path and field labels, never page text.
-Live sponsor work is performed by the separately activated harness, never by this server.
+GET /augment and /ledger expose loop state for the dashboard. GET /skill describes the promoted rule
+set. POST /assist {origin, task, recall} returns the page rules for that task (forbidden values as
+hashes) and context from past sessions (see page_assist.py); it never receives page text or field
+values. POST /feedback {rule_id, action} records shown / dismissed / rule_wrong for the loop.
+Senso is read (never written) here, and Cognee is queried only when the request asks for recall and
+PROOFLOOP_ASSIST_RECALL=1 is set for this process.
 """
 import hashlib
 import hmac
@@ -21,8 +24,11 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
 from urllib.parse import urlparse
 
-import cards
+import clients
 import config
+import page_assist
+import recall as recall_mod
+import validate
 from atomic import atomic_write_text
 
 DASH = Path(__file__).resolve().parent.parent / "dashboard.html"
@@ -71,44 +77,50 @@ def prompt_payload():
 
 
 def augment():
-    ledger = _read("proof_ledger.json", {"active_version": "", "entries": []})
+    """Loop state for the dashboard: ledger history, active version and scores, service modes."""
+    ledger = _read("proof_ledger.json", {"schema_version": 3, "active_version": "", "entries": []})
+    legacy = ledger.get("schema_version") != 3
     run = _read("last_run.json", {})
-    legacy = ledger.get("schema_version") != 2
-    history = [] if legacy else ledger["entries"]
-    promoted = [e for e in history if e["status"] == "promoted"]
-    last = promoted[-1] if promoted else None
     pp = prompt_payload()
-    return {"active_version": None if legacy else ledger["active_version"],
+    stored = page_assist.active()
+    return {"active_version": None if legacy else ledger["active_version"], "legacy_state": legacy and bool(ledger.get("entries")),
+            "scores": (stored or {}).get("scores"), "stop": run.get("stop"),
             "prompt": {"version": pp["version"], "sha256": pp["sha256"]} if pp else None,
-            "pass": run.get("active", {}).get("passed"), "total": run.get("active", {}).get("total"),
-            "last_promoted": last, "history": history, "services": config.status(),
-            "retrieval": last.get("retrieval") if last else None,
-            "legacy_state": legacy and bool(ledger.get("entries")),
-            "scope": "deterministic replay only; no page data sent to sponsors"}
+            "history": [] if legacy else ledger["entries"], "services": config.status()}
 
 
-def assist(body):
-    """Cards that apply to a page. Input is origin and path only; anything else in the body is ignored."""
-    data = cards.load_cards()
-    origin = body.get("origin") if isinstance(body.get("origin"), str) else ""
-    page_path = body.get("path") if isinstance(body.get("path"), str) else "/"
-    return {"version": data["version"], "sha256": data["sha256"], "source": data["source"],
-            "recall": {"mode": "none", "note": "Cognee recall is not wired into /assist yet"},
-            "cards": cards.applicable(data["cards"], origin[:200], page_path[:200])}
+class Ctx:
+    """Sessions, suite and optional live clients, loaded once per process."""
+    sessions = None
+    suite = None
+    senso = None
+    recall = None
+
+    @classmethod
+    def load(cls):
+        if cls.sessions is None:
+            cls.sessions = validate.load_sessions()
+            cls.suite = validate.load_suite()
+            cls.senso = clients.SensoLive() if config.mode("senso") == "live" else None
+            if config.mode("cognee") == "live" and config.get("PROOFLOOP_ASSIST_RECALL") == "1":
+                cls.recall = recall_mod.Recall(clients.CogneeLive(), cls.sessions)
+        return cls
 
 
-FEEDBACK_ACTIONS = {"used_suggestion", "kept_value", "shown"}
+FEEDBACK_ACTIONS = {"shown", "dismissed", "rule_wrong"}
 
 
 def record_feedback(body):
-    card_id, action = body.get("card_id"), body.get("action")
-    known = {c["id"] for c in cards.load_cards()["cards"]}
-    if card_id not in known or action not in FEEDBACK_ACTIONS:
-        return False, "unknown card_id or action"
-    line = json.dumps({"ts": time.strftime("%Y-%m-%dT%H:%M:%S%z"), "card_id": card_id, "action": action}) + "\n"
+    rule_id, action = body.get("rule_id"), body.get("action")
+    stored = page_assist.active()
+    known = {r["id"] for r in stored["rules"]["page_rules"]} if stored else set()
+    if rule_id not in known or action not in FEEDBACK_ACTIONS:
+        return False, "unknown rule_id or action"
+    line = json.dumps({"ts": time.strftime("%Y-%m-%dT%H:%M:%S%z"), "rule_id": rule_id, "action": action,
+                       "version": stored["rules"]["version"]}) + "\n"
     p = config.STATE_DIR / "feedback.jsonl"
     p.parent.mkdir(parents=True, exist_ok=True)
-    with open(p, "a") as f:  # one short line per write; append is atomic for lines this small
+    with open(p, "a") as f:  # one short line per write
         f.write(line)
     return True, ""
 
@@ -167,8 +179,8 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/augment":
             return self._send(200, augment())
         if path == "/ledger":
-            ledger = _read("proof_ledger.json", {"schema_version": 2, "active_version": "", "entries": []})
-            if ledger.get("schema_version") != 2:
+            ledger = _read("proof_ledger.json", {"schema_version": 3, "active_version": "", "entries": []})
+            if ledger.get("schema_version") != 3:
                 return self._send(409, {"error": "legacy ledger; select separate state directory or explicitly reset"})
             return self._send(200, {"ledger": ledger, "run": _read("last_run.json", {})})
         if path == "/prompt":
@@ -177,7 +189,11 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/status":
             return self._send(200, config.status())
         if path == "/skill":
-            return self._send(200, cards.load_cards())
+            stored = page_assist.active()
+            if not stored:
+                return self._send(404, {"error": "no promoted rule set yet"})
+            return self._send(200, {"version": stored["rules"]["version"], "sha256": stored["sha256"], "scores": stored.get("scores"),
+                                    "source": page_assist.source_tag(stored, Ctx.load().senso), "rules": stored["rules"]})
         self._send(404, {"error": "not found"})
 
     def _json_body(self):
@@ -211,7 +227,8 @@ class Handler(BaseHTTPRequestHandler):
         if body is None:
             return
         if path == "/assist":
-            return self._send(200, assist(body))
+            c = Ctx.load()
+            return self._send(200, page_assist.assist(body, c.sessions, c.suite, c.senso, c.recall))
         ok, err = record_feedback(body)
         return self._send(200 if ok else 400, {"ok": True} if ok else {"error": err})
 

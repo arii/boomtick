@@ -1,14 +1,40 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "ReplayTaskSuite",
+  "description": "Replay tasks generated from sessions by tasks.py (LLM), then reviewed. Checks are evaluated on real LLM answers.",
   "type": "object",
   "required": [
     "suite_id",
+    "generated",
     "tasks"
   ],
+  "additionalProperties": false,
   "properties": {
     "suite_id": {
       "type": "string"
+    },
+    "generated": {
+      "type": "object",
+      "required": [
+        "by",
+        "at",
+        "reviewed"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "by": {
+          "type": "string"
+        },
+        "at": {
+          "type": "string"
+        },
+        "reviewed": {
+          "type": "boolean"
+        },
+        "sessions_sha256": {
+          "type": "string"
+        }
+      }
     },
     "tasks": {
       "type": "array",
@@ -18,110 +44,108 @@
         "required": [
           "id",
           "source_session_id",
+          "task_kind",
           "query",
           "active_tab",
           "related_tabs",
-          "expected_constraint",
-          "required_checks",
-          "baseline_score"
+          "checks",
+          "split"
         ],
+        "additionalProperties": false,
         "properties": {
           "id": {
-            "type": "string"
+            "type": "string",
+            "pattern": "^t_[a-z0-9_]+$"
           },
           "source_session_id": {
             "type": "string"
           },
+          "task_kind": {
+            "enum": [
+              "job_application",
+              "event_registration",
+              "insurance_or_service_quote",
+              "account_signup",
+              "profile_edit",
+              "scheduling",
+              "publishing_claims",
+              "verification",
+              "other"
+            ]
+          },
           "query": {
-            "type": "string"
+            "type": "string",
+            "minLength": 8,
+            "maxLength": 400
           },
           "active_tab": {
-            "type": "object",
-            "required": [
-              "title",
-              "url",
-              "snippet"
-            ],
-            "properties": {
-              "title": {
-                "type": "string"
-              },
-              "url": {
-                "type": "string"
-              },
-              "snippet": {
-                "type": "string"
-              }
-            }
+            "$ref": "#/$defs/tab"
           },
           "related_tabs": {
             "type": "array",
+            "maxItems": 6,
             "items": {
-              "type": "object",
-              "required": [
-                "title",
-                "url"
-              ],
-              "properties": {
-                "title": {
-                  "type": "string"
-                },
-                "url": {
-                  "type": "string"
-                },
-                "snippet": {
-                  "type": "string"
-                }
-              }
+              "$ref": "#/$defs/tab"
             }
           },
-          "expected_constraint": {
-            "type": "string"
-          },
-          "required_checks": {
+          "checks": {
             "type": "array",
+            "minItems": 1,
+            "maxItems": 6,
             "items": {
-              "type": "string"
+              "$ref": "#/$defs/check"
             }
           },
-          "baseline_score": {
-            "type": "number",
-            "minimum": 0,
-            "maximum": 1
-          },
-          "slots": {
-            "type": "array",
-            "items": {
-              "type": "object",
-              "required": [
-                "slot",
-                "kind",
-                "baseline",
-                "source_hint"
-              ],
-              "properties": {
-                "slot": {
-                  "type": "string"
-                },
-                "kind": {
-                  "type": "string",
-                  "enum": [
-                    "field",
-                    "claim"
-                  ]
-                },
-                "baseline": {
-                  "type": "string"
-                },
-                "source_hint": {
-                  "type": [
-                    "string",
-                    "null"
-                  ]
-                }
-              }
-            }
+          "split": {
+            "enum": [
+              "train",
+              "holdout"
+            ]
           }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "tab": {
+      "type": "object",
+      "required": [
+        "title",
+        "url",
+        "snippet"
+      ],
+      "properties": {
+        "title": {
+          "type": "string"
+        },
+        "url": {
+          "type": "string"
+        },
+        "snippet": {
+          "type": "string"
+        }
+      }
+    },
+    "check": {
+      "type": "object",
+      "required": [
+        "type",
+        "value"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "enum": [
+            "must_include",
+            "must_not_include",
+            "asks_clarification",
+            "no_unsupported_claims"
+          ]
+        },
+        "value": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
         }
       }
     }
