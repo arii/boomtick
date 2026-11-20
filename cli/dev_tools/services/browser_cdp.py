@@ -30,6 +30,8 @@ class VisualDiffResult:
     interactive_elements: int
     screenshot_path: str | None
     error: str | None = None
+    dom_path: str | None = None
+    final_url: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -147,12 +149,18 @@ def capture_dom_and_visual_snapshot(
     output_dir: Path,
     baseline_png: Path | None = None,
     viewport: dict[str, int] | None = None,
+    *,
+    save_dom: bool = False,
+    isolated_context: bool = False,
+    ready_selector: str | None = None,
 ) -> VisualDiffResult:
     """Capture DOM metrics + viewport screenshot via a grid session."""
     grid_base = get_grid_base()
     vp = viewport or {"width": 1280, "height": 800}
     output_dir.mkdir(parents=True, exist_ok=True)
     candidate_png = output_dir / "candidate_viewport.png"
+    dom_path = output_dir / "document.html" if save_dom else None
+    final_url = None
 
     try:
         from playwright.sync_api import sync_playwright
@@ -171,13 +179,22 @@ def capture_dom_and_visual_snapshot(
             )
             context = (
                 browser.contexts[0]
-                if browser.contexts
+                if browser.contexts and not isolated_context
                 else browser.new_context(viewport=vp)
             )
             page = context.new_page()
             try:
                 page.set_viewport_size(vp)
-                page.goto(target_url, wait_until="domcontentloaded", timeout=20000)
+                response = page.goto(
+                    target_url, wait_until="domcontentloaded", timeout=20000
+                )
+                if save_dom and response is not None and response.status >= 400:
+                    raise ValueError(f"HTTP {response.status}")
+                if ready_selector:
+                    page.wait_for_selector(ready_selector, timeout=20000)
+                if save_dom:
+                    dom_path.write_text(page.content(), encoding="utf-8")
+                    final_url = page.url
                 # Single JS string literal: JS has no Python-style
                 # implicit literal concatenation ('a,' 'b' is a
                 # SyntaxError in the page).
@@ -209,6 +226,8 @@ def capture_dom_and_visual_snapshot(
         dom_node_count=int(dom.get("dom_node_count", 0)),
         interactive_elements=int(dom.get("interactive_elements", 0)),
         screenshot_path=str(candidate_png),
+        dom_path=str(dom_path) if dom_path else None,
+        final_url=final_url,
     )
 
 
