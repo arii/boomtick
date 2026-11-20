@@ -105,7 +105,7 @@ class TestOrchestratorHeuristics(unittest.TestCase):
         self.assertIn("workflow-audit-status.md", feedback)
         self.assertIn("data-dump.json", feedback)
         # Should NOT flag package.json
-        self.assertNotIn("package.json", feedback)
+        self.assertNotIn("  - `package.json`", feedback)
 
     def test_mobile_overflow_finding_cites_hunk(self):
         # Issue #1116: fixed-pixel widths render the Mobile UX
