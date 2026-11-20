@@ -1,12 +1,12 @@
 # Historical planning record, not current activation instructions
 
-Private no-TypeSafe patch prepared November 20: README.md describes the local Replay Gate, explicit activation and schema-v2 state. Earlier key transfer, TypeSafe re-enable, automatic credential loading and live-mode directions below are historical and superseded by that patch. Do not send secrets through chat. No live run or publication is established. Unique planning material is retained below, not treated as authorization.
+Patch prepared November 20 (PR #1350): README.md describes the local Replay Gate, explicit activation and schema-v2 state. Earlier key transfer, automatic credential loading and live-mode directions below are historical and superseded by that patch. Do not send secrets through chat. No live run or publication is established. Unique planning material is retained below, not treated as authorization.
 
 # ProofLoop — Tracking Document
 
 Live status for the Personal Agents Hackathon build (Fri Nov 20, 2026). Kiro updates this file as work progresses. Ari's CLI agents (agy, Copilot, Muse CLI) read this file to pick up work interactively. Do not delete this file. Keep it current.
 
-Last updated: 2026-11-20 12:45 PM PT (by Kiro). First live run on Ari's machine hit two bugs, both fixed: Senso 403 "error code: 1010" (Cloudflare blocks the default Python User-Agent) and a retired OpenRouter model. Needs a re-run after `git pull`.
+Last updated: 2026-11-20 12:58 PM PT (by Kiro). PR #1350 merged-forward with main and feat/proofloop (scope check and stale exports fixed). Added Tokens with Taste as the mutation LLM backend (OpenRouter free quota is gone). Extension ID recorded.
 
 ## Repo and branch
 - Repo: arii/boomtick (no new repo).
@@ -18,22 +18,22 @@ Last updated: 2026-11-20 12:45 PM PT (by Kiro). First live run on Ari's machine 
 - [x] proofloop/ scaffold (extension/, harness/, skills-local/).
 - [x] Three JSON schemas: replay tasks, proof ledger, sessions. All validate.
 - [x] REAL sessions.jsonl (8 excerpts) in data/sessions.jsonl, validated against the sessions schema (timestamps checked as ISO 8601). Phone numbers were still present in the file, so the committed copy masks them as [PHONE-PRO] and [PHONE-FAMILY] (repo is public). The unmasked original is in data/private/sessions.raw.jsonl (git-ignored, local to Kiro sandbox).
-- [x] Stubs for Senso/Cognee, plus live clients written to public API docs (harness/clients.py). Jev client and stub are kept in clients.py but disabled (see Jev removed below).
+- [x] Stubs for Senso/Cognee, plus live clients written to public API docs (harness/clients.py).
 - [x] harness/mock_sponsors.py for offline live-path testing.
 - [x] replay_loop.py runs all 8 steps in stub mode on the REAL sessions: v0 2/6; cycle 1 v1.1 5/6 (gate promote, Senso node complete); cycle 2 v1.2 6/6 promoted; injected v1.3-bad 4/6 (gate reject_and_refine, rolled back, active stays v1.2). Pass rates come from running the task checks, not hardcoded values. Caveat: the executor in harness/agent.py is a deterministic MODEL of agent behavior (slot baselines come from the recorded session outcomes), not an LLM run.
 - [x] harness/server.py serving /augment, /config, /status and dashboard /.
-- [x] harness/health.py: per-service GREEN / STUB / RED check (Senso GET /org/me, OpenRouter 1-token completion, Cognee round trip). Run `python3 harness/health.py` after keys are set. Tested against the mock only.
+- [x] harness/health.py: per-service GREEN / STUB / RED check (Senso GET /org/me, mutation-LLM 1-token completion, Cognee round trip; config-only by default, `--probe-live` to call). Run `python3 harness/health.py` after keys are set. Tested against the mock only.
 - [x] demo.sh: one command (health check, validate, full run with rollback, then serves backend + dashboard on :8787). Verified from a fresh clone of the pushed branch (stub mode): 2/6 -> 5/6 -> 6/6, rollback at 4/6; no private data or skills in the clone. Needs `python3 -m venv .venv && .venv/bin/pip install jsonschema` first.
 - [x] harness/validate.py, harness/make_tasks.py (derives replay_tasks.json: 6 tasks = vouch, waas, sfpromises, feels_mockup, adsense, hrm; left out: luma, feels_honest).
-- [x] MV3 extension skeleton in proofloop/extension/ (manifest, background worker with chrome.tabs.query, content script, options Keys & Status page, Gemini Nano guard with backend fallback). Chip/proof-table/tab detection tested in jsdom against the local backend, not real Chrome.
+- [x] MV3 extension skeleton in proofloop/extension/ (manifest, background worker with chrome.tabs.query, content script, options page (read-only status, no key storage), Gemini Nano guard with backend fallback). Chip/proof-table/tab detection tested in jsdom against the local backend, not real Chrome.
 - [x] skills-local/ with 3 skills copied from arii/hello (lane-coder, independent-tests, caffeinated-guardrails). Git-ignored because arii/hello is private and boomtick is public.
 - [x] Live API shapes corrected from public docs: Senso base https://apiv2.senso.ai/api/v1 with X-API-Key, kb_node_id polling / content_id search, 409 handling; Cognee multipart add, cognify {datasets:[...]}, search query+search_type, X-Api-Key+X-Tenant-Id for Cloud / Bearer self-hosted (COGNEE_TENANT_ID); OpenRouter default openrouter/free alias (OPENROUTER_MODEL override); the Arcee free slug was retired (404).
-- [x] **Jev removed (no sponsor, no credits).** Replaced by a local deterministic threshold gate (clients.local_gate, no API call): promote if candidate pass rate > baseline AND constraint violations did not increase; reject_and_refine if candidate pass rate < baseline OR violations increased; hold otherwise. Same decision labels (promote / reject_and_refine / hold). Ledger fields unchanged in name: choice = decision, confidence = candidate minus baseline pass rate, constraints_prob = violation count after the candidate, utility_score = candidate pass rate; the ledger key is still named jev_gate for compatibility (rename is a small follow-up). The Jev client code and TYPESAFE_API_KEY / TYPESAFE_MODEL env vars are kept but unused; set PROOFLOOP_GATE=jev to re-enable. Edge cases of the rule are unit-checked; the Jev flag path was re-run against harness/mock_sponsors.py.
+- [x] **Promotion gate: local Replay Gate** (`harness/replay_gate.py`, no external gate service, no API call). Promote needs strictly more passed tasks, no previously passing check newly failing, and no increase in failed checks; equal results hold; any regression is reject_and_refine and rolls back. Ledger entries carry `replay_gate` (measured counts, regressed checks) and `retrieval` fields, schema v2.
 - [x] Live code paths exercised end to end against harness/mock_sponsors.py (same 2/6 -> 5/6 -> 6/6 -> rollback flow). Not yet run against the real sponsor APIs.
 - [x] TRACKING.md committed on feat/proofloop.
 
 ## What is still missing
-- [ ] Run against real sponsor APIs: Senso, Cognee, OpenRouter (blocked on keys, see below). Live code paths only exercised against harness/mock_sponsors.py.
+- [ ] Run against the real Senso API (needs SENSO_API_KEY in Ari's shell). Cognee stays on the offline stub unless a URL is provided. Live code paths only exercised against harness/mock_sponsors.py.
 - [ ] Luma session (consent/judge-applicant checkboxes) is not in the replay suite: slots model values, not checkbox state. Add a checkbox slot kind if Ari wants it in.
 - [ ] Optional: an LLM-backed executor (needs OPENROUTER_API_KEY) so pass rates reflect a real model, not the deterministic model.
 - [ ] Load the extension in real Chrome and verify chip/proof-table/tab detection (sandbox cannot start Chrome; must be done on Ari's machine).
@@ -41,22 +41,24 @@ Last updated: 2026-11-20 12:45 PM PT (by Kiro). First live run on Ari's machine 
 - [ ] PR decision (open now or wait until live runs are done).
 
 ## Next steps (in order) and blockers
-1. Ari: `git pull`, then `python3 harness/health.py` (expect senso GREEN, openrouter GREEN, cognee STUB) and `python3 harness/replay_loop.py --reset --bad-demo`. If anything is still RED, paste the line into the Kiro chat. Keys are on Ari's machine only (not in the Kiro sandbox).
-2. Run `replay_loop.py --reset --bad-demo` with Senso live and OpenRouter live (LLM proposes the mutation; rule-based mutator is the fallback). Record the pass rates here. They may differ from 2/6 -> 5/6 -> 6/6 if the LLM picks different steps.
-3. If Senso live fails, check the first error: field names for POST /org/kb/raw and search are from docs, not yet run live.
-4. Ari: load the extension in real Chrome (Needs item 6), then backup video and two timed dry runs.
-5. PR decision.
+Current activation rules (PR #1350): `.env` is NOT read. Export real environment variables and opt in with `PROOFLOOP_LIVE_SERVICES`. Do not send secrets through chat.
+1. Ari: merge PR #1350 (review the stacked Tokens with Taste PR into it first, or after).
+2. Ari, optional live mutation LLM: start the Tokens with Taste gateway with one provider key (README "Mutation LLM via Tokens with Taste"), then `PROOFLOOP_LIVE_SERVICES=twt python3 proofloop/harness/health.py --probe-live`.
+3. Ari, live Senso: `SENSO_API_KEY` exported in your shell, then `PROOFLOOP_LIVE_SERVICES=senso,twt python3 proofloop/harness/replay_loop.py --reset --bad-demo`. Senso field names are from docs and have not run against a real key yet; if it fails, paste the `[6]` line here (no key values).
+4. Ari: extension in real Chrome. ID is `cbpokmfdbbcpgaookmhdgnbdcgkjkodl`. Start the backend with `PROOFLOOP_EXTENSION_ID=cbpokmfdbbcpgaookmhdgnbdcgkjkodl python3 proofloop/harness/server.py` (the ID stays the same only while the extension is loaded from the same folder). Related-tab display is off by default: enable the `local_related_tabs` option, or the chip shows 0 related tabs. Confirm the chip appears and the proof table expands.
+5. Ari: two timed dry runs and a backup video.
+6. PR decision for feat/proofloop into main (not requested yet).
 
 ## Live-run log
-- 2026-11-20 (Ari's machine, first live run): Senso RED `403 error code: 1010`; OpenRouter RED `404 model no longer available`; Cognee STUB; stub-gate flow reached cycle 1 (v1.1 5/6, gate promote) then BLOCKED at the Senso call. Fixes pushed: custom User-Agent on every request (verified: unauthenticated call now returns 401 "key required" instead of 1010), default model `openrouter/free`. Not yet re-run with real keys.
+- First live run (Ari's machine, before PR #1350): Senso `403 error code: 1010` (Cloudflare blocks the default Python User-Agent; fixed with a custom User-Agent) and OpenRouter `404` retired model (default now `openrouter/free`). Cycle 1 matched the offline result (v1.1 5/6) before stopping at the Senso call.
+- Tokens with Taste gateway checked in the build sandbox with no provider keys: `twt sync` OK, `twt serve` OK, chat returns 503 listing missing credentials, harness falls back to rule-based and the offline results are unchanged (2/6, 5/6, 6/6, 4/6 rejected). Successful provider completion not yet exercised.
 
 ## Needs from Ari
-1. **Confirm the phone-number masking** — the real file contained both full phone numbers; Kiro committed a masked copy ([PHONE-PRO], [PHONE-FAMILY]) because boomtick is public. Say so if you want it handled differently. Also confirm you are fine with these staying public in data/sessions.jsonl: onasafari.ddns.net, the AdSense publisher ID (public in ads.txt), and the dhyuti-n Hugging Face dataset URL.
-2. **Get SENSO_API_KEY and OPENROUTER_API_KEY into the Kiro sandbox.** Your secrets store is not visible here (both vars are unset, no .env). Either paste the two values in the Kiro chat as text (use rotatable hackathon keys; they stay in a git-ignored proofloop/.env), or run it on your machine: copy proofloop/.env.example to proofloop/.env, fill both, then `python3 harness/health.py && python3 harness/replay_loop.py --reset --bad-demo`. Cognee is optional: with no COGNEE_API_URL the local Cognee stub is used (labeled on screen). TypeSafe key is NOT needed.
-3. ~~typesafe/jev-1.14.0 confirmation~~ — moot: Jev removed.
-4. **arii/hello skills decision** — Whether to commit the 3 git-ignored skills (lane-coder, independent-tests, caffeinated-guardrails) or keep them git-ignored. They are in skills-local/ but ignored because arii/hello is private and boomtick is public.
-5. **PR decision** — Open a PR now on feat/proofloop, or wait until live runs are done.
-6. **Real Chrome check (Ari's machine)** — chrome://extensions -> Developer mode -> Load unpacked -> proofloop/extension; run `python3 proofloop/harness/server.py`; open extension/test/demo.html with related-1.html and related-2.html in one window.
+1. **A provider key for the gateway, or Ollama** (optional, only for an LLM-proposed mutation): Groq, Google, NVIDIA, Mistral or SambaNova free key exported in the shell that runs `twt serve`. Without it the rule-based mutator is used and every result is unchanged.
+2. **SENSO_API_KEY exported in your shell** for live Senso (optional; offline stub otherwise, labeled on screen).
+3. **Real Chrome check** (Next steps 4) and the demo rehearsals (5).
+4. **Confirm phone masking** in data/sessions.jsonl ([PHONE-PRO], [PHONE-FAMILY]); the unmasked original is private and git-ignored.
+5. **Merge decision** for PR #1350 and the stacked Tokens with Taste PR.
 
 ## Task checklist (from the ProofLoop doc)
 - [x] Task 1 — Curate JSONL + replay_tasks.json (11:00–11:20 AM). Status: done. Real sessions validate; 6 tasks derived.

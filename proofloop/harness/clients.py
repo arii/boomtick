@@ -267,18 +267,43 @@ def senso_promote(client, title, text, version, poll_s=None, max_polls=24):
 
 
 # ---------------------------------------------------------------- LLM
+def _mutation_prompt(failures, known_steps, current_steps):
+    # Only check names, failure counts and step ids: no session text, URLs or personal data.
+    return ("A skill is an ordered list of step ids. Known step ids and meanings: "
+            + json.dumps(known_steps) + ". Current steps: " + json.dumps(current_steps)
+            + ". Replay failures (check -> count): " + json.dumps(failures)
+            + '. Reply with JSON only: {"add": ["step_id", ...]} using known ids not already present.')
+
+
+def llm_chat(prompt, max_tokens=400):
+    """One chat completion through the active backend (config.llm_backend()). Returns text.
+    twt: local Tokens with Taste gateway (OpenAI-compatible, loopback, no key; it holds provider keys).
+    openrouter: OpenRouter with OPENROUTER_API_KEY."""
+    backend = config.llm_backend()
+    messages = [{"role": "user", "content": prompt}]
+    if backend == "twt":
+        url = f"{config.twt_base_url()}/chat/completions"
+        headers = {"X-Session-Id": "proofloop-mutation"}
+        body = {"model": "default", "messages": messages, "max_tokens": max_tokens}
+        timeout = 90  # waterfall may try several providers
+    elif backend == "openrouter":
+        url = f"{config.base_url('openrouter')}/api/v1/chat/completions"
+        headers = {"Authorization": f"Bearer {config.get('OPENROUTER_API_KEY')}"}
+        body = {"model": config.get("OPENROUTER_MODEL", config.DEFAULT_LLM_MODEL),
+                "messages": messages, "max_tokens": max_tokens}
+        timeout = 60
+    else:
+        raise ApiError(0, "no LLM backend enabled")
+    _, res = http_json("POST", url, headers, body, timeout=timeout, retries=0 if backend == "twt" else 1)
+    return (res["choices"][0]["message"].get("content") or "") if res.get("choices") else None
+
+
 def llm_propose_steps(failures, known_steps, current_steps):
-    """Ask OpenRouter for step ids to add. Returns list or raises ApiError."""
-    prompt = (
-        "A skill is an ordered list of step ids. Known step ids and meanings: "
-        + json.dumps(known_steps) + ". Current steps: " + json.dumps(current_steps)
-        + ". Replay failures (check -> count): " + json.dumps(failures)
-        + '. Reply with JSON only: {"add": ["step_id", ...]} using known ids not already present.')
-    body = {"model": config.get("OPENROUTER_MODEL", config.DEFAULT_LLM_MODEL), "messages": [{"role": "user", "content": prompt}],
-            "max_tokens": 400}
-    headers = {"Authorization": f"Bearer {config.get('OPENROUTER_API_KEY')}"}
-    _, res = http_json("POST", f"{config.base_url('openrouter')}/api/v1/chat/completions", headers, body, timeout=60)
-    content = res["choices"][0]["message"].get("content") or ""
+    """Ask the active LLM backend for step ids to add. Returns list or raises ApiError."""
+    content = llm_chat(_mutation_prompt(failures, known_steps, current_steps)) or ""
     m = re.search(r"\{.*\}", content, re.S)
-    add = json.loads(m.group(0)).get("add", []) if m else []
+    try:
+        add = json.loads(m.group(0)).get("add", []) if m else []
+    except json.JSONDecodeError:
+        add = []
     return [a for a in add if a in known_steps and a not in current_steps]
