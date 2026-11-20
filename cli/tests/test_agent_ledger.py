@@ -16,6 +16,7 @@ from pathlib import Path
 
 LEDGER_PATH = Path(__file__).resolve().parents[2] / "scripts" / "agent_ledger.py"
 spec = importlib.util.spec_from_file_location("agent_ledger", LEDGER_PATH)
+assert spec is not None and spec.loader is not None
 agent_ledger = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(agent_ledger)
 
