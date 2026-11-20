@@ -69,11 +69,11 @@ def lockfile_hash(root):
 def fast_forward_main_ref(root):
     """Fetch origin/main and advance the local main ref without checkout.
 
-    Uses ``git update-ref refs/heads/main origin/main`` so the local main
-    is current before branching, even when another branch (or another
-    worktree) is checked out (#1139 item 6). Refuses to move a diverged
-    main; falls back to ``merge --ff-only`` when main itself is checked
-    out here. Returns (updated: bool, note: str).
+    Checks all worktrees before updating the local main ref, so it is
+    current before branching when main is not checked out (#1139 item 6).
+    Refuses to move a diverged main or one checked out elsewhere; uses
+    ``merge --ff-only`` when main is checked out here.
+    Returns (updated: bool, note: str).
     """
     res = _git(["fetch", "origin", "main"], root)
     if res.returncode != 0:
@@ -95,10 +95,28 @@ def fast_forward_main_ref(root):
     )
     local_missing = _git(["rev-parse", "--verify", "refs/heads/main"], root)
     if ancestor.returncode == 0 or local_missing.returncode != 0:
-        moved = _git(["update-ref", "refs/heads/main", "origin/main"], root)
+        checked = _git(["worktree", "list", "--porcelain"], root)
+        if checked.returncode != 0:
+            return False, "could not verify checked-out worktrees; main ref not moved"
+        if "branch refs/heads/main" in checked.stdout.splitlines():
+            return (
+                False,
+                "main checked out in another worktree; main ref not moved",
+            )
+        moved = _git(
+            [
+                "update-ref",
+                "refs/heads/main",
+                "origin/main",
+                local_missing.stdout.strip() or "0" * 40,
+            ],
+            root,
+        )
         return (
             moved.returncode == 0,
-            "fast-forwarded main ref" if moved.returncode == 0 else "update-ref failed",
+            "fast-forwarded main ref"
+            if moved.returncode == 0
+            else "main ref update refused or failed",
         )
     return False, "main diverged; not fast-forwarding"
 
@@ -339,7 +357,7 @@ def list_worktrees(root):
 def remove(root, worktree_id, force=False):
     """Remove a managed worktree; returns freed bytes (best effort).
 
-    Abandons sessions bound to the worktree first (single owner: td via
+    Abandons sessions bound to the removed worktree (single owner: td via
     local_sessions, #1139 item 3), refuses dirty worktrees unless
     ``force``, then unregisters via git and prunes stale metadata.
     """
@@ -349,20 +367,29 @@ def remove(root, worktree_id, force=False):
     path = os.path.join(worktrees_dir(root), worktree_id)
     if not os.path.exists(path):
         raise WorktreeError(f"Worktree not found: {worktree_id}")
-    if not force and _changed_count(path) > 0:
-        raise WorktreeError(
-            f"Worktree {worktree_id} has uncommitted changes; "
-            "pass --force to remove anyway"
-        )
-    # Single owner (td via local_sessions, #1139 item 3). Total function:
-    # corrupt sessions are skipped, persistence never raises.
-    local_sessions.abandon_sessions_in_worktree(root, path)
+    if not force:
+        status = _git(["status", "--porcelain"], path)
+        if status.returncode != 0:
+            raise WorktreeError(
+                f"Cannot verify worktree {worktree_id} is clean; not removing"
+            )
+        if status.stdout.strip():
+            raise WorktreeError(
+                f"Worktree {worktree_id} has uncommitted changes; "
+                "pass --force to remove anyway"
+            )
     try:
         freed = _dir_size(path)
     except OSError:
         freed = None
-    res = _git(["worktree", "remove", "--force", path], root)
+    # Keep Git's own dirty-worktree check unless force was explicitly requested.
+    args = ["worktree", "remove"]
+    if force:
+        args.append("--force")
+    res = _git(args + [path], root)
     if res.returncode != 0:
         raise WorktreeError(f"git worktree remove failed: {(res.stderr or '').strip()}")
+    # Only abandon sessions after Git confirms removal succeeded.
+    local_sessions.abandon_sessions_in_worktree(root, path)
     _git(["worktree", "prune"], root)
     return freed

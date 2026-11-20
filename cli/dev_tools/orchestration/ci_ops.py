@@ -459,7 +459,10 @@ Follow the "Audit comment template" in `docs/agent/issue-audit-rules.md` to post
         dev_tools.orchestrator.run_command(["git", "fetch", "origin", base_branch])
 
         worktree_path = os.path.join(os.getcwd(), f"worktree-conflict-{prNumber}.tmp")
-        self._cleanup_worktree(worktree_path)
+        if os.path.lexists(worktree_path):
+            raise CLIError(
+                f"Refusing to overwrite existing worktree path: {worktree_path}"
+            )
 
         dev_tools.orchestrator.run_command(
             ["git", "worktree", "add", worktree_path, f"origin/{head_ref}"]

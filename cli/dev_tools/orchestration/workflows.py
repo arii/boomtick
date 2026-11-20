@@ -89,8 +89,11 @@ class WorkflowMixin(PlanningMixin):
                 # We reuse the push logic below
                 res_code = 0
             else:
-                # 2. Clean up existing worktree if present
-                self._cleanup_worktree(worktree_path)
+                if os.path.lexists(worktree_path):
+                    raise CLIError(
+                        f"Refusing to overwrite existing worktree path: {worktree_path}; "
+                        "use --continue for an in-progress resolution"
+                    )
 
                 # 3. Fetch PR branch and create worktree directly on it
                 dev_tools.orchestrator.run_command(
