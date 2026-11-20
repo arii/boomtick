@@ -104,7 +104,7 @@ def mutate(skill, rep):
         try:
             add = clients.llm_propose_steps(counts, agent.KNOWN_STEPS, skill["steps"])
             if add:
-                return skill["steps"] + add, "llm (OpenRouter)"
+                return skill["steps"] + add, f"llm ({config.llm_backend()})"
         except clients.ApiError as e:
             log(f"    LLM mutation failed ({e}); falling back to rule-based mutator")
     add = []

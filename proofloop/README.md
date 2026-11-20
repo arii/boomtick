@@ -1,6 +1,6 @@
 # ProofLoop
 
-Measured replay-gated skill upgrades with a local Replay Gate, optional Cognee memory and optional Senso storage/retrieval, plus a Chrome status chip. TypeSafe is not used.
+Measured replay-gated skill upgrades with a local Replay Gate, optional Cognee memory and optional Senso storage/retrieval, plus a Chrome status chip.
 
 The executor is a deterministic model of behavior on six derived tasks. A 6/6 result is a result on that suite, not evidence of improved live LLM behavior or absolute safety.
 
@@ -26,6 +26,28 @@ The gate compares the same nonempty suite and individual required checks. Promot
 Promotion also requires storage processing to finish and readback search to find the uploaded content. Failed/malformed readback records `promotion_failed` and preserves the active version. A failed attempt may leave a remote document behind; this code does not delete it or promise an automatic retry without cost.
 
 New ledgers have `schema_version: 2`, `replay_gate` and `retrieval` fields. Legacy ledgers are not silently converted or called verified. Select a separate `PROOFLOOP_STATE` directory to preserve them. `--reset` explicitly deletes JSON state in the selected directory except legacy keys.json, which is never used by this version. Do not point it at unrelated files.
+
+## Mutation LLM via Tokens with Taste (local gateway)
+
+`tokens-with-taste/` in this repo is a local OpenAI-compatible gateway that tries free providers in order (Google, Groq, NVIDIA, Mistral, OpenRouter, SambaNova) and records traces. ProofLoop can use it for the one LLM call it makes: proposing which skill steps to add after a replay. It replaces the OpenRouter-only path when OpenRouter free quota is gone.
+
+```sh
+# Terminal 1: export at least one provider key you actually have (the gateway holds them, ProofLoop never sees them)
+cd tokens-with-taste && python3.11 -m venv .venv && . .venv/bin/activate && python -m pip install -e '.[test]'
+export GROQ_API_KEY=...        # or GOOGLE_API_KEY, NVIDIA_API_KEY, MISTRAL_API_KEY, SAMBANOVA_API_KEY
+twt sync && twt serve          # 127.0.0.1:8000/v1
+# Terminal 2: explicit opt-in, no ProofLoop key needed
+PROOFLOOP_LIVE_SERVICES=twt python3 proofloop/harness/health.py --probe-live
+PROOFLOOP_LIVE_SERVICES=senso,twt SENSO_API_KEY=... python3 proofloop/harness/replay_loop.py --reset --bad-demo
+```
+
+No provider keys at all: run Ollama locally and `export TWT_OLLAMA_MODEL=qwen2.5:0.5b` before `twt sync && twt serve` (see `tokens-with-taste/README.md`). A model that small may not return valid JSON; the harness then falls back to the rule-based mutator.
+
+- Off by default. `twt` must be listed in `PROOFLOOP_LIVE_SERVICES`; credentials alone never activate anything. `twt` wins over `llm` (OpenRouter) when both are listed.
+- The gateway URL must be loopback `http://` (`TWT_BASE_URL`, default `http://127.0.0.1:8000/v1`). Any other host is ignored.
+- The prompt contains only check names, failure counts and step ids. No session text, URLs, phone placeholders or page data. The gateway still stores full prompts in its own local SQLite file (`TWT_DB`, mode 0600).
+- If the gateway is down or the waterfall is exhausted (it returns 503 listing missing credentials, never a fake completion), the harness logs the failure and uses the rule-based mutator. Replay results and the gate do not depend on the LLM.
+- Checked against the real gateway with no provider keys: sync, serve, 503 with missing-env list, harness fallback. A successful provider completion has not been exercised (no provider key in the build sandbox).
 
 ## Credential and activation boundaries
 
@@ -53,4 +75,4 @@ PROOFLOOP_FORCE_STUB=1 PROOFLOOP_STATE=/tmp/proofloop-demo PROOFLOOP_EXTENSION_I
 
 ## Scope and sponsor claims
 
-Cognee/Senso adapters remain optional and unverified live. Their current API-shape references are https://docs.cognee.ai/cognee-cloud/http-api and https://www.docs.senso.ai/docs/quickstart . Protocol mocks test code paths, not vendor availability or prize eligibility. Sponsor-specific challenges can have stricter requirements than the general event. No TypeSafe prize/credit dependency remains. Earlier planning notes in TRACKING.md are historical, not current instructions or authorization.
+Cognee/Senso adapters remain optional and unverified live. Their current API-shape references are https://docs.cognee.ai/cognee-cloud/http-api and https://www.docs.senso.ai/docs/quickstart . Protocol mocks test code paths, not vendor availability or prize eligibility. Sponsor-specific challenges can have stricter requirements than the general event. Earlier planning notes in TRACKING.md are historical, not current instructions or authorization.

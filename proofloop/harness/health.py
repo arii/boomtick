@@ -20,16 +20,14 @@ def check_senso():
     return "GREEN", "GET /org/me succeeded (does not prove ingest/search)"
 
 
-def check_openrouter():
-    if config.mode("llm") == "stub":
-        return "STUB", "not explicitly enabled with credentials"
-    body = {"model": config.get("OPENROUTER_MODEL", config.DEFAULT_LLM_MODEL),
-            "messages": [{"role": "user", "content": "hi"}], "max_tokens": 1}
-    headers = {"Authorization": f"Bearer {config.get('OPENROUTER_API_KEY')}"}
-    status, response = clients.http_json("POST", f"{config.base_url('openrouter')}/api/v1/chat/completions", headers, body, timeout=60)
-    if status != 200 or not response.get("choices"):
-        raise clients.ApiError(status, "completion response missing choices")
-    return "GREEN", "synthetic one-token completion succeeded (not replay/executor proof)"
+def check_llm():
+    backend = config.llm_backend()
+    if backend is None:
+        return "STUB", "not explicitly enabled (twt needs PROOFLOOP_LIVE_SERVICES=twt; openrouter needs llm + key)"
+    text = clients.llm_chat("hi", max_tokens=1)
+    if text is None:
+        raise clients.ApiError(0, "completion response missing choices")
+    return "GREEN", f"synthetic one-token completion via {backend} succeeded (not replay/executor proof)"
 
 
 def check_cognee():
@@ -54,7 +52,7 @@ def main():
         print("No connectivity checked. --probe-live may use credits and create synthetic remote data.")
         return 0
     red = False
-    for name, check in [("senso", check_senso), ("openrouter", check_openrouter), ("cognee", check_cognee)]:
+    for name, check in [("senso", check_senso), ("llm", check_llm), ("cognee", check_cognee)]:
         try:
             state, message = check()
         except clients.ApiError:
