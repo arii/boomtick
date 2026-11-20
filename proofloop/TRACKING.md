@@ -6,7 +6,7 @@ Private no-TypeSafe patch prepared November 20: README.md describes the local Re
 
 Live status for the Personal Agents Hackathon build (Fri Nov 20, 2026). Kiro updates this file as work progresses. Ari's CLI agents (agy, Copilot, Muse CLI) read this file to pick up work interactively. Do not delete this file. Keep it current.
 
-Last updated: 2026-11-20 12:02 PM PT (by Kiro). Focus is Senso + OpenRouter only (Jev and TypeSafe are out of the challenge). Local gate in place. Neither key has reached the Kiro sandbox yet.
+Last updated: 2026-11-20 12:45 PM PT (by Kiro). First live run on Ari's machine hit two bugs, both fixed: Senso 403 "error code: 1010" (Cloudflare blocks the default Python User-Agent) and a retired OpenRouter model. Needs a re-run after `git pull`.
 
 ## Repo and branch
 - Repo: arii/boomtick (no new repo).
@@ -27,7 +27,7 @@ Last updated: 2026-11-20 12:02 PM PT (by Kiro). Focus is Senso + OpenRouter only
 - [x] harness/validate.py, harness/make_tasks.py (derives replay_tasks.json: 6 tasks = vouch, waas, sfpromises, feels_mockup, adsense, hrm; left out: luma, feels_honest).
 - [x] MV3 extension skeleton in proofloop/extension/ (manifest, background worker with chrome.tabs.query, content script, options Keys & Status page, Gemini Nano guard with backend fallback). Chip/proof-table/tab detection tested in jsdom against the local backend, not real Chrome.
 - [x] skills-local/ with 3 skills copied from arii/hello (lane-coder, independent-tests, caffeinated-guardrails). Git-ignored because arii/hello is private and boomtick is public.
-- [x] Live API shapes corrected from public docs: Senso base https://apiv2.senso.ai/api/v1 with X-API-Key, kb_node_id polling / content_id search, 409 handling; Cognee multipart add, cognify {datasets:[...]}, search query+search_type, X-Api-Key+X-Tenant-Id for Cloud / Bearer self-hosted (COGNEE_TENANT_ID); OpenRouter default arcee-ai/trinity-large-thinking:free (OPENROUTER_MODEL override), unconfirmed without key.
+- [x] Live API shapes corrected from public docs: Senso base https://apiv2.senso.ai/api/v1 with X-API-Key, kb_node_id polling / content_id search, 409 handling; Cognee multipart add, cognify {datasets:[...]}, search query+search_type, X-Api-Key+X-Tenant-Id for Cloud / Bearer self-hosted (COGNEE_TENANT_ID); OpenRouter default openrouter/free alias (OPENROUTER_MODEL override); the Arcee free slug was retired (404).
 - [x] **Jev removed (no sponsor, no credits).** Replaced by a local deterministic threshold gate (clients.local_gate, no API call): promote if candidate pass rate > baseline AND constraint violations did not increase; reject_and_refine if candidate pass rate < baseline OR violations increased; hold otherwise. Same decision labels (promote / reject_and_refine / hold). Ledger fields unchanged in name: choice = decision, confidence = candidate minus baseline pass rate, constraints_prob = violation count after the candidate, utility_score = candidate pass rate; the ledger key is still named jev_gate for compatibility (rename is a small follow-up). The Jev client code and TYPESAFE_API_KEY / TYPESAFE_MODEL env vars are kept but unused; set PROOFLOOP_GATE=jev to re-enable. Edge cases of the rule are unit-checked; the Jev flag path was re-run against harness/mock_sponsors.py.
 - [x] Live code paths exercised end to end against harness/mock_sponsors.py (same 2/6 -> 5/6 -> 6/6 -> rollback flow). Not yet run against the real sponsor APIs.
 - [x] TRACKING.md committed on feat/proofloop.
@@ -41,11 +41,14 @@ Last updated: 2026-11-20 12:02 PM PT (by Kiro). Focus is Senso + OpenRouter only
 - [ ] PR decision (open now or wait until live runs are done).
 
 ## Next steps (in order) and blockers
-1. BLOCKER: Senso + OpenRouter keys must reach the Kiro sandbox (see Needs from Ari 2). Then: `python3 harness/health.py` (expect senso GREEN, openrouter GREEN, cognee STUB).
+1. Ari: `git pull`, then `python3 harness/health.py` (expect senso GREEN, openrouter GREEN, cognee STUB) and `python3 harness/replay_loop.py --reset --bad-demo`. If anything is still RED, paste the line into the Kiro chat. Keys are on Ari's machine only (not in the Kiro sandbox).
 2. Run `replay_loop.py --reset --bad-demo` with Senso live and OpenRouter live (LLM proposes the mutation; rule-based mutator is the fallback). Record the pass rates here. They may differ from 2/6 -> 5/6 -> 6/6 if the LLM picks different steps.
 3. If Senso live fails, check the first error: field names for POST /org/kb/raw and search are from docs, not yet run live.
 4. Ari: load the extension in real Chrome (Needs item 6), then backup video and two timed dry runs.
 5. PR decision.
+
+## Live-run log
+- 2026-11-20 (Ari's machine, first live run): Senso RED `403 error code: 1010`; OpenRouter RED `404 model no longer available`; Cognee STUB; stub-gate flow reached cycle 1 (v1.1 5/6, gate promote) then BLOCKED at the Senso call. Fixes pushed: custom User-Agent on every request (verified: unauthenticated call now returns 401 "key required" instead of 1010), default model `openrouter/free`. Not yet re-run with real keys.
 
 ## Needs from Ari
 1. **Confirm the phone-number masking** — the real file contained both full phone numbers; Kiro committed a masked copy ([PHONE-PRO], [PHONE-FAMILY]) because boomtick is public. Say so if you want it handled differently. Also confirm you are fine with these staying public in data/sessions.jsonl: onasafari.ddns.net, the AdSense publisher ID (public in ads.txt), and the dhyuti-n Hugging Face dataset URL.
