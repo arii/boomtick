@@ -220,6 +220,22 @@ const overlaps = (a, b) => Math.min(a.right, b.right) > Math.max(a.left, b.left)
       assert.equal(await page.inputValue(city), 'San Jose', 'still untouched');
     });
 
+    await step('a dismissed warning stays dismissed when the page adds a field above it (React-style re-render)', async () => {
+      await page.fill(city, 'San Jose, US');
+      const before = await waitFor(async () => { const x = await ui(page); return x.chips.length === 1 && x; });
+      await clickUI(page, 'Got it', '.chip');
+      await waitFor(async () => (await ui(page)).chips.length === 0);
+      const shownBefore = fs.readFileSync(path.join(tmp, 'state', 'feedback.jsonl'), 'utf8').split('\n').filter((l) => l.includes('"shown"')).length;
+      // The site inserts a new labeled field at the top of the form, then re-renders: every field index shifts.
+      await page.evaluate(() => { const f = document.querySelector('form'); const l = document.createElement('label'); l.textContent = 'Pronouns '; l.append(document.createElement('input')); f.prepend(l); });
+      await page.waitForTimeout(1500);
+      const after = await ui(page);
+      assert.equal(after.chips.length + after.outlines, 0, 'dismissed warning came back after a re-render');
+      const shownAfter = fs.readFileSync(path.join(tmp, 'state', 'feedback.jsonl'), 'utf8').split('\n').filter((l) => l.includes('"shown"')).length;
+      assert.equal(shownAfter, shownBefore, '"shown" feedback re-sent for the same warning');
+      assert.ok(before.chips.length === 1);
+    });
+
     await step('Submit anyway releases a held submit once', async () => {
       await page.fill(city, 'SJ, CA');
       await page.fill(city, 'San Jose, CA');

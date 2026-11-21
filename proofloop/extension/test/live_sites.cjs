@@ -94,6 +94,9 @@ const noCover = (u) => { if (u.pillRect) for (const x of u.controls) assert.ok(!
     page.on('request', (r) => { if (r.method() === 'POST' && /luma|lu\.ma/.test(new URL(r.url()).hostname) && /regist|rsvp|join|ticket|guest/i.test(r.url())) posts.push(r.url()); });
     await page.goto('https://luma.com/personalagenthack', { waitUntil: 'domcontentloaded' });
     await page.getByRole('button', { name: 'Request to Join' }).first().click();
+    // After the event date Luma first asks "Past Event ... Proceed / Cancel"; Proceed only opens the same form.
+    const proceed = page.getByRole('button', { name: 'Proceed' });
+    if (await proceed.isVisible({ timeout: 3000 }).catch(() => false)) await proceed.click();
     const cityBox = page.getByLabel(/What city are you based in/);
     await cityBox.waitFor({ timeout: 15000 });
     await page.waitForTimeout(1500);
@@ -117,7 +120,19 @@ const noCover = (u) => { if (u.pillRect) for (const x of u.controls) assert.ok(!
     assert.deepEqual(posts, [], 'no registration request was sent while held');
     await page.screenshot({ path: path.join(shots, 'luma-submit-held.png') });
     await page.evaluate(() => [...document.getElementById('proofloop-observer-host').shadowRoot.querySelectorAll('.panel button')].find((b) => b.textContent === 'Back to form').click());
-    console.log('luma: warnings shown, nothing covered, submit held, no registration request');
+    // Dismiss the city warning from the panel, then make Luma re-render (type in another field, blur): it stays dismissed.
+    const clickPanel = (p, text) => p.evaluate((t) => { const r = document.getElementById('proofloop-observer-host').shadowRoot;
+      if (!r.querySelector('.panel')) r.querySelector('.pill').click(); }, text).then(() => p.waitForTimeout(300)).then(() => p.evaluate((t) => {
+      const b = [...document.getElementById('proofloop-observer-host').shadowRoot.querySelectorAll('.panel .card')].find((c) => c.innerText.includes(t));
+      [...b.querySelectorAll('button')].find((x) => x.textContent === 'Got it').click(); }, text));
+    await clickPanel(page, 'San Francisco, not San Jose');
+    await page.getByLabel(/What company/).fill('Acme');
+    await page.getByLabel(/What is your job title/).click();
+    await page.waitForTimeout(2000);
+    u = await ui(page);
+    console.log('luma after dismiss + re-render:', u.pill, 'outlines', u.outlines);
+    assert.match(u.pill, /1 conflict/, 'only the consent conflict remains');
+    console.log('luma: warnings shown, nothing covered, submit held, no registration request, dismissal survives re-render');
     await page.close();
 
     // ---- Vouch (never clicks Start Application)
@@ -138,6 +153,15 @@ const noCover = (u) => { if (u.pillRect) for (const x of u.controls) assert.ok(!
     u = await waitFor(async () => { const x = await ui(v); return x && /2 conflicts/.test(x.pill || '') && x; });
     noCover(u);
     console.log('vouch pill:', u.pill, 'chips:', JSON.stringify(u.chips.map((c) => c.text)));
+    // Dismiss the address warning, then open the Location Type dropdown (Vouch mounts a listbox): it stays dismissed.
+    await clickPanel(v, 'San Francisco, not San Jose');
+    await v.getByLabel(/Location Type/).click();
+    await v.waitForTimeout(2000);
+    const mounted = await v.locator('[role=listbox]').count();
+    u = await ui(v);
+    console.log('vouch after dismiss + dropdown (listboxes mounted:', mounted + '):', u.pill);
+    assert.match(u.pill, /1 conflict/, 'only the phone conflict remains');
+    await v.keyboard.press('Escape');
     await v.screenshot({ path: path.join(shots, 'vouch-two-conflicts.png') });
     console.log(`live sites passed (${testRules ? 'test rule set' : 'your promoted rule set'}). Screenshots: ${shots}`);
   } finally {

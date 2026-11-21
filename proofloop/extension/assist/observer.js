@@ -24,8 +24,13 @@
   const rulesNow = () => (S.res && S.res.ok && S.res.data.page_rules) || [];
   const visible = (el) => el.isConnected && el.getClientRects().length > 0 && getComputedStyle(el).visibility !== "hidden";
   const fieldState = (f) => ({ semantic: f.semantic, label: f.label, value: f.el.value, checked: !!f.el.checked });
-  const keyOf = (rid, f) => `${rid}|${f.idx}`;
-  const dismissKey = (rid, f) => `${rid}|${f.idx}|${f.el.type === "checkbox" || f.el.type === "radio" ? f.el.checked : f.el.value}`;
+  // Warnings are keyed by the field element itself, not its position: sites insert and remove fields as they
+  // re-render, and a position-based key made dismissed warnings come back and "shown" feedback repeat.
+  const ids = new WeakMap();
+  let nextId = 0;
+  const fieldId = (el) => { if (!ids.has(el)) ids.set(el, ++nextId); return ids.get(el); };
+  const keyOf = (rid, f) => `${rid}|${fieldId(f.el)}`;
+  const dismissKey = (rid, f) => `${rid}|${fieldId(f.el)}|${f.el.type === "checkbox" || f.el.type === "radio" ? f.el.checked : f.el.value}`;
 
   // ------------------------------------------------------------------ UI scaffolding
   const el = (tag, props = {}, ...kids) => { const n = Object.assign(document.createElement(tag), props); kids.forEach((k) => k != null && n.append(k)); return n; };
@@ -264,7 +269,7 @@
     if (pr && pr.ok) Object.assign(prefs, { hold_submit: pr.hold_submit, cross_tab: pr.cross_tab, paused: pr.paused });
     if (prefs.paused) { layer.textContent = ""; return; }
     sniffTerminal();
-    S.fields = terminal ? [] : D.collect(document).filter((f) => visible(f.el)).map((f, idx) => ({ ...f, idx }));
+    S.fields = terminal ? [] : D.collect(document).filter((f) => visible(f.el));
     const { task } = T.classify(vocab, document, S.fields);
     if (task !== S.task) {
       S.task = task;
