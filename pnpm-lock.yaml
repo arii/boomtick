@@ -27,9 +27,6 @@ importers:
       '@types/pngjs':
         specifier: ^6.0.5
         version: 6.0.5
-      '@typescript-eslint/eslint-plugin':
-        specifier: ^8.64.0
-        version: 8.64.0(@typescript-eslint/parser@8.64.0(eslint@10.7.0)(typescript@5.9.3))(eslint@10.7.0)(typescript@5.9.3)
       dependency-cruiser:
         specifier: ^18.1.0
         version: 18.1.0
