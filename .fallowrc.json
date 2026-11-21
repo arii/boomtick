@@ -2,8 +2,19 @@
   "$schema": "https://raw.githubusercontent.com/fallow-rs/fallow/main/schema.json",
   "ignorePatterns": [
     "cli",
-    "proofloop/harness/tests"
+    "proofloop/harness/tests",
+    "proofloop/extension/**"
   ],
+  "duplicates": {
+    "ignore": [
+      "proofloop/extension/**"
+    ]
+  },
+  "health": {
+    "ignore": [
+      "proofloop/extension/**"
+    ]
+  },
   "rules": {
     "unused-export": "warn",
     "unused-class-member": "warn",
