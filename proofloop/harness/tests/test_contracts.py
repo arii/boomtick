@@ -124,6 +124,36 @@ class RecallContract(Base):
         self.assertEqual((cg.ingested, cg.queries), (0, []))
 
 
+class Handoff(Base):
+    def test_bundle_from_a_real_loop_run_has_no_secrets_answers_or_private_values(self):
+        import os
+        import handoff
+        from fakes import FakeLLM
+        from test_loop import suite
+        os.environ["PROOFLOOP_ALLOW_SESSION_UPLOAD"] = "1"
+        try:
+            llm = FakeLLM(mutator_replies=[{"instructions": [], "page_rules": [CITY, PHONE]}])
+            s = suite()
+            llm.suite = s
+            replay_loop.run(Services(llm=llm, cognee=FakeCognee(SESSIONS), senso=FakeSenso(), llm_backend="fake"), s, SESSIONS,
+                            samples=2, log=lambda *_: None)
+        finally:
+            os.environ.pop("PROOFLOOP_ALLOW_SESSION_UPLOAD", None)
+        (config.STATE_DIR / "feedback.jsonl").write_text(json.dumps({"rule_id": CITY["id"], "action": "rule_wrong"}) + "\n")
+        b = handoff.bundle()
+        self.assertEqual((b["promotions"], b["active_version"], b["problems"]), (1, "v1", []))
+        self.assertTrue(b["active_rules"]["sha256_ok"])
+        self.assertEqual(b["feedback"], {CITY["id"]: {"rule_wrong": 1}})
+        blob = json.dumps(b)
+        for leak in ("GOOD", "BAD ", "answer", "outcome_or_error"):
+            self.assertNotIn(leak, blob)
+
+    def test_nothing_to_hand_off_is_explicit(self):
+        import handoff
+        with self.assertRaises(SystemExit):
+            handoff.bundle()
+
+
 class GateEdges(unittest.TestCase):
     def test_no_holdout_tasks_still_decides_on_train(self):
         base = {"a": {"score": 0.0, "split": "train"}, "b": {"score": 0.0, "split": "train"}}
