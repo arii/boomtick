@@ -20,8 +20,8 @@ def test_cli_runs_package_tests_from_any_caller(tmp_path, monkeypatch, nested):
     monkeypatch.chdir(caller)
     orchestrator = Mock()
     orchestrator.runtime_check.side_effect = lambda: (
-        Path(".node-version").read_text(),
-        Path("package.json").read_text(),
+        Path(".node-version").read_text(encoding="utf-8"),
+        Path("package.json").read_text(encoding="utf-8"),
     )
     with patch.object(ops.subprocess, "run") as run:
         result = CliRunner().invoke(

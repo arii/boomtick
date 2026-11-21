@@ -460,9 +460,7 @@ class ReviewMixin(OrchestratorBase):
         """Review a pull request and post findings."""
         if "pr_number" in kwargs:
             prNumber = kwargs["pr_number"]
-        """
-        Fetches a PR and evaluates AST and heuristic compliance rules locally.
-        """
+        # Fetches a PR and evaluates AST and heuristic compliance rules locally.
         pr_details = self.github.fetch_pr_details(prNumber)
         sha = pr_details.get("head", {}).get("sha")
         check_runs = self.github.fetch_check_runs(sha)

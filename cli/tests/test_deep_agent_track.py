@@ -8,8 +8,6 @@ Covers:
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
-from click.testing import CliRunner
-
 from dev_tools.cli import cli
 from dev_tools.orchestrator import Orchestrator
 

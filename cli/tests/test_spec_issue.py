@@ -2,7 +2,6 @@
 """Tests for td gh spec-issue (service-level; no network)."""
 
 import json
-import subprocess
 from unittest.mock import patch
 
 from click.testing import CliRunner

@@ -324,7 +324,7 @@ Follow the "Audit comment template" in `docs/agent/issue-audit-rules.md` to post
             prNumber = kwargs["pr_number"]
         if "repo" in kwargs and repo is None:
             repo = kwargs["repo"]
-        """Fetches CI logs for failing (or all) check runs in a PR."""
+        # Fetches CI logs for failing (or all) check runs in a PR.
         # Get PR head SHA
         pr_data = self.github.fetch_pr_details(prNumber, repo=repo)
         head_sha = pr_data.get("head", {}).get("sha")
