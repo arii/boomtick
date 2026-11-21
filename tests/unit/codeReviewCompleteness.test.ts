@@ -1,14 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { EventEmitter } from 'node:events';
-import { PassThrough } from 'node:stream';
 import type { CodeReviewResult } from '../../lib/codeReviewTypes';
 
 const mocks = vi.hoisted(() => {
   const exec = vi.fn();
   Object.defineProperty(exec, Symbol.for('nodejs.util.promisify.custom'), { value: exec, configurable: true });
-  return { exec, spawn: vi.fn(), write: vi.fn(), post: vi.fn(), previous: vi.fn(), quota: vi.fn() };
+  return { exec, context: vi.fn(), write: vi.fn(), post: vi.fn(), previous: vi.fn(), quota: vi.fn() };
 });
-vi.mock('child_process', () => ({ execFile: mocks.exec, spawn: mocks.spawn }));
+vi.mock('child_process', () => ({ execFile: mocks.exec }));
+vi.mock('../../lib/reviewContext', () => ({ getAIContext: mocks.context }));
 vi.mock('fs', () => ({
   existsSync: () => true,
   mkdirSync: vi.fn(),
@@ -42,17 +41,6 @@ function verdict() {
   expect(call).toBeDefined();
   return JSON.parse(call![1]);
 }
-function contextProcess(error?: Error) {
-  const child = Object.assign(new EventEmitter(), {
-    stdout: new PassThrough(), stderr: new PassThrough(), stdin: new PassThrough(),
-  });
-  queueMicrotask(() => {
-    if (error) child.emit('error', error);
-    else { child.stdout.emit('data', '[]'); child.emit('close', 0); }
-  });
-  return child;
-}
-
 beforeEach(() => {
   vi.clearAllMocks();
   delete process.env.GITHUB_TOKEN;
@@ -63,17 +51,17 @@ beforeEach(() => {
     args.includes('rev-parse') ? 'abc' : args.includes('--name-only') ? 'src/file.ts' :
       args.includes('diff') ? 'diff --git a/src/file.ts b/src/file.ts\n@@ -1 +1 @@\n-export const value = 1;\n+export const value = 2;\n' : '',
   }));
-  mocks.spawn.mockImplementation(() => contextProcess());
+  mocks.context.mockResolvedValue([]);
   client.invokeReview.mockImplementation(async () => clean());
 });
 
 describe('code review completeness', () => {
-  it('does not call the provider when td context is unavailable and writes a failing verdict', async () => {
-    mocks.spawn.mockImplementation(() => contextProcess(new Error('spawn td ENOENT')));
+  it('does not call the provider when dependency context is unavailable and writes a failing verdict', async () => {
+    mocks.context.mockRejectedValue(new Error('depcruise context failed'));
     await expect(orchestrateCodeReview(client)).rejects.toThrow('Impact/semantic context unavailable');
     expect(client.invokeReview).not.toHaveBeenCalled();
     expect(verdict()).toMatchObject({ passed: false, skipReason: 'PREPARATION_FAILED', highCount: 0 });
-    expect(mocks.write.mock.calls.some(([, text]) => String(text).includes('ENOENT'))).toBe(true);
+    expect(mocks.write.mock.calls.some(([, text]) => String(text).includes('depcruise context failed'))).toBe(true);
   });
 
   it('fails closed on git errors rather than reporting no changes', async () => {
