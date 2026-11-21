@@ -239,7 +239,8 @@ const overlaps = (a, b) => Math.min(a.right, b.right) > Math.max(a.left, b.left)
       page = await open(url('apply.vouch.us'));
       await page.fill('[id=":re:"]', FAMILY);
       await page.fill('[id=":r3:"]', '1 South Main Street, San Jose, CA');
-      await waitFor(async () => { const x = await ui(page); return x && /2 conflicts/.test(x.pill || ''); }).catch(async (e) => { console.error('UI3:', JSON.stringify(await ui(page)).slice(0, 800)); throw e; });
+      // 3 = family phone + San Jose address + phone differing from the profile tab (cross-tab is on in this test).
+      await waitFor(async () => { const x = await ui(page); return x && /3 conflicts/.test(x.pill || '') && x.outlines === 2; }).catch(async (e) => { console.error('UI3:', JSON.stringify(await ui(page)).slice(0, 800)); throw e; });
       await clickUI(page, 'ProofLoop');
       const u = await waitFor(async () => { const x = await ui(page); return x.panel && x; });
       const texts = u.panel;
