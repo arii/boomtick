@@ -23,6 +23,7 @@ from services import Services, ask_json
 
 SUITE_PATH = config.DATA_DIR / "replay_tasks.json"
 CHECK_TYPES = ("must_include", "must_not_include", "asks_clarification", "no_unsupported_claims")
+MAX_VALUE_WORDS = 8  # string checks are for values (a city, a number, a URL), not whole rules
 
 
 def _tasks_vocab():
@@ -46,7 +47,10 @@ def prompt(session):
             "Check types: must_include (exact text a correct answer contains), must_not_include (exact text of the recorded "
             "mistake), asks_clarification (value = the topic the agent must ask about), no_unsupported_claims (value = what "
             "kind of claim must be traceable). Copy must_include and must_not_include values exactly from the session text, "
-            "including placeholders like [PHONE-PRO]. 1 to 4 checks.")},
+            "including placeholders like [PHONE-PRO]. They must be short values a correct answer would actually contain "
+            "(a city, a number, a URL, a placeholder; at most 8 words), never a whole rule sentence, and a must_not_include "
+            "value must not be part of a must_include value. Put rules about behavior in asks_clarification or "
+            "no_unsupported_claims instead. 1 to 4 checks.")},
     ]
 
 
@@ -65,6 +69,14 @@ def make_check(session):
                 raise ValueError(f"bad check {c!r}")
             if c["type"] in ("must_include", "must_not_include") and rules_mod.norm(c["value"]) not in text:
                 raise ValueError(f"{c['type']} value {c['value']!r} does not appear in the session")
+            if c["type"] in ("must_include", "must_not_include") and len(rules_mod.norm(c["value"]).split()) > MAX_VALUE_WORDS:
+                raise ValueError(f"{c['type']} value {c['value']!r} is a sentence; use a short exact value (at most {MAX_VALUE_WORDS} words)")
+        inc = [rules_mod.norm(c["value"]) for c in checks if c["type"] == "must_include"]
+        exc = [rules_mod.norm(c["value"]) for c in checks if c["type"] == "must_not_include"]
+        for a in inc:
+            for b in exc:
+                if b in a or a in b:
+                    raise ValueError(f"must_include {a!r} and must_not_include {b!r} contradict: no answer can pass both")
     return check
 
 

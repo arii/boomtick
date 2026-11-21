@@ -63,7 +63,7 @@ def validate(rules, sessions_by_id):
     def cited_text(prov):
         missing = [p for p in prov if p not in sessions_by_id]
         if missing:
-            raise ValueError(f"provenance cites unknown sessions: {missing}")
+            raise ValueError(f"provenance cites sessions outside the evidence given for this proposal: {missing}")
         return norm(" ".join(json.dumps(sessions_by_id[p], ensure_ascii=False) for p in prov))
 
     for ins in rules["instructions"]:

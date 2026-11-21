@@ -82,7 +82,7 @@ def failures_of(result, suite):
             continue
         failed = Counter(c for s in r["samples"] for c in s["failed"])
         sample = next((s["answer"] for s in r["samples"] if s["failed"]), "")
-        out.append({"task_id": tid, "task_kind": by_id[tid]["task_kind"], "query": by_id[tid]["query"],
+        out.append({"task_id": tid, "source_session_id": by_id[tid]["source_session_id"], "task_kind": by_id[tid]["task_kind"], "query": by_id[tid]["query"],
                     "score": r["score"], "failed_checks": dict(failed), "answer_sample": sample[:600]})
     return out
 
@@ -95,14 +95,14 @@ def gather_evidence(rec, fails, suite):
         for ex in rec.search(query):
             if ex["session_id"] not in seen:
                 seen.add(ex["session_id"])
-                evidence.append(ex)
-    if rec.mode == "disabled":
-        # Explicit --no-recall: the only evidence is each failing task's own source session (recorded as such).
-        for f in fails:
-            sid = by_id[f["task_id"]]["source_session_id"]
-            if sid not in seen:
-                seen.add(sid)
-                evidence.append(recall_mod.excerpt(rec.sessions[sid]))
+                evidence.append(ex | {"why": "Cognee recall"})
+    # Each failing train task's own source session is always evidence, whether or not recall returned it: it is
+    # the session the task was made from, so it is the most natural citation. Holdout tasks never reach here.
+    for f in fails:
+        sid = by_id[f["task_id"]]["source_session_id"]
+        if sid not in seen:
+            seen.add(sid)
+            evidence.append(recall_mod.excerpt(rec.sessions[sid]) | {"why": "source session of a failing task"})
     return evidence
 
 

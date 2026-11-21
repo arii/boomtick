@@ -144,6 +144,22 @@ class LoopTest(Base):
         with self.assertRaises(config.Blocked):
             self.run_loop(FakeLLM())
 
+    def test_failing_tasks_own_session_is_evidence_even_when_recall_misses_it(self):
+        class EmptyCognee(FakeCognee):
+            def search(self, query):
+                return []
+        llm = FakeLLM(mutator_replies=[{"instructions": [], "page_rules": [CITY, PHONE]}])
+        s = suite()
+        llm.suite = s
+        services = Services(llm=llm, cognee=EmptyCognee(SESSIONS), senso=FakeSenso(), llm_backend="fake")
+        out = replay_loop.run(services, s, SESSIONS, samples=2, log=self.logs.append)
+        self.assertEqual(out["ledger"]["entries"][1]["status"], "promoted", "citing the failing task's own session is allowed")
+        ev = out["ledger"]["entries"][1]["evidence_sessions"]
+        self.assertEqual(set(ev), {"sess_2026_11_16_vouch", "sess_2026_11_18_waas"}, "train sources only; the holdout source is not evidence")
+        prompt = llm.mutator_prompts()[0]
+        self.assertIn('"source_session_id": "sess_2026_11_16_vouch"', prompt)
+        self.assertIn("source session of a failing task", prompt)
+
     def test_runtime_has_no_stub_fallback(self):
         for k in ("PROOFLOOP_LIVE_SERVICES", "SENSO_API_KEY", "COGNEE_API_KEY", "COGNEE_API_URL"):
             os.environ.pop(k, None)
@@ -174,7 +190,7 @@ class UnitTest(Base):
         ok = {"version": "v1", "parent": "v0", "instructions": [{"text": "Ask before choosing a work type.", "provenance": ["sess_2026_11_16_vouch"]}],
               "page_rules": [CITY, PHONE]}
         rules_mod.validate(ok, BY_ID)
-        for bad, msg in [(dict(PHONE, forbid=["[PHONE-WORK]"]), "placeholder"), (dict(CITY, provenance=["sess_2099_01_01_x"]), "unknown sessions"),
+        for bad, msg in [(dict(PHONE, forbid=["[PHONE-WORK]"]), "placeholder"), (dict(CITY, provenance=["sess_2099_01_01_x"]), "outside the evidence"),
                          (dict(CITY, kind="keep_unchecked"), "schema"), (dict(CITY, id="Bad Id"), "schema")]:
             with self.assertRaises(ValueError) as cm:
                 rules_mod.validate(dict(ok, page_rules=[bad]), BY_ID)
@@ -192,6 +208,21 @@ class UnitTest(Base):
         self.assertEqual(skipped, [])
         self.assertEqual(len({t["split"] for t in out["tasks"]}), 2)
         validate.check_suite(out)
+
+    def test_task_generation_rejects_sentences_and_contradictions(self):
+        hrm = BY_ID["sess_2026_11_17_hrm"]
+        llm = FakeLLM(task_replies=[
+            {"task_kind": "verification", "checks": [{"type": "must_include", "value": "Merged is never treated as deployed; claims are verified against the live device"}]},
+            {"task_kind": "verification", "checks": [{"type": "must_include", "value": "not headless alone"}, {"type": "must_not_include", "value": "headless"}]},
+            {"task_kind": "verification", "checks": [{"type": "must_include", "value": "live hardware"}, {"type": "no_unsupported_claims", "value": "deployment status"}]}])
+        check = tasks_mod.make_check(hrm)
+        with self.assertRaises(ValueError) as a:
+            check(llm.task_replies[0])
+        self.assertIn("is a sentence", str(a.exception))
+        with self.assertRaises(ValueError) as b:
+            check(llm.task_replies[1])
+        self.assertIn("contradict", str(b.exception))
+        check(llm.task_replies[2])
 
     def test_mutator_refuses_without_evidence(self):
         with self.assertRaises(mutator.InvalidProposal):
