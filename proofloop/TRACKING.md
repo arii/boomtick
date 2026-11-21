@@ -15,6 +15,12 @@ Last updated: 2026-11-20 02:55 PM PT (by Kiro). Started the assistant rebuild in
 - PR #1350 and #1351 merged into feat/proofloop (not main). A PR from feat/proofloop to main is not open; decide after the live checks.
 
 ## Current status (latest)
+- **Checkout check (follow-up 2), 2026-11-20.** Ran `extension/test/checkout_check.cjs` in sandbox Chromium. It loads the unpacked extension fresh, uses the real backend, and a city and phone rule set scoped to event registration, insurance quote and job application.
+  - Page: the eval checkout page at `http://shop.example.test:<port>/checkout`. It has Shipping address, Street address (`autocomplete=street-address`), City (`address-level2`), Phone (`type=tel`), a partner-sponsors box and "Place order". It is not a real store: no logged-in checkout is available in the sandbox, and the script does not type into a real store.
+  - Typed City "San Jose", Phone 415-555-0100 (the family number in the test values) and Street "1 South Main Street, San Jose, CA 95112".
+  - Current build: observer injected, no pill, 0 chips, 0 outlines.
+  - Same browser, Vouch fixture with the same rules: "ProofLoop · 2 conflicts" (control).
+  - Same run with task.js from before 4728633: checkout showed "ProofLoop · 3 conflicts", 2 chips, 3 outlines. So the fix removed real false warnings.
 - **Security suite (PLAN 9.3), 2026-11-20.** `harness/tests/test_security.py`:
   - S4: the loop never opens data/private, and private values never reach LLM prompts, Senso payloads or state files. /assist carries hashes, not values. Tracked data has no unmasked phone or email.
   - S5: tab text cannot close the untrusted-data block, and injected or unknown-kind rules are refused.
