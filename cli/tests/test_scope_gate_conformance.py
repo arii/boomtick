@@ -115,5 +115,5 @@ def test_navigation_only_dir_tokens_are_phantom(token):
     # #1219: dir tokens made only of navigation noise must not crash
     # the gate and must never count as deliberate scope mentions.
     assert scope_gate._is_phantom_dir_match(token) is True
-    files, dirs = scope_gate.extract_mentions(f"run with PYTHONPATH={token}cli pytest")
+    _files, dirs = scope_gate.extract_mentions(f"run with PYTHONPATH={token}cli pytest")
     assert token not in dirs

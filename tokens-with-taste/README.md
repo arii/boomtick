@@ -78,11 +78,27 @@ automatic trace deletion or redaction.
 ## Routing, limits and costs
 
 Hosted order: **Google, Groq, NVIDIA, Mistral, OpenRouter, SambaNova,
-Cloudflare, Nebius**. Default routes select only verified free-eligible models
-at the first seven providers; Nebius is the paid fallback. Unknown free-tier
+Cloudflare, Nebius**. Google, Groq, NVIDIA, OpenRouter, SambaNova and
+Cloudflare select only verified free-eligible models by default. Mistral is
+metered and requires API billing access; free Studio/playground access does
+not provide API access. Nebius is also a paid fallback. This fixed order is
+not a global free-before-paid guarantee. Unknown free-tier
 eligibility is not assumed. Explicit model requests may select a paid model.
 Within a provider, selection is deterministic: free first, then lowest known
 input price, then ID. One matching model is attempted per provider.
+
+For accounts without access to a provider, set `TWT_DISABLED_PROVIDERS` to a
+comma-separated list of provider IDs, for example `TWT_DISABLED_PROVIDERS=mistral`.
+Exclusions override credentials, cached catalog rows, per-provider model pins and
+explicit model requests. Disabled providers are not contacted for catalog sync
+or inference and are hidden from model listings; cached rows are retained for
+history, not deleted. Unknown IDs fail closed to catch misspellings. Apply the
+setting to the gateway process (including service adapters that pass an explicit
+provider configuration), not only to the calling client. This does not change
+paid budgets or turn another provider into free capacity. A source change alone
+does not update an installed/running service.
+This excludes only provider API traffic. It does not block Mistral websites,
+remove separate browser-based access, or establish that a web adapter/login works.
 
 `X-Privacy: strict` permits **only Groq and Cloudflare** in hosted mode, excludes training
 providers, and otherwise follows the same filters. Unknown policy values are JSON `null`.

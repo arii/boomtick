@@ -37,33 +37,7 @@ def _git(args, cwd):
     return res
 
 
-LOCKFILE_NAMES = (
-    "pnpm-lock.yaml",
-    "package-lock.json",
-    "poetry.lock",
-    "requirements.txt",
-)
-
 WARM_LINK_DIRS = ("node_modules", ".venv", "venv", ".agents/skills")
-
-
-def lockfile_hash(root):
-    """SHA256 over repo lockfiles, or '' when none exist."""
-    import hashlib
-
-    digest = hashlib.sha256()
-    found = False
-    for name in LOCKFILE_NAMES:
-        path = os.path.join(root, name)
-        if os.path.isfile(path):
-            try:
-                with open(path, "rb") as handle:
-                    digest.update(name.encode("utf-8"))
-                    digest.update(handle.read())
-                found = True
-            except OSError:
-                continue
-    return digest.hexdigest() if found else ""
 
 
 def fast_forward_main_ref(root):
