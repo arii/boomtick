@@ -79,7 +79,7 @@ export const geminiCodeReviewClient: CodeReviewClientStrategy = {
       llmVerdict: parseCodeReviewVerdict(parsedGemini.feedback),
       findings: parsedState.state?.findings ?? [],
       isTruncated: parsedGemini.isTruncated,
-      parseError: parsedState.parseError,
+      parseError: parsedState.parseError || (parsedState.state ? undefined : 'incomplete_findings'),
     };
   }
 };
