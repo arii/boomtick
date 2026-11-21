@@ -87,6 +87,8 @@ const pyHash = (field, value) => execFileSync('python3', ['-c', 'import sys,page
   const mf = JSON.parse(fs.readFileSync(path.join(ext, 'manifest.json'), 'utf8'));
   assert.equal(mf.content_scripts, undefined, 'no static content scripts: only sites Ari turns on');
   assert.deepEqual(mf.host_permissions, ['http://127.0.0.1:8787/*', 'http://localhost:8787/*']);
-  assert.ok(!mf.permissions.includes('tabs'));
+  // Exact list. No "tabs": host permissions (per-site grants, or the optional all-hosts grant for "Watch all
+  // tabs") already expose url/title for the tabs ProofLoop may read; "tabs" would expose every other tab too.
+  assert.deepEqual(mf.permissions, ['storage', 'scripting', 'activeTab']);
   console.log('extension offline tests passed: detector on live captures, hash parity with Python, matcher incl. near misses, task classifier, source rules.');
 })().catch((e) => { console.error(e); process.exit(1); });

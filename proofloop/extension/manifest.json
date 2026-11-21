@@ -3,7 +3,7 @@
   "name": "ProofLoop",
   "version": "0.5.0",
   "description": "Observer: warns when a page conflicts with rules learned from your own sessions. Never fills or submits for you.",
-  "permissions": ["storage", "scripting", "activeTab", "tabs"],
+  "permissions": ["storage", "scripting", "activeTab"],
   "optional_host_permissions": ["https://*/*", "http://*/*"],
   "host_permissions": ["http://127.0.0.1:8787/*", "http://localhost:8787/*"],
   "background": {"service_worker": "background.js"},
