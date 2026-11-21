@@ -1,37 +1,12 @@
 {
   "manifest_version": 3,
   "name": "ProofLoop",
-  "version": "0.2.0",
-  "description": "Quiet inline assistant: warns before a form field contradicts a rule from your own sessions. No chat.",
-  "permissions": [
-    "tabs",
-    "storage",
-    "clipboardWrite"
-  ],
-  "host_permissions": [
-    "http://127.0.0.1:8787/*",
-    "http://localhost:8787/*"
-  ],
-  "background": {
-    "service_worker": "background.js"
-  },
-  "content_scripts": [
-    {
-      "matches": [
-        "https://luma.com/*",
-        "https://lu.ma/*",
-        "https://*.luma.com/*",
-        "https://workatastartup.com/*",
-        "https://www.workatastartup.com/*"
-      ],
-      "js": [
-        "assist/detect.js",
-        "assist/match.js",
-        "assist/assist.js",
-        "content.js"
-      ],
-      "run_at": "document_idle"
-    }
-  ],
+  "version": "0.3.0",
+  "description": "Observer: warns when a page conflicts with rules learned from your own sessions. Never fills or submits for you.",
+  "permissions": ["storage", "scripting", "activeTab"],
+  "optional_host_permissions": ["https://*/*", "http://*/*"],
+  "host_permissions": ["http://127.0.0.1:8787/*", "http://localhost:8787/*"],
+  "background": {"service_worker": "background.js"},
+  "action": {"default_title": "ProofLoop", "default_popup": "popup.html"},
   "options_page": "options.html"
 }

@@ -13,7 +13,7 @@ from urllib.parse import urlparse
 ROOT = Path(__file__).resolve().parent.parent
 STATE_DIR = Path(os.environ.get("PROOFLOOP_STATE", ROOT / "state"))
 DATA_DIR = ROOT / "data"
-PRIVATE_DIR = DATA_DIR / "private"
+PRIVATE_DIR = Path(os.environ.get("PROOFLOOP_PRIVATE_DIR") or DATA_DIR / "private")
 SCHEMA_DIR = ROOT / "schemas"
 KEY_NAMES = ["SENSO_API_KEY", "COGNEE_API_URL", "COGNEE_API_KEY", "COGNEE_TENANT_ID", "OPENROUTER_API_KEY"]
 NEEDS = {"cognee": ("COGNEE_API_URL", "COGNEE_API_KEY"), "senso": ("SENSO_API_KEY",), "llm": ("OPENROUTER_API_KEY",)}

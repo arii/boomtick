@@ -188,8 +188,13 @@ class Handler(BaseHTTPRequestHandler):
             return self._send(200, pp) if pp else self._send(404, {"error": "no active prompt yet; run replay_loop.py"})
         if path == "/status":
             return self._send(200, config.status())
+        if path == "/tasks":
+            return self._send(200, json.loads((config.SCHEMA_DIR / "tasks.json").read_text()))
         if path == "/skill":
-            stored = page_assist.active()
+            try:
+                stored = page_assist.active(Ctx.load().sessions)
+            except ValueError as e:
+                return self._send(409, {"error": str(e)[:300]})
             if not stored:
                 return self._send(404, {"error": "no promoted rule set yet"})
             return self._send(200, {"version": stored["rules"]["version"], "sha256": stored["sha256"], "scores": stored.get("scores"),

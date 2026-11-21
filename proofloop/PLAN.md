@@ -20,6 +20,8 @@ Three instructions from Ari override earlier sections where they conflict:
 | M5 | Live Cognee | Recall over the sessions drives the mutator and the page context. It is required for a live loop run unless explicitly disabled, and the ledger records which mode ran. Ari mentioned a "facer" key. The code reads `COGNEE_API_KEY` (plus URL and tenant), and if the facer key is a different service it needs a separate decision |
 | M6 | Real Senso and TWT | Every LLM call (task generation, executor, judge, mutator) goes through the TWT gateway, or OpenRouter if enabled. The rule set is promoted to Senso, read back, and served to the extension with its Senso node id. No runtime stub. Without these services the loop stops with a clear "blocked" message |
 
+**Status (2026-11-20).** M1 to M6 are built. Offline tests, the fixture e2e test and the live-site check with a test rule set pass. Not run: the live loop with Senso, Cognee and TWT, which needs Ari's machine.
+
 **Testing split.** The sandbox has no Senso, Cognee or provider keys and cannot reach Ari's TWT gateway. Offline tests inject fakes in the test code only. Runtime code has no stubs. Each live step is reported as "not run" until Ari runs it.
 
 **Section 4.5** (page context, pill, micro-cards) stays the information design. Under M3 it is observe-only.

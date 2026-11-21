@@ -126,6 +126,20 @@ class AssistServerTest(unittest.TestCase):
         phone = data["page_rules"][0]
         self.assertEqual(phone["forbid"][0], {"sha256": None, "label": "[PHONE-FAMILY]", "resolved": False})
 
+    def test_tampered_or_ungrounded_rules_are_refused(self):
+        p = config.STATE_DIR / "active_rules.json"
+        good = p.read_text()
+        try:
+            bad = json.loads(good)
+            bad["rules"]["page_rules"][0]["forbid"] = ["Oakland"]  # not in the cited session, and the hash no longer matches
+            p.write_text(json.dumps(bad))
+            data = self.req("POST", "/assist", {"origin": "https://luma.com", "task": "event_registration"})[1]
+            self.assertEqual(data["page_rules"], [])
+            self.assertEqual(data["source"]["kind"], "invalid")
+            self.assertEqual(self.req("GET", "/skill")[0], 409)
+        finally:
+            p.write_text(good)
+
     def test_phone_normalization_matches_formats(self):
         h = page_assist.value_hash("phone", "(415) 555-0100")
         for v in ("415-555-0100", "+1 415 555 0100", "4155550100"):

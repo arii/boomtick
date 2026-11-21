@@ -1,25 +1,22 @@
-const $ = id => document.getElementById(id);
+const $ = (id) => document.getElementById(id);
+const DEFAULTS = { token: "", hold_submit: true, cross_tab: false, cloud_recall: false, watched: [] };
 (async () => {
-  const { local_related_tabs = false } = await chrome.storage.local.get("local_related_tabs");
-  $("local_related_tabs").checked = local_related_tabs;
-  const stored = await chrome.storage.local.get(["token", "show_ledger_chip"]);
-  $("token").value = stored.token || "";
-  $("show_ledger_chip").checked = !!stored.show_ledger_chip;
+  const s = await chrome.storage.local.get(DEFAULTS);
+  $("token").value = s.token;
+  for (const k of ["hold_submit", "cross_tab", "cloud_recall"]) $(k).checked = !!s[k];
+  for (const o of s.watched) $("watched").append(Object.assign(document.createElement("li"), { textContent: o }));
+  if (!s.watched.length) $("watched").append(Object.assign(document.createElement("li"), { textContent: "None yet. Use the toolbar button on a site." }));
   try {
-    const r = await fetch("http://127.0.0.1:8787/status", { headers: stored.token ? { Authorization: `Bearer ${stored.token}` } : {} });
+    const r = await fetch("http://127.0.0.1:8787/status", { headers: s.token ? { Authorization: `Bearer ${s.token}` } : {} });
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
     const status = await r.json();
     $("status").textContent = "";
-    for (const service of Object.values(status)) {
-      const row = document.createElement("div");
-      row.textContent = service.label;
-      $("status").append(row);
-    }
-  } catch {
-    $("status").textContent = "Backend unavailable or extension origin not enabled. Start the read-only backend with this extension's exact ID.";
+    for (const v of Object.values(status)) $("status").append(Object.assign(document.createElement("div"), { textContent: `${v.label} (${v.mode})` }));
+  } catch (e) {
+    $("status").textContent = `Backend unavailable (${e.message}). Start harness/server.py with PROOFLOOP_EXTENSION_ID=${chrome.runtime.id} and paste the token below.`;
   }
 })();
 $("save").onclick = async () => {
-  await chrome.storage.local.set({ local_related_tabs: $("local_related_tabs").checked, token: $("token").value.trim(), show_ledger_chip: $("show_ledger_chip").checked });
-  $("msg").textContent = "Saved. Reload open pages to apply.";
+  await chrome.storage.local.set({ token: $("token").value.trim(), hold_submit: $("hold_submit").checked, cross_tab: $("cross_tab").checked, cloud_recall: $("cloud_recall").checked });
+  $("msg").textContent = "Saved. Reload watched pages to apply.";
 };

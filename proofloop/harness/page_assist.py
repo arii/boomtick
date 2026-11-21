@@ -54,9 +54,21 @@ def _resolve(field, term, values):
     return value_hash(field, term), term, True
 
 
-def active():
+def active(sessions=None):
+    """The promoted rule set, or None. With sessions, it is re-validated (schema and grounding) and its
+    hash checked, so a hand-edited or corrupted file is refused instead of served."""
     p = config.STATE_DIR / "active_rules.json"
-    return json.loads(p.read_text()) if p.exists() else None
+    if not p.exists():
+        return None
+    stored = json.loads(p.read_text())
+    if sessions is not None:
+        try:
+            rules_mod.validate(stored["rules"], {s["session_id"]: s for s in sessions})
+        except (ValueError, KeyError, TypeError) as e:
+            raise ValueError(f"active_rules.json refused: {e}")
+        if stored.get("sha256") != rules_mod.sha256(stored["rules"]):
+            raise ValueError("active_rules.json refused: sha256 does not match its rules")
+    return stored
 
 
 def source_tag(stored, senso_client=None, now=time.time):
@@ -167,7 +179,11 @@ def assist(body, sessions, suite, senso_client=None, rec=None):
     origin = body.get("origin") if isinstance(body.get("origin"), str) else ""
     task = body.get("task") if body.get("task") in rules_mod.task_ids() else "other"
     origin = _origin(origin[:200])
-    stored = active()
+    try:
+        stored = active(sessions)
+    except ValueError as e:
+        return {"version": None, "task": task, "page_rules": [], "context": [], "recall": "not requested",
+                "source": {"kind": "invalid", "label": str(e)[:200]}}
     context = session_context(sessions, suite, origin, task)
     recalled, recall_state = recall_context(rec, origin, task) if body.get("recall") is True else ([], "not requested")
     seen = {c["session_id"] for c in context}
