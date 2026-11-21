@@ -14,6 +14,8 @@ Most of the mistakes in Ari's recorded sessions were made by AI agents filling f
 4. **Gate.** A proposal is promoted only if its train score beats the baseline by more than the measured sampling noise, its holdout score does not drop, and no task that always passed collapses. Otherwise it is held or rejected and the active set stays.
 5. **Repeat.** The loop stops when three proposals in a row fail to promote, when every train task passes, or at a 12-proposal cap. Nothing is injected: a rollback in the ledger is a real proposal that lost.
 6. **Store.** A promoted rule set goes to Senso and becomes active only after a readback finds it. The backend re-reads the Senso node when Senso is enabled and labels the source on the page.
+There are no stubs in the loop path. Every LLM, Cognee and Senso call goes to the real service, and a service that is not enabled stops the run with `BLOCKED: ...` instead of falling back. Fakes exist only in test code.
+
 7. **Watch the page.** The extension runs only on sites turned on from its toolbar button (or all tabs, with one optional grant). It works out the page's task locally (event registration, job application, insurance or service quote, profile edit and others), asks the local backend for the rules for that task, and compares field values locally. It re-reads fields regularly, so values set by an agent, by autofill or by picking a suggestion are caught too.
 
 ## What was checked
@@ -21,6 +23,8 @@ Most of the mistakes in Ari's recorded sessions were made by AI agents filling f
 | Check | Where | Result |
 |---|---|---|
 | Offline suite (`pnpm run test:proofloop`) | sandbox | 36 Python tests (loop, gate, grounding, server, security) + background contracts + extension contracts + assist eval, green |
+| Security suite (`harness/tests/test_security.py`) | sandbox | the loop never opens `data/private/`, private values reach no prompt, Senso payload or state file, `/assist` carries hashes only, tab text cannot break out of the untrusted block, injected rules are refused, interrupted writes keep the old file, corrupt state gives a JSON 500 |
+| Checkout check (`extension/test/checkout_check.cjs`) | sandbox Chromium, simulated checkout page | no city or phone warning on checkout; the same rules still warn on the Vouch form |
 | Assist eval | 36 hand-labeled form states (captured Luma and Vouch forms, synthetic job, checkout, profile, blog pages) | precision 1.0, recall 1.0 on the eval rule set |
 | Browser e2e | real Chromium, unpacked extension, real backend, fixtures re-captured from the live sites | 13/13 steps |
 | Live sites | real luma.com registration dialog and apply.vouch.us, temporary test rule set | city and sponsor-consent warnings shown beside the fields, submit held with no registration request sent, Vouch's picked address ("S Main St San Jose, US-CA 95035") and the family phone flagged, no field or button covered |
@@ -33,7 +37,7 @@ A live loop run with promoted rule sets is not recorded in this repository yet. 
 - **Senso**: storage and readback of promoted rule sets; the page cites the Senso node.
 - **LLM via Tokens with Taste (local gateway) or OpenRouter**: task generation, the replay agent, the judge and the mutator.
 - **Chrome extension (Manifest V3)**: observer content scripts registered per site, a background worker, popup and settings.
-- **Python backend and loop**: loopback server with a per-run token, replay loop, gate, ledger.
+- **Python backend and loop**: the real loopback server (per-run token, Host and Origin checks) that the extension talks to, plus the replay loop, gate and ledger.
 
 ## Privacy and safety
 
