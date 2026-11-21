@@ -82,6 +82,12 @@ class AssistServerTest(unittest.TestCase):
     def test_token_without_origin_works_for_local_scripts_and_dashboard(self):
         self.assertEqual(self.req("GET", "/status", origin=None)[0], 200)
 
+    def test_tasks_vocabulary_needs_the_token(self):
+        self.assertEqual(self.req("GET", "/tasks", token=False, origin=None)[0], 403)
+        status, data = self.req("GET", "/tasks")
+        self.assertEqual(status, 200)
+        self.assertIn("event_registration", [t["id"] for t in data["tasks"]])
+
     def test_wrong_origin_is_403_even_with_token(self):
         for origin in ("https://evil.example", "null", "http://localhost.evil:%d" % self.port, "chrome-extension://" + "b" * 32):
             self.assertEqual(self.req("GET", "/skill", origin=origin)[0], 403, origin)

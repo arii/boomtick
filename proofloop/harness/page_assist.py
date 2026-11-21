@@ -80,17 +80,29 @@ def source_tag(stored, senso_client=None, now=time.time):
     if senso_client is None:
         return {"kind": "senso-copy", "node_id": node, "label": f"Senso node {node} (local copy; Senso not enabled here)"}
     hit = _cache["senso"].get(node)
-    if not hit or now() - hit["at"] > 300:
+    # A confirmed read is cached 5 minutes; a failed one only 30 seconds, so a transient error clears quickly.
+    if not hit or now() - hit["at"] > (300 if hit["ok"] else 30):
         try:
-            doc = json.loads(senso_client.read_text(node))
-            ok = doc.get("sha256") == stored["sha256"] == rules_mod.sha256(doc.get("rules", {}))
-            hit = {"at": now(), "ok": ok}
+            text = senso_client.read_text(node)
         except Exception as e:  # noqa: BLE001 - any read failure is reported, never hidden
-            hit = {"at": now(), "ok": False, "error": type(e).__name__}
+            hit = {"at": now(), "ok": False, "reason": f"read failed ({type(e).__name__}: {str(e)[:120]})"}
+        else:
+            try:
+                doc = json.loads(text)
+            except ValueError:
+                hit = {"at": now(), "ok": False, "reason": "node text is not the stored rule set JSON"}
+            else:
+                if not isinstance(doc, dict) or doc.get("type") != "PROOFLOOP_RULESET":
+                    hit = {"at": now(), "ok": False, "reason": "node text is not a ProofLoop rule set"}
+                elif doc.get("sha256") != stored["sha256"] or rules_mod.sha256(doc.get("rules", {})) != stored["sha256"]:
+                    hit = {"at": now(), "ok": False, "reason": "hash differs from the local rule set"}
+                else:
+                    hit = {"at": now(), "ok": True}
         _cache["senso"][node] = hit
     if hit["ok"]:
         return {"kind": "senso", "node_id": node, "label": f"Senso rule set, node {node} (read back and hash-checked)"}
-    return {"kind": "senso-mismatch", "node_id": node, "label": f"Senso node {node} could not be confirmed; using local copy"}
+    return {"kind": "senso-mismatch", "node_id": node, "reason": hit["reason"],
+            "label": f"Senso node {node} could not be confirmed ({hit['reason']}); using local copy"}
 
 
 def page_rules_for(rules, task):
