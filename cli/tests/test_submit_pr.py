@@ -2,7 +2,6 @@
 """Tests for scope-gated td agent submit-pr (mocked push/gh, real git)."""
 
 import json
-import os
 import subprocess
 from unittest.mock import patch
 

@@ -348,7 +348,7 @@ def test_paired_capture_isolates_profile_and_saves_dom(tmp_path, monkeypatch):
     from pathlib import Path
 
     assert result.reachable
-    assert Path(result.dom_path).read_text() == "<html>test</html>"
+    assert Path(result.dom_path).read_text(encoding="utf-8") == "<html>test</html>"
     assert result.final_url == "http://example.test/final"
     assert selectors == ["#ready"]
     assert deleted == ["fake-session-id"]

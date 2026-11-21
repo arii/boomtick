@@ -159,7 +159,7 @@ def check_file_imports_target(importer_path: str, target_path: str, root=None) -
 
     norm_target = os.path.normpath(target_path)
     target_dir, target_file = os.path.split(norm_target)
-    target_stem, target_ext = os.path.splitext(target_file)
+    target_stem, _target_ext = os.path.splitext(target_file)
     importer_dir = os.path.dirname(importer_abs)
 
     # JS/TS relative imports: import ... from './...'

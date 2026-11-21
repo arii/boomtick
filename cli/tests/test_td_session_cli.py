@@ -2,7 +2,6 @@
 """CliRunner tests for td agent run / session / skill (local)."""
 
 import json
-import os
 import subprocess
 from unittest.mock import patch
 

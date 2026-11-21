@@ -1,8 +1,6 @@
 # pylint: disable=missing-docstring,line-too-long
 """Unit tests for local worktree session + skill parity (no network)."""
 
-import json
-import os
 import subprocess
 
 import pytest

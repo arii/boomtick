@@ -36,6 +36,7 @@ def _run(tmp_path, **kwargs):
 
 
 def test_pair_manifest_preserves_provenance_and_not_verdict(monkeypatch, tmp_path):
+    """The pair manifest records provenance and carries no verdict."""
     monkeypatch.setattr(ux_capture, "capture_dom_and_visual_snapshot", _fake_capture)
     result = _run(tmp_path, routes=["/a", "/a", "/b?filter=x"])
     assert result["complete"] is True
@@ -46,7 +47,7 @@ def test_pair_manifest_preserves_provenance_and_not_verdict(monkeypatch, tmp_pat
     assert len(result["pairs"]) == 2
     assert result["pairs"][0]["screenshot_bytes_equal"] is False
     assert "mismatch_percentage" not in result["pairs"][0]["head"]
-    assert json.loads(Path(result["manifest_path"]).read_text()) == result
+    assert json.loads(Path(result["manifest_path"]).read_text(encoding="utf-8")) == result
     assert _run(tmp_path)["manifest_path"] != result["manifest_path"]
 
 
@@ -63,6 +64,7 @@ def test_pair_manifest_preserves_provenance_and_not_verdict(monkeypatch, tmp_pat
     ],
 )
 def test_invalid_routes_never_capture(monkeypatch, tmp_path, route):
+    """Invalid routes are rejected before any capture runs."""
     monkeypatch.setattr(
         ux_capture,
         "capture_dom_and_visual_snapshot",
@@ -83,11 +85,13 @@ def test_invalid_routes_never_capture(monkeypatch, tmp_path, route):
     ],
 )
 def test_invalid_base_never_capture(tmp_path, url):
+    """An invalid base URL is rejected before any capture runs."""
     with pytest.raises(ValueError):
         _run(tmp_path, base_url=url)
 
 
 def test_incomplete_capture_never_reports_comparison(monkeypatch, tmp_path):
+    """An incomplete capture never reports a comparison."""
     def capture(url, output_dir, **kwargs):
         if "head" in url:
             return VisualDiffResult(False, url, 0, 0, 0, None, error="unavailable")
@@ -100,6 +104,7 @@ def test_incomplete_capture_never_reports_comparison(monkeypatch, tmp_path):
 
 
 def test_missing_artifacts_are_incomplete(monkeypatch, tmp_path):
+    """Missing artifacts mark the capture incomplete."""
     monkeypatch.setattr(
         ux_capture,
         "capture_dom_and_visual_snapshot",
@@ -111,6 +116,7 @@ def test_missing_artifacts_are_incomplete(monkeypatch, tmp_path):
 
 
 def test_cli_nonzero_on_incomplete_capture(monkeypatch, tmp_path):
+    """The CLI exits nonzero on an incomplete capture."""
     monkeypatch.setattr(
         ux_capture, "capture_revision_pair", lambda *a, **kw: {"complete": False}
     )
@@ -138,6 +144,7 @@ def test_cli_nonzero_on_incomplete_capture(monkeypatch, tmp_path):
 
 
 def test_cli_forwards_explicit_inputs(monkeypatch, tmp_path):
+    """The CLI forwards explicit inputs unchanged."""
     calls = []
 
     def capture(*args, **kwargs):
@@ -182,6 +189,7 @@ def test_cli_forwards_explicit_inputs(monkeypatch, tmp_path):
 
 
 def test_cli_validation_failure_is_nonzero(monkeypatch, tmp_path):
+    """The CLI exits nonzero when validation fails."""
     monkeypatch.setattr(
         ux_capture,
         "capture_dom_and_visual_snapshot",

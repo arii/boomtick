@@ -70,7 +70,7 @@ class SetupWorkspaceActionTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         outputs = dict(
             line.split("=", 1)
-            for line in Path(self.env["GITHUB_OUTPUT"]).read_text().splitlines()
+            for line in Path(self.env["GITHUB_OUTPUT"]).read_text(encoding="utf-8").splitlines()
         )
         self.assertIn("PYTHON_SCRIPTS_PATH", outputs)
         return outputs
@@ -164,7 +164,7 @@ class SetupWorkspaceActionTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn(
             f"PYTHONPATH={cli}:existing-python-path",
-            Path(self.env["GITHUB_ENV"]).read_text(),
+            Path(self.env["GITHUB_ENV"]).read_text(encoding="utf-8"),
         )
 
     def test_node_only_consumers_skip_cli_and_python_steps(self):

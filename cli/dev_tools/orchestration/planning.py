@@ -22,7 +22,7 @@ class PlanningMixin(MergeGateMixin):
             prNumber = kwargs["prNumber"]
         if "issue_number" in kwargs and issueNumber is None:
             issueNumber = kwargs["issue_number"]
-        """Generates a deterministic review workflow plan for an agent."""
+        # Generates a deterministic review workflow plan for an agent.
         context_data = self._gather_review_workflow_context(prNumber, issueNumber)
         return self._render_workflow_plan(prNumber, context_data)
 
