@@ -54,7 +54,7 @@ Still valid:
 
 1. *Provenance rejections.* The mutator could cite only sessions Cognee returned that cycle, so a proposal citing the failing task's own session was refused. The message ("unknown sessions") also hid the cause. Fixed in `99c1116`: each failing train task's source session is always evidence. Holdout sessions are still never shown, and the message now says "outside the evidence".
 2. *The committed task suite is too small, and partly unpassable.* `data/replay_tasks.json` has 3 tasks from 8 sessions: 2 train, 1 holdout.
-   - With 3 samples per task, the noise margin is at least 1/6. A proposal must move more than one sample's worth of train answers, so a single task going 0 → 1/3 is held as noise. That is the "good proposal held in noise".
+   - With 3 samples per task, the noise margin is at least 1/6. A proposal must move more than one sample's worth of train answers, so a single task going 0 → 1/3 is held as noise. That is the likely cause of the "good proposal held in noise" (inferred from the AGENTS.md note; the ledger from that run is not in the repo).
    - The holdout task `t_2026_11_17_hrm` requires "Verify on live hardware, not headless alone" and forbids "headless", so no answer can pass it.
    - Several string checks require whole constraint sentences verbatim, which keeps baselines near 0 for reasons unrelated to the rules.
    - `99c1116` makes the generator refuse both patterns. The committed suite is unchanged, because the task set is Ari's to change.
