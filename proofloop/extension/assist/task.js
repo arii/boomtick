@@ -1,3 +1,5 @@
+// fallow-ignore-file unused-file
+// Reason: content script loaded via chrome.scripting from background.js SCRIPTS, not via import.
 // Task classifier (local). Scores the page against the task vocabulary served by the backend
 // (schemas/tasks.json, GET /tasks) using the title, path words, headings, buttons, short helper text and field
 // types. Multi-word phrases score 2 points per word.

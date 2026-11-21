@@ -1,5 +1,6 @@
 pytest
 pytest-mock
+jsonschema
 PyYAML
 pylint
 mypy

@@ -138,7 +138,7 @@ set -a && source .env && set +a              # keys live ONLY in root .env; neve
    `setsid -f bash -c 'set -a; source /home/ari/boomtick/.env; set +a; export TWT_DAILY_BUDGET_USD=5; exec /home/ari/boomtick/.venv/bin/twt serve' </dev/null >>/tmp/twt.log 2>&1`
    Verify: `curl -s http://127.0.0.1:8000/v1/models | head -c 200`
    Pin: `TWT_MODEL=nebius/google/gemma-3-27b-it` (clean JSON, ~$0.00005/call). Kill with `pkill -f '[t]wt serve'` (never bare `twt serve`: it matches your own shell).
-3. Health: `cd proofloop/harness && PROOFLOOP_LIVE_SERVICES=twt,senso,cognee PROOFLOOP_ALLOW_SESSION_UPLOAD=1 python3 health.py --probe-live`
+3. Health: `cd proofloop/harness && TWT_BASE_URL=http://127.0.0.1:8000/v1 PROOFLOOP_LIVE_SERVICES=twt,senso,cognee PROOFLOOP_ALLOW_SESSION_UPLOAD=1 python3 health.py --probe-live` (TWT_BASE_URL must be loopback: a shared .env may point it at a Docker hostname the gateway check rejects)
 4. Tasks (once; file is committed reviewed): `PROOFLOOP_LIVE_SERVICES=twt python3 tasks.py --generate`, review `data/replay_tasks.json`, set `generated.reviewed=true`
 5. Loop: `PROOFLOOP_LIVE_SERVICES=twt,senso,cognee PROOFLOOP_ALLOW_SESSION_UPLOAD=1 TWT_MODEL=nebius/google/gemma-3-27b-it python3 replay_loop.py` (resumes from saved state; `--reset` only for a fresh ledger)
 6. Backend, detached: `setsid -f bash -c 'set -a; source /home/ari/boomtick/.env; set +a; export PROOFLOOP_EXTENSION_ID=<id from chrome://extensions> TWT_MODEL=nebius/google/gemma-3-27b-it; exec python3 server.py 8787' </dev/null >>/tmp/proofloop-server.log 2>&1`

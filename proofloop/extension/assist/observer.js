@@ -1,3 +1,5 @@
+// fallow-ignore-file unused-file
+// Reason: content script loaded via chrome.scripting from background.js SCRIPTS, not via import.
 // ProofLoop observer. Runs only on sites Ari turned on. It reads form fields (including values set by an agent,
 // autofill or a picked suggestion, by polling), works out the page's task, and warns when a field conflicts with a
 // promoted rule or with another watched tab. It never types, fills, checks or submits anything. Its only page

@@ -1,3 +1,5 @@
+// fallow-ignore-file unused-file
+// Reason: content script loaded via chrome.scripting from background.js SCRIPTS, not via import.
 // Field detector (observer). Reports every labeled form control with a semantic type, and finds submit
 // controls. Pure functions over DOM nodes; no network, no storage, never changes the page.
 //   semantic: city | address | phone | email | checkbox | radio | choice | text

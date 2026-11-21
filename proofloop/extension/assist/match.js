@@ -1,3 +1,5 @@
+// fallow-ignore-file unused-file
+// Reason: content script loaded via chrome.scripting from background.js SCRIPTS, not via import.
 // Conflict matcher (observer). Rules arrive from the backend with forbidden values as salted SHA-256
 // hashes (harness/page_assist.py). This file normalizes what is in a field the same way, hashes the
 // candidate spans and compares. No network, no storage; values never leave this function.

@@ -1,3 +1,5 @@
+// fallow-ignore-file unused-file
+// Reason: standalone node CLI entry point (run directly), not imported.
 // Checkout check (follow-up 2): on a plain checkout page the observer must show no city or phone warning, while the
 // same rules still fire on the Vouch form. Real Chromium, unpacked extension (fresh load), real backend.
 //   NODE_PATH=... PYTHONPATH=... node proofloop/extension/test/checkout_check.cjs [--task-js PATH]

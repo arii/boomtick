@@ -121,7 +121,7 @@ const noCover = (u) => { if (u.pillRect) for (const x of u.controls) assert.ok(!
     await page.screenshot({ path: path.join(shots, 'luma-submit-held.png') });
     await page.evaluate(() => [...document.getElementById('proofloop-observer-host').shadowRoot.querySelectorAll('.panel button')].find((b) => b.textContent === 'Back to form').click());
     // Dismiss the city warning from the panel, then make Luma re-render (type in another field, blur): it stays dismissed.
-    const clickPanel = (p, text) => p.evaluate((t) => { const r = document.getElementById('proofloop-observer-host').shadowRoot;
+    const clickPanel = (p, text) => p.evaluate(() => { const r = document.getElementById('proofloop-observer-host').shadowRoot;
       if (!r.querySelector('.panel')) r.querySelector('.pill').click(); }, text).then(() => p.waitForTimeout(300)).then(() => p.evaluate((t) => {
       const b = [...document.getElementById('proofloop-observer-host').shadowRoot.querySelectorAll('.panel .card')].find((c) => c.innerText.includes(t));
       [...b.querySelectorAll('button')].find((x) => x.textContent === 'Got it').click(); }, text));

@@ -1,3 +1,5 @@
+// fallow-ignore-file unused-file
+// Reason: standalone node CLI entry point (run directly), not imported.
 // Re-capture the Luma and Vouch form fixtures from the live pages. Keeps form structure (tags, ids, names, labels,
 // roles, aria, types, placeholders, autocomplete); drops scripts, styles, images, inline styles, data-* attributes
 // and long class lists. Nothing is typed or submitted.
@@ -40,7 +42,7 @@ ${body}
       await p.evaluate(sanitize, '[role=dialog]')));
     await p.goto('https://apply.vouch.us/', { waitUntil: 'domcontentloaded' });
     await p.getByLabel('Phone Number').waitFor({ timeout: 15000 });
-    const root = await p.evaluate(() => { let n = document.querySelector('input'); while (n.parentElement && n.parentElement.querySelectorAll('input').length < document.querySelectorAll('input').length) n = n.parentElement; n.parentElement.setAttribute('data-pl-root', '1'); return true; });
+    await p.evaluate(() => { let n = document.querySelector('input'); while (n.parentElement && n.parentElement.querySelectorAll('input').length < document.querySelectorAll('input').length) n = n.parentElement; n.parentElement.setAttribute('data-pl-root', '1'); return true; });
     const html = await p.evaluate(() => { const r = document.querySelector('[data-pl-root]'); r.removeAttribute('data-pl-root'); r.id = r.id || 'pl-root'; return r.id; });
     fs.writeFileSync(path.join(out, 'vouch_apply.html'), page_('Vouch Apply', 'https://apply.vouch.us/',
       'Business insurance application, public. Not confirmed to be the Vouch form from the Nov 16 session. No city field: the address is one combobox with only a placeholder.',
