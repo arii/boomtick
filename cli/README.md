@@ -74,7 +74,7 @@ After `./setup-agent.sh`, use the following workflow-specific setup:
 
 `.agent-context.json` (repository root) is the pre-built index that
 `boomtick-mcp` reads on every tool call. It contains `file_tree`, `cli_schema`,
-and `package_json` metadata — built by `td context-warm`.
+and `package_json` metadata — built by `td context-warm` (runs `cli/dev_tools/resources/build-repo-context.py`).
 
 The `post-merge` hook in `scripts/hooks/` (installed by `./setup-agent.sh`)
 runs `td init` after a pull or merge. No hook runs on branch switch, so refresh

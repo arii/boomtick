@@ -236,6 +236,9 @@ jobs:
       - name: Run Code Audit (Fallow)
         run: pnpm run audit:fallow
 
+      - name: Run AI Slop Fail-Gate
+        run: python3 .agents/scripts/audit-ai-slop.py
+
   test-build:
     timeout-minutes: 60
     name: Unit & Integration Tests
