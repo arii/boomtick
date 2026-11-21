@@ -70,7 +70,9 @@ class SetupWorkspaceActionTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         outputs = dict(
             line.split("=", 1)
-            for line in Path(self.env["GITHUB_OUTPUT"]).read_text(encoding="utf-8").splitlines()
+            for line in Path(self.env["GITHUB_OUTPUT"])
+            .read_text(encoding="utf-8")
+            .splitlines()
         )
         self.assertIn("PYTHON_SCRIPTS_PATH", outputs)
         return outputs

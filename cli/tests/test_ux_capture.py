@@ -47,7 +47,9 @@ def test_pair_manifest_preserves_provenance_and_not_verdict(monkeypatch, tmp_pat
     assert len(result["pairs"]) == 2
     assert result["pairs"][0]["screenshot_bytes_equal"] is False
     assert "mismatch_percentage" not in result["pairs"][0]["head"]
-    assert json.loads(Path(result["manifest_path"]).read_text(encoding="utf-8")) == result
+    assert (
+        json.loads(Path(result["manifest_path"]).read_text(encoding="utf-8")) == result
+    )
     assert _run(tmp_path)["manifest_path"] != result["manifest_path"]
 
 
@@ -92,6 +94,7 @@ def test_invalid_base_never_capture(tmp_path, url):
 
 def test_incomplete_capture_never_reports_comparison(monkeypatch, tmp_path):
     """An incomplete capture never reports a comparison."""
+
     def capture(url, output_dir, **kwargs):
         if "head" in url:
             return VisualDiffResult(False, url, 0, 0, 0, None, error="unavailable")
