@@ -15,7 +15,7 @@ export async function runReviewScript(options: ReviewScriptOptions): Promise<voi
   if (provider === 'gemini') {
     // security-safe: Environment variables are trusted in this workflow context.
     if (!process.env.GEMINI_API_KEY) {
-      console.warn(`⚠️  Skipping agent ${options.scriptName} — GEMINI_API_KEY not set.`);
+      console.warn(`⚠️  Cannot run agent ${options.scriptName} — GEMINI_API_KEY not set.`);
       try {
         await writeMissingApiKeyVerdict(
           options.geminiClient.reportFileName,
@@ -25,7 +25,7 @@ export async function runReviewScript(options: ReviewScriptOptions): Promise<voi
       } catch (err) {
         console.error('Failed to write missing API key verdict', err);
       }
-      return;
+      throw new Error(`Review incomplete: GEMINI_API_KEY not set (${options.scriptName})`);
     }
     await options.orchestrateGemini();
   } else {
