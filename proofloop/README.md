@@ -31,6 +31,7 @@ python3 health.py --probe-live                       # one call per service
 python3 tasks.py --generate                          # writes data/replay_tasks.json; review it, set generated.reviewed to true
 python3 replay_loop.py                               # auto-repeat loop; --no-recall runs without Cognee (recorded as disabled)
 python3 validate.py
+python3 handoff.py > /tmp/proofloop-handoff.json   # after a promotion: redacted bundle for review (see .agents/plans/kiro-loop-handoff.md)
 ```
 
 Private values for placeholders, so the extension can recognize your real numbers (never committed, never sent to the browser as text):

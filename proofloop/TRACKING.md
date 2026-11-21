@@ -15,6 +15,13 @@ Last updated: 2026-11-20 02:55 PM PT (by Kiro). Started the assistant rebuild in
 - PR #1350 and #1351 merged into feat/proofloop (not main). A PR from feat/proofloop to main is not open; decide after the live checks.
 
 ## Current status (latest)
+- **2026-11-21, while on HOLD (no new extension scope).**
+  - Observer fix `9e7aec6`: warnings are keyed by field element, not position. An e2e step reproduces the old bug: a dismissed warning came back after the page inserted a field above it. Live Luma (past-event prompt, then the form) and live Vouch (dropdown mount) pass with dismissals kept. The old observer also passed those two live pages, so the bug is not triggered there today.
+  - Senso confirmation `0a06fd5`: the page names why a node could not be confirmed (read error, wrong text, hash mismatch) and retries failures after 30 s.
+  - New contract tests: promote → page Senso round trip, Cognee recall extraction and ingest-once, gate edges, /tasks auth.
+  - Handoff `132b7b4`: `harness/handoff.py` bundles the real loop state for Kiro; `.agents/plans/kiro-loop-handoff.md` lists what to send and the only /assist fields to add.
+  - Loop fix `99c1116` (provenance) and plan audit `284aa27` (PLAN 0.1).
+  - `pnpm run test:proofloop`: 50 Python tests plus 3 Node legs, green.
 - **Checkout check (follow-up 2), 2026-11-20.** Ran `extension/test/checkout_check.cjs` in sandbox Chromium. It loads the unpacked extension fresh, uses the real backend, and a city and phone rule set scoped to event registration, insurance quote and job application.
   - Page: the eval checkout page at `http://shop.example.test:<port>/checkout`. It has Shipping address, Street address (`autocomplete=street-address`), City (`address-level2`), Phone (`type=tel`), a partner-sponsors box and "Place order". It is not a real store: no logged-in checkout is available in the sandbox, and the script does not type into a real store.
   - Typed City "San Jose", Phone 415-555-0100 (the family number in the test values) and Street "1 South Main Street, San Jose, CA 95112".

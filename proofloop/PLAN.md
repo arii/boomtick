@@ -60,6 +60,12 @@ Still valid:
    - `99c1116` makes the generator refuse both patterns. The committed suite is unchanged, because the task set is Ari's to change.
 3. *Recommendation (Ari's call):* on the live machine, regenerate the suite with the fixed generator (`tasks.py --generate`), review it, and rerun the loop. Expect about 6 to 8 tasks, a finer margin and a passable holdout. Keep the HOLD on extension scope until a promotion lands.
 
+**Done while waiting (2026-11-21):**
+- Observer warnings keyed by field element (`9e7aec6`).
+- Senso confirmation names its failure reason (`0a06fd5`).
+- Contract tests (`0a06fd5`).
+- Handoff bundle and plan (`132b7b4`, `.agents/plans/kiro-loop-handoff.md`). The steps below follow that plan.
+
 **After the first promotion** (in this order, each small):
 1. Confirm the Senso round trip on the real node: the page source tag should read "Senso rule set, node … (read back and hash-checked)". If it reads "could not be confirmed", fix the readback field names in `clients.SensoLive.read_text`.
 2. Run `extension/test/live_sites.cjs` with the promoted rule set on Ari's machine.

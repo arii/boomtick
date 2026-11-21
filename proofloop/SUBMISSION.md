@@ -22,14 +22,14 @@ There are no stubs in the loop path. Every LLM, Cognee and Senso call goes to th
 
 | Check | Where | Result |
 |---|---|---|
-| Offline suite (`pnpm run test:proofloop`) | sandbox | 36 Python tests (loop, gate, grounding, server, security) + background contracts + extension contracts + assist eval, green |
+| Offline suite (`pnpm run test:proofloop`) | sandbox | 50 Python tests (loop, gate, grounding, server, security, Senso and Cognee contracts, handoff) + background contracts + extension contracts + assist eval, green |
 | Security suite (`harness/tests/test_security.py`) | sandbox | the loop never opens `data/private/`, private values reach no prompt, Senso payload or state file, `/assist` carries hashes only, tab text cannot break out of the untrusted block, injected rules are refused, interrupted writes keep the old file, corrupt state gives a JSON 500 |
 | Checkout check (`extension/test/checkout_check.cjs`) | sandbox Chromium, simulated checkout page | no city or phone warning on checkout; the same rules still warn on the Vouch form |
 | Assist eval | 36 hand-labeled form states (captured Luma and Vouch forms, synthetic job, checkout, profile, blog pages) | precision 1.0, recall 1.0 on the eval rule set |
-| Browser e2e | real Chromium, unpacked extension, real backend, fixtures re-captured from the live sites | 13/13 steps |
+| Browser e2e | real Chromium, unpacked extension, real backend, fixtures re-captured from the live sites | 14/14 steps, including a dismissed warning staying dismissed when the page inserts a field above it |
 | Live sites | real luma.com registration dialog and apply.vouch.us, temporary test rule set | city and sponsor-consent warnings shown beside the fields, submit held with no registration request sent, Vouch's picked address ("S Main St San Jose, US-CA 95035") and the family phone flagged, no field or button covered |
 
-A live loop run with promoted rule sets is not recorded in this repository yet. The numbers above are about the page assistant and the loop's code paths, not about how much the loop improves an agent.
+A live loop run with promoted rule sets is not recorded in this repository yet. The first live run on Ari's machine converged without a promotion. Causes and fixes: `PLAN.md` section 0.1. Until the first promotion, extension scope is on HOLD. The `/assist` wire-shape gap against the proposed spec is analyzed in `.agents/plans/kiro-assist-wire-gap.md`, and the handoff for the promotion (`harness/handoff.py`) is in `.agents/plans/kiro-loop-handoff.md`. The numbers above are about the page assistant and the loop's code paths, not about how much the loop improves an agent.
 
 ## Tools used
 
