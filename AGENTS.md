@@ -150,8 +150,8 @@ set -a && source .env && set +a              # keys live ONLY in root .env; neve
 
 - Done: M1 auto-repeat loop + M2 backend (Kiro); watch-all-tabs + tab snapshot + pause + terminal-light chip + `/assist` `open_tabs`/`tab_matches`/cache (this machine); offline suite green (28 Python + extension + contracts).
 - Live: Senso/Cognee/LLM health green; Cognee ingested 8 sessions; loop converged with NO promotion (gemma baseline 0.0; one good proposal held in noise; two rejected on provenance). `/assist` verified with real context on luma.com and boomtick.blog.
-- Pending: rerun loop on a stronger Nebius model; fix provenance check rejecting real session cites; reload extension to v0.5.0 and confirm pill on terminal (127.0.0.1:8082) + a form page.
-- Stale docs: `proofloop/TRACKING.md`, `proofloop/SUBMISSION.md` describe the old stub build. Do not use SUBMISSION unchanged.
+- Pending: rerun loop on a stronger Nebius model; provenance fix landed in 99c1116 (failing task's own session is always citable); regenerate tasks with the fixed generator (current suite: 3 tasks, holdout unpassable, see PLAN 0.1); reload extension to v0.5.0 and confirm pill on terminal (127.0.0.1:8082) + a form page.
+- Docs: `proofloop/SUBMISSION.md` is current (c68ca1d). `proofloop/TRACKING.md` is current at the top; its older sections are history. `proofloop/PLAN.md` section 0.1 is the audit and next steps.
 
 ### Agent orchestration (repeatable)
 

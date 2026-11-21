@@ -1,6 +1,6 @@
 # ProofLoop: plan to build the assistant that was proposed
 
-Status: in progress. Section 0 is the current direction; it replaces the city-field slice and the deterministic executor. Code for phases 0 to 2 of the slice exists (see TRACKING.md), but under section 2.1 no milestone is done until it is verified on the live site at a check-in. Milestone 1 is reported; milestones 2 to 5 are unverified. Phase 3 (Senso read) and phase 4 (Cognee recall) are not started.
+Status: M1 to M6 built; waiting for the first live promotion (HOLD on extension scope). Section 0 and its audit (0.1) are the current plan; the city-field slice and the deterministic executor are gone. Code for phases 0 to 2 of the slice exists (see TRACKING.md), but under section 2.1 no milestone is done until it is verified on the live site at a check-in. Milestone 1 is reported; milestones 2 to 5 are unverified. Phase 3 (Senso read) and phase 4 (Cognee recall) are not started.
 Deadline is not a constraint. Quality is.
 
 ## 0. Current direction (Ari, 2026-11-20, supersedes conflicting text below)
@@ -25,6 +25,45 @@ Three instructions from Ari override earlier sections where they conflict:
 **Testing split.** The sandbox has no Senso, Cognee or provider keys and cannot reach Ari's TWT gateway. Offline tests inject fakes in the test code only. Runtime code has no stubs. Each live step is reported as "not run" until Ari runs it.
 
 **Section 4.5** (page context, pill, micro-cards) stays the information design. Under M3 it is observe-only.
+
+### 0.1 Plan audit (2026-11-20, after the first live loop run)
+
+**Does the plan still make sense?** Yes. Section 0 is the plan. The rest of this file is background and history.
+The parts that are superseded:
+- Sections 4.0 to 4.4: the city slice and the pre-submit review as the first assist. M2/M3 replaced them, and the submit hold survives only as an option.
+- The phase table in 7.1 and section 10: they predate section 0.
+
+Still valid:
+- Section 2.1 (live-site requirement).
+- Section 4.5 (page context).
+- Section 5 (loop design; it is what M1 built).
+- Section 9 (security). Its tests exist in `harness/tests/test_security.py` and the extension contract tests.
+
+**Where each milestone stands**
+
+| Milestone | Built | Verified offline | Verified live |
+|---|---|---|---|
+| M1 loop | yes | yes (fakes) | ran on Ari's machine: converged with no promotion (see below) |
+| M2 conflict warnings | yes | yes (eval: precision 1.0 on 36 cases) | live Luma and Vouch with a test rule set (sandbox) |
+| M3 observer | yes | yes (source rule: never writes fields) | same live run |
+| M4 task determination | yes | yes (eval, checkout check) | same live run |
+| M5 live Cognee | yes | n/a | health green, 8 sessions ingested (Ari's machine) |
+| M6 Senso and TWT | yes | n/a | health green; no promotion yet, so the Senso round trip of a rule set is unproven |
+
+**Why the first live run promoted nothing, and what is fixed**
+
+1. *Provenance rejections.* The mutator could cite only sessions Cognee returned that cycle, so a proposal citing the failing task's own session was refused. The message ("unknown sessions") also hid the cause. Fixed in `99c1116`: each failing train task's source session is always evidence. Holdout sessions are still never shown, and the message now says "outside the evidence".
+2. *The committed task suite is too small, and partly unpassable.* `data/replay_tasks.json` has 3 tasks from 8 sessions: 2 train, 1 holdout.
+   - With 3 samples per task, the noise margin is at least 1/6. A proposal must move more than one sample's worth of train answers, so a single task going 0 → 1/3 is held as noise. That is the "good proposal held in noise".
+   - The holdout task `t_2026_11_17_hrm` requires "Verify on live hardware, not headless alone" and forbids "headless", so no answer can pass it.
+   - Several string checks require whole constraint sentences verbatim, which keeps baselines near 0 for reasons unrelated to the rules.
+   - `99c1116` makes the generator refuse both patterns. The committed suite is unchanged, because the task set is Ari's to change.
+3. *Recommendation (Ari's call):* on the live machine, regenerate the suite with the fixed generator (`tasks.py --generate`), review it, and rerun the loop. Expect about 6 to 8 tasks, a finer margin and a passable holdout. Keep the HOLD on extension scope until a promotion lands.
+
+**After the first promotion** (in this order, each small):
+1. Confirm the Senso round trip on the real node: the page source tag should read "Senso rule set, node … (read back and hash-checked)". If it reads "could not be confirmed", fix the readback field names in `clients.SensoLive.read_text`.
+2. Run `extension/test/live_sites.cjs` with the promoted rule set on Ari's machine.
+3. Add only the `/assist` fields the real rules, loop status and feedback need (`.agents/plans/kiro-assist-wire-gap.md`, HOLD section).
 
 ## 1. What went wrong
 
@@ -131,7 +170,7 @@ Cards are the unit stored in Senso (one node per rule set version) and the unit 
 
 ## 4. The smallest end-to-end slice
 
-### 4.0 Which slice, and why (revised after Ari's question)
+### 4.0 Which slice, and why (revised after Ari's question) (superseded by section 0)
 
 **The city warning as first built, a chip that appears while Ari types "San Jose", is a toy.** The session logs show why. In all three form sessions the wrong value came from an AI agent filling or submitting the form for Ari (`role: assistant` in every record), or from a profile value already on file. None came from Ari's typing:
 
@@ -155,7 +194,7 @@ The work-type choice is deferred inside the slice. "Full-time chosen without ask
 
 What stays from the code already built: the detector, matcher, cards schema, chip UI, `/skill`, `/assist`, `/feedback`, token auth and the e2e harness. The field-typing chip stays as a secondary inline marker on the offending field. It is not the trigger.
 
-### 4.1 What the extension detects
+### 4.1 What the extension detects (superseded by section 0)
 
 - **Fields:**
   - City: label, `autocomplete="address-level2"`, name, short placeholder. Already built.
@@ -165,13 +204,13 @@ What stays from the code already built: the detector, matcher, cards schema, chi
 - **Custom components:** React and Material UI wrappers around real inputs (both targets), `role="combobox"` autocompletes (both), dialogs that mount after a click (Luma), and placeholder-only fields (Vouch). Fields inside cross-origin iframes are out of scope and are recorded if a target page uses them.
 - **Submit intent:** a `submit` event on a form, or a click (capture phase, at `window`) on a submit button. That means `type="submit"`, or a button whose text matches the site's submit wording ("Request to Join", "Apply", "Submit", "Start Application"). Vouch's "Start Application" is `type="button"`, so the text match is required. The listener runs in the capture phase before React's root listener, so `preventDefault` and `stopPropagation` hold the submit.
 
-### 4.2 What it queries
+### 4.2 What it queries (superseded by section 0)
 
 - **On page load:** `POST /assist {origin, path}` returns the applicable cards (built) and, from phase 3, the Senso version.
 - **Phone cards** need Ari's real numbers, which must never be in the repo. The card stores a SHA-256 hash of the normalized digits of the forbidden number. The matcher hashes the digits in the field and compares. The professional number used by "Fix" comes from a git-ignored file (`data/private/values.json`) served only to the authenticated extension. No real number ever appears in tracked files, logs or feedback.
 - **On submit:** no network call. The check is local and deterministic on cached cards, so a slow or down backend cannot let a bad submit through or block a good one.
 
-### 4.3 What it shows
+### 4.3 What it shows (superseded by section 0)
 
 On a held submit with problems:
 
@@ -194,7 +233,7 @@ On a held submit with problems:
 - **Submit anyway** re-submits once. The submit also goes through without the panel when nothing is wrong.
 - If an agent operates the page, it sees the same panel. An agent can click "Submit anyway" just as it clicked Submit. This is a known limit: the panel stops silent mistakes, but it is not an access control. A per-site setting can require a trusted click, and that is listed in the risks.
 
-### 4.4 How it is tested
+### 4.4 How it is tested (superseded by section 0)
 
 1. **Unit (Node):**
    - The detector on the captured Luma and Vouch markup and on synthetic cases.
@@ -340,7 +379,7 @@ Estimates are for one person working focused days, including debugging against r
 
 Gemini's four steps (verify, build, test, defer) are folded in as follows. Step 1 is phase 0. Step 2 is phases 1 to 8. Step 3 is the test column in each phase plus phase 9 (the security and regression suite). Step 4 is section 7.2. The security work in section 9 is part of the phases, not a final pass: items marked S1 to S6 below are gates that must pass before the phase that adds the exposure ships.
 
-### 7.1 Phases
+### 7.1 Phases (superseded by section 0)
 
 | Phase | Build | Est. | Why this order |
 |-------|-------|------|----------------|
@@ -513,6 +552,6 @@ Runs in CI and before any release. Each test is written in the phase that adds t
 - Redaction patterns miss unusual formats. The CI scan is a safety net and the boundary in S4 is the main defense.
 - Third-party services (Senso, Cognee) have their own retention and access policies, which are outside this repository.
 
-## 10. Immediate next step when building starts
+## 10. Immediate next step when building starts (superseded by section 0)
 
 Phase 0 and phase 1 first. Phase 0 is the verification pass (live round trips, origin checks, privacy boundaries) plus the two cheap security fixes from section 9. Then capture HTML snapshots of the Vouch and Luma application pages for the phase 2 fixtures. That settles the largest uncertainty (how real forms behave) before any matcher code is written.
