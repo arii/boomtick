@@ -18,7 +18,7 @@
     return { text: ` ${norm(bits.join(" ").slice(0, 20000))} `, semantics: new Set(fields.map((f) => f.semantic)) };
   }
 
-  // Returns { task, score, scores }. "other" unless a task has at least 2 points and a form is present.
+  // Returns { task, score, scores }. "other" unless a task has text evidence, at least 2 points, and a form is present.
   function classify(vocab, doc, fields) {
     const sig = signals(doc, fields);
     const scores = {};
@@ -26,7 +26,8 @@
       let s = 0;
       // Longer phrases are more specific: 2 points per word.
       for (const phrase of t.signals.text || []) { const p = norm(phrase); if (sig.text.includes(` ${p} `)) s += 2 * p.split(" ").length; }
-      for (const f of t.signals.fields || []) if (sig.semantics.has(f)) s += 1;
+      // Field types only add to text evidence: a shipping form has an address and a phone too.
+      if (s > 0) for (const f of t.signals.fields || []) if (sig.semantics.has(f)) s += 1;
       scores[t.id] = s;
     }
     let best = "other", top = 0;

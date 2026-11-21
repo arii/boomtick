@@ -54,11 +54,13 @@ PROOFLOOP_EXTENSION_ID=<id from chrome://extensions> python3 server.py 8787   # 
 ## Tests
 
 ```sh
-pnpm run test:proofloop          # Python (loop, gate, grounding, server) + extension offline tests (detector, hashing parity with Python, task classifier, source rules, background contracts)
+pnpm run test:proofloop          # Python (loop, gate, grounding, server) + extension offline tests (detector, hashing parity with Python, task classifier, source rules, background contracts) + assist eval (fails below precision 1.0)
 pnpm run test:proofloop:e2e      # real Chromium + unpacked extension + real backend on fixtures re-captured from live Luma and Vouch
 node proofloop/extension/test/live_sites.cjs                # the observer on the real luma.com and apply.vouch.us pages with YOUR promoted rule set
 node proofloop/extension/test/live_sites.cjs --test-rules   # same, with a temporary test rule set
 ```
+
+The assist eval (`extension/test/assist_eval.cjs`, cases in `extension/test/eval/`) is 36 hand-labeled form states on the captured Luma and Vouch pages plus synthetic job, checkout, profile and blog pages. It reports precision and recall per rule. Add a case whenever a warning is wrong or missing in real use.
 
 The live script never fills name or email, never clicks Vouch's "Start Application", and clicks Luma's "Request to Join" only while a conflict is open with name and email empty, so nothing can be submitted.
 
