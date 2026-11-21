@@ -1,7 +1,6 @@
 """GitHub pull-request resource."""
 
 import json
-import subprocess
 from typing import Any, Dict, List, Optional
 from dev_tools.utils import CLIError, log_warn
 from dev_tools.utils.git import GitUtility
@@ -115,10 +114,6 @@ class PullsMixin(GitHubCoreMixin):
             "pr": pr_data,
             "files": files_data,
         }
-
-    def fetch_prs_for_commit(self, commit_sha: str) -> List[Dict[str, Any]]:
-        """List pull requests containing a commit."""
-        return self._request("GET", f"/repos/{self.repo}/commits/{commit_sha}/pulls")
 
     def search_pull_requests(
         self, query: str, limit: int = 10, repo: Optional[str] = None
@@ -270,56 +265,3 @@ class PullsMixin(GitHubCoreMixin):
             "draft": draft,
         }
         return self._request("POST", f"/repos/{target_repo}/pulls", json_data=data)
-
-    def mark_pr_ready(self, number: int, repo: Optional[str] = None) -> bool:
-        """Promote a draft PR to ready for review via gh CLI or GraphQL."""
-        target_repo = repo or self.repo
-        cmd = ["gh", "pr", "ready", str(number), "-R", target_repo]
-        res = subprocess.run(cmd, capture_output=True, text=True, check=False)
-        if res.returncode == 0:
-            return True
-        log_warn(f"gh pr ready failed for #{number} in {target_repo}: {res.stderr}")
-        return False
-
-    def merge_pr(
-        self,
-        number: int,
-        repo: Optional[str] = None,
-        method: str = "merge",
-        delete_branch: bool = True,
-        admin: bool = False,
-    ) -> bool:
-        """Merges a pull request using gh CLI."""
-        target_repo = repo or self.repo
-        cmd = ["gh", "pr", "merge", str(number), "-R", target_repo]
-        if method == "squash":
-            cmd.append("--squash")
-        elif method == "rebase":
-            cmd.append("--rebase")
-        else:
-            cmd.append("--merge")
-
-        if delete_branch:
-            cmd.append("--delete-branch")
-        if admin:
-            cmd.append("--admin")
-
-        res = subprocess.run(cmd, capture_output=True, text=True, check=False)
-        if res.returncode == 0:
-            return True
-        log_warn(f"gh pr merge failed for #{number} in {target_repo}: {res.stderr}")
-        return False
-
-    def close_pr(
-        self, number: int, repo: Optional[str] = None, comment: Optional[str] = None
-    ) -> bool:
-        """Closes a pull request with an optional comment."""
-        target_repo = repo or self.repo
-        cmd = ["gh", "pr", "close", str(number), "-R", target_repo]
-        if comment:
-            cmd.extend(["--comment", comment])
-        res = subprocess.run(cmd, capture_output=True, text=True, check=False)
-        if res.returncode == 0:
-            return True
-        log_warn(f"gh pr close failed for #{number} in {target_repo}: {res.stderr}")
-        return False

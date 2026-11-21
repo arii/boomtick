@@ -1,8 +1,5 @@
 """GitHub checks, workflow runs, and logs."""
 
-import json
-import re
-import subprocess
 from typing import Any, Dict, List, Optional
 import requests
 from dev_tools.utils import CLIError, log_warn
@@ -199,87 +196,3 @@ class ChecksMixin(PullsMixin):
                 elif code == 404:
                     return self._handle_missing_logs(job_id)
             raise
-
-    def download_zipball(self, ref: str, dest: str = "repo.zip") -> None:
-        """A stateless download helper for the Orchestrator"""
-        from dev_tools.utils import sanitize_path
-
-        # Security: Validate input to prevent command/path injection
-        if not re.match(r"^[a-zA-Z0-9._/-]+$", ref):
-            raise CLIError(f"Invalid ref: {ref}", code=400)
-
-        safe_dest = sanitize_path(dest)
-        if not safe_dest.endswith(".zip"):
-            safe_dest += ".zip"
-
-        url = f"{self.base_url}/repos/{self.repo}/zipball/{ref}"
-        headers = {"Authorization": f"Bearer {self.token}"}
-        # Increased timeout for large downloads
-        response = requests.get(url, headers=headers, stream=True, timeout=300)
-        response.raise_for_status()
-
-        with open(safe_dest, "wb") as f:
-            for chunk in response.iter_content(chunk_size=8192):
-                f.write(chunk)
-
-        from dev_tools.utils import run_command
-
-        # unzip -o overwrite files without prompting
-        run_command(["unzip", "-o", safe_dest])
-
-    def fetch_pr_view_details(
-        self, number: int, repo: Optional[str] = None
-    ) -> Dict[str, Any]:
-        """Fetches detailed PR evaluation fields: title, state, mergeable, statusCheckRollup, isDraft, files, body."""
-        target_repo = repo or self.repo
-        cmd = [
-            "gh",
-            "pr",
-            "view",
-            str(number),
-            "-R",
-            target_repo,
-            "--json",
-            "title,state,mergeable,statusCheckRollup,isDraft,files,body,number,headRefName,baseRefName",
-        ]
-        res = subprocess.run(cmd, capture_output=True, text=True, check=False)
-        if res.returncode == 0 and res.stdout.strip():
-            try:
-                return json.loads(res.stdout)
-            except Exception as e:
-                log_warn(f"Error parsing gh pr view JSON for PR #{number}: {e}")
-
-        # Fallback to REST API if gh pr view fails
-        try:
-            pr = self.fetch_pr_details(number, repo=target_repo)
-            files = self.fetch_pr_files(number, repo=target_repo)
-            sha = pr.get("head", {}).get("sha")
-            check_runs = self.fetch_check_runs(sha, repo=target_repo) if sha else []
-            rollup = [
-                {
-                    "name": c.get("name"),
-                    "status": c.get("status"),
-                    "conclusion": c.get("conclusion"),
-                }
-                for c in check_runs
-            ]
-            mergeable_val = (
-                "MERGEABLE"
-                if pr.get("mergeable") is True
-                else ("CONFLICTING" if pr.get("mergeable") is False else "UNKNOWN")
-            )
-            return {
-                "number": pr.get("number"),
-                "title": pr.get("title"),
-                "state": (pr.get("state") or "").upper(),
-                "mergeable": mergeable_val,
-                "statusCheckRollup": rollup,
-                "isDraft": pr.get("draft", False),
-                "files": [{"path": f.get("filename")} for f in files],
-                "body": pr.get("body") or "",
-                "headRefName": pr.get("head", {}).get("ref"),
-                "baseRefName": pr.get("base", {}).get("ref"),
-            }
-        except Exception as e:
-            log_warn(f"Fallback fetch_pr_view_details failed for PR #{number}: {e}")
-            return {}
