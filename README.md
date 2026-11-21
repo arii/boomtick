@@ -1,22 +1,25 @@
 # Boomtick
 
-Boomtick is a template repository providing foundational developer tooling, workflow orchestration, and an advanced AI review framework for autonomous agent systems. While framework-agnostic at its core, it includes built-in verification pipelines optimized for Vite applications (as demonstrated in `arii/tech-dancer`).
+Boomtick provides developer tooling for GitHub work: a Python CLI, an MCP server, workflow helpers and Gemini review entrypoints. It includes verification pipelines used by Vite projects such as `arii/tech-dancer`.
 
-Boomtick strictly separates human-led strategic system design from agentic execution—reserving automation for repetitive engineering tasks, compilation, data validation, and operational compliance.
+The repository keeps human design decisions separate from automated implementation and checks. A generated report is evidence to inspect, not permission to merge or deploy.
 
 ---
 
 ## Quick Start
 
-Initialize the agent environment and set up the local CLI:
+From a local clone, use Node.js 24, pnpm 10.28.2 and Python 3 (the CLI package declares Python 3.8 or newer; the separate tokens-with-taste gateway requires 3.11 or newer). The setup script installs dependencies and browser tooling, configures Git hooks and persists shell settings. Its validation step also attempts MCP host registration and context-index warming. Review these effects before running it:
 
 ```bash
 ./setup-agent.sh
 ```
 
-Run the MCP server locally or register with your agent hosts:
+Open a new shell after setup, or load its saved environment in your current shell. Build the MCP server explicitly before using its generated entrypoint:
 
 ```bash
+source "$HOME/.config/boomtick/env.sh"
+pnpm --filter @arii/boomtick-mcp run build
+
 # Register boomtick-mcp with local agent hosts (Antigravity CLI, Claude Code, Cursor, VS Code)
 td mcp install --execute
 
@@ -28,8 +31,9 @@ node mcp/dist/index.js
 
 ## Repository Architecture
 
-The codebase is split into two primary operational layers:
-* **`mcp/` (Model Context Protocol Server):** Empowers AI agents with structured access to GitHub Pull Requests, repository state, CI logs, and validation tools. Facilitates conflict resolution and branch creation.
+The codebase has three main areas:
+
+* **`mcp/` (Model Context Protocol Server):** Provides structured access to GitHub pull requests, repository state, CI logs and validation tools, including conflict resolution and branch creation.
 * **`cli/` (`td`):** A terminal-based fallback and local automation toolkit. Integrates directly with the GitHub CLI (`gh`) to handle manual PR audits, conflict detection, and runtime consistency checks.
 * **[`tokens-with-taste/`](tokens-with-taste/README.md):** Standalone Python 3.11+ LLM gateway, provider catalog, and token/cost audits (`twt`).
 
@@ -41,10 +45,11 @@ Boomtick uses a direct standalone package, container, and composite action integ
 
 ## Advanced AI Integration
 
-* **GitHub Models API:** Low-latency code reviews and blast-radius analysis via OpenAI-compatible endpoints.
-* **Gemini API:** Multi-modal analysis for deep contextual and visual interface reviews.
-* **Orchestration:** Streamlined LLM routing and fallback strategies powered by `@langchain/core`.
-* **Contextual Retrieval:** RAG pipeline integration utilizing vector stores for automated triage and overlap analysis.
+* **Gemini API:** The code and visual review entrypoints support Gemini. A usable API key and available project capacity are required. Inspect the actual review output and logs: the current main implementation can return incomplete or empty results without a failed job. Do not treat that as approval. The corrective native-context/fail-closed work is on a separate branch, not part of main.
+* **Review orchestration:** TypeScript clients call the Gemini REST API directly and combine specialist review results. GitHub Models command aliases remain in package scripts, but their provider argument is rejected by the current review runner.
+* **Context retrieval:** The Python CLI includes dependency-graph and vector-store tools. The review context command returns direct dependencies and dependents; it does not run vector search.
+
+Documentation source check: November 21, 2026. Local documentation links and setup-shell syntax were checked against this repository. A fresh-machine installation, host registration and live API review were not executed as part of that check.
 
 ---
 
@@ -75,4 +80,4 @@ Created by **[Ariel Anders](https://arii.github.io)**, creator of **[Boomtick Bl
 
 <hr>
 
-*Tags: #DevAI #EngineeringOperations #GitHubModels #GeminiAPI #LangChain #RAG #VectorStore #AgenticExecution #MCP #TypeScript #Python #Vite*
+*Tags: #DevAI #EngineeringOperations #GeminiAPI #RAG #VectorStore #AgenticExecution #MCP #TypeScript #Python #Vite*
