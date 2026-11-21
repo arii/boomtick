@@ -72,9 +72,8 @@ MCP tools — do not invoke directly unless a workflow explicitly instructs it.
 - `cli_schema` — full `td` command/flag reference
 - `package_json` — dependency and script metadata
 
-It is rebuilt automatically by:
-- `pnpm run agent:prime` (manual)
-- `.githooks/post-checkout` and `.githooks/post-merge` (automatic on branch
-  switch or pull)
+It is rebuilt by `pnpm run agent:prime` (manual). The `post-merge` hook in
+`scripts/hooks/` runs `td init` after a pull or merge; nothing runs on branch
+switch.
 
 If the index is stale, run `pnpm run agent:prime` before any agent operation.

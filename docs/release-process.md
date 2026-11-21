@@ -1,86 +1,54 @@
 # Release Process
 
-boomtick uses automated release pipelines for both the Python CLI and the TypeScript MCP tools.
+Releases are driven by one workflow, [`.github/workflows/release.yml`](../.github/workflows/release.yml) ("Release Orchestrator"). It covers three targets: the Python CLI (`boomtick-cli` on PyPI), the MCP server (`@arii/boomtick-mcp` on npm) and the composite GitHub Action.
 
-## Versioning Strategy
+## Versioning
 
-We use Semantic Versioning (SemVer) for all components.
+Semantic Versioning for every component.
 
-- **CLI**: Versions are managed in `cli/pyproject.toml`.
-- **MCP**: Versions are managed in `mcp/package.json`.
+- **CLI**: version in `cli/pyproject.toml`.
+- **MCP**: version in `mcp/package.json`.
+- **Action**: git tags only (`action-vX.Y.Z`).
 
-## Triggering a Release
+`release-please` (config in `release-please-config.json`, state in `.release-please-manifest.json`) opens release PRs for `cli` and `mcp` from commits on `main`.
 
-Releases are triggered by pushing specific Git tags:
+## Conventional Commits requirement
 
-- **CLI Release**: Push a tag matching `cli-v*` (e.g., `cli-v0.2.1`).
-- **MCP Release**: Push a tag matching `mcp-v*` (e.g., `mcp-v0.2.1`).
+Use [Conventional Commits](https://www.conventionalcommits.org/) (`fix: ...`, `feat: ...`, `refactor: ...`) for every commit. `release-please` parses that format to choose version bumps. A commit such as `Refactor ...` or `Fix ...` without the conventional prefix makes it skip the affected component's release PR.
 
-## Automated Release Drafting and Changelog
+## Triggering a release
 
-We use **Release Drafter** and **git-cliff** to automate our release notes and changelog updates.
+Push a tag. The workflow picks the target from the tag prefix.
 
-### Conventional Commits Requirement
-It is **critical** to use [Conventional Commits](https://www.conventionalcommits.org/) syntax (e.g., `fix: ...`, `feat: ...`, `refactor: ...`) for all commits. `release-please` strictly relies on this format to parse commits, evaluate changes, and bump versions appropriately. Commits starting with capitalized words (like `Refactor`, `Fix`, `Continue`) without conventional formatting will cause parsing errors, resulting in `release-please` skipping candidate PR generation for the affected components.
+| Tag | Target |
+| :--- | :--- |
+| `cli-v*` (e.g. `cli-v0.2.1`) | CLI |
+| `mcp-v*` (e.g. `mcp-v0.2.1`) | MCP |
+| `action-v*` (e.g. `action-v0.2.0`) | Action |
 
-### Release Drafting
-Whenever a Pull Request is merged into `main`, **Release Drafter** automatically updates a draft release with the changes.
-- It categorizes changes based on PR labels (e.g., `feature`, `bug`, `documentation`).
-- It automatically suggests the next version number.
+Steps:
 
-### Automated Changelog
-When a new release is **published**, a GitHub Action triggers **git-cliff** to:
-1. Parse the git history using [Conventional Commits](https://www.conventionalcommits.org/).
-2. Generate a new entry for `CHANGELOG.md`.
-3. Prepend the entry to the top of the file and commit it back to the repository.
-
-### Step-by-Step Instructions
-
-1. **Update Version**:
-   - For CLI: Update `version` in `cli/pyproject.toml`.
-   - For MCP: Run `pnpm --filter @arii/boomtick-mcp version <patch|minor|major>`.
-
-2. **Commit and Push Changes**:
+1. Update the version (CLI: `cli/pyproject.toml`; MCP: `pnpm --filter @arii/boomtick-mcp version <patch|minor|major>`), or merge the `release-please` PR.
+2. Commit and push to `main`.
+3. Tag and push:
    ```bash
-   git add .
-   git commit -m "chore: bump version to x.y.z"
-   git push origin main
-   ```
-
-3. **Create and Push Tag**:
-   ```bash
-   # For CLI
    git tag cli-v0.2.1
    git push origin cli-v0.2.1
-
-   # For MCP
-   git tag mcp-v0.2.1
-   git push origin mcp-v0.2.1
    ```
 
-## Automated Pipelines
+## What the workflow does
 
-### Release CLI (`.github/workflows/release-cli.yml`)
-- Triggers on `cli-v*` tags.
-- Runs CLI unit tests.
-- Builds MCP tools and bundles them into the CLI distribution.
-- Syncs schemas and contracts.
-- Builds the Python package (`sdist` and `wheel`).
-- Publishes to PyPI.
-- Creates a GitHub Release with generated notes and artifacts.
+For tag pushes, a non-dry-run is implied. Steps run according to the target:
 
-### Release MCP (`.github/workflows/release-mcp.yml`)
-- Triggers on `mcp-v*` tags.
-- Runs MCP unit tests.
-- Builds the TypeScript project.
-- Publishes to npm (under the `@arii` scope).
-- Creates a GitHub Release with generated notes.
+- MCP target: run MCP tests, build, publish to npm.
+- CLI target: run CLI tests, build MCP and bundle it into the CLI, build `sdist` and `wheel`, publish to PyPI, then build and push the Docker image (`ghcr.io/arii/boomtick`).
+- All targets: build MCP, run `pnpm run verify:schemas`, then create a GitHub Release with `--generate-notes` (CLI artifacts are attached when present).
+- Action target: move the floating major tag (for example `action-v0`) to the new release.
 
-### Changelog Update (`.github/workflows/changelog-update.yml`)
-- Triggers when a release is published.
-- Uses `git-cliff` to generate release notes from conventional commits.
-- Prepends new notes to `CHANGELOG.md` and commits the change.
+## Manual dispatch
 
-## Manual Dispatch
+`workflow_dispatch` takes a `target` (`cli`, `mcp`, `action`, `all`) and a `dry_run` flag. `dry_run` defaults to `true`, which builds and tests without publishing.
 
-Both workflows can be triggered manually via the GitHub Actions UI for dry-runs or debugging.
+## Changelog
+
+`CHANGELOG.md` files are maintained by `release-please`. Nothing else updates them.

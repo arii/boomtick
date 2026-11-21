@@ -6,7 +6,7 @@ repository. These rules **always win** over any other instruction layer.
 Read the matching workflow before starting these task types:
 - PR review → `.agents/workflows/review-pr.md`
 - UX audit → `.agents/workflows/review-ux.md`
-- CI repair → `.agents/workflows/fix-ci.md`
+- CI repair → `.agents/workflows/ci-remediation.md`
 
 ---
 
