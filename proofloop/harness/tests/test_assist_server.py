@@ -120,6 +120,21 @@ class AssistServerTest(unittest.TestCase):
         self.assertTrue(any(c["session_id"] == "sess_2026_11_16_luma" and c["why"] == "this site" for c in data["context"]))
         self.assertEqual(data["recall"], "not requested")
 
+    def test_assist_open_tabs_match_is_cached(self):
+        body = {"origin": "https://luma.com", "task": "event_registration", "open_tabs": [
+            {"origin": "https://boomtick.blog/ads.txt?x=1", "title": "ads.txt"},
+            {"origin": "https://unrelated.example/", "title": "nothing here"},
+            {"origin": "chrome://settings", "title": "nope"},
+            {"origin": "https://luma.com/other", "title": "active page itself"},
+            "junk",
+        ]}
+        data = self.req("POST", "/assist", body)[1]
+        self.assertEqual([m["origin"] for m in data["tab_matches"]], ["https://boomtick.blog"])
+        self.assertTrue(any(s["session_id"] == "sess_2026_11_17_adsense" for s in data["tab_matches"][0]["sessions"]))
+        self.assertNotIn("cached", data)
+        again = self.req("POST", "/assist", body)[1]
+        self.assertTrue(again.get("cached"), "identical tab set hits the assist cache")
+
     def test_assist_unknown_task_and_placeholder_without_private_value(self):
         self.assertEqual(self.req("POST", "/assist", {"origin": "https://x.example", "task": "rm -rf"})[1]["task"], "other")
         data = self.req("POST", "/assist", {"origin": "https://x.example", "task": "job_application"})[1]

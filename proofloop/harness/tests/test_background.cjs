@@ -5,7 +5,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const src = fs.readFileSync(path.resolve(__dirname, '../../extension/background.js'), 'utf8');
 
-function load({ granted = [], local = {} } = {}) {
+function load({ granted = [], local = {}, openTabs = [] } = {}) {
   const store = { token: 'tok', ...local }, session = {}, registered = [], requests = [], executed = [];
   let listener;
   const chrome = {
@@ -20,7 +20,7 @@ function load({ granted = [], local = {} } = {}) {
       unregisterContentScripts: async ({ ids }) => { for (const id of ids) registered.splice(registered.findIndex((r) => r.id === id), 1); },
       executeScript: async (o) => { executed.push(o); },
     },
-    tabs: { onRemoved: { addListener() {} } },
+    tabs: { onRemoved: { addListener() {} }, query: async () => openTabs },
     runtime: { onMessage: { addListener: (fn) => { listener = fn; } }, onInstalled: { addListener() {} }, onStartup: { addListener() {} } },
   };
   const fetch = async (url, init = {}) => { requests.push({ url, init }); return { ok: true, status: 200, json: async () => ({ page_rules: [], context: [] }) }; };
@@ -34,13 +34,28 @@ const J = (x) => JSON.parse(JSON.stringify(x));
 const page = (url, id = 1) => ({ tab: { id, url, title: 'Private Title' } });
 
 (async () => {
-  // /assist gets origin, task and the recall flag only.
+  // /assist gets origin, task, the recall flag and a compact other-tabs list only.
   let b = load();
   await b.call({ type: 'assist', task: 'event_registration', title: 'X', value: 'Y' }, page('https://luma.com/personalagenthack?token=abc#f'));
   const req = b.requests[0];
   assert.equal(req.url, 'http://127.0.0.1:8787/assist');
-  assert.deepEqual(JSON.parse(req.init.body), { origin: 'https://luma.com', task: 'event_registration', recall: false });
+  assert.deepEqual(JSON.parse(req.init.body), { origin: 'https://luma.com', task: 'event_registration', recall: false, open_tabs: [] });
   assert.equal(req.init.headers.Authorization, 'Bearer tok');
+
+  // The snapshot follows tabs across calls: the second page's /assist names the first tab (origin + short title).
+  await b.call({ type: 'assist', task: 'other' }, page('https://boomtick.blog/ads.txt?x=1', 2));
+  assert.deepEqual(JSON.parse(b.requests[1].init.body).open_tabs, [{ origin: 'https://luma.com', title: 'Private Title' }]);
+  await b.call({ type: 'assist', task: 'other' }, page('chrome://settings', 3));
+  assert.equal(b.requests.length, 2, 'non-web pages never reach the backend');
+
+  // Pause quiets everything without a backend call; unpause resumes.
+  await b.call({ type: 'pause' }, {});
+  const pr = await b.call({ type: 'assist', task: 'other' }, page('https://luma.com/', 1));
+  assert.equal(pr.paused, true);
+  assert.equal(b.requests.length, 2);
+  await b.call({ type: 'unpause' }, {});
+  await b.call({ type: 'assist', task: 'other' }, page('https://luma.com/', 1));
+  assert.equal(b.requests.length, 3);
 
   // Messages from non-web pages and popup-only messages from pages are ignored.
   assert.equal(await b.call({ type: 'assist', task: 'x' }, page('chrome://settings')), undefined);
@@ -56,6 +71,21 @@ const page = (url, id = 1) => ({ tab: { id, url, title: 'Private Title' } });
   assert.equal(b.executed[0].target.tabId, 3);
   await b.call({ type: 'unwatch', origin: 'https://luma.com' }, {});
   assert.equal(b.registered.length, 0);
+
+  // Watch-all needs the all-hosts grant; then one all-urls registration plus injection into every open tab.
+  b = load({ openTabs: [{ id: 1 }, { id: 2 }, {}] });
+  assert.equal((await b.call({ type: 'watchAll' }, {})).ok, false);
+  assert.equal(b.registered.length, 0);
+  b = load({ granted: ['https://*/*', 'http://*/*'], openTabs: [{ id: 1 }, { id: 2 }, {}] });
+  assert.equal((await b.call({ type: 'watchAll' }, {})).ok, true);
+  assert.deepEqual(J(b.registered.map((r) => r.matches)), [['https://*/*', 'http://*/*']]);
+  assert.deepEqual(J(b.executed.map((e) => e.target.tabId)), [1, 2]);
+  assert.equal(b.store.watch_all, true);
+  assert.equal(b.store.cross_tab, true);
+  assert.equal(await b.call({ type: 'watchAll' }, page('https://evil.example')), undefined);
+  await b.call({ type: 'unwatchAll' }, {});
+  assert.equal(b.registered.length, 0);
+  assert.equal(b.store.watch_all, false);
 
   // Cross-tab comparison is off by default and stores nothing.
   b = load();
@@ -73,5 +103,5 @@ const page = (url, id = 1) => ({ tab: { id, url, title: 'Private Title' } });
 
   // No other backend paths are reachable from pages.
   assert.ok(load().requests.every((q) => q.url.startsWith('http://127.0.0.1:8787/')));
-  console.log('background contracts passed: minimal /assist body, page vs popup messages, permission-gated watching, cross-tab off by default and hash-only.');
+  console.log('background contracts passed: minimal /assist body, page vs popup messages, permission-gated watching, watch-all tabs, cross-tab off by default and hash-only.');
 })().catch((e) => { console.error(e); process.exit(1); });

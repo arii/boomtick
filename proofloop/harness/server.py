@@ -6,9 +6,10 @@ and Origin that pass the loopback / extension-ID check. A request with no Origin
 local scripts) is therefore rejected unless it carries the token.
 
 GET /augment and /ledger expose loop state for the dashboard. GET /skill describes the promoted rule
-set. POST /assist {origin, task, recall} returns the page rules for that task (forbidden values as
-hashes) and context from past sessions (see page_assist.py); it never receives page text or field
-values. POST /feedback {rule_id, action} records shown / dismissed / rule_wrong for the loop.
+set. POST /assist {origin, task, recall, open_tabs} returns the page rules for that task (forbidden
+values as hashes), context from past sessions, and tab_matches for other open tabs that touch
+recorded sessions (see page_assist.py); it never receives page text or field values.
+POST /feedback {rule_id, action} records shown / dismissed / rule_wrong for the loop.
 Senso is read (never written) here, and Cognee is queried only when the request asks for recall and
 PROOFLOOP_ASSIST_RECALL=1 is set for this process.
 """

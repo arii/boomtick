@@ -1,8 +1,12 @@
 // ProofLoop background worker.
-// - Watched sites: content scripts are registered only for origins Ari turns on in the popup (optional host
-//   permissions). Nothing runs on other sites.
-// - Backend calls go only to the loopback backend with the per-run token. /assist receives the page origin and
-//   the task id, never the URL path, query, title, page text or field values.
+// - Watched sites: content scripts run on origins Ari turns on in the popup, or on every http(s) tab when
+//   "Watch all tabs" is on (one optional all-hosts grant). Nothing runs on other sites.
+// - Backend calls go only to the loopback backend with the per-run token. /assist receives the page origin,
+//   the task id, and a compact list of other open tabs (origin + short title, no paths or query strings),
+//   never the URL path, query, title, page text or field values.
+// - Open-tab snapshot: title, origin, domain and last-active time per tab, in memory only, kept from
+//   chrome.tabs events. chrome://, chrome-extension:// and edge:// pages are never recorded.
+// - Pause: when paused, pages get no assist data and render nothing until unpaused.
 // - Cross-tab facts: hashed field values per tab, kept in chrome.storage.session (memory only, cleared when the
 //   browser closes), and only when "compare with my other watched tabs" is on.
 const BACKEND = "http://127.0.0.1:8787";
@@ -10,9 +14,26 @@ const SCRIPTS = ["assist/detect.js", "assist/match.js", "assist/task.js", "assis
 // Match patterns ignore ports, so they are built from scheme and hostname.
 const patternFor = (origin) => { const u = new URL(origin); return `${u.protocol}//${u.hostname}/*`; };
 const scriptId = (origin) => "pl-" + origin.replace(/[^a-z0-9]/gi, "_").slice(0, 80);
+const ALL_MATCHES = ["https://*/*", "http://*/*"];
+const ALL_ID = "pl-all";
 
 async function settings() {
-  return chrome.storage.local.get({ token: "", watched: [], hold_submit: true, cross_tab: false, cloud_recall: false });
+  return chrome.storage.local.get({ token: "", watched: [], watch_all: false, paused: false, hold_submit: true, cross_tab: false, cloud_recall: false });
+}
+
+// ---------------------------------------------------------------- open-tab snapshot (memory only)
+const TABS = new Map(); // tabId -> { origin, domain, title, task, at }
+const WEB_URL = /^https?:\/\//;
+function snapTab(tab) {
+  if (!tab || tab.id == null || !WEB_URL.test(tab.url || "")) return;
+  try {
+    const u = new URL(tab.url);
+    TABS.set(tab.id, { origin: u.origin, domain: u.hostname, title: (tab.title || "").slice(0, 80), task: (TABS.get(tab.id) || {}).task || null, at: Date.now() });
+  } catch { /* ignore malformed urls */ }
+}
+function otherTabs(me, limit = 10) {
+  return [...TABS.entries()].filter(([id]) => id !== me).sort((a, b) => b[1].at - a[1].at).slice(0, limit)
+    .map(([, t]) => ({ origin: t.origin, title: t.title }));
 }
 
 async function api(path, init = {}) {
@@ -37,17 +58,30 @@ async function register(origin) {
   }
 }
 
+async function registerAll() {
+  const existing = await chrome.scripting.getRegisteredContentScripts({ ids: [ALL_ID] });
+  if (!existing.length) {
+    await chrome.scripting.registerContentScripts([{ id: ALL_ID, matches: ALL_MATCHES, js: SCRIPTS, runAt: "document_idle", allFrames: false, persistAcrossSessions: true }]);
+  }
+}
+
 async function syncRegistrations() {
-  const { watched } = await settings();
+  const { watched, watch_all } = await settings();
   const granted = [];
   for (const origin of watched) {
     if (await chrome.permissions.contains({ origins: [patternFor(origin)] })) { await register(origin); granted.push(origin); }
   }
   const keep = new Set(granted.map(scriptId));
+  let allOn = !!watch_all;
+  if (allOn && (await chrome.permissions.contains({ origins: ALL_MATCHES }))) { await registerAll(); keep.add(ALL_ID); }
+  else allOn = false;
   const all = await chrome.scripting.getRegisteredContentScripts();
   const stale = all.filter((s) => s.id.startsWith("pl-") && !keep.has(s.id)).map((s) => s.id);
   if (stale.length) await chrome.scripting.unregisterContentScripts({ ids: stale });
-  if (granted.length !== watched.length) await chrome.storage.local.set({ watched: granted });
+  const patch = {};
+  if (granted.length !== watched.length) patch.watched = granted;
+  if (allOn !== !!watch_all) patch.watch_all = allOn;
+  if (Object.keys(patch).length) await chrome.storage.local.set(patch);
 }
 
 async function watch(origin, tabId) {
@@ -67,6 +101,25 @@ async function unwatch(origin) {
   return { ok: true };
 }
 
+async function watchAll() {
+  if (!(await chrome.permissions.contains({ origins: ALL_MATCHES }))) return { ok: false, error: "permission not granted" };
+  await chrome.storage.local.set({ watch_all: true, cross_tab: true });
+  await registerAll();
+  // Inject into every open tab now (ids need no "tabs" permission); pages that reject injection pick it up on reload.
+  const tabs = await chrome.tabs.query({}).catch(() => []);
+  for (const t of tabs) {
+    if (t && t.id != null) await chrome.scripting.executeScript({ target: { tabId: t.id }, files: SCRIPTS }).catch(() => {});
+  }
+  return { ok: true };
+}
+
+async function unwatchAll() {
+  await chrome.storage.local.set({ watch_all: false });
+  await chrome.scripting.unregisterContentScripts({ ids: [ALL_ID] }).catch(() => {});
+  await chrome.permissions.remove({ origins: ALL_MATCHES }).catch(() => {});
+  return { ok: true };
+}
+
 // ---------------------------------------------------------------- page data
 let tasksCache = null;
 async function tasks() {
@@ -80,10 +133,12 @@ async function tasks() {
 const CACHE_KEY = "assist_cache";
 async function assist(sender, task) {
   const origin = new URL(sender.tab.url).origin;
-  const { cloud_recall } = await settings();
+  const { cloud_recall, paused } = await settings();
+  if (paused) return { ok: true, paused: true, data: { page_rules: [], context: [], tab_matches: [] } };
+  snapTab(sender.tab);
   const key = `${origin}|${task}`;
   try {
-    const data = await postJSON("/assist", { origin, task, recall: !!cloud_recall });
+    const data = await postJSON("/assist", { origin, task, recall: !!cloud_recall, open_tabs: otherTabs(sender.tab.id) });
     const cache = (await chrome.storage.local.get(CACHE_KEY))[CACHE_KEY] || {};
     cache[key] = { at: Date.now(), data };
     await chrome.storage.local.set({ [CACHE_KEY]: cache });
@@ -98,8 +153,11 @@ async function assist(sender, task) {
 // Cross-tab facts: { [tabId]: { origin, title, task, fields: { semantic: { hash, tail } } } }
 const FACTS = "tab_facts";
 async function observe(sender, msg) {
-  const { cross_tab } = await settings();
-  if (!cross_tab) return { ok: true, conflicts: [] };
+  const { cross_tab, paused } = await settings();
+  snapTab(sender.tab);
+  const snap = TABS.get(sender.tab.id);
+  if (snap) snap.task = msg.task;
+  if (paused || !cross_tab) return { ok: true, conflicts: [] };
   const all = (await chrome.storage.session.get(FACTS))[FACTS] || {};
   const me = String(sender.tab.id);
   const mine = all[me] || { fields: {} };
@@ -125,9 +183,14 @@ async function observe(sender, msg) {
 }
 
 chrome.tabs.onRemoved.addListener(async (tabId) => {
+  TABS.delete(tabId);
   const all = (await chrome.storage.session.get(FACTS))[FACTS] || {};
   if (all[String(tabId)]) { delete all[String(tabId)]; await chrome.storage.session.set({ [FACTS]: all }); }
 });
+if (chrome.tabs.onActivated) chrome.tabs.onActivated.addListener(async ({ tabId }) => {
+  try { snapTab(await chrome.tabs.get(tabId)); } catch { /* tab gone */ }
+});
+if (chrome.tabs.onUpdated) chrome.tabs.onUpdated.addListener((tabId, info, tab) => { if (info.status === "complete" || info.url || info.title) snapTab(tab); });
 
 chrome.runtime.onInstalled.addListener(() => { syncRegistrations(); });
 chrome.runtime.onStartup.addListener(() => { syncRegistrations(); });
@@ -141,10 +204,14 @@ chrome.runtime.onMessage.addListener((msg, sender, reply) => {
     case "assist": return fromPage(sender) ? run(assist(sender, String(msg.task || "other"))) : false;
     case "feedback": return fromPage(sender) ? run(postJSON("/feedback", { rule_id: String(msg.rule_id || ""), action: String(msg.action || "") }).then(() => ({ ok: true }))) : false;
     case "observe": return fromPage(sender) ? run(observe(sender, msg)) : false;
-    case "settings": return fromPage(sender) ? run(settings().then(({ hold_submit, cross_tab }) => ({ ok: true, hold_submit, cross_tab }))) : false;
+    case "settings": return fromPage(sender) ? run(settings().then(({ hold_submit, cross_tab, paused }) => ({ ok: true, hold_submit, cross_tab, paused }))) : false;
     // Popup-only messages (no sender.tab).
     case "watch": return !sender.tab ? run(watch(String(msg.origin), msg.tabId)) : false;
     case "unwatch": return !sender.tab ? run(unwatch(String(msg.origin))) : false;
+    case "watchAll": return !sender.tab ? run(watchAll()) : false;
+    case "unwatchAll": return !sender.tab ? run(unwatchAll()) : false;
+    case "pause": return !sender.tab ? run(chrome.storage.local.set({ paused: true }).then(() => ({ ok: true }))) : false;
+    case "unpause": return !sender.tab ? run(chrome.storage.local.set({ paused: false }).then(() => ({ ok: true }))) : false;
     default: return false;
   }
 });

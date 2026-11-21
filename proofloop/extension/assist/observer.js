@@ -12,7 +12,10 @@
   const vocabRes = await send({ type: "tasks" });
   const vocab = vocabRes && vocabRes.ok ? vocabRes.data : { tasks: [] };
   const prefsRes = await send({ type: "settings" });
-  const prefs = prefsRes && prefsRes.ok ? prefsRes : { hold_submit: true, cross_tab: false };
+  const prefs = prefsRes && prefsRes.ok ? prefsRes : { hold_submit: true, cross_tab: false, paused: false };
+  // Terminal pages (ttyd/xterm, e.g. 127.0.0.1:8082): pill only, never inline markers over the prompt.
+  let terminal = location.port === "8082";
+  const sniffTerminal = () => { if (!terminal) terminal = !!document.querySelector(".xterm-screen,.xterm,#terminal"); };
 
   const S = {
     task: null, res: null, fields: [], conflicts: new Map(), // key -> { el, hit, rule }
@@ -139,17 +142,20 @@
 
   function render() {
     layer.textContent = "";
+    if (prefs.paused) return;
     const live = openConflicts(false);
     const all = openConflicts(true);
     const rules = rulesNow();
     const ctx = (S.res && S.res.ok && S.res.data.context) || [];
     // Inline marker for each conflict shown while editing (submit-time confirmations show only in the panel).
     // Each chip avoids fields, labels, buttons, links, the pill and the chips placed before it.
+    const tm = (S.res && S.res.ok && S.res.data.tab_matches) || [];
     const pillLabel = (() => {
       const n = all.length + S.cross.length;
-      if (!rules.length && !ctx.length && !n && !S.error) return null;
+      if (!rules.length && !ctx.length && !tm.length && !n && !S.error) return null;
+      if (terminal && !n) return `ProofLoop · ${ctx.length + tm.length} match${ctx.length + tm.length === 1 ? "" : "es"}`;
       return n ? `ProofLoop · ${n} conflict${n === 1 ? "" : "s"}` : S.error && !rules.length ? "ProofLoop · backend unavailable"
-        : `ProofLoop · ${rules.length} rule${rules.length === 1 ? "" : "s"}${ctx.length ? ` · ${ctx.length} past` : ""}`;
+        : `ProofLoop · ${rules.length} rule${rules.length === 1 ? "" : "s"}${ctx.length ? ` · ${ctx.length} past` : ""}${tm.length ? ` · ${tm.length} tab${tm.length === 1 ? "" : "s"}` : ""}`;
     })();
     let pill = null, corner = null;
     if (pillLabel) {
@@ -166,7 +172,7 @@
       const px = corner.rightSide ? { left: innerWidth - 380, right: innerWidth } : { left: 0, right: 380 };
       placed.push({ ...px, top: 0, bottom: innerHeight });
     }
-    for (const c of live) {
+    for (const c of (terminal ? [] : live)) {
       if (!visible(c.el) || !unobscured(c.el)) continue;
       const r = c.el.getBoundingClientRect();
       const o = el("div", { className: "outline" });
@@ -208,6 +214,12 @@
       panel.append(el("h4", { textContent: "From past sessions" }));
       for (const c of ctx) panel.append(el("div", { className: "card" }, el("div", { textContent: c.fact }), el("div", { className: "tag", textContent: `${c.source} · ${c.date} · ${c.why}` })));
     }
+    if (tm.length) {
+      panel.append(el("h4", { textContent: "Matches open tab" }));
+      for (const t of tm) for (const s of t.sessions) panel.append(el("div", { className: "card" },
+        el("div", { textContent: s.fact }),
+        el("div", { className: "tag", textContent: `Matches open tab: ${t.title || t.origin} · ${s.date}` })));
+    }
     const d = S.res && S.res.ok ? S.res.data : null;
     panel.append(el("div", { className: "foot", textContent: d ? `${d.source.label}${d.version ? ` · ${d.version}` : ""} · recall: ${d.recall}${S.res.live ? "" : " · backend offline, cached rules"}` : `Backend unavailable: ${S.error || (S.res && S.res.error) || "unknown"}` }));
     layer.append(panel);
@@ -248,7 +260,11 @@
   }
 
   async function scan() {
-    S.fields = D.collect(document).filter((f) => visible(f.el)).map((f, idx) => ({ ...f, idx }));
+    const pr = await send({ type: "settings" });
+    if (pr && pr.ok) Object.assign(prefs, { hold_submit: pr.hold_submit, cross_tab: pr.cross_tab, paused: pr.paused });
+    if (prefs.paused) { layer.textContent = ""; return; }
+    sniffTerminal();
+    S.fields = terminal ? [] : D.collect(document).filter((f) => visible(f.el)).map((f, idx) => ({ ...f, idx }));
     const { task } = T.classify(vocab, document, S.fields);
     if (task !== S.task) {
       S.task = task;
@@ -260,7 +276,7 @@
   const refresh = () => poll(true);
 
   // ------------------------------------------------------------------ submit hold (optional, once per attempt)
-  function shouldHold() { return prefs.hold_submit && !S.bypass && (openConflicts(true).length + S.cross.length) > 0; }
+  function shouldHold() { return !terminal && !prefs.paused && prefs.hold_submit && !S.bypass && (openConflicts(true).length + S.cross.length) > 0; }
   function hold(e, pending) { e.preventDefault(); e.stopImmediatePropagation(); S.pending = pending; S.panelOpen = true; render(); }
   function releaseSubmit() {
     const p = S.pending;

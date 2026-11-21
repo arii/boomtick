@@ -175,23 +175,77 @@ def recall_context(rec, origin, task, wait=2.5):
     return items, state
 
 
+def clean_tabs(raw, limit=12):
+    """Compact open-tab summaries: origin (no path/query/fragment) plus a short title. Drops
+    non-http(s) entries and anything malformed. No page text or field values are accepted."""
+    out, seen = [], set()
+    if not isinstance(raw, list):
+        return out
+    for t in raw:
+        if not isinstance(t, dict):
+            continue
+        origin = _origin(str(t.get("origin", ""))[:200])
+        if not origin.startswith(("http://", "https://")) or origin in seen:
+            continue
+        seen.add(origin)
+        title = str(t.get("title", ""))[:80]
+        out.append({"origin": origin, "title": title})
+        if len(out) >= limit:
+            break
+    return out
+
+
+def tab_matches(sessions, suite, tabs, task, limit=8):
+    """One pass over the other open tabs: which of them touch recorded sessions. Only tabs
+    with at least one match are returned, with short session facts (no transcripts)."""
+    out = []
+    for t in tabs:
+        items = session_context(sessions, suite, t["origin"], task, limit=2)
+        if items:
+            out.append({"origin": t["origin"], "title": t["title"],
+                        "sessions": [{"session_id": c["session_id"], "date": c["date"], "fact": c["fact"]} for c in items]})
+        if len(out) >= limit:
+            break
+    return out
+
+
+_ASSIST_CACHE, _ASSIST_TTL, _ASSIST_MAX = {}, 120, 64
+
+
+def _assist_key(origin, task, tabs, version, recall):
+    fp = hashlib.sha256(("|".join(sorted(t["origin"] for t in tabs))).encode()).hexdigest()[:16]
+    return (origin, task, fp, version, bool(recall))
+
+
 def assist(body, sessions, suite, senso_client=None, rec=None):
     origin = body.get("origin") if isinstance(body.get("origin"), str) else ""
     task = body.get("task") if body.get("task") in rules_mod.task_ids() else "other"
     origin = _origin(origin[:200])
+    tabs = [t for t in clean_tabs(body.get("open_tabs")) if t["origin"] != origin]
     try:
         stored = active(sessions)
     except ValueError as e:
-        return {"version": None, "task": task, "page_rules": [], "context": [], "recall": "not requested",
+        return {"version": None, "task": task, "page_rules": [], "context": [], "tab_matches": [], "recall": "not requested",
                 "source": {"kind": "invalid", "label": str(e)[:200]}}
+    version = stored["rules"]["version"] if stored else None
+    key = _assist_key(origin, task, tabs, version, body.get("recall") is True)
+    hit = _ASSIST_CACHE.get(key)
+    if hit and time.time() - hit["at"] < _ASSIST_TTL:
+        return dict(hit["data"], cached=True)
     context = session_context(sessions, suite, origin, task)
     recalled, recall_state = recall_context(rec, origin, task) if body.get("recall") is True else ([], "not requested")
     seen = {c["session_id"] for c in context}
     context += [r for r in recalled if r["session_id"] not in seen]
+    matches = tab_matches(sessions, suite, tabs, task)
     if not stored:
-        return {"version": None, "task": task, "page_rules": [], "context": context, "recall": recall_state,
-                "source": {"kind": "none", "label": "no promoted rule set yet (run replay_loop.py)"}}
-    rs = stored["rules"]
-    return {"version": rs["version"], "sha256": stored["sha256"], "task": task, "page_rules": page_rules_for(rs, task),
-            "context": context, "recall": recall_state, "source": source_tag(stored, senso_client),
-            "promoted_at": stored.get("promoted_at")}
+        data = {"version": None, "task": task, "page_rules": [], "context": context, "tab_matches": matches,
+                "recall": recall_state, "source": {"kind": "none", "label": "no promoted rule set yet (run replay_loop.py)"}}
+    else:
+        rs = stored["rules"]
+        data = {"version": rs["version"], "sha256": stored["sha256"], "task": task, "page_rules": page_rules_for(rs, task),
+                "context": context, "tab_matches": matches, "recall": recall_state, "source": source_tag(stored, senso_client),
+                "promoted_at": stored.get("promoted_at")}
+    if len(_ASSIST_CACHE) >= _ASSIST_MAX:
+        _ASSIST_CACHE.pop(next(iter(_ASSIST_CACHE)))
+    _ASSIST_CACHE[key] = {"at": time.time(), "data": data}
+    return data
