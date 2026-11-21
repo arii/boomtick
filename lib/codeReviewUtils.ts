@@ -773,7 +773,8 @@ export async function withRetry<T>(
                           errorMsg.toLowerCase().includes('rate limit') ||
                           errorMsg.toLowerCase().includes('resource_exhausted') ||
                           errorMsg.includes('RESOURCE_EXHAUSTED');
-      const isTransient = isRateLimit ||
+      const isPermanentQuota = /monthly spending cap|billing.{0,20}(disabled|limit)|insufficient_quota/i.test(errorMsg);
+      const isTransient = !isPermanentQuota && (isRateLimit ||
                           errorMsg.includes('500') ||
                           errorMsg.includes('502') ||
                           errorMsg.includes('503') ||
@@ -781,7 +782,7 @@ export async function withRetry<T>(
                           errorMsg.toLowerCase().includes('econnreset') ||
                           errorMsg.toLowerCase().includes('socket timeout') ||
                           errorMsg.toLowerCase().includes('fetch failed') ||
-                          errorMsg.toLowerCase().includes('timeout');
+                          errorMsg.toLowerCase().includes('timeout'));
 
       if (isLastAttempt || !isTransient) {
         throw error;

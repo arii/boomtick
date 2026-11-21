@@ -448,7 +448,7 @@ async function enrichAIContext(
           batchFiles.push({ path: file, diff: fileDiff });
         }
       } catch (err) {
-        console.warn(`Could not gather diff context for ${file}:`, err);
+        throw new Error(`Diff context unavailable for ${file}: ${err instanceof Error ? err.message : String(err)}`);
       }
     }
 
@@ -473,7 +473,7 @@ async function enrichAIContext(
       }
     }
   } catch (err) {
-    console.warn('Could not gather impact/semantic context:', err);
+    throw new Error(`Impact/semantic context unavailable: ${err instanceof Error ? err.message : String(err)}`);
   }
 
   return impactSemanticContext.trim();
@@ -528,7 +528,7 @@ export async function getCodeDiffSummary(targetFiles?: string[]): Promise<CodeRe
     return summary;
   } catch (error) {
     console.warn('Could not generate code diff:', error);
-    return { diffContext: '' };
+    return { diffContext: '', preparationError: error instanceof Error ? error.message : String(error) };
   }
 }
 
@@ -578,6 +578,10 @@ export function generateCodeReviewMarkdown(
     verdictHeader = '### 🟡 Verdict: WARNINGS FOUND';
   }
 
+  if (result.skipReason || result.isTruncated || result.parseError) {
+    verdictHeader = '### ⚠️ Verdict: INCOMPLETE, NOT APPROVED';
+  }
+
   const findings = result.state?.findings || [];
   const openFindings = findings.filter(f => f.status === 'open');
   const highCount = openFindings.filter(f => f.severity === 'HIGH' || f.severity === 'error').length;
@@ -601,7 +605,7 @@ ${verdictHeader}
 **Review Iteration:** #${iteration} of ${MAX_REVIEWS_PER_PR}
 **Findings:** ${highCount} blocking · ${warnCount} warning(s) · ${cleanCount} clean.
 **Reviewing:** ${prLink}
-${costLine}${modelLine}
+${costLine}${modelLine}${result.skipReason ? `**Incomplete reason:** ${result.skipReason}\n` : ''}
 ### Code Review Feedback
 <details><summary>Review Details</summary>
 
@@ -627,6 +631,15 @@ export async function orchestrateCodeReview(
     fs.mkdirSync(ARTIFACTS_DIR, { recursive: true });
   }
 
+  const rejectPreparation = async (reason: string, details: string): Promise<never> => {
+    await fs.promises.writeFile(agentReportPath, `## ${client.reportTitle}\n\nReview incomplete, not approved: ${details}\n`);
+    const verdictPath = path.join(ARTIFACTS_DIR, `${path.basename(client.reportFileName).replace('.md', '')}-verdict.json`);
+    await writeVerdictJson(verdictPath, {
+      passed: false, highCount: 0, routes: [], llmVerdict: 'warn', skipReason: reason,
+    });
+    throw new Error(`Code review incomplete: ${details}`);
+  };
+
   const existing = await countExistingReviews(allReportTitles);
   const iteration = existing + 1;
   const isQuotaMet = await checkReviewQuota(
@@ -639,9 +652,14 @@ export async function orchestrateCodeReview(
     ARTIFACTS_DIR,
     (title) => getPreviousReviewState<any>(title)
   );
-  if (isQuotaMet) return;
+  if (isQuotaMet) {
+    await rejectPreparation('REVIEW_QUOTA', 'review quota reached');
+  }
 
   const initialSummary = await getCodeDiffSummary();
+  if (initialSummary.preparationError) {
+    await rejectPreparation('PREPARATION_FAILED', initialSummary.preparationError);
+  }
   if (!initialSummary.diffContext) {
     console.log(`✅ No code changes detected — skipping agent review.`);
     await fs.promises.writeFile(agentReportPath, `## ${client.reportTitle}\n\nNo code changes detected.\n`);
@@ -663,6 +681,10 @@ export async function orchestrateCodeReview(
 
   const filteredSummary = await getCodeDiffSummary(changedFiles);
 
+  if (filteredSummary.preparationError) {
+    await rejectPreparation('PREPARATION_FAILED', filteredSummary.preparationError);
+  }
+
   if (filteredSummary.isTruncated) {
     const report = generateTruncatedReviewMarkdown(filteredSummary, client, iteration);
     await fs.promises.writeFile(agentReportPath, report);
@@ -671,14 +693,14 @@ export async function orchestrateCodeReview(
     const safeReportFileName = path.basename(client.reportFileName);
     const verdictPath = path.join(ARTIFACTS_DIR, `${safeReportFileName.replace('.md', '')}-verdict.json`);
     await writeVerdictJson(verdictPath, {
-      passed: true,
+      passed: false,
       highCount: 0,
       routes: [],
       llmVerdict: 'warn',
       isTruncated: true,
       state: prevState || { findings: [] }
     });
-    return;
+    throw new Error('Code review incomplete: diff truncated');
   }
 
   const fileBatches = batchFiles(changedFiles.sort(), 10);
@@ -705,12 +727,13 @@ export async function orchestrateCodeReview(
   await postPRComment(report, client.reportTitle, finalResult.state, finalResult.llmVerdict);
 
   const openHighFindings = finalResult.state?.findings?.filter(f => f.status === 'open' && (f.severity === 'HIGH' || f.severity === 'error')) || [];
+  const incomplete = Boolean(finalSkipReason || isTruncated || allResults.length !== fileBatches.length * roles.length);
   const isFail = finalResult.llmVerdict === 'fail';
 
   const safeReportFileName = path.basename(client.reportFileName);
   const verdictPath = path.join(ARTIFACTS_DIR, `${safeReportFileName.replace('.md', '')}-verdict.json`);
   await writeVerdictJson(verdictPath, {
-    passed: !isFail,
+    passed: !isFail && !incomplete,
     highCount: openHighFindings.length || (isFail ? 1 : 0),
     routes: [],
     llmVerdict: finalResult.llmVerdict,
@@ -720,8 +743,9 @@ export async function orchestrateCodeReview(
   });
 
   if (isFail) {
-    console.error(`❌ Code review returned FAIL — failing CI.`);
+    throw new Error('Code review returned FAIL');
   }
+  if (incomplete) throw new Error(`Code review incomplete: ${finalSkipReason || 'missing review task outputs'}`);
 }
 
 export function reconcileVerdict(
@@ -768,15 +792,14 @@ async function executeReviewTasks(
       taskQueue.push(async () => {
         try {
           const batchSummary = await getMemoizedBatchSummary(batch);
-          if (!batchSummary.diffContext) {
-            console.warn(`⚠️  Empty diff for batch ${batch.join(', ')} — skipping ${role} review.`);
-            return;
+          if (batchSummary.preparationError || !batchSummary.diffContext) {
+            throw new Error(batchSummary.preparationError || 'Empty review batch diff');
           }
 
           const summary = { ...batchSummary, role, previousState: prevState };
           const hash = calculateReviewHash(summary);
 
-          if (prevState?.cache?.[hash]) {
+          if (prevState?.cache?.[hash] && !prevState.cache[hash].skipReason && !prevState.cache[hash].isTruncated && !prevState.cache[hash].parseError) {
             console.log(`✨ Cache hit for ${role} (hash: ${hash.slice(0, 8)}) on batch ${batch.join(', ')} — skipping API call.`);
             const cachedResult = prevState.cache[hash];
             allResults.push(cachedResult);
@@ -801,8 +824,7 @@ async function executeReviewTasks(
             result = await invokeWithTelemetry(8192);
           }
 
-          const hasValidFindings = Array.isArray(result.findings);
-          if (result.isTruncated || (result.parseError && !hasValidFindings)) {
+          if (result.isTruncated || result.parseError) {
             const reason = result.isTruncated
               ? "was truncated before completion (likely an output token limit)"
               : `had a malformed findings block (parse error: ${result.parseError})`;
@@ -815,13 +837,12 @@ async function executeReviewTasks(
               skipReason: result.isTruncated ? 'TRUNCATED' : 'PARSE_ERROR',
               feedback: `${result.feedback}\n\n---\n⚠️ **Review incomplete:** the model's response ${reason}. This review could not verify all findings and should not be treated as a clean pass. Consider re-running.`,
             };
-          } else if (result.parseError) {
-            console.warn(`⚠️ ${client.botName} had a parse error (${result.parseError}) but returned valid findings. Proceeding.`);
           }
 
+          result = { ...result, state: result.state || { findings: result.findings } };
           result = reconcileVerdict(result, summary.fullDiff || summary.diffContext);
           allResults.push(result);
-          newCache[hash] = result;
+          if (!result.skipReason && !result.isTruncated && !result.parseError) newCache[hash] = result;
         } catch (err) {
           const errorMsg = err instanceof Error ? err.message : String(err);
           const isRateLimit = errorMsg.includes('429') || errorMsg.toLowerCase().includes('rate limit');
@@ -874,11 +895,7 @@ function combineReviewMetrics(allResults: CodeReviewResult[]): {
 
   for (const res of allResults) {
     if (res.feedback) {
-      if (res.feedback.startsWith('Error: failed to execute')) {
-        console.warn(`⚠️  Skipping failed review output for ${res.role}`);
-      } else {
-        aggregatedFeedback += `\n\n#### [${res.role}] Review\n${res.feedback}`;
-      }
+      aggregatedFeedback += `\n\n#### [${res.role}] Review\n${res.feedback}`;
     }
     if (res.state?.findings) {
       aggregatedFindings.push(...res.state.findings);
@@ -966,7 +983,12 @@ function aggregateReviewResults(
     modelNames,
   } = combineReviewMetrics(allResults);
 
-  restoreOmittedCodeFindings(aggregatedFindings, prevState, initialSummary);
+  if (skipReasons.size === 0 && !isTruncated) {
+    restoreOmittedCodeFindings(aggregatedFindings, prevState, initialSummary);
+  } else {
+    const currentIds = new Set(aggregatedFindings.map(finding => finding.id));
+    aggregatedFindings.push(...(prevState?.findings || []).filter(finding => !currentIds.has(finding.id)));
+  }
 
   return {
     feedback: aggregatedFeedback,
@@ -979,7 +1001,7 @@ function aggregateReviewResults(
     llmVerdict: finalVerdict,
     state: {
       findings: aggregatedFindings,
-      cache: pruneCache({ ...prevState?.cache, ...newCache }),
+      cache: pruneCache(Object.fromEntries(Object.entries({ ...prevState?.cache, ...newCache }).filter(([, result]) => !result.skipReason && !result.isTruncated && !result.parseError))),
     },
     modelName: Array.from(modelNames).join(', '),
     durationMs: orchestratorDurationMs,
