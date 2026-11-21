@@ -6,10 +6,11 @@ import { postPRComment, countExistingReviews, getPreviousReviewState } from './v
 import { runWithConcurrencyLimit, checkReviewQuota, writeVerdictJson, writeGracefulExitVerdict, createTaskErrorResult } from './sharedUtils';
 import { calculateEstimatedTokens, cleanupFeedback, batchFiles, calculateReviewHash, pruneCache, filterLowImpactFiles, filterUnifiedDiffByAST } from './codeReviewUtils';
 import type { CodeReviewSummary, CodeReviewResult, CodeReviewState, CodeReviewRole } from './codeReviewTypes';
-import { execFile as execFileCb, spawn } from 'child_process';
+import { execFile as execFileCb } from 'child_process';
 import { promisify } from 'util';
 import { logReviewExecution } from './aiLogger';
 import { loadProjectConfig } from './projectConfig';
+import { getAIContext } from './reviewContext';
 
 const execFile = promisify(execFileCb);
 
@@ -281,43 +282,6 @@ async function getGitArgs(): Promise<{ diffArgs: string[], nameOnlyArgs: string[
 
   cachedGitArgs = { diffArgs, nameOnlyArgs, contextBaseRef };
   return cachedGitArgs;
-}
-
-interface AIContextEntry {
-  path: string;
-  dependencies?: string[];
-  dependents?: string[];
-  semantic?: { path: string; document: string }[];
-}
-
-async function getAIContext(inputData: string): Promise<AIContextEntry[]> {
-  return new Promise((resolve, reject) => {
-    const child = spawn('td', ['ai', 'get-context']);
-    let stdout = '';
-    let stderr = '';
-
-    child.stdout.on('data', (data) => { stdout += data; });
-    child.stderr.on('data', (data) => { stderr += data; });
-
-    child.on('close', (code) => {
-      if (code === 0) {
-        try {
-          resolve(JSON.parse(stdout));
-        } catch (e) {
-          reject(new Error(`Failed to parse AI context: ${e instanceof Error ? e.message : String(e)}`));
-        }
-      } else {
-        reject(new Error(`AI context error (code ${code}): ${stderr}`));
-      }
-    });
-
-    child.on('error', (err) => {
-      reject(err);
-    });
-
-    child.stdin.write(inputData);
-    child.stdin.end();
-  });
 }
 
 async function fetchRawDiffAndStat(
