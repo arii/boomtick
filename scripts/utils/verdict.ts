@@ -19,11 +19,10 @@ export async function writeMissingApiKeyVerdict(reportFileName: string, reportTi
   }
   await fs.promises.writeFile(
     path.join(ARTIFACTS_DIR, safeFileName),
-    `## ${reportTitle}\n\nSkipped: No ${clientName} provided.\n`
+    `## ${reportTitle}\n\nReview incomplete, not approved: No ${clientName} provided.\n`
   );
   await writeVerdictJson(
     path.join(ARTIFACTS_DIR, `${safeFileName.replace('.md', '')}-verdict.json`),
-    { passed: true, highCount: 0, routes: [], llmVerdict: 'warn', skipReason: 'MISSING_API_KEY', state: { findings: [] } }
+    { passed: false, highCount: 0, routes: [], llmVerdict: 'warn', skipReason: 'MISSING_API_KEY', state: { findings: [] } }
   );
 }
-
