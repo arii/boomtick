@@ -39,6 +39,7 @@ export interface CodeReviewSummary {
   isTruncated?: boolean;
   externalContext?: string;
   impactSemanticContext?: string;
+  preparationError?: string;
   previousState?: CodeReviewState;
   estimatedInputTokens?: number;
 }
