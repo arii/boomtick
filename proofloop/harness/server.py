@@ -170,6 +170,23 @@ class Handler(BaseHTTPRequestHandler):
             self._send(403, b"")
 
     def do_GET(self):
+        self._safely(self._get)
+
+    def do_POST(self):
+        self._safely(self._post)
+
+    def _safely(self, fn):
+        """A corrupt state file or other unexpected error returns a short JSON 500, never a traceback or a dropped connection."""
+        try:
+            fn()
+        except (ValueError, OSError, KeyError, TypeError) as e:
+            print(f"request failed: {type(e).__name__}", file=sys.stderr, flush=True)
+            try:
+                self._send(500, {"error": f"server state unreadable ({type(e).__name__}); check PROOFLOOP_STATE files"})
+            except OSError:
+                pass
+
+    def _get(self):
         if not self._authorized():
             return self._send(403, {"error": "host/origin not allowed"})
         path = urlparse(self.path).path
@@ -223,7 +240,7 @@ class Handler(BaseHTTPRequestHandler):
             return None
         return body
 
-    def do_POST(self):
+    def _post(self):
         path = urlparse(self.path).path
         if path not in ("/assist", "/feedback"):
             return self._send(410, {"error": "credential/config writes disabled; no browser key storage"})

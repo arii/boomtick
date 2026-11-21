@@ -15,6 +15,11 @@ Last updated: 2026-11-20 02:55 PM PT (by Kiro). Started the assistant rebuild in
 - PR #1350 and #1351 merged into feat/proofloop (not main). A PR from feat/proofloop to main is not open; decide after the live checks.
 
 ## Current status (latest)
+- **Security suite (PLAN 9.3), 2026-11-20.** `harness/tests/test_security.py`:
+  - S4: the loop never opens data/private, and private values never reach LLM prompts, Senso payloads or state files. /assist carries hashes, not values. Tracked data has no unmasked phone or email.
+  - S5: tab text cannot close the untrusted-data block, and injected or unknown-kind rules are refused.
+  - S6: an interrupted write keeps the previous file, and a corrupt state file gives a JSON 500 instead of a dropped connection with a traceback (this was a real gap, now fixed in server.py).
+  - `pnpm run test:proofloop`: 36 Python tests plus the 3 Node legs, green. e2e 13/13.
 - **Assist eval (PLAN phase 5), 2026-11-20.** 36 labeled form states, precision 1.0, recall 1.0, now part of `pnpm run test:proofloop`. It found one real false positive class first: a plain checkout page (shipping address + phone) was classified as an insurance quote from field types alone, so San Jose and the family phone were flagged while shopping. Fixed: a task now needs text evidence; field types only add to it. `tabs` permission dropped (8f7664e); e2e Vouch step now expects the cross-tab conflict (7edca14). e2e 13/13 and live sites (test rule set) pass after both.
 - **Rebuild per PLAN section 0 (M1 to M6), 2026-11-20.** Code done and tested offline and on the live sites with a test rule set. Live loop not run: no Senso, Cognee or provider keys in the sandbox, and TWT (127.0.0.1:8000 on Ari's machine) is unreachable from it.
   - M1 auto-repeat loop: `replay_loop.py` runs real LLM answers (3 samples) on generated tasks, judge for clarification and claim checks, mutator from train failures + recall + feedback, gate with per-task sampling noise and a holdout split, stops on 3 non-promoting proposals or all-pass, cap 12. Deterministic executor, CHECK_FIX, slots, injected v1.3, stubs and hand-written cards removed.
