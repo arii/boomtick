@@ -18,7 +18,7 @@
     "lint:types": "pnpm --filter @arii/boomtick-mcp run lint && pnpm --filter @arii/boomtick-workflows run lint",
     "type-check:python": "python3 scripts/run-python-tool.py mypy",
     "test:python": "python3 scripts/run-python-tool.py pytest",
-    "test:unit": "vitest run --config vitest.root.config.ts",
+    "test:unit": "vitest run --config vitest.root.config.ts && pnpm run test:proofloop",
     "test": "pnpm run test:unit && pnpm --filter @arii/boomtick-mcp run test && pnpm --filter @arii/boomtick-workflows run test",
     "verify:schemas": "node scripts/verify-schemas.mjs",
     "audit:fallow": "fallow",
@@ -34,7 +34,10 @@
     "impact:visual-diff": "tsx scripts/impact-visual-diff.ts",
     "impact:dom-diff": "tsx scripts/impact-dom-diff.ts",
     "impact:gemini-review": "tsx scripts/impact-ai-review.ts gemini",
-    "impact:github-models-review": "tsx scripts/impact-ai-review.ts github-models"
+    "impact:github-models-review": "tsx scripts/impact-ai-review.ts github-models",
+    "test:proofloop": "python3 -m unittest discover -s proofloop/harness/tests -v && node proofloop/harness/tests/test_background.cjs && node proofloop/harness/tests/test_assist.cjs && node proofloop/extension/test/assist_eval.cjs",
+    "test:proofloop:e2e": "node proofloop/extension/test/e2e_assist.cjs",
+    "test:proofloop:live": "node proofloop/extension/test/live_sites.cjs"
   },
   "devDependencies": {
     "@playwright/test": "1.60.0",

@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ProofLedger",
+  "type": "object",
+  "required": ["schema_version", "active_version", "entries"],
+  "properties": {
+    "schema_version": {"const": 3},
+    "active_version": {"type": "string"},
+    "entries": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["cycle", "timestamp", "version", "parent_version", "status", "gate", "scores", "recall", "llm", "rules_sha256"],
+        "properties": {
+          "cycle": {"type": "integer", "minimum": 0},
+          "timestamp": {"type": "string"},
+          "version": {"type": "string"},
+          "parent_version": {"type": ["string", "null"]},
+          "status": {"enum": ["baseline", "promoted", "rejected", "held", "promotion_failed", "invalid_proposal"]},
+          "gate": {"type": "object"},
+          "scores": {"type": "object"},
+          "recall": {"type": "object", "required": ["mode"], "properties": {"mode": {"enum": ["live", "disabled"]}}},
+          "llm": {"type": "object", "required": ["backend"]},
+          "rules_sha256": {"type": "string"},
+          "diff": {"type": "string"},
+          "evidence_sessions": {"type": "array", "items": {"type": "string"}},
+          "senso": {"type": "object"}
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,133 @@
+{
+  "suite_id": "proofloop-generated-9031b6f6",
+  "generated": {
+    "by": "llm:openrouter",
+    "at": "2026-11-21T00:28:01Z",
+    "reviewed": true,
+    "sessions_sha256": "9031b6f618c604fdb8b1dae12911301a5cc1ca8eea0a9d87d9c8da8e401b8591"
+  },
+  "tasks": [
+    {
+      "id": "t_2026_11_16_vouch",
+      "source_session_id": "sess_2026_11_16_vouch",
+      "task_kind": "account_signup",
+      "query": "Submit the Vouch signup form with the user's profile",
+      "active_tab": {
+        "title": "Vouch signup form",
+        "url": "https://vouch.example/signup",
+        "snippet": "Vouch signup form, city and work-type fields"
+      },
+      "related_tabs": [
+        {
+          "title": "User profile settings",
+          "url": "https://example.com/profile",
+          "snippet": "Profile lists San Francisco, CA"
+        },
+        {
+          "title": "Ari-Instinct chat, Nov 16",
+          "url": "https://example.com/chat/instinct",
+          "snippet": "Ari established San Francisco as the city"
+        }
+      ],
+      "checks": [
+        {
+          "type": "must_include",
+          "value": "San Francisco"
+        },
+        {
+          "type": "must_not_include",
+          "value": "San Jose"
+        },
+        {
+          "type": "asks_clarification",
+          "value": "work-type preference"
+        },
+        {
+          "type": "no_unsupported_claims",
+          "value": "work-type preference"
+        }
+      ],
+      "split": "train"
+    },
+    {
+      "id": "t_2026_11_17_adsense",
+      "source_session_id": "sess_2026_11_17_adsense",
+      "task_kind": "verification",
+      "query": "Verify AdSense is live on boomtick.blog",
+      "active_tab": {
+        "title": "boomtick.blog/ads.txt",
+        "url": "https://boomtick.blog/ads.txt",
+        "snippet": "ads.txt returning google.com, pub-2398582836159289, DIRECT"
+      },
+      "related_tabs": [
+        {
+          "title": "BoomTick repo",
+          "url": "https://github.com/arii/tech-dancer",
+          "snippet": "Repo with AdSense code"
+        },
+        {
+          "title": "AdSense account",
+          "url": "https://example.com/adsense",
+          "snippet": "AdSense account with publisher ID"
+        }
+      ],
+      "checks": [
+        {
+          "type": "must_include",
+          "value": "google.com, pub-2398582836159289, DIRECT"
+        },
+        {
+          "type": "no_unsupported_claims",
+          "value": "AdSense live status must be traceable to the live site, not the repo alone"
+        },
+        {
+          "type": "must_not_include",
+          "value": "Repo with AdSense code"
+        }
+      ],
+      "split": "train"
+    },
+    {
+      "id": "t_2026_11_17_hrm",
+      "source_session_id": "sess_2026_11_17_hrm",
+      "task_kind": "verification",
+      "query": "Live-verify the HRM dashboard auto-connect and reconnect on hardware",
+      "active_tab": {
+        "title": "HRM dashboard",
+        "url": "https://onasafari.ddns.net/",
+        "snippet": "HRM dashboard with live heart rate and timer"
+      },
+      "related_tabs": [
+        {
+          "title": "HRM repo",
+          "url": "https://github.com/arii/hrm",
+          "snippet": "HRM repo with dashboard code"
+        },
+        {
+          "title": "Bluetooth strap 12022-1",
+          "url": "https://example.com/strap",
+          "snippet": "Heart rate strap, 88% battery"
+        }
+      ],
+      "checks": [
+        {
+          "type": "must_include",
+          "value": "Verify on live hardware, not headless alone"
+        },
+        {
+          "type": "must_include",
+          "value": "Merged is never treated as deployed; claims are verified against the live device"
+        },
+        {
+          "type": "must_not_include",
+          "value": "headless"
+        },
+        {
+          "type": "no_unsupported_claims",
+          "value": "live hardware verification results"
+        }
+      ],
+      "split": "holdout"
+    }
+  ]
+}
