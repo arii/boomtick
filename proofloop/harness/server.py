@@ -35,11 +35,23 @@ from atomic import atomic_write_text
 DASH = Path(__file__).resolve().parent.parent / "dashboard.html"
 
 
-def allowed_origin(origin, port):
-    if origin in (f"http://127.0.0.1:{port}", f"http://localhost:{port}"):
-        return True
+def _allowed_origins(port):
+    """The only origins the backend answers CORS for, built from server config (never from the request)."""
+    out = [f"http://127.0.0.1:{port}", f"http://localhost:{port}"]
     extension = os.environ.get("PROOFLOOP_EXTENSION_ID", "")
-    return bool(re.fullmatch("[a-p]{32}", extension) and origin == f"chrome-extension://{extension}")
+    if re.fullmatch("[a-p]{32}", extension):
+        out.append(f"chrome-extension://{extension}")
+    return out
+
+
+def cors_origin(origin, port):
+    """The configured origin string equal to `origin`, or None. Headers echo this value, not the request's,
+    so request text can never reach a response header."""
+    return next((o for o in _allowed_origins(port) if o == origin), None)
+
+
+def allowed_origin(origin, port):
+    return cors_origin(origin, port) is not None
 
 
 _HINTED = set()
@@ -147,9 +159,9 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Content-Type", ctype)
         self.send_header("Cache-Control", "no-store")
         self.send_header("X-Content-Type-Options", "nosniff")
-        origin = self.headers.get("Origin", "")
-        if allowed_origin(origin, self.server.server_port):
-            self.send_header("Access-Control-Allow-Origin", origin)
+        allow = cors_origin(self.headers.get("Origin", ""), self.server.server_port)
+        if allow:
+            self.send_header("Access-Control-Allow-Origin", allow)
             self.send_header("Vary", "Origin")
         self.send_header("Content-Length", str(len(body)))
         self.end_headers()
@@ -158,9 +170,9 @@ class Handler(BaseHTTPRequestHandler):
     def do_OPTIONS(self):
         if self._authorized():
             self.send_response(204)
-            origin = self.headers.get("Origin", "")
-            if allowed_origin(origin, self.server.server_port):
-                self.send_header("Access-Control-Allow-Origin", origin)
+            allow = cors_origin(self.headers.get("Origin", ""), self.server.server_port)
+            if allow:
+                self.send_header("Access-Control-Allow-Origin", allow)
                 self.send_header("Access-Control-Allow-Headers", "Authorization, Content-Type")
                 self.send_header("Access-Control-Allow-Methods", "GET, POST")
                 self.send_header("Vary", "Origin")

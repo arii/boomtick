@@ -92,6 +92,13 @@ class AssistServerTest(unittest.TestCase):
         for origin in ("https://evil.example", "null", "http://localhost.evil:%d" % self.port, "chrome-extension://" + "b" * 32):
             self.assertEqual(self.req("GET", "/skill", origin=origin)[0], 403, origin)
 
+    def test_cors_header_is_the_configured_origin_never_request_text(self):
+        ext = f"chrome-extension://{EXT}"
+        self.assertEqual(server.cors_origin(ext, self.port), ext)
+        self.assertIsNot(server.cors_origin(ext, self.port), ext, "the header value comes from config, not the request")
+        for bad in (ext + "\r\nSet-Cookie: x=1", ext + " ", ext.upper(), f"http://127.0.0.1:{self.port}/", ""):
+            self.assertIsNone(server.cors_origin(bad, self.port), repr(bad))
+
     def test_wrong_token_and_wrong_host(self):
         self.assertEqual(self.req("GET", "/skill", headers={"Authorization": "Bearer nope"})[0], 403)
         self.assertEqual(self.req("GET", "/skill", host="evil.example")[0], 403)
