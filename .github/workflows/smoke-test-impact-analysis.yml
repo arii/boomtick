@@ -66,10 +66,29 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: Smoke Test Impact Analysis Action
+      # This job tests deterministic integration, not substantive AI approval.
+      # The separate Deployment Impact Analysis workflow remains unchanged.
+      - name: Smoke Test Deterministic Composite Integration
         uses: ./.github/actions/impact-analysis
         with:
           github_token: ${{ steps.app-token.outputs.token }}
-          gemini_api_key: "MOCK_KEY"
           pr-number: ${{ inputs.pr-number }}
           container_image: ghcr.io/arii/boomtick:${{ github.sha }}
+
+      - name: Assert Composite Impact Artifacts
+        shell: bash
+        run: |
+          test -s artifacts/impact-analysis.json
+          test -s artifacts/impact-analysis/impact.md
+          jq -e '(.changedFiles | type == "array") and (.routes | type == "array") and (.impactLevel | IN("LOW", "MEDIUM", "HIGH"))' artifacts/impact-analysis.json
+
+      - name: Smoke Test Real Container Review Contracts Offline
+        shell: bash
+        run: |
+          # Production image/entrypoint and the mounted script run with network disabled.
+          # The harness mocks HTTP only inside temporary child processes, never production.
+          docker run --rm --network none \
+            -v "${{ github.workspace }}":/github/workspace \
+            -w /github/workspace \
+            ghcr.io/arii/boomtick:${{ github.sha }} \
+            node /github/workspace/scripts/smoke-review-offline.mjs /workspace/dist
