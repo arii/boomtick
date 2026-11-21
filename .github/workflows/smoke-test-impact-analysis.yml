@@ -25,7 +25,19 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Test the docs gate
+        run: python3 -m unittest discover -s cli/tests -p test_ci_docs_only.py
+
+      - name: Classify changed paths
+        id: diff
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: python3 scripts/ci-docs-only.py
+
       - name: Generate App Token
+        if: steps.diff.outputs.docs_only != 'true'
         id: app-token
         uses: ./.github/actions/generate-token
         with:
@@ -34,9 +46,11 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Set up Docker Buildx
+        if: steps.diff.outputs.docs_only != 'true'
         uses: docker/setup-buildx-action@v4
 
       - name: Log in to GHCR
+        if: steps.diff.outputs.docs_only != 'true'
         uses: docker/login-action@v4
         with:
           registry: ghcr.io
@@ -44,6 +58,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Check if Container Image exists
+        if: steps.diff.outputs.docs_only != 'true'
         id: check-image
         run: |
           IMAGE_TAG="ghcr.io/arii/boomtick:${{ github.sha }}"
@@ -55,7 +70,7 @@ jobs:
         shell: bash
 
       - name: Build and Load Container Image
-        if: steps.check-image.outputs.exists != 'true'
+        if: steps.diff.outputs.docs_only != 'true' && steps.check-image.outputs.exists != 'true'
         uses: docker/build-push-action@v7
         with:
           context: .
@@ -67,6 +82,7 @@ jobs:
           cache-to: type=gha,mode=max
 
       - name: Smoke Test Impact Analysis Action
+        if: steps.diff.outputs.docs_only != 'true'
         uses: ./.github/actions/impact-analysis
         with:
           github_token: ${{ steps.app-token.outputs.token }}

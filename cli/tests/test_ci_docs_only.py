@@ -72,11 +72,77 @@ class DocsOnlyTests(unittest.TestCase):
     def test_non_pr_always_runs(self):
         with tempfile.TemporaryDirectory() as directory:
             output = Path(directory) / "output"
+            for event in ("push", "workflow_dispatch"):
+                with (
+                    self.subTest(event=event),
+                    patch.dict(
+                        os.environ, {"EVENT_NAME": event, "GITHUB_OUTPUT": str(output)}
+                    ),
+                ):
+                    output.write_text("")
+                    GATE.main()
+                    self.assertEqual(output.read_text(), "docs_only=false\n")
+
+    def test_pr_classification_and_failure(self):
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory) / "output"
             with patch.dict(
-                os.environ, {"EVENT_NAME": "push", "GITHUB_OUTPUT": str(output)}
+                os.environ,
+                {
+                    "EVENT_NAME": "pull_request",
+                    "GITHUB_OUTPUT": str(output),
+                    "BASE_SHA": "a" * 40,
+                    "HEAD_SHA": "b" * 40,
+                },
             ):
-                GATE.main()
-            self.assertEqual(output.read_text(), "docs_only=false\n")
+                for paths, expected in (
+                    ([b"docs/a.md"], "true"),
+                    ([b"docs/a.md", b"Dockerfile"], "false"),
+                    ([b".github/workflows/smoke-test-impact-analysis.yml"], "false"),
+                    ([], "false"),
+                ):
+                    with (
+                        self.subTest(paths=paths),
+                        patch.object(GATE, "changed_paths", return_value=paths),
+                    ):
+                        output.write_text("")
+                        GATE.main()
+                        self.assertEqual(output.read_text(), f"docs_only={expected}\n")
+                with patch.object(GATE, "changed_paths", side_effect=ValueError):
+                    output.write_text("")
+                    with self.assertRaises(ValueError):
+                        GATE.main()
+                    self.assertEqual(output.read_text(), "")
+
+
+class SmokeDocsGateTests(unittest.TestCase):
+    def test_smoke_keeps_job_and_gates_every_heavy_step(self):
+        workflow = (
+            SCRIPT.parent.parent / ".github/workflows/smoke-test-impact-analysis.yml"
+        ).read_text()
+        self.assertIn("  smoke-test:\n    timeout-minutes: 30", workflow)
+        self.assertIn("  push:\n    branches: [ main ]", workflow)
+        self.assertIn("  workflow_dispatch:", workflow)
+        self.assertNotIn("paths-ignore:", workflow)
+        self.assertIn("run: python3 scripts/ci-docs-only.py", workflow)
+        self.assertIn("BASE_SHA: ${{ github.event.pull_request.base.sha }}", workflow)
+        self.assertIn("HEAD_SHA: ${{ github.event.pull_request.head.sha }}", workflow)
+        steps = workflow.split("      - ")[1:]
+        self.assertEqual(len(steps), 9)
+        self.assertEqual(
+            [step.splitlines()[0] for step in steps[:3]],
+            [
+                "uses: actions/checkout@v7",
+                "name: Test the docs gate",
+                "name: Classify changed paths",
+            ],
+        )
+        for step in steps[3:]:
+            with self.subTest(step=step.splitlines()[0]):
+                self.assertIn("if: steps.diff.outputs.docs_only != 'true'", step)
+                self.assertNotIn("continue-on-error", step)
+        self.assertIn("&& steps.check-image.outputs.exists != 'true'", workflow)
+        self.assertIn('gemini_api_key: "MOCK_KEY"', workflow)
 
 
 if __name__ == "__main__":
