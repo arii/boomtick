@@ -32,6 +32,38 @@ Decide, then make code and test agree:
 - No new extension permission without a matching contract-test update.
 - No changes to the promotion gate, ledger schema, or task set.
 
+## Follow-up: SUBMISSION refresh, checkout check, /assist gap analysis
+
+1. `SUBMISSION.md` is stale (describes the old stub harness). Update it
+   to the current milestone-2/3 observer build.
+2. In your Chromium, reload the unpacked extension and confirm a
+   checkout page no longer shows city or phone warnings. Report the
+   exact page and result.
+3. Analysis only, no implementation: diff the current `/assist`
+   request/response against the Gemini wire-shape spec below and report
+   the gap field by field, so the milestone check-in has a concrete
+   brief. Do not implement the spec without explicit approval.
+
+### Gemini wire-shape spec (reference for gap analysis only)
+
+Request (`background.js` on active-tab trigger): `token`,
+`trigger` (`tab_activated` | `tab_updated` | `chip_action` |
+`manual_refresh`), `active_tab` (`tab_id`, `url`, `origin`, `title`,
+`is_terminal`, optional `context_hint`), `open_tabs` (each with
+`tab_id`, `url`, `origin`, `title`, `is_terminal`, `last_active_ts`),
+`feedback` (`action` `apply` | `keep` | `dismiss` | `null`, `item_id`,
+`observed_value`).
+
+Response (to `content.js` per-tab rendering): `active_skill_version`,
+`senso_synced`, `loop_status` (`state` `idle` | `running` |
+`rolled_back`, `last_delta`, `last_gate_decision`), `items` (each with
+`id`, `kind` `warning` | `cross_tab_match` | `session_rule`,
+`severity` `info` | `warn`, `summary`, `citation` with
+`source`/`ref`, `actions`).
+
+Terminal tab (`127.0.0.1:8082`): extra-light corner chip only, renders
+loop status plus one-line reminders, never covers the prompt.
+
 ## Out of scope
 
 - Extension ID questions: IDs are per-machine (unpacked loads), the
