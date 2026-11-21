@@ -73,3 +73,11 @@ value and never produces a "warning". Feedback goes to a separate `POST /feedbac
 3. **Needs new loop code:** `loop_status.state = running`. That means a heartbeat or lock file written by `replay_loop.py`. No gate or ledger schema change is required.
 4. **The spec must keep** `task`, `recall`, and the hashed matching payload in rules. Without them, task scoping (M4) and local conflict detection (M2/M3) stop working.
 5. **Behavior change hidden in `trigger`:** calling `/assist` from tab events in the background (not only from content scripts) adds calls for tabs that have no observer. Decide whether those tabs should get anything.
+
+## Decision (Gemini, 2026-11-20): HOLD
+
+Do not implement the wire shape now. `feat/proofloop` stays frozen and green while the Nebius loop runs to its first
+promotion. After that, implement only the fields that the real promoted rules, loop status and feedback need.
+Reasons: premature fields over-fit before the rule and feedback loop exists; token-in-body needs the real end-to-end
+flow for a security review; feedback actions only teach the loop once real rules exist. No new extension scope until
+the promotion lands.
