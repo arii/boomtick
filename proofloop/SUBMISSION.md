@@ -1,58 +1,57 @@
-# ProofLoop: self-proving page and cross-tab personal agent
+# ProofLoop: an observer that warns before a page contradicts your own past sessions
 
-**One line:** ProofLoop is a non-chat personal agent that lives on the page as a quiet chip. It only offers a skill upgrade after replaying your own past tasks proves the upgrade is better, and it shows that proof.
+**One line:** ProofLoop is a Chrome extension that watches the sites you turn on and quietly warns when a field, a checkbox or another open tab conflicts with a rule learned from your own past sessions. It never types, fills or submits anything for you.
 
 ## Short description (for the form)
 
-Most personal agents sit in a chat box and forget what went wrong last time. ProofLoop does not chat. It is a Chrome extension plus a background replay engine. The engine takes real session logs, replays the historical tasks against the current skill (v0) and a mutated candidate, and promotes the candidate only if a local, deterministic Replay Gate says it is strictly better with no regressions. Proven skills are stored in Senso and read back before they go live. On the page, ProofLoop shows a quiet, dismissible chip with the active skill version and an expandable proof table, plus cross-tab context from your other open tabs (local only, opt-in). When a mutation makes things worse, the gate rejects it and rolls back automatically.
+Most of the mistakes in Ari's recorded sessions were made by AI agents filling forms for her: San Jose instead of San Francisco on a Vouch signup, sponsor-consent and judge boxes checked on a Luma registration, the friends-and-family phone sent with three job applications. ProofLoop turns those sessions into rules and checks every watched page against them. A loop replays the past sessions with a real LLM, proposes rule changes from the failures and from Cognee recall, keeps only changes that beat measured noise on train and holdout tasks, and stores promoted rule sets in Senso. On the page, a small pill shows how many rules apply to the current task. A warning appears beside the field that conflicts, citing the rule, its version, where it came from and the session it was learned from. The extension can hold one submit while a conflict is open so you can review it.
 
 ## What it does
 
-1. **Ingest.** Eight real session excerpts (cross-tab misses, fabricated or unverified claims, and successes; personal data redacted) are ingested into Cognee, which recalls the matching sessions for the six replay tasks derived from them.
-2. **Replay.** The engine runs the six tasks against the v0 baseline skill and records which individual checks pass or fail.
-3. **Mutate.** A new skill version is proposed from the failure pattern. The default is a rule-based mutator; an LLM through the local Tokens with Taste gateway or OpenRouter is optional.
-4. **Gate.** A local deterministic Replay Gate decides: promote only if strictly more tasks pass, no previously passing check newly fails, and failed checks do not increase. Equal results hold. Any regression is rejected and rolled back. There is no model call in the decision, so every decision can be audited from the ledger.
-5. **Store.** A promoted skill and its proof are written to Senso. The new version becomes active only after Senso finishes processing and a search readback finds it. A failed readback keeps the old version.
-6. **Show.** The extension chip reads the proof ledger from a read-only loopback backend and shows the active version, replay pass count, and a proof table of every cycle (version, pass counts, delta, gate decision, Senso node, status).
+1. **Tasks from sessions.** `harness/tasks.py` asks the LLM to turn each redacted session into a replay task with checks. Every value a check names must appear in that session, so a check cannot reward a value nobody recorded. The suite is reviewed by hand before use (`data/replay_tasks.json`, 3 tasks, reviewed).
+2. **Replay with a real agent.** The LLM answers every task under the current rule set, 3 samples per task. String checks score what it would enter; a separate judge call scores "asked instead of guessing" and "no untraceable claims".
+3. **Propose.** The mutator sees only train-split failures, the past sessions Cognee recalls for them, and feedback from the page ("Rule is wrong"). It rewrites the whole rule set. A proposal is refused unless it validates against the schema, cites only recalled sessions, and every value it names appears in those sessions.
+4. **Gate.** A proposal is promoted only if its train score beats the baseline by more than the measured sampling noise, its holdout score does not drop, and no task that always passed collapses. Otherwise it is held or rejected and the active set stays.
+5. **Repeat.** The loop stops when three proposals in a row fail to promote, when every train task passes, or at a 12-proposal cap. Nothing is injected: a rollback in the ledger is a real proposal that lost.
+6. **Store.** A promoted rule set goes to Senso and becomes active only after a readback finds it. The backend re-reads the Senso node when Senso is enabled and labels the source on the page.
+7. **Watch the page.** The extension runs only on sites turned on from its toolbar button (or all tabs, with one optional grant). It works out the page's task locally (event registration, job application, insurance or service quote, profile edit and others), asks the local backend for the rules for that task, and compares field values locally. It re-reads fields regularly, so values set by an agent, by autofill or by picking a suggestion are caught too.
 
-## Demo results
+## What was checked
 
-Measured on the six replay tasks derived from real sessions:
-
-| Version | Passed | Gate decision |
+| Check | Where | Result |
 |---|---|---|
-| v0 baseline | 2/6 | n/a |
-| v1.1 | 5/6 | promote |
-| v1.2 | 6/6 | promote (active) |
-| v1.3 (deliberately bad) | 4/6 | reject and roll back; v1.2 stays active |
+| Offline suite (`pnpm run test:proofloop`) | sandbox | 36 Python tests (loop, gate, grounding, server, security) + background contracts + extension contracts + assist eval, green |
+| Assist eval | 36 hand-labeled form states (captured Luma and Vouch forms, synthetic job, checkout, profile, blog pages) | precision 1.0, recall 1.0 on the eval rule set |
+| Browser e2e | real Chromium, unpacked extension, real backend, fixtures re-captured from the live sites | 13/13 steps |
+| Live sites | real luma.com registration dialog and apply.vouch.us, temporary test rule set | city and sponsor-consent warnings shown beside the fields, submit held with no registration request sent, Vouch's picked address ("S Main St San Jose, US-CA 95035") and the family phone flagged, no field or button covered |
 
-The pass counts come from running the task checks, not from fixed numbers. The table above is the run with the rule-based mutator.
-
-Latest live run (Cognee, Senso and the mutation LLM all live): v0 2/6, v1.1 6/6 promoted, deliberately bad v1.3 4/6 rejected and rolled back, v1.1 stays active. When an LLM proposes the new steps (through the local gateway), the engine can reach 6/6 in a single cycle. The Replay Gate rules and the rollback behavior are identical either way.
+A live loop run with promoted rule sets is not recorded in this repository yet. The numbers above are about the page assistant and the loop's code paths, not about how much the loop improves an agent.
 
 ## Tools used
 
-- **Cognee (Cognee Cloud)**: memory graph for session history. The eight sessions are ingested through the Cognee HTTP API and the replay recalls all six task sessions from it. A built-in local graph is the offline fallback.
-- **Senso**: storage and verified readback of promoted skills and their proof.
-- **Chrome extension (Manifest V3)**: content script chip, background service worker, options page.
-- **Python replay harness**: replay engine, deterministic Replay Gate, proof ledger, read-only local backend, 39 offline tests.
-- **Tokens with Taste (optional)**: local OpenAI-compatible gateway that routes the mutation call across free providers.
+- **Cognee (Cognee Cloud)**: recall over the session log. It decides which past sessions the mutator may cite, and can add "from past sessions" context on the page (off by default).
+- **Senso**: storage and readback of promoted rule sets; the page cites the Senso node.
+- **LLM via Tokens with Taste (local gateway) or OpenRouter**: task generation, the replay agent, the judge and the mutator.
+- **Chrome extension (Manifest V3)**: observer content scripts registered per site, a background worker, popup and settings.
+- **Python backend and loop**: loopback server with a per-run token, replay loop, gate, ledger.
 
 ## Privacy and safety
 
-- No page title, URL, snippet or body is sent to the backend or to any sponsor. Other-tab titles are shown locally only, behind an opt-in that is off by default.
-- Credentials alone never turn on a service. Live services need an explicit opt-in, and offline stubs are labeled on screen.
-- The backend is read-only and loopback-only, with exact Host and Origin checks and no credential forms.
+- The extension runs only where you turn it on. Its permissions are `storage`, `scripting` and `activeTab`, plus optional host grants.
+- Field values never leave the browser. Forbidden values arrive as salted hashes and the field value is hashed locally. Real phone numbers live only in a git-ignored file on your machine.
+- The backend receives the page origin, the task id and a short list of other open tabs (origin and short title); never paths, query strings, page text or field values.
+- Sessions in the repository are redacted (`[PHONE-PRO]`, `[PHONE-FAMILY]`). The loop never reads the private values file.
+- The backend binds 127.0.0.1, checks Host and Origin, and needs the token on every API route. UI text is rendered as text in a closed shadow root.
 
 ## Honest limits
 
-- The replay executor is a deterministic model of agent behavior on six tasks. A 6/6 result is a result on that suite, not evidence of better live-LLM behavior or a safety guarantee.
-- The proof shown is measured replay of past tasks, not a claim about future ones.
-- The loop is bounded, not open-ended. A mutation can only switch on or off four fixed skill steps, the six tasks are a fixed set, and the loop ends when all of them pass or the steps run out. It does not write new rules or learn from new data on its own.
-- The replay executor is a deterministic model and does not run an agent. The promoted skill is rendered into a prompt block (rules plus the constraints it passed) that can be written into an agent instruction file; whether that prompt improves a live agent has not been measured.
+- The rules are only as good as the recorded sessions: 8 committed sessions, mostly about form filling and verifying claims. On most pages there is nothing to say yet.
+- The gate measures replay of past tasks with a small suite. It is a measured result, not a guarantee, and there is no formal verifier.
+- An agent driving the browser can click "Submit anyway" just as it clicked Submit. The hold stops silent mistakes, not determined ones.
+- Senso readback field names are not confirmed against a live response; if the page reports "could not be confirmed", that read is the likely cause.
 
 ## Links
 
 - Code: https://github.com/arii/boomtick/tree/feat/proofloop/proofloop
-- Run offline: `bash proofloop/demo.sh` (add `--serve` for the backend), tests: `python3 -m unittest discover -s proofloop/harness/tests -v`
-- Setup, activation and extension steps: `proofloop/README.md`
+- Setup, activation and test commands: `proofloop/README.md`
+- Plan and milestones: `proofloop/PLAN.md` (section 0)
