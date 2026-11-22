@@ -4,6 +4,12 @@
     "cli",
     "proofloop/harness/tests"
   ],
+  "ignoreDependencies": [
+    "@langchain/core",
+    "@langchain/langgraph",
+    "@langchain/ollama",
+    "@langchain/openai"
+  ],
   "rules": {
     "unused-export": "warn",
     "unused-class-member": "warn",
