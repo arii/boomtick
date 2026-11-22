@@ -1,19 +1,6 @@
 {
   "version": 1,
   "note": "#1143 slop fail-gate ratchet: grandfathered hits stay green until a follow-up triages them; any NEW entry fails the gate. Reseed with --update-baseline.",
-  "swallow_exceptions": {
-    "proofloop/harness/atomic.py": {
-      "atomic_write_text:FileNotFoundError": 1
-    },
-    "proofloop/harness/server.py": {
-      "Handler._safely:OSError": 1
-    },
-    "tokens-with-taste/twt/audit.py": {
-      "flags_for:ValueError,TypeError": 1
-    },
-    "tokens-with-taste/twt/gateway.py": {
-      "upstream_cooldown:KeyError,ValueError,TypeError,OverflowError": 1
-    }
-  },
+  "swallow_exceptions": {},
   "unreferenced_wrappers": []
 }
