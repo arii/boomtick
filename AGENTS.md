@@ -115,7 +115,7 @@ Config path: `~/.cursor/mcp.json` or `.cursor/mcp.json`
 - No new dependency without saying what it replaces or enables.
 - No placeholder code that returns fake success. Fail loudly or don't ship it.
 - Docs describe what exists. Verify every path, script and workflow you mention.
-- Before reporting done, run `pnpm run type-check:ts`, `pnpm run lint`, and `pnpm test`, and paste the result.
+- Before reporting done, run `pnpm run type-check:ts`, `pnpm run lint`, `pnpm test` and `python3 .agents/scripts/audit-ai-slop.py`, and paste the result.
 
 ## 5. Code Map
 
