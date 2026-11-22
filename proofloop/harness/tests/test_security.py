@@ -71,6 +71,27 @@ class BindHost(unittest.TestCase):
         self.assertFalse(server.is_loopback_host("192.168.1.5"))
 
 
+class AllowedHosts(unittest.TestCase):
+    def tearDown(self):
+        os.environ.pop("PROOFLOOP_ALLOWED_HOSTS", None)
+
+    def test_default_accepts_only_loopback_names_on_the_server_port(self):
+        os.environ.pop("PROOFLOOP_ALLOWED_HOSTS", None)
+        self.assertTrue(server.host_allowed("127.0.0.1:8787", 8787))
+        self.assertTrue(server.host_allowed("localhost:8787", 8787))
+        for bad in ("127.0.0.1:9999", "pl.lan:8787", "evil.example:8787", "", None, "127.0.0.1"):
+            self.assertFalse(server.host_allowed(bad, 8787), bad)
+
+    def test_listed_hosts_are_exact(self):
+        os.environ["PROOFLOOP_ALLOWED_HOSTS"] = "PL.lan:8787, 192.168.1.20:8787,*:8787,pl.lan,http://x.test:1,[::1]:8787"
+        self.assertEqual(server.allowed_hosts_from_env(), ["pl.lan:8787", "192.168.1.20:8787", "[::1]:8787"])
+        self.assertTrue(server.host_allowed("pl.lan:8787", 8787))
+        self.assertTrue(server.host_allowed("PL.LAN:8787", 8787))
+        self.assertTrue(server.host_allowed("192.168.1.20:8787", 8787))
+        for bad in ("pl.lan:8788", "sub.pl.lan:8787", "pl.lan.evil.example:8787", "x.test:1"):
+            self.assertFalse(server.host_allowed(bad, 8787), bad)
+
+
 class PrivateBoundary(Base):
     def _reads_during(self, fn):
         seen = []
