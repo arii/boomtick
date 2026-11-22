@@ -52,6 +52,15 @@ PROOFLOOP_EXTENSION_ID=<id from chrome://extensions> python3 server.py 8787   # 
 3. On a form page, click the ProofLoop toolbar button → "Watch this site" → allow. Reload the page.
 4. Dashboard: `http://127.0.0.1:8787/#token=<token>`.
 
+### Backend not on this machine
+
+The extension talks to `http://127.0.0.1:8787` by default. If the backend runs elsewhere (a container or a remote host), either forward its port so it still appears at that address, or set another URL in the extension options ("Backend URL"). Saving a different URL asks Chrome for permission to reach that host.
+
+- SSH: `ssh -L 8787:127.0.0.1:8787 <host>` (the server stays on the remote loopback).
+- Docker: publish to loopback only, `-p 127.0.0.1:8787:8787`, and start the server in the container with `PROOFLOOP_BIND_HOST=0.0.0.0` so the published port can reach it.
+
+The server binds `127.0.0.1` unless `PROOFLOOP_BIND_HOST` is set. A non-loopback bind prints a warning: only the bearer token protects the backend, and traffic is plain HTTP, so use TLS or a tunnel. The Host and Origin checks still apply and expect `127.0.0.1:<port>` or `localhost:<port>` (the same port the server listens on), which the forwards above preserve.
+
 ## Tests
 
 ```sh

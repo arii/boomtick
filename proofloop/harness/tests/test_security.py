@@ -48,6 +48,29 @@ class Base(unittest.TestCase):
         self.tmp.cleanup()
 
 
+class BindHost(unittest.TestCase):
+    def test_default_is_loopback(self):
+        os.environ.pop("PROOFLOOP_BIND_HOST", None)
+        self.assertEqual(server.bind_host_from_env(), "127.0.0.1")
+        self.assertTrue(server.is_loopback_host("127.0.0.1"))
+
+    def test_env_override_and_warning(self):
+        os.environ["PROOFLOOP_BIND_HOST"] = "0.0.0.0"
+        try:
+            host = server.bind_host_from_env()
+        finally:
+            os.environ.pop("PROOFLOOP_BIND_HOST", None)
+        self.assertEqual(host, "0.0.0.0")
+        self.assertFalse(server.is_loopback_host(host))
+        self.assertIn("bearer token", server.bind_warning(host))
+        self.assertIn("TLS", server.bind_warning(host))
+
+    def test_loopback_forms_do_not_warn(self):
+        for host in ("127.0.0.1", "::1", "localhost"):
+            self.assertTrue(server.is_loopback_host(host), host)
+        self.assertFalse(server.is_loopback_host("192.168.1.5"))
+
+
 class PrivateBoundary(Base):
     def _reads_during(self, fn):
         seen = []

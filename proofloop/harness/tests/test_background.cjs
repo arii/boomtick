@@ -101,7 +101,16 @@ const page = (url, id = 1) => ({ tab: { id, url, title: 'Private Title' } });
   const same = await b.call({ type: 'observe', task: 'job_application', fields: [{ semantic: 'phone', hash: 'h-pro', tail: '0100' }] }, page('https://jobs.example', 8));
   assert.equal(same.conflicts.length, 0);
 
-  // No other backend paths are reachable from pages.
+  // A configured backend URL is used for requests (normalized to its origin); invalid values fall back to the default.
+  b = load({ local: { backend_url: 'https://pl.example.test:9443/ignored/path?x=1' } });
+  await b.call({ type: 'assist', task: 'other' }, page('https://luma.com/'));
+  assert.equal(b.requests[0].url, 'https://pl.example.test:9443/assist');
+  assert.equal(b.requests[0].init.headers.Authorization, 'Bearer tok');
+  b = load({ local: { backend_url: 'file:///etc/passwd' } });
+  await b.call({ type: 'assist', task: 'other' }, page('https://luma.com/'));
+  assert.equal(b.requests[0].url, 'http://127.0.0.1:8787/assist');
+
+  // No other backend paths are reachable from pages (default configuration).
   assert.ok(load().requests.every((q) => q.url.startsWith('http://127.0.0.1:8787/')));
-  console.log('background contracts passed: minimal /assist body, page vs popup messages, permission-gated watching, watch-all tabs, cross-tab off by default and hash-only.');
+  console.log('background contracts passed: configurable backend URL, minimal /assist body, page vs popup messages, permission-gated watching, watch-all tabs, cross-tab off by default and hash-only.');
 })().catch((e) => { console.error(e); process.exit(1); });
