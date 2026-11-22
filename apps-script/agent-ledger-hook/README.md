@@ -24,4 +24,6 @@ This Sheet-bound Apps Script files issues on `arii` repositories from explicitly
 
 Submit via the Form, not by editing a Sheet row: take an allowlisted source and use `Act` with a unique note such as `[issue] remote-server: Agent Ledger hook smoke test`. Check that one issue with `ledger-intake` and `insight` (not `ready`) is created, and that a `Done` response appears in the Sheet with the issue URL. Submit the same data again and verify no second issue is created. Only use test data suitable for a public issue.
 
+If the issue was created but the `Done` response failed, resubmit the same data to retry the response without opening another issue.
+
 Only `Act` submissions with an allowlisted source, an allowlisted repo in the prefix and an empty or HTTPS link are eligible. The first line of the note supplies the title; the full note and link go in the issue. The dedup key is the first 16 hexadecimal characters of SHA-256 over the exact link, or over `source|note` when the link is blank. The hook never fetches submitted links. The Form is not an authentication boundary. The cap is shared across repositories; the first eligible submission skipped by the cap posts one `Later` response that day. Failed executions appear under **Executions** in Apps Script.

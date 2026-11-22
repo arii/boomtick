@@ -53,7 +53,11 @@ function onFormSubmit(e) {
 function intake(row, range, store, props) {
   const key = dedupKey(row);
   const marker = 'created:' + key;
-  if (store.getProperty(marker)) return;
+  const issueUrl = store.getProperty(marker);
+  if (issueUrl) {
+    submitDone(range, row.source, key, issueUrl, store);
+    return;
+  }
   const cap = Number(props.MAX_ISSUES_PER_DAY || 5);
   if (!Number.isSafeInteger(cap) || cap < 0) {
     throw new Error('MAX_ISSUES_PER_DAY must be a non-negative integer.');
@@ -87,7 +91,14 @@ function intake(row, range, store, props) {
   });
   state.count += 1;
   store.setProperties({[marker]: issue.html_url, [INTAKE_STATE]: JSON.stringify(state)});
-  submitOutcome(range, row.source, 'Done', 'issue filed for ' + key, issue.html_url);
+  submitDone(range, row.source, key, issue.html_url, store);
+}
+
+function submitDone(range, source, key, issueUrl, store) {
+  const marker = 'done:' + key;
+  if (store.getProperty(marker)) return;
+  submitOutcome(range, source, 'Done', 'issue filed for ' + key, issueUrl);
+  store.setProperty(marker, 'true');
 }
 
 function hasLedgerIssue(repo, key, token) {

@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { runInNewContext } from 'node:vm';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 const source = readFileSync(new URL('../../apps-script/agent-ledger-hook/Code.gs', import.meta.url), 'utf8');
 const context = {
@@ -100,5 +100,51 @@ describe('Agent Ledger issue search', () => {
 
   it('finds the exact marker on a later page', () => {
     expect(lookup([['ledger-key: ABC'], ['Details\r\nledger-key: abc\r\nMore details']], 'abc')).toBe(true);
+  });
+});
+
+describe('Agent Ledger outcome recovery', () => {
+  it('retries a failed Done response using the stored issue URL, then suppresses repeats', () => {
+    const key = dedupKey(row);
+    const issueUrl = 'https://github.com/arii/remote-server/issues/1';
+    const stored = new Map([['created:' + key, issueUrl]]);
+    const store = {
+      getProperty: (name: string) => stored.get(name),
+      setProperty: (name: string, value: string) => stored.set(name, value),
+    };
+    const range = { getSheet: () => ({ getFormUrl: () => 'https://example.com/ledger-form' }) };
+    const submit = vi.fn().mockImplementationOnce(() => { throw new Error('Form unavailable'); });
+    const response = { submit, withItemResponse: vi.fn().mockReturnThis() };
+    const item = { createResponse: (answer: string) => answer };
+    const form = {
+      getItems: () => ['Agent / Source', 'Item / Note', 'Status', 'Link'].map(title => ({
+        getTitle: () => title,
+        asTextItem: () => item,
+        asParagraphTextItem: () => item,
+        asMultipleChoiceItem: () => item,
+      })),
+      createResponse: () => response,
+    };
+    const fetch = vi.fn();
+    const { intake } = runInNewContext(source + '\n({ intake });', {
+      ...context,
+      FormApp: { openByUrl: () => form },
+      UrlFetchApp: { fetch },
+    }) as {
+      intake: (submission: typeof row, eventRange: typeof range, properties: typeof store, config: object) => void;
+    };
+    const resubmit = () => intake(row, range, store, { MAX_ISSUES_PER_DAY: '0' });
+
+    expect(resubmit).toThrow('Form unavailable');
+    expect(stored.has('done:' + key)).toBe(false);
+    expect(stored.get('created:' + key)).toBe(issueUrl);
+    resubmit();
+    expect(response.withItemResponse.mock.calls.slice(-4)).toEqual([
+      [row.source], ['issue filed for ' + key], ['Done'], [issueUrl],
+    ]);
+    expect(stored.get('done:' + key)).toBe('true');
+    resubmit();
+    expect(submit).toHaveBeenCalledTimes(2);
+    expect(fetch).not.toHaveBeenCalled();
   });
 });
