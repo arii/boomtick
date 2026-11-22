@@ -19,6 +19,14 @@ def usage(payload):
             if completion is not None and reasoning is not None else None}
 
 
+def _parse_arguments(arguments):
+    """Tool-call arguments as parsed JSON, or the raw value when it is not valid JSON."""
+    try:
+        return json.loads(arguments)
+    except (ValueError, TypeError):
+        return arguments
+
+
 def flags_for(store, trace, context):
     flags = []
     if (trace["reasoning_tokens"] is not None and trace["visible_tokens"] is not None
@@ -44,11 +52,7 @@ def flags_for(store, trace, context):
             if not isinstance(call, dict) or not isinstance(call.get("function"), dict):
                 continue
             function = call["function"]
-            arguments = function.get("arguments", "")
-            try:
-                arguments = json.loads(arguments)
-            except (ValueError, TypeError):
-                pass
+            arguments = _parse_arguments(function.get("arguments", ""))
             signatures.append(json.dumps([function.get("name"), arguments], sort_keys=True))
     if store.repeated_tools(trace["session_id"], signatures):
         flags.append("TOOL_CALL_LOOP")

@@ -60,6 +60,14 @@ def trace_headers(trace):
     }
 
 
+def _reset_delay(value):
+    """Seconds until an epoch-milliseconds reset time, or None if the value is missing or malformed."""
+    try:
+        return int(value) / 1000 - time.time()
+    except (ValueError, TypeError, OverflowError):
+        return None
+
+
 def upstream_cooldown(response, payload):
     delay = retry_seconds(response.headers.get("Retry-After"))
     error = payload.get("error")
@@ -67,10 +75,9 @@ def upstream_cooldown(response, payload):
     if isinstance(metadata, dict) and metadata.get("limit_source") == "openrouter_free_tier_daily":
         fields = metadata.get("headers")
         if isinstance(fields, dict):
-            try:
-                delay = max(delay, int(fields["X-RateLimit-Reset"]) / 1000 - time.time())
-            except (KeyError, ValueError, TypeError, OverflowError):
-                pass
+            reset = _reset_delay(fields.get("X-RateLimit-Reset"))
+            if reset is not None:
+                delay = max(delay, reset)
     return delay
 
 
