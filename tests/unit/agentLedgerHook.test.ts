@@ -54,10 +54,15 @@ describe('Agent Ledger issue eligibility', () => {
 });
 
 describe('Agent Ledger dedup keys', () => {
-  it('uses the exact URL when present regardless of source or note', () => {
+  it('hashes the exact URL when present regardless of source or note', () => {
     const link = 'https://example.com/tasks/1?query=Two#anchor';
-    expect(dedupKey({ ...row, link })).toBe(link);
-    expect(dedupKey({ ...row, source: 'Instinct', note: '[issue] boomtick: New title', link })).toBe(link);
+    expect(dedupKey({ ...row, link })).toBe('1ce8edfda043e04c');
+    expect(dedupKey({ ...row, source: 'Instinct', note: '[issue] boomtick: New title', link })).toBe('1ce8edfda043e04c');
+    expect(dedupKey({ ...row, link: link.replace('Two', 'two') })).toBe('6ba50992c9ba2870');
+  });
+
+  it('keeps the key short for links longer than the GitHub query limit', () => {
+    expect(dedupKey({ ...row, link: 'https://example.com/' + 'x'.repeat(500) })).toBe('183df24c2ef05ce6');
   });
 
   it('uses a short SHA-256 digest of source and the full note when the link is blank', () => {

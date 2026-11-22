@@ -21,8 +21,8 @@ function eligible(row, props) {
 }
 
 function dedupKey(row) {
-  if (row.link) return row.link;
-  return Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, row.source + '|' + row.note,
+  const input = row.link || row.source + '|' + row.note;
+  return Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, input,
     Utilities.Charset.UTF_8)
     .slice(0, 8).map(byte => (byte & 255).toString(16).padStart(2, '0')).join('');
 }
