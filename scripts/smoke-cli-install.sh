@@ -2,8 +2,8 @@
 # Clean-install smoke test for the td CLI (#1368).
 # Installs cli/ into a fresh venv with no repo-root PYTHONPATH, then runs
 # `td --help` and two read-only commands with no GitHub credentials.
-# The CPU-only torch index avoids downloading CUDA wheels pulled in by
-# sentence-transformers.
+# torch is installed first from the CPU-only index (avoids CUDA wheels pulled in
+# by sentence-transformers); everything else resolves from PyPI only.
 set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -12,8 +12,8 @@ work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
 
 python3 -m venv "$venv"
-"$venv/bin/pip" install --quiet \
-  --extra-index-url https://download.pytorch.org/whl/cpu "$repo_root/cli"
+"$venv/bin/pip" install --quiet --index-url https://download.pytorch.org/whl/cpu torch
+"$venv/bin/pip" install --quiet "$repo_root/cli"
 
 # Run from outside the checkout with a scrubbed environment.
 cat > "$work/spec.md" <<'SPEC'

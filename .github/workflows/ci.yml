@@ -267,7 +267,11 @@ jobs:
         run: |
           pnpm run test:python
 
+      - name: Verify packed MCP tarball installs and runs (#1361)
+        run: pnpm --filter @arii/boomtick-mcp run verify:packed-install
+
       - name: td clean-install smoke
+        timeout-minutes: 10
         run: bash scripts/smoke-cli-install.sh
 
   impact-analysis:
