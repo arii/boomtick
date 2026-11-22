@@ -55,7 +55,6 @@ Documentation source check: November 21, 2026. Local documentation links and set
 
 ## Documentation Index
 
-* [Status](STATUS.md) — What was verified working, what is experimental, and known gaps.
 * [Reusable Agent Skills](.agents/README.md#installable-skills) — Install the GitHub Actions health check or BoomTick review setup in your agent.
 * [Developer Onboarding & Workflows](docs/onboarding.md) — Onboarding guide, codebase context, and collaboration workflows.
 * [Agent Contracts and Standards](.agents/AGENT_CONTRACT.md) — Invariant rules for autonomous agent behavior.
