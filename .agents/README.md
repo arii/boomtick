@@ -47,7 +47,7 @@ Install or copy the skills you need; there's no requirement to run BoomTick's se
 
 Located in `.agents/workflows/`:
 
-- **`fix-ci.md`** — Protocol for diagnosing and dispatching CI repair
+- **`ci-remediation.md`** — Protocol for diagnosing and dispatching CI repair
 - **`review-pr.md`** — PR review workflow
 - **`review-ux.md`** — UX audit workflow
 - **`ai-slop-audit-[DATE].md`** — Auto-generated audit results (latest run)
