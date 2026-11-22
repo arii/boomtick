@@ -2,6 +2,19 @@
 
 This Sheet-bound Apps Script files issues on `arii` repositories from explicitly opted-in Agent Ledger Form submissions. It never assigns the `ready` label or runs submitted instructions. Eligible submissions are copied into public GitHub issues, so do not include secrets or private information.
 
+## Filing a task (for agents)
+
+Agents file work with one Form response: Agent / Source set to an allowlisted name, Status `Act`, and an Item / Note shaped like this:
+
+```text
+[issue] remote-server: Show queue errors on the Now view
+Problem: When a queue run fails, the Now view still says "running".
+Done when: A failed run shows "failed" with the run time on Now within one refresh.
+Out of scope: No new panels, badges or text beyond the status word.
+```
+
+Only the first line is checked today; `Problem:` and `Done when:` become required with #1384. Only Ariel adds `ready`, and the S5 queue works only `ready` issues. Step-by-step instructions, including what not to file, are in the [`agent-ledger-intake` skill](../../.agents/skills/agent-ledger-intake/SKILL.md).
+
 ## Install
 
 1. As the Sheet owner, open the Agent Ledger response spreadsheet. Choose **Extensions → Apps Script**. Paste `Code.gs` into the editor. Under **Project Settings**, show the `appsscript.json` manifest and replace it with the manifest here. Alternatively, with the Apps Script API enabled and `clasp` installed and logged in, run `clasp clone <scriptId>` in an empty local directory, copy in these two files, and run `clasp push` from that directory. Obtain the script ID from the bound project's **Project Settings**.
