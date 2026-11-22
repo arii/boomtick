@@ -357,7 +357,9 @@ class Gateway:
         trace["cost_usd"] = trace["known_cost_usd"] if trace["cost_complete"] else None
         # An overloaded paid attempt (e.g. Nebius HTTP 529) reports no usage; the
         # provider's billing for it is unknown, so it stays unknown, never zero.
-        trace["billing_status"] = "complete" if trace["cost_complete"] else "unknown_paid_attempt"
+        # No provider was called (e.g. every provider skipped): nothing was billed.
+        trace["billing_status"] = ("complete" if trace["cost_complete"]
+                                   else "unknown_paid_attempt" if called else "none")
         trace["overloaded_attempts"] = [
             {"provider": a["provider"], "model": a["model"], "http_status": a["http_status"],
              "cost_known": a["cost_usd"] is not None}

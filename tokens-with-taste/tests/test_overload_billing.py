@@ -60,3 +60,19 @@ def test_529_then_fallback_keeps_cost_incomplete_with_one_call_each(store, monke
     trace = store.trace(headers["X-Trace-Id"])
     assert trace["cost_complete"] is False and trace["cost_usd"] is None
     assert [a["http_status"] for a in trace["overloaded_attempts"]] == [529]
+
+
+def test_no_provider_called_reports_no_billing(store, monkeypatch):
+    configuration = setup(store, monkeypatch, count=1)
+    monkeypatch.delenv(configuration[0]["key_env"])
+    sent = []
+
+    def handler(request):
+        sent.append(request)
+        return httpx.Response(200, json=reply())
+
+    payload, status, headers = run(store, configuration, handler)
+    assert status == 503 and not sent
+    assert headers["X-Billing-Status"] == "none"
+    assert store.trace(headers["X-Trace-Id"])["billing_status"] == "none"
+    assert "billing_status" not in payload["error"]
