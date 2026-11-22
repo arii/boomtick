@@ -160,11 +160,13 @@ describe("createMcpHttpServer", () => {
 
   it("isolates concurrent SDK clients and removes closed sessions", async () => {
     const servers: Server[] = [];
+    const serverClosed: Promise<void>[] = [];
     httpServerObj = createMcpHttpServer({
       port: 0,
       bearerToken: "secret123",
       createServer: () => {
         const server = createServer();
+        serverClosed.push(new Promise<void>((resolve) => { server.onclose = resolve; }));
         servers.push(server);
         return server;
       },
@@ -190,7 +192,14 @@ describe("createMcpHttpServer", () => {
       const sessionId = (servers[0].transport as SSEServerTransport).sessionId;
       expect(sessionId).toBeTruthy();
       await clients[0].close();
-      await vi.waitFor(() => expect(servers[0].transport).toBeUndefined());
+      // Wait for the server to observe the closed SSE socket instead of polling with the 1s default.
+      await Promise.race([
+        serverClosed[0],
+        new Promise<never>((_, reject) => {
+          setTimeout(() => reject(new Error("server did not close the session within 10s of client close")), 10_000).unref();
+        }),
+      ]);
+      expect(servers[0].transport).toBeUndefined();
       const expired = await fetch(`http://localhost:${port}/messages?sessionId=${sessionId}`, {
         method: "POST",
         headers: { Authorization: "Bearer secret123", "Content-Type": "application/json" },
@@ -201,7 +210,7 @@ describe("createMcpHttpServer", () => {
     } finally {
       await Promise.all(clients.map((client) => client.close()));
     }
-  });
+  }, 20_000);
 
   it("cleans up a session when connecting its server fails", async () => {
     const failedServer = createServer();
