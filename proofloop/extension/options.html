@@ -10,7 +10,7 @@ label{display:block;margin:14px 0}button{padding:8px 16px;font:inherit}
 <h1>ProofLoop - Settings</h1>
 <p>ProofLoop watches only the sites you turn on from its toolbar button. It warns when a field conflicts with a rule promoted from your own sessions. It never types, fills, checks or submits anything.</p>
 <div id="status">Checking local backend...</div>
-<label>Backend URL (default <code>http://127.0.0.1:8787</code>; saving a different one asks Chrome for permission to reach that host)<br><input id="backend_url" type="text" autocomplete="off" style="width:100%"></label>
+<label>Backend URL (default <code>http://127.0.0.1:8787</code>; the server only accepts Host 127.0.0.1 or localhost on its own port, so other values need a proxy that rewrites Host)<br><input id="backend_url" type="text" autocomplete="off" style="width:100%"></label>
 <label>Backend API token (from <code>state/server_token</code>; stored only in this browser profile)<br><input id="token" type="password" autocomplete="off" style="width:100%"></label>
 <label><input type="checkbox" id="hold_submit"> Hold a submit once when a conflict is open, so you can review it (on by default)</label>
 <label><input type="checkbox" id="cross_tab"> Compare phone, email and city with my other watched tabs (hashes stay in browser memory)</label>

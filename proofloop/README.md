@@ -54,7 +54,7 @@ PROOFLOOP_EXTENSION_ID=<id from chrome://extensions> python3 server.py 8787   # 
 
 ### Backend not on this machine
 
-The extension talks to `http://127.0.0.1:8787` by default. If the backend runs elsewhere (a container or a remote host), either forward its port so it still appears at that address, or set another URL in the extension options ("Backend URL"). Saving a different URL asks Chrome for permission to reach that host.
+The extension talks to `http://127.0.0.1:8787` by default. If the backend runs elsewhere (a container or a remote host), forward its port so it still appears at that address. The "Backend URL" extension option accepts another URL, but the server only accepts requests whose Host is `127.0.0.1:<server port>` or `localhost:<server port>`, so a URL with a different host or port is rejected with 403 unless something in between rewrites Host.
 
 - SSH: `ssh -L 8787:127.0.0.1:8787 <host>` (the server stays on the remote loopback).
 - Docker: publish to loopback only, `-p 127.0.0.1:8787:8787`, and start the server in the container with `PROOFLOOP_BIND_HOST=0.0.0.0` so the published port can reach it.
