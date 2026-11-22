@@ -56,6 +56,21 @@ def test_unrelated_heading_not_matched():
     assert _spec_backtick_paths(body, *ALLOWED) == []
 
 
+@pytest.mark.parametrize(
+    "heading",
+    [
+        "Files: Not Allowed",
+        "Not Allowed Files (Create)",
+        "Allowed Filesystem Changes",
+        "Notes: Allowed Files",
+    ],
+)
+def test_qualified_non_matching_headings_not_matched(heading):
+    body = f"## {heading}\n- `a/b.py`\n"
+    assert _spec_backtick_paths(body, *ALLOWED) == []
+    assert _spec_backtick_paths(body, *FORBIDDEN) == []
+
+
 def _git(root, *args):
     subprocess.run(
         ["git", "-C", str(root), *args], check=True, capture_output=True, text=True
