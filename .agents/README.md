@@ -7,6 +7,7 @@ workflows, and supporting scripts for automated operations in this repository.
 
 - [`actions-health-check`](skills/actions-health-check/SKILL.md): sample recent GitHub Actions outcomes and elapsed times without rerunning CI.
 - [`add-boomtick-review`](skills/add-boomtick-review/SKILL.md): add opt-in BoomTick PR review to a downstream repo.
+- [`agent-ledger-intake`](skills/agent-ledger-intake/SKILL.md): file a task for the S5 queue as one Agent Ledger Form row.
 
 Install an individual skill into your local agent. For example, use the
 [Skills CLI](https://github.com/vercel-labs/skills) for a personal Codex install:
