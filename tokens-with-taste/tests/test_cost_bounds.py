@@ -121,7 +121,9 @@ def test_one_unbounded_attempt_prevents_aggregate_bound(store, monkeypatch):
     store.replace_models("p0", [{**model, "input_price": None}])
     _, _, headers = run(store, config, lambda _: httpx.Response(529, json=OVERLOAD), {**REQUEST, "max_tokens": 100})
     trace = store.trace(headers["X-Trace-Id"])
-    assert trace["attempts"][1]["cost_basis"] == "upper_bound"
+    # Unknown-price p0 is tried last, after priced p1.
+    assert [a["provider"] for a in trace["attempts"]] == ["p1", "p0"]
+    assert trace["attempts"][0]["cost_basis"] == "upper_bound"
     assert trace.get("cost_upper_bound_usd") is None
 
 

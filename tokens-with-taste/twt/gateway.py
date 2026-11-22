@@ -53,6 +53,47 @@ def retry_seconds(value):
 
 
 OVERLOAD_STATUSES = (503, 529)
+# 5xx statuses that signal provider unavailability. A 500 or 501 can come from one bad request, so it sets no cooldown.
+OVERLOAD_COOLDOWN_STATUSES = (502, 503, 504, 529)
+OVERLOAD_COOLDOWN_DEFAULT_SECONDS = 30
+OVERLOAD_COOLDOWN_MAX_SECONDS = 300
+# Blended USD per token used only to order paid models: input-heavy agent traffic.
+BLENDED_INPUT_WEIGHT = 0.8
+BLENDED_OUTPUT_WEIGHT = 0.2
+
+
+def blended_price(model):
+    if model["input_price"] is None or model["output_price"] is None:
+        return float("inf")
+    return BLENDED_INPUT_WEIGHT * model["input_price"] + BLENDED_OUTPUT_WEIGHT * model["output_price"]
+
+
+def model_rank(model):
+    return (not model["free"], blended_price(model), model["input_price"] if model["input_price"] is not None else float("inf"), model["id"])
+
+
+def overload_cooldown(response):
+    """Bounded cooldown seconds after an overload status: Retry-After when sent, else a short default, capped."""
+    if response.headers.get("Retry-After") is None:
+        return OVERLOAD_COOLDOWN_DEFAULT_SECONDS
+    return min(OVERLOAD_COOLDOWN_MAX_SECONDS, retry_seconds(response.headers["Retry-After"]))
+
+
+def order_providers(providers, catalog, body, privacy):
+    """Free models first across providers, then paid by blended price, unknown price last.
+    Ties keep configured provider order. Providers skipped without a call (disabled, missing
+    credentials, strict privacy, no eligible model) keep their configured position."""
+    def callable_provider(provider):
+        return bool(eligible_models(catalog, provider, body)) and provider["id"] not in disabled_providers() \
+            and not missing(provider) \
+            and not (privacy == "strict" and (not provider["strict"] or provider["trains_on_free_tier"] is not False))
+
+    def rank(provider):
+        best = model_rank(min(eligible_models(catalog, provider, body), key=model_rank))
+        return (0, 0) if best[0] is False else ((1, best[1]) if best[1] != float("inf") else (2, 0))
+
+    ranked = iter(sorted([p for p in providers if callable_provider(p)], key=rank))
+    return [next(ranked) if callable_provider(p) else p for p in providers]
 
 
 def trace_headers(trace):
@@ -118,6 +159,7 @@ class Gateway:
         self.calls = defaultdict(deque)
         self.cooldowns = {}
         self.transport_cooldowns = {}
+        self.overload_cooldowns = {}
         self.lock = asyncio.Lock()
         self.sleep = sleep
         self.free_wait_seconds = max(0, min(60, free_wait_seconds))
@@ -134,6 +176,8 @@ class Gateway:
                 window = self.calls[key]
                 while window and window[0] <= current - 60:
                     window.popleft()
+                if self.overload_cooldowns.get(key, 0) > current:
+                    return "overload cooldown", waited, None
                 transport_until = self.transport_cooldowns.get(key, 0)
                 retry_until = self.cooldowns.get(key, 0)
                 delay = max(0, retry_until - current, transport_until - current)
@@ -207,7 +251,7 @@ class Gateway:
                 trace["http_status"] = 500
                 self.store.save_trace(trace)
                 return trace["response"], 500, trace_headers(trace)
-        pending = deque(self.providers)
+        pending = deque(order_providers(self.providers, catalog, body, privacy))
         retried = set()
         waited = 0
         while pending:
@@ -237,7 +281,7 @@ class Gateway:
             if not candidates:
                 attempt["reason"] = "no synced eligible chat model matching requested model/free-tier/tools/JSON capabilities; run twt sync"
                 continue
-            model = min(candidates, key=lambda m: (not m["free"], m["input_price"] if m["input_price"] is not None else float("inf"), m["id"]))
+            model = min(candidates, key=model_rank)
             attempt["model"] = model["id"]
             if "local_model" in provider:
                 try:
@@ -308,6 +352,8 @@ class Gateway:
                     if model["free"] and key not in retried:
                         retried.add(key)
                         pending.appendleft(provider)
+                if response.status_code in OVERLOAD_COOLDOWN_STATUSES:
+                    self.overload_cooldowns[key] = max(self.overload_cooldowns.get(key, 0), self.clock() + overload_cooldown(response))
                 if response.status_code == 429 or response.status_code >= 500:
                     attempt["reason"] = f"upstream HTTP {response.status_code}"
                     continue

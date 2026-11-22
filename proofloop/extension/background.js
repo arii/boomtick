@@ -1,7 +1,7 @@
 // ProofLoop background worker.
 // - Watched sites: content scripts run on origins Ari turns on in the popup, or on every http(s) tab when
 //   "Watch all tabs" is on (one optional all-hosts grant). Nothing runs on other sites.
-// - Backend calls go only to the loopback backend with the per-run token. /assist receives the page origin,
+// - Backend calls go only to the configured backend (default loopback) with the per-run token. /assist receives the page origin,
 //   the task id, and a compact list of other open tabs (origin + short title, no paths or query strings),
 //   never the URL path, query, title, page text or field values.
 // - Open-tab snapshot: title, origin, domain and last-active time per tab, in memory only, kept from
@@ -9,7 +9,14 @@
 // - Pause: when paused, pages get no assist data and render nothing until unpaused.
 // - Cross-tab facts: hashed field values per tab, kept in chrome.storage.session (memory only, cleared when the
 //   browser closes), and only when "compare with my other watched tabs" is on.
-const BACKEND = "http://127.0.0.1:8787";
+const DEFAULT_BACKEND = "http://127.0.0.1:8787";
+// The backend URL is the stored `backend_url` (options page), normalized to an http(s) origin; anything else falls back to the default.
+function backendOrigin(value) {
+  try {
+    const u = new URL(String(value || ""));
+    return /^https?:$/.test(u.protocol) ? u.origin : DEFAULT_BACKEND;
+  } catch { return DEFAULT_BACKEND; }
+}
 const SCRIPTS = ["assist/detect.js", "assist/match.js", "assist/task.js", "assist/observer.js"];
 // Match patterns ignore ports, so they are built from scheme and hostname.
 const patternFor = (origin) => { const u = new URL(origin); return `${u.protocol}//${u.hostname}/*`; };
@@ -18,7 +25,7 @@ const ALL_MATCHES = ["https://*/*", "http://*/*"];
 const ALL_ID = "pl-all";
 
 async function settings() {
-  return chrome.storage.local.get({ token: "", watched: [], watch_all: false, paused: false, hold_submit: true, cross_tab: false, cloud_recall: false });
+  return chrome.storage.local.get({ token: "", backend_url: DEFAULT_BACKEND, watched: [], watch_all: false, paused: false, hold_submit: true, cross_tab: false, cloud_recall: false });
 }
 
 // ---------------------------------------------------------------- open-tab snapshot (memory only)
@@ -37,10 +44,10 @@ function otherTabs(me, limit = 10) {
 }
 
 async function api(path, init = {}) {
-  const { token } = await settings();
+  const { token, backend_url } = await settings();
   const headers = { ...(init.headers || {}) };
   if (token) headers.Authorization = `Bearer ${token}`;
-  return fetch(`${BACKEND}${path}`, { ...init, headers });
+  return fetch(`${backendOrigin(backend_url)}${path}`, { ...init, headers });
 }
 
 async function postJSON(path, body) {

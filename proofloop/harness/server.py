@@ -15,6 +15,7 @@ PROOFLOOP_ASSIST_RECALL=1 is set for this process.
 """
 import hashlib
 import hmac
+import ipaddress
 import json
 import os
 import re
@@ -136,6 +137,23 @@ def record_feedback(body):
     with open(p, "a") as f:  # one short line per write
         f.write(line)
     return True, ""
+
+
+def bind_host_from_env():
+    """Loopback unless PROOFLOOP_BIND_HOST is set (e.g. 0.0.0.0 inside a container whose port is published to loopback)."""
+    return os.environ.get("PROOFLOOP_BIND_HOST", "").strip() or "127.0.0.1"
+
+
+def is_loopback_host(host):
+    try:
+        return ipaddress.ip_address(host).is_loopback
+    except ValueError:
+        return host == "localhost"
+
+
+def bind_warning(host):
+    return (f"WARNING: PROOFLOOP_BIND_HOST={host} is not loopback. Only the bearer token protects this backend, and "
+            "traffic is plain HTTP. Publish the port to 127.0.0.1 only, or use TLS or an SSH tunnel.")
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -277,6 +295,9 @@ if __name__ == "__main__":
     token_file = config.STATE_DIR / "server_token"
     atomic_write_text(token_file, TOKEN + "\n")
     os.chmod(token_file, 0o600)
-    print(f"ProofLoop backend on http://127.0.0.1:{port}")
+    bind_host = bind_host_from_env()
+    print(f"ProofLoop backend on http://{bind_host}:{port}")
+    if not is_loopback_host(bind_host):
+        print(bind_warning(bind_host), file=sys.stderr, flush=True)
     print(f"API token written to {token_file} (mode 600). Paste it into the extension options page.")
-    HTTPServer(("127.0.0.1", port), Handler).serve_forever()
+    HTTPServer((bind_host, port), Handler).serve_forever()

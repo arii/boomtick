@@ -297,7 +297,7 @@ def test_budget_reached_free_fallback_and_unknown_price(store, monkeypatch):
     store.replace_models("p1", [models[1]])
     _, status, h = run(store, configuration, lambda r: httpx.Response(200, json=reply()))
     assert status == 200 and h["X-Provider-Used"] == "p1"
-    assert "budget" in store.trace(h["X-Trace-Id"])["attempts"][0]["reason"]
+    assert store.trace(h["X-Trace-Id"])["attempts"][0]["reason"] == "success"  # free p1 is ordered before paid p0
     store.replace_models("p1", [])
     payload, status, _ = run(store, configuration, lambda r: pytest.fail("budget must skip"))
     assert status == 503 and "budget" in payload["error"]["message"]
