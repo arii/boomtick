@@ -267,6 +267,9 @@ jobs:
         run: |
           pnpm run test:python
 
+      - name: td clean-install smoke
+        run: bash scripts/smoke-cli-install.sh
+
   impact-analysis:
     timeout-minutes: 30
     name: Deployment Impact Analysis
