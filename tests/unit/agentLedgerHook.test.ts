@@ -68,3 +68,32 @@ describe('Agent Ledger dedup keys', () => {
     expect(dedupKey(row)).not.toBe(dedupKey({ ...row, note }));
   });
 });
+
+describe('Agent Ledger issue search', () => {
+  function lookup(bodiesByPage: (string | null)[][], key: string) {
+    const { hasLedgerIssue } = runInNewContext(source + '\n({ hasLedgerIssue });', {
+      UrlFetchApp: {
+        fetch(url: string) {
+          const page = Number(new URL(url).searchParams.get('page'));
+          return {
+            getResponseCode: () => 200,
+            getContentText: () => JSON.stringify({
+              total_count: bodiesByPage.flat().length,
+              incomplete_results: false,
+              items: bodiesByPage[page - 1].map(body => ({ body })),
+            }),
+          };
+        },
+      },
+    }) as { hasLedgerIssue: (repo: string, key: string, token: string) => boolean };
+    return hasLedgerIssue('remote-server', key, 'test-token');
+  }
+
+  it('ignores case-insensitive hits and marker substrings', () => {
+    expect(lookup([[null, 'ledger-key: ABC', 'ledger-key: abc-extra']], 'abc')).toBe(false);
+  });
+
+  it('finds the exact marker on a later page', () => {
+    expect(lookup([['ledger-key: ABC'], ['Details\r\nledger-key: abc\r\nMore details']], 'abc')).toBe(true);
+  });
+});

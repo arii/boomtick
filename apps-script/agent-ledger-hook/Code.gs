@@ -73,12 +73,7 @@ function intake(row, range, store, props) {
   const [, repo, rawTitle] = ISSUE_PREFIX.exec(row.note);
   const token = installationToken(props, repo);
   const repoPath = '/repos/' + OWNER + '/' + encodeURIComponent(repo);
-  const query = 'repo:' + OWNER + '/' + repo + ' is:issue in:body "ledger-key: ' + key + '"';
-  const search = github('/search/issues?q=' + encodeURIComponent(query), token);
-  if (search.total_count > 0) return;
-  if (search.incomplete_results || search.total_count !== 0) {
-    throw new Error('GitHub issue search did not complete; no issue created.');
-  }
+  if (hasLedgerIssue(repo, key, token)) return;
 
   for (const [name, color] of Object.entries(LABELS)) {
     if (github(repoPath + '/labels/' + name, token, undefined, true) === null) {
@@ -93,6 +88,22 @@ function intake(row, range, store, props) {
   state.count += 1;
   store.setProperties({[marker]: issue.html_url, [INTAKE_STATE]: JSON.stringify(state)});
   submitOutcome(range, row.source, 'Done', 'issue filed for ' + key, issue.html_url);
+}
+
+function hasLedgerIssue(repo, key, token) {
+  const marker = 'ledger-key: ' + key;
+  const query = 'repo:' + OWNER + '/' + repo + ' is:issue in:body "' + marker + '"';
+  const path = '/search/issues?q=' + encodeURIComponent(query) + '&per_page=100&page=';
+  let seen = 0;
+  for (let page = 1; page <= 10; page++) {
+    const search = github(path + page, token);
+    if (search.items.some(issue => (issue.body || '').split(/\r?\n/).includes(marker))) return true;
+    if (search.incomplete_results) break;
+    seen += search.items.length;
+    if (seen >= search.total_count) return false;
+    if (search.items.length === 0) break;
+  }
+  throw new Error('GitHub issue search did not complete; no issue created.');
 }
 
 function issueBody(row, key, rowNumber) {
