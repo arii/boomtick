@@ -103,8 +103,9 @@ Config path: `~/.cursor/mcp.json` or `.cursor/mcp.json`
 
 ## 4. Commands
 
-- `pnpm test` — root Vitest suite, ProofLoop tests, then the MCP and workflows package suites
+- `pnpm test` — root Vitest suite, ProofLoop tests, then the MCP and workflows package suites (the MCP tool `repo_test` runs install, lint and this)
 - `pnpm run test:python` — Python (pytest) suite
+- `td preflight` — pre-PR checks: doctor, type-check, lint, overlap, merge simulation (no tests)
 - `pnpm run lint` — eslint, oxlint, package lint, Python lint/format and fallow
 - `pnpm run type-check` and `pnpm run type-check:ts` — TypeScript type checks
 
@@ -115,7 +116,7 @@ Config path: `~/.cursor/mcp.json` or `.cursor/mcp.json`
 - No new dependency without saying what it replaces or enables.
 - No placeholder code that returns fake success. Fail loudly or don't ship it.
 - Docs describe what exists. Verify every path, script and workflow you mention.
-- Before reporting done, run `pnpm run type-check:ts`, `pnpm run lint`, and `pnpm test`, and paste the result.
+- Before reporting done, run `td preflight` and the test commands in section 4, and paste the result. Preflight does not run tests or the root `tsc` (`pnpm run type-check:ts`, which covers `lib/`, `scripts/` and `src/`).
 
 ## 5. Code Map
 
