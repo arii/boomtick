@@ -13,12 +13,20 @@ from twt.gateway import create_app
 
 @pytest.mark.parametrize("outcome", ["success", "fallback", "final_error"])
 @pytest.mark.parametrize("missing_usage", [False, True])
-def test_receipts_reconcile_all_dispatched_attempts(store, monkeypatch, outcome, missing_usage):
+def test_receipts_reconcile_all_dispatched_attempts(
+    store, monkeypatch, outcome, missing_usage
+):
     configuration = setup(store, monkeypatch, count=1 if outcome == "success" else 2)
 
     def handler(request):
-        payload = reply(prompt=8738, completion=8192) if request.url.host == "p0.test" else reply()
-        rejected = outcome == "final_error" or (outcome == "fallback" and request.url.host == "p0.test")
+        payload = (
+            reply(prompt=8738, completion=8192)
+            if request.url.host == "p0.test"
+            else reply()
+        )
+        rejected = outcome == "final_error" or (
+            outcome == "fallback" and request.url.host == "p0.test"
+        )
         if rejected:
             payload["choices"][0]["message"]["content"] = ""
         if missing_usage and request.url.host == "p0.test":
@@ -31,8 +39,13 @@ def test_receipts_reconcile_all_dispatched_attempts(store, monkeypatch, outcome,
 
     async def receipt():
         app = create_app(store=store, configuration=configuration)
-        async with httpx.AsyncClient(transport=httpx.ASGITransport(app), base_url="http://localhost") as api:
-            response = await api.post("/v1/receipts", json={"trace_ids": [trace["trace_id"], trace["trace_id"]]})
+        async with httpx.AsyncClient(
+            transport=httpx.ASGITransport(app), base_url="http://localhost"
+        ) as api:
+            response = await api.post(
+                "/v1/receipts",
+                json={"trace_ids": [trace["trace_id"], trace["trace_id"]]},
+            )
             data = response.json()["receipts"]
             assert len(data) == 1
             return data[0]
@@ -64,12 +77,16 @@ def test_rejected_attempt_reconciles_with_attempt_ledger(store, monkeypatch):
     _, status, headers = run(store, configuration, handler)
     trace = store.trace(headers["X-Trace-Id"])
     assert status == 502 and trace["prompt_tokens"] is None
-    rows = [json.loads(r[0]) for r in store.db.execute(
-        "SELECT data FROM attempts WHERE trace_id=?", (trace["trace_id"],))]
+    rows = [
+        json.loads(r[0])
+        for r in store.db.execute(
+            "SELECT data FROM attempts WHERE trace_id=?", (trace["trace_id"],)
+        )
+    ]
     assert len(rows) == 1
     assert (rows[0]["prompt_tokens"], rows[0]["completion_tokens"]) == (8738, 8192)
     assert trace["cost_complete"] is True
-    assert trace["cost_usd"] == pytest.approx(8738 * .001 + 8192 * .002)
+    assert trace["cost_usd"] == pytest.approx(8738 * 0.001 + 8192 * 0.002)
     assert store.spend_today() == pytest.approx(trace["cost_usd"])
     group = report([trace])["groups"][0]
     assert (group["prompt_tokens"], group["completion_tokens"]) == (8738, 8192)

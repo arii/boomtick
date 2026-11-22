@@ -8,9 +8,15 @@ from test_gateway import reply, run, setup
 from twt.gateway import create_app
 
 # Payload observed in the #1359 proof (trace ccd938b2-91f3-4076-aa0d-cf93a9c71ba1).
-OBSERVED_529 = {"error": {"type": "server_error", "message": "System is overloaded",
-                          "param": None, "code": None},
-                "detail": "System is overloaded"}
+OBSERVED_529 = {
+    "error": {
+        "type": "server_error",
+        "message": "System is overloaded",
+        "param": None,
+        "code": None,
+    },
+    "detail": "System is overloaded",
+}
 
 
 def test_529_is_unknown_paid_cost_not_zero_and_not_retried(store, monkeypatch):
@@ -31,13 +37,18 @@ def test_529_is_unknown_paid_cost_not_zero_and_not_retried(store, monkeypatch):
     assert headers["X-Billing-Status"] == "unknown_paid_attempt"
     assert payload["error"]["billing_status"] == "unknown_paid_attempt"
     assert payload["error"]["overloaded_attempts"] == [
-        {"provider": "p0", "model": "chat", "http_status": 529, "cost_known": False}]
+        {"provider": "p0", "model": "chat", "http_status": 529, "cost_known": False}
+    ]
     assert store.spend_today() > 0  # upper bound still counts against budgets
 
     async def receipt():
         app = create_app(store=store, configuration=configuration)
-        async with httpx.AsyncClient(transport=httpx.ASGITransport(app), base_url="http://localhost") as api:
-            return (await api.post("/v1/receipts", json={"trace_ids": [trace["trace_id"]]})).json()["receipts"][0]
+        async with httpx.AsyncClient(
+            transport=httpx.ASGITransport(app), base_url="http://localhost"
+        ) as api:
+            return (
+                await api.post("/v1/receipts", json={"trace_ids": [trace["trace_id"]]})
+            ).json()["receipts"][0]
 
     exact = asyncio.run(receipt())
     assert exact["cost_complete"] is False and exact["cost_usd"] is None

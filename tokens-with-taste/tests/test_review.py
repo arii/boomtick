@@ -25,7 +25,9 @@ def test_slow_upstream_requests_overlap(store, monkeypatch):
 
         async with httpx.AsyncClient(transport=httpx.MockTransport(upstream)) as client:
             gateway = Gateway(store, client, configuration)
-            results = await asyncio.gather(gateway.complete(REQUEST), gateway.complete(REQUEST))
+            results = await asyncio.gather(
+                gateway.complete(REQUEST), gateway.complete(REQUEST)
+            )
         assert started == 2
         assert [status for _, status, _ in results] == [200, 200]
         assert len(store.traces()) == 2
@@ -51,7 +53,9 @@ def test_concurrent_requests_reserve_rpm_before_http(store, monkeypatch):
             first = asyncio.create_task(gateway.complete(REQUEST))
             try:
                 await asyncio.wait_for(started.wait(), timeout=2)
-                payload, status, _ = await asyncio.wait_for(gateway.complete(REQUEST), timeout=2)
+                payload, status, _ = await asyncio.wait_for(
+                    gateway.complete(REQUEST), timeout=2
+                )
                 assert status == 503
                 assert "local RPM limit" in payload["error"]["message"]
             finally:
@@ -77,8 +81,11 @@ def test_concurrent_429s_preserve_longest_cooldown(store, monkeypatch):
                 await release_short.wait()
             else:
                 await asyncio.wait_for(both_started.wait(), timeout=2)
-            return httpx.Response(429, json={"error": "rate limited"},
-                                  headers={"Retry-After": "100" if ordinal == 1 else "10"})
+            return httpx.Response(
+                429,
+                json={"error": "rate limited"},
+                headers={"Retry-After": "100" if ordinal == 1 else "10"},
+            )
 
         async with httpx.AsyncClient(transport=httpx.MockTransport(upstream)) as client:
             gateway = Gateway(store, client, configuration, clock=lambda: 1000)
@@ -95,58 +102,113 @@ def test_concurrent_429s_preserve_longest_cooldown(store, monkeypatch):
     asyncio.run(scenario())
 
 
-@pytest.mark.parametrize("origin", ["https://evil.test", "null", "http://localhost.evil.test", "http://127.0.0.1@evil.test", "http://localhost:bad"])
+@pytest.mark.parametrize(
+    "origin",
+    [
+        "https://evil.test",
+        "null",
+        "http://localhost.evil.test",
+        "http://127.0.0.1@evil.test",
+        "http://localhost:bad",
+    ],
+)
 def test_hostile_origin_cannot_spend(store, monkeypatch, origin):
     configuration = setup(store, monkeypatch, 1)
 
     async def scenario():
         async with (
-            httpx.AsyncClient(transport=httpx.MockTransport(lambda r: pytest.fail("must not spend"))) as upstream,
-            httpx.AsyncClient(transport=httpx.ASGITransport(create_app(store, upstream, configuration)), base_url="http://test") as api,
+            httpx.AsyncClient(
+                transport=httpx.MockTransport(lambda r: pytest.fail("must not spend"))
+            ) as upstream,
+            httpx.AsyncClient(
+                transport=httpx.ASGITransport(
+                    create_app(store, upstream, configuration)
+                ),
+                base_url="http://test",
+            ) as api,
         ):
-            response = await api.post("/v1/chat/completions", json=REQUEST, headers={"Origin": origin})
+            response = await api.post(
+                "/v1/chat/completions", json=REQUEST, headers={"Origin": origin}
+            )
             assert response.status_code == 403
+
     asyncio.run(scenario())
 
 
-@pytest.mark.parametrize("content_type", [None, "text/plain", "application/x-www-form-urlencoded"])
+@pytest.mark.parametrize(
+    "content_type", [None, "text/plain", "application/x-www-form-urlencoded"]
+)
 def test_non_json_request_cannot_spend(store, monkeypatch, content_type):
     configuration = setup(store, monkeypatch, 1)
 
     async def scenario():
         async with (
-            httpx.AsyncClient(transport=httpx.MockTransport(lambda r: pytest.fail("must not spend"))) as upstream,
-            httpx.AsyncClient(transport=httpx.ASGITransport(create_app(store, upstream, configuration)), base_url="http://test") as api,
+            httpx.AsyncClient(
+                transport=httpx.MockTransport(lambda r: pytest.fail("must not spend"))
+            ) as upstream,
+            httpx.AsyncClient(
+                transport=httpx.ASGITransport(
+                    create_app(store, upstream, configuration)
+                ),
+                base_url="http://test",
+            ) as api,
         ):
-            response = await api.post("/v1/chat/completions", content=json.dumps(REQUEST), headers={"Content-Type": content_type} if content_type else {})
+            response = await api.post(
+                "/v1/chat/completions",
+                content=json.dumps(REQUEST),
+                headers={"Content-Type": content_type} if content_type else {},
+            )
             assert response.status_code == 415
+
     asyncio.run(scenario())
 
 
-@pytest.mark.parametrize("origin", [None, "http://localhost:8000", "http://127.0.0.1:8000", "http://[::1]:8000"])
+@pytest.mark.parametrize(
+    "origin",
+    [None, "http://localhost:8000", "http://127.0.0.1:8000", "http://[::1]:8000"],
+)
 def test_loopback_json_request_allowed(store, monkeypatch, origin):
     configuration = setup(store, monkeypatch, 1)
 
     async def scenario():
         async with (
-            httpx.AsyncClient(transport=httpx.MockTransport(lambda r: httpx.Response(200, json=reply()))) as upstream,
-            httpx.AsyncClient(transport=httpx.ASGITransport(create_app(store, upstream, configuration)), base_url="http://test") as api,
+            httpx.AsyncClient(
+                transport=httpx.MockTransport(
+                    lambda r: httpx.Response(200, json=reply())
+                )
+            ) as upstream,
+            httpx.AsyncClient(
+                transport=httpx.ASGITransport(
+                    create_app(store, upstream, configuration)
+                ),
+                base_url="http://test",
+            ) as api,
         ):
             headers = {"Content-Type": "application/json; charset=utf-8"}
             if origin:
                 headers["Origin"] = origin
-            assert (await api.post("/v1/chat/completions", content=json.dumps(REQUEST), headers=headers)).status_code == 200
+            assert (
+                await api.post(
+                    "/v1/chat/completions", content=json.dumps(REQUEST), headers=headers
+                )
+            ).status_code == 200
+
     asyncio.run(scenario())
 
 
-@pytest.mark.parametrize("first_usage,last_usage,last_status,expected,complete", [
-    (True, False, 500, .05, False),
-    (True, False, 200, .05, False),
-    (False, True, 200, .05, False),
-    (True, True, 400, .10, True),
-    (True, True, 200, .10, True),
-])
-def test_known_cost_survives_incomplete_waterfall(store, monkeypatch, first_usage, last_usage, last_status, expected, complete):
+@pytest.mark.parametrize(
+    "first_usage,last_usage,last_status,expected,complete",
+    [
+        (True, False, 500, 0.05, False),
+        (True, False, 200, 0.05, False),
+        (False, True, 200, 0.05, False),
+        (True, True, 400, 0.10, True),
+        (True, True, 200, 0.10, True),
+    ],
+)
+def test_known_cost_survives_incomplete_waterfall(
+    store, monkeypatch, first_usage, last_usage, last_status, expected, complete
+):
     configuration = setup(store, monkeypatch)
 
     def handler(request):
@@ -166,7 +228,14 @@ def test_known_cost_survives_incomplete_waterfall(store, monkeypatch, first_usag
     else:
         assert headers["X-Cost-Usd"] == "unknown" and trace["cost_usd"] is None
     monkeypatch.setenv("TWT_DAILY_BUDGET_USD", str(expected))
-    assert run(store, configuration, lambda r: pytest.fail("known spend must exhaust budget"))[1] == 503
+    assert (
+        run(
+            store,
+            configuration,
+            lambda r: pytest.fail("known spend must exhaust budget"),
+        )[1]
+        == 503
+    )
 
 
 def test_stream_options_removed_from_upstream(store, monkeypatch):
@@ -177,6 +246,7 @@ def test_stream_options_removed_from_upstream(store, monkeypatch):
         sent = json.loads(request.content)
         assert sent["stream"] is False and "stream_options" not in sent
         return httpx.Response(200, json=reply())
+
     _, status, headers = run(store, configuration, handler, body)
     assert status == 200
     trace = store.trace(headers["X-Trace-Id"])
@@ -184,14 +254,21 @@ def test_stream_options_removed_from_upstream(store, monkeypatch):
     assert "stream_options" not in trace["attempts"][0]["request"]
 
 
-@pytest.mark.parametrize("format_type,expected", [("text", 200), ("json_object", 503), ("json_schema", 503)])
-def test_text_format_does_not_need_json_support(store, monkeypatch, format_type, expected):
+@pytest.mark.parametrize(
+    "format_type,expected", [("text", 200), ("json_object", 503), ("json_schema", 503)]
+)
+def test_text_format_does_not_need_json_support(
+    store, monkeypatch, format_type, expected
+):
     configuration = setup(store, monkeypatch, 1)
     model = store.models()[0]
     model.update(json=False, json_schema=False)
     store.replace_models("p0", [model])
     body = {**REQUEST, "response_format": {"type": format_type}}
-    assert run(store, configuration, lambda r: httpx.Response(200, json=reply()), body)[1] == expected
+    assert (
+        run(store, configuration, lambda r: httpx.Response(200, json=reply()), body)[1]
+        == expected
+    )
 
 
 def test_report_charges_each_attempt_provider(store, monkeypatch):
@@ -201,14 +278,17 @@ def test_report_charges_each_attempt_provider(store, monkeypatch):
         if request.url.host == "p0.test":
             return httpx.Response(500, json=reply(prompt=100, completion=50))
         return httpx.Response(200, json=reply())
+
     run(store, configuration, handler)
     result = report(store.traces())
     rows = {row["provider"]: row for row in result["groups"]}
-    assert rows["p0"]["spend_usd"] == pytest.approx(.20)
-    assert rows["p1"]["spend_usd"] == pytest.approx(.05)
+    assert rows["p0"]["spend_usd"] == pytest.approx(0.20)
+    assert rows["p1"]["spend_usd"] == pytest.approx(0.05)
     assert rows["p0"]["prompt_tokens"] == 100
     assert rows["p1"]["prompt_tokens"] == 10
-    assert sum(row["spend_usd"] for row in rows.values()) == pytest.approx(store.spend_today())
+    assert sum(row["spend_usd"] for row in rows.values()) == pytest.approx(
+        store.spend_today()
+    )
     assert result["flag_counts"]["FALLBACK_CASCADE"] == 1
 
 

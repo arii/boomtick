@@ -16,36 +16,65 @@ def providers():
 
 def disabled_providers():
     """Explicit account exclusions override credentials and cached catalog rows."""
-    disabled = {item.strip().lower() for item in os.environ.get("TWT_DISABLED_PROVIDERS", "").split(",") if item.strip()}
+    disabled = {
+        item.strip().lower()
+        for item in os.environ.get("TWT_DISABLED_PROVIDERS", "").split(",")
+        if item.strip()
+    }
     unknown = disabled - {p["id"] for p in providers()}
     if unknown:
-        raise ValueError("Unknown TWT_DISABLED_PROVIDERS: " + ", ".join(sorted(unknown)))
+        raise ValueError(
+            "Unknown TWT_DISABLED_PROVIDERS: " + ", ".join(sorted(unknown))
+        )
     return disabled
 
 
 def configured_providers():
     model = os.environ.get("TWT_OLLAMA_MODEL")
     if model:
-        return [{"id": "ollama", "base_url": f"{OLLAMA_URL}/v1", "local_model": model,
-                 "strict": True, "trains_on_free_tier": False}]
+        return [
+            {
+                "id": "ollama",
+                "base_url": f"{OLLAMA_URL}/v1",
+                "local_model": model,
+                "strict": True,
+                "trains_on_free_tier": False,
+            }
+        ]
     return providers()
 
 
 def catalog_models(store, configuration):
     disabled = disabled_providers()
-    local_model = next((p["local_model"] for p in configuration if "local_model" in p), None)
+    local_model = next(
+        (p["local_model"] for p in configuration if "local_model" in p), None
+    )
     if local_model:
-        return [m for m in store.models() if m["provider"] == "ollama" and m["id"] == local_model]
-    return [m for m in store.models() if m["provider"] != "ollama" and m["provider"] not in disabled]
+        return [
+            m
+            for m in store.models()
+            if m["provider"] == "ollama" and m["id"] == local_model
+        ]
+    return [
+        m
+        for m in store.models()
+        if m["provider"] != "ollama" and m["provider"] not in disabled
+    ]
 
 
 def missing(provider):
     keys = [provider["key_env"]] if "key_env" in provider else []
-    return [key for key in [*keys, *provider.get("required_env", [])] if not os.environ.get(key)]
+    return [
+        key
+        for key in [*keys, *provider.get("required_env", [])]
+        if not os.environ.get(key)
+    ]
 
 
 def base_url(provider):
-    return provider["base_url"].replace("{account_id}", os.environ.get("CLOUDFLARE_ACCOUNT_ID", ""))
+    return provider["base_url"].replace(
+        "{account_id}", os.environ.get("CLOUDFLARE_ACCOUNT_ID", "")
+    )
 
 
 def headers(provider):
@@ -64,7 +93,11 @@ def number(value):
 
 def output_cap(provider, row, metadata, reference, prices):
     known = provider.get("models", {}).get(row["id"], {})
-    selected = [known.get("max_output_tokens"), row.get("max_output_tokens"), metadata.get("max_output_tokens")]
+    selected = [
+        known.get("max_output_tokens"),
+        row.get("max_output_tokens"),
+        metadata.get("max_output_tokens"),
+    ]
     router_cap = (reference.get("top_provider") or {}).get("max_completion_tokens")
     if provider["id"] == "openrouter":
         selected.append(router_cap)
@@ -75,7 +108,10 @@ def output_cap(provider, row, metadata, reference, prices):
     for key, info in prices.items():
         if key == row["id"] or key.partition("/")[2] == row["id"]:
             alternatives.append(info.get("max_output_tokens"))
-    return max((value for value in alternatives if type(value) is int and value > 0), default=None)
+    return max(
+        (value for value in alternatives if type(value) is int and value > 0),
+        default=None,
+    )
 
 
 def normalize(provider, row, prices, router):
@@ -100,8 +136,11 @@ def normalize(provider, row, prices, router):
         input_price = number(metadata.get("input_cost_per_token"))
     if output_price is None:
         output_price = number(metadata.get("output_cost_per_token"))
-    free = known.get("free", False) or (provider["id"] == "openrouter" and
-            number(pricing.get("prompt")) == 0 and number(pricing.get("completion")) == 0)
+    free = known.get("free", False) or (
+        provider["id"] == "openrouter"
+        and number(pricing.get("prompt")) == 0
+        and number(pricing.get("completion")) == 0
+    )
     if provider.get("free_prototyping"):
         free = True
     chat = known.get("chat", "text" in outputs if outputs else mode == "chat")
@@ -112,20 +151,33 @@ def normalize(provider, row, prices, router):
     else:
         tools = known.get("tools", metadata.get("supports_function_calling") is True)
         json_mode = known.get("json", metadata.get("supports_response_schema") is True)
-        json_schema = known.get("json_schema", metadata.get("supports_response_schema") is True)
+        json_schema = known.get(
+            "json_schema", metadata.get("supports_response_schema") is True
+        )
     default_rpm = provider.get("rpm")
     if provider["id"] == "openrouter" and not model_id.endswith(":free"):
         default_rpm = None
     rpm = known.get("rpm", default_rpm)
-    context_length = known.get("context_length") or reference.get("context_length") or metadata.get("max_input_tokens")
+    context_length = (
+        known.get("context_length")
+        or reference.get("context_length")
+        or metadata.get("max_input_tokens")
+    )
     return {
-        "provider": provider["id"], "id": model_id, "chat": chat,
-        "tools": tools, "json": json_mode, "json_schema": json_schema,
+        "provider": provider["id"],
+        "id": model_id,
+        "chat": chat,
+        "tools": tools,
+        "json": json_mode,
+        "json_schema": json_schema,
         "context_length": context_length,
         "max_output_tokens": output_cap(provider, row, metadata, reference, prices),
-        "input_price": 0.0 if free else input_price, "output_price": 0.0 if free else output_price,
-        "free": free, "rpm": rpm,
-        "daily": known.get("daily"), "synced_source": provider.get("models_url") or base_url(provider) + "/models",
+        "input_price": 0.0 if free else input_price,
+        "output_price": 0.0 if free else output_price,
+        "free": free,
+        "rpm": rpm,
+        "daily": known.get("daily"),
+        "synced_source": provider.get("models_url") or base_url(provider) + "/models",
         "metadata_source": OPENROUTER_URL if reference else PRICE_URL,
         "price_source": OPENROUTER_URL if provider["id"] == "openrouter" else PRICE_URL,
     }
@@ -160,7 +212,11 @@ async def ollama_running_context(client, model):
         if not isinstance(row, dict) or not isinstance(row.get("model"), str):
             continue
         context = row.get("context_length")
-        if ollama_model_name(row["model"]) == name and type(context) is int and context > 0:
+        if (
+            ollama_model_name(row["model"]) == name
+            and type(context) is int
+            and context > 0
+        ):
             return context
     return None
 
@@ -172,28 +228,59 @@ async def sync_ollama(store, client, model):
     response.raise_for_status()
     details = response.json()
     capabilities = details.get("capabilities") if isinstance(details, dict) else None
-    if (not isinstance(capabilities, list) or "completion" not in capabilities
-            or details.get("remote_model") or details.get("remote_host")):
-        raise ValueError(f"Ollama model {model!r} must be an installed local chat model")
+    if (
+        not isinstance(capabilities, list)
+        or "completion" not in capabilities
+        or details.get("remote_model")
+        or details.get("remote_host")
+    ):
+        raise ValueError(
+            f"Ollama model {model!r} must be an installed local chat model"
+        )
     info = details.get("model_info")
     architecture = info.get("general.architecture") if isinstance(info, dict) else None
-    context = info.get(f"{architecture}.context_length") if isinstance(architecture, str) else None
-    store.replace_models("ollama", [{
-        "provider": "ollama", "id": model, "chat": True, "tools": "tools" in capabilities,
-        "json": False, "json_schema": False,
-        "context_length": context if type(context) is int and context > 0 else None,
-        "input_price": 0.0, "output_price": 0.0, "free": True, "rpm": None, "daily": None,
-        "synced_source": source, "metadata_source": source, "price_source": "local",
-    }])
+    context = (
+        info.get(f"{architecture}.context_length")
+        if isinstance(architecture, str)
+        else None
+    )
+    store.replace_models(
+        "ollama",
+        [
+            {
+                "provider": "ollama",
+                "id": model,
+                "chat": True,
+                "tools": "tools" in capabilities,
+                "json": False,
+                "json_schema": False,
+                "context_length": context
+                if type(context) is int and context > 0
+                else None,
+                "input_price": 0.0,
+                "output_price": 0.0,
+                "free": True,
+                "rpm": None,
+                "daily": None,
+                "synced_source": source,
+                "metadata_source": source,
+                "price_source": "local",
+            }
+        ],
+    )
     return ["ollama: synced 1 model"]
 
 
 async def sync(store, client=None, configuration=None):
     disabled = disabled_providers()
     configuration = configured_providers() if configuration is None else configuration
-    local_model = next((p["local_model"] for p in configuration if "local_model" in p), None)
+    local_model = next(
+        (p["local_model"] for p in configuration if "local_model" in p), None
+    )
     owned = client is None
-    client = client or httpx.AsyncClient(timeout=60, follow_redirects=not local_model, trust_env=not local_model)
+    client = client or httpx.AsyncClient(
+        timeout=60, follow_redirects=not local_model, trust_env=not local_model
+    )
     messages = []
     try:
         if local_model:
@@ -215,30 +302,43 @@ async def sync(store, client=None, configuration=None):
             if provider["id"] == "openrouter":
                 rows = router_rows
             elif absent and not provider.get("public_models"):
-                messages.append(f"{provider['id']}: SKIPPED missing {', '.join(absent)}")
+                messages.append(
+                    f"{provider['id']}: SKIPPED missing {', '.join(absent)}"
+                )
                 continue
             elif provider.get("discovery_blocked"):
                 if provider.get("models"):
                     rows = [{"id": m} for m in provider["models"]]
                 else:
-                    messages.append(f"{provider['id']}: BLOCKED {provider['discovery_blocked']}")
+                    messages.append(
+                        f"{provider['id']}: BLOCKED {provider['discovery_blocked']}"
+                    )
                     continue
             else:
                 try:
-                    response = await client.get(provider.get("models_url") or base_url(provider) + "/models",
-                                                headers={} if absent else headers(provider))
+                    response = await client.get(
+                        provider.get("models_url") or base_url(provider) + "/models",
+                        headers={} if absent else headers(provider),
+                    )
                     response.raise_for_status()
                     rows = response.json()["data"]
-                    if not isinstance(rows, list) or any(not isinstance(r, dict) or not isinstance(r.get("id"), str) for r in rows):
+                    if not isinstance(rows, list) or any(
+                        not isinstance(r, dict) or not isinstance(r.get("id"), str)
+                        for r in rows
+                    ):
                         raise ValueError("Invalid model list")
                 except (httpx.HTTPError, KeyError, ValueError):
-                    messages.append(f"{provider['id']}: FAILED model listing; cached rows retained")
+                    messages.append(
+                        f"{provider['id']}: FAILED model listing; cached rows retained"
+                    )
                     continue
             models = [normalize(provider, row, prices, router) for row in rows]
             store.replace_models(provider["id"], models)
             messages.append(f"{provider['id']}: synced {len(models)} models")
             if absent:
-                messages.append(f"{provider['id']}: inference SKIPPED missing {', '.join(absent)}")
+                messages.append(
+                    f"{provider['id']}: inference SKIPPED missing {', '.join(absent)}"
+                )
         return messages
     finally:
         if owned:
