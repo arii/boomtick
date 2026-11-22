@@ -120,10 +120,13 @@ prices come only from that provider's LiteLLM entry, never another provider's
 OpenRouter marketplace price. Missing capabilities remain
 unknown/unsupported. `response_format.type=json_schema` needs schema support.
 
-After any HTTP 5xx (including 503 and 529) the provider/model gets an
-`overload cooldown`: `Retry-After` seconds when sent, else 30, capped at 300.
+After HTTP 502, 503, 504 or 529 the provider/model gets an
+`overload cooldown`: `Retry-After` seconds when sent, else 30, capped at 300
+(an unparseable `Retry-After` counts as 60, as for 429). Other 5xx such as 500
+set no cooldown, because one bad request can cause them.
 Later requests skip it with that reason instead of calling again; free models
-are not waited for. Paid cost of the failed attempt stays unknown, never zero.
+are not waited for. Ranking ignores cooldowns, so a cooled cheapest provider
+still appears first in the trace as a no-call attempt. Paid cost of the failed attempt stays unknown, never zero.
 Paid transport timeouts set no cooldown.
 
 429, 5xx and timeouts fall through; connection failures and malformed chat

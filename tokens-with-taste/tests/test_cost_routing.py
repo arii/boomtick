@@ -79,15 +79,21 @@ def test_budget_still_skips_paid_after_reorder(store, monkeypatch):
     assert hosts == [] and status == 503
 
 
-@pytest.mark.parametrize("body", [{"model": "chat"}, {"model": "p1/chat"}, {"provider_models": {"p0": "chat"}}])
-def test_exact_model_and_provider_models_unchanged(store, monkeypatch, body):
+@pytest.mark.parametrize("body", [{"model": "chat"}, {"model": "p1/chat"}])
+def test_exact_model_unchanged(store, monkeypatch, body):
     configuration = setup(store, monkeypatch, count=2)
     price(store, "p0", 9e-6, 9e-6)
     price(store, "p1", 1e-6, 1e-6)
     hosts, _ = hosts_for(store, configuration, {**REQUEST, **body})
-    if body.get("model") == "chat":
-        assert hosts == ["p1.test", "p0.test"]
-    elif body.get("model") == "p1/chat":
-        assert hosts == ["p1.test"]
-    else:
-        assert hosts == ["p1.test", "p0.test"]
+    assert hosts == (["p1.test"] if body["model"] == "p1/chat" else ["p1.test", "p0.test"])
+
+
+def test_provider_models_restricts_ranking_to_selected_model(store, monkeypatch):
+    configuration = setup(store, monkeypatch, count=2)
+    p0 = next(m for m in store.models() if m["provider"] == "p0")
+    store.replace_models("p0", [{**p0, "input_price": 9e-6, "output_price": 9e-6},
+                                {**p0, "id": "cheap", "input_price": 1e-7, "output_price": 1e-7}])
+    price(store, "p1", 1e-6, 1e-6)
+    assert hosts_for(store, configuration)[0] == ["p0.test", "p1.test"]
+    body = {**REQUEST, "provider_models": {"p0": "chat"}}
+    assert hosts_for(store, configuration, body)[0] == ["p1.test", "p0.test"]

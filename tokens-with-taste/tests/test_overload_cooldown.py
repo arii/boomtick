@@ -97,3 +97,33 @@ def test_overload_does_not_make_paid_cost_zero_or_retry_in_request(store, monkey
     second = store.trace(results[1][2]["X-Trace-Id"])
     assert results[1][1] == 503 and second["billing_status"] == "none"
     assert "overload cooldown" in results[1][0]["error"]["message"]
+
+
+@pytest.mark.parametrize("status", [500, 501])
+def test_request_specific_5xx_sets_no_cooldown(store, monkeypatch, status):
+    configuration = setup(store, monkeypatch)
+    hosts = []
+
+    def handler(request):
+        hosts.append(request.url.host)
+        if request.url.host == "p0.test":
+            return httpx.Response(status, json={})
+        return httpx.Response(200, json=reply())
+
+    session(store, configuration, handler, Clock(2))
+    assert hosts == ["p0.test", "p1.test", "p0.test", "p1.test"]
+
+
+@pytest.mark.parametrize("status", [502, 504])
+def test_gateway_unavailable_statuses_set_cooldown(store, monkeypatch, status):
+    configuration = setup(store, monkeypatch)
+    hosts = []
+
+    def handler(request):
+        hosts.append(request.url.host)
+        if request.url.host == "p0.test":
+            return httpx.Response(status, json={})
+        return httpx.Response(200, json=reply())
+
+    session(store, configuration, handler, Clock(2))
+    assert hosts == ["p0.test", "p1.test", "p1.test"]

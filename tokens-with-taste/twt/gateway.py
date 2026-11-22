@@ -53,6 +53,8 @@ def retry_seconds(value):
 
 
 OVERLOAD_STATUSES = (503, 529)
+# 5xx statuses that signal provider unavailability. A 500 or 501 can come from one bad request, so it sets no cooldown.
+OVERLOAD_COOLDOWN_STATUSES = (502, 503, 504, 529)
 OVERLOAD_COOLDOWN_DEFAULT_SECONDS = 30
 OVERLOAD_COOLDOWN_MAX_SECONDS = 300
 # Blended USD per token used only to order paid models: input-heavy agent traffic.
@@ -71,7 +73,7 @@ def model_rank(model):
 
 
 def overload_cooldown(response):
-    """Bounded cooldown seconds after a 5xx: Retry-After when sent, else a short default, capped."""
+    """Bounded cooldown seconds after an overload status: Retry-After when sent, else a short default, capped."""
     if response.headers.get("Retry-After") is None:
         return OVERLOAD_COOLDOWN_DEFAULT_SECONDS
     return min(OVERLOAD_COOLDOWN_MAX_SECONDS, retry_seconds(response.headers["Retry-After"]))
@@ -350,7 +352,7 @@ class Gateway:
                     if model["free"] and key not in retried:
                         retried.add(key)
                         pending.appendleft(provider)
-                if response.status_code >= 500:
+                if response.status_code in OVERLOAD_COOLDOWN_STATUSES:
                     self.overload_cooldowns[key] = max(self.overload_cooldowns.get(key, 0), self.clock() + overload_cooldown(response))
                 if response.status_code == 429 or response.status_code >= 500:
                     attempt["reason"] = f"upstream HTTP {response.status_code}"
