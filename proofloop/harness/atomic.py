@@ -19,10 +19,7 @@ def atomic_write_text(path, text):
             os.fsync(f.fileno())
         os.replace(tmp, p)
     except BaseException:
-        try:
-            os.unlink(tmp)
-        except FileNotFoundError:
-            pass
+        Path(tmp).unlink(missing_ok=True)
         raise
 
 

@@ -195,8 +195,8 @@ class Handler(BaseHTTPRequestHandler):
             print(f"request failed: {type(e).__name__}", file=sys.stderr, flush=True)
             try:
                 self._send(500, {"error": f"server state unreadable ({type(e).__name__}); check PROOFLOOP_STATE files"})
-            except OSError:
-                pass
+            except OSError as send_err:
+                print(f"could not send error response: {type(send_err).__name__}", file=sys.stderr, flush=True)
 
     def _get(self):
         if not self._authorized():

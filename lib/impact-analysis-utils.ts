@@ -5,8 +5,6 @@ import { IMPACT_CONFIG } from '../scripts/impact-analysis.config';
 import { mapPageToUrls } from '../scripts/impact-review-utils';
 import { loadProjectConfig } from './projectConfig';
 
-const getAllRoutes = (): { stubs: string[] } => ({ stubs: [] });
-
 // Types for dependency-cruiser output
 export interface Dependency {
   resolved: string;
@@ -395,7 +393,8 @@ export function resolveAffectedUrls(
   staticAffected: string[]
 ): string[] {
   const pageComponentFiles = Object.keys(dynamicRouteMapping);
-  const authoritativeSitemapUrls = getAllRoutes().stubs || [];
+  // No sitemap source is wired up, so route filtering below always sees an empty list.
+  const authoritativeSitemapUrls: string[] = [];
   const hasGlobalImpact = staticAffected.some(f => IMPACT_CONFIG.GLOBAL_TRIGGERS.includes(f));
 
   const affectedPages = allAffected.filter(f =>
