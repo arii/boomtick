@@ -7,7 +7,11 @@ import pytest
 from test_gateway import REQUEST, reply, setup
 from test_overload_billing import OBSERVED_529
 
-from twt.gateway import OVERLOAD_COOLDOWN_DEFAULT_SECONDS, OVERLOAD_COOLDOWN_MAX_SECONDS, Gateway
+from twt.gateway import (
+    OVERLOAD_COOLDOWN_DEFAULT_SECONDS,
+    OVERLOAD_COOLDOWN_MAX_SECONDS,
+    Gateway,
+)
 
 
 def session(store, configuration, handler, clock):
@@ -47,9 +51,14 @@ def test_second_request_skips_overloaded_paid_model(store, monkeypatch):
     second = store.trace(results[1][2]["X-Trace-Id"])
     assert second["attempts"][0]["reason"] == "overload cooldown"
     assert second["attempts"][0]["called"] is False
-    assert second["billing_status"] == "complete" and results[1][2]["X-Cost-Usd"] != "unknown"
+    assert (
+        second["billing_status"] == "complete"
+        and results[1][2]["X-Cost-Usd"] != "unknown"
+    )
     first = store.trace(results[0][2]["X-Trace-Id"])
-    assert first["billing_status"] == "unknown_paid_attempt" and first["cost_usd"] is None
+    assert (
+        first["billing_status"] == "unknown_paid_attempt" and first["cost_usd"] is None
+    )
 
 
 def test_cooldown_expires_after_default_window(store, monkeypatch):
@@ -67,7 +76,9 @@ def test_cooldown_expires_after_default_window(store, monkeypatch):
     assert hosts == ["p0.test", "p1.test", "p1.test", "p0.test"]
 
 
-@pytest.mark.parametrize("retry_after,window", [("120", 120), ("999999", OVERLOAD_COOLDOWN_MAX_SECONDS)])
+@pytest.mark.parametrize(
+    "retry_after,window", [("120", 120), ("999999", OVERLOAD_COOLDOWN_MAX_SECONDS)]
+)
 def test_retry_after_is_honored_and_capped(store, monkeypatch, retry_after, window):
     configuration = setup(store, monkeypatch)
     hosts = []
@@ -75,7 +86,9 @@ def test_retry_after_is_honored_and_capped(store, monkeypatch, retry_after, wind
     def handler(request):
         hosts.append(request.url.host)
         if request.url.host == "p0.test" and len(hosts) == 1:
-            return httpx.Response(529, json=OBSERVED_529, headers={"Retry-After": retry_after})
+            return httpx.Response(
+                529, json=OBSERVED_529, headers={"Retry-After": retry_after}
+            )
         return httpx.Response(200, json=reply())
 
     clock = Clock(3, step=window - 1)
