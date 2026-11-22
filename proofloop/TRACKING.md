@@ -15,6 +15,11 @@ Last updated: 2026-11-20 02:55 PM PT (by Kiro). Started the assistant rebuild in
 - PR #1350 and #1351 merged into feat/proofloop (not main). A PR from feat/proofloop to main is not open; decide after the live checks.
 
 ## Current status (latest)
+- **2026-11-22.**
+  - Tabs permission: dropped, and the test pins the exact list. Still consistent on main.
+  - Remote backend: `PROOFLOOP_ALLOWED_HOSTS` (exact host:port values) lets the extension reach a non-loopback backend. `extension/test/remote_backend_check.cjs` ran it on 169.254.255.194 as `http://pl-backend.test:8797`: the pill went from "backend unavailable" to "1 rule", then "1 conflict".
+  - Observer reconnect: a page opened while the backend was down now recovers without a reload. On live luma.com the observer from main never recovered (30 s timeout); the fix recovered in 10 s.
+  - Task 4: still on HOLD until the Nebius loop promotes.
 - **2026-11-21, while on HOLD (no new extension scope).**
   - Observer fix `9e7aec6`: warnings are keyed by field element, not position. An e2e step reproduces the old bug: a dismissed warning came back after the page inserted a field above it. Live Luma (past-event prompt, then the form) and live Vouch (dropdown mount) pass with dismissals kept. The old observer also passed those two live pages, so the bug is not triggered there today.
   - Senso confirmation `0a06fd5`: the page names why a node could not be confirmed (read error, wrong text, hash mismatch) and retries failures after 30 s.
