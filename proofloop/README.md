@@ -54,7 +54,13 @@ PROOFLOOP_EXTENSION_ID=<id from chrome://extensions> python3 server.py 8787   # 
 
 ### Backend not on this machine
 
-The extension talks to `http://127.0.0.1:8787` by default. If the backend runs elsewhere (a container or a remote host), forward its port so it still appears at that address. The "Backend URL" extension option accepts another URL, but the server only accepts requests whose Host is `127.0.0.1:<server port>` or `localhost:<server port>`, so a URL with a different host or port is rejected with 403 unless something in between rewrites Host.
+The extension talks to `http://127.0.0.1:8787` by default. If the backend runs elsewhere, either forward its port so it still appears at that address (below), or reach it by name:
+
+1. Start the server with `PROOFLOOP_BIND_HOST=<interface address>` and `PROOFLOOP_ALLOWED_HOSTS=<host>:<port>`. The value is a comma-separated list of exact `host:port` Host values, such as `proofloop.lan:8787`. Entries without a port, with a scheme or with wildcards are ignored.
+2. In the extension settings, set Backend URL to `http://<host>:<port>`, the same host and port as in the list. Any path is dropped. Save asks for permission to reach that host.
+3. Paste that backend's `state/server_token`, save, and reload watched pages.
+
+`extension/test/remote_backend_check.cjs` runs this flow against a non-loopback address. Without `PROOFLOOP_ALLOWED_HOSTS`, the server accepts only Host `127.0.0.1:<port>` or `localhost:<port>`, so another name gets 403.
 
 - SSH: `ssh -L 8787:127.0.0.1:8787 <host>` (the server stays on the remote loopback).
 - Docker: publish to loopback only, `-p 127.0.0.1:8787:8787`, and start the server in the container with `PROOFLOOP_BIND_HOST=0.0.0.0` so the published port can reach it.

@@ -12,7 +12,8 @@
   const send = (m) => chrome.runtime.sendMessage(m).catch((e) => ({ ok: false, error: String(e && e.message || e) }));
 
   const vocabRes = await send({ type: "tasks" });
-  const vocab = vocabRes && vocabRes.ok ? vocabRes.data : { tasks: [] };
+  let vocabOk = !!(vocabRes && vocabRes.ok);
+  let vocab = vocabOk ? vocabRes.data : { tasks: [] };
   const prefsRes = await send({ type: "settings" });
   const prefs = prefsRes && prefsRes.ok ? prefsRes : { hold_submit: true, cross_tab: false, paused: false };
   // Terminal pages (ttyd/xterm, e.g. 127.0.0.1:8082): pill only, never inline markers over the prompt.
@@ -276,10 +277,37 @@
     if (task !== S.task) {
       S.task = task;
       S.res = await send({ type: "assist", task });
-      if (!S.res.ok) S.error = S.res.error;
+      // Live only when the vocabulary loaded and /assist answered from the backend (not from the offline cache).
+      if (vocabOk && S.res.ok && S.res.live !== false) { S.error = ""; retry.delay = RETRY_MIN; }
+      else { if (!S.res.ok) S.error = S.res.error; else if (!vocabOk) S.error = "task list unavailable"; scheduleRetry(); }
     }
     await poll(true);
   }
+
+  // ------------------------------------------------------------------ reconnect when the backend was unreachable
+  // Without this, a page opened while the backend was down (or restarting) kept "backend unavailable" until reload:
+  // the task list was fetched once and /assist was only re-asked when the task changed. Retries come only from this
+  // timer (backoff 5 s to 60 s) or from the tab becoming visible, never from DOM changes, so a down backend is not flooded.
+  const RETRY_MIN = 5000, RETRY_MAX = 60000;
+  const retry = { delay: RETRY_MIN, timer: 0 };
+  function scheduleRetry() {
+    if (retry.timer) return;
+    retry.timer = setTimeout(() => { retry.timer = 0; reconnect(); }, retry.delay);
+    retry.delay = Math.min(retry.delay * 2, RETRY_MAX);
+  }
+  async function reconnect() {
+    if (!vocabOk) {
+      const v = await send({ type: "tasks" });
+      if (v && v.ok) { vocab = v.data; vocabOk = true; }
+    }
+    S.task = null; // re-classify with the (possibly new) task list and ask /assist again
+    await scan();
+  }
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible" && (S.error || !vocabOk || (S.res && S.res.live === false))) {
+      clearTimeout(retry.timer); retry.timer = 0; reconnect();
+    }
+  });
   const refresh = () => poll(true);
 
   // ------------------------------------------------------------------ submit hold (optional, once per attempt)

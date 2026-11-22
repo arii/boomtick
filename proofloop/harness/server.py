@@ -2,7 +2,8 @@
 """Loopback backend. Never accepts credentials.
 
 Every API route needs `Authorization: Bearer <token>` (per-run token, see main()) plus a Host
-and Origin that pass the loopback / extension-ID check. A request with no Origin header (curl,
+(127.0.0.1 or localhost on the server port, or an exact PROOFLOOP_ALLOWED_HOSTS entry) and an Origin that passes
+the loopback / extension-ID check. A request with no Origin header (curl,
 local scripts) is therefore rejected unless it carries the token.
 
 GET /augment and /ledger expose loop state for the dashboard. GET /skill describes the promoted rule
@@ -139,6 +140,31 @@ def record_feedback(body):
     return True, ""
 
 
+HOST_RE = re.compile(r"^[a-z0-9]([a-z0-9.-]{0,251}[a-z0-9])?:[0-9]{1,5}$|^\[[0-9a-f:]+\]:[0-9]{1,5}$")
+
+
+def allowed_hosts_from_env():
+    """Extra Host header values accepted besides 127.0.0.1:<port> and localhost:<port>.
+
+    PROOFLOOP_ALLOWED_HOSTS is a comma-separated list of exact host:port values (for example
+    "proofloop.lan:8787,192.168.1.20:8787"), for a backend reached by another name or address. Entries without a
+    port, with a path or scheme, or with wildcards are ignored, so a value can never widen to "any host" and DNS
+    rebinding stays blocked for every name that is not listed."""
+    out = []
+    for raw in os.environ.get("PROOFLOOP_ALLOWED_HOSTS", "").split(","):
+        h = raw.strip().lower()
+        if h and HOST_RE.match(h):
+            out.append(h)
+    return out
+
+
+def host_allowed(host, port):
+    if not isinstance(host, str):
+        return False
+    h = host.strip().lower()
+    return h in (f"127.0.0.1:{port}", f"localhost:{port}") or h in allowed_hosts_from_env()
+
+
 def bind_host_from_env():
     """Loopback unless PROOFLOOP_BIND_HOST is set (e.g. 0.0.0.0 inside a container whose port is published to loopback)."""
     return os.environ.get("PROOFLOOP_BIND_HOST", "").strip() or "127.0.0.1"
@@ -159,7 +185,7 @@ def bind_warning(host):
 class Handler(BaseHTTPRequestHandler):
     def _authorized(self):
         port = self.server.server_port
-        if self.headers.get("Host") not in (f"127.0.0.1:{port}", f"localhost:{port}"):
+        if not host_allowed(self.headers.get("Host"), port):
             return False
         origin = self.headers.get("Origin")
         ok = origin is None or allowed_origin(origin, port)
@@ -299,5 +325,9 @@ if __name__ == "__main__":
     print(f"ProofLoop backend on http://{bind_host}:{port}")
     if not is_loopback_host(bind_host):
         print(bind_warning(bind_host), file=sys.stderr, flush=True)
+    extra = allowed_hosts_from_env()
+    if extra:
+        print(f"Also accepting Host: {', '.join(extra)} (PROOFLOOP_ALLOWED_HOSTS). Requests still need the token and an allowed Origin.",
+              file=sys.stderr, flush=True)
     print(f"API token written to {token_file} (mode 600). Paste it into the extension options page.")
     HTTPServer((bind_host, port), Handler).serve_forever()
