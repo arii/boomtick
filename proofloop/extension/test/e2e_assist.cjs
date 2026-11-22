@@ -288,6 +288,23 @@ const overlaps = (a, b) => Math.min(a.right, b.right) > Math.max(a.left, b.left)
       await p.close();
     });
 
+    await step('backend unreachable at page load, then started: the open page recovers without a reload', async () => {
+      // Backend is still down from the previous step. Drop the cache so nothing can be served from it.
+      await sw.evaluate(() => chrome.storage.local.remove('assist_cache'));
+      const p = await open(url('luma.com', '/personalagenthack'));
+      const down = await waitFor(async () => { const x = await ui(p); return x && x.pill && x; });
+      assert.match(down.pill, /backend unavailable/);
+      backend = startBackend(id);
+      await up();
+      const live = await waitFor(async () => { const x = await ui(p); return x && /rule/.test(x.pill || '') && x; }, 25000)
+        .catch(async (e) => { console.error('pill after backend start:', (await ui(p)).pill); throw e; });
+      assert.match(live.pill, /2 rules/);
+      await p.fill(city, 'San Jose');
+      await waitFor(async () => (await ui(p)).chips.length === 1);
+      await p.close();
+      backend.kill(); await new Promise((r) => backend.once('exit', r));
+    });
+
     await step('markup in a rule message renders as text', async () => {
       const evil = JSON.parse(JSON.stringify(RULES));
       evil.page_rules[0].message = '<img src=x onerror="window.__pwned=1"><b>bold</b> San Jose';

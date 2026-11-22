@@ -77,7 +77,7 @@ const noCover = (u) => { if (u.pillRect) for (const x of u.controls) assert.ok(!
     fs.writeFileSync(path.join(priv, 'values.json'), JSON.stringify({ '[PHONE-FAMILY]': FAMILY, '[PHONE-PRO]': '415-555-0142' }));
     Object.assign(env, { PROOFLOOP_STATE: state, PROOFLOOP_PRIVATE_DIR: priv, PROOFLOOP_LIVE_SERVICES: '' });
   }
-  const backend = spawn('python3', [path.join(root, 'harness/server.py'), '8787'], { env, stdio: 'ignore' });
+  let backend = spawn('python3', [path.join(root, 'harness/server.py'), '8787'], { env, stdio: 'ignore' });
   await waitFor(async () => { try { return (await fetch('http://127.0.0.1:8787/')).ok; } catch { return false; } });
   const skill = await fetch('http://127.0.0.1:8787/skill', { headers: { Authorization: `Bearer ${TOKEN}` } });
   if (skill.status !== 200) { console.error(`BLOCKED: no promoted rule set in PROOFLOOP_STATE (GET /skill -> ${skill.status}). Run replay_loop.py first, or pass --test-rules.`); backend.kill(); process.exit(2); }
@@ -163,7 +163,29 @@ const noCover = (u) => { if (u.pillRect) for (const x of u.controls) assert.ok(!
     assert.match(u.pill, /1 conflict/, 'only the phone conflict remains');
     await v.keyboard.press('Escape');
     await v.screenshot({ path: path.join(shots, 'vouch-two-conflicts.png') });
-    console.log(`live sites passed (${testRules ? 'test rule set' : 'your promoted rule set'}). Screenshots: ${shots}`);
+    // ---- Luma again, opened while the backend is down; the backend starts afterwards and the page must recover
+    // on its own (no reload). Nothing is typed into the live form here.
+    backend.kill(); await new Promise((r) => backend.once('exit', r));
+    await sw.evaluate(() => chrome.storage.local.remove('assist_cache'));
+    const late = await ctx.newPage();
+    await late.goto('https://luma.com/personalagenthack', { waitUntil: 'domcontentloaded' });
+    await late.getByRole('button', { name: 'Request to Join' }).first().click();
+    const proceed2 = late.getByRole('button', { name: 'Proceed' });
+    if (await proceed2.isVisible({ timeout: 3000 }).catch(() => false)) await proceed2.click();
+    await late.getByLabel(/What city are you based in/).waitFor({ timeout: 15000 });
+    // Let the observer settle on the form's task (it changes when the form mounts) before the backend starts, so a
+    // late first /assist call cannot hide a missing reconnect.
+    u = await waitFor(async () => { const x = await ui(late); return x && x.pill && x; });
+    await late.waitForTimeout(4000);
+    u = await ui(late);
+    console.log('luma, backend down at load (settled 4 s):', u.pill);
+    assert.match(u.pill, /backend unavailable/);
+    backend = spawn('python3', [path.join(root, 'harness/server.py'), '8787'], { env, stdio: 'ignore' });
+    const t0 = Date.now();
+    u = await waitFor(async () => { const x = await ui(late); return x && /rule/.test(x.pill || '') && x; }, 30000);
+    console.log(`luma, backend started after load: ${u.pill} (recovered in ${Math.round((Date.now() - t0) / 1000)} s, no reload)`);
+    await late.screenshot({ path: path.join(shots, 'luma-recovered-without-reload.png') });
+        console.log(`live sites passed (${testRules ? 'test rule set' : 'your promoted rule set'}). Screenshots: ${shots}`);
   } finally {
     await ctx.close();
     backend.kill();
