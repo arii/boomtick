@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { BoomtickMCPServer } from "./server.js";
 import { MCP_RESOURCES, MCP_RESOURCE_TEMPLATES } from "./definitions.js";
 import fs from "fs/promises";
@@ -34,6 +34,16 @@ type TestServerInstance = {
   requestHandlers?: Map<string, TestHandler>;
 };
 
+const PROVIDER_ENV = [
+  "NEBIUS_API_KEY",
+  "NEBIUS_MODEL",
+  "OLLAMA_BASE_URL",
+  "OPENROUTER_API_KEY",
+  "OPENROUTER_MODEL",
+  "WORKFLOW_LOCAL_STRUCTURED_MODEL",
+  "WORKFLOW_LOCAL_TOOL_MODEL",
+];
+
 describe("MCP resource handlers (URI consistency)", () => {
   let readHandler: TestHandler;
   let listHandler: TestHandler;
@@ -41,6 +51,8 @@ describe("MCP resource handlers (URI consistency)", () => {
 
   beforeEach(() => {
     vi.resetAllMocks();
+    // The workflow registry reads provider env at construction; isolate from the host.
+    for (const name of PROVIDER_ENV) vi.stubEnv(name, undefined);
 
     const mcpServer = new BoomtickMCPServer();
     const serverInstance = (mcpServer as unknown as { server: TestServerInstance }).server;
@@ -59,6 +71,10 @@ describe("MCP resource handlers (URI consistency)", () => {
       diff: { diffText: "mock-diff" },
       ciLogs: { logs: "mock-logs" },
     } as never);
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
   });
 
   const read = (uri: string) => readHandler({ method: "resources/read", params: { uri } });

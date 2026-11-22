@@ -1,0 +1,59 @@
+name: Packaging Smoke
+
+# security-safe: Runs only on pull_request and push to main, with read-only permissions and no secrets.
+on:
+  pull_request:
+    paths:
+      - 'cli/**'
+      - 'mcp/**'
+      - 'workflows/**'
+      - 'pnpm-lock.yaml'
+      - 'scripts/smoke-cli-install.sh'
+      - '.github/workflows/packaging-smoke.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'cli/**'
+      - 'mcp/**'
+      - 'workflows/**'
+      - 'pnpm-lock.yaml'
+      - 'scripts/smoke-cli-install.sh'
+      - '.github/workflows/packaging-smoke.yml'
+
+concurrency:
+  # security-safe: Internal identifier only, never evaluated in a shell.
+  group: packaging-smoke-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+jobs:
+  packed-mcp-install:
+    timeout-minutes: 15
+    name: Packed MCP tarball install (#1361)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Setup Workspace
+        uses: ./.github/actions/setup-workspace
+
+      - name: Install Dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Verify packed MCP tarball installs and runs
+        run: pnpm --filter @arii/boomtick-mcp run verify:packed-install
+
+  td-clean-install:
+    timeout-minutes: 15
+    name: td clean-install smoke (#1368)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: td clean-install smoke
+        timeout-minutes: 10
+        run: bash scripts/smoke-cli-install.sh

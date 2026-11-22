@@ -24,6 +24,18 @@ def _read_spec_source(file):
         return handle.read()
 
 
+def _normalize_spec_heading(text):
+    """Lowercase heading with markdown emphasis and qualifiers removed.
+
+    "Allowed Files (Create / Modify / Delete)", "Allowed Files: Modify" and
+    "**Allowed Files** - Create" all normalize to "allowed files".
+    """
+    text = text.replace("*", "").replace("`", "")
+    text = re.sub(r"\s*\([^)]*\)", "", text)
+    text = re.split(r"\s*(?::|\s[-\u2013\u2014]\s)", text, maxsplit=1)[0]
+    return text.strip().lower()
+
+
 def _spec_section_lines(body, *headings):
     """Raw lines of the first section whose heading matches."""
     wanted = {h.lower() for h in headings}
@@ -34,7 +46,7 @@ def _spec_section_lines(body, *headings):
         if match:
             if capture:
                 break
-            heading = re.sub(r"\s+\([^)]*\)$", "", match.group(1)).strip().lower()
+            heading = _normalize_spec_heading(match.group(1))
             capture = heading in wanted
             continue
         if capture:

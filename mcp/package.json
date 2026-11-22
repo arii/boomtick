@@ -28,9 +28,14 @@
     "release:major": "pnpm version major",
     "sync-contracts": "tsx scripts/sync-contracts.ts",
     "type-check": "pnpm --filter @arii/boomtick-workflows build && tsx scripts/sync-contracts.ts && tsc",
-    "lint": "pnpm --filter @arii/boomtick-workflows build && tsx scripts/sync-contracts.ts && tsc --noEmit"
+    "lint": "pnpm --filter @arii/boomtick-workflows build && tsx scripts/sync-contracts.ts && tsc --noEmit",
+    "verify:packed-install": "node scripts/verify-packed-install.mjs"
   },
   "dependencies": {
+    "@langchain/core": "^1.4.1",
+    "@langchain/langgraph": "^1.7.4",
+    "@langchain/ollama": "^1.3.0",
+    "@langchain/openai": "^1.8.4",
     "@modelcontextprotocol/sdk": "^1.32.2",
     "yaml": "^2.9.0",
     "zod": "^4.6.7"

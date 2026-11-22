@@ -81,6 +81,18 @@ importers:
 
   mcp:
     dependencies:
+      '@langchain/core':
+        specifier: ^1.4.1
+        version: 1.4.1(openai@7.57.0(undici@7.28.0)(zod@4.6.7))
+      '@langchain/langgraph':
+        specifier: ^1.7.4
+        version: 1.7.4(@langchain/core@1.4.1(openai@7.57.0(undici@7.28.0)(zod@4.6.7)))(zod@4.6.7)
+      '@langchain/ollama':
+        specifier: ^1.3.0
+        version: 1.3.0(@langchain/core@1.4.1(openai@7.57.0(undici@7.28.0)(zod@4.6.7)))
+      '@langchain/openai':
+        specifier: ^1.8.4
+        version: 1.8.4(@langchain/core@1.4.1(openai@7.57.0(undici@7.28.0)(zod@4.6.7)))(undici@7.28.0)
       '@modelcontextprotocol/sdk':
         specifier: ^1.32.2
         version: 1.32.2(@cfworker/json-schema@4.1.6)(zod@4.6.7)
