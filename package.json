@@ -8,7 +8,7 @@
     "pnpm": "10.28.2"
   },
   "scripts": {
-    "type-check": "pnpm --filter @arii/boomtick-mcp run type-check && pnpm --filter @arii/boomtick-workflows run type-check",
+    "type-check": "pnpm --filter @arii/boomtick-mcp run type-check && pnpm --filter @arii/boomtick-workflows run type-check && pnpm run type-check:ts",
     "type-check:ts": "tsc --noEmit -p tsconfig.ts.json",
     "lint:format": "python3 scripts/run-python-tool.py ruff format --check --exclude cli/dev_tools/models/contracts.py cli scripts",
     "lint": "run-p lint:* audit:fallow",
