@@ -4,6 +4,7 @@ import asyncio
 
 import httpx
 from test_gateway import reply, run, setup
+
 from twt.gateway import create_app
 
 # Payload observed in the #1359 proof (trace ccd938b2-91f3-4076-aa0d-cf93a9c71ba1).

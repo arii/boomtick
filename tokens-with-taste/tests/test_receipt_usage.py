@@ -6,6 +6,7 @@ import json
 import httpx
 import pytest
 from test_gateway import reply, run, setup
+
 from twt.audit import report
 from twt.gateway import create_app
 
