@@ -52,11 +52,15 @@ def retry_seconds(value):
             return 60
 
 
+OVERLOAD_STATUSES = (503, 529)
+
+
 def trace_headers(trace):
     return {
         "X-Trace-Id": trace["trace_id"], "X-Provider-Used": trace["provider"] or "none",
         "X-Cost-Usd": str(trace["cost_usd"]) if trace["cost_usd"] is not None else "unknown",
         "X-Audit-Flags": ",".join(trace["flags"]),
+        "X-Billing-Status": trace.get("billing_status", "unknown"),
     }
 
 
@@ -351,6 +355,16 @@ class Gateway:
         trace["known_cost_usd"] = sum(a["cost_usd"] for a in called if a["cost_usd"] is not None)
         trace["cost_complete"] = (bool(called) or trace["http_status"] == 499) and all(a["cost_usd"] is not None for a in called)
         trace["cost_usd"] = trace["known_cost_usd"] if trace["cost_complete"] else None
+        # An overloaded paid attempt (e.g. Nebius HTTP 529) reports no usage; the
+        # provider's billing for it is unknown, so it stays unknown, never zero.
+        trace["billing_status"] = "complete" if trace["cost_complete"] else "unknown_paid_attempt"
+        trace["overloaded_attempts"] = [
+            {"provider": a["provider"], "model": a["model"], "http_status": a["http_status"],
+             "cost_known": a["cost_usd"] is not None}
+            for a in called if a["http_status"] in OVERLOAD_STATUSES]
+        if trace["http_status"] == 502 and trace["overloaded_attempts"] and isinstance(response_payload.get("error"), dict):
+            response_payload["error"]["billing_status"] = trace["billing_status"]
+            response_payload["error"]["overloaded_attempts"] = trace["overloaded_attempts"]
         reserves = [a["cost_usd"] if a["cost_usd"] is not None else a.get("cost_upper_bound_usd") for a in called]
         if called and not trace["cost_complete"] and all(value is not None for value in reserves):
             trace.update(cost_upper_bound_usd=sum(reserves), cost_basis="upper_bound")
@@ -432,7 +446,7 @@ def create_app(store=None, client=None, configuration=None):
                 continue
             receipt = {key: trace.get(key) for key in (
                 "trace_id", "provider", "model", "cost_usd", "cost_complete", "prompt_tokens", "completion_tokens", "http_status",
-                "cost_upper_bound_usd", "cost_basis"
+                "cost_upper_bound_usd", "cost_basis", "billing_status", "overloaded_attempts"
             )}
             # Receipt tokens cover every dispatched attempt, not just the
             # successful reply. Keep response-level trace usage unchanged for
