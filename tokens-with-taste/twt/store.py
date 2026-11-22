@@ -12,7 +12,9 @@ def now():
 
 class Store:
     def __init__(self, path=None):
-        self.path = Path(path or os.environ.get("TWT_DB", "~/.local/share/twt/catalog.sqlite3")).expanduser()
+        self.path = Path(
+            path or os.environ.get("TWT_DB", "~/.local/share/twt/catalog.sqlite3")
+        ).expanduser()
         self.path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
         self.db = sqlite3.connect(self.path, check_same_thread=False)
         self.db.row_factory = sqlite3.Row
@@ -36,12 +38,16 @@ class Store:
     def replace_models(self, provider, models):
         with self.db:
             self.db.execute("DELETE FROM models WHERE provider=?", (provider,))
-            self.db.executemany("INSERT INTO models VALUES (?, ?, ?)", [
-                (provider, m["id"], json.dumps(m)) for m in models
-            ])
+            self.db.executemany(
+                "INSERT INTO models VALUES (?, ?, ?)",
+                [(provider, m["id"], json.dumps(m)) for m in models],
+            )
 
     def models(self):
-        return [json.loads(r[0]) for r in self.db.execute("SELECT data FROM models ORDER BY provider,id")]
+        return [
+            json.loads(r[0])
+            for r in self.db.execute("SELECT data FROM models ORDER BY provider,id")
+        ]
 
     def reserve_trace(self, trace_id):
         with self.db:
@@ -57,19 +63,32 @@ class Store:
 
     def save_trace(self, trace):
         with self.db:
-            self.db.execute("INSERT INTO traces VALUES (?, ?, ?)",
-                            (trace["trace_id"], trace["timestamp"], json.dumps(trace)))
-            self.db.executemany("INSERT INTO attempts VALUES (?, ?, ?)", [
-                (trace["trace_id"], i, json.dumps(a)) for i, a in enumerate(trace["attempts"])
-            ])
-            self.db.execute("DELETE FROM trace_reservations WHERE id=?", (trace["trace_id"],))
+            self.db.execute(
+                "INSERT INTO traces VALUES (?, ?, ?)",
+                (trace["trace_id"], trace["timestamp"], json.dumps(trace)),
+            )
+            self.db.executemany(
+                "INSERT INTO attempts VALUES (?, ?, ?)",
+                [
+                    (trace["trace_id"], i, json.dumps(a))
+                    for i, a in enumerate(trace["attempts"])
+                ],
+            )
+            self.db.execute(
+                "DELETE FROM trace_reservations WHERE id=?", (trace["trace_id"],)
+            )
 
     def traces(self, since=None):
-        rows = self.db.execute("SELECT data FROM traces WHERE timestamp >= ? ORDER BY timestamp", (since or "",))
+        rows = self.db.execute(
+            "SELECT data FROM traces WHERE timestamp >= ? ORDER BY timestamp",
+            (since or "",),
+        )
         return [json.loads(r[0]) for r in rows]
 
     def trace(self, trace_id):
-        row = self.db.execute("SELECT data FROM traces WHERE id=?", (trace_id,)).fetchone()
+        row = self.db.execute(
+            "SELECT data FROM traces WHERE id=?", (trace_id,)
+        ).fetchone()
         return json.loads(row[0]) if row else None
 
     def spend_today(self):
@@ -83,7 +102,11 @@ class Store:
                 cost = attempt["cost_usd"]
                 if cost is None and attempt.get("cost_basis") == "upper_bound":
                     cost = attempt.get("cost_upper_bound_usd")
-                if type(cost) not in (int, float) or not math.isfinite(cost) or cost < 0:
+                if (
+                    type(cost) not in (int, float)
+                    or not math.isfinite(cost)
+                    or cost < 0
+                ):
                     cost = math.inf
                 total += cost
         return total
@@ -94,7 +117,10 @@ class Store:
         repeated = False
         with self.db:
             for signature in signatures:
-                cursor = self.db.execute("INSERT OR IGNORE INTO tool_calls VALUES (?, ?)", (session, signature))
+                cursor = self.db.execute(
+                    "INSERT OR IGNORE INTO tool_calls VALUES (?, ?)",
+                    (session, signature),
+                )
                 repeated |= cursor.rowcount == 0
         return repeated
 
