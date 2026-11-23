@@ -34,9 +34,14 @@ def ux():
 @click.pass_context
 def ux_audit(ctx, route, all_routes, desktop, mobile):
     orch = ctx.obj["ORCHESTRATOR"]
-    res = orch.run_ux_audit(
-        route=route, all_routes=all_routes, desktop=desktop, mobile=mobile
-    )
+    try:
+        res = orch.run_ux_audit(
+            route=route, all_routes=all_routes, desktop=desktop, mobile=mobile
+        )
+    except Exception as exc:
+        _handle_unexpected_error(ctx, "ux audit", exc)
+    if res.get("status") == "error":
+        err(ctx, "UX audit found failures", data=res)
     out(ctx, "UX Audit complete.", data=res)
 
 
