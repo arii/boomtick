@@ -30,11 +30,10 @@
     "impact:build-main": "tsx scripts/impact-build-main.ts",
     "build:review": "tsup",
     "impact:gemini-code-review": "tsx scripts/impact-ai-code-review.ts gemini",
-    "impact:github-models-code-review": "tsx scripts/impact-ai-code-review.ts github-models",
+    "review:dry-run": "tsx scripts/review-dry-run.ts",
     "impact:visual-diff": "tsx scripts/impact-visual-diff.ts",
     "impact:dom-diff": "tsx scripts/impact-dom-diff.ts",
     "impact:gemini-review": "tsx scripts/impact-ai-review.ts gemini",
-    "impact:github-models-review": "tsx scripts/impact-ai-review.ts github-models",
     "test:proofloop": "python3 -m unittest discover -s proofloop/harness/tests -v && node proofloop/harness/tests/test_background.cjs && node proofloop/harness/tests/test_assist.cjs && node proofloop/extension/test/assist_eval.cjs",
     "test:proofloop:e2e": "node proofloop/extension/test/e2e_assist.cjs",
     "test:proofloop:live": "node proofloop/extension/test/live_sites.cjs"

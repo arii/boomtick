@@ -28,6 +28,16 @@ export async function writeVerdictJson(verdictPath: string, data: any): Promise<
   await fs.promises.writeFile(resolvedPath, JSON.stringify(data, null, 2));
 }
 
+/**
+ * Verdict for exits that skip a fresh review: an earlier review that left open HIGH/error findings
+ * must not be turned into a pass just because this run did not look at the code.
+ */
+export function deriveVerdictFromPrevState(prevState: any): 'pass' | 'fail' {
+  const findings: Array<{ status?: string; severity?: string }> = Array.isArray(prevState?.findings) ? prevState.findings : [];
+  const hasOpenHigh = findings.some(f => f.status === 'open' && (f.severity === 'HIGH' || f.severity === 'error'));
+  return hasOpenHigh ? 'fail' : 'pass';
+}
+
 export async function writeGracefulExitVerdict(
   reportFileName: string,
   artifactsDir: string,
@@ -41,7 +51,7 @@ export async function writeGracefulExitVerdict(
     passed: true,
     highCount: 0,
     routes: [],
-    llmVerdict: 'pass',
+    llmVerdict: deriveVerdictFromPrevState(prevState),
     isTruncated,
     skipReason,
     state: prevState || { findings: [] }
@@ -69,7 +79,7 @@ export async function checkReviewQuota(
       passed: true,
       highCount: 0,
       routes: [],
-      llmVerdict: 'pass',
+      llmVerdict: deriveVerdictFromPrevState(prevState),
       state: prevState || { findings: [] }
     });
     return true; // Quota met, skip review
