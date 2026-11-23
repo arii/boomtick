@@ -1,5 +1,5 @@
 {
-  "_comment": "Expected values produced by scripts/ledger_intake.py (arii/remote-server PR #1608) normalize(), dedupe_hash() and intake_id() under CPython 3.11.15, Unicode 14.0.0. Regenerate with Python, never by hand.",
+  "_comment": "Expected values produced by scripts/ledger_intake.py (arii/remote-server PR #1608) normalize(), dedupe_hash() and intake_id() under CPython 3.11.15, Unicode 14.0.0. Inputs use only code points assigned in Unicode 14 (checked by apps-script/agent-ledger-hook/check_unicode_parity.py). Regenerate with Python, never by hand.",
   "vectors": [
     {
       "title": "Check queue",

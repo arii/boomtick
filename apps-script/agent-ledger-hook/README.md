@@ -13,7 +13,7 @@ Done when: A failed run shows "failed" with the run time on Now within one refre
 Out of scope: No new panels, badges or text beyond the status word.
 ```
 
-`Problem:` and `Done when:` must each have a nonempty value, on the same line or following lines. `Out of scope:` is optional. Use these exact field names at the start of a line. A missing or empty required field creates no issue and posts one `Later` response naming the missing field(s); resubmitting the same source/note does not repeat that response. The issue body includes all three sections and retains the original submission as untrusted text. Only Ariel adds `ready`, and the S5 queue works only `ready` issues. Step-by-step instructions, including what not to file, are in the [`agent-ledger-intake` skill](../../.agents/skills/agent-ledger-intake/SKILL.md).
+Five fields are required, everywhere (`missing_fields`, issue creation and the skill): `title`, `repo`, `problem`, `scope` and `done_when`. `title` and `repo` come from the first line (the form has no separate title or repo columns, so the parsed `[issue] <repo>: <title>` prefix is the source). The note sections map as `Problem:` to `problem`, `Out of scope:` to `scope` and `Done when:` to `done_when`. Each must have a nonempty value, on the same line or following lines. Use these exact section names at the start of a line. A missing or empty required field creates no issue and posts one `Later` response naming the missing field(s); resubmitting the same source/note does not repeat that response. Behavior change: `Out of scope:` used to be optional and now blocks issue creation like `Problem:` and `Done when:` (write `Out of scope: None.` if nothing is excluded). The issue body includes all three sections and retains the original submission as untrusted text. Only Ariel adds `ready`, and the S5 queue works only `ready` issues. Step-by-step instructions, including what not to file, are in the [`agent-ledger-intake` skill](../../.agents/skills/agent-ledger-intake/SKILL.md).
 
 ## Intake columns
 
@@ -23,14 +23,22 @@ For every eligible submission, `onFormSubmit` writes four values on the submitte
 | --- | --- |
 | `intake_id` | `ledger-intake-` plus the first 24 hex characters of `dedupe_hash` |
 | `dedupe_hash` | SHA-256 hex (64 characters) of `normalize(title) + "\n" + normalize(repo)`, UTF-8 |
-| `missing_fields` | Comma-separated required fields that are empty, in order: `problem`, `done_when`. Empty when complete |
+| `missing_fields` | Comma-separated required fields that are empty, in the canonical order `title`, `repo`, `problem`, `scope`, `done_when`. Empty when complete |
 | `status` | `NEW`, `NEEDS_INFO` or `DUPLICATE` |
 
-`title` is the text after `[issue] <repo>:` and `repo` is the full `arii/<repo>` form (for example `arii/remote-server`). Callers computing the same hash elsewhere must pass the same full form. `normalize` matches `normalize()` in `scripts/ledger_intake.py` in `arii/remote-server`: NFKC, strip, Unicode full case fold, then each whitespace run becomes one space. The JS casefold is `toLowerCase()` per code point plus a table of the full folds Python applies that `toLowerCase()` does not (for example `ß` to `ss`, final sigma `ς` to `σ`, Cherokee to uppercase). `tests/fixtures/agent-ledger/intake-hash-vectors.json` holds Python-generated vectors that the unit test checks.
+`title` is the text after `[issue] <repo>:` and `repo` is the full `arii/<repo>` form (for example `arii/remote-server`) in the record, the hash and everywhere else. Callers computing the same hash elsewhere must pass the same full form. `normalize` matches `normalize()` in `scripts/ledger_intake.py` in `arii/remote-server`: NFKC, strip, Unicode full case fold, then each whitespace run becomes one space. The JS casefold is `toLowerCase()` per code point plus a table of the full folds Python applies that `toLowerCase()` does not (for example `ß` to `ss`, final sigma `ς` to `σ`, Cherokee to uppercase). `tests/fixtures/agent-ledger/intake-hash-vectors.json` holds Python-generated vectors that the unit test checks.
+
+The reference is Python 3.11 (Unicode 14.0.0). The vectors use only code points assigned in Unicode 14, and the casefold table above was generated under that version. When the Python or Apps Script (V8) runtime is upgraded, re-run the full code-point check, which compares `normalize()` in `Code.gs` with Python on every assigned code point and re-checks the vectors:
+
+```sh
+python3.11 apps-script/agent-ledger-hook/check_unicode_parity.py
+```
+
+It exits 1 on any difference or on an unassigned code point in the vectors. Fix differences by extending the casefold table, not by changing the reference.
 
 Submit writes only three statuses:
 
-- `NEEDS_INFO`: `Problem` or `Done when` is empty (the same fields that block issue creation).
+- `NEEDS_INFO`: any of the five required fields is empty (the same list that blocks issue creation).
 - `DUPLICATE`: an earlier submission with the same `dedupe_hash` already has a filed issue. This status does not change issue creation, which still uses the dedup key below, so a reworded note with the same title is marked `DUPLICATE` and still files an issue.
 - `NEW`: complete and not a duplicate.
 
@@ -58,7 +66,7 @@ Submit never writes `READY` or `DISPATCHED`. Only Ariel makes work ready, and th
 
 Submit via the Form, not by editing a Sheet row: take an allowlisted source and use `Act` with the complete shape above and a unique smoke-test title. Check that one issue with `ledger-intake` and `insight` (not `ready`) is created, and that a `Done` response appears in the Sheet with the issue URL. Submit the same data again and verify no second issue is created. Only use test data suitable for a public issue.
 
-Also submit a unique note missing `Problem:` or `Done when:` and check that no issue is created and exactly one `Later` response names the missing field. Repeat it to check that the response is not duplicated. Repeat with an empty required value. These checks require deploying this script version first.
+Also submit a unique note missing `Problem:`, `Out of scope:` or `Done when:` and check that no issue is created and exactly one `Later` response names the missing field. Repeat it to check that the response is not duplicated. Repeat with an empty required value. These checks require deploying this script version first.
 
 If the issue was created but the `Done` response failed, resubmit the same data to retry the response without opening another issue.
 
