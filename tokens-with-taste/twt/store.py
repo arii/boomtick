@@ -22,6 +22,9 @@ class Store:
             CREATE TABLE IF NOT EXISTS models (
                 provider TEXT NOT NULL, id TEXT NOT NULL, data TEXT NOT NULL,
                 PRIMARY KEY(provider, id));
+            CREATE TABLE IF NOT EXISTS retired_models (
+                provider TEXT NOT NULL, id TEXT NOT NULL, retired_at TEXT NOT NULL,
+                PRIMARY KEY(provider, id));
             CREATE TABLE IF NOT EXISTS traces (
                 id TEXT PRIMARY KEY, timestamp TEXT NOT NULL, data TEXT NOT NULL);
             CREATE TABLE IF NOT EXISTS trace_reservations (id TEXT PRIMARY KEY);
@@ -41,6 +44,32 @@ class Store:
             self.db.executemany(
                 "INSERT INTO models VALUES (?, ?, ?)",
                 [(provider, m["id"], json.dumps(m)) for m in models],
+            )
+
+    def retire_model(self, provider, model_id):
+        """Record an upstream HTTP 410 so syncs keep the model out of the catalog."""
+        with self.db:
+            self.db.execute(
+                "INSERT OR REPLACE INTO retired_models VALUES (?, ?, ?)",
+                (provider, model_id, now()),
+            )
+            self.db.execute(
+                "DELETE FROM models WHERE provider=? AND id=?", (provider, model_id)
+            )
+
+    def retired_models(self, provider):
+        return {
+            r[0]
+            for r in self.db.execute(
+                "SELECT id FROM retired_models WHERE provider=?", (provider,)
+            )
+        }
+
+    def unretire_models(self, provider, model_ids):
+        with self.db:
+            self.db.executemany(
+                "DELETE FROM retired_models WHERE provider=? AND id=?",
+                [(provider, i) for i in model_ids],
             )
 
     def models(self):

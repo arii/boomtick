@@ -199,13 +199,65 @@ def test_cloudflare_static_models_sync(store, monkeypatch):
             return await sync(store, client)
 
     messages = asyncio.run(scenario())
-    assert "cloudflare: synced 4 models" in messages
+    assert "cloudflare: synced 3 models" in messages
     cf_models = [m for m in store.models() if m["provider"] == "cloudflare"]
-    assert len(cf_models) == 4
+    assert len(cf_models) == 3
     assert retired not in {model["id"] for model in cf_models}
+    assert "@cf/meta/llama-3.2-1b-instruct" not in {m["id"] for m in cf_models}
     assert all(
         m["free"] and m["chat"] and m["context_length"] == 8192 for m in cf_models
     )
+
+
+def test_sync_keeps_410_retired_static_model_out_across_syncs(store, monkeypatch):
+    monkeypatch.setenv("CLOUDFLARE_API_TOKEN", "mock-token")
+    monkeypatch.setenv("CLOUDFLARE_ACCOUNT_ID", "mock-account")
+    retired = "@cf/meta/llama-3.2-3b-instruct"
+
+    def handler(request):
+        if str(request.url) == PRICE_URL:
+            return httpx.Response(200, json={})
+        return httpx.Response(200, json={"data": []})
+
+    async def scenario():
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+            await sync(store, client)
+            store.retire_model("cloudflare", retired)
+            return [await sync(store, client), await sync(store, client)]
+
+    messages = asyncio.run(scenario())
+    assert all("cloudflare: synced 2 models" in m for m in messages)
+    ids = {m["id"] for m in store.models() if m["provider"] == "cloudflare"}
+    assert retired not in ids and len(ids) == 2
+
+
+def test_sync_reinstates_retired_model_only_when_provider_lists_it(store, monkeypatch):
+    configuration = setup(store, monkeypatch, 1)
+    configuration[0]["map_prefix"] = "p0"
+    store.retire_model("p0", "m-old")
+    listed = [{"id": "m-new"}]
+
+    def handler(request):
+        if str(request.url) == PRICE_URL:
+            return httpx.Response(200, json={})
+        if str(request.url) == OPENROUTER_URL:
+            return httpx.Response(200, json={"data": []})
+        return httpx.Response(200, json={"data": listed})
+
+    async def scenario():
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+            await sync(store, client, configuration)
+            first = {m["id"] for m in store.models() if m["provider"] == "p0"}
+            listed.append({"id": "m-old"})
+            await sync(store, client, configuration)
+            return first
+
+    first = asyncio.run(scenario())
+    assert first == {"m-new"}
+    assert {m["id"] for m in store.models() if m["provider"] == "p0"} == {
+        "m-new",
+        "m-old",
+    }
 
 
 def test_sync_failure_retains_catalog_and_empty_list_clears(store, monkeypatch):

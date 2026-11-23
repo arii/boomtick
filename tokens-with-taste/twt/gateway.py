@@ -776,6 +776,8 @@ class Gateway:
                 if response.status_code == 429 or response.status_code >= 500:
                     attempt["reason"] = f"upstream HTTP {response.status_code}"
                     continue
+                if response.status_code == 410:
+                    self.store.retire_model(*key)
                 if response.status_code in MODEL_UNAVAILABLE_STATUSES:
                     self.unavailable_cooldowns[key] = (
                         self.clock() + MODEL_UNAVAILABLE_COOLDOWN_SECONDS

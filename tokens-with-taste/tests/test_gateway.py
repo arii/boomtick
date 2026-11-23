@@ -229,7 +229,34 @@ def test_failover(store, monkeypatch, failure):
     assert "test-only-placeholder" not in json.dumps(trace)
 
 
-@pytest.mark.parametrize("upstream_status", [404, 410])
+def test_410_retires_model_so_it_stops_routing(store, monkeypatch):
+    configuration = setup(store, monkeypatch)
+    sent = []
+    clock = 1000
+
+    def handler(request):
+        sent.append(request.url.host)
+        if request.url.host == "p0.test":
+            return httpx.Response(410, json={"error": {"message": "Model retired"}})
+        return httpx.Response(200, json=reply())
+
+    async def scenario():
+        nonlocal clock
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+            gateway = Gateway(store, client, configuration, clock=lambda: clock)
+            await gateway.complete(REQUEST)
+            # Past the in-memory cooldown: only the retirement keeps it out.
+            clock += 301
+            return await gateway.complete(REQUEST)
+
+    _, status, headers = asyncio.run(scenario())
+    assert status == 200 and headers["X-Provider-Used"] == "p1"
+    assert sent == ["p0.test", "p1.test", "p1.test"]
+    assert "p0" not in {m["provider"] for m in store.models()}
+    assert store.retired_models("p0")
+
+
+@pytest.mark.parametrize("upstream_status", [404])
 def test_unavailable_model_is_temporarily_skipped(store, monkeypatch, upstream_status):
     configuration = setup(store, monkeypatch)
     sent = []
