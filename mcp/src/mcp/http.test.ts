@@ -158,7 +158,7 @@ describe("createMcpHttpServer", () => {
     expect(after.status).toBe(200);
   });
 
-  it("isolates concurrent SDK clients and removes closed sessions", async () => {
+  it.each([false, true])("isolates concurrent SDK clients and removes closed sessions (reverse connections: %s)", async (reverseConnections) => {
     const servers: Server[] = [];
     const serverClosed: Promise<void>[] = [];
     httpServerObj = createMcpHttpServer({
@@ -173,7 +173,8 @@ describe("createMcpHttpServer", () => {
     });
     port = await httpServerObj.listen();
     const clients = [1, 2].map((id) => new Client({ name: `client-${id}`, version: "1.0.0" }));
-    const transports = clients.map(() => new SSEClientTransport(new URL(`http://localhost:${port}/sse`), {
+    const clientSessionIds: string[] = [];
+    const transports = clients.map((_, index) => new SSEClientTransport(new URL(`http://localhost:${port}/sse`), {
       eventSourceInit: {
         fetch: (url, init) => fetch(url, {
           ...init,
@@ -181,25 +182,38 @@ describe("createMcpHttpServer", () => {
         }),
       },
       requestInit: { headers: { Authorization: "Bearer secret123" } },
+      fetch: (url, init) => {
+        const session = new URL(String(url)).searchParams.get("sessionId");
+        if (session) clientSessionIds[index] = session;
+        return fetch(url, init);
+      },
     }));
     try {
-      await Promise.all(clients.map((client, index) => client.connect(transports[index])));
+      if (reverseConnections) {
+        await clients[1].connect(transports[1]);
+        await clients[0].connect(transports[0]);
+      } else {
+        await Promise.all(clients.map((client, index) => client.connect(transports[index])));
+      }
       const results = await Promise.all(clients.map((client) => client.listTools()));
       expect(results[0].tools.length).toBeGreaterThan(0);
       expect(results[1].tools).toEqual(results[0].tools);
       expect(servers).toHaveLength(2);
       expect(servers[0]).not.toBe(servers[1]);
-      const sessionId = (servers[0].transport as SSEServerTransport).sessionId;
+      const sessionId = clientSessionIds[0];
       expect(sessionId).toBeTruthy();
+      const serverIndex = servers.findIndex(server =>
+        (server.transport as SSEServerTransport).sessionId === sessionId);
+      expect(serverIndex).toBeGreaterThanOrEqual(0);
       await clients[0].close();
       // Wait for the server to observe the closed SSE socket instead of polling with the 1s default.
       await Promise.race([
-        serverClosed[0],
+        serverClosed[serverIndex],
         new Promise<never>((_, reject) => {
           setTimeout(() => reject(new Error("server did not close the session within 10s of client close")), 10_000).unref();
         }),
       ]);
-      expect(servers[0].transport).toBeUndefined();
+      expect(servers[serverIndex].transport).toBeUndefined();
       const expired = await fetch(`http://localhost:${port}/messages?sessionId=${sessionId}`, {
         method: "POST",
         headers: { Authorization: "Bearer secret123", "Content-Type": "application/json" },
