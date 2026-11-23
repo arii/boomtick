@@ -4,7 +4,7 @@ This Sheet-bound Apps Script files issues on `arii` repositories from explicitly
 
 ## Filing a task (for agents)
 
-Agents file work with one Form response: Agent / Source set to an allowlisted name, Status `Act`, and an Item / Note shaped like this:
+Agents file work with one Form response via BoomTick's `scripts/agent_ledger.py post`: Agent / Source set to an allowlisted name, Status `Act`, and an Item / Note shaped like this:
 
 ```text
 [issue] remote-server: Show queue errors on the Now view
@@ -42,7 +42,7 @@ Submit writes only three statuses:
 - `DUPLICATE`: an earlier submission with the same `dedupe_hash` already has a filed issue. This status does not change issue creation, which still uses the dedup key below, so a reworded note with the same title is marked `DUPLICATE` and still files an issue.
 - `NEW`: complete and not a duplicate.
 
-Submit never writes `READY` or `DISPATCHED`. Only Ariel makes work ready, and the queue sets `DISPATCHED`. The queue should select only rows whose `status` is `READY`.
+The hook never writes `READY` or `DISPATCHED`. The S5 queue takes work from open GitHub issues with the `ready` label, not from Sheet status values. Only Ariel adds that label.
 
 ## Install
 
@@ -64,9 +64,9 @@ Submit never writes `READY` or `DISPATCHED`. Only Ariel makes work ready, and th
 
 ## Live verification
 
-Submit via the Form, not by editing a Sheet row: take an allowlisted source and use `Act` with the complete shape above and a unique smoke-test title. Check that one issue with `ledger-intake` and `insight` (not `ready`) is created, and that a `Done` response appears in the Sheet with the issue URL. Submit the same data again and verify no second issue is created. Only use test data suitable for a public issue.
+Required-field source merged in [#1394](https://github.com/arii/boomtick/pull/1394). Revision [`9d85425`](https://github.com/arii/boomtick/commit/9d85425f59712851aa048a453e5473c8ad7c5577) was deployed to the Sheet-bound hook. The [live evidence](https://github.com/arii/boomtick/issues/1402#issuecomment-7100215675) shows a valid submission created one issue (no `ready` label) and one `Done` row, and a whitespace-only `Done when:` created no issue and one named `Later` row.
 
-Also submit a unique note missing `Problem:`, `Out of scope:` or `Done when:` and check that no issue is created and exactly one `Later` response names the missing field. Repeat it to check that the response is not duplicated. Repeat with an empty required value. These checks require deploying this script version first.
+Full live acceptance is still open in [#1402](https://github.com/arii/boomtick/issues/1402): other missing and blank cases, rejected replay, duplicate rejection and the UTC cap. Only an authorized live check should submit through the Form; use data suitable for a public issue. A Sheet edit or a local test does not exercise the live trigger.
 
 If the issue was created but the `Done` response failed, resubmit the same data to retry the response without opening another issue.
 
