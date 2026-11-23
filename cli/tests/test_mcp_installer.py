@@ -58,17 +58,22 @@ def test_gemini_user_scope_token_reference(tmp_path, monkeypatch):
     from pathlib import Path
     from dev_tools.handlers import mcp_installer
 
-    assert mcp_installer.HOST_CONFIG_MAP["gemini"] == [Path.home() / ".gemini" / "settings.json"]
+    assert mcp_installer.HOST_CONFIG_MAP["gemini"] == [
+        Path.home() / ".gemini" / "settings.json"
+    ]
     config_file = tmp_path / ".gemini" / "settings.json"
     config_file.parent.mkdir()
-    config_file.write_text(json.dumps({"theme": "dark", "mcpServers": {"other": {"command": "other"}}}))
+    config_file.write_text(
+        json.dumps({"theme": "dark", "mcpServers": {"other": {"command": "other"}}})
+    )
     monkeypatch.setitem(mcp_installer.HOST_CONFIG_MAP, "gemini", [config_file])
     monkeypatch.setenv("GITHUB_TOKEN", "fixture-must-not-be-saved")
     result = detect_and_install_mcp(hosts=["gemini"], dry_run=False)
     assert result["results"][0]["status"] == "updated"
     data = json.loads(config_file.read_text())
     assert data["mcpServers"]["boomtick"] == {
-        "command": "boomtick-mcp", "env": {"GITHUB_TOKEN": "$GITHUB_TOKEN"}
+        "command": "boomtick-mcp",
+        "env": {"GITHUB_TOKEN": "$GITHUB_TOKEN"},
     }
     assert data["mcpServers"]["other"] == {"command": "other"}
     assert data["theme"] == "dark"
@@ -86,7 +91,8 @@ def test_gemini_dry_run_and_custom_entry_do_not_mutate_defaults(tmp_path, monkey
     assert not config_file.exists()
     detect_and_install_mcp(hosts=["gemini"], target_config=entry, dry_run=False)
     assert json.loads(config_file.read_text())["mcpServers"]["boomtick"]["env"] == {
-        "GITHUB_TOKEN": "$GITHUB_TOKEN", "EXTRA": "$EXTRA"
+        "GITHUB_TOKEN": "$GITHUB_TOKEN",
+        "EXTRA": "$EXTRA",
     }
     assert entry == {"command": "custom", "env": {"EXTRA": "$EXTRA"}}
     assert mcp_installer.DEFAULT_MCP_CONFIG == {"command": "boomtick-mcp"}
