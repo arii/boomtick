@@ -77,15 +77,20 @@ automatic trace deletion or redaction.
 
 ## Routing, limits and costs
 
-Hosted order: **Google, Groq, NVIDIA, Mistral, OpenRouter, SambaNova,
-Cloudflare, Nebius**. Google, Groq, NVIDIA, OpenRouter, SambaNova and
+Configured provider order: **Google, Groq, NVIDIA, Mistral, OpenRouter,
+SambaNova, Cloudflare, Nebius**. It is the tie-break for the cost ordering below. Google, Groq, NVIDIA, OpenRouter, SambaNova and
 Cloudflare select only verified free-eligible models by default. Mistral is
 metered and requires API billing access; free Studio/playground access does
-not provide API access. Nebius is also a paid fallback. This fixed order is
-not a global free-before-paid guarantee. Unknown free-tier
+not provide API access. Nebius is also a paid fallback. Unknown free-tier
 eligibility is not assumed. Explicit model requests may select a paid model.
 Within a provider, selection is deterministic: free first, then lowest known
-input price, then ID. One matching model is attempted per provider.
+blended price, then input price, then ID. One matching model is attempted per
+provider. Across providers that can be called, attempts are ordered free first
+(in configured provider order), then paid by that provider's best blended price
+(`0.8 * input + 0.2 * output` per token), then providers whose paid price is
+unknown. Ties keep configured order. Providers skipped without a call (disabled,
+missing credentials, strict privacy, no eligible model) keep their configured
+position, so their skip reasons appear in the same place in the trace.
 
 For accounts without access to a provider, set `TWT_DISABLED_PROVIDERS` to a
 comma-separated list of provider IDs, for example `TWT_DISABLED_PROVIDERS=mistral`.
@@ -114,6 +119,15 @@ provider/model entries for capabilities; no fuzzy name matching. Non-OpenRouter
 prices come only from that provider's LiteLLM entry, never another provider's
 OpenRouter marketplace price. Missing capabilities remain
 unknown/unsupported. `response_format.type=json_schema` needs schema support.
+
+After HTTP 502, 503, 504 or 529 the provider/model gets an
+`overload cooldown`: `Retry-After` seconds when sent, else 30, capped at 300
+(an unparseable `Retry-After` counts as 60, as for 429). Other 5xx such as 500
+set no cooldown, because one bad request can cause them.
+Later requests skip it with that reason instead of calling again; free models
+are not waited for. Ranking ignores cooldowns, so a cooled cheapest provider
+still appears first in the trace as a no-call attempt. Paid cost of the failed attempt stays unknown, never zero.
+Paid transport timeouts set no cooldown.
 
 429, 5xx and timeouts fall through; connection failures and malformed chat
 responses also fall through. Other upstream 4xx stop and are returned.

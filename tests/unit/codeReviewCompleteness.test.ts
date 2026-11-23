@@ -130,11 +130,11 @@ describe('code review completeness', () => {
     expect(Object.keys(verdict().state.cache)).toHaveLength(4);
   });
 
-  it('throws on a substantive fail after preserving its report and verdict', async () => {
+  it('records a substantive fail in the verdict without throwing (fail-on-verdict gate decides)', async () => {
     client.invokeReview.mockResolvedValue({ ...clean(), llmVerdict: 'fail', state: { findings: [
       { id: '1', file: 'src/file.ts', issue: 'fixture', status: 'open', severity: 'HIGH', confidence: 'high' },
     ] } });
-    await expect(orchestrateCodeReview(client)).rejects.toThrow('Code review returned FAIL');
+    await expect(orchestrateCodeReview(client)).resolves.toBeUndefined();
     expect(verdict()).toMatchObject({ passed: false, llmVerdict: 'fail' });
   });
 
@@ -144,7 +144,7 @@ describe('code review completeness', () => {
     result.llmVerdict = 'fail';
     result.findings = [{ id: 'top', file: 'src/file.ts', issue: 'actual parsed finding', status: 'open', severity: 'HIGH', confidence: 'high' }];
     client.invokeReview.mockResolvedValue(result);
-    await expect(orchestrateCodeReview(client)).rejects.toThrow('Code review returned FAIL');
+    await expect(orchestrateCodeReview(client)).resolves.toBeUndefined();
     expect(verdict().state.findings).toContainEqual(expect.objectContaining({ id: 'top', status: 'open' }));
   });
 

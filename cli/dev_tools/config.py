@@ -60,11 +60,9 @@ class ProjectConfig:
     )
     audit_check_dirs: List[str] = field(
         default_factory=lambda: [
-            "src/features",
-            "src/pages",
-            "src/components",
-            "src/layouts",
-            "src/App.tsx",
+            "cli",
+            ".github/workflows",
+            ".npmrc",
         ]
     )
     cli_alias: str = "td"

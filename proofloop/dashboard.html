@@ -1,0 +1,54 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>ProofLoop dashboard</title>
+<style>
+  body{font:14px system-ui,sans-serif;margin:24px;color:#1b1f24}
+  table{border-collapse:collapse;width:100%;margin-top:12px}
+  th,td{border:1px solid #d0d7de;padding:6px 10px;text-align:left;vertical-align:top}
+  th{background:#f6f8fa}
+  .promoted{color:#1a7f37;font-weight:600}.rejected,.promotion_failed{color:#cf222e;font-weight:600}.held,.invalid_proposal{color:#9a6700}
+  .badge{display:inline-block;background:#fff8c5;border:1px solid #d4a72c;border-radius:10px;padding:1px 8px;margin:2px 4px 2px 0;font-size:12px}
+  pre{background:#f6f8fa;padding:6px;margin:0;white-space:pre-wrap}
+</style>
+<h1>ProofLoop</h1>
+<p>Scores are mean pass rates of real LLM answers on replayed past sessions (train and holdout splits). A measured result on this suite, not a guarantee.</p>
+<p>Open as <code>http://127.0.0.1:8787/#token=&lt;contents of state/server_token&gt;</code>.</p>
+<div id="svc"></div>
+<p id="error" role="alert"></p>
+<h2 id="head"></h2>
+<table><thead><tr>
+  <th>Cycle</th><th>Version</th><th>Parent</th><th>Train</th><th>Holdout</th><th>Gate</th><th>Recall</th><th>LLM</th><th>Senso node</th><th>Status</th><th>Diff</th>
+</tr></thead><tbody></tbody></table>
+<h2>Active prompt (rewritten after each promotion)</h2>
+<p id="promptmeta"></p>
+<button id="copyprompt" hidden>Copy prompt</button>
+<pre id="prompt"></pre>
+<script>
+const H={headers:{Authorization:'Bearer '+(new URLSearchParams(location.hash.slice(1)).get('token')||'')}};
+const text=(v)=>v===null||v===undefined?'-':String(v);
+fetch('/augment',H).then(r=>{if(!r.ok) throw new Error(r.status===403?'Token missing or wrong: open this page as /#token=...':'Backend error '+r.status);return r.json()}).then(d=>{
+  for(const s of Object.values(d.services||{})){const b=document.createElement('span');b.className='badge';b.textContent=s.label+' ('+s.mode+')';document.getElementById('svc').append(b)}
+  if(d.legacy_state) throw new Error('Ledger is from an older version. Use a new PROOFLOOP_STATE directory or --reset.');
+  const sc=d.scores||{};
+  document.getElementById('head').textContent=`Active ${d.active_version||'v0'}: train ${text(sc.train)}, holdout ${text(sc.holdout)}`+(d.stop?` (${d.stop})`:'');
+  const tb=document.querySelector('tbody');
+  for(const e of d.history){
+    const tr=document.createElement('tr');
+    const g=e.gate||{};
+    const cells=[e.cycle,e.version,e.parent_version,text((e.scores||{}).train),text((e.scores||{}).holdout),
+      g.choice?`${g.choice}: ${g.reason}`:(g.reason||'-'),`${e.recall.mode}${e.recall.queries?` (${e.recall.queries} queries)`:''}`,
+      e.llm.backend,(e.senso||{}).node_id||'-'];
+    for(const c of cells){const td=document.createElement('td');td.textContent=text(c);tr.appendChild(td)}
+    const st=document.createElement('td');st.textContent=e.status;st.className=e.status;tr.appendChild(st);
+    const td=document.createElement('td');const p=document.createElement('pre');p.textContent=e.diff||'';td.appendChild(p);tr.appendChild(td);
+    tb.appendChild(tr);
+  }
+}).catch(error=>{document.getElementById('error').textContent=error.message;});
+fetch('/prompt',H).then(r=>r.ok?r.json():null).then(p=>{
+  if(!p){document.getElementById('promptmeta').textContent='No active prompt yet. Run replay_loop.py.';return}
+  document.getElementById('promptmeta').textContent=`Rule set ${p.version||'?'}, sha256 ${p.sha256.slice(0,12)}.`;
+  document.getElementById('prompt').textContent=p.text;
+  const b=document.getElementById('copyprompt');b.hidden=false;
+  b.onclick=()=>navigator.clipboard.writeText(p.text).then(()=>{b.textContent='Copied'});
+});
+</script>

@@ -18,14 +18,26 @@ def configure(store, monkeypatch):
     old = store.models()
     for index, name in enumerate(("mistral", "groq")):
         config[index]["id"] = name
-        store.replace_models(name, [{**old[index], "provider": name, "free": True,
-                                     "input_price": 0, "output_price": 0}])
+        store.replace_models(
+            name,
+            [
+                {
+                    **old[index],
+                    "provider": name,
+                    "free": True,
+                    "input_price": 0,
+                    "output_price": 0,
+                }
+            ],
+        )
     monkeypatch.setenv("TWT_DISABLED_PROVIDERS", " MISTRAL, mistral, ")
     return config
 
 
 @pytest.mark.parametrize("selection", ["default", "mistral/chat", "pinned"])
-def test_exclusion_beats_stale_key_cached_model_and_explicit_selection(store, monkeypatch, selection):
+def test_exclusion_beats_stale_key_cached_model_and_explicit_selection(
+    store, monkeypatch, selection
+):
     config = configure(store, monkeypatch)
     sent = []
 
@@ -43,7 +55,9 @@ def test_exclusion_beats_stale_key_cached_model_and_explicit_selection(store, mo
     trace = store.trace(headers["X-Trace-Id"])
     assert trace["attempts"][0]["reason"] == "disabled by account policy"
     assert trace["attempts"][0]["called"] is False
-    assert any(m["provider"] == "mistral" for m in store.models())  # No destructive cache edit.
+    assert any(
+        m["provider"] == "mistral" for m in store.models()
+    )  # No destructive cache edit.
     assert all(m["provider"] != "mistral" for m in catalog_models(store, config))
 
 
@@ -56,7 +70,9 @@ def test_sync_does_not_contact_disabled_provider_even_with_key(store, monkeypatc
     def handler(request):
         sent.append(str(request.url))
         assert request.url.host != "p0.test"
-        return httpx.Response(200, json={} if str(request.url) == PRICE_URL else {"data": []})
+        return httpx.Response(
+            200, json={} if str(request.url) == PRICE_URL else {"data": []}
+        )
 
     async def scenario():
         async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
@@ -72,9 +88,13 @@ def test_models_endpoint_hides_disabled_cached_provider(store, monkeypatch):
     config = configure(store, monkeypatch)
 
     async def scenario():
-        async with httpx.AsyncClient(transport=httpx.MockTransport(lambda r: pytest.fail("no upstream"))) as upstream:
+        async with httpx.AsyncClient(
+            transport=httpx.MockTransport(lambda r: pytest.fail("no upstream"))
+        ) as upstream:
             app = create_app(store, upstream, config)
-            async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://local.test") as client:
+            async with httpx.AsyncClient(
+                transport=httpx.ASGITransport(app=app), base_url="http://local.test"
+            ) as client:
                 return (await client.get("/v1/models")).json()
 
     assert not any(m["owned_by"] == "mistral" for m in asyncio.run(scenario())["data"])

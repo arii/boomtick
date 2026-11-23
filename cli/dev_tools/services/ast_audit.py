@@ -76,10 +76,6 @@ class ASTAuditor:
                 return {}
         return {}
 
-    def save_baseline(self, new_baseline: Dict[str, Any]) -> None:
-        with open(self.baseline_file, "w", encoding="utf-8") as f:
-            json.dump(new_baseline, f, indent=2)
-
     def _inspect_comment_node(self, node, get_text) -> Any:
         text = get_text(node).strip()
         if "@ts-ignore" in text or "@ts-expect-error" in text:

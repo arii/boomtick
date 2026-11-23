@@ -1,0 +1,8 @@
+.venv/
+__pycache__/
+state/*
+!state/.gitkeep
+# arii/hello is private and this repo is public: keep local skill copies out of git
+skills-local/*
+!skills-local/README.md
+data/private/

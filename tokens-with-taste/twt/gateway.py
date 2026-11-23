@@ -31,8 +31,15 @@ from .store import Store, now
 def loopback_origin(origin):
     try:
         parsed = urlsplit(origin)
-        if (parsed.scheme not in ("http", "https") or not parsed.hostname
-                or parsed.username or parsed.password or parsed.path or parsed.query or parsed.fragment):
+        if (
+            parsed.scheme not in ("http", "https")
+            or not parsed.hostname
+            or parsed.username
+            or parsed.password
+            or parsed.path
+            or parsed.query
+            or parsed.fragment
+        ):
             return False
         if parsed.port == 0:
             return False
@@ -47,30 +54,114 @@ def retry_seconds(value):
         return max(0, seconds) if seconds < float("inf") else 60
     except (TypeError, ValueError):
         try:
-            return max(0, (parsedate_to_datetime(value) - datetime.now(UTC)).total_seconds())
+            return max(
+                0, (parsedate_to_datetime(value) - datetime.now(UTC)).total_seconds()
+            )
         except (TypeError, ValueError, OverflowError):
             return 60
 
 
+OVERLOAD_STATUSES = (503, 529)
+# 5xx statuses that signal provider unavailability. A 500 or 501 can come from one bad request, so it sets no cooldown.
+OVERLOAD_COOLDOWN_STATUSES = (502, 503, 504, 529)
+OVERLOAD_COOLDOWN_DEFAULT_SECONDS = 30
+OVERLOAD_COOLDOWN_MAX_SECONDS = 300
+# Blended USD per token used only to order paid models: input-heavy agent traffic.
+BLENDED_INPUT_WEIGHT = 0.8
+BLENDED_OUTPUT_WEIGHT = 0.2
+
+
+def blended_price(model):
+    if model["input_price"] is None or model["output_price"] is None:
+        return float("inf")
+    return (
+        BLENDED_INPUT_WEIGHT * model["input_price"]
+        + BLENDED_OUTPUT_WEIGHT * model["output_price"]
+    )
+
+
+def model_rank(model):
+    return (
+        not model["free"],
+        blended_price(model),
+        model["input_price"] if model["input_price"] is not None else float("inf"),
+        model["id"],
+    )
+
+
+def overload_cooldown(response):
+    """Bounded cooldown seconds after an overload status: Retry-After when sent, else a short default, capped."""
+    if response.headers.get("Retry-After") is None:
+        return OVERLOAD_COOLDOWN_DEFAULT_SECONDS
+    return min(
+        OVERLOAD_COOLDOWN_MAX_SECONDS, retry_seconds(response.headers["Retry-After"])
+    )
+
+
+def order_providers(providers, catalog, body, privacy):
+    """Free models first across providers, then paid by blended price, unknown price last.
+    Ties keep configured provider order. Providers skipped without a call (disabled, missing
+    credentials, strict privacy, no eligible model) keep their configured position."""
+
+    def callable_provider(provider):
+        return (
+            bool(eligible_models(catalog, provider, body))
+            and provider["id"] not in disabled_providers()
+            and not missing(provider)
+            and not (
+                privacy == "strict"
+                and (
+                    not provider["strict"]
+                    or provider["trains_on_free_tier"] is not False
+                )
+            )
+        )
+
+    def rank(provider):
+        best = model_rank(min(eligible_models(catalog, provider, body), key=model_rank))
+        return (
+            (0, 0)
+            if best[0] is False
+            else ((1, best[1]) if best[1] != float("inf") else (2, 0))
+        )
+
+    ranked = iter(sorted([p for p in providers if callable_provider(p)], key=rank))
+    return [next(ranked) if callable_provider(p) else p for p in providers]
+
+
 def trace_headers(trace):
     return {
-        "X-Trace-Id": trace["trace_id"], "X-Provider-Used": trace["provider"] or "none",
-        "X-Cost-Usd": str(trace["cost_usd"]) if trace["cost_usd"] is not None else "unknown",
+        "X-Trace-Id": trace["trace_id"],
+        "X-Provider-Used": trace["provider"] or "none",
+        "X-Cost-Usd": str(trace["cost_usd"])
+        if trace["cost_usd"] is not None
+        else "unknown",
         "X-Audit-Flags": ",".join(trace["flags"]),
+        "X-Billing-Status": trace.get("billing_status", "unknown"),
     }
+
+
+def _reset_delay(value):
+    """Seconds until an epoch-milliseconds reset time, or None if the value is missing or malformed."""
+    try:
+        return int(value) / 1000 - time.time()
+    except (ValueError, TypeError, OverflowError):
+        return None
 
 
 def upstream_cooldown(response, payload):
     delay = retry_seconds(response.headers.get("Retry-After"))
     error = payload.get("error")
     metadata = error.get("metadata") if isinstance(error, dict) else None
-    if isinstance(metadata, dict) and metadata.get("limit_source") == "openrouter_free_tier_daily":
+    if (
+        isinstance(metadata, dict)
+        and metadata.get("limit_source") == "openrouter_free_tier_daily"
+    ):
         fields = metadata.get("headers")
         if isinstance(fields, dict):
-            try:
-                delay = max(delay, int(fields["X-RateLimit-Reset"]) / 1000 - time.time())
-            except (KeyError, ValueError, TypeError, OverflowError):
-                pass
+            reset = _reset_delay(fields.get("X-RateLimit-Reset"))
+            if reset is not None:
+                delay = max(delay, reset)
     return delay
 
 
@@ -85,28 +176,46 @@ def eligible_models(catalog, provider, body):
     if default_route:
         requested = body.get("provider_models", {}).get(provider["id"], requested)
     if requested not in ("default", "route:default"):
-        candidates = [m for m in candidates if requested in (m["id"], f"{provider['id']}/{m['id']}")]
+        candidates = [
+            m
+            for m in candidates
+            if requested in (m["id"], f"{provider['id']}/{m['id']}")
+        ]
     if default_route and provider.get("free_only"):
         candidates = [m for m in candidates if m["free"]]
     if body.get("tools"):
         candidates = [m for m in candidates if m["tools"]]
     if body.get("response_format") and body["response_format"].get("type") != "text":
-        capability = "json_schema" if body["response_format"].get("type") == "json_schema" else "json"
+        capability = (
+            "json_schema"
+            if body["response_format"].get("type") == "json_schema"
+            else "json"
+        )
         candidates = [m for m in candidates if m.get(capability)]
     return candidates
 
 
 class Gateway:
-    def __init__(self, store, client, configuration=None, clock=time.monotonic,
-                 sleep=asyncio.sleep, free_wait_seconds=60):
+    def __init__(
+        self,
+        store,
+        client,
+        configuration=None,
+        clock=time.monotonic,
+        sleep=asyncio.sleep,
+        free_wait_seconds=60,
+    ):
         disabled_providers()  # Reject misspelled exclusions before serving requests.
         self.store = store
         self.client = client
-        self.providers = configuration if configuration is not None else configured_providers()
+        self.providers = (
+            configuration if configuration is not None else configured_providers()
+        )
         self.clock = clock
         self.calls = defaultdict(deque)
         self.cooldowns = {}
         self.transport_cooldowns = {}
+        self.overload_cooldowns = {}
         self.lock = asyncio.Lock()
         self.sleep = sleep
         self.free_wait_seconds = max(0, min(60, free_wait_seconds))
@@ -116,19 +225,38 @@ class Gateway:
         waited = 0
         while True:
             async with self.lock:
-                if budget is not None and not model["free"] and (
-                        self.store.spend_today() >= budget or model["input_price"] is None or model["output_price"] is None):
-                    return "daily budget reached or paid model price unknown", waited, None
+                if (
+                    budget is not None
+                    and not model["free"]
+                    and (
+                        self.store.spend_today() >= budget
+                        or model["input_price"] is None
+                        or model["output_price"] is None
+                    )
+                ):
+                    return (
+                        "daily budget reached or paid model price unknown",
+                        waited,
+                        None,
+                    )
                 current = self.clock()
                 window = self.calls[key]
                 while window and window[0] <= current - 60:
                     window.popleft()
+                if self.overload_cooldowns.get(key, 0) > current:
+                    return "overload cooldown", waited, None
                 transport_until = self.transport_cooldowns.get(key, 0)
                 retry_until = self.cooldowns.get(key, 0)
                 delay = max(0, retry_until - current, transport_until - current)
-                reason = "transport failure cooldown" if transport_until > retry_until else "Retry-After cooldown"
+                reason = (
+                    "transport failure cooldown"
+                    if transport_until > retry_until
+                    else "Retry-After cooldown"
+                )
                 if model.get("rpm") is not None and len(window) >= model["rpm"]:
-                    delay = max(delay, window[0] + 60 - current) if window else float("inf")
+                    delay = (
+                        max(delay, window[0] + 60 - current) if window else float("inf")
+                    )
                     reason = "local RPM limit"
                 if not delay:
                     window.append(current)
@@ -138,13 +266,21 @@ class Gateway:
             await self.sleep(delay)
             waited += delay
 
-    async def complete(self, body, privacy="standard", session=None, trace_id=None, disconnected=None):
+    async def complete(
+        self, body, privacy="standard", session=None, trace_id=None, disconnected=None
+    ):
         trace_id = trace_id or str(uuid.uuid4())
         if not self.store.reserve_trace(trace_id):
-            return {"error": {"message": "Trace ID already used"}}, 409, {"X-Cost-Usd": "0"}
+            return (
+                {"error": {"message": "Trace ID already used"}},
+                409,
+                {"X-Cost-Usd": "0"},
+            )
         dispatch = {"started": False}
         try:
-            return await self._complete(body, privacy, session, trace_id, disconnected, dispatch)
+            return await self._complete(
+                body, privacy, session, trace_id, disconnected, dispatch
+            )
         except BaseException:
             if not dispatch["started"]:
                 self.store.release_trace(trace_id)
@@ -155,30 +291,77 @@ class Gateway:
         original_body = dict(body)
         body = {**body, "stream": False}
         body.pop("stream_options", None)
-        trace = {"trace_id": trace_id or str(uuid.uuid4()), "timestamp": now(), "route": body.get("model", "default"),
-                 "privacy": privacy, "session_id": session, "provider": None, "model": None,
-                 "attempts": [], "http_status": 503, "latency_ms": 0, "prompt_tokens": None,
-                 "completion_tokens": None, "reasoning_tokens": None, "visible_tokens": None,
-                 "cost_usd": None, "known_cost_usd": 0, "cost_complete": False,
-                 "flags": [], "request": original_body, "response": None}
+        trace = {
+            "trace_id": trace_id or str(uuid.uuid4()),
+            "timestamp": now(),
+            "route": body.get("model", "default"),
+            "privacy": privacy,
+            "session_id": session,
+            "provider": None,
+            "model": None,
+            "attempts": [],
+            "http_status": 503,
+            "latency_ms": 0,
+            "prompt_tokens": None,
+            "completion_tokens": None,
+            "reasoning_tokens": None,
+            "visible_tokens": None,
+            "cost_usd": None,
+            "known_cost_usd": 0,
+            "cost_complete": False,
+            "flags": [],
+            "request": original_body,
+            "response": None,
+        }
         selections = body.get("provider_models", {})
-        if (not isinstance(selections, dict)
-                or any(key not in {p["id"] for p in self.providers}
-                       or not isinstance(value, str) or not value.strip()
-                       for key, value in selections.items())
-                or (selections and body.get("model", "default") not in ("default", "route:default"))):
-            trace.update(http_status=400, cost_usd=0, cost_complete=True,
-                         response={"error": {"message": "provider_models must map configured providers to nonempty model IDs on the default route"}})
+        if (
+            not isinstance(selections, dict)
+            or any(
+                key not in {p["id"] for p in self.providers}
+                or not isinstance(value, str)
+                or not value.strip()
+                for key, value in selections.items()
+            )
+            or (
+                selections
+                and body.get("model", "default") not in ("default", "route:default")
+            )
+        ):
+            trace.update(
+                http_status=400,
+                cost_usd=0,
+                cost_complete=True,
+                response={
+                    "error": {
+                        "message": "provider_models must map configured providers to nonempty model IDs on the default route"
+                    }
+                },
+            )
             self.store.save_trace(trace)
             return trace["response"], 400, trace_headers(trace)
         efforts = body.get("provider_reasoning_effort", {})
-        if (not isinstance(efforts, dict)
-                or any(key not in {p["id"] for p in self.providers}
-                       or value not in ("low", "high", "max")
-                       for key, value in efforts.items())
-                or (efforts and body.get("model", "default") not in ("default", "route:default"))):
-            trace.update(http_status=400, cost_usd=0, cost_complete=True,
-                         response={"error": {"message": "provider_reasoning_effort must map configured providers to low/high/max on the default route"}})
+        if (
+            not isinstance(efforts, dict)
+            or any(
+                key not in {p["id"] for p in self.providers}
+                or value not in ("low", "high", "max")
+                for key, value in efforts.items()
+            )
+            or (
+                efforts
+                and body.get("model", "default") not in ("default", "route:default")
+            )
+        ):
+            trace.update(
+                http_status=400,
+                cost_usd=0,
+                cost_complete=True,
+                response={
+                    "error": {
+                        "message": "provider_reasoning_effort must map configured providers to low/high/max on the default route"
+                    }
+                },
+            )
             self.store.save_trace(trace)
             return trace["response"], 400, trace_headers(trace)
         catalog = catalog_models(self.store, self.providers)
@@ -192,24 +375,45 @@ class Gateway:
                 if not 0 <= budget < float("inf"):
                     raise ValueError
             except ValueError:
-                trace["response"] = {"error": {"message": "TWT_DAILY_BUDGET_USD must be a finite nonnegative number"}}
+                trace["response"] = {
+                    "error": {
+                        "message": "TWT_DAILY_BUDGET_USD must be a finite nonnegative number"
+                    }
+                }
                 trace["http_status"] = 500
                 self.store.save_trace(trace)
                 return trace["response"], 500, trace_headers(trace)
-        pending = deque(self.providers)
+        pending = deque(order_providers(self.providers, catalog, body, privacy))
         retried = set()
         waited = 0
         while pending:
-            if trace["trace_id"] in self.cancelled or (disconnected and await disconnected()):
-                response_payload = {"error": {"message": "Client disconnected", "type": "client_disconnected"}}
+            if trace["trace_id"] in self.cancelled or (
+                disconnected and await disconnected()
+            ):
+                response_payload = {
+                    "error": {
+                        "message": "Client disconnected",
+                        "type": "client_disconnected",
+                    }
+                }
                 trace["http_status"] = 499
                 break
             provider = pending.popleft()
-            attempt = {"provider": provider["id"], "model": None, "called": False,
-                       "timestamp": now(),
-                       "reason": "", "http_status": None, "latency_ms": 0,
-                       "request": None, "response": None, "prompt_tokens": None,
-                       "completion_tokens": None, "reasoning_tokens": None, "cost_usd": None}
+            attempt = {
+                "provider": provider["id"],
+                "model": None,
+                "called": False,
+                "timestamp": now(),
+                "reason": "",
+                "http_status": None,
+                "latency_ms": 0,
+                "request": None,
+                "response": None,
+                "prompt_tokens": None,
+                "completion_tokens": None,
+                "reasoning_tokens": None,
+                "cost_usd": None,
+            }
             trace["attempts"].append(attempt)
             if provider["id"] in disabled_providers():
                 attempt["reason"] = "disabled by account policy"
@@ -219,30 +423,40 @@ class Gateway:
                 absent.update(missing_keys)
                 attempt["reason"] = "missing credentials: " + ", ".join(missing_keys)
                 continue
-            if privacy == "strict" and (not provider["strict"] or provider["trains_on_free_tier"] is not False):
+            if privacy == "strict" and (
+                not provider["strict"] or provider["trains_on_free_tier"] is not False
+            ):
                 attempt["reason"] = "strict privacy excluded"
                 continue
             candidates = eligible_models(catalog, provider, body)
             if not candidates:
-                attempt["reason"] = "no synced eligible chat model matching requested model/free-tier/tools/JSON capabilities; run twt sync"
+                attempt["reason"] = (
+                    "no synced eligible chat model matching requested model/free-tier/tools/JSON capabilities; run twt sync"
+                )
                 continue
-            model = min(candidates, key=lambda m: (not m["free"], m["input_price"] if m["input_price"] is not None else float("inf"), m["id"]))
+            model = min(candidates, key=model_rank)
             attempt["model"] = model["id"]
             if "local_model" in provider:
                 try:
                     await require_local_ollama(self.client)
                 except (httpx.HTTPError, ValueError):
-                    attempt["reason"] = "local Ollama unavailable or cloud not disabled; check OLLAMA_NO_CLOUD=1"
+                    attempt["reason"] = (
+                        "local Ollama unavailable or cloud not disabled; check OLLAMA_NO_CLOUD=1"
+                    )
                     continue
             key = (provider["id"], model["id"])
-            reason, delay, reservation = await self.reserve(model, key, budget, self.free_wait_seconds - waited)
+            reason, delay, reservation = await self.reserve(
+                model, key, budget, self.free_wait_seconds - waited
+            )
             waited += delay
             if reason:
                 attempt["reason"] = reason
                 continue
             ready = False
             try:
-                cancelled = trace["trace_id"] in self.cancelled or (disconnected and await disconnected())
+                cancelled = trace["trace_id"] in self.cancelled or (
+                    disconnected and await disconnected()
+                )
                 ready = not cancelled
             finally:
                 if not ready:
@@ -252,11 +466,20 @@ class Gateway:
                             window.remove(reservation)
             if cancelled:
                 attempt["reason"] = "client disconnected before upstream dispatch"
-                response_payload = {"error": {"message": "Client disconnected", "type": "client_disconnected"}}
+                response_payload = {
+                    "error": {
+                        "message": "Client disconnected",
+                        "type": "client_disconnected",
+                    }
+                }
                 trace["http_status"] = 499
                 break
             attempt["called"] = True
-            if model["free"] and model["input_price"] == 0 and model["output_price"] == 0:
+            if (
+                model["free"]
+                and model["input_price"] == 0
+                and model["output_price"] == 0
+            ):
                 attempt["cost_usd"] = 0.0
             trace["provider"] = provider["id"]
             trace["model"] = model["id"]
@@ -271,61 +494,124 @@ class Gateway:
                         "reasoning_effort": efforts[provider["id"]],
                         "clear_thinking": True,
                     }
-            if provider["id"] == "nebius" and model["id"].startswith("nvidia/NVIDIA-Nemotron-3-") and body.get("tools"):
+            if (
+                provider["id"] == "nebius"
+                and model["id"].startswith("nvidia/NVIDIA-Nemotron-3-")
+                and body.get("tools")
+            ):
                 attempt["request"]["chat_template_kwargs"] = {
-                    "enable_thinking": False, **body.get("chat_template_kwargs", {})
+                    "enable_thinking": False,
+                    **body.get("chat_template_kwargs", {}),
                 }
             request_start = self.clock()
             try:
                 dispatch["started"] = True
-                response = await self.client.post(base_url(provider) + "/chat/completions",
-                                                  headers=headers(provider), json=attempt["request"])
+                response = await self.client.post(
+                    base_url(provider) + "/chat/completions",
+                    headers=headers(provider),
+                    json=attempt["request"],
+                )
                 attempt["http_status"] = response.status_code
                 try:
                     payload = response.json()
                 except ValueError:
-                    payload = {"error": {"message": "Upstream returned a non-JSON response"}, "raw_text": response.text}
+                    payload = {
+                        "error": {"message": "Upstream returned a non-JSON response"},
+                        "raw_text": response.text,
+                    }
                 if not isinstance(payload, dict):
-                    payload = {"error": {"message": "Upstream returned a non-object response"}, "raw_payload": payload}
+                    payload = {
+                        "error": {"message": "Upstream returned a non-object response"},
+                        "raw_payload": payload,
+                    }
                 attempt["response"] = payload
                 attempt.update(usage(payload))
-                if (model["input_price"] is not None and model["output_price"] is not None
-                        and attempt["prompt_tokens"] is not None and attempt["completion_tokens"] is not None):
-                    attempt["cost_usd"] = attempt["prompt_tokens"] * model["input_price"] + attempt["completion_tokens"] * model["output_price"]
+                if (
+                    model["input_price"] is not None
+                    and model["output_price"] is not None
+                    and attempt["prompt_tokens"] is not None
+                    and attempt["completion_tokens"] is not None
+                ):
+                    attempt["cost_usd"] = (
+                        attempt["prompt_tokens"] * model["input_price"]
+                        + attempt["completion_tokens"] * model["output_price"]
+                    )
                 if response.status_code == 429:
-                    self.cooldowns[key] = max(self.cooldowns.get(key, 0), self.clock() + upstream_cooldown(response, payload))
+                    self.cooldowns[key] = max(
+                        self.cooldowns.get(key, 0),
+                        self.clock() + upstream_cooldown(response, payload),
+                    )
                     if model["free"] and key not in retried:
                         retried.add(key)
                         pending.appendleft(provider)
+                if response.status_code in OVERLOAD_COOLDOWN_STATUSES:
+                    self.overload_cooldowns[key] = max(
+                        self.overload_cooldowns.get(key, 0),
+                        self.clock() + overload_cooldown(response),
+                    )
                 if response.status_code == 429 or response.status_code >= 500:
                     attempt["reason"] = f"upstream HTTP {response.status_code}"
                     continue
                 if response.status_code >= 400:
-                    attempt["reason"] = f"non-retryable upstream HTTP {response.status_code}"
+                    attempt["reason"] = (
+                        f"non-retryable upstream HTTP {response.status_code}"
+                    )
                     response_payload = payload
                     trace["http_status"] = response.status_code
                     break
-                if (not isinstance(payload.get("choices"), list) or not payload["choices"]
-                        or any(not isinstance(c, dict) or not isinstance(c.get("message"), dict) for c in payload["choices"])):
+                if (
+                    not isinstance(payload.get("choices"), list)
+                    or not payload["choices"]
+                    or any(
+                        not isinstance(c, dict)
+                        or not isinstance(c.get("message"), dict)
+                        for c in payload["choices"]
+                    )
+                ):
                     attempt["reason"] = "invalid upstream chat response"
                     continue
-                if any(not (
-                        (isinstance(c["message"].get("content"), str) and c["message"]["content"].strip())
-                        or (isinstance(c["message"].get("tool_calls"), list) and c["message"]["tool_calls"])
-                        or (isinstance(c["message"].get("function_call"), dict) and c["message"]["function_call"])
-                        ) for c in payload["choices"]):
-                    attempt["reason"] = "upstream assistant message has no content, tool_calls or function_call"
+                if any(
+                    not (
+                        (
+                            isinstance(c["message"].get("content"), str)
+                            and c["message"]["content"].strip()
+                        )
+                        or (
+                            isinstance(c["message"].get("tool_calls"), list)
+                            and c["message"]["tool_calls"]
+                        )
+                        or (
+                            isinstance(c["message"].get("function_call"), dict)
+                            and c["message"]["function_call"]
+                        )
+                    )
+                    for c in payload["choices"]
+                ):
+                    attempt["reason"] = (
+                        "upstream assistant message has no content, tool_calls or function_call"
+                    )
                     continue
                 attempt["reason"] = "success"
                 trace.update(usage(payload))
-                trace.update(provider=provider["id"], model=model["id"], http_status=response.status_code)
+                trace.update(
+                    provider=provider["id"],
+                    model=model["id"],
+                    http_status=response.status_code,
+                )
                 context = model["context_length"]
                 if "local_model" in provider:
-                    context = await ollama_running_context(self.client, model["id"]) or context
+                    context = (
+                        await ollama_running_context(self.client, model["id"])
+                        or context
+                    )
                 response_payload = payload
                 break
             except httpx.RequestError as error:
-                attempt["reason"] = "timeout" if isinstance(error, httpx.TimeoutException) else "upstream connection error"
+                attempt["reason"] = (
+                    "timeout"
+                    if isinstance(error, httpx.TimeoutException)
+                    else "upstream connection error"
+                )
                 if model["free"]:
                     self.transport_cooldowns[key] = self.clock() + 300
             finally:
@@ -333,19 +619,69 @@ class Gateway:
                 if not model["free"] and attempt["cost_usd"] is None:
                     attempt.update(cost_upper_bound(attempt["request"], model, attempt))
         if response_payload is None:
-            reasons = "; ".join(f"{a['provider']}: {a['reason']}" for a in trace["attempts"])
+            reasons = "; ".join(
+                f"{a['provider']}: {a['reason']}" for a in trace["attempts"]
+            )
             message = "No provider available. " + reasons
             if absent:
-                message += ". Missing environment variables: " + ", ".join(sorted(absent))
-            response_payload = {"error": {"message": message, "type": "no_provider_available"}}
-            trace["http_status"] = 502 if any(a["called"] for a in trace["attempts"]) else 503
+                message += ". Missing environment variables: " + ", ".join(
+                    sorted(absent)
+                )
+            response_payload = {
+                "error": {"message": message, "type": "no_provider_available"}
+            }
+            trace["http_status"] = (
+                502 if any(a["called"] for a in trace["attempts"]) else 503
+            )
         trace["response"] = response_payload
         called = [a for a in trace["attempts"] if a["called"]]
-        trace["known_cost_usd"] = sum(a["cost_usd"] for a in called if a["cost_usd"] is not None)
-        trace["cost_complete"] = (bool(called) or trace["http_status"] == 499) and all(a["cost_usd"] is not None for a in called)
+        trace["known_cost_usd"] = sum(
+            a["cost_usd"] for a in called if a["cost_usd"] is not None
+        )
+        trace["cost_complete"] = (bool(called) or trace["http_status"] == 499) and all(
+            a["cost_usd"] is not None for a in called
+        )
         trace["cost_usd"] = trace["known_cost_usd"] if trace["cost_complete"] else None
-        reserves = [a["cost_usd"] if a["cost_usd"] is not None else a.get("cost_upper_bound_usd") for a in called]
-        if called and not trace["cost_complete"] and all(value is not None for value in reserves):
+        # An overloaded paid attempt (e.g. Nebius HTTP 529) reports no usage; the
+        # provider's billing for it is unknown, so it stays unknown, never zero.
+        # No provider was called (e.g. every provider skipped): nothing was billed.
+        trace["billing_status"] = (
+            "complete"
+            if trace["cost_complete"]
+            else "unknown_paid_attempt"
+            if called
+            else "none"
+        )
+        trace["overloaded_attempts"] = [
+            {
+                "provider": a["provider"],
+                "model": a["model"],
+                "http_status": a["http_status"],
+                "cost_known": a["cost_usd"] is not None,
+            }
+            for a in called
+            if a["http_status"] in OVERLOAD_STATUSES
+        ]
+        if (
+            trace["http_status"] == 502
+            and trace["overloaded_attempts"]
+            and isinstance(response_payload.get("error"), dict)
+        ):
+            response_payload["error"]["billing_status"] = trace["billing_status"]
+            response_payload["error"]["overloaded_attempts"] = trace[
+                "overloaded_attempts"
+            ]
+        reserves = [
+            a["cost_usd"]
+            if a["cost_usd"] is not None
+            else a.get("cost_upper_bound_usd")
+            for a in called
+        ]
+        if (
+            called
+            and not trace["cost_complete"]
+            and all(value is not None for value in reserves)
+        ):
             trace.update(cost_upper_bound_usd=sum(reserves), cost_basis="upper_bound")
         trace["latency_ms"] = (self.clock() - started) * 1000
         trace["flags"] = flags_for(self.store, trace, context)
@@ -357,7 +693,9 @@ class Gateway:
 def create_app(store=None, client=None, configuration=None):
     storage = store or Store()
     configuration = configured_providers() if configuration is None else configuration
-    http = client or httpx.AsyncClient(timeout=30, trust_env=not any("local_model" in p for p in configuration))
+    http = client or httpx.AsyncClient(
+        timeout=30, trust_env=not any("local_model" in p for p in configuration)
+    )
     gateway = Gateway(storage, http, configuration)
 
     @asynccontextmanager
@@ -372,25 +710,47 @@ def create_app(store=None, client=None, configuration=None):
 
     @app.get("/v1/models")
     async def models():
-        return {"object": "list", "data": [
-            {"id": f"{m['provider']}/{m['id']}", "object": "model", "owned_by": m["provider"]}
-            for m in catalog_models(storage, gateway.providers) if m["chat"]]}
+        return {
+            "object": "list",
+            "data": [
+                {
+                    "id": f"{m['provider']}/{m['id']}",
+                    "object": "model",
+                    "owned_by": m["provider"],
+                }
+                for m in catalog_models(storage, gateway.providers)
+                if m["chat"]
+            ],
+        }
 
     @app.post("/v1/chat/completions")
     async def complete(request: Request):
         origin = request.headers.get("origin")
         if origin is not None and not loopback_origin(origin):
             return error_response("Only loopback origins are allowed", 403)
-        if request.headers.get("content-type", "").split(";", 1)[0].strip().lower() != "application/json":
+        if (
+            request.headers.get("content-type", "").split(";", 1)[0].strip().lower()
+            != "application/json"
+        ):
             return error_response("Content-Type must be application/json", 415)
         try:
             body = await request.json()
         except ValueError:
             return error_response("Invalid JSON", 400)
-        if (not isinstance(body, dict) or not isinstance(body.get("messages"), list)
-                or not body["messages"] or not isinstance(body.get("model", "default"), str)
-                or ("response_format" in body and not isinstance(body["response_format"], dict))):
-            return error_response("Expected a model string, nonempty messages list and response_format object", 400)
+        if (
+            not isinstance(body, dict)
+            or not isinstance(body.get("messages"), list)
+            or not body["messages"]
+            or not isinstance(body.get("model", "default"), str)
+            or (
+                "response_format" in body
+                and not isinstance(body["response_format"], dict)
+            )
+        ):
+            return error_response(
+                "Expected a model string, nonempty messages list and response_format object",
+                400,
+            )
         privacy = request.headers.get("X-Privacy", "standard").lower()
         if privacy not in ("standard", "strict"):
             return error_response("X-Privacy must be standard or strict", 400)
@@ -400,7 +760,13 @@ def create_app(store=None, client=None, configuration=None):
                 trace_id = str(uuid.UUID(trace_id))
             except ValueError:
                 return error_response("X-Trace-Id must be a UUID", 400)
-        payload, status, response_headers = await gateway.complete(body, privacy, request.headers.get("X-Session-Id"), trace_id, request.is_disconnected)
+        payload, status, response_headers = await gateway.complete(
+            body,
+            privacy,
+            request.headers.get("X-Session-Id"),
+            trace_id,
+            request.is_disconnected,
+        )
         return JSONResponse(payload, status_code=status, headers=response_headers)
 
     @app.post("/v1/receipts")
@@ -423,24 +789,40 @@ def create_app(store=None, client=None, configuration=None):
                 if body.get("cancel") is True:
                     gateway.cancelled.add(trace_id)
                 continue
-            receipt = {key: trace.get(key) for key in (
-                "trace_id", "provider", "model", "cost_usd", "cost_complete", "prompt_tokens", "completion_tokens", "http_status",
-                "cost_upper_bound_usd", "cost_basis"
-            )}
+            receipt = {
+                key: trace.get(key)
+                for key in (
+                    "trace_id",
+                    "provider",
+                    "model",
+                    "cost_usd",
+                    "cost_complete",
+                    "prompt_tokens",
+                    "completion_tokens",
+                    "http_status",
+                    "cost_upper_bound_usd",
+                    "cost_basis",
+                    "billing_status",
+                    "overloaded_attempts",
+                )
+            }
             # Receipt tokens cover every dispatched attempt, not just the
             # successful reply. Keep response-level trace usage unchanged for
             # response quality flags, but reconcile receipts with the report.
             attempts = [a for a in trace["attempts"] if a["called"]]
             receipt["usage_complete"] = bool(attempts) and all(
                 a.get(field) is not None
-                for a in attempts for field in ("prompt_tokens", "completion_tokens")
+                for a in attempts
+                for field in ("prompt_tokens", "completion_tokens")
             )
             for field in ("prompt_tokens", "completion_tokens"):
                 known = sum(a.get(field) or 0 for a in attempts)
                 receipt["known_" + field] = known
-                receipt[field] = known if attempts and all(
-                    a.get(field) is not None for a in attempts
-                ) else None
+                receipt[field] = (
+                    known
+                    if attempts and all(a.get(field) is not None for a in attempts)
+                    else None
+                )
             result.append(receipt)
         return {"receipts": result}
 

@@ -5,8 +5,6 @@ import { IMPACT_CONFIG } from '../scripts/impact-analysis.config';
 import { mapPageToUrls } from '../scripts/impact-review-utils';
 import { loadProjectConfig } from './projectConfig';
 
-const getAllRoutes = (): { stubs: string[] } => ({ stubs: [] });
-
 // Types for dependency-cruiser output
 export interface Dependency {
   resolved: string;
@@ -385,6 +383,22 @@ export function getDynamicRouteMapping(graph: DependencyGraph): Record<string, s
   return mapping;
 }
 
+/** Read the consuming repository's authoritative concrete-route inventory. */
+export function loadUrlInventory(): string[] {
+  const source = IMPACT_CONFIG.URL_INVENTORY_FILE;
+  try {
+    const urls: unknown = JSON.parse(fs.readFileSync(source, 'utf-8'));
+    if (!Array.isArray(urls) || !urls.every(url =>
+      typeof url === 'string' && url.startsWith('/') && !url.startsWith('//') &&
+      !/[?#:]|\s/.test(url))) {
+      throw new Error('expected a JSON array of concrete root-relative URL paths');
+    }
+    return [...new Set(urls as string[])];
+  } catch (error) {
+    throw new Error(`[Impact Analysis] No URL inventory at '${source}': ${String(error)}. Configure IMPACT_URL_INVENTORY before reviewing page changes.`);
+  }
+}
+
 /**
  * Resolves the list of affected URLs based on code, content, and public file changes.
  */
@@ -395,12 +409,14 @@ export function resolveAffectedUrls(
   staticAffected: string[]
 ): string[] {
   const pageComponentFiles = Object.keys(dynamicRouteMapping);
-  const authoritativeSitemapUrls = getAllRoutes().stubs || [];
   const hasGlobalImpact = staticAffected.some(f => IMPACT_CONFIG.GLOBAL_TRIGGERS.includes(f));
 
   const affectedPages = allAffected.filter(f =>
     f.startsWith(IMPACT_CONFIG.PAGES_DIR) || pageComponentFiles.includes(f)
   );
+
+  // Missing inventory is not evidence of zero affected page routes.
+  const authoritativeSitemapUrls = affectedPages.length ? loadUrlInventory() : [];
 
   const pageUrls = Array.from(new Set(affectedPages.flatMap(pageFile => {
     if (dynamicRouteMapping[pageFile]) {

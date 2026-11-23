@@ -6,8 +6,7 @@
 | `cli/dev_tools/cli-schema.json` | Canonical CLI authority | Define UI style rules |
 | `AGENTS.md` | Primary MCP protocol, tool hierarchy, runtime rules | Duplicate CLI schema |
 | `.agents/workflows/` | Task-specific protocols | Redefine core rules |
-| `audit.config.yaml` | Define what is bad | Suggest fixes or report |
-| `docs/agent/issue-audit-rules.md` | Issue audit rules | Implementation details |
+| `.agents/audit.config.yaml` | Define what is bad | Suggest fixes or report |
 
 ## Resolution Order
 

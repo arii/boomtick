@@ -1,7 +1,6 @@
 """Unit tests for multi-repository discovery, status, and sequential command execution."""
 
 import json
-import pathlib
 import pytest
 from click.testing import CliRunner
 
@@ -10,7 +9,6 @@ from dev_tools.multi_repo import (
     discover_ecosystem_repos,
     get_repo_summary,
     exec_in_repos,
-    warm_ecosystem_context,
 )
 
 

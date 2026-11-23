@@ -6,6 +6,8 @@ description: 'Runs standalone AI code review in Docker container'
 #   - uses: arii/boomtick@<ref>
 #     with:
 #       gemini-api-key: ${{ secrets.GEMINI_API_KEY }}
+#       fail-on-verdict: 'true'   # optional: fail the step when the verdict is FAIL
+# Outputs: `verdict` (pass|warn|fail|unknown) and `blocking-findings` (message listing blocking findings).
 inputs:
   github-app-id:
     description: "GitHub App ID"
@@ -24,6 +26,15 @@ inputs:
   gemini-api-key:
     description: "Gemini API key for synthesis"
     required: true
+  fail-on-verdict:
+    description: "Fail the step when the AI review verdict is FAIL (warn and pass stay green; hard errors always fail)"
+    required: false
+    default: 'false'
+outputs:
+  verdict:
+    description: "AI review verdict: pass, warn, fail or unknown"
+  blocking-findings:
+    description: "Message naming the blocking findings when the verdict is fail"
 runs:
   using: 'docker'
   image: 'Dockerfile'
@@ -33,3 +44,4 @@ runs:
     GITHUB_TOKEN: ${{ inputs.github-token }}
     GEMINI_API_KEY: ${{ inputs.gemini-api-key }}
     BOOMTICK_PR_NUMBER: ${{ inputs.pr-number }}
+    BOOMTICK_FAIL_ON_VERDICT: ${{ inputs.fail-on-verdict }}

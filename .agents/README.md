@@ -7,6 +7,7 @@ workflows, and supporting scripts for automated operations in this repository.
 
 - [`actions-health-check`](skills/actions-health-check/SKILL.md): sample recent GitHub Actions outcomes and elapsed times without rerunning CI.
 - [`add-boomtick-review`](skills/add-boomtick-review/SKILL.md): add opt-in BoomTick PR review to a downstream repo.
+- [`agent-ledger-intake`](skills/agent-ledger-intake/SKILL.md): file a task for the S5 queue as one Agent Ledger Form row.
 
 Install an individual skill into your local agent. For example, use the
 [Skills CLI](https://github.com/vercel-labs/skills) for a personal Codex install:
@@ -47,7 +48,7 @@ Install or copy the skills you need; there's no requirement to run BoomTick's se
 
 Located in `.agents/workflows/`:
 
-- **`fix-ci.md`** — Protocol for diagnosing and dispatching CI repair
+- **`ci-remediation.md`** — Protocol for diagnosing and dispatching CI repair
 - **`review-pr.md`** — PR review workflow
 - **`review-ux.md`** — UX audit workflow
 - **`ai-slop-audit-[DATE].md`** — Auto-generated audit results (latest run)
@@ -72,9 +73,8 @@ MCP tools — do not invoke directly unless a workflow explicitly instructs it.
 - `cli_schema` — full `td` command/flag reference
 - `package_json` — dependency and script metadata
 
-It is rebuilt automatically by:
-- `pnpm run agent:prime` (manual)
-- `.githooks/post-checkout` and `.githooks/post-merge` (automatic on branch
-  switch or pull)
+It is rebuilt by `pnpm run agent:prime` (manual). The `post-merge` hook in
+`scripts/hooks/` runs `td init` after a pull or merge; nothing runs on branch
+switch.
 
 If the index is stale, run `pnpm run agent:prime` before any agent operation.

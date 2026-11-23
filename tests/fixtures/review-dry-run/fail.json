@@ -1,0 +1,3 @@
+{
+  "feedback": "Found a blocking problem.\n\n[VERDICT: FAIL]\n\n<findings>\n{\"findings\": [{\"id\": \"F1\", \"file\": \"src/app.ts\", \"line\": 3, \"issue\": \"User input is concatenated into a SQL query, allowing injection.\", \"status\": \"open\", \"severity\": \"HIGH\", \"confidence\": \"high\"}, {\"id\": \"F2\", \"file\": \"src/app.ts\", \"line\": 7, \"issue\": \"Error from the query is swallowed.\", \"status\": \"open\", \"severity\": \"MEDIUM\", \"confidence\": \"medium\"}]}\n</findings>"
+}

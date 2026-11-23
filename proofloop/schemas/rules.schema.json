@@ -1,0 +1,51 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "RuleSet",
+  "description": "A promoted rule set: instructions for agents plus page rules the extension checks. Produced by the mutator from replay failures and Cognee recall, never written by hand.",
+  "type": "object",
+  "required": ["version", "parent", "instructions", "page_rules"],
+  "additionalProperties": false,
+  "properties": {
+    "version": {"type": "string", "pattern": "^v[0-9]+$"},
+    "parent": {"type": ["string", "null"]},
+    "instructions": {
+      "type": "array", "maxItems": 20,
+      "items": {
+        "type": "object", "required": ["text", "provenance"], "additionalProperties": false,
+        "properties": {
+          "text": {"type": "string", "minLength": 8, "maxLength": 400},
+          "tasks": {"type": "array", "items": {"$ref": "#/$defs/task"}},
+          "provenance": {"$ref": "#/$defs/provenance"}
+        }
+      }
+    },
+    "page_rules": {"type": "array", "maxItems": 40, "items": {"$ref": "#/$defs/page_rule"}}
+  },
+  "$defs": {
+    "task": {"enum": ["job_application", "event_registration", "insurance_or_service_quote", "account_signup", "profile_edit", "scheduling", "publishing_claims", "verification", "other"]},
+    "provenance": {"type": "array", "minItems": 1, "items": {"type": "string", "pattern": "^sess_[0-9]{4}_[0-9]{2}_[0-9]{2}_[a-z0-9_]+$"}},
+    "term": {"type": "string", "minLength": 2, "maxLength": 80},
+    "page_rule": {
+      "type": "object",
+      "required": ["id", "kind", "tasks", "message", "provenance"],
+      "properties": {
+        "id": {"type": "string", "pattern": "^[a-z0-9][a-z0-9_.-]{2,60}$"},
+        "kind": {"enum": ["forbid_value", "keep_unchecked", "confirm_choice"]},
+        "tasks": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/task"}},
+        "message": {"type": "string", "minLength": 8, "maxLength": 200},
+        "provenance": {"$ref": "#/$defs/provenance"},
+        "field": {"enum": ["city", "address", "phone", "email"]},
+        "forbid": {"type": "array", "minItems": 1, "maxItems": 10, "items": {"$ref": "#/$defs/term"}},
+        "expect": {"$ref": "#/$defs/term"},
+        "label_all": {"type": "array", "minItems": 1, "maxItems": 6, "items": {"$ref": "#/$defs/term"}},
+        "label_any": {"type": "array", "minItems": 1, "maxItems": 6, "items": {"$ref": "#/$defs/term"}}
+      },
+      "allOf": [
+        {"if": {"properties": {"kind": {"const": "forbid_value"}}}, "then": {"required": ["field", "forbid"], "not": {"anyOf": [{"required": ["label_all"]}, {"required": ["label_any"]}]}}},
+        {"if": {"properties": {"kind": {"const": "keep_unchecked"}}}, "then": {"required": ["label_all"], "not": {"anyOf": [{"required": ["field"]}, {"required": ["forbid"]}]}}},
+        {"if": {"properties": {"kind": {"const": "confirm_choice"}}}, "then": {"required": ["label_any"], "not": {"anyOf": [{"required": ["field"]}, {"required": ["forbid"]}]}}}
+      ],
+      "additionalProperties": false
+    }
+  }
+}

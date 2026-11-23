@@ -103,16 +103,31 @@ Config path: `~/.cursor/mcp.json` or `.cursor/mcp.json`
 
 ## 4. Commands
 
-- `pnpm test` — run the MCP (Vitest) test suite
-- `pnpm run test:python` — run the Python CLI (pytest) test suite
-- `pnpm run lint` — run the lint task
+- `pnpm test` — root Vitest suite, ProofLoop tests, then the MCP and workflows package suites (the MCP tool `repo_test` runs install, lint and this)
+- `pnpm run test:python` — Python (pytest) suite
+- `td preflight` — pre-PR checks: doctor, type-check (MCP, workflows, root `tsc`), lint, overlap, merge simulation (no tests)
+- `pnpm run lint` — eslint, oxlint, package lint, Python lint/format and fallow
+- `pnpm run type-check` and `pnpm run type-check:ts` — TypeScript type checks
+
+## Working rules (keep slop out)
+
+- Search for an existing helper before writing one. Duplicates cost us later.
+- Edit before you add. A new file needs a one-line reason in the PR.
+- No new dependency without saying what it replaces or enables.
+- No placeholder code that returns fake success. Fail loudly or don't ship it.
+- Docs describe what exists. Verify every path, script and workflow you mention.
+- Before reporting done, run `td preflight` and the test commands in section 4, and paste the result. Preflight does not run tests. Also run `python3 .agents/scripts/audit-ai-slop.py`, which CI runs and preflight does not.
 
 ## 5. Code Map
 
 - `mcp` — MCP server source
 - `cli` — Python CLI source
 - `tokens-with-taste` — standalone Python 3.11+ LLM gateway and token/cost audit package
-- `tests` — automated tests
+- `workflows` — constrained LangGraph.js workflows behind the `run_workflow` tool
+- `proofloop` — ProofLoop extension, harness and tests
+- `lib`, `scripts` — TypeScript review/impact-analysis code and helper scripts
+- `src` — review runner (`src/reviewers`)
+- `tests` — root Vitest unit tests
 - `docs` — project documentation
 
 ## 6. Conventions

@@ -1,7 +1,21 @@
 {
   "$schema": "https://raw.githubusercontent.com/fallow-rs/fallow/main/schema.json",
+  // Invoked from cli/dev_tools/orchestration/quality.py via `pnpm exec tsx`; cli/ is ignored, so no TS importer is visible.
+  "entry": [
+    "scripts/ux-audit-runner.ts",
+    "scripts/ux-discover-routes.ts"
+  ],
   "ignorePatterns": [
-    "cli"
+    "cli",
+    "proofloop/harness/tests"
+  ],
+  // Required at runtime by the workflows bundle vendored into mcp/dist/vendor/workflows
+  // (workflows/src/providers, state.ts, echo.ts); mcp/src does not import them directly.
+  "ignoreDependencies": [
+    "@langchain/core",
+    "@langchain/langgraph",
+    "@langchain/ollama",
+    "@langchain/openai"
   ],
   "rules": {
     "unused-export": "warn",

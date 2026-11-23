@@ -743,7 +743,7 @@ export async function orchestrateCodeReview(
   });
 
   if (isFail) {
-    throw new Error('Code review returned FAIL');
+    console.error(`❌ Code review returned FAIL (the step fails only when fail-on-verdict is enabled).`);
   }
   if (incomplete) throw new Error(`Code review incomplete: ${finalSkipReason || 'missing review task outputs'}`);
 }

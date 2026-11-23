@@ -1,0 +1,3 @@
+{
+  "feedback": "Minor style concerns only.\n\n[VERDICT: WARN]\n\n<findings>\n{\"findings\": [{\"id\": \"F1\", \"file\": \"src/app.ts\", \"line\": 1, \"issue\": \"Prefer a named constant over the literal.\", \"status\": \"open\", \"severity\": \"LOW\", \"confidence\": \"medium\"}]}\n</findings>"
+}

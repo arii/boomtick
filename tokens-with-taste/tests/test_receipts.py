@@ -11,7 +11,9 @@ from twt.store import Store
 
 @pytest.mark.parametrize("error_type", [asyncio.CancelledError, RuntimeError])
 @pytest.mark.parametrize("phase", ["disconnect", "reserve"])
-def test_abandoned_predispatch_trace_can_be_retried(store, monkeypatch, error_type, phase):
+def test_abandoned_predispatch_trace_can_be_retried(
+    store, monkeypatch, error_type, phase
+):
     configuration = setup(store, monkeypatch)
     trace_id = str(uuid.uuid4())
     calls = []
@@ -20,13 +22,23 @@ def test_abandoned_predispatch_trace_can_be_retried(store, monkeypatch, error_ty
         raise error_type()
 
     async def scenario():
-        async with httpx.AsyncClient(transport=httpx.MockTransport(lambda request: calls.append(request.url.host) or httpx.Response(200, json=reply()))) as client:
+        async with httpx.AsyncClient(
+            transport=httpx.MockTransport(
+                lambda request: (
+                    calls.append(request.url.host) or httpx.Response(200, json=reply())
+                )
+            )
+        ) as client:
             gateway = Gateway(store, client, configuration)
             with monkeypatch.context() as patch:
                 if phase == "reserve":
                     patch.setattr(gateway, "reserve", fail)
                 with pytest.raises(error_type):
-                    await gateway.complete(REQUEST, trace_id=trace_id, disconnected=fail if phase == "disconnect" else None)
+                    await gateway.complete(
+                        REQUEST,
+                        trace_id=trace_id,
+                        disconnected=fail if phase == "disconnect" else None,
+                    )
             assert store.trace(trace_id) is None
             assert calls == []
             assert (await gateway.complete(REQUEST, trace_id=trace_id))[1] == 200
@@ -70,26 +82,52 @@ def test_concurrent_trace_id_is_reserved_before_upstream_dispatch(store, monkeyp
             await release.wait()
             return httpx.Response(200, json=reply())
 
-        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as upstream:
+        async with httpx.AsyncClient(
+            transport=httpx.MockTransport(handler)
+        ) as upstream:
             apps = [create_app(db, upstream, configuration) for db in (store, other)]
             async with (
-                httpx.AsyncClient(transport=httpx.ASGITransport(app=apps[0], raise_app_exceptions=False), base_url="http://localhost") as client,
-                httpx.AsyncClient(transport=httpx.ASGITransport(app=apps[1], raise_app_exceptions=False), base_url="http://localhost") as second_client,
+                httpx.AsyncClient(
+                    transport=httpx.ASGITransport(
+                        app=apps[0], raise_app_exceptions=False
+                    ),
+                    base_url="http://localhost",
+                ) as client,
+                httpx.AsyncClient(
+                    transport=httpx.ASGITransport(
+                        app=apps[1], raise_app_exceptions=False
+                    ),
+                    base_url="http://localhost",
+                ) as second_client,
             ):
-                first = asyncio.create_task(client.post("/v1/chat/completions", json=REQUEST, headers={"X-Trace-Id": trace_id}))
+                first = asyncio.create_task(
+                    client.post(
+                        "/v1/chat/completions",
+                        json=REQUEST,
+                        headers={"X-Trace-Id": trace_id},
+                    )
+                )
                 await entered.wait()
                 try:
-                    second = await second_client.post("/v1/chat/completions", json=REQUEST, headers={"X-Trace-Id": trace_id})
+                    second = await second_client.post(
+                        "/v1/chat/completions",
+                        json=REQUEST,
+                        headers={"X-Trace-Id": trace_id},
+                    )
                 finally:
                     release.set()
                     original = await first
                 assert calls == ["p0.test"]
                 assert original.status_code == 200
                 assert second.status_code == 409
-                reused = await second_client.post("/v1/chat/completions", json=REQUEST, headers={"X-Trace-Id": trace_id})
+                reused = await second_client.post(
+                    "/v1/chat/completions",
+                    json=REQUEST,
+                    headers={"X-Trace-Id": trace_id},
+                )
                 assert reused.status_code == 409
                 assert len(store.traces()) == 1
-                assert store.trace(trace_id)["cost_usd"] == pytest.approx(.05)
+                assert store.trace(trace_id)["cost_usd"] == pytest.approx(0.05)
 
     try:
         asyncio.run(scenario())
@@ -134,8 +172,12 @@ def test_disconnected_client_never_starts_paid_fallback(
     assert calls == ["p0.test"]
 
 
-@pytest.mark.parametrize("cancellation", ["disconnect", "receipt_cancel", "task_cancel"])
-def test_cancelled_free_wait_refunds_reserved_rpm_slot(store, monkeypatch, cancellation):
+@pytest.mark.parametrize(
+    "cancellation", ["disconnect", "receipt_cancel", "task_cancel"]
+)
+def test_cancelled_free_wait_refunds_reserved_rpm_slot(
+    store, monkeypatch, cancellation
+):
     configuration = free_first(store, monkeypatch)
     model = store.models()[0]
     model["rpm"] = 1
@@ -161,13 +203,19 @@ def test_cancelled_free_wait_refunds_reserved_rpm_slot(store, monkeypatch, cance
     async def scenario():
         nonlocal gateway
         async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
-            gateway = Gateway(store, client, configuration, clock=lambda: clock[0], sleep=sleep)
+            gateway = Gateway(
+                store, client, configuration, clock=lambda: clock[0], sleep=sleep
+            )
             assert (await gateway.complete(REQUEST))[1] == 200
             if cancellation == "task_cancel":
                 with pytest.raises(asyncio.CancelledError):
-                    await gateway.complete(REQUEST, trace_id=trace_id, disconnected=disconnected)
+                    await gateway.complete(
+                        REQUEST, trace_id=trace_id, disconnected=disconnected
+                    )
             else:
-                _, status, headers = await gateway.complete(REQUEST, trace_id=trace_id, disconnected=disconnected)
+                _, status, headers = await gateway.complete(
+                    REQUEST, trace_id=trace_id, disconnected=disconnected
+                )
                 assert status == 499
                 assert float(headers["X-Cost-Usd"]) == 0
             gateway.free_wait_seconds = 0

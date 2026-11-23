@@ -110,8 +110,8 @@ pnpm run verify:schemas
 .venv/bin/pytest cli/tests
 
 # 5. Run TypeScript static analysis and unit tests
-pnpm run lint-typecheck
-pnpm recursive exec vitest run  # or ./mcp/node_modules/.bin/vitest run tests/ if recursive fails
+pnpm run type-check && pnpm run type-check:ts && pnpm run lint
+pnpm test
 ```
 
 ---
