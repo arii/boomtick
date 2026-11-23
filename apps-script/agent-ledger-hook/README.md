@@ -15,6 +15,27 @@ Out of scope: No new panels, badges or text beyond the status word.
 
 `Problem:` and `Done when:` must each have a nonempty value, on the same line or following lines. `Out of scope:` is optional. Use these exact field names at the start of a line. A missing or empty required field creates no issue and posts one `Later` response naming the missing field(s); resubmitting the same source/note does not repeat that response. The issue body includes all three sections and retains the original submission as untrusted text. Only Ariel adds `ready`, and the S5 queue works only `ready` issues. Step-by-step instructions, including what not to file, are in the [`agent-ledger-intake` skill](../../.agents/skills/agent-ledger-intake/SKILL.md).
 
+## Intake columns
+
+For every eligible submission, `onFormSubmit` writes four values on the submitted response row, in one batched write inside the script lock. The columns are found by header name. Any missing header is added to the right of the existing columns, so later Form edits do not shift them. Ineligible submissions are ignored and get no values.
+
+| Column | Value |
+| --- | --- |
+| `intake_id` | `ledger-intake-` plus the first 24 hex characters of `dedupe_hash` |
+| `dedupe_hash` | SHA-256 hex (64 characters) of `normalize(title) + "\n" + normalize(repo)`, UTF-8 |
+| `missing_fields` | Comma-separated required fields that are empty, in order: `problem`, `done_when`. Empty when complete |
+| `status` | `NEW`, `NEEDS_INFO` or `DUPLICATE` |
+
+`title` is the text after `[issue] <repo>:` and `repo` is the full `arii/<repo>` form (for example `arii/remote-server`). Callers computing the same hash elsewhere must pass the same full form. `normalize` matches `normalize()` in `scripts/ledger_intake.py` in `arii/remote-server`: NFKC, strip, Unicode full case fold, then each whitespace run becomes one space. The JS casefold is `toLowerCase()` per code point plus a table of the full folds Python applies that `toLowerCase()` does not (for example `ß` to `ss`, final sigma `ς` to `σ`, Cherokee to uppercase). `tests/fixtures/agent-ledger/intake-hash-vectors.json` holds Python-generated vectors that the unit test checks.
+
+Submit writes only three statuses:
+
+- `NEEDS_INFO`: `Problem` or `Done when` is empty (the same fields that block issue creation).
+- `DUPLICATE`: an earlier submission with the same `dedupe_hash` already has a filed issue. This status does not change issue creation, which still uses the dedup key below, so a reworded note with the same title is marked `DUPLICATE` and still files an issue.
+- `NEW`: complete and not a duplicate.
+
+Submit never writes `READY` or `DISPATCHED`. Only Ariel makes work ready, and the queue sets `DISPATCHED`. The queue should select only rows whose `status` is `READY`.
+
 ## Install
 
 1. As the Sheet owner, open the Agent Ledger response spreadsheet. Choose **Extensions → Apps Script**. Paste `Code.gs` into the editor. Under **Project Settings**, show the `appsscript.json` manifest and replace it with the manifest here. Alternatively, with the Apps Script API enabled and `clasp` installed and logged in, run `clasp clone <scriptId>` in an empty local directory, copy in these two files, and run `clasp push` from that directory. Obtain the script ID from the bound project's **Project Settings**.
