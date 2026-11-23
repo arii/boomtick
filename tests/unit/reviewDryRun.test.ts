@@ -1,7 +1,8 @@
+import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { runDryRun } from '../../scripts/review-dry-run';
 
-const fixture = (name: string) => `tests/fixtures/review-dry-run/${name}.json`;
+const fixture = (name: string) => path.join(__dirname, '../fixtures/review-dry-run', `${name}.json`);
 
 describe('review dry-run', () => {
   it('pass fixture is green', async () => {
