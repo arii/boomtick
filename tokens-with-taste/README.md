@@ -315,6 +315,6 @@ model at that provider. Existing privacy, capabilities, cooldowns, daily budget
 and receipt accounting still apply. Set `TWT_DAILY_BUDGET_USD=5` for a $5 daily
 cap, this profile does not change or bypass the configured budget.
 
-Remote-server integration example, to be applied in that repository's coder
-configuration after this gateway version is available: `CODER_STRONG_MODEL=route:strong`.
+Remote-server integration example, set in that repository's coder configuration
+(see its `docs/twt-queue.md`): `CODER_STRONG_MODEL=route:strong`.
 This source change does not modify a running host or register models remotely.
