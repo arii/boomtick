@@ -74,7 +74,9 @@ def run(store, configuration, handler, body=None, privacy="standard", session=No
     return asyncio.run(scenario())
 
 
-@pytest.mark.parametrize("failure", [429, 500, 503, "timeout", "connection"])
+@pytest.mark.parametrize(
+    "failure", [402, 404, 410, 429, 500, 503, "timeout", "connection"]
+)
 def test_failover(store, monkeypatch, failure):
     configuration = setup(store, monkeypatch)
     sent = []
@@ -106,6 +108,65 @@ def test_failover(store, monkeypatch, failure):
     assert trace["prompt_tokens"] == 10 and trace["completion_tokens"] == 20
     assert store.db.execute("SELECT count(*) FROM attempts").fetchone()[0] == 2
     assert "test-only-placeholder" not in json.dumps(trace)
+
+
+@pytest.mark.parametrize("upstream_status", [404, 410])
+def test_unavailable_model_is_temporarily_skipped(store, monkeypatch, upstream_status):
+    configuration = setup(store, monkeypatch)
+    sent = []
+    clock = 1000
+    error = {"error": {"message": "Model unavailable"}}
+
+    def handler(request):
+        sent.append(request.url.host)
+        if request.url.host == "p0.test":
+            return httpx.Response(upstream_status, json=error)
+        return httpx.Response(200, json=reply())
+
+    async def scenario():
+        nonlocal clock
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+            gateway = Gateway(store, client, configuration, clock=lambda: clock)
+            first = await gateway.complete(REQUEST)
+            second = await gateway.complete(REQUEST)
+            clock += 301
+            third = await gateway.complete(REQUEST)
+            return first, second, third
+
+    first, second, third = asyncio.run(scenario())
+    assert sent == ["p0.test", "p1.test", "p1.test", "p0.test", "p1.test"]
+    for _, status, headers in (first, second, third):
+        assert status == 200
+        assert headers["X-Provider-Used"] == "p1"
+    trace = store.trace(first[2]["X-Trace-Id"])
+    failed, succeeded = trace["attempts"]
+    assert failed["called"] and failed["http_status"] == upstream_status
+    assert failed["response"] == error
+    assert succeeded["reason"] == "success"
+    skipped = store.trace(second[2]["X-Trace-Id"])["attempts"][0]
+    assert not skipped["called"]
+    assert skipped["reason"] == "model unavailable cooldown"
+
+
+@pytest.mark.parametrize("upstream_status", [200, 400, 403])
+def test_payment_required_error_body_falls_through(store, monkeypatch, upstream_status):
+    configuration = setup(store, monkeypatch)
+    error = {
+        "error": {"code": "PAYMENT_METHOD_REQUIRED", "message": "Billing required"}
+    }
+
+    def handler(request):
+        if request.url.host == "p0.test":
+            return httpx.Response(upstream_status, json=error)
+        return httpx.Response(200, json=reply())
+
+    payload, status, headers = run(store, configuration, handler)
+    assert status == 200 and payload == reply()
+    failed, succeeded = store.trace(headers["X-Trace-Id"])["attempts"]
+    assert failed["called"] and failed["http_status"] == upstream_status
+    assert failed["response"] == error
+    assert "payment required" in failed["reason"]
+    assert succeeded["provider"] == "p1" and succeeded["reason"] == "success"
 
 
 @pytest.mark.parametrize(
@@ -189,7 +250,7 @@ def test_legacy_function_call_response_succeeds(store, monkeypatch, content):
     assert len(attempts) == 1 and attempts[0]["reason"] == "success"
 
 
-@pytest.mark.parametrize("status", [400, 401, 403, 404])
+@pytest.mark.parametrize("status", [400, 401, 403])
 def test_non_retryable_error(store, monkeypatch, status):
     configuration = setup(store, monkeypatch)
     _, actual, headers = run(

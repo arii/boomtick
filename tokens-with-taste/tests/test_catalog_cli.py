@@ -131,9 +131,61 @@ def test_sync_public_and_skipped_providers(store):
     assert "nvidia: inference SKIPPED missing NVIDIA_API_KEY" in messages
 
 
+def test_google_sync_normalizes_listed_ids_for_tool_routing(store, monkeypatch):
+    monkeypatch.setenv("GOOGLE_API_KEY", "mock-token")
+    google = next(provider for provider in providers() if provider["id"] == "google")
+    model = "gemini-3.1-flash-lite"
+    upstream = []
+
+    def handler(request):
+        if str(request.url) == PRICE_URL:
+            return httpx.Response(
+                200,
+                json={
+                    f"gemini/{model}": {
+                        "mode": "chat",
+                        "supports_function_calling": True,
+                        "supports_response_schema": True,
+                    }
+                },
+            )
+        if str(request.url) == OPENROUTER_URL:
+            return httpx.Response(200, json={"data": []})
+        if request.url.path.endswith("/models"):
+            return httpx.Response(200, json={"data": [{"id": f"models/{model}"}]})
+        upstream.append(json.loads(request.content)["model"])
+        return httpx.Response(200, json=reply())
+
+    async def scenario():
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+            return await sync(store, client, [google])
+
+    assert "google: synced 1 models" in asyncio.run(scenario())
+    (synced,) = store.models()
+    assert synced["id"] == model
+    assert (
+        synced["free"] and synced["chat"] and synced["tools"] and synced["json_schema"]
+    )
+    _, status, headers = run(
+        store,
+        [google],
+        handler,
+        body={
+            "model": "route:default",
+            "messages": [{"role": "user", "content": "hello"}],
+            "tools": [{"type": "function", "function": {"name": "lookup"}}],
+            "response_format": {"type": "json_schema"},
+        },
+    )
+    assert status == 200 and headers["X-Provider-Used"] == "google"
+    assert upstream == [model]
+
+
 def test_cloudflare_static_models_sync(store, monkeypatch):
     monkeypatch.setenv("CLOUDFLARE_API_TOKEN", "mock-token")
     monkeypatch.setenv("CLOUDFLARE_ACCOUNT_ID", "mock-account")
+    retired = "@cf/meta/llama-3.1-8b-instruct"
+    store.replace_models("cloudflare", [{"id": retired, "provider": "cloudflare"}])
 
     def handler(request):
         if str(request.url) == PRICE_URL:
@@ -147,9 +199,10 @@ def test_cloudflare_static_models_sync(store, monkeypatch):
             return await sync(store, client)
 
     messages = asyncio.run(scenario())
-    assert "cloudflare: synced 5 models" in messages
+    assert "cloudflare: synced 4 models" in messages
     cf_models = [m for m in store.models() if m["provider"] == "cloudflare"]
-    assert len(cf_models) == 5
+    assert len(cf_models) == 4
+    assert retired not in {model["id"] for model in cf_models}
     assert all(
         m["free"] and m["chat"] and m["context_length"] == 8192 for m in cf_models
     )

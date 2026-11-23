@@ -115,6 +115,8 @@ def output_cap(provider, row, metadata, reference, prices):
 
 
 def normalize(provider, row, prices, router):
+    if provider["id"] == "google":
+        row = {**row, "id": row["id"].removeprefix("models/")}
     model_id = row["id"]
     prefix = provider["map_prefix"]
     metadata = prices.get(f"{prefix}/{model_id}", {})
