@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Dict, List, Any, Optional
 
 HOST_CONFIG_MAP = {
+    "gemini": [Path.home() / ".gemini" / "settings.json"],
     "antigravity": [
         Path.home() / ".gemini" / "antigravity-cli" / "settings.json",
         Path(".gemini/settings.json"),
@@ -39,15 +40,15 @@ def detect_and_install_mcp(
     results = []
 
     if custom_path:
-        target_paths = [Path(custom_path)]
+        target_paths = [(Path(custom_path), None)]
     else:
         target_hosts = hosts if hosts else list(HOST_CONFIG_MAP.keys())
         target_paths = []
         for h in target_hosts:
             if h in HOST_CONFIG_MAP:
-                target_paths.extend(HOST_CONFIG_MAP[h])
+                target_paths.extend((path, h) for path in HOST_CONFIG_MAP[h])
 
-    for config_path in target_paths:
+    for config_path, host in target_paths:
         path_obj = config_path.expanduser().resolve()
 
         # Check if parent directory exists or file exists
@@ -56,7 +57,10 @@ def detect_and_install_mcp(
 
         # If parent or file exists, we consider this host target active/eligible
         if file_exists or parent_exists or custom_path:
-            status, msg = update_host_config(path_obj, mcp_entry, dry_run=dry_run)
+            entry = dict(mcp_entry)
+            if host == "gemini":
+                entry["env"] = {"GITHUB_TOKEN": "$GITHUB_TOKEN", **entry.get("env", {})}
+            status, msg = update_host_config(path_obj, entry, dry_run=dry_run)
             results.append(
                 {
                     "path": str(path_obj),
