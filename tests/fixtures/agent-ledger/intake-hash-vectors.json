@@ -1,0 +1,213 @@
+{
+  "_comment": "Expected values produced by scripts/ledger_intake.py (arii/remote-server PR #1608) normalize(), dedupe_hash() and intake_id() under CPython 3.11.15, Unicode 14.0.0. Inputs use only code points assigned in Unicode 14 (checked by apps-script/agent-ledger-hook/check_unicode_parity.py). Regenerate with Python, never by hand.",
+  "vectors": [
+    {
+      "title": "Check queue",
+      "repo": "arii/remote-server",
+      "normalized_title": "check queue",
+      "normalized_repo": "arii/remote-server",
+      "dedupe_hash": "29c9161c27a1e33f33eceb1f87a3f1cb5e431ceb003b7cac51b74b9e30cc91ae",
+      "intake_id": "ledger-intake-29c9161c27a1e33f33eceb1f"
+    },
+    {
+      "title": "CHECK   Queue",
+      "repo": "Arii/Remote-Server",
+      "normalized_title": "check queue",
+      "normalized_repo": "arii/remote-server",
+      "dedupe_hash": "29c9161c27a1e33f33eceb1f87a3f1cb5e431ceb003b7cac51b74b9e30cc91ae",
+      "intake_id": "ledger-intake-29c9161c27a1e33f33eceb1f"
+    },
+    {
+      "title": "  padded title  ",
+      "repo": "arii/boomtick",
+      "normalized_title": "padded title",
+      "normalized_repo": "arii/boomtick",
+      "dedupe_hash": "26995a82aca6479eccfc454ccc34b6f9e5d03818f1ba650645ae95ac330dd93d",
+      "intake_id": "ledger-intake-26995a82aca6479eccfc454c"
+    },
+    {
+      "title": "tabs\tand\nnewlines\r\nhere",
+      "repo": "arii/boomtick",
+      "normalized_title": "tabs and newlines here",
+      "normalized_repo": "arii/boomtick",
+      "dedupe_hash": "0b4b2fc172c97ca2ef7a03dd339587ef804fc765e4ad821ae9c0ff84bf75bebf",
+      "intake_id": "ledger-intake-0b4b2fc172c97ca2ef7a03dd"
+    },
+    {
+      "title": "\u3000ideographic\u00a0space\u2003em",
+      "repo": "arii/boomtick",
+      "normalized_title": "ideographic space em",
+      "normalized_repo": "arii/boomtick",
+      "dedupe_hash": "cde521a369835149798f48e81af0867ce39a5824cb7181d95d7970c4296138a0",
+      "intake_id": "ledger-intake-cde521a369835149798f48e8"
+    },
+    {
+      "title": "\u001c\u001d\u001e\u001f\u0085control separators\u0085",
+      "repo": "arii/boomtick",
+      "normalized_title": "control separators",
+      "normalized_repo": "arii/boomtick",
+      "dedupe_hash": "6d302c965398f5ec4501b0c42abbd8f7dab77054dca2041411810535eb7eaeaa",
+      "intake_id": "ledger-intake-6d302c965398f5ec4501b0c4"
+    },
+    {
+      "title": "\ufeffBOM start",
+      "repo": "arii/boomtick",
+      "normalized_title": "\ufeffbom start",
+      "normalized_repo": "arii/boomtick",
+      "dedupe_hash": "b4d92a96b56bc18f17636547c9af0b8a933b04954f9951f54d0a410d5858427a",
+      "intake_id": "ledger-intake-b4d92a96b56bc18f17636547"
+    },
+    {
+      "title": "\uff26\uff55\uff4c\uff4c\uff57\uff49\uff44\uff54\uff48 \uff11\uff12\uff13",
+      "repo": "arii/boomtick",
+      "normalized_title": "fullwidth 123",
+      "normalized_repo": "arii/boomtick",
+      "dedupe_hash": "5d1953fd7347634dbd12ee5c3375f93d80cc6d4b29bc8c8702674ead5da61adb",
+      "intake_id": "ledger-intake-5d1953fd7347634dbd12ee5c"
+    },
+    {
+      "title": "\ufb01nal \ufb00 \ufb06 ligatures",
+      "repo": "arii/boomtick",
+      "normalized_title": "final ff st ligatures",
+      "normalized_repo": "arii/boomtick",
+      "dedupe_hash": "4f00289d4f042ffa8a19e4560de0e832a48400f408edd6dd18744f8aace9eaa8",
+      "intake_id": "ledger-intake-4f00289d4f042ffa8a19e456"
+    },
+    {
+      "title": "Stra\u00dfe \u1e9e",
+      "repo": "arii/boomtick",
+      "normalized_title": "strasse ss",
+      "normalized_repo": "arii/boomtick",
+      "dedupe_hash": "0d02c01d3c1fc0727c3f0f22e65f096b3be69fe950eba53bc60763e0d7dc9b6b",
+      "intake_id": "ledger-intake-0d02c01d3c1fc0727c3f0f22"
+    },
+    {
+      "title": "\u03a3\u03af\u03c3\u03c5\u03c6\u03bf\u03c2 \u03a3",
+      "repo": "arii/boomtick",
+      "normalized_title": "\u03c3\u03af\u03c3\u03c5\u03c6\u03bf\u03c3 \u03c3",
+      "normalized_repo": "arii/boomtick",
+      "dedupe_hash": "22052048940a40935821d94ed78f376dc54be7168bc8c6f59b945c8bc8277949",
+      "intake_id": "ledger-intake-22052048940a40935821d94e"
+    },
+    {
+      "title": "\u039f\u0394\u038c\u03a3",
+      "repo": "arii/boomtick",
+      "normalized_title": "\u03bf\u03b4\u03cc\u03c3",
+      "normalized_repo": "arii/boomtick",
+      "dedupe_hash": "a49fc926feb4c3b17ae98dcfe9e6c2df45896b30659a8928be2b5f529b4b00eb",
+      "intake_id": "ledger-intake-a49fc926feb4c3b17ae98dcf"
+    },
+    {
+      "title": "\u03c3\u03c2",
+      "repo": "arii/boomtick",
+      "normalized_title": "\u03c3\u03c3",
+      "normalized_repo": "arii/boomtick",
+      "dedupe_hash": "870d21a4866e911ec031cbcb6fa843ec464d21977265c4250d2b27cc0d7d6f63",
+      "intake_id": "ledger-intake-870d21a4866e911ec031cbcb"
+    },
+    {
+      "title": "\u0130stanbul \u0131",
+      "repo": "arii/boomtick",
+      "normalized_title": "i\u0307stanbul \u0131",
+      "normalized_repo": "arii/boomtick",
+      "dedupe_hash": "9ec41e55d81ede411c2ff59b5091f7a89d1df7d1724b3db10c0881497f696b44",
+      "intake_id": "ledger-intake-9ec41e55d81ede411c2ff59b"
+    },
+    {
+      "title": "caf\u00e9 vs cafe\u0301",
+      "repo": "arii/boomtick",
+      "normalized_title": "caf\u00e9 vs caf\u00e9",
+      "normalized_repo": "arii/boomtick",
+      "dedupe_hash": "d7d33e5851037fc2d4da68b5e09d08f8a0370abcccb5b5a3ee0ef8854008ab13",
+      "intake_id": "ledger-intake-d7d33e5851037fc2d4da68b5"
+    },
+    {
+      "title": "\u13a0\u13a1 \uab70\uab71 \u13f8",
+      "repo": "arii/boomtick",
+      "normalized_title": "\u13a0\u13a1 \u13a0\u13a1 \u13f0",
+      "normalized_repo": "arii/boomtick",
+      "dedupe_hash": "f718c6c8b992e3bca23b2ac09740653868bb75890731b3604f35517eabe34046",
+      "intake_id": "ledger-intake-f718c6c8b992e3bca23b2ac0"
+    },
+    {
+      "title": "\u1f88 \u1fbc \u1e9b \u017f \u00b5 \u2126 \u212a",
+      "repo": "arii/boomtick",
+      "normalized_title": "\u1f00\u03b9 \u03b1\u03b9 \u1e61 s \u03bc \u03c9 k",
+      "normalized_repo": "arii/boomtick",
+      "dedupe_hash": "c8268b015841cbf0a97f60a61f1d1cffef6c40456a1c454a3cd8349c5742a111",
+      "intake_id": "ledger-intake-c8268b015841cbf0a97f60a6"
+    },
+    {
+      "title": "\u0587 \u0149 \u01f0 \u0390",
+      "repo": "arii/boomtick",
+      "normalized_title": "\u0565\u0582 \u02bcn j\u030c \u03b9\u0308\u0301",
+      "normalized_repo": "arii/boomtick",
+      "dedupe_hash": "be028e9c68a961c98b65b02ffcde2711f0297b3c955b1884656a204eb75c5438",
+      "intake_id": "ledger-intake-be028e9c68a961c98b65b02f"
+    },
+    {
+      "title": "\ud835\udc00\ud835\udc1a math bold",
+      "repo": "arii/boomtick",
+      "normalized_title": "aa math bold",
+      "normalized_repo": "arii/boomtick",
+      "dedupe_hash": "840bdf83c28e60be804ef05bb1049f6e64f7d1e9cb698ccc7307d48f713c9567",
+      "intake_id": "ledger-intake-840bdf83c28e60be804ef05b"
+    },
+    {
+      "title": "\ud83d\ude00 emoji \ud801\udc00 deseret",
+      "repo": "arii/boomtick",
+      "normalized_title": "\ud83d\ude00 emoji \ud801\udc28 deseret",
+      "normalized_repo": "arii/boomtick",
+      "dedupe_hash": "78c266a13fe2a6f6072baeaf0a81620d703d7c91cfe7220563c37fb86378b7c1",
+      "intake_id": "ledger-intake-78c266a13fe2a6f6072baeaf"
+    },
+    {
+      "title": "",
+      "repo": "arii/boomtick",
+      "normalized_title": "",
+      "normalized_repo": "arii/boomtick",
+      "dedupe_hash": "4525e7af63515198ab552501becc932068e4c847ff1f9db1202c336e496cdc53",
+      "intake_id": "ledger-intake-4525e7af63515198ab552501"
+    },
+    {
+      "title": "   ",
+      "repo": "   ",
+      "normalized_title": "",
+      "normalized_repo": "",
+      "dedupe_hash": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b",
+      "intake_id": "ledger-intake-01ba4719c80b6fe911b091a7"
+    },
+    {
+      "title": "title",
+      "repo": "",
+      "normalized_title": "title",
+      "normalized_repo": "",
+      "dedupe_hash": "1ec72b6861fee9926d828a734ddbd533a1eb1a983d42acec571720deb2b92018",
+      "intake_id": "ledger-intake-1ec72b6861fee9926d828a73"
+    },
+    {
+      "title": "new\u2028line\u2029sep",
+      "repo": "arii/posture-guard",
+      "normalized_title": "new line sep",
+      "normalized_repo": "arii/posture-guard",
+      "dedupe_hash": "2ac907b7ed2a1d4fd1bac811517651b280dfe3ca7d1967afad16d9431d9dfb1d",
+      "intake_id": "ledger-intake-2ac907b7ed2a1d4fd1bac811"
+    },
+    {
+      "title": "a\u200bb zero width",
+      "repo": "arii/boomtick",
+      "normalized_title": "a\u200bb zero width",
+      "normalized_repo": "arii/boomtick",
+      "dedupe_hash": "0fc20602c836cd2394123dad436feda1468c17fd7a4ff8e75470e3c7bb1d974c",
+      "intake_id": "ledger-intake-0fc20602c836cd2394123dad"
+    },
+    {
+      "title": "\u2160\u2161 roman \u2460 circled \u00bd",
+      "repo": "arii/boomtick",
+      "normalized_title": "iii roman 1 circled 1\u20442",
+      "normalized_repo": "arii/boomtick",
+      "dedupe_hash": "c085d19c0823cdeefb7badb8c0b8e79fe140fefa39ee9dc525b82cc5f2e7d266",
+      "intake_id": "ledger-intake-c085d19c0823cdeefb7badb8"
+    }
+  ]
+}

@@ -1,6 +1,84 @@
 {
   "version": 1,
   "note": "#1143 slop fail-gate ratchet: grandfathered hits stay green until a follow-up triages them; any NEW entry fails the gate. Reseed with --update-baseline.",
-  "swallow_exceptions": {},
+  "swallow_exceptions": {
+    "cli/dev_tools/commands/gates_audit.py": {
+      "_impact_dependents:OSError": 1,
+      "audit_code_gate:Exception": 1,
+      "audit_impact_gate:Exception": 1
+    },
+    "cli/dev_tools/commands/gates_spec.py": {
+      "verify_scope_gate:OSError": 1
+    },
+    "cli/dev_tools/config.py": {
+      "_detect_repo_name:Exception": 1
+    },
+    "cli/dev_tools/multi_repo.py": {
+      "verify_partner_deep_agents:Exception": 1
+    },
+    "cli/dev_tools/orchestration/base.py": {
+      "OrchestratorBase._pnpm_has_script:Exception": 1
+    },
+    "cli/dev_tools/orchestration/review.py": {
+      "ReviewMixin._review_files:ValueError": 1
+    },
+    "cli/dev_tools/services/browser_cdp.py": {
+      "_compare_png_bytes:Exception": 1
+    },
+    "cli/dev_tools/services/gh/core.py": {
+      "GitHubCoreMixin._detect_repo:Exception": 1
+    },
+    "cli/dev_tools/services/gh/reviews.py": {
+      "ReviewsMixin._extract_review_payload:expr": 1
+    },
+    "cli/dev_tools/services/local_sessions.py": {
+      "_git:OSError": 1,
+      "scan_sessions:OSError,ValueError": 1
+    },
+    "cli/dev_tools/services/scope_gate.py": {
+      "check_file_imports_target:Exception": 1
+    },
+    "cli/dev_tools/services/vector_store.py": {
+      "git_head_sha:OSError": 1,
+      "iter_repo_files:OSError": 1,
+      "update_index:OSError": 3
+    },
+    "cli/dev_tools/services/worktrees.py": {
+      "link_warm_deps:OSError": 1
+    },
+    "cli/tests/test_audit_r3_batch.py": {
+      "test_no_remote_server_literal_in_source:OSError,ValueError": 1
+    },
+    "proofloop/harness/executor.py": {
+      "_judge:InvalidReply": 1
+    },
+    "proofloop/harness/handoff.py": {
+      "feedback_counts:ValueError": 1
+    },
+    "proofloop/harness/import_takeout.py": {
+      "main:ValueError,AttributeError": 1
+    },
+    "proofloop/harness/page_assist.py": {
+      "_origin:ValueError": 1
+    },
+    "proofloop/harness/replay_loop.py": {
+      "read_feedback:expr": 1
+    },
+    "proofloop/harness/services.py": {
+      "extract_json:expr": 1
+    },
+    "scripts/run-python-tool.py": {
+      "is_tool_available:Exception": 1
+    },
+    "tokens-with-taste/twt/catalog.py": {
+      "number:TypeError,ValueError": 1,
+      "ollama_running_context:ValueError": 1
+    },
+    "tokens-with-taste/twt/gateway.py": {
+      "_reset_delay:ValueError,TypeError,OverflowError": 1,
+      "loopback_origin:ValueError": 1,
+      "retry_seconds:TypeError,ValueError,OverflowError": 1
+    }
+  },
   "unreferenced_wrappers": []
 }

@@ -27,14 +27,17 @@ Item / Note shape:
 [issue] <repo>: <short imperative title>
 Problem: <what the user sees go wrong>
 Done when: <one observable check>
-Out of scope: <optional: what not to change>
+Out of scope: <what not to change; write "None." if nothing>
 ```
+
+Five fields are required: `title` and `repo` (from the first line), `problem` (`Problem:`), `scope`
+(`Out of scope:`) and `done_when` (`Done when:`).
 
 - `<repo>` is lowercase and one of `remote-server`, `boomtick` or `posture-guard`. Any other repo
   files nothing.
 - The first line must start with `[issue]`, a space, the repo, a colon and a space.
-- Always write nonempty `Problem:` and `Done when:` fields. A row missing either field or
-  leaving it empty opens no issue and gets one `Later` row naming the missing field(s).
+- Always write nonempty `Problem:`, `Done when:` and `Out of scope:` fields. A row missing any of
+  them or leaving one empty opens no issue and gets one `Later` row naming the missing field(s).
 - For front-end tasks, say in `Out of scope:` that nothing beyond the ask changes: no added pills,
   badges, copy or features.
 
