@@ -82,6 +82,52 @@ describe('evaluateVerdictGate', () => {
   });
 });
 
+describe('untrusted finding text', () => {
+  const evil = {
+    llmVerdict: 'fail',
+    skipReason: 'x\n::add-mask::s',
+    state: {
+      findings: [
+        { status: 'open', severity: 'HIGH', file: 'a.ts\n::stop-commands::tok', line: 1, issue: 'bad\r\n::add-mask::secret\n::error::boom <b>x</b>' },
+      ],
+    },
+  };
+
+  it('keeps every finding on one line so no stderr line starts a workflow command', () => {
+    const r = evaluateVerdictGate(evil as any, { failOnVerdict: true });
+    for (const line of r.message.split('\n')) expect(line.startsWith('::')).toBe(false);
+    expect(r.message.split('\n')).toHaveLength(2);
+  });
+
+  it('writes sanitized text to stderr, the summary and the output', () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'gate-evil-'));
+    const out = path.join(dir, 'out');
+    const sum = path.join(dir, 'sum');
+    const err = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const log = vi.spyOn(console, 'log').mockImplementation(() => undefined);
+    const prev = process.exitCode;
+    try {
+      publishVerdictGate(evaluateVerdictGate(evil as any, { failOnVerdict: true }), { GITHUB_OUTPUT: out, GITHUB_STEP_SUMMARY: sum });
+      const stderr = String(err.mock.calls[0][0]);
+      for (const line of stderr.split('\n')) expect(line.startsWith('::')).toBe(false);
+      expect(fs.readFileSync(sum, 'utf8')).not.toContain('<b>');
+      for (const line of fs.readFileSync(sum, 'utf8').split('\n')) expect(line.startsWith('::')).toBe(false);
+    } finally {
+      err.mockRestore();
+      log.mockRestore();
+      process.exitCode = prev;
+    }
+  });
+
+  it('sanitizes the warn skipReason and states that warn stays green', () => {
+    const r = evaluateVerdictGate({ llmVerdict: 'warn', skipReason: 'RATE_LIMIT\n::add-mask::s' }, { failOnVerdict: true });
+    expect(r.shouldFail).toBe(false);
+    expect(r.message.split('\n')).toHaveLength(1);
+    expect(r.summaryMarkdown).toContain('RATE');
+    expect(r.summaryMarkdown).toContain('does not fail this check');
+  });
+});
+
 describe('publishVerdictGate and readVerdictFile', () => {
   const original = process.exitCode;
   afterEach(() => {

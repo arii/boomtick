@@ -1,6 +1,6 @@
 /**
  * Offline dry-run of the review verdict path.
- * Usage: tsx scripts/review-dry-run.ts <fixture.json> [--own-pr]
+ * Usage: tsx scripts/review-dry-run.ts <fixture.json>
  *
  * Runs the real orchestrateCodeReview and finalizeVerdictGate against a canned review
  * client. No Gemini or GitHub call is possible: credentials are removed from the
@@ -36,7 +36,7 @@ function createTempRepo(): string {
   return dir;
 }
 
-export async function runDryRun(fixturePath: string, options: { ownPr?: boolean } = {}): Promise<DryRunResult> {
+export async function runDryRun(fixturePath: string): Promise<DryRunResult> {
   const fixture = JSON.parse(fs.readFileSync(path.resolve(startDir, fixturePath), 'utf8')) as { feedback: string };
 
   // Safety: nothing below may reach GitHub or Gemini.
@@ -84,10 +84,6 @@ export async function runDryRun(fixturePath: string, options: { ownPr?: boolean 
 
   await orchestrateCodeReview(client as any, [client.reportTitle]);
 
-  // --own-pr: with no GitHub credentials the review post is skipped either way. The gate reads only
-  // the verdict file, so it behaves the same as when GitHub falls back from APPROVE/REQUEST_CHANGES to COMMENT.
-  if (options.ownPr) console.log('(own-PR mode: review would be posted as COMMENT; gate result is unaffected)');
-
   const previousExitCode = process.exitCode;
   process.exitCode = undefined;
   finalizeVerdictGate({
@@ -109,11 +105,11 @@ export async function runDryRun(fixturePath: string, options: { ownPr?: boolean 
 async function main(): Promise<void> {
   const fixture = process.argv[2];
   if (!fixture) {
-    console.error('Usage: tsx scripts/review-dry-run.ts <fixture.json> [--own-pr]');
+    console.error('Usage: tsx scripts/review-dry-run.ts <fixture.json>');
     process.exitCode = 2;
     return;
   }
-  const result = await runDryRun(fixture, { ownPr: process.argv.includes('--own-pr') });
+  const result = await runDryRun(fixture);
   console.log('--- GITHUB_OUTPUT ---\n' + result.outputs);
   console.log('--- GITHUB_STEP_SUMMARY ---\n' + result.summary);
   console.log(`--- dry-run exit code: ${result.exitCode} ---`);

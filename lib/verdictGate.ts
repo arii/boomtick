@@ -50,10 +50,22 @@ function isHigh(severity?: string): boolean {
   return severity === 'HIGH' || severity === 'error';
 }
 
+/** Model output is untrusted: collapse newlines and control characters so one finding stays on one line. */
+function sanitizeText(value: unknown): string {
+  // eslint-disable-next-line no-control-regex
+  return String(value ?? '').replace(/[\u0000-\u001f\u007f-\u009f\u2028\u2029]+/g, ' ').trim();
+}
+
+function escapeMarkdown(value: string): string {
+  return value.replace(/[\\`*_<>[\]|]/g, c => `\\${c}`);
+}
+
 function formatFinding(f: BlockingFinding): string {
-  const location = f.line ? `${f.file}:${f.line}` : f.file;
-  const issue = f.issue.length > MAX_ISSUE_LENGTH ? `${f.issue.slice(0, MAX_ISSUE_LENGTH)}...` : f.issue;
-  return `- [${f.severity}] ${location} - ${issue}`;
+  const file = sanitizeText(f.file);
+  const location = f.line ? `${file}:${Number(f.line) || ''}` : file;
+  const text = sanitizeText(f.issue);
+  const issue = text.length > MAX_ISSUE_LENGTH ? `${text.slice(0, MAX_ISSUE_LENGTH)}...` : text;
+  return `- [${sanitizeText(f.severity)}] ${location} - ${issue}`;
 }
 
 export function evaluateVerdictGate(
@@ -95,12 +107,15 @@ export function evaluateVerdictGate(
     message = `AI review verdict: FAIL. ${blockingFindings.length} blocking finding(s):\n${lines.join('\n')}`;
   } else {
     message = `AI review verdict: ${verdict.toUpperCase()}.`;
-    if (verdict === 'warn' && data?.skipReason) message += ` Reason: ${data.skipReason}`;
+    if (verdict === 'warn' && data?.skipReason) message += ` Reason: ${sanitizeText(data.skipReason)}`;
   }
 
-  const summaryMarkdown = `### AI review verdict: ${verdict.toUpperCase()}\n\n${message}\n${
-    shouldFail ? '\nThis check fails because fail-on-verdict is enabled.\n' : ''
-  }`;
+  let note = '';
+  if (shouldFail) note = '\nThis check fails because fail-on-verdict is enabled.\n';
+  else if (verdict === 'warn') {
+    note = '\nWARN does not fail this check, including when the reviewer could not run (see the reason above).\n';
+  }
+  const summaryMarkdown = `### AI review verdict: ${verdict.toUpperCase()}\n\n${escapeMarkdown(message)}\n${note}`;
 
   return { verdict, shouldFail, blockingFindings, message, summaryMarkdown };
 }

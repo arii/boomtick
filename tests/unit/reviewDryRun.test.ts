@@ -18,7 +18,7 @@ describe('review dry-run', () => {
   });
 
   it('fail fixture is red and names the blocking finding', async () => {
-    const r = await runDryRun(fixture('fail'), { ownPr: true });
+    const r = await runDryRun(fixture('fail'));
     expect(r.exitCode).toBe(1);
     expect(r.verdictJson?.llmVerdict).toBe('fail');
     expect(r.outputs).toContain('verdict=fail');
