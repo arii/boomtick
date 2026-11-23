@@ -30,12 +30,13 @@ def reply(prompt=10, completion=20, reasoning=0, finish="stop", tool=None):
     }
 
 
-def setup(store, monkeypatch, count=2):
+def setup(store, monkeypatch, count=2, provider_ids=None):
     configuration = []
     for i in range(count):
+        provider_id = provider_ids[i] if provider_ids else f"p{i}"
         p = {
-            "id": f"p{i}",
-            "base_url": f"https://p{i}.test/v1",
+            "id": provider_id,
+            "base_url": f"https://{provider_id}.test/v1",
             "key_env": f"TEST_KEY_{i}",
             "strict": True,
             "trains_on_free_tier": False,
@@ -72,6 +73,124 @@ def run(store, configuration, handler, body=None, privacy="standard", session=No
             )
 
     return asyncio.run(scenario())
+
+
+def tool_history(response):
+    message = {"role": "assistant", **response["choices"][0]["message"]}
+    results = [
+        {"role": "tool", "tool_call_id": call["id"], "content": "found"}
+        for call in message["tool_calls"]
+    ]
+    return [*REQUEST["messages"], message, *results]
+
+
+def test_google_skips_unsigned_tool_history_from_groq(store, monkeypatch):
+    configuration = setup(store, monkeypatch, provider_ids=("google", "groq"))
+    tool_reply = reply(tool={"name": "lookup", "arguments": "{}"}, finish="tool_calls")
+    sent = []
+
+    def handler(request):
+        sent.append(request.url.host)
+        if len(sent) == 1:
+            return httpx.Response(503, json={"error": {"message": "overloaded"}})
+        return httpx.Response(200, json=tool_reply if len(sent) == 2 else reply())
+
+    first, status, headers = run(store, configuration, handler, session="spec")
+    assert status == 200 and headers["X-Provider-Used"] == "groq"
+    _, status, headers = run(
+        store,
+        configuration,
+        handler,
+        {**REQUEST, "messages": tool_history(first)},
+        session="spec",
+    )
+    assert status == 200 and headers["X-Provider-Used"] == "groq"
+    assert sent == ["google.test", "groq.test", "groq.test"]
+    google, groq = store.trace(headers["X-Trace-Id"])["attempts"]
+    assert (
+        not google["called"]
+        and google["reason"] == "Google tool history missing thought_signature"
+    )
+    assert groq["called"] and groq["reason"] == "success"
+
+
+@pytest.mark.parametrize("client_preserves_signature", [True, False])
+def test_google_reuses_its_tool_signature(
+    store, monkeypatch, client_preserves_signature
+):
+    configuration = setup(store, monkeypatch, provider_ids=("google", "groq"))
+    tool_reply = reply(tool={"name": "lookup", "arguments": "{}"}, finish="tool_calls")
+    calls = tool_reply["choices"][0]["message"]["tool_calls"]
+    extra = {"google": {"thought_signature": "native-signature"}}
+    calls[0]["extra_content"] = extra
+    calls.append({**calls[0], "id": "call_2"})
+    del calls[1]["extra_content"]
+    sent = []
+
+    def handler(request):
+        sent.append(request.url.host)
+        if len(sent) == 1:
+            return httpx.Response(200, json=tool_reply)
+        if request.url.host == "google.test":
+            history = json.loads(request.content)["messages"]
+            assert history[1]["tool_calls"] == calls
+            assert [m["tool_call_id"] for m in history[2:]] == ["call_1", "call_2"]
+        return httpx.Response(200, json=reply())
+
+    async def scenario():
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+            gateway = Gateway(store, client, configuration)
+            first, status, headers = await gateway.complete(REQUEST, session="spec")
+            assert status == 200 and headers["X-Provider-Used"] == "google"
+            assert (
+                first["choices"][0]["message"]["tool_calls"][0]["extra_content"]
+                == extra
+            )
+            history = tool_history(first)
+            if not client_preserves_signature:
+                del history[1]["tool_calls"][0]["extra_content"]
+            body = {**REQUEST, "messages": history}
+            _, status, headers = await gateway.complete(body, session="spec")
+            assert status == 200 and headers["X-Provider-Used"] == "google"
+            if not client_preserves_signature:
+                assert "extra_content" not in body["messages"][1]["tool_calls"][0]
+                _, status, headers = await gateway.complete(body, session="other")
+                assert status == 200 and headers["X-Provider-Used"] == "groq"
+
+    asyncio.run(scenario())
+    assert sent == ["google.test", "google.test"] + (
+        [] if client_preserves_signature else ["groq.test"]
+    )
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [
+        {"error": {"message": "Missing thought_signature"}},
+        [
+            {
+                "error": {
+                    "message": "Missing thought_signature",
+                    "status": "INVALID_ARGUMENT",
+                }
+            }
+        ],
+    ],
+)
+def test_google_thought_signature_400_falls_through(store, monkeypatch, payload):
+    configuration = setup(store, monkeypatch, provider_ids=("google", "groq"))
+
+    def handler(request):
+        if request.url.host == "google.test":
+            return httpx.Response(400, json=payload)
+        return httpx.Response(200, json=reply())
+
+    result, status, headers = run(store, configuration, handler)
+    assert status == 200 and result == reply() and headers["X-Provider-Used"] == "groq"
+    google, groq = store.trace(headers["X-Trace-Id"])["attempts"]
+    assert google["called"] and google["http_status"] == 400
+    assert google["reason"] == "upstream Google HTTP 400: thought_signature"
+    assert groq["reason"] == "success"
 
 
 @pytest.mark.parametrize(
