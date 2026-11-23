@@ -22,11 +22,9 @@ The action will check for the existence of these scripts in your root `package.j
 - `impact:build-main`: Builds the base branch (e.g., `main`) for visual comparison.
 - `build:review`: Builds the current PR branch for visual comparison.
 - `impact:gemini-code-review`: (Optional) Runs AI code review.
-- `impact:github-models-code-review`: (Optional) Runs AI code review via GitHub Models.
 - `impact:visual-diff`: Captures and compares screenshots.
 - `impact:dom-diff`: Compares DOM structure.
 - `impact:gemini-review`: (Optional) Runs AI visual review.
-- `impact:github-models-review`: (Optional) Runs AI visual review via GitHub Models.
 
 ## Environment Variables
 

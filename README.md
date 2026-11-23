@@ -46,7 +46,7 @@ Boomtick uses a direct standalone package, container, and composite action integ
 ## Advanced AI Integration
 
 * **Gemini API:** The code and visual review entrypoints support Gemini. A usable API key and available project capacity are required. Inspect the actual review output and logs: the current main implementation can return incomplete or empty results without a failed job. Do not treat that as approval. The corrective native-context/fail-closed work is on a separate branch, not part of main.
-* **Review orchestration:** TypeScript clients call the Gemini REST API directly and combine specialist review results. GitHub Models command aliases remain in package scripts, but their provider argument is rejected by the current review runner.
+* **Review orchestration:** TypeScript clients call the Gemini REST API directly and combine specialist review results.
 * **Context retrieval:** The Python CLI includes dependency-graph and vector-store tools. The review context command returns direct dependencies and dependents; it does not run vector search.
 
 Documentation source check: November 21, 2026. Local documentation links and setup-shell syntax were checked against this repository. A fresh-machine installation, host registration and live API review were not executed as part of that check.
