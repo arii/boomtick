@@ -513,6 +513,80 @@ def test_retry_after_values():
     assert 88 < retry_seconds(future) <= 90
 
 
+@pytest.mark.parametrize("first_status", [429, 410])
+def test_routed_429_replays_only_after_rate_limit_only_exhaustion(
+    store, monkeypatch, first_status
+):
+    configuration = setup(store, monkeypatch, count=3)
+    monkeypatch.delenv("TEST_KEY_2")
+    clock = [100.0]
+    sleeps = []
+    calls = []
+
+    async def sleep(seconds):
+        sleeps.append(seconds)
+        clock[0] += seconds
+
+    def handler(request):
+        host = request.url.host
+        calls.append(host)
+        if host == "p0.test":
+            return httpx.Response(first_status, headers={"Retry-After": "12"}, json={})
+        if clock[0] < 103:
+            return httpx.Response(429, headers={"Retry-After": "3"}, json={})
+        return httpx.Response(200, json=reply())
+
+    async def scenario():
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+            gateway = Gateway(
+                store, client, configuration, clock=lambda: clock[0], sleep=sleep
+            )
+            return await gateway.complete(REQUEST)
+
+    payload, status, headers = asyncio.run(scenario())
+    if first_status == 429:
+        assert sleeps == [3]
+        assert calls == ["p0.test", "p1.test", "p1.test"]
+        assert status == 200 and headers["X-Provider-Used"] == "p1"
+    else:
+        assert sleeps == []
+        assert calls == ["p0.test", "p1.test"]
+        assert status == 502 and payload["error"]["rate_limited_only"] is False
+
+
+@pytest.mark.parametrize("retry_after,expected_calls", [("2", 2), ("120", 1)])
+def test_routed_429_replays_at_most_once_with_configured_wait(
+    store, monkeypatch, retry_after, expected_calls
+):
+    configuration = setup(store, monkeypatch, count=1)
+    monkeypatch.setenv("TWT_FREE_WAIT_SECONDS", "2")
+    clock = [100.0]
+    sleeps = []
+
+    async def sleep(seconds):
+        sleeps.append(seconds)
+        clock[0] += seconds
+
+    async def scenario():
+        async with httpx.AsyncClient(
+            transport=httpx.MockTransport(
+                lambda r: httpx.Response(
+                    429, headers={"Retry-After": retry_after}, json={}
+                )
+            ),
+        ) as client:
+            gateway = Gateway(
+                store, client, configuration, clock=lambda: clock[0], sleep=sleep
+            )
+            return await gateway.complete(REQUEST)
+
+    payload, status, _ = asyncio.run(scenario())
+    assert status == 502 and payload["error"]["rate_limited_only"] is True
+    assert sleeps == [2]
+    assert len(payload["error"]["attempts"]) == 2
+    assert sum(a["called"] for a in payload["error"]["attempts"]) == expected_calls
+
+
 @pytest.mark.parametrize(
     "mode", ["privacy", "trains", "tools", "json", "json_schema", "chat", "model"]
 )

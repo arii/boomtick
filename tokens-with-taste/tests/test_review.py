@@ -88,7 +88,9 @@ def test_concurrent_429s_preserve_longest_cooldown(store, monkeypatch):
             )
 
         async with httpx.AsyncClient(transport=httpx.MockTransport(upstream)) as client:
-            gateway = Gateway(store, client, configuration, clock=lambda: 1000)
+            gateway = Gateway(
+                store, client, configuration, clock=lambda: 1000, free_wait_seconds=0
+            )
             long_request = asyncio.create_task(gateway.complete(REQUEST))
             short_request = asyncio.create_task(gateway.complete(REQUEST))
             try:

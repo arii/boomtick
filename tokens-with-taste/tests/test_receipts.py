@@ -18,7 +18,7 @@ def test_abandoned_predispatch_trace_can_be_retried(
     trace_id = str(uuid.uuid4())
     calls = []
 
-    async def fail(*args):
+    async def fail(*args, **kwargs):
         raise error_type()
 
     async def scenario():
@@ -136,10 +136,12 @@ def test_concurrent_trace_id_is_reserved_before_upstream_dispatch(store, monkeyp
 
 
 @pytest.mark.parametrize("during_wait", [False, True])
-def test_disconnected_client_never_starts_paid_fallback(
-    store, monkeypatch, during_wait
-):
+def test_disconnected_client_stops_routed_fallback(store, monkeypatch, during_wait):
     configuration = free_first(store, monkeypatch)
+    if during_wait:
+        second = next(model for model in store.models() if model["provider"] == "p1")
+        second.update(free=True, input_price=0, output_price=0)
+        store.replace_models("p1", [second])
     gone = [False]
     calls = []
     clock = [100.0]
@@ -169,7 +171,7 @@ def test_disconnected_client_never_starts_paid_fallback(
             assert store.trace(headers["X-Trace-Id"])["cost_complete"]
 
     asyncio.run(scenario())
-    assert calls == ["p0.test"]
+    assert calls == (["p0.test", "p1.test"] if during_wait else ["p0.test"])
 
 
 @pytest.mark.parametrize(

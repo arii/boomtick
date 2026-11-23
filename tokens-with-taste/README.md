@@ -129,10 +129,15 @@ are not waited for. Ranking ignores cooldowns, so a cooled cheapest provider
 still appears first in the trace as a no-call attempt. Paid cost of the failed attempt stays unknown, never zero.
 Paid transport timeouts set no cooldown.
 
-429, 5xx and timeouts fall through; connection failures and malformed chat
-responses also fall through. Other upstream 4xx stop and are returned.
+Routed requests fall through on upstream HTTP errors, transport failures and
+malformed chat responses. Pinned requests still return non-retryable 4xx errors.
 429 starts a per-provider/model cooldown using numeric or HTTP-date
-`Retry-After` (60 seconds if absent/invalid). A local 60-second sliding-window
+`Retry-After` (60 seconds if absent/invalid). If a route exhausts its eligible
+providers due only to upstream rate limits, TwT waits for the shortest cooldown
+within the remaining wait budget and retries the waterfall once, without
+bypassing cooldowns. Exhausted-route errors include `rate_limited_only`.
+`TWT_FREE_WAIT_SECONDS` sets the per-request wait budget (0–60 seconds, default
+60). A local 60-second sliding-window
 counter includes every actual attempt, not skips. Configured RPM: Groq's two
 listed GPT OSS models 30, OpenRouter **`:free` only** 20, listed SambaNova
 models 20, Cloudflare non-paid text default 300 (no models yet verified).
