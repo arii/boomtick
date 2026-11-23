@@ -4,12 +4,17 @@
   "vite_base_path": "/boomtick/",
   "code_review_chain": {
     "primary": "gemini-2.5-pro",
-    "fallbacks": ["gemini-2.5-flash", "gemini-1.5-pro"],
+    "fallbacks": [
+      "gemini-2.5-flash",
+      "gemini-1.5-pro"
+    ],
     "max_retries": 3
   },
   "triage_chain": {
     "primary": "gemini-2.5-flash",
-    "fallbacks": ["gemini-1.5-flash"],
+    "fallbacks": [
+      "gemini-1.5-flash"
+    ],
     "max_retries": 2
   },
   "ecosystem_repos": {
@@ -19,5 +24,12 @@
     "arii/hrm": "../hrm",
     "arii/glossy": "../glossy",
     "arii/remote-server": "../remote-server"
-  }
+  },
+  "audit_check_dirs": [
+    "src",
+    "mcp/src",
+    "scripts",
+    ".github/workflows",
+    ".npmrc"
+  ]
 }
