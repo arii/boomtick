@@ -279,12 +279,17 @@ async def sync(store, client=None, configuration=None):
     )
     owned = client is None
     client = client or httpx.AsyncClient(
-        timeout=60, follow_redirects=not local_model, trust_env=not local_model
+        timeout=60,
+        follow_redirects=not (local_model or os.environ.get("TWT_OLLAMA_STRONG_MODEL")),
+        trust_env=not (local_model or os.environ.get("TWT_OLLAMA_STRONG_MODEL")),
     )
     messages = []
     try:
         if local_model:
             return await sync_ollama(store, client, local_model)
+        strong_local = os.environ.get("TWT_OLLAMA_STRONG_MODEL")
+        if strong_local:
+            messages.extend(await sync_ollama(store, client, strong_local))
         response = await client.get(PRICE_URL)
         response.raise_for_status()
         prices = response.json()

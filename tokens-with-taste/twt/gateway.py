@@ -1,4 +1,5 @@
 import asyncio
+import json
 import os
 import time
 import uuid
@@ -23,6 +24,8 @@ from .catalog import (
     missing,
     ollama_running_context,
     require_local_ollama,
+    providers as hosted_providers,
+    OLLAMA_URL,
 )
 from .costs import cost_upper_bound
 from .store import Store, now
@@ -172,8 +175,13 @@ def error_response(message, status):
 def eligible_models(catalog, provider, body):
     candidates = [m for m in catalog if m["provider"] == provider["id"] and m["chat"]]
     requested = body.get("model", "default")
-    default_route = requested in ("default", "route:default")
-    if default_route:
+    strong_route = requested == "route:strong"
+    default_route = requested in ("default", "route:default") or strong_route
+    if strong_route:
+        requested = (
+            provider.get("strong_model") or provider.get("local_model") or "default"
+        )
+    elif default_route:
         requested = body.get("provider_models", {}).get(provider["id"], requested)
     if requested not in ("default", "route:default"):
         candidates = [
@@ -210,6 +218,15 @@ class Gateway:
         self.client = client
         self.providers = (
             configuration if configuration is not None else configured_providers()
+        )
+        # The strong profile can mix local and hosted models without changing
+        # the existing local-only/default route configuration.
+        self.strong_providers = (
+            configuration
+            if configuration is not None
+            else self.providers
+            if os.environ.get("TWT_OLLAMA_MODEL")
+            else hosted_providers()
         )
         self.clock = clock
         self.calls = defaultdict(deque)
@@ -364,7 +381,57 @@ class Gateway:
             )
             self.store.save_trace(trace)
             return trace["response"], 400, trace_headers(trace)
-        catalog = catalog_models(self.store, self.providers)
+        route_providers = self.providers
+        if body.get("model") == "route:strong":
+            try:
+                selections = json.loads(os.environ.get("TWT_STRONG_MODELS", "{}"))
+                if not isinstance(selections, dict) or any(
+                    key not in {p["id"] for p in self.strong_providers}
+                    or not isinstance(value, str)
+                    or not value.strip()
+                    for key, value in selections.items()
+                ):
+                    raise ValueError(
+                        "expected configured provider IDs and nonempty model IDs"
+                    )
+                route_providers = [
+                    {
+                        **provider,
+                        "strong_model": selections.get(
+                            provider["id"], provider.get("strong_model")
+                        ),
+                    }
+                    for provider in self.strong_providers
+                ]
+                local_model = os.environ.get("TWT_OLLAMA_STRONG_MODEL")
+                if local_model:
+                    route_providers = [
+                        {
+                            "id": "ollama",
+                            "base_url": f"{OLLAMA_URL}/v1",
+                            "local_model": local_model,
+                            "strong_model": local_model,
+                            "strict": True,
+                            "trains_on_free_tier": False,
+                        }
+                    ] + [p for p in route_providers if p["id"] != "ollama"]
+            except (ValueError, TypeError) as error:
+                trace.update(
+                    http_status=400,
+                    cost_usd=0,
+                    cost_complete=True,
+                    response={
+                        "error": {
+                            "message": f"Invalid strong routing configuration: {error}"
+                        }
+                    },
+                )
+                self.store.save_trace(trace)
+                return trace["response"], 400, trace_headers(trace)
+            allowed = {p["id"] for p in route_providers} - disabled_providers()
+            catalog = [m for m in self.store.models() if m["provider"] in allowed]
+        else:
+            catalog = catalog_models(self.store, self.providers)
         absent = set()
         response_payload = None
         context = None
@@ -383,7 +450,22 @@ class Gateway:
                 trace["http_status"] = 500
                 self.store.save_trace(trace)
                 return trace["response"], 500, trace_headers(trace)
-        pending = deque(order_providers(self.providers, catalog, body, privacy))
+        ordered = order_providers(route_providers, catalog, body, privacy)
+        if body.get("model") == "route:strong":
+            # Preserve free-provider order and all existing admission/budget checks.
+            # Local is first, Nebius is last, even when price ranking ties.
+            ordered.sort(
+                key=lambda provider: (
+                    0
+                    if "local_model" in provider
+                    else 3
+                    if provider["id"] == "nebius"
+                    else 1
+                    if any(m["free"] for m in eligible_models(catalog, provider, body))
+                    else 2
+                )
+            )
+        pending = deque(ordered)
         retried = set()
         waited = 0
         while pending:
@@ -692,11 +774,25 @@ class Gateway:
 
 def create_app(store=None, client=None, configuration=None):
     storage = store or Store()
+    strong_configuration = (
+        (
+            configured_providers()
+            if os.environ.get("TWT_OLLAMA_MODEL")
+            else hosted_providers()
+        )
+        if configuration is None
+        else configuration
+    )
     configuration = configured_providers() if configuration is None else configuration
     http = client or httpx.AsyncClient(
-        timeout=30, trust_env=not any("local_model" in p for p in configuration)
+        timeout=30,
+        trust_env=not (
+            os.environ.get("TWT_OLLAMA_STRONG_MODEL")
+            or any("local_model" in p for p in configuration)
+        ),
     )
     gateway = Gateway(storage, http, configuration)
+    gateway.strong_providers = strong_configuration
 
     @asynccontextmanager
     async def lifespan(app):

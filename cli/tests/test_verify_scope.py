@@ -255,6 +255,9 @@ def test_explicit_issue_number_supplies_scope_identity(monkeypatch):
 
 
 def test_unavailable_sidebar_metadata_keeps_pr_scope(monkeypatch):
+    monkeypatch.delenv("GITHUB_HEAD_REF", raising=False)
+    monkeypatch.delenv("GITHUB_REF", raising=False)
+
     def unavailable(*args, **kwargs):
         raise OSError("gh unavailable")
 

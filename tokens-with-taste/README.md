@@ -290,3 +290,26 @@ GET https://api.tokenfactory.nebius.com/v1/models -> 401
 The Tokens with Taste job in `.github/workflows/ci.yml` installs this explicit
 package and runs pytest on Python 3.11. Tests use `httpx.MockTransport` and ASGI
 transport, with no external network or credentials.
+
+### Strong routing profile
+
+Send `model: "route:strong"` to prefer configured stronger models without
+changing `default` or the local-only route. Configure the gateway process with
+`TWT_STRONG_MODELS`, a JSON object mapping provider IDs to exact synced model IDs,
+and `TWT_OLLAMA_STRONG_MODEL`, an installed local Ollama chat model. For example,
+`TWT_STRONG_MODELS='{"nvidia":"your-synced-strong-model","nebius":"your-synced-strong-model"}'`.
+Use actual catalog IDs, these placeholders are not model recommendations.
+Run `twt sync` to validate/sync the local strong model alongside hosted catalogs.
+Ollama must have cloud disabled. Do not combine this mixed-profile service with
+`TWT_OLLAMA_MODEL`, which deliberately keeps the entire service local-only.
+
+The strong profile tries local first, eligible free providers next, and Nebius
+last. A provider without a strong selection keeps its ordinary model selection.
+An unavailable selected strong model is skipped, never replaced with a weak
+model at that provider. Existing privacy, capabilities, cooldowns, daily budget
+and receipt accounting still apply. Set `TWT_DAILY_BUDGET_USD=5` for a $5 daily
+cap, this profile does not change or bypass the configured budget.
+
+Remote-server integration example, to be applied in that repository's coder
+configuration after this gateway version is available: `CODER_STRONG_MODEL=route:strong`.
+This source change does not modify a running host or register models remotely.
