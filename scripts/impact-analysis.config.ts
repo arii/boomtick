@@ -1,5 +1,7 @@
 export const IMPACT_CONFIG = {
   PAGES_DIR: 'src/pages',
+  // JSON array of concrete root-relative URLs, supplied by the consuming repo.
+  URL_INVENTORY_FILE: process.env.IMPACT_URL_INVENTORY || 'impact-url-inventory.json',
 
   // Severity paths
   HIGH_IMPACT_PATHS: [
