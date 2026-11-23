@@ -5,7 +5,10 @@ const INTAKE_STATE = 'intake-day';
 const ISSUE_PREFIX = /^\[issue\][ \t]+([a-z0-9][a-z0-9_.-]*):[ \t]+([^\r\n]+)/;
 const HTTPS_LINK = /^https:\/\/(?:\[[\da-f:.]+\]|[^\s/?#:@\\"<>`]+)(?::\d+)?(?:[/?#][^\s\\"<>`]*)?$/i;
 const INTAKE_COLUMNS = ['intake_id', 'dedupe_hash', 'missing_fields', 'status'];
-const REQUIRED_TASK_FIELDS = [['Problem', 'problem'], ['Done when', 'done_when']];
+// The one canonical list of required fields, in the order missing_fields reports them.
+// Each maps to the note section it is parsed from, or to the [issue] prefix for title and repo.
+const REQUIRED_FIELDS = ['title', 'repo', 'problem', 'scope', 'done_when'];
+const FIELD_LABELS = {title: 'title', repo: 'repo', problem: 'Problem', scope: 'Out of scope', done_when: 'Done when'};
 const HASH_MARKER = 'hash:';
 // Python str.isspace() set, used for strip() and re \s in ledger_intake.normalize().
 const PY_SPACE = '\\t\\n\\v\\f\\r\\x1c-\\x1f \\x85\\xa0\\u1680\\u2000-\\u200a\\u2028\\u2029\\u202f\\u205f\\u3000';
@@ -69,6 +72,21 @@ function taskFields(note) {
   return Object.fromEntries(Object.entries(fields).map(([name, value]) => [name, value.trim()]));
 }
 
+// The form has no title or repo columns, so both come from the "[issue] <repo>: <title>" prefix.
+// repo is the full owner/name form, e.g. arii/remote-server.
+function taskRecord(note) {
+  const [, repo, title] = ISSUE_PREFIX.exec(note);
+  const fields = taskFields(note);
+  return {
+    title: title.trim(), repo: OWNER + '/' + repo,
+    problem: fields['Problem'], scope: fields['Out of scope'], done_when: fields['Done when'],
+  };
+}
+
+function missingFields(record) {
+  return REQUIRED_FIELDS.filter(name => !record[name]);
+}
+
 function dedupKey(row) {
   const input = row.link || row.source + '|' + row.note;
   return Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, input,
@@ -114,12 +132,10 @@ function intakeId(title, repo) {
 }
 
 function intakeKeys(row, store) {
-  const [, repo, rawTitle] = ISSUE_PREFIX.exec(row.note);
-  const fields = taskFields(row.note);
-  const title = rawTitle.trim();
-  const fullRepo = OWNER + '/' + repo;
+  const record = taskRecord(row.note);
+  const {title, repo: fullRepo} = record;
   const hash = dedupeHash(title, fullRepo);
-  const missing = REQUIRED_TASK_FIELDS.filter(([name]) => !fields[name]).map(([, id]) => id);
+  const missing = missingFields(record);
   // Submit never writes READY or DISPATCHED: only Ariel marks work ready and the queue dispatches.
   const status = store.getProperty(HASH_MARKER + hash) ? 'DUPLICATE' : missing.length ? 'NEEDS_INFO' : 'NEW';
   return {intake_id: intakeId(title, fullRepo), dedupe_hash: hash, missing_fields: missing.join(','), status};
@@ -173,12 +189,11 @@ function onFormSubmit(e) {
 }
 
 function intake(row, range, store, props) {
-  const fields = taskFields(row.note);
-  const missing = ['Problem', 'Done when'].filter(name => !fields[name]);
+  const missing = missingFields(taskRecord(row.note));
   if (missing.length) {
     const marker = 'later:' + dedupKey({...row, link: ''});
     if (!store.getProperty(marker)) {
-      submitOutcome(range, row.source, 'Later', 'Missing required task field: ' + missing.join(', ') + '.', '');
+      submitOutcome(range, row.source, 'Later', 'Missing required task field: ' + missing.map(name => FIELD_LABELS[name]).join(', ') + '.', '');
       store.setProperty(marker, 'true');
     }
     return;

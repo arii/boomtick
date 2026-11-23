@@ -20,7 +20,7 @@ const props = {
   ALLOWED_SOURCES: 'Instinct, Gemini, Antigravity',
   ALLOWED_REPOS: 'remote-server, boomtick, posture-guard',
 };
-const row = { source: 'Gemini', note: '[issue] remote-server: Check queue\nProblem: Failed runs look running.\nDone when: Failed runs show failed.', status: 'Act', link: '' };
+const row = { source: 'Gemini', note: '[issue] remote-server: Check queue\nProblem: Failed runs look running.\nDone when: Failed runs show failed.\nOut of scope: No new panels.', status: 'Act', link: '' };
 
 describe('Agent Ledger issue eligibility', () => {
   it('accepts explicit opt-in with a blank link or an HTTPS link', () => {
@@ -173,10 +173,12 @@ describe('Agent Ledger required task shape', () => {
   }
 
   it.each([
-    ['[issue] remote-server: Missing both', ['Problem', 'Done when']],
-    ['[issue] remote-server: Missing problem\nDone when: Queue shows failed', ['Problem']],
-    ['[issue] remote-server: Missing check\nProblem: Queue hides failures', ['Done when']],
-    ['[issue] remote-server: Empty problem\nProblem:  \nDone when: Queue shows failed', ['Problem']],
+    ['[issue] remote-server: Missing all', ['Problem', 'Out of scope', 'Done when']],
+    ['[issue] remote-server: Missing problem\nDone when: Queue shows failed\nOut of scope: No panels', ['Problem']],
+    ['[issue] remote-server: Missing check\nProblem: Queue hides failures\nOut of scope: No panels', ['Done when']],
+    ['[issue] remote-server: Missing scope\nProblem: Queue hides failures\nDone when: Queue shows failed', ['Out of scope']],
+    ['[issue] remote-server: Empty scope\nProblem: Queue hides failures\nDone when: Queue shows failed\nOut of scope:  ', ['Out of scope']],
+    ['[issue] remote-server: Empty problem\nProblem:  \nDone when: Queue shows failed\nOut of scope: No panels', ['Problem']],
     ['[issue] remote-server: Empty check\nProblem: Queue hides failures\nDone when: \t\nOut of scope: No panels', ['Done when']],
   ])('rejects fixture %s once without any GitHub call', (note, missing) => {
     const h = harness();
@@ -189,10 +191,10 @@ describe('Agent Ledger required task shape', () => {
     expect(h.request).not.toHaveBeenCalled();
   });
 
-  it.each(['', '\nOut of scope: No new panels'])('creates one complete issue with optional scope %s', extra => {
+  it('creates one issue when all five required fields are present', () => {
     const h = harness();
-    h.run(row.note + extra);
-    h.run(row.note + extra);
+    h.run(row.note);
+    h.run(row.note);
     const issues = h.request.mock.calls.filter(([path]) => path.endsWith('/issues'));
     expect(issues).toHaveLength(1);
     const payload = (issues[0] as unknown as [string, string, { body: string; labels: string[] }])[2];
@@ -200,7 +202,7 @@ describe('Agent Ledger required task shape', () => {
     expect(payload.body).toContain('Failed runs look running.');
     expect(payload.body).toContain('## Done when');
     expect(payload.body).toContain('## Out of scope');
-    expect(payload.body).toContain(extra ? 'No new panels' : '(not specified)');
+    expect(payload.body).toContain('No new panels');
     expect(payload.labels).toEqual(['ledger-intake', 'insight']);
     expect(h.outcome).toHaveBeenCalledTimes(1);
     expect(h.outcome.mock.calls[0][2]).toBe('Done');
@@ -208,7 +210,7 @@ describe('Agent Ledger required task shape', () => {
 
   it('accepts CRLF and multiline values without treating an empty header as content', () => {
     const h = harness();
-    h.run('[issue] remote-server: Multiline\r\nProblem:\r\nQueue hides failures\r\nDone when:\r\nQueue shows failed');
+    h.run('[issue] remote-server: Multiline\r\nProblem:\r\nQueue hides failures\r\nDone when:\r\nQueue shows failed\r\nOut of scope:\r\nNo panels');
     expect(h.request.mock.calls.filter(([path]) => path.endsWith('/issues'))).toHaveLength(1);
   });
 
@@ -342,10 +344,15 @@ describe('Agent Ledger submit writes intake columns', () => {
 
   it('writes NEEDS_INFO with the missing fields CSV in order', () => {
     const h = setup();
-    expect(h.cells(h.submit('[issue] remote-server: Check queue\nProblem: Failed runs look running.'))).toMatchObject({
-      status: 'NEEDS_INFO', missing_fields: 'done_when', dedupe_hash: fullHash,
+    const noScope = '[issue] remote-server: Check queue\nProblem: Failed runs look running.\nDone when: Failed runs show failed.';
+    expect(h.cells(h.submit(noScope))).toMatchObject({
+      status: 'NEEDS_INFO', missing_fields: 'scope', dedupe_hash: fullHash,
     });
-    expect(h.cells(h.submit('[issue] remote-server: Other'))).toMatchObject({ status: 'NEEDS_INFO', missing_fields: 'problem,done_when' });
+    expect(h.cells(h.submit('[issue] remote-server: Check queue\nProblem: Failed runs look running.\nOut of scope: None.'))).toMatchObject({
+      status: 'NEEDS_INFO', missing_fields: 'done_when',
+    });
+    expect(h.cells(h.submit('[issue] remote-server: Other'))).toMatchObject({ status: 'NEEDS_INFO', missing_fields: 'problem,scope,done_when' });
+    expect(h.cells(h.submit('[issue] remote-server: Third\nDone when: d'))).toMatchObject({ status: 'NEEDS_INFO', missing_fields: 'problem,scope' });
     expect(h.issues()).toBe(0);
   });
 
@@ -353,7 +360,7 @@ describe('Agent Ledger submit writes intake columns', () => {
     const h = setup();
     h.submit(row.note);
     expect(h.cells(h.submit(row.note)).status).toBe('DUPLICATE');
-    const reworded = '[issue] remote-server:   CHECK  queue\nProblem: Different text.\nDone when: Different check.';
+    const reworded = '[issue] remote-server:   CHECK  queue\nProblem: Different text.\nDone when: Different check.\nOut of scope: Nothing else.';
     const cells = h.cells(h.submit(reworded));
     expect(cells.status).toBe('DUPLICATE');
     expect(cells.dedupe_hash).toBe(fullHash);
@@ -365,7 +372,7 @@ describe('Agent Ledger submit writes intake columns', () => {
     h.submit(row.note);
     h.submit(row.note);
     expect(h.issues()).toBe(1);
-    h.submit('[issue] remote-server: CHECK queue\nProblem: Different text.\nDone when: Different check.');
+    h.submit('[issue] remote-server: CHECK queue\nProblem: Different text.\nDone when: Different check.\nOut of scope: Nothing else.');
     expect(h.issues()).toBe(2);
   });
 
@@ -386,7 +393,7 @@ describe('Agent Ledger submit writes intake columns', () => {
 
   it('never writes READY or DISPATCHED', () => {
     const h = setup();
-    const notes = [row.note, row.note, '[issue] remote-server: A', '[issue] remote-server: B\nProblem: p\nDone when: d'];
+    const notes = [row.note, row.note, '[issue] remote-server: A', '[issue] remote-server: B\nProblem: p\nDone when: d\nOut of scope: s'];
     const statuses = notes.map(note => h.cells(h.submit(note)).status);
     expect(new Set(statuses)).toEqual(new Set(['NEW', 'DUPLICATE', 'NEEDS_INFO']));
   });
