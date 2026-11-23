@@ -628,6 +628,8 @@ class QualityMixin(IssueMixin):
         if all_routes:
             with open("artifacts/ux-audit/routes.json", "r", encoding="utf-8") as f:
                 routes = json.load(f)["routes"]
+            if not routes:
+                raise ValueError("UX route discovery found no routes")
         elif route:
             routes = [route]
 
@@ -669,7 +671,12 @@ class QualityMixin(IssueMixin):
                     }
                 )
 
-        return {"status": "success", "results": results}
+        return {
+            "status": "success"
+            if all(item["status"] == "success" for item in results)
+            else "error",
+            "results": results,
+        }
 
     def run_lighthouse(self, route: Optional[str] = None) -> Dict[str, Any]:
         """
