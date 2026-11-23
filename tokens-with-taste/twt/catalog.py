@@ -179,6 +179,7 @@ def normalize(provider, row, prices, router):
         "free": free,
         "rpm": rpm,
         "daily": known.get("daily"),
+        "tpm": known.get("tpm"),
         "synced_source": provider.get("models_url") or base_url(provider) + "/models",
         "metadata_source": OPENROUTER_URL if reference else PRICE_URL,
         "price_source": OPENROUTER_URL if provider["id"] == "openrouter" else PRICE_URL,

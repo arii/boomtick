@@ -42,11 +42,13 @@
         "openai/gpt-oss-20b": {
           "rpm": 30,
           "daily": 1000,
+          "tpm": 8000,
           "free": true
         },
         "openai/gpt-oss-120b": {
           "rpm": 30,
           "daily": 1000,
+          "tpm": 8000,
           "free": true
         }
       },
