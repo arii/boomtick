@@ -247,7 +247,7 @@ class Gateway:
         configuration=None,
         clock=time.monotonic,
         sleep=asyncio.sleep,
-        free_wait_seconds=60,
+        free_wait_seconds=None,
     ):
         disabled_providers()  # Reject misspelled exclusions before serving requests.
         self.store = store
@@ -273,6 +273,10 @@ class Gateway:
         self.google_signatures = {}
         self.lock = asyncio.Lock()
         self.sleep = sleep
+        if free_wait_seconds is None:
+            free_wait_seconds = float(os.environ.get("TWT_FREE_WAIT_SECONDS", "60"))
+            if not 0 <= free_wait_seconds <= 60:
+                raise ValueError("TWT_FREE_WAIT_SECONDS must be between 0 and 60")
         self.free_wait_seconds = max(0, min(60, free_wait_seconds))
         self.cancelled = set()
 
@@ -327,7 +331,7 @@ class Gateway:
                     if len(self.google_signatures) > GOOGLE_SIGNATURE_CACHE_SIZE:
                         self.google_signatures.pop(next(iter(self.google_signatures)))
 
-    async def reserve(self, model, key, budget, remaining):
+    async def reserve(self, model, key, budget, remaining, *, defer_retry_after=False):
         waited = 0
         while True:
             async with self.lock:
@@ -355,6 +359,13 @@ class Gateway:
                     return "overload cooldown", waited, None
                 transport_until = self.transport_cooldowns.get(key, 0)
                 retry_until = self.cooldowns.get(key, 0)
+                if defer_retry_after and retry_until > current:
+                    reason = (
+                        "transport failure cooldown"
+                        if transport_until > current
+                        else "Retry-After cooldown"
+                    )
+                    return reason, waited, None
                 delay = max(0, retry_until - current, transport_until - current)
                 reason = (
                     "transport failure cooldown"
@@ -559,8 +570,13 @@ class Gateway:
             )
         pending = deque(ordered)
         retried = set()
+        rate_deadlines = []
+        hard_failure = False
+        replayed = False
         waited = 0
-        while pending:
+        while pending or (
+            routed and rate_deadlines and not hard_failure and not replayed
+        ):
             if trace["trace_id"] in self.cancelled or (
                 disconnected and await disconnected()
             ):
@@ -572,6 +588,17 @@ class Gateway:
                 }
                 trace["http_status"] = 499
                 break
+            if not pending:
+                delay = min(
+                    max(0, min(rate_deadlines) - self.clock()),
+                    self.free_wait_seconds - waited,
+                )
+                if delay > 0:
+                    await self.sleep(delay)
+                    waited += delay
+                pending.extend(ordered)
+                replayed = True
+                continue
             provider = pending.popleft()
             attempt = {
                 "provider": provider["id"],
@@ -625,14 +652,26 @@ class Gateway:
                     attempt["reason"] = (
                         "local Ollama unavailable or cloud not disabled; check OLLAMA_NO_CLOUD=1"
                     )
+                    hard_failure = True
                     continue
             key = (provider["id"], model["id"])
             reason, delay, reservation = await self.reserve(
-                model, key, budget, self.free_wait_seconds - waited
+                model,
+                key,
+                budget,
+                self.free_wait_seconds - waited,
+                defer_retry_after=routed,
             )
             waited += delay
             if reason:
                 attempt["reason"] = reason
+                if reason == "Retry-After cooldown":
+                    rate_deadlines.append(self.cooldowns[key])
+                elif reason not in (
+                    "daily budget reached or paid model price unknown",
+                    "local RPM limit",
+                ):
+                    hard_failure = True
                 continue
             ready = False
             try:
@@ -725,7 +764,8 @@ class Gateway:
                         self.cooldowns.get(key, 0),
                         self.clock() + upstream_cooldown(response, payload),
                     )
-                    if model["free"] and key not in retried:
+                    rate_deadlines.append(self.cooldowns[key])
+                    if not routed and model["free"] and key not in retried:
                         retried.add(key)
                         pending.appendleft(provider)
                 if response.status_code in OVERLOAD_COOLDOWN_STATUSES:
@@ -824,6 +864,8 @@ class Gateway:
                 if model["free"]:
                     self.transport_cooldowns[key] = self.clock() + 300
             finally:
+                if attempt["http_status"] != 429:
+                    hard_failure = True
                 attempt["latency_ms"] = (self.clock() - request_start) * 1000
                 if not model["free"] and attempt["cost_usd"] is None:
                     attempt.update(cost_upper_bound(attempt["request"], model, attempt))
@@ -840,6 +882,9 @@ class Gateway:
                 "error": {"message": message, "type": "no_provider_available"}
             }
             if routed:
+                response_payload["error"]["rate_limited_only"] = (
+                    bool(rate_deadlines) and not hard_failure
+                )
                 response_payload["error"]["attempts"] = [
                     {
                         field: attempt[field]

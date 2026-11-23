@@ -135,13 +135,16 @@ def test_free_transport_failure_cools_down_then_recovers(
         ("invalid", 1, "p0", [60]),
     ],
 )
-def test_bounded_wait_before_paid(
-    store, monkeypatch, retry_after, failures, expected, waits
+@pytest.mark.parametrize("model", ["chat", "route:default"])
+def test_rate_limited_free_model_before_paid_fallback(
+    store, monkeypatch, retry_after, failures, expected, waits, model
 ):
     configuration = free_first(store, monkeypatch)
     clock = [100.0]
     sleeps = []
     calls = []
+    if model == "route:default":
+        expected, waits = "p1", []
 
     async def sleep(delay):
         sleeps.append(delay)
@@ -158,7 +161,7 @@ def test_bounded_wait_before_paid(
             gateway = Gateway(
                 store, client, configuration, clock=lambda: clock[0], sleep=sleep
             )
-            _, status, headers = await gateway.complete(REQUEST)
+            _, status, headers = await gateway.complete({**REQUEST, "model": model})
             assert status == 200
             assert headers["X-Provider-Used"] == expected
             trace = store.trace(headers["X-Trace-Id"])
