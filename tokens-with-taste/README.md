@@ -132,7 +132,10 @@ Paid transport timeouts set no cooldown.
 Routed requests fall through on upstream HTTP errors, transport failures and
 malformed chat responses. Pinned requests still return non-retryable 4xx errors.
 429 starts a per-provider/model cooldown using numeric or HTTP-date
-`Retry-After` (60 seconds if absent/invalid). If a route exhausts its eligible
+`Retry-After` (60 seconds if absent/invalid). For OpenRouter, a valid future
+`X-RateLimit-Reset` response header (epoch ms, capped at 24 hours) extends the
+cooldown to that reset. The trace reason records it, e.g.
+`upstream HTTP 429; cooldown 60s`. If a route exhausts its eligible
 providers due only to upstream rate limits, TwT waits for the shortest cooldown
 within the remaining wait budget and retries the waterfall once, without
 bypassing cooldowns. Exhausted-route errors include `rate_limited_only`.

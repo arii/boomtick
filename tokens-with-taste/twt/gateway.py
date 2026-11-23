@@ -155,8 +155,16 @@ def _reset_delay(value):
         return None
 
 
-def upstream_cooldown(response, payload):
+MAX_RESET_HEADER_SECONDS = 86400
+
+
+def upstream_cooldown(response, payload, openrouter=False):
     delay = retry_seconds(response.headers.get("Retry-After"))
+    if openrouter:
+        # OpenRouter's own free-model 429 reports its quota reset in headers only.
+        reset = _reset_delay(response.headers.get("X-RateLimit-Reset"))
+        if reset is not None and reset > 0:
+            delay = max(delay, min(reset, MAX_RESET_HEADER_SECONDS))
     error = payload.get("error")
     metadata = error.get("metadata") if isinstance(error, dict) else None
     if (
@@ -797,9 +805,11 @@ class Gateway:
                     attempt["reason"] = "upstream HTTP 413 request too large"
                     continue
                 if response.status_code == 429:
+                    cooldown = upstream_cooldown(
+                        response, payload, provider["id"] == "openrouter"
+                    )
                     self.cooldowns[key] = max(
-                        self.cooldowns.get(key, 0),
-                        self.clock() + upstream_cooldown(response, payload),
+                        self.cooldowns.get(key, 0), self.clock() + cooldown
                     )
                     rate_deadlines.append(self.cooldowns[key])
                     if not routed and model["free"] and key not in retried:
@@ -810,7 +820,12 @@ class Gateway:
                         self.overload_cooldowns.get(key, 0),
                         self.clock() + overload_cooldown(response),
                     )
-                if response.status_code == 429 or response.status_code >= 500:
+                if response.status_code == 429:
+                    attempt["reason"] = (
+                        f"upstream HTTP 429; cooldown {round(cooldown)}s"
+                    )
+                    continue
+                if response.status_code >= 500:
                     attempt["reason"] = f"upstream HTTP {response.status_code}"
                     continue
                 if response.status_code == 410:

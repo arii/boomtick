@@ -234,3 +234,57 @@ def test_502_retains_known_cost_header(store, monkeypatch):
                 assert store.trace(response.headers["x-trace-id"])["cost_complete"]
 
     asyncio.run(scenario())
+
+
+def reset_header_scenario(store, monkeypatch, provider_ids):
+    configuration = setup(store, monkeypatch, provider_ids=provider_ids)
+    model = store.models()[0]
+    model.update(free=True, input_price=0, output_price=0, rpm=100)
+    store.replace_models(provider_ids[0], [model])
+    monkeypatch.setattr("twt.gateway.time.time", lambda: 1000)
+    calls = []
+
+    def handler(request):
+        calls.append(request.url.host)
+        if request.url.host == f"{provider_ids[0]}.test":
+            return httpx.Response(
+                429,
+                headers={"X-RateLimit-Reset": "2000000"},
+                json={"error": {"code": 429, "message": "Rate limit exceeded"}},
+            )
+        return httpx.Response(200, json=reply())
+
+    async def scenario():
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+            gateway = Gateway(store, client, configuration, sleep=lambda _: None)
+            traces = []
+            for _ in range(2):
+                _, status, headers = await gateway.complete(REQUEST)
+                assert status == 200
+                traces.append(store.trace(headers["X-Trace-Id"]))
+            return traces
+
+    return asyncio.run(scenario()), calls
+
+
+def test_openrouter_header_only_429_cools_down_until_reset(store, monkeypatch):
+    traces, calls = reset_header_scenario(store, monkeypatch, ["openrouter", "p1"])
+    assert calls == ["openrouter.test", "p1.test", "p1.test"]
+    assert traces[0]["attempts"][0]["reason"] == "upstream HTTP 429; cooldown 1000s"
+    assert traces[1]["attempts"][0]["called"] is False
+
+
+def test_other_provider_reset_header_keeps_default_cooldown(store, monkeypatch):
+    traces, calls = reset_header_scenario(store, monkeypatch, ["p0", "p1"])
+    assert calls == ["p0.test", "p1.test", "p1.test"]
+    assert traces[0]["attempts"][0]["reason"] == "upstream HTTP 429; cooldown 60s"
+
+
+def test_openrouter_reset_header_is_capped_and_ignores_bad_values():
+    def cooldown(value):
+        response = httpx.Response(429, headers={"X-RateLimit-Reset": value})
+        return upstream_cooldown(response, {}, openrouter=True)
+
+    assert cooldown("99999999999999") == 86400
+    assert cooldown("junk") == 60
+    assert cooldown("0") == 60
