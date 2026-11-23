@@ -48,7 +48,10 @@ class AISlopAuditor:
         if yaml is None:
             raise RuntimeError("PyYAML is required to load audit.config.yaml")
         with open(self.config_path, 'r', encoding="utf-8") as f:
-            self.config = yaml.safe_load(f)
+            try:
+                self.config = yaml.safe_load(f)
+            except yaml.YAMLError as exc:
+                raise ValueError("Cannot parse audit config") from exc
         if not isinstance(self.config, dict) or not isinstance(self.config.get("categories"), dict):
             raise ValueError("Audit config must contain a categories mapping")
 
@@ -229,16 +232,18 @@ class _SwallowVisitor(ast.NodeVisitor):
 
 
 def _tracked_files(root: Path, pattern: str) -> List[str]:
-    """Tracked files matching pattern; falls back to a working-tree walk."""
+    """Tracked files, or a working-tree walk for non-repository fixtures."""
     try:
         res = subprocess.run(
             ["git", "ls-files", pattern],
             capture_output=True, text=True, cwd=str(root),
         )
-        if res.returncode == 0 and res.stdout.strip():
+        if res.returncode == 0:
             return sorted(res.stdout.split())
-    except OSError as e:
-        print(f"audit-ai-slop: git ls-files failed ({e}); falling back to walk", file=sys.stderr)
+        if (root / ".git").exists():
+            raise RuntimeError("Tracked-file scan failed: " + res.stderr.strip())
+    except OSError as exc:
+        raise RuntimeError("Tracked-file scanner could not run") from exc
     return sorted(str(p.relative_to(root)) for p in root.glob(f"**/{pattern}")
                   if ".git" not in p.parts and "node_modules" not in p.parts)
 
