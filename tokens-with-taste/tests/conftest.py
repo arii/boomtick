@@ -11,6 +11,8 @@ def clean_environment(monkeypatch):
     monkeypatch.delenv("TWT_DISABLED_PROVIDERS", raising=False)
     monkeypatch.delenv("TWT_DAILY_BUDGET_USD", raising=False)
     monkeypatch.delenv("TWT_OLLAMA_MODEL", raising=False)
+    monkeypatch.delenv("TWT_OLLAMA_STRONG_MODEL", raising=False)
+    monkeypatch.delenv("TWT_STRONG_MODELS", raising=False)
 
 
 @pytest.fixture
