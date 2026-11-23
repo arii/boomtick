@@ -31,6 +31,7 @@
     "build:review": "tsup",
     "impact:gemini-code-review": "tsx scripts/impact-ai-code-review.ts gemini",
     "impact:github-models-code-review": "tsx scripts/impact-ai-code-review.ts github-models",
+    "review:dry-run": "tsx scripts/review-dry-run.ts",
     "impact:visual-diff": "tsx scripts/impact-visual-diff.ts",
     "impact:dom-diff": "tsx scripts/impact-dom-diff.ts",
     "impact:gemini-review": "tsx scripts/impact-ai-review.ts gemini",

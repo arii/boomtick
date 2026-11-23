@@ -78,6 +78,8 @@ export const geminiCodeReviewClient: CodeReviewClientStrategy = {
       modelName: modelName,
       llmVerdict: parseCodeReviewVerdict(parsedGemini.feedback),
       findings: parsedState.state?.findings ?? [],
+      // The orchestrator aggregates, reconciles and posts from `state.findings`; without it every FAIL is downgraded to WARN.
+      state: { findings: parsedState.state?.findings ?? [] },
       isTruncated: parsedGemini.isTruncated,
       parseError: parsedState.parseError,
     };
