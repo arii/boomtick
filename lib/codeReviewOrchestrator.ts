@@ -720,7 +720,7 @@ export async function orchestrateCodeReview(
   });
 
   if (isFail) {
-    console.error(`❌ Code review returned FAIL — failing CI.`);
+    console.error(`❌ Code review returned FAIL (the step fails only when fail-on-verdict is enabled).`);
   }
 }
 
