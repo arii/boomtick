@@ -69,6 +69,8 @@ OVERLOAD_STATUSES = (503, 529)
 OVERLOAD_COOLDOWN_STATUSES = (502, 503, 504, 529)
 OVERLOAD_COOLDOWN_DEFAULT_SECONDS = 30
 OVERLOAD_COOLDOWN_MAX_SECONDS = 300
+MODEL_UNAVAILABLE_STATUSES = (404, 410)
+MODEL_UNAVAILABLE_COOLDOWN_SECONDS = 300
 # Blended USD per token used only to order paid models: input-heavy agent traffic.
 BLENDED_INPUT_WEIGHT = 0.8
 BLENDED_OUTPUT_WEIGHT = 0.2
@@ -203,6 +205,17 @@ def eligible_models(catalog, provider, body):
     return candidates
 
 
+def payment_required(payload):
+    error = payload.get("error")
+    if not isinstance(error, dict):
+        return False
+    return any(
+        isinstance(value := error.get(field), str)
+        and value.upper() in {"PAYMENT_REQUIRED", "PAYMENT_METHOD_REQUIRED"}
+        for field in ("code", "type")
+    )
+
+
 class Gateway:
     def __init__(
         self,
@@ -233,6 +246,7 @@ class Gateway:
         self.cooldowns = {}
         self.transport_cooldowns = {}
         self.overload_cooldowns = {}
+        self.unavailable_cooldowns = {}
         self.lock = asyncio.Lock()
         self.sleep = sleep
         self.free_wait_seconds = max(0, min(60, free_wait_seconds))
@@ -257,6 +271,8 @@ class Gateway:
                         None,
                     )
                 current = self.clock()
+                if self.unavailable_cooldowns.get(key, 0) > current:
+                    return "model unavailable cooldown", waited, None
                 window = self.calls[key]
                 while window and window[0] <= current - 60:
                     window.popleft()
@@ -633,6 +649,19 @@ class Gateway:
                     )
                 if response.status_code == 429 or response.status_code >= 500:
                     attempt["reason"] = f"upstream HTTP {response.status_code}"
+                    continue
+                if response.status_code in MODEL_UNAVAILABLE_STATUSES:
+                    self.unavailable_cooldowns[key] = (
+                        self.clock() + MODEL_UNAVAILABLE_COOLDOWN_SECONDS
+                    )
+                    attempt["reason"] = (
+                        f"upstream model unavailable (HTTP {response.status_code})"
+                    )
+                    continue
+                if response.status_code == 402 or payment_required(payload):
+                    attempt["reason"] = (
+                        f"upstream payment required (HTTP {response.status_code})"
+                    )
                     continue
                 if response.status_code >= 400:
                     attempt["reason"] = (
