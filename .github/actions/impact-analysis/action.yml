@@ -8,9 +8,6 @@ inputs:
   gemini_api_key:
     description: 'Gemini API key for review synthesis'
     required: false
-  openai_api_key:
-    description: 'OpenAI API key for main agent processing'
-    required: false
   pr-number:
     description: 'Explicit PR Number fallback for non-pull_request triggers'
     required: false
@@ -47,14 +44,12 @@ runs:
       env:
         GITHUB_TOKEN: ${{ inputs.github_token }}
         GEMINI_API_KEY: ${{ inputs.gemini_api_key }}
-        OPENAI_API_KEY: ${{ inputs.openai_api_key }}
         PR_NUMBER: ${{ steps.resolve-pr.outputs.pr_number }}
       run: |
         # 1. Run Impact Analysis
         docker run --rm \
           -e GITHUB_TOKEN="${GITHUB_TOKEN}" \
           -e GEMINI_API_KEY="${GEMINI_API_KEY}" \
-          -e OPENAI_API_KEY="${OPENAI_API_KEY}" \
           -e PR_NUMBER="${PR_NUMBER}" \
           -e GITHUB_REPOSITORY="${GITHUB_REPOSITORY}" \
           -v "${{ github.workspace }}":/github/workspace \
@@ -73,17 +68,4 @@ runs:
             -w /github/workspace \
             ${{ inputs.container_image }} \
             node /workspace/dist/runner.cjs gemini
-        fi
-
-        # 3. Run OpenAI Code Review
-        if [ -n "${OPENAI_API_KEY}" ]; then
-          docker run --rm \
-            -e GITHUB_TOKEN="${GITHUB_TOKEN}" \
-            -e OPENAI_API_KEY="${OPENAI_API_KEY}" \
-            -e PR_NUMBER="${PR_NUMBER}" \
-            -e GITHUB_REPOSITORY="${GITHUB_REPOSITORY}" \
-            -v "${{ github.workspace }}":/github/workspace \
-            -w /github/workspace \
-            ${{ inputs.container_image }} \
-            node /workspace/dist/runner.cjs github-models
         fi
