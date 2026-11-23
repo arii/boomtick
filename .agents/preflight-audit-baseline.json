@@ -1,0 +1,65 @@
+{
+  "description": "Existing findings exposed when enabling Boomtick preflight targets (#1386). Exact path/rule/value entries are counted, not blanket exclusions.",
+  "findings": [
+    [
+      "mcp/src/config.audit-r3.test.ts",
+      "Raw Hex Color (CSS)",
+      "#1235"
+    ],
+    [
+      "mcp/src/lib/session_manager.receipt_cap.test.ts",
+      "Raw Hex Color (CSS)",
+      "#1228"
+    ],
+    [
+      "mcp/src/lib/tool_telemetry.test.ts",
+      "Raw Hex Color (CSS)",
+      "#1157"
+    ],
+    [
+      "mcp/src/mcp/definitions.test.ts",
+      "Raw Hex Color (CSS)",
+      "#1026"
+    ],
+    [
+      "mcp/src/mcp/definitions.test.ts",
+      "Raw Hex Color (CSS)",
+      "#1026"
+    ],
+    [
+      "scripts/verify-schemas.failclosed.test.ts",
+      "Raw Hex Color (CSS)",
+      "#1226"
+    ],
+    [
+      "scripts/review-dry-run.ts",
+      "no-any-cast",
+      "client as any"
+    ],
+    [
+      "scripts/impact-visual-diff.ts",
+      "no-explicit-any",
+      ": any"
+    ],
+    [
+      "scripts/utils/verdict.ts",
+      "no-explicit-any",
+      ": any"
+    ],
+    [
+      "src/reviewers/runner.ts",
+      "no-explicit-any",
+      ": any"
+    ],
+    [
+      "src/reviewers/runner.ts",
+      "no-explicit-any",
+      ": any"
+    ],
+    [
+      "src/reviewers/runner.ts",
+      "no-any-cast",
+      "options.messages as any"
+    ]
+  ]
+}
