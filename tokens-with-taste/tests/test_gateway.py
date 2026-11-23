@@ -294,6 +294,38 @@ def test_unavailable_model_is_temporarily_skipped(store, monkeypatch, upstream_s
     assert skipped["reason"] == "model unavailable cooldown"
 
 
+def test_empty_message_truncated_by_length_names_the_token_budget(store, monkeypatch):
+    configuration = setup(store, monkeypatch)
+    truncated = {
+        **reply(),
+        "choices": [
+            {
+                "finish_reason": "length",
+                "message": {
+                    "role": "assistant",
+                    "content": "",
+                    "reasoning": "thinking that used the whole budget",
+                },
+            }
+        ],
+    }
+
+    def handler(request):
+        return httpx.Response(
+            200, json=truncated if request.url.host == "p0.test" else reply()
+        )
+
+    payload, status, headers = run(store, configuration, handler)
+    assert status == 200 and payload == reply()
+    first, second = store.trace(headers["X-Trace-Id"])["attempts"]
+    assert first["reason"].startswith(
+        "upstream assistant message has no content, tool_calls or function_call"
+    )
+    assert "finish_reason length" in first["reason"]
+    assert "max_tokens" in first["reason"]
+    assert second["reason"] == "success"
+
+
 @pytest.mark.parametrize("upstream_status", [200, 400, 403])
 def test_payment_required_error_body_falls_through(store, monkeypatch, upstream_status):
     configuration = setup(store, monkeypatch)

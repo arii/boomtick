@@ -819,8 +819,10 @@ class Gateway:
                 ):
                     attempt["reason"] = "invalid upstream chat response"
                     continue
-                if any(
-                    not (
+                empty = [
+                    c
+                    for c in payload["choices"]
+                    if not (
                         (
                             isinstance(c["message"].get("content"), str)
                             and c["message"]["content"].strip()
@@ -834,11 +836,18 @@ class Gateway:
                             and c["message"]["function_call"]
                         )
                     )
-                    for c in payload["choices"]
-                ):
+                ]
+                if empty:
                     attempt["reason"] = (
                         "upstream assistant message has no content, tool_calls or function_call"
                     )
+                    if any(c.get("finish_reason") == "length" for c in empty):
+                        # Reasoning models (Groq gpt-oss) can spend the whole output budget thinking.
+                        attempt["reason"] += (
+                            " (finish_reason length: the output token budget ran out"
+                            " before any visible output; raise max_tokens or lower"
+                            " reasoning effort)"
+                        )
                     continue
                 attempt["reason"] = "success"
                 if provider["id"] == "google":
