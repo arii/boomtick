@@ -345,6 +345,7 @@ class RuntimeMixin(QualityMixin):
                 }
             else:
                 audit_res = self.get_audit_results(targets=existing_targets)
+                audit_res["targets"] = existing_targets
                 results["audit"] = audit_res
                 if audit_res.get("violations"):
                     results["audit_status"] = "violations_found"
