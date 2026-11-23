@@ -355,7 +355,11 @@ class RuntimeMixin(QualityMixin):
                     baselined = []
                     for path, findings in audit_res.get("violations", {}).items():
                         for finding in findings:
-                            signature = (path, finding["pattern"], finding.get("value", ""))
+                            signature = (
+                                path,
+                                finding["pattern"],
+                                finding.get("value", ""),
+                            )
                             if remaining[signature]:
                                 remaining[signature] -= 1
                                 baselined.append({"path": path, **finding})
