@@ -33,8 +33,8 @@ Out of scope: <optional: what not to change>
 - `<repo>` is lowercase and one of `remote-server`, `boomtick` or `posture-guard`. Any other repo
   files nothing.
 - The first line must start with `[issue]`, a space, the repo, a colon and a space.
-- Always write `Problem:` and `Done when:`. Once boomtick#1384 lands, a row without them files no
-  issue and gets a `Later` row naming the missing field.
+- Always write nonempty `Problem:` and `Done when:` fields. A row missing either field or
+  leaving it empty opens no issue and gets one `Later` row naming the missing field(s).
 - For front-end tasks, say in `Out of scope:` that nothing beyond the ask changes: no added pills,
   badges, copy or features.
 

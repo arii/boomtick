@@ -11,8 +11,6 @@ import time
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union, Literal, overload
 
-import requests  # type: ignore[import-untyped]
-
 
 def sanitize_path(path: str, max_length: int = 255) -> str:
     """
@@ -113,31 +111,6 @@ def log_warn(msg: str):
 def log_debug(msg: str):
     """Logs a debug message to stderr."""
     print(f"DEBUG: {mask_sensitive_data(msg)}", file=sys.stderr)
-
-
-def _call_api_with_retry(method: str, url: str, **kwargs) -> requests.Response:
-    """Internal helper for making API calls with standard retry logic."""
-    from requests.adapters import HTTPAdapter  # type: ignore[import-untyped]
-    from urllib3.util import Retry
-
-    # Default to 60s for standard calls, 300s for large downloads/logs
-    timeout = kwargs.pop("timeout", 60)
-    max_retries = kwargs.pop("max_retries", 3)
-    retry_status_codes = kwargs.pop("retry_status_codes", [500, 502, 503, 504])
-
-    session = requests.Session()
-    retries = Retry(
-        total=max_retries,
-        backoff_factor=1,
-        status_forcelist=retry_status_codes,
-        raise_on_status=True,
-    )
-    session.mount("https://", HTTPAdapter(max_retries=retries))
-    session.mount("http://", HTTPAdapter(max_retries=retries))
-
-    response = session.request(method, url, timeout=timeout, **kwargs)
-    response.raise_for_status()
-    return response
 
 
 class CLIError(Exception):
