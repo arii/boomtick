@@ -175,6 +175,25 @@ def error_response(message, status):
     return JSONResponse({"error": {"message": message}}, status_code=status)
 
 
+def estimate_request_tokens(body):
+    """Rough upper-ish token count of what a provider bills against its TPM limit.
+
+    Uses ~4 characters per token over the serialized prompt fields plus the
+    requested output cap, which Groq counts toward the request size.
+    """
+    prompt = {k: body[k] for k in ("messages", "tools", "response_format") if k in body}
+    chars = len(json.dumps(prompt, default=str, ensure_ascii=False))
+    output = max(
+        (
+            v
+            for v in (body.get("max_tokens"), body.get("max_completion_tokens"))
+            if type(v) is int
+        ),
+        default=0,
+    )
+    return -(-chars // 4) + output
+
+
 def eligible_models(catalog, provider, body):
     candidates = [m for m in catalog if m["provider"] == provider["id"] and m["chat"]]
     requested = body.get("model", "default")
@@ -270,6 +289,8 @@ class Gateway:
         self.transport_cooldowns = {}
         self.overload_cooldowns = {}
         self.unavailable_cooldowns = {}
+        # (provider, model) -> smallest estimated size upstream rejected with HTTP 413.
+        self.too_large = {}
         self.google_signatures = {}
         self.lock = asyncio.Lock()
         self.sleep = sleep
@@ -655,6 +676,17 @@ class Gateway:
                     hard_failure = True
                     continue
             key = (provider["id"], model["id"])
+            size = estimate_request_tokens(body)
+            if model.get("tpm") is not None and size > model["tpm"]:
+                attempt["reason"] = (
+                    f"request too large: ~{size} tokens exceeds {model['tpm']} TPM limit"
+                )
+                continue
+            if key in self.too_large and size >= self.too_large[key]:
+                attempt["reason"] = (
+                    f"request too large: HTTP 413 seen at ~{self.too_large[key]} tokens"
+                )
+                continue
             reason, delay, reservation = await self.reserve(
                 model,
                 key,
@@ -759,6 +791,11 @@ class Gateway:
                         attempt["prompt_tokens"] * model["input_price"]
                         + attempt["completion_tokens"] * model["output_price"]
                     )
+                if response.status_code == 413 and provider["id"] == "groq":
+                    # Size-specific, so never retried: remember the size and route on.
+                    self.too_large[key] = min(self.too_large.get(key, size), size)
+                    attempt["reason"] = "upstream HTTP 413 request too large"
+                    continue
                 if response.status_code == 429:
                     self.cooldowns[key] = max(
                         self.cooldowns.get(key, 0),
