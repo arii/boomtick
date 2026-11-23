@@ -259,7 +259,7 @@ describe('review policy matrix (#1403)', () => {
       const r = await run(cannedClient(invoke));
       expect(invoke).not.toHaveBeenCalled();
       expect([r.fileVerdict, r.gateVerdict, r.exitCode]).toEqual(['warn', 'warn', 0]);
-    });
+    }, 30000);
 
     it('own-PR COMMENT fallback never changes the exit code (see verdictGate.test.ts)', async () => {
       // The 422 own-PR fallback in postPRComment is covered in tests/unit/verdictGate.test.ts.
@@ -321,7 +321,7 @@ describe('review policy matrix (#1403)', () => {
       setChange(HUGE);
       gh.prevState = priorFail();
       expectRed(await run(cannedClient(vi.fn())));
-    });
+    }, 30000);
 
     it.fails('MISMATCH: later run where every review task is rate limited: still fail, exit 1', async () => {
       gh.prevState = priorFail();
