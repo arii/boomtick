@@ -550,3 +550,65 @@ def test_scope_path_extraction_ignores_explanatory_identifiers():
         ".env",
         "settings",
     ]
+
+
+def _verify_issue_scope(tmp_path, changed, issue_args):
+    root = _worktree(tmp_path)
+    for rel in changed:
+        target = root / rel
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text("new\n")
+        _git(root, "add", "-f", rel)
+    path = tmp_path / "spec.md"
+    path.write_text(VALID_SPEC)
+    return CliRunner().invoke(
+        cli,
+        ["verify-scope", "--spec-file", str(path), "--worktree", str(root)]
+        + issue_args,
+    )
+
+
+def test_verify_scope_issue_allows_current_issue_spec(tmp_path):
+    result = _verify_issue_scope(
+        tmp_path, ["docs/specs/issue-1551.md"], ["--issue", "1551"]
+    )
+    assert result.exit_code == 0, result.output
+    assert json.loads(result.output)["passed"]
+
+
+@pytest.mark.parametrize(
+    "changed,issue_args",
+    [
+        (["docs/specs/issue-1551.md"], []),
+        (["docs/specs/issue-1552.md"], ["--issue", "1551"]),
+        (["docs/specs/issue-1551.md", "tools/other.py"], ["--issue", "1551"]),
+        (["docs/specs/issue-1551/extra.md"], ["--issue", "1551"]),
+        (["docs/specs/ISSUE-1551.md"], ["--issue", "1551"]),
+        (["docs/specs/issue-1551.md"], ["--issue", "1551x"]),
+        (["docs/specs/issue-1551.md"], ["--issue", "0"]),
+        (["docs/specs/issue-1551.md"], ["--issue", "-1"]),
+        (["docs/specs/issue-1551.md"], ["--issue", ""]),
+    ],
+)
+def test_verify_scope_issue_still_rejects_others(tmp_path, changed, issue_args):
+    result = _verify_issue_scope(tmp_path, changed, issue_args)
+    assert result.exit_code != 0, result.output
+
+
+@pytest.mark.parametrize(
+    "path",
+    [
+        "docs/specs/../specs/issue-1551.md",
+        "./docs/specs/issue-1551.md",
+        "/docs/specs/issue-1551.md",
+        "x/docs/specs/issue-1551.md",
+    ],
+)
+def test_check_scope_issue_rejects_non_canonical_spec_paths(path):
+    from dev_tools.services import scope_gate
+
+    passed, _allowed, disallowed = scope_gate.check_scope(
+        [path], VALID_SPEC, issue=1551
+    )
+    assert not passed
+    assert disallowed == [path]

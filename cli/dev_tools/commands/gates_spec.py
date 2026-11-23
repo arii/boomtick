@@ -233,9 +233,16 @@ def validate_issue_spec(ctx, file, repo_root):
     default=False,
     help="Revert files outside the allowed scope",
 )
+@click.option(
+    "--issue",
+    "issue",
+    type=click.IntRange(min=1),
+    default=None,
+    help="Issue number; also allows only docs/specs/issue-<N>.md as in submit-pr",
+)
 @_gate_json_option
 @click.pass_context
-def verify_scope_gate(ctx, spec_file, worktree, auto_revert):
+def verify_scope_gate(ctx, spec_file, worktree, auto_revert, issue):
     """Gate worktree changes against a spec file (exit 0 iff in scope).
 
     Emits {"passed", "modified_files", "violations"}.
@@ -247,7 +254,7 @@ def verify_scope_gate(ctx, spec_file, worktree, auto_revert):
             spec_text = handle.read()
         changed = _worktree_changed_files(worktree)
         passed, _allowed, disallowed = scope_gate.check_scope(
-            changed, spec_text, root=worktree
+            changed, spec_text, root=worktree, issue=issue
         )
         violations = sorted(set(disallowed))
         forbidden = _spec_backtick_paths(spec_text, "forbidden files", "forbidden")
@@ -305,7 +312,10 @@ def verify_scope_gate(ctx, spec_file, worktree, auto_revert):
                     if res.returncode == 0:
                         reverted.append(path)
             _, _, still_out = scope_gate.check_scope(
-                [p for p in changed if p not in reverted], spec_text, root=worktree
+                [p for p in changed if p not in reverted],
+                spec_text,
+                root=worktree,
+                issue=issue,
             )
             violations = sorted(set(still_out))
             passed = not violations
