@@ -71,6 +71,7 @@ OVERLOAD_COOLDOWN_DEFAULT_SECONDS = 30
 OVERLOAD_COOLDOWN_MAX_SECONDS = 300
 MODEL_UNAVAILABLE_STATUSES = (404, 410)
 MODEL_UNAVAILABLE_COOLDOWN_SECONDS = 300
+GOOGLE_SIGNATURE_CACHE_SIZE = 1024
 # Blended USD per token used only to order paid models: input-heavy agent traffic.
 BLENDED_INPUT_WEIGHT = 0.8
 BLENDED_OUTPUT_WEIGHT = 0.2
@@ -216,6 +217,28 @@ def payment_required(payload):
     )
 
 
+def google_tool_signature(call):
+    extra = call.get("extra_content")
+    google = extra.get("google") if isinstance(extra, dict) else None
+    signature = google.get("thought_signature") if isinstance(google, dict) else None
+    return signature if isinstance(signature, str) and signature.strip() else None
+
+
+def google_signature_error(payload):
+    raw = payload.get("raw_payload")
+    for row in raw if isinstance(raw, list) else [payload]:
+        if not isinstance(row, dict):
+            continue
+        error = row.get("error")
+        message = error.get("message") if isinstance(error, dict) else error
+        if any(
+            isinstance(value, str) and "thought_signature" in value.casefold()
+            for value in (message, row.get("raw_text"))
+        ):
+            return True
+    return False
+
+
 class Gateway:
     def __init__(
         self,
@@ -247,10 +270,62 @@ class Gateway:
         self.transport_cooldowns = {}
         self.overload_cooldowns = {}
         self.unavailable_cooldowns = {}
+        self.google_signatures = {}
         self.lock = asyncio.Lock()
         self.sleep = sleep
         self.free_wait_seconds = max(0, min(60, free_wait_seconds))
         self.cancelled = set()
+
+    def google_tool_history(self, messages, session):
+        # Gemini requires a signature on the first call of each parallel batch.
+        # Restore Google's metadata that OpenAI clients may drop; skip Google
+        # rather than passing through foreign or unverifiable tool history.
+        history = []
+        for message in messages:
+            calls = (
+                message.get("tool_calls")
+                if isinstance(message, dict) and message.get("role") == "assistant"
+                else None
+            )
+            if not isinstance(calls, list) or not calls:
+                history.append(message)
+                continue
+            restored = []
+            for call in calls:
+                call_id = call.get("id") if isinstance(call, dict) else None
+                if (
+                    session
+                    and isinstance(call_id, str)
+                    and not google_tool_signature(call)
+                    and (signature := self.google_signatures.get((session, call_id)))
+                ):
+                    extra = call.get("extra_content")
+                    extra = dict(extra) if isinstance(extra, dict) else {}
+                    google = extra.get("google")
+                    google = dict(google) if isinstance(google, dict) else {}
+                    extra["google"] = {**google, "thought_signature": signature}
+                    call = {**call, "extra_content": extra}
+                restored.append(call)
+            if not isinstance(restored[0], dict) or not google_tool_signature(
+                restored[0]
+            ):
+                return None
+            history.append({**message, "tool_calls": restored})
+        return history
+
+    def remember_google_signatures(self, payload, session):
+        if not session:
+            return
+        for choice in payload["choices"]:
+            calls = choice["message"].get("tool_calls")
+            for call in calls if isinstance(calls, list) else []:
+                call_id = call.get("id") if isinstance(call, dict) else None
+                if isinstance(call_id, str) and (
+                    signature := google_tool_signature(call)
+                ):
+                    self.google_signatures[session, call_id] = signature
+                    if len(self.google_signatures) > GOOGLE_SIGNATURE_CACHE_SIZE:
+                        self.google_signatures.pop(next(iter(self.google_signatures)))
 
     async def reserve(self, model, key, budget, remaining):
         waited = 0
@@ -534,6 +609,14 @@ class Gateway:
                 continue
             model = min(candidates, key=model_rank)
             attempt["model"] = model["id"]
+            google_history = None
+            if provider["id"] == "google":
+                google_history = self.google_tool_history(
+                    body.get("messages", []), session
+                )
+                if google_history is None:
+                    attempt["reason"] = "Google tool history missing thought_signature"
+                    continue
             if "local_model" in provider:
                 try:
                     await require_local_ollama(self.client)
@@ -582,6 +665,8 @@ class Gateway:
             trace["provider"] = provider["id"]
             trace["model"] = model["id"]
             attempt["request"] = {**body, "model": model["id"]}
+            if google_history is not None:
+                attempt["request"]["messages"] = google_history
             attempt["request"].pop("provider_models", None)
             attempt["request"].pop("provider_reasoning_effort", None)
             if provider["id"] in efforts:
@@ -663,6 +748,13 @@ class Gateway:
                         f"upstream payment required (HTTP {response.status_code})"
                     )
                     continue
+                if (
+                    provider["id"] == "google"
+                    and response.status_code == 400
+                    and google_signature_error(payload)
+                ):
+                    attempt["reason"] = "upstream Google HTTP 400: thought_signature"
+                    continue
                 if response.status_code >= 400:
                     attempt["reason"] = (
                         f"non-retryable upstream HTTP {response.status_code}"
@@ -703,6 +795,8 @@ class Gateway:
                     )
                     continue
                 attempt["reason"] = "success"
+                if provider["id"] == "google":
+                    self.remember_google_signatures(payload, session)
                 trace.update(usage(payload))
                 trace.update(
                     provider=provider["id"],
