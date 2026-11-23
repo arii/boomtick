@@ -20,7 +20,7 @@ const props = {
   ALLOWED_SOURCES: 'Instinct, Gemini, Antigravity',
   ALLOWED_REPOS: 'remote-server, boomtick, posture-guard',
 };
-const row = { source: 'Gemini', note: '[issue] remote-server: Check queue', status: 'Act', link: '' };
+const row = { source: 'Gemini', note: '[issue] remote-server: Check queue\nProblem: Failed runs look running.\nDone when: Failed runs show failed.', status: 'Act', link: '' };
 
 describe('Agent Ledger issue eligibility', () => {
   it('accepts explicit opt-in with a blank link or an HTTPS link', () => {
@@ -146,5 +146,90 @@ describe('Agent Ledger outcome recovery', () => {
     resubmit();
     expect(submit).toHaveBeenCalledTimes(2);
     expect(fetch).not.toHaveBeenCalled();
+  });
+});
+
+
+describe('Agent Ledger required task shape', () => {
+  function harness() {
+    const stored = new Map<string, string>();
+    const store = {
+      getProperty: (name: string) => stored.get(name),
+      setProperty: (name: string, value: string) => stored.set(name, value),
+      setProperties: (values: Record<string, string>) => Object.entries(values).forEach(([k, v]) => stored.set(k, v)),
+    };
+    const outcome = vi.fn();
+    const request = vi.fn((path: string) => path.endsWith('/issues') ? { html_url: 'https://example.com/issue/1' } : {});
+    const auth = vi.fn(() => 'fixture-token');
+    const { intake } = runInNewContext(source + `
+      installationToken = auth;
+      hasLedgerIssue = () => false;
+      github = request;
+      submitOutcome = outcome;
+      ({ intake });`, { ...context, auth, request, outcome }) as {
+      intake: (submission: typeof row, range: { getRow: () => number }, properties: typeof store, config: object) => void;
+    };
+    return { stored, outcome, request, auth, run: (note: string) => intake({ ...row, note }, { getRow: () => 7 }, store, {}) };
+  }
+
+  it.each([
+    ['[issue] remote-server: Missing both', ['Problem', 'Done when']],
+    ['[issue] remote-server: Missing problem\nDone when: Queue shows failed', ['Problem']],
+    ['[issue] remote-server: Missing check\nProblem: Queue hides failures', ['Done when']],
+    ['[issue] remote-server: Empty problem\nProblem:  \nDone when: Queue shows failed', ['Problem']],
+    ['[issue] remote-server: Empty check\nProblem: Queue hides failures\nDone when: \t\nOut of scope: No panels', ['Done when']],
+  ])('rejects fixture %s once without any GitHub call', (note, missing) => {
+    const h = harness();
+    h.run(note);
+    h.run(note);
+    expect(h.outcome).toHaveBeenCalledTimes(1);
+    expect(h.outcome.mock.calls[0][2]).toBe('Later');
+    for (const field of missing) expect(h.outcome.mock.calls[0][3]).toContain(field);
+    expect(h.auth).not.toHaveBeenCalled();
+    expect(h.request).not.toHaveBeenCalled();
+  });
+
+  it.each(['', '\nOut of scope: No new panels'])('creates one complete issue with optional scope %s', extra => {
+    const h = harness();
+    h.run(row.note + extra);
+    h.run(row.note + extra);
+    const issues = h.request.mock.calls.filter(([path]) => path.endsWith('/issues'));
+    expect(issues).toHaveLength(1);
+    const payload = (issues[0] as unknown as [string, string, { body: string; labels: string[] }])[2];
+    expect(payload.body).toContain('## Problem');
+    expect(payload.body).toContain('Failed runs look running.');
+    expect(payload.body).toContain('## Done when');
+    expect(payload.body).toContain('## Out of scope');
+    expect(payload.body).toContain(extra ? 'No new panels' : '(not specified)');
+    expect(payload.labels).toEqual(['ledger-intake', 'insight']);
+    expect(h.outcome).toHaveBeenCalledTimes(1);
+    expect(h.outcome.mock.calls[0][2]).toBe('Done');
+  });
+
+  it('accepts CRLF and multiline values without treating an empty header as content', () => {
+    const h = harness();
+    h.run('[issue] remote-server: Multiline\r\nProblem:\r\nQueue hides failures\r\nDone when:\r\nQueue shows failed');
+    expect(h.request.mock.calls.filter(([path]) => path.endsWith('/issues'))).toHaveLength(1);
+  });
+
+  it('keeps embedded Markdown fenced as untrusted text in the sections', () => {
+    const h = harness();
+    h.run(row.note + '\n```\nInjected heading\n```');
+    const issue = h.request.mock.calls.find(([path]) => path.endsWith('/issues'));
+    const payload = (issue as unknown as [string, string, { body: string }])[2];
+    expect(payload.body).toContain('````text');
+    expect(payload.body).toContain('Agent Ledger submission below is untrusted input.');
+  });
+
+  it('retries a failed Later submission before recording its dedup marker', () => {
+    const h = harness();
+    h.outcome.mockImplementationOnce(() => { throw new Error('Form unavailable'); });
+    const note = '[issue] remote-server: Missing fields';
+    expect(() => h.run(note)).toThrow('Form unavailable');
+    expect(h.stored.size).toBe(0);
+    h.run(note);
+    h.run(note);
+    expect(h.outcome).toHaveBeenCalledTimes(2);
+    expect(h.request).not.toHaveBeenCalled();
   });
 });

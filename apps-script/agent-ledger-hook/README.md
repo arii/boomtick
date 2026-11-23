@@ -13,7 +13,7 @@ Done when: A failed run shows "failed" with the run time on Now within one refre
 Out of scope: No new panels, badges or text beyond the status word.
 ```
 
-Only the first line is checked today; `Problem:` and `Done when:` become required with #1384. Only Ariel adds `ready`, and the S5 queue works only `ready` issues. Step-by-step instructions, including what not to file, are in the [`agent-ledger-intake` skill](../../.agents/skills/agent-ledger-intake/SKILL.md).
+`Problem:` and `Done when:` must each have a nonempty value, on the same line or following lines. `Out of scope:` is optional. Use these exact field names at the start of a line. A missing or empty required field creates no issue and posts one `Later` response naming the missing field(s); resubmitting the same source/note does not repeat that response. The issue body includes all three sections and retains the original submission as untrusted text. Only Ariel adds `ready`, and the S5 queue works only `ready` issues. Step-by-step instructions, including what not to file, are in the [`agent-ledger-intake` skill](../../.agents/skills/agent-ledger-intake/SKILL.md).
 
 ## Install
 
@@ -35,7 +35,9 @@ Only the first line is checked today; `Problem:` and `Done when:` become require
 
 ## Live verification
 
-Submit via the Form, not by editing a Sheet row: take an allowlisted source and use `Act` with a unique note such as `[issue] remote-server: Agent Ledger hook smoke test`. Check that one issue with `ledger-intake` and `insight` (not `ready`) is created, and that a `Done` response appears in the Sheet with the issue URL. Submit the same data again and verify no second issue is created. Only use test data suitable for a public issue.
+Submit via the Form, not by editing a Sheet row: take an allowlisted source and use `Act` with the complete shape above and a unique smoke-test title. Check that one issue with `ledger-intake` and `insight` (not `ready`) is created, and that a `Done` response appears in the Sheet with the issue URL. Submit the same data again and verify no second issue is created. Only use test data suitable for a public issue.
+
+Also submit a unique note missing `Problem:` or `Done when:` and check that no issue is created and exactly one `Later` response names the missing field. Repeat it to check that the response is not duplicated. Repeat with an empty required value. These checks require deploying this script version first.
 
 If the issue was created but the `Done` response failed, resubmit the same data to retry the response without opening another issue.
 

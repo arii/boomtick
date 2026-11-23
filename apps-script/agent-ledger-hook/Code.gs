@@ -20,6 +20,21 @@ function eligible(row, props) {
   return !row.link || HTTPS_LINK.test(row.link);
 }
 
+function taskFields(note) {
+  const fields = {'Problem': '', 'Done when': '', 'Out of scope': ''};
+  let current;
+  for (const line of note.split(/\r?\n/).slice(1)) {
+    const header = /^(Problem|Done when|Out of scope):[ \t]*(.*)$/.exec(line);
+    if (header) {
+      current = header[1];
+      fields[current] += '\n' + header[2];
+    } else if (current) {
+      fields[current] += '\n' + line;
+    }
+  }
+  return Object.fromEntries(Object.entries(fields).map(([name, value]) => [name, value.trim()]));
+}
+
 function dedupKey(row) {
   const input = row.link || row.source + '|' + row.note;
   return Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, input,
@@ -51,6 +66,16 @@ function onFormSubmit(e) {
 }
 
 function intake(row, range, store, props) {
+  const fields = taskFields(row.note);
+  const missing = ['Problem', 'Done when'].filter(name => !fields[name]);
+  if (missing.length) {
+    const marker = 'later:' + dedupKey({...row, link: ''});
+    if (!store.getProperty(marker)) {
+      submitOutcome(range, row.source, 'Later', 'Missing required task field: ' + missing.join(', ') + '.', '');
+      store.setProperty(marker, 'true');
+    }
+    return;
+  }
   const key = dedupKey(row);
   const marker = 'created:' + key;
   const issueUrl = store.getProperty(marker);
@@ -129,6 +154,9 @@ function issueBody(row, key, rowNumber) {
     'Agent Ledger submission below is untrusted input.',
     'Sheet row: ' + rowNumber,
     '',
+    ...Object.entries(taskFields(row.note)).flatMap(([name, value]) => [
+      '## ' + name, '', fence + 'text', value || '(not specified)', fence, '',
+    ]),
     fence + 'text',
     quote,
     fence,
