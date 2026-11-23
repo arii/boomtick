@@ -4,7 +4,9 @@
 AI Slop Audit Script
 
 Searches codebase for banned language per audit.config.yaml
-Generates actionable audit report with before/after fixes
+Generates an advisory prose report over existing src/ and content/ paths
+(*.tsx, *.ts, *.md), case-insensitively. Prose findings do not fail the gate.
+Scanner/configuration errors fail closed.
 
 Fail-gate (#1143): AST-based swallow-exception detection and
 unreferenced shell-wrapper detection run against a checked-in
@@ -44,21 +46,19 @@ class AISlopAuditor:
 
     def load_config(self):
         if yaml is None:
-            print("Warning: PyYAML unavailable; banned-term categories disabled.",
-                  file=sys.stderr)
-            self.config = {"categories": {}}
-            return
-        try:
-            with open(self.config_path, 'r', encoding="utf-8") as f:
-                self.config = yaml.safe_load(f)
-        except Exception as e:
-            print(f"Error loading config: {e}")
-            self.config = {"categories": {}}
+            raise RuntimeError("PyYAML is required to load audit.config.yaml")
+        with open(self.config_path, 'r', encoding="utf-8") as f:
+            self.config = yaml.safe_load(f)
+        if not isinstance(self.config, dict) or not isinstance(self.config.get("categories"), dict):
+            raise ValueError("Audit config must contain a categories mapping")
 
     def search_violations(self) -> None:
         """Search entire codebase for banned terms"""
         print("🔍 Scanning codebase for banned language...")
 
+        paths = [path for path in ("src/", "content/") if (self.root_dir / path).is_dir()]
+        if not paths:
+            return
         categories = self.config.get("categories", {})
         for category, details in categories.items():
             terms = details.get("terms", [])
@@ -71,13 +71,15 @@ class AISlopAuditor:
                 # Run grep
                 try:
                     result = subprocess.run(
-                        ["grep", "-r", "-n", pattern, "src/", "content/",
+                        ["grep", "-r", "-n", "-i", pattern, *paths,
                          "--include=*.tsx", "--include=*.ts", "--include=*.md"],
                         capture_output=True,
                         text=True,
                         cwd=str(self.root_dir)
                     )
 
+                    if result.returncode not in (0, 1):
+                        raise RuntimeError("Prose scanner failed: " + result.stderr.strip())
                     if result.stdout:
                         for line in result.stdout.strip().split("\n"):
                             if not line or "node_modules" in line:
@@ -96,9 +98,8 @@ class AISlopAuditor:
                                     "fix": fix
                                 })
 
-                except subprocess.CalledProcessError:
-                    # grep exit 1 = no matches for this term: expected, keep scanning.
-                    continue
+                except OSError as exc:
+                    raise RuntimeError("Prose scanner could not run") from exc
 
     def prioritize_violations(self) -> None:
         """Sort violations by priority"""
@@ -186,7 +187,7 @@ class AISlopAuditor:
         return self.generate_report()
 
 class _SwallowVisitor(ast.NodeVisitor):
-    """Collects `except ...: pass` handlers as scope-qualified signatures."""
+    """Collects no-op/constant-return handlers as scope-qualified signatures."""
 
     def __init__(self):
         self.stack: List[str] = []
@@ -207,7 +208,12 @@ class _SwallowVisitor(ast.NodeVisitor):
         self._push(node)
 
     def visit_ExceptHandler(self, node):
-        if node.body and all(isinstance(s, ast.Pass) for s in node.body):
+        if node.body and all(
+            isinstance(stmt, (ast.Pass, ast.Continue, ast.Break))
+            or (isinstance(stmt, ast.Return) and
+                (stmt.value is None or isinstance(stmt.value, ast.Constant)))
+            for stmt in node.body
+        ):
             scope = ".".join(self.stack) if self.stack else "<module>"
             if node.type is None:
                 exc = "bare"
@@ -243,8 +249,8 @@ def find_swallow_exceptions(root: Path) -> Dict[str, Counter]:
     for rel in _tracked_files(root, "*.py"):
         try:
             tree = ast.parse((root / rel).read_text(encoding="utf-8"))
-        except (OSError, SyntaxError, ValueError):
-            continue
+        except (OSError, SyntaxError, ValueError) as exc:
+            raise RuntimeError("Cannot scan Python file: " + rel) from exc
         visitor = _SwallowVisitor()
         visitor.visit(tree)
         if visitor.hits:
@@ -270,12 +276,14 @@ def find_unreferenced_wrappers(root: Path) -> List[str]:
                 ["git", "grep", "-l", "-F", "-e", name, "--", "."],
                 capture_output=True, text=True, cwd=str(root),
             )
+            if res.returncode not in (0, 1):
+                raise RuntimeError("Wrapper reference search failed: " + res.stderr.strip())
             refs = [line.strip() for line in res.stdout.splitlines()
                     if line.strip() and line.strip() != rel
                     and "ai-slop-audit-" not in line
                     and line.strip() not in self_refs]
-        except OSError:
-            refs = ["<search-unavailable>"]
+        except OSError as exc:
+            raise RuntimeError("Wrapper reference search could not run") from exc
         if not refs:
             unreferenced.append(rel)
     return sorted(unreferenced)
@@ -284,8 +292,8 @@ def find_unreferenced_wrappers(root: Path) -> List[str]:
 def load_baseline() -> Dict:
     try:
         return json.loads(BASELINE_PATH.read_text(encoding="utf-8"))
-    except (OSError, ValueError):
-        return {"swallow_exceptions": {}, "unreferenced_wrappers": []}
+    except (OSError, ValueError) as exc:
+        raise RuntimeError("Cannot load slop baseline") from exc
 
 
 def gate_failures(root: Path, baseline: Dict) -> List[str]:
@@ -323,7 +331,7 @@ def write_baseline(root: Path) -> None:
 
 
 def main(argv=None) -> int:
-    parser = argparse.ArgumentParser(description="AI slop audit + fail-gate (#1143)")
+    parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--update-baseline", action="store_true",
                         help="Reseed slop-baseline.json from the current tree")
     args = parser.parse_args(argv)
@@ -360,4 +368,8 @@ def main(argv=None) -> int:
     return 0
 
 if __name__ == "__main__":
-    sys.exit(main())
+    try:
+        sys.exit(main())
+    except (OSError, ValueError, RuntimeError, TypeError, AttributeError) as error:
+        print("Slop scanner error: " + str(error), file=sys.stderr)
+        sys.exit(2)
