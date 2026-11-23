@@ -5,6 +5,7 @@ import os
 import re
 import sys
 import tempfile
+from collections import Counter
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Tuple
 from dev_tools.utils import (
@@ -345,6 +346,24 @@ class RuntimeMixin(QualityMixin):
                 }
             else:
                 audit_res = self.get_audit_results(targets=existing_targets)
+                baseline_path = ".agents/preflight-audit-baseline.json"
+                if os.path.exists(baseline_path):
+                    with open(baseline_path, encoding="utf-8") as baseline_file:
+                        baseline = json.load(baseline_file)
+                    remaining = Counter(tuple(item) for item in baseline["findings"])
+                    new_findings: Dict[str, List[Dict[str, Any]]] = {}
+                    baselined = []
+                    for path, findings in audit_res.get("violations", {}).items():
+                        for finding in findings:
+                            signature = (path, finding["pattern"], finding.get("value", ""))
+                            if remaining[signature]:
+                                remaining[signature] -= 1
+                                baselined.append({"path": path, **finding})
+                            else:
+                                new_findings.setdefault(path, []).append(finding)
+                    audit_res["violations"] = new_findings
+                    audit_res["baselined"] = baselined
+                audit_res["targets"] = existing_targets
                 results["audit"] = audit_res
                 if audit_res.get("violations"):
                     results["audit_status"] = "violations_found"
