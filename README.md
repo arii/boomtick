@@ -63,6 +63,7 @@ Documentation source check: November 21, 2026. Local documentation links and set
 * [MCP Server Configuration](mcp/README.md) — Setup, capabilities, and tools for the Boomtick MCP.
 * [Release Process](docs/release-process.md) — Guidelines for deployment and release pipelines.
 * [Impact Analysis Integration](docs/impact-analysis-integration.md) — Running and integrating blast-radius checks.
+* [AI Review Policy](docs/ai-review-policy.md) — What fails the AI review check, the review cap, and how red verdicts are resolved.
 * [MCP Testing](mcp/docs/testing.md) — Step-by-step verification protocols.
 
 ---
