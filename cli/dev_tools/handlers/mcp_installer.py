@@ -39,6 +39,7 @@ def detect_and_install_mcp(
     mcp_entry = target_config or DEFAULT_MCP_CONFIG
     results = []
 
+    target_paths: list[tuple[Path, Optional[str]]]
     if custom_path:
         target_paths = [(Path(custom_path), None)]
     else:
