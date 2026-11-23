@@ -294,6 +294,75 @@ def test_unavailable_model_is_temporarily_skipped(store, monkeypatch, upstream_s
     assert skipped["reason"] == "model unavailable cooldown"
 
 
+def two_free_models(store, monkeypatch):
+    configuration = setup(store, monkeypatch, count=1)
+    store.replace_models(
+        "p0",
+        [
+            {
+                "id": model_id,
+                "provider": "p0",
+                "chat": True,
+                "free": True,
+                "tools": True,
+                "json": True,
+                "json_schema": True,
+                "input_price": 0,
+                "output_price": 0,
+                "context_length": 100000,
+                "rpm": 30,
+                "daily": None,
+            }
+            for model_id in ("alpha", "beta")
+        ],
+    )
+    return configuration
+
+
+def test_provider_falls_back_to_next_model_when_top_model_is_unavailable(
+    store, monkeypatch
+):
+    configuration = two_free_models(store, monkeypatch)
+    sent = []
+
+    def handler(request):
+        model = json.loads(request.content)["model"]
+        sent.append(model)
+        if model == "alpha":
+            return httpx.Response(404, json={"error": {"message": "gone"}})
+        return httpx.Response(200, json=reply())
+
+    async def scenario():
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+            gateway = Gateway(store, client, configuration)
+            return await gateway.complete(REQUEST), await gateway.complete(REQUEST)
+
+    _, second = asyncio.run(scenario())
+    assert sent == ["alpha", "beta"]
+    assert second[1] == 200 and second[2]["X-Provider-Used"] == "p0"
+
+
+def test_error_names_every_blocked_model(store, monkeypatch):
+    configuration = two_free_models(store, monkeypatch)
+
+    def handler(request):
+        return httpx.Response(404, json={"error": {"message": "gone"}})
+
+    async def scenario():
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+            gateway = Gateway(store, client, configuration)
+            await gateway.complete(REQUEST)
+            await gateway.complete(REQUEST)
+            return await gateway.complete(REQUEST)
+
+    payload, status, _ = asyncio.run(scenario())
+    assert status == 503
+    assert (
+        "p0: alpha: model unavailable cooldown; beta: model unavailable cooldown"
+        in (payload["error"]["message"])
+    )
+
+
 def test_empty_message_truncated_by_length_names_the_token_budget(store, monkeypatch):
     configuration = setup(store, monkeypatch)
     truncated = {
