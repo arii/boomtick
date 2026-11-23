@@ -76,16 +76,33 @@ def test_preflight_reports_seeded_type_suppression(tmp_path, monkeypatch):
         patch.object(orch, "detect_conflicts", return_value={}),
         patch.object(orch, "_pnpm_has_script", return_value=False),
         patch.object(orch, "_resolve_antipatterns_script", return_value=None),
-        patch("dev_tools.orchestrator.run_command", return_value=MagicMock(returncode=0, stdout="clean")),
-        patch("dev_tools.orchestrator.get_config", return_value=SimpleNamespace(audit_check_dirs=["mcp/src"])),
+        patch(
+            "dev_tools.orchestrator.run_command",
+            return_value=MagicMock(returncode=0, stdout="clean"),
+        ),
+        patch(
+            "dev_tools.orchestrator.get_config",
+            return_value=SimpleNamespace(audit_check_dirs=["mcp/src"]),
+        ),
     ):
         result = orch.run_preflight(base_branch="main")
         assert result["audit"]["targets"] == ["mcp/src"]
         assert result["audit_status"] == "violations_found"
-        assert result["audit"]["violations"]["mcp/src/fixture.ts"][0]["pattern"] == "no-ts-suppression"
+        assert (
+            result["audit"]["violations"]["mcp/src/fixture.ts"][0]["pattern"]
+            == "no-ts-suppression"
+        )
         baseline = tmp_path / ".agents/preflight-audit-baseline.json"
         baseline.parent.mkdir()
-        baseline.write_text(json.dumps({"findings": [["mcp/src/fixture.ts", "no-ts-suppression", "// @ts-ignore"]]}))
+        baseline.write_text(
+            json.dumps(
+                {
+                    "findings": [
+                        ["mcp/src/fixture.ts", "no-ts-suppression", "// @ts-ignore"]
+                    ]
+                }
+            )
+        )
         result = orch.run_preflight(base_branch="main")
         assert result["audit"]["violations"] == {}
         assert len(result["audit"]["baselined"]) == 1
