@@ -360,6 +360,29 @@ class Gateway:
                     if len(self.google_signatures) > GOOGLE_SIGNATURE_CACHE_SIZE:
                         self.google_signatures.pop(next(iter(self.google_signatures)))
 
+    def model_block(self, provider, model, size):
+        """Return (reason, hard) when per-model state rules the model out, else None.
+
+        Read-only. Rate waits (RPM, Retry-After, transport) stay with reserve().
+        """
+        key = (provider["id"], model["id"])
+        if model.get("tpm") is not None and size > model["tpm"]:
+            return (
+                f"request too large: ~{size} tokens exceeds {model['tpm']} TPM limit",
+                False,
+            )
+        if key in self.too_large and size >= self.too_large[key]:
+            return (
+                f"request too large: HTTP 413 seen at ~{self.too_large[key]} tokens",
+                False,
+            )
+        current = self.clock()
+        if self.unavailable_cooldowns.get(key, 0) > current:
+            return "model unavailable cooldown", True
+        if self.overload_cooldowns.get(key, 0) > current:
+            return "overload cooldown", True
+        return None
+
     async def reserve(self, model, key, budget, remaining, *, defer_retry_after=False):
         waited = 0
         while True:
@@ -601,6 +624,7 @@ class Gateway:
         retried = set()
         rate_deadlines = []
         hard_failure = False
+        names_models = set()
         replayed = False
         waited = 0
         while pending or (
@@ -664,8 +688,12 @@ class Gateway:
                     "no synced eligible chat model matching requested model/free-tier/tools/JSON capabilities; run twt sync"
                 )
                 continue
-            model = min(candidates, key=model_rank)
-            attempt["model"] = model["id"]
+            size = estimate_request_tokens(body)
+            ranked = sorted(candidates, key=model_rank)
+            # Fall back only within the top model's free/paid class so a provider
+            # ordered as free never reaches a paid model ahead of other free providers.
+            ranked = [m for m in ranked if m["free"] == ranked[0]["free"]]
+            attempt["model"] = ranked[0]["id"]
             google_history = None
             if provider["id"] == "google":
                 google_history = self.google_tool_history(
@@ -683,18 +711,28 @@ class Gateway:
                     )
                     # The probe sends no request, so this is a skip like a missing credential.
                     continue
+            blocked = []
+            model = None
+            for candidate in ranked:
+                block = self.model_block(provider, candidate, size)
+                if block is None:
+                    model = candidate
+                    break
+                blocked.append((candidate, block))
+            if model is None:
+                if len(blocked) == 1:
+                    attempt["reason"] = blocked[0][1][0]
+                else:
+                    attempt["reason"] = "; ".join(
+                        f"{candidate['id']}: {reason}"
+                        for candidate, (reason, _) in blocked
+                    )
+                    names_models.add(id(attempt))
+                if any(hard for _, (_, hard) in blocked):
+                    hard_failure = True
+                continue
+            attempt["model"] = model["id"]
             key = (provider["id"], model["id"])
-            size = estimate_request_tokens(body)
-            if model.get("tpm") is not None and size > model["tpm"]:
-                attempt["reason"] = (
-                    f"request too large: ~{size} tokens exceeds {model['tpm']} TPM limit"
-                )
-                continue
-            if key in self.too_large and size >= self.too_large[key]:
-                attempt["reason"] = (
-                    f"request too large: HTTP 413 seen at ~{self.too_large[key]} tokens"
-                )
-                continue
             reason, delay, reservation = await self.reserve(
                 model,
                 key,
@@ -934,7 +972,10 @@ class Gateway:
                     attempt.update(cost_upper_bound(attempt["request"], model, attempt))
         if response_payload is None:
             reasons = "; ".join(
-                f"{a['provider']}: {a['reason']}" for a in trace["attempts"]
+                f"{a['provider']} ({a['model']}): {a['reason']}"
+                if a["model"] and id(a) not in names_models
+                else f"{a['provider']}: {a['reason']}"
+                for a in trace["attempts"]
             )
             message = "No provider available. " + reasons
             if absent:

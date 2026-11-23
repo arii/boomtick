@@ -84,8 +84,11 @@ metered and requires API billing access; free Studio/playground access does
 not provide API access. Nebius is also a paid fallback. Unknown free-tier
 eligibility is not assumed. Explicit model requests may select a paid model.
 Within a provider, selection is deterministic: free first, then lowest known
-blended price, then input price, then ID. One matching model is attempted per
-provider. Across providers that can be called, attempts are ordered free first
+blended price, then input price, then ID. Each provider tries its best-ranked
+matching model that is not blocked by a model cooldown or a request size limit,
+falling back only within the same free or paid class, and is skipped only when
+every such model is blocked. The error names each skipped provider, model and
+reason. Across providers that can be called, attempts are ordered free first
 (in configured provider order), then paid by that provider's best blended price
 (`0.8 * input + 0.2 * output` per token), then providers whose paid price is
 unknown. Ties keep configured order. Providers skipped without a call (disabled,

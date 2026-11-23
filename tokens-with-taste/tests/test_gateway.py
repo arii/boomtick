@@ -294,6 +294,180 @@ def test_unavailable_model_is_temporarily_skipped(store, monkeypatch, upstream_s
     assert skipped["reason"] == "model unavailable cooldown"
 
 
+def two_free_models(store, monkeypatch, overrides=None):
+    overrides = overrides or {}
+    configuration = setup(store, monkeypatch, count=1)
+    store.replace_models(
+        "p0",
+        [
+            {
+                "id": model_id,
+                "provider": "p0",
+                "chat": True,
+                "free": True,
+                "tools": True,
+                "json": True,
+                "json_schema": True,
+                "input_price": 0,
+                "output_price": 0,
+                "context_length": 100000,
+                "rpm": 30,
+                "daily": None,
+                **overrides.get(model_id, {}),
+            }
+            for model_id in ("alpha", "beta")
+        ],
+    )
+    return configuration
+
+
+def test_provider_falls_back_to_next_model_when_top_model_is_unavailable(
+    store, monkeypatch
+):
+    configuration = two_free_models(store, monkeypatch)
+    sent = []
+
+    def handler(request):
+        model = json.loads(request.content)["model"]
+        sent.append(model)
+        if model == "alpha":
+            return httpx.Response(404, json={"error": {"message": "gone"}})
+        return httpx.Response(200, json=reply())
+
+    async def scenario():
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+            gateway = Gateway(store, client, configuration)
+            return await gateway.complete(REQUEST), await gateway.complete(REQUEST)
+
+    _, second = asyncio.run(scenario())
+    assert sent == ["alpha", "beta"]
+    assert second[1] == 200 and second[2]["X-Provider-Used"] == "p0"
+
+
+def test_error_names_every_blocked_model(store, monkeypatch):
+    configuration = two_free_models(store, monkeypatch)
+
+    def handler(request):
+        return httpx.Response(404, json={"error": {"message": "gone"}})
+
+    async def scenario():
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+            gateway = Gateway(store, client, configuration)
+            await gateway.complete(REQUEST)
+            await gateway.complete(REQUEST)
+            return await gateway.complete(REQUEST)
+
+    payload, status, _ = asyncio.run(scenario())
+    assert status == 503
+    assert (
+        "p0: alpha: model unavailable cooldown; beta: model unavailable cooldown"
+        in (payload["error"]["message"])
+    )
+
+
+def test_provider_falls_back_past_model_with_small_tpm(store, monkeypatch):
+    configuration = two_free_models(store, monkeypatch, {"alpha": {"tpm": 1}})
+    sent = []
+
+    def handler(request):
+        sent.append(json.loads(request.content)["model"])
+        return httpx.Response(200, json=reply())
+
+    _, status, _ = run(store, configuration, handler)
+    assert status == 200 and sent == ["beta"]
+
+
+def test_provider_falls_back_past_model_with_http_413_memory(store, monkeypatch):
+    configuration = two_free_models(store, monkeypatch)
+    configuration[0]["id"] = "groq"
+    store.replace_models("groq", [{**m, "provider": "groq"} for m in store.models()])
+    sent = []
+
+    def handler(request):
+        model = json.loads(request.content)["model"]
+        sent.append(model)
+        if model == "alpha":
+            return httpx.Response(413, json={"error": {"message": "big"}})
+        return httpx.Response(200, json=reply())
+
+    async def scenario():
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+            gateway = Gateway(store, client, configuration)
+            await gateway.complete(REQUEST)
+            return await gateway.complete(REQUEST)
+
+    _, status, _ = asyncio.run(scenario())
+    assert status == 200 and sent[-1] == "beta" and sent.count("alpha") == 1
+
+
+def test_provider_falls_back_past_overloaded_model(store, monkeypatch):
+    configuration = two_free_models(store, monkeypatch)
+    sent = []
+
+    def handler(request):
+        model = json.loads(request.content)["model"]
+        sent.append(model)
+        if model == "alpha":
+            return httpx.Response(529, json={"error": {"message": "busy"}})
+        return httpx.Response(200, json=reply())
+
+    async def scenario():
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+            gateway = Gateway(store, client, configuration)
+            await gateway.complete(REQUEST)
+            return await gateway.complete(REQUEST)
+
+    _, status, _ = asyncio.run(scenario())
+    assert status == 200 and sent.count("alpha") == 1 and sent[-1] == "beta"
+
+
+def test_fallback_does_not_leave_the_free_class(store, monkeypatch):
+    configuration = two_free_models(
+        store, monkeypatch, {"beta": {"free": False, "input_price": 0.001}}
+    )
+
+    def handler(request):
+        return httpx.Response(404, json={"error": {"message": "gone"}})
+
+    async def scenario():
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+            gateway = Gateway(store, client, configuration)
+            await gateway.complete(REQUEST)
+            return await gateway.complete(REQUEST)
+
+    payload, status, _ = asyncio.run(scenario())
+    assert status == 503
+    assert "p0 (alpha): model unavailable cooldown" in payload["error"]["message"]
+
+
+def test_single_blocked_model_message_appends_model_name(store, monkeypatch):
+    configuration = two_free_models(store, monkeypatch, {"alpha": {"tpm": 1}})
+    configuration[0]["strong_model"] = "alpha"
+
+    def handler(request):
+        return httpx.Response(200, json=reply())
+
+    body = {**REQUEST, "model": "route:strong"}
+    payload, status, _ = run(store, configuration, handler, body)
+    assert status == 503
+    assert "p0 (alpha): request too large" in payload["error"]["message"]
+
+
+def test_model_id_inside_reason_still_gets_named(store, monkeypatch):
+    configuration = setup(store, monkeypatch, count=1)
+    store.replace_models(
+        "p0",
+        [{**m, "id": "request", "tpm": 1} for m in store.models()],
+    )
+
+    def handler(request):
+        return httpx.Response(200, json=reply())
+
+    payload, status, _ = run(store, configuration, handler)
+    assert status == 503
+    assert "p0 (request): request too large" in payload["error"]["message"]
+
+
 def test_empty_message_truncated_by_length_names_the_token_budget(store, monkeypatch):
     configuration = setup(store, monkeypatch)
     truncated = {
