@@ -673,7 +673,10 @@ class Gateway:
                     attempt["reason"] = (
                         "local Ollama unavailable or cloud not disabled; check OLLAMA_NO_CLOUD=1"
                     )
-                    hard_failure = True
+                    # On route:strong local Ollama is an optional first step of a
+                    # mixed waterfall, so its absence must not disable free-tier waits.
+                    if body.get("model") != "route:strong":
+                        hard_failure = True
                     continue
             key = (provider["id"], model["id"])
             size = estimate_request_tokens(body)
