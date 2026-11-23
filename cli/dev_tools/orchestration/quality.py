@@ -672,7 +672,9 @@ class QualityMixin(IssueMixin):
                 )
 
         return {
-            "status": "success" if all(item["status"] == "success" for item in results) else "error",
+            "status": "success"
+            if all(item["status"] == "success" for item in results)
+            else "error",
             "results": results,
         }
 
