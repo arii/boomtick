@@ -306,6 +306,7 @@ async def sync(store, client=None, configuration=None):
                 messages.append(f"{provider['id']}: DISABLED by account policy")
                 continue
             absent = missing(provider)
+            listed = True
             if provider["id"] == "openrouter":
                 rows = router_rows
             elif absent and not provider.get("public_models"):
@@ -315,6 +316,7 @@ async def sync(store, client=None, configuration=None):
                 continue
             elif provider.get("discovery_blocked"):
                 if provider.get("models"):
+                    listed = False
                     rows = [{"id": m} for m in provider["models"]]
                 else:
                     messages.append(
@@ -339,7 +341,15 @@ async def sync(store, client=None, configuration=None):
                         f"{provider['id']}: FAILED model listing; cached rows retained"
                     )
                     continue
-            models = [normalize(provider, row, prices, router) for row in rows]
+            if listed:
+                # Only a live provider listing can reinstate a model retired by an HTTP 410.
+                store.unretire_models(provider["id"], [row["id"] for row in rows])
+            retired = store.retired_models(provider["id"])
+            models = [
+                normalize(provider, row, prices, router)
+                for row in rows
+                if row["id"] not in retired
+            ]
             store.replace_models(provider["id"], models)
             messages.append(f"{provider['id']}: synced {len(models)} models")
             if absent:

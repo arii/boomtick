@@ -208,12 +208,6 @@
           "max_output_tokens": 2048,
           "chat": true
         },
-        "@cf/meta/llama-3.2-1b-instruct": {
-          "free": true,
-          "context_length": 8192,
-          "max_output_tokens": 2048,
-          "chat": true
-        },
         "@cf/mistral/mistral-7b-instruct-v0.1": {
           "free": true,
           "context_length": 8192,
