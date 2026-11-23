@@ -681,7 +681,7 @@ class Gateway:
                     attempt["reason"] = (
                         "local Ollama unavailable or cloud not disabled; check OLLAMA_NO_CLOUD=1"
                     )
-                    hard_failure = True
+                    # The probe sends no request, so this is a skip like a missing credential.
                     continue
             key = (provider["id"], model["id"])
             size = estimate_request_tokens(body)

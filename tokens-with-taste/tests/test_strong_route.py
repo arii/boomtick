@@ -1,8 +1,10 @@
+import asyncio
 import json
 
 import httpx
+import pytest
 from test_gateway import reply, run, setup
-from twt.gateway import eligible_models
+from twt.gateway import Gateway, create_app, eligible_models
 
 
 def test_strong_local_free_nebius_order_and_receipt(store, monkeypatch):
@@ -143,3 +145,238 @@ def test_local_only_mode_never_adopts_hosted_strong_providers(store, monkeypatch
     import asyncio
 
     asyncio.run(async_client.aclose())
+
+
+def strong_row(provider, model, free):
+    return {
+        "id": model,
+        "provider": provider,
+        "chat": True,
+        "free": free,
+        "tools": True,
+        "json": True,
+        "json_schema": True,
+        "input_price": 0 if free else 0.001,
+        "output_price": 0 if free else 0.002,
+        "context_length": 100000,
+        "rpm": 30,
+        "daily": None,
+    }
+
+
+def test_strong_route_http_order_models_and_receipt(store, monkeypatch):
+    hosted = {"google": True, "groq": True, "nebius": False}
+    models = {name: f"{name}-strong" for name in hosted}
+    for name, free in hosted.items():
+        store.replace_models(name, [strong_row(name, models[name], free)])
+    store.replace_models("ollama", [strong_row("ollama", "local-strong", True)])
+    for env in (
+        "GOOGLE_API_KEY",
+        "GROQ_API_KEY",
+        "NVIDIA_API_KEY",
+        "MISTRAL_API_KEY",
+        "OPENROUTER_API_KEY",
+        "SAMBANOVA_API_KEY",
+        "CLOUDFLARE_API_TOKEN",
+        "NEBIUS_API_KEY",
+    ):
+        monkeypatch.delenv(env, raising=False)
+    for env in ("GOOGLE_API_KEY", "GROQ_API_KEY", "NEBIUS_API_KEY"):
+        monkeypatch.setenv(env, "test-only-placeholder")
+    monkeypatch.delenv("TWT_OLLAMA_MODEL", raising=False)
+    monkeypatch.setenv("TWT_STRONG_MODELS", json.dumps(models))
+    monkeypatch.setenv("TWT_OLLAMA_STRONG_MODEL", "local-strong")
+    monkeypatch.setenv("TWT_DAILY_BUDGET_USD", "5")
+    sent = []
+
+    def handler(request):
+        if request.url.path == "/api/status":
+            return httpx.Response(200, json={"cloud": {"disabled": True}})
+        body = json.loads(request.content)
+        sent.append((request.url.host, body["model"]))
+        if body["model"] != "nebius-strong":
+            return httpx.Response(500, json={"error": "fixture unavailable"})
+        return httpx.Response(200, json=reply(prompt=100, completion=200))
+
+    async def scenario():
+        async with httpx.AsyncClient(
+            transport=httpx.MockTransport(handler)
+        ) as upstream:
+            app = create_app(store, upstream)
+            async with httpx.AsyncClient(
+                transport=httpx.ASGITransport(app=app), base_url="http://test"
+            ) as api:
+                response = await api.post(
+                    "/v1/chat/completions",
+                    json={
+                        "model": "route:strong",
+                        "messages": [{"role": "user", "content": "hello"}],
+                    },
+                )
+                trace_id = response.headers["X-Trace-Id"]
+                receipts = await api.post(
+                    "/v1/receipts", json={"trace_ids": [trace_id]}
+                )
+                return response, receipts.json()["receipts"]
+
+    response, receipts = asyncio.run(scenario())
+    assert response.status_code == 200
+    assert [model for _, model in sent] == [
+        "local-strong",
+        "google-strong",
+        "groq-strong",
+        "nebius-strong",
+    ]
+    assert len(receipts) == 1
+    receipt = receipts[0]
+    expected = 100 * 0.001 + 200 * 0.002
+    assert receipt["trace_id"] == response.headers["X-Trace-Id"]
+    assert (receipt["provider"], receipt["model"]) == ("nebius", "nebius-strong")
+    assert receipt["cost_usd"] == pytest.approx(expected)
+    assert receipt["cost_complete"]
+    assert receipt["http_status"] == 200
+    assert receipt["billing_status"] == "complete"
+    # The three failed attempts reported no usage, so totals stay unknown.
+    assert (receipt["known_prompt_tokens"], receipt["known_completion_tokens"]) == (
+        100,
+        200,
+    )
+    assert not receipt["usage_complete"]
+    assert receipt["prompt_tokens"] is None
+    trace = store.trace(receipt["trace_id"])
+    assert [(a["provider"], a["model"]) for a in trace["attempts"] if a["called"]] == [
+        ("ollama", "local-strong"),
+        ("google", "google-strong"),
+        ("groq", "groq-strong"),
+        ("nebius", "nebius-strong"),
+    ]
+
+
+STRONG_REQUEST = {
+    "model": "route:strong",
+    "messages": [{"role": "user", "content": "hello"}],
+}
+
+
+def mixed_strong_config(store, monkeypatch):
+    config = setup(store, monkeypatch, 3)
+    for provider, name, free in zip(
+        config, ["nebius", "nvidia", "openrouter"], [False, True, True]
+    ):
+        old = provider["id"]
+        provider["id"] = name
+        provider["strong_model"] = f"{name}-strong"
+        model = next(m for m in store.models() if m["provider"] == old)
+        model.update(
+            provider=name,
+            id=f"{name}-strong",
+            free=free,
+            input_price=0 if free else 0.001,
+            output_price=0 if free else 0.002,
+        )
+        store.replace_models(name, [model])
+    store.replace_models(
+        "ollama", [{**model, "provider": "ollama", "id": "local-strong"}]
+    )
+    monkeypatch.setenv("TWT_OLLAMA_STRONG_MODEL", "local-strong")
+    monkeypatch.setenv("TWT_DAILY_BUDGET_USD", "5")
+    return config
+
+
+def test_strong_route_replays_free_rate_limit_when_local_unavailable(
+    store, monkeypatch
+):
+    config = mixed_strong_config(store, monkeypatch)
+    clock = [100.0]
+    sleeps = []
+    sent = []
+
+    async def sleep(delay):
+        sleeps.append(delay)
+        clock[0] += delay
+
+    def handler(request):
+        if request.url.path == "/api/status":
+            raise httpx.ConnectError("ollama down", request=request)
+        model = json.loads(request.content)["model"]
+        sent.append(model)
+        if model == "nvidia-strong" and sent.count(model) == 2:
+            return httpx.Response(200, json=reply())
+        return httpx.Response(429, headers={"Retry-After": "1"}, json={})
+
+    async def scenario():
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+            gateway = Gateway(
+                store, client, config, clock=lambda: clock[0], sleep=sleep
+            )
+            return await gateway.complete(STRONG_REQUEST)
+
+    _, status, headers = asyncio.run(scenario())
+    assert status == 200
+    assert headers["X-Provider-Used"] == "nvidia"
+    assert sent.count("nvidia-strong") == 2
+    assert sleeps == [1]
+
+
+def test_strong_route_falls_through_to_nebius_when_local_unavailable(
+    store, monkeypatch
+):
+    config = mixed_strong_config(store, monkeypatch)
+    sent = []
+
+    def handler(request):
+        if request.url.path == "/api/status":
+            raise httpx.ConnectError("ollama down", request=request)
+        model = json.loads(request.content)["model"]
+        sent.append(model)
+        if model != "nebius-strong":
+            return httpx.Response(500, json={"error": "fixture unavailable"})
+        return httpx.Response(200, json=reply(prompt=100, completion=200))
+
+    async def scenario():
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as up:
+            app = create_app(store, up, config)
+            async with httpx.AsyncClient(
+                transport=httpx.ASGITransport(app=app), base_url="http://test"
+            ) as api:
+                response = await api.post("/v1/chat/completions", json=STRONG_REQUEST)
+                receipts = await api.post(
+                    "/v1/receipts", json={"trace_ids": [response.headers["X-Trace-Id"]]}
+                )
+                return response, receipts.json()["receipts"]
+
+    response, receipts = asyncio.run(scenario())
+    assert response.status_code == 200
+    assert sent == ["nvidia-strong", "openrouter-strong", "nebius-strong"]
+    assert len(receipts) == 1
+    assert (receipts[0]["provider"], receipts[0]["model"]) == (
+        "nebius",
+        "nebius-strong",
+    )
+    assert receipts[0]["cost_usd"] == pytest.approx(100 * 0.001 + 200 * 0.002)
+
+
+def test_local_only_unavailable_is_not_rate_limited_and_never_replays(
+    store, monkeypatch
+):
+    monkeypatch.setenv("TWT_OLLAMA_MODEL", "local-only")
+    store.replace_models("ollama", [strong_row("ollama", "local-only", True)])
+    sleeps = []
+
+    async def sleep(delay):
+        sleeps.append(delay)
+
+    def handler(request):
+        assert request.url.path == "/api/status"
+        raise httpx.ConnectError("ollama down", request=request)
+
+    async def scenario():
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+            return await Gateway(store, client, sleep=sleep).complete(STRONG_REQUEST)
+
+    payload, status, _ = asyncio.run(scenario())
+    error = payload["error"]
+    assert status == 503
+    assert error["rate_limited_only"] is False
+    assert "local Ollama unavailable" in error["message"]
+    assert sleeps == []
