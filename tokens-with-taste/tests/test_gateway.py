@@ -370,13 +370,80 @@ def test_legacy_function_call_response_succeeds(store, monkeypatch, content):
 
 
 @pytest.mark.parametrize("status", [400, 401, 403])
-def test_non_retryable_error(store, monkeypatch, status):
+def test_pinned_model_non_retryable_error(store, monkeypatch, status):
     configuration = setup(store, monkeypatch)
     _, actual, headers = run(
-        store, configuration, lambda r: httpx.Response(status, json={"error": "bad"})
+        store,
+        configuration,
+        lambda r: httpx.Response(status, json={"error": "bad"}),
+        {**REQUEST, "model": "chat"},
     )
     assert actual == status
     assert len(store.trace(headers["X-Trace-Id"])["attempts"]) == 1
+
+
+@pytest.mark.parametrize("route", ["default", "route:default", "route:strong"])
+@pytest.mark.parametrize("status", [400, 401, 403, 422])
+def test_route_continues_after_upstream_4xx(store, monkeypatch, route, status):
+    configuration = setup(store, monkeypatch)
+
+    def handler(request):
+        if request.url.host == "p0.test":
+            return httpx.Response(status, json={"error": {"message": "bad"}})
+        return httpx.Response(200, json=reply())
+
+    payload, actual, headers = run(
+        store, configuration, handler, {**REQUEST, "model": route}
+    )
+    assert actual == 200 and payload == reply()
+    failed, succeeded = store.trace(headers["X-Trace-Id"])["attempts"]
+    assert failed["called"] and failed["http_status"] == status
+    assert failed["reason"] == f"upstream HTTP {status}"
+    assert succeeded["provider"] == "p1" and succeeded["reason"] == "success"
+
+
+def test_route_continues_after_groq_rejects_unknown_tool(store, monkeypatch):
+    configuration = setup(store, monkeypatch, provider_ids=("groq", "cloudflare"))
+    error = {
+        "error": {
+            "code": "tool_use_failed",
+            "message": "Tool call validation failed: attempted to call tool 'search_repo' which was not in request.tools",
+        }
+    }
+
+    def handler(request):
+        if request.url.host == "groq.test":
+            return httpx.Response(400, json=error)
+        return httpx.Response(200, json=reply())
+
+    _, status, headers = run(
+        store, configuration, handler, {**REQUEST, "model": "route:default"}
+    )
+    assert status == 200 and headers["X-Provider-Used"] == "cloudflare"
+    failed, succeeded = store.trace(headers["X-Trace-Id"])["attempts"]
+    assert failed["called"] and failed["http_status"] == 400
+    assert failed["response"] == error
+    assert succeeded["reason"] == "success"
+
+
+def test_exhausted_route_returns_attempt_list(store, monkeypatch):
+    configuration = setup(store, monkeypatch)
+
+    def handler(request):
+        status = 400 if request.url.host == "p0.test" else 422
+        return httpx.Response(status, json={"error": {"message": "bad"}})
+
+    payload, status, headers = run(store, configuration, handler)
+    assert status == 502 and payload["error"]["type"] == "no_provider_available"
+    attempts = payload["error"]["attempts"]
+    assert [
+        (a["provider"], a["model"], a["called"], a["http_status"], a["reason"])
+        for a in attempts
+    ] == [
+        ("p0", "chat", True, 400, "upstream HTTP 400"),
+        ("p1", "chat", True, 422, "upstream HTTP 422"),
+    ]
+    assert store.trace(headers["X-Trace-Id"])["response"] == payload
 
 
 def test_rpm_window_and_cooldown(store, monkeypatch):
@@ -626,12 +693,19 @@ def test_default_requires_verified_free_eligibility(store, monkeypatch):
 
 
 @pytest.mark.parametrize("payload", [[], {"choices": None}, {"choices": [None]}])
-def test_malformed_error_payloads_are_traced(store, monkeypatch, payload):
+@pytest.mark.parametrize(("model", "expected"), [("default", 502), ("chat", 400)])
+def test_malformed_error_payloads_are_traced(
+    store, monkeypatch, payload, model, expected
+):
     configuration = setup(store, monkeypatch, 1)
     _, status, h = run(
-        store, configuration, lambda r: httpx.Response(400, json=payload)
+        store,
+        configuration,
+        lambda r: httpx.Response(400, json=payload),
+        {**REQUEST, "model": model},
     )
-    assert status == 400 and store.trace(h["X-Trace-Id"])
+    assert status == expected and store.trace(h["X-Trace-Id"])
+    assert store.trace(h["X-Trace-Id"])["attempts"][0]["http_status"] == 400
 
 
 def test_api_validation_and_models(store, monkeypatch):

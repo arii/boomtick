@@ -524,6 +524,7 @@ class Gateway:
         else:
             catalog = catalog_models(self.store, self.providers)
         absent = set()
+        routed = trace["route"] in ("default", "route:default", "route:strong")
         response_payload = None
         context = None
         budget = os.environ.get("TWT_DAILY_BUDGET_USD")
@@ -756,6 +757,9 @@ class Gateway:
                     attempt["reason"] = "upstream Google HTTP 400: thought_signature"
                     continue
                 if response.status_code >= 400:
+                    if routed:
+                        attempt["reason"] = f"upstream HTTP {response.status_code}"
+                        continue
                     attempt["reason"] = (
                         f"non-retryable upstream HTTP {response.status_code}"
                     )
@@ -835,6 +839,20 @@ class Gateway:
             response_payload = {
                 "error": {"message": message, "type": "no_provider_available"}
             }
+            if routed:
+                response_payload["error"]["attempts"] = [
+                    {
+                        field: attempt[field]
+                        for field in (
+                            "provider",
+                            "model",
+                            "called",
+                            "http_status",
+                            "reason",
+                        )
+                    }
+                    for attempt in trace["attempts"]
+                ]
             trace["http_status"] = (
                 502 if any(a["called"] for a in trace["attempts"]) else 503
             )
