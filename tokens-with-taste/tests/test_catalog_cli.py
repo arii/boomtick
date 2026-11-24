@@ -14,7 +14,6 @@ def test_provider_policy():
         "google",
         "groq",
         "nvidia",
-        "mistral",
         "openrouter",
         "sambanova",
         "cloudflare",
@@ -123,7 +122,7 @@ def test_sync_public_and_skipped_providers(store):
     for key in (
         "GOOGLE_API_KEY",
         "GROQ_API_KEY",
-        "MISTRAL_API_KEY",
+        "SAMBANOVA_API_KEY",
         "NEBIUS_API_KEY",
         "CLOUDFLARE_API_TOKEN",
     ):

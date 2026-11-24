@@ -1317,7 +1317,7 @@ def test_missing_credentials_empty_catalog(store):
     for provider in providers():
         assert provider["key_env"] in payload["error"]["message"]
     assert "CLOUDFLARE_ACCOUNT_ID" in payload["error"]["message"]
-    assert len(store.trace(headers["X-Trace-Id"])["attempts"]) == 8
+    assert len(store.trace(headers["X-Trace-Id"])["attempts"]) == len(providers())
 
 
 @pytest.mark.parametrize(

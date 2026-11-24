@@ -16,7 +16,7 @@ from twt.gateway import Gateway, create_app
 def configure(store, monkeypatch):
     config = setup(store, monkeypatch)
     old = store.models()
-    for index, name in enumerate(("mistral", "groq")):
+    for index, name in enumerate(("sambanova", "groq")):
         config[index]["id"] = name
         store.replace_models(
             name,
@@ -30,11 +30,11 @@ def configure(store, monkeypatch):
                 }
             ],
         )
-    monkeypatch.setenv("TWT_DISABLED_PROVIDERS", " MISTRAL, mistral, ")
+    monkeypatch.setenv("TWT_DISABLED_PROVIDERS", " SAMBANOVA, sambanova, ")
     return config
 
 
-@pytest.mark.parametrize("selection", ["default", "mistral/chat", "pinned"])
+@pytest.mark.parametrize("selection", ["default", "sambanova/chat", "pinned"])
 def test_exclusion_beats_stale_key_cached_model_and_explicit_selection(
     store, monkeypatch, selection
 ):
@@ -48,7 +48,7 @@ def test_exclusion_beats_stale_key_cached_model_and_explicit_selection(
 
     body = {**REQUEST, "model": selection}
     if selection == "pinned":
-        body = {**REQUEST, "provider_models": {"mistral": "chat"}}
+        body = {**REQUEST, "provider_models": {"sambanova": "chat"}}
     _, status, headers = run(store, config, handler, body=body)
     assert sent == (["p1.test"] if selection in ("default", "pinned") else [])
     assert status == (200 if selection in ("default", "pinned") else 503)
@@ -56,9 +56,9 @@ def test_exclusion_beats_stale_key_cached_model_and_explicit_selection(
     assert trace["attempts"][0]["reason"] == "disabled by account policy"
     assert trace["attempts"][0]["called"] is False
     assert any(
-        m["provider"] == "mistral" for m in store.models()
+        m["provider"] == "sambanova" for m in store.models()
     )  # No destructive cache edit.
-    assert all(m["provider"] != "mistral" for m in catalog_models(store, config))
+    assert all(m["provider"] != "sambanova" for m in catalog_models(store, config))
 
 
 def test_sync_does_not_contact_disabled_provider_even_with_key(store, monkeypatch):
@@ -79,7 +79,7 @@ def test_sync_does_not_contact_disabled_provider_even_with_key(store, monkeypatc
             return await sync(store, client, config)
 
     messages = asyncio.run(scenario())
-    assert "mistral: DISABLED by account policy" in messages
+    assert "sambanova: DISABLED by account policy" in messages
     assert len(sent) == 3  # Two public metadata sources, then Groq listing.
     assert OPENROUTER_URL in sent
 
@@ -97,11 +97,11 @@ def test_models_endpoint_hides_disabled_cached_provider(store, monkeypatch):
             ) as client:
                 return (await client.get("/v1/models")).json()
 
-    assert not any(m["owned_by"] == "mistral" for m in asyncio.run(scenario())["data"])
+    assert not any(m["owned_by"] == "sambanova" for m in asyncio.run(scenario())["data"])
 
 
 def test_unknown_exclusion_fails_closed(store, monkeypatch):
-    monkeypatch.setenv("TWT_DISABLED_PROVIDERS", "mistrall")
+    monkeypatch.setenv("TWT_DISABLED_PROVIDERS", "sambanovaa")
     with pytest.raises(ValueError, match="Unknown TWT_DISABLED_PROVIDERS"):
         disabled_providers()
     with pytest.raises(ValueError, match="Unknown TWT_DISABLED_PROVIDERS"):
