@@ -96,27 +96,6 @@
       "free_prototyping": true
     },
     {
-      "id": "mistral",
-      "base_url": "https://api.mistral.ai/v1",
-      "key_env": "MISTRAL_API_KEY",
-      "map_prefix": "mistral",
-      "free_only": false,
-      "strict": false,
-      "trains_on_free_tier": true,
-      "models": {},
-      "verified": {
-        "endpoint": {
-          "checked": "2026-11-16",
-          "source": "https://docs.mistral.ai/getting-started/quickstarts/studio/activate-and-generate-api-key.md"
-        },
-        "privacy": {
-          "checked": "2026-11-16",
-          "source": "https://help.mistral.ai/en/articles/347617-do-you-use-my-user-data-to-train-your-artificial-in"
-        }
-      },
-      "unverified": "Authenticated account availability, quota and billing: needs API key"
-    },
-    {
       "id": "openrouter",
       "base_url": "https://openrouter.ai/api/v1",
       "key_env": "OPENROUTER_API_KEY",
