@@ -33,6 +33,20 @@ def worktree(tmp_path):
     return root
 
 
+@pytest.fixture()
+def linked_worktree(worktree, tmp_path):
+    remote = tmp_path / "origin.git"
+    _git(["init", "--bare", "-q", str(remote)], tmp_path)
+    _git(["remote", "add", "origin", str(remote)], worktree)
+    _git(["push", "-q", "origin", "main"], worktree)
+    linked = tmp_path / "linked"
+    _git(
+        ["worktree", "add", "-qb", "agent/issue-1458", str(linked), "fix-login"],
+        worktree,
+    )
+    return worktree, linked
+
+
 def _router(mapping):
     def run(args, cwd):
         key = tuple(args[:2])
@@ -197,6 +211,63 @@ def test_no_changes_refuses(worktree):
     _git(["checkout", "-q", "main"], worktree)
     with pytest.raises(sp.SubmitError, match="No changes"):
         sp.submit(str(worktree), "T")
+
+
+@pytest.mark.parametrize("local_main", [["-f", "main", "fix-login"], ["-D", "main"]])
+def test_submit_compares_commits_to_origin_main(linked_worktree, local_main):
+    root, linked = linked_worktree
+    _git(["branch", *local_main], root)
+    real_run = sp._run
+    pr_calls = []
+
+    def router(args, cwd):
+        if args[:2] == ["git", "push"] or args[:2] == ["gh", "pr"]:
+            pr_calls.append(args)
+            return _router(_ok_push_pr())(args, cwd)
+        return real_run(args, cwd)
+
+    with patch.object(sp, "_run", side_effect=router):
+        res = sp.submit(str(linked), "Fix login")
+
+    assert res["status"] == "submitted"
+    assert res["files"] == ["mcp/login.ts"]
+    assert res["commit"] is None
+    push, create = pr_calls
+    assert push == ["git", "push", "origin", "agent/issue-1458"]
+    assert create[:7] == [
+        "gh",
+        "pr",
+        "create",
+        "--base",
+        "main",
+        "--head",
+        "agent/issue-1458",
+    ]
+
+
+def test_branch_at_origin_main_refuses_without_push(linked_worktree):
+    root, linked = linked_worktree
+    _git(["push", "-q", "origin", "fix-login:main"], root)
+    with (
+        patch.object(sp, "_run", wraps=sp._run) as run,
+        pytest.raises(sp.SubmitError, match="No changes to submit") as error,
+    ):
+        sp.submit(str(linked), "T")
+
+    assert "refs/remotes/origin/main...HEAD" in str(error.value)
+    assert all(
+        call.args[0][:2] != ["git", "push"] and call.args[0][0] != "gh"
+        for call in run.call_args_list
+    )
+
+
+def test_invalid_comparison_reports_refs_and_git_error(worktree):
+    with pytest.raises(sp.SubmitError) as error:
+        sp.submit(str(worktree), "T", base="missing-base")
+
+    message = str(error.value)
+    assert message.startswith("Failed to compare refs/heads/missing-base...HEAD:")
+    assert "fatal:" in message
 
 
 def test_dirty_work_committed_with_agent_message(worktree):
