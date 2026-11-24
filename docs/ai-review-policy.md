@@ -19,7 +19,7 @@ The verdict gate goes red only when the verdict is `fail` and the consuming work
 | Model findings block malformed | `PARSE_ERROR` | `warn` | 0 |
 | Diff larger than `max_diff_chars` (default 250000) | `isTruncated` in the verdict file, no reason string | `warn` | 0 |
 
-Infra problems do not block a merge on their own. If a prior review left an open HIGH finding, a skipped or incomplete review keeps that finding open and the verdict stays `fail`. This applies to empty and low-impact-only diffs, truncated diffs, and incomplete review tasks (for example, rate limits or truncated replies). A hard error in the runner itself (for example the verdict step crashing) is not a review result and still fails the step.
+Infra problems do not block a merge on their own. If a prior review left an open HIGH finding, a skipped or incomplete review keeps that finding open and the verdict stays `fail`. This applies to empty and low-impact-only diffs, truncated diffs, and incomplete review tasks (for example, rate limits or truncated replies). A finding that a completed task in the same run reports as resolved stays resolved. Incomplete task results are never cached, so re-running the review retries them. A hard error in the runner itself (for example the verdict step crashing) is not a review result and still fails the step.
 
 ## Review cap and red-at-cap
 
@@ -27,7 +27,7 @@ Infra problems do not block a merge on their own. If a prior review left an open
 
 A red verdict at the cap is resolved in only two ways, never automatically:
 
-1. Resolve the findings. Push a change that addresses them; a later review marks them `resolved` in the review state (also when the finding's code snippet no longer appears in the diff). This only helps while reviews remain under the cap.
+1. Resolve the findings. Push a change that addresses them; a later review marks them `resolved` in the review state (also when the finding's code snippet no longer appears in the diff, but only on a review that completed; a skipped or incomplete review resolves nothing). This only helps while reviews remain under the cap.
 2. A repository admin bypasses branch protection to merge.
 
 There is no auto-retry and no override input. Re-running at the cap stays red.

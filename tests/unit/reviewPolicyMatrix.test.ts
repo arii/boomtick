@@ -16,13 +16,17 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vites
 const gh = vi.hoisted(() => ({
   existing: 0,
   prevState: undefined as unknown,
+  stateError: undefined as Error | undefined,
   posted: [] as Array<{ verdict?: string }>,
 }));
 
 vi.mock('../../lib/visualReviewUtils', async importOriginal => ({
   ...(await importOriginal<typeof import('../../lib/visualReviewUtils')>()),
   countExistingReviews: vi.fn(async () => gh.existing),
-  getPreviousReviewState: vi.fn(async () => gh.prevState),
+  getPreviousReviewState: vi.fn(async () => {
+    if (gh.stateError) throw gh.stateError;
+    return gh.prevState;
+  }),
   postPRComment: vi.fn(async (_body: string, _title: string, _state: unknown, verdict?: string) => {
     gh.posted.push({ verdict });
   }),
@@ -376,6 +380,50 @@ describe('review policy matrix (#1403)', () => {
       const r = await run(cannedClient(() => parsed(reviewText('PASS', [open({ status: 'resolved', fixSummary: 'Parameterized the query.' })]))));
       expect([r.fileVerdict, r.gateVerdict, r.exitCode]).toEqual(['pass', 'pass', 0]);
       expect(r.state?.findings?.every(f => f.status === 'resolved')).toBe(true);
+    });
+
+    it('a resolution from a completed task survives another task failing in the same run', async () => {
+      gh.prevState = priorFail();
+      let calls = 0;
+      const r = await run(cannedClient(async () => {
+        calls += 1;
+        if (calls === 1) throw new Error('429 rate limit');
+        return parsed(reviewText('PASS', [open({ status: 'resolved', fixSummary: 'Parameterized the query.' })]));
+      }));
+      expect(r.state?.findings?.every(f => f.status === 'resolved')).toBe(true);
+      expect(r.fileVerdict).not.toBe('fail');
+      expect(r.exitCode).toBe(0);
+    });
+
+    it('an incomplete result is not cached, so the next run with the same diff calls the model again', async () => {
+      gh.prevState = priorFail();
+      const truncated = async () => ({ ...(await parsed(reviewText('PASS'))), isTruncated: true, llmVerdict: 'warn' });
+      const first = await run(cannedClient(truncated));
+      expectRed(first);
+      expect(Object.keys(first.state?.cache ?? {})).toHaveLength(0);
+      gh.prevState = first.state;
+      const invoke = vi.fn(() => parsed(reviewText('PASS', [open({ status: 'resolved', fixSummary: 'Parameterized the query.' })])));
+      const second = await run(cannedClient(invoke));
+      expect(invoke).toHaveBeenCalled();
+      expect([second.fileVerdict, second.exitCode]).toEqual(['pass', 0]);
+    });
+
+    it('an incomplete run does not auto-resolve a prior finding whose snippet left the diff', async () => {
+      gh.prevState = priorFail();
+      const r = await run(cannedClient(() => { throw new Error('429 rate limit'); }));
+      expectRed(r);
+      expect(r.state?.findings?.some(f => f.status === 'open')).toBe(true);
+    });
+
+    it('a previous-state fetch error on the no-change path warns instead of throwing', async () => {
+      git('reset', '-q', '--hard', baseSha);
+      gh.stateError = new Error('GitHub API 502');
+      try {
+        const r = await run(cannedClient(vi.fn()));
+        expect(r.exitCode).toBe(0);
+      } finally {
+        gh.stateError = undefined;
+      }
     });
 
     it('once the state has no open HIGH findings, a capped run is pass (the state, not the cap, decides)', async () => {

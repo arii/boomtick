@@ -644,7 +644,10 @@ export async function orchestrateCodeReview(
   if (isQuotaMet) return;
 
   const initialSummary = await getCodeDiffSummary();
-  const prevState = await getPreviousReviewState<CodeReviewState>(client.reportTitle);
+  const prevState = await getPreviousReviewState<CodeReviewState>(client.reportTitle).catch(error => {
+    console.warn('⚠ Could not load the previous review state; a prior FAIL cannot be carried over this run.', error);
+    return undefined;
+  });
   if (!initialSummary.diffContext) {
     console.log(`✅ No code changes detected — skipping agent review.`);
     await fs.promises.writeFile(agentReportPath, `## ${client.reportTitle}\n\nNo code changes detected.\n`);
@@ -780,7 +783,9 @@ async function executeReviewTasks(
           const summary = { ...batchSummary, role, previousState: prevState };
           const hash = calculateReviewHash(summary);
 
-          if (prevState?.cache?.[hash]) {
+          // Incomplete results (truncated, parse error, any skip reason) are never replayed:
+          // a transient failure must not become a permanent verdict for the same diff.
+          if (prevState?.cache?.[hash] && isCompleteResult(prevState.cache[hash])) {
             console.log(`✨ Cache hit for ${role} (hash: ${hash.slice(0, 8)}) on batch ${batch.join(', ')} — skipping API call.`);
             const cachedResult = prevState.cache[hash];
             allResults.push(cachedResult);
@@ -825,7 +830,7 @@ async function executeReviewTasks(
 
           result = reconcileVerdict(result, summary.fullDiff || summary.diffContext);
           allResults.push(result);
-          newCache[hash] = result;
+          if (isCompleteResult(result)) newCache[hash] = result;
         } catch (err) {
           const errorMsg = err instanceof Error ? err.message : String(err);
           const isRateLimit = errorMsg.includes('429') || errorMsg.toLowerCase().includes('rate limit');
@@ -917,10 +922,16 @@ function combineReviewMetrics(allResults: CodeReviewResult[]): {
   };
 }
 
+/** A result safe to cache and replay: the review finished and its findings parsed. */
+function isCompleteResult(result: CodeReviewResult): boolean {
+  return !result.skipReason && !result.isTruncated && !result.parseError;
+}
+
 function restoreOmittedCodeFindings(
   aggregatedFindings: any[],
   prevState: CodeReviewState | undefined,
-  summary: CodeReviewSummary
+  summary: CodeReviewSummary,
+  autoResolve = true
 ): void {
   if (!prevState?.findings) return;
 
@@ -932,7 +943,7 @@ function restoreOmittedCodeFindings(
     const restored = [];
 
     for (const finding of missingFindings) {
-      if (finding.status === 'open' && finding.snippet) {
+      if (autoResolve && finding.status === 'open' && finding.snippet) {
         if (!diffToVerify.includes(finding.snippet)) {
           finding.status = 'resolved';
           finding.fixSummary = 'Auto-resolved: snippet no longer present in diff.';
@@ -971,10 +982,14 @@ function aggregateReviewResults(
   } = combineReviewMetrics(allResults);
 
   const incomplete = allResults.length === 0 || isTruncated || skipReasons.size > 0 || allResults.some(result => result.parseError);
-  const priorBlocking = incomplete ? prevState?.findings?.filter(isOpenBlockingFinding) ?? [] : [];
-  const priorBlockingIds = new Set(priorBlocking.map(finding => finding.id));
-  const findings = aggregatedFindings.filter(finding => !priorBlockingIds.has(finding.id)).concat(priorBlocking);
-  restoreOmittedCodeFindings(findings, prevState, initialSummary);
+  // A finding reported by a task that did complete keeps that task's status (a resolved
+  // finding stays resolved). Prior findings nobody reported come back through
+  // restoreOmittedCodeFindings. Its snippet auto-resolve runs only when the review
+  // completed: an incomplete run did not look at the code, so it cannot resolve anything.
+  const findings = [...aggregatedFindings];
+  restoreOmittedCodeFindings(findings, prevState, initialSummary, !incomplete);
+  // An incomplete run cannot clear an open blocking finding (#1403): it stays red.
+  const keepFail = incomplete && findings.some(isOpenBlockingFinding);
 
   return {
     feedback: aggregatedFeedback,
@@ -984,7 +999,7 @@ function aggregateReviewResults(
     outputTokens: totalOutputTokens,
     cacheTokens: totalCacheTokens,
     cost: totalCost,
-    llmVerdict: priorBlocking.length > 0 ? 'fail' : finalVerdict,
+    llmVerdict: keepFail ? 'fail' : finalVerdict,
     state: {
       findings,
       cache: pruneCache({ ...prevState?.cache, ...newCache }),
