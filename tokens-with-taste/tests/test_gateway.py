@@ -865,6 +865,249 @@ def test_route_continues_after_groq_rejects_unknown_tool(store, monkeypatch):
     assert succeeded["reason"] == "success"
 
 
+HALLUCINATED_TOOL = {
+    "error": {
+        "message": "Tool call validation failed: attempted to call tool 'repo_browser.search' which was not in request.tools",
+        "type": "invalid_request_error",
+        "code": "tool_use_failed",
+        "failed_generation": "<tool_call>",
+    }
+}
+HALLUCINATION_REASON = (
+    "upstream Groq HTTP 400: model called a tool not in request.tools"
+)
+
+
+def groq_models(
+    store, monkeypatch, provider_ids=("groq",), model_ids=("alpha", "beta")
+):
+    configuration = setup(
+        store, monkeypatch, count=len(provider_ids), provider_ids=provider_ids
+    )
+    base = store.models()[0]
+    store.replace_models(
+        "groq",
+        [
+            {
+                **base,
+                "provider": "groq",
+                "id": model_id,
+                "free": True,
+                "input_price": 0,
+                "output_price": 0,
+            }
+            for model_id in model_ids
+        ],
+    )
+    return configuration
+
+
+def sent_models(sent, handler_for):
+    def handler(request):
+        model = json.loads(request.content)["model"]
+        sent.append((request.url.host, model))
+        return handler_for(request.url.host, model)
+
+    return handler
+
+
+def test_groq_tool_hallucination_moves_to_next_groq_model(store, monkeypatch):
+    configuration = groq_models(store, monkeypatch, ("groq", "cloudflare"))
+    sent = []
+    handler = sent_models(
+        sent,
+        lambda host, model: (
+            httpx.Response(400, json=HALLUCINATED_TOOL)
+            if model == "alpha"
+            else httpx.Response(200, json=reply())
+        ),
+    )
+
+    async def scenario():
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+            gateway = Gateway(store, client, configuration)
+            first = await gateway.complete({**REQUEST, "model": "route:default"})
+            second = await gateway.complete({**REQUEST, "model": "route:default"})
+            return gateway, first, second
+
+    gateway, (_, status, headers), (_, second_status, _) = asyncio.run(scenario())
+    assert status == 200 and second_status == 200
+    assert sent == [("groq.test", "alpha"), ("groq.test", "beta")] + [
+        ("groq.test", "alpha"),
+        ("groq.test", "beta"),
+    ]
+    failed, succeeded = store.trace(headers["X-Trace-Id"])["attempts"]
+    assert failed["model"] == "alpha" and failed["reason"] == HALLUCINATION_REASON
+    assert failed["response"] == HALLUCINATED_TOOL and failed["cost_usd"] == 0.0
+    assert succeeded["model"] == "beta" and succeeded["reason"] == "success"
+    assert headers["X-Provider-Used"] == "groq"
+    assert not any(
+        [
+            gateway.cooldowns,
+            gateway.overload_cooldowns,
+            gateway.unavailable_cooldowns,
+            gateway.transport_cooldowns,
+        ]
+    )
+
+
+def test_groq_tool_hallucination_list_wrapped_body_is_classified_the_same(
+    store, monkeypatch
+):
+    configuration = groq_models(store, monkeypatch, ("groq", "cloudflare"))
+    sent = []
+    handler = sent_models(
+        sent,
+        lambda host, model: (
+            httpx.Response(400, json=[HALLUCINATED_TOOL])
+            if model == "alpha"
+            else httpx.Response(200, json=reply())
+        ),
+    )
+
+    async def scenario():
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+            gateway = Gateway(store, client, configuration)
+            result = await gateway.complete({**REQUEST, "model": "route:default"})
+            return gateway, result
+
+    gateway, (_, status, headers) = asyncio.run(scenario())
+    assert status == 200 and headers["X-Provider-Used"] == "groq"
+    assert sent == [("groq.test", "alpha"), ("groq.test", "beta")]
+    failed, succeeded = store.trace(headers["X-Trace-Id"])["attempts"]
+    assert failed["model"] == "alpha" and failed["reason"] == HALLUCINATION_REASON
+    assert failed["response"] == HALLUCINATED_TOOL
+    assert succeeded["model"] == "beta" and succeeded["reason"] == "success"
+    assert not any(
+        [
+            gateway.cooldowns,
+            gateway.overload_cooldowns,
+            gateway.unavailable_cooldowns,
+            gateway.transport_cooldowns,
+        ]
+    )
+
+
+def test_groq_tool_hallucination_after_a_blocked_sibling_reaches_third_model(
+    store, monkeypatch
+):
+    configuration = groq_models(
+        store, monkeypatch, ("groq",), ("alpha", "beta", "gamma")
+    )
+    sent = []
+    handler = sent_models(
+        sent,
+        lambda host, model: (
+            httpx.Response(400, json=HALLUCINATED_TOOL)
+            if model == "beta"
+            else httpx.Response(200, json=reply())
+        ),
+    )
+
+    async def scenario():
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+            gateway = Gateway(store, client, configuration)
+            blocked_until = float("inf")
+            gateway.overload_cooldowns[("groq", "alpha")] = blocked_until
+            result = await gateway.complete({**REQUEST, "model": "route:default"})
+            return gateway, blocked_until, result
+
+    gateway, blocked_until, (_, status, headers) = asyncio.run(scenario())
+    assert status == 200 and headers["X-Provider-Used"] == "groq"
+    assert sent == [("groq.test", "beta"), ("groq.test", "gamma")]
+    attempts = store.trace(headers["X-Trace-Id"])["attempts"]
+    # A pre-dispatch block of one sibling is skipped without its own attempt row.
+    assert [(a["model"], a["reason"]) for a in attempts] == [
+        ("beta", HALLUCINATION_REASON),
+        ("gamma", "success"),
+    ]
+    assert gateway.overload_cooldowns == {("groq", "alpha"): blocked_until}
+    assert not any(
+        [
+            gateway.cooldowns,
+            gateway.unavailable_cooldowns,
+            gateway.transport_cooldowns,
+        ]
+    )
+
+
+def test_groq_tool_hallucination_on_only_model_routes_to_next_provider(
+    store, monkeypatch
+):
+    configuration = groq_models(store, monkeypatch, ("groq", "cloudflare"), ("alpha",))
+    sent = []
+    handler = sent_models(
+        sent,
+        lambda host, model: (
+            httpx.Response(400, json=HALLUCINATED_TOOL)
+            if host == "groq.test"
+            else httpx.Response(200, json=reply())
+        ),
+    )
+    _, status, headers = run(
+        store, configuration, handler, {**REQUEST, "model": "route:default"}
+    )
+    assert status == 200 and headers["X-Provider-Used"] == "cloudflare"
+    assert [host for host, _ in sent] == ["groq.test", "cloudflare.test"]
+    failed, _ = store.trace(headers["X-Trace-Id"])["attempts"]
+    assert failed["reason"] == HALLUCINATION_REASON
+
+
+def test_groq_tool_hallucination_on_every_model_is_hard_failure(store, monkeypatch):
+    configuration = groq_models(store, monkeypatch)
+    sent = []
+    handler = sent_models(
+        sent, lambda host, model: httpx.Response(400, json=HALLUCINATED_TOOL)
+    )
+    payload, status, _ = run(
+        store, configuration, handler, {**REQUEST, "model": "route:default"}
+    )
+    assert status == 502 and [model for _, model in sent] == ["alpha", "beta"]
+    assert payload["error"]["rate_limited_only"] is False
+    assert [a["reason"] for a in payload["error"]["attempts"]] == [
+        HALLUCINATION_REASON
+    ] * 2
+
+
+@pytest.mark.parametrize(
+    ("host", "body"),
+    [
+        ("groq", {"error": {"message": "bad", "type": "invalid_request_error"}}),
+        ("groq", {"error": {"code": "tool_use_failed", "message": "bad json"}}),
+        ("cloudflare", HALLUCINATED_TOOL),
+    ],
+)
+def test_other_400s_keep_generic_route_behavior(store, monkeypatch, host, body):
+    configuration = groq_models(store, monkeypatch, (host,), ("alpha", "beta"))
+    if host != "groq":
+        store.replace_models(host, [{**store.models()[0], "free": True}])
+    sent = []
+    handler = sent_models(sent, lambda h, model: httpx.Response(400, json=body))
+    payload, status, _ = run(
+        store, configuration, handler, {**REQUEST, "model": "route:default"}
+    )
+    assert status == 502 and len(sent) == 1
+    assert [a["reason"] for a in payload["error"]["attempts"]] == ["upstream HTTP 400"]
+
+
+def test_exact_model_groq_tool_hallucination_stays_non_retryable(store, monkeypatch):
+    configuration = groq_models(store, monkeypatch)
+    sent = []
+    handler = sent_models(
+        sent, lambda host, model: httpx.Response(400, json=HALLUCINATED_TOOL)
+    )
+    payload, status, headers = run(
+        store, configuration, handler, {**REQUEST, "model": "alpha"}
+    )
+    assert (
+        status == 400
+        and payload == HALLUCINATED_TOOL
+        and sent == [("groq.test", "alpha")]
+    )
+    (attempt,) = store.trace(headers["X-Trace-Id"])["attempts"]
+    assert attempt["reason"] == "non-retryable upstream HTTP 400"
+
+
 def test_exhausted_route_returns_attempt_list(store, monkeypatch):
     configuration = setup(store, monkeypatch)
 

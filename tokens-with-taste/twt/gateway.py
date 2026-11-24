@@ -318,6 +318,22 @@ def google_signature_error(payload):
     return False
 
 
+def groq_tool_error(payload):
+    raw = payload.get("raw_payload")
+    for row in raw if isinstance(raw, list) else [payload]:
+        error = row.get("error") if isinstance(row, dict) else None
+        if not isinstance(error, dict):
+            continue
+        message = error.get("message")
+        if (
+            error.get("code") == "tool_use_failed"
+            and isinstance(message, str)
+            and "not in request.tools" in message
+        ):
+            return True
+    return False
+
+
 class Gateway:
     def __init__(
         self,
@@ -724,6 +740,9 @@ class Gateway:
         rate_deadlines = []
         hard_failure = False
         names_models = set()
+        # Models that called a tool absent from this request's tools; the failure
+        # depends on this request's messages, so it never outlives the request.
+        hallucinated = set()
         replayed = False
         waited = 0
         length_retry = None
@@ -826,13 +845,17 @@ class Gateway:
             blocked = []
             model = None
             for candidate in ranked:
+                if (provider["id"], candidate["id"]) in hallucinated:
+                    continue
                 block = self.model_block(provider, candidate, size)
                 if block is None:
                     model = candidate
                     break
                 blocked.append((candidate, block))
             if model is None:
-                if len(blocked) == 1:
+                if not blocked:
+                    attempt["reason"] = "every model called a tool not in request.tools"
+                elif len(blocked) == 1:
                     attempt["reason"] = blocked[0][1][0]
                 else:
                     attempt["reason"] = "; ".join(
@@ -1013,6 +1036,21 @@ class Gateway:
                     and google_signature_error(payload)
                 ):
                     attempt["reason"] = "upstream Google HTTP 400: thought_signature"
+                    continue
+                if (
+                    routed
+                    and provider["id"] == "groq"
+                    and response.status_code == 400
+                    and groq_tool_error(payload)
+                ):
+                    hallucinated.add(key)
+                    attempt["reason"] = (
+                        "upstream Groq HTTP 400: model called a tool not in request.tools"
+                    )
+                    if any(
+                        (provider["id"], m["id"]) not in hallucinated for m in ranked
+                    ):
+                        pending.appendleft(provider)
                     continue
                 if response.status_code >= 400:
                     if routed:
