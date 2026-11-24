@@ -133,7 +133,7 @@ describe('Agent Ledger outcome recovery', () => {
     }) as {
       intake: (submission: typeof row, eventRange: typeof range, properties: typeof store, config: object) => void;
     };
-    const resubmit = () => intake(row, range, store, { MAX_ISSUES_PER_DAY: '0' });
+    const resubmit = () => intake(row, range, store, {});
 
     expect(resubmit).toThrow('Form unavailable');
     expect(stored.has('done:' + key)).toBe(false);
@@ -274,7 +274,7 @@ describe('Agent Ledger submit writes intake columns', () => {
   const sha = (text: string) => createHash('sha256').update(text, 'utf8').digest('hex');
   const config = { ...props, GITHUB_APP_ID: '1' };
 
-  function setup(headers: string[] = HEADERS) {
+  function setup(headers: string[] = HEADERS, lockFree = true) {
     const stored = new Map<string, string>();
     const store = {
       getProperty: (name: string) => stored.get(name),
@@ -299,6 +299,7 @@ describe('Agent Ledger submit writes intake columns', () => {
       }),
     };
     const outcome = vi.fn();
+    const releaseLock = vi.fn();
     const request = vi.fn((path: string) => path.endsWith('/issues') ? { html_url: 'https://example.com/issue/1' } : {});
     const { onFormSubmit } = runInNewContext(source + `
       installationToken = () => 'fixture-token';
@@ -311,7 +312,7 @@ describe('Agent Ledger submit writes intake columns', () => {
       outcome,
       console: { info: () => undefined },
       PropertiesService: { getScriptProperties: () => store },
-      LockService: { getScriptLock: () => ({ waitLock: () => undefined, releaseLock: () => undefined }) },
+      LockService: { getScriptLock: () => ({ tryLock: () => lockFree, releaseLock }) },
     }) as { onFormSubmit: (event: object) => void };
     const submit = (note: string, overrides: Record<string, string> = {}) => {
       const rowNumber = grid.length + 1;
@@ -325,7 +326,7 @@ describe('Agent Ledger submit writes intake columns', () => {
     };
     const cells = (rowNumber: number) => Object.fromEntries(grid[0].map((name, i) => [name, grid[rowNumber - 1][i]]));
     const issues = () => request.mock.calls.filter(([path]) => path.endsWith('/issues')).length;
-    return { grid, writes, submit, cells, issues, outcome, stored };
+    return { grid, writes, submit, cells, issues, outcome, stored, releaseLock };
   }
 
   const fullHash = sha('check queue\narii/remote-server');
@@ -383,12 +384,27 @@ describe('Agent Ledger submit writes intake columns', () => {
     expect(h.cells(h.submit(row.note)).status).toBe('NEW');
   });
 
-  it('does not mark a title DUPLICATE when no issue was created (daily cap)', () => {
+  it('has no daily cap: every distinct complete submission is filed, even after a stale cap state', () => {
     const h = setup();
     h.stored.set('intake-day', JSON.stringify({ day: new Date().toISOString().slice(0, 10), count: 5, notified: true }));
-    expect(h.cells(h.submit(row.note)).status).toBe('NEW');
-    expect(h.cells(h.submit(row.note)).status).toBe('NEW');
+    for (let i = 1; i <= 7; i++) {
+      const note = `[issue] remote-server: Task ${i}\nProblem: p${i}.\nDone when: d${i}.\nOut of scope: s${i}.`;
+      expect(h.cells(h.submit(note)).status).toBe('NEW');
+    }
+    expect(h.issues()).toBe(7);
+    expect(h.outcome.mock.calls.some(([, , status]) => status === 'Later')).toBe(false);
+    expect(h.releaseLock).toHaveBeenCalledTimes(7);
+  });
+
+  it('concurrency guard: a submission that cannot get the lock files nothing and gets one Later reply', () => {
+    const h = setup(HEADERS, false);
+    const rowNumber = h.submit(row.note);
     expect(h.issues()).toBe(0);
+    expect(h.cells(rowNumber).status ?? '').toBe('');
+    expect(h.outcome).toHaveBeenCalledTimes(1);
+    expect(h.outcome.mock.calls[0][2]).toBe('Later');
+    expect(h.outcome.mock.calls[0][3]).toMatch(/^Busy: /);
+    expect(h.releaseLock).not.toHaveBeenCalled();
   });
 
   it('never writes READY or DISPATCHED', () => {
