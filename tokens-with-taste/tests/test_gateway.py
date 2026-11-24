@@ -1508,3 +1508,62 @@ def test_api_validation_and_models(store, monkeypatch):
                 assert response.status_code == 200 and response.headers["X-Trace-Id"]
 
     asyncio.run(scenario())
+
+
+def test_double_encoded_tool_arguments_unwrapped(store, monkeypatch):
+    # Cloudflare Granite returns function.arguments as a JSON string that
+    # decodes to another JSON string; the gateway must emit single encoding.
+    configuration = setup(store, monkeypatch, count=1)
+
+    def handler(request):
+        arguments = json.dumps('{"pattern": "now header"}')
+        return httpx.Response(
+            200,
+            json=reply(
+                tool={"name": "grep_repo", "arguments": arguments},
+                finish="tool_calls",
+            ),
+        )
+
+    payload, status, _ = run(store, configuration, handler)
+    assert status == 200
+    arguments = payload["choices"][0]["message"]["tool_calls"][0]["function"][
+        "arguments"
+    ]
+    assert json.loads(arguments) == {"pattern": "now header"}
+
+
+def test_tool_arguments_passthrough_shapes(store, monkeypatch):
+    configuration = setup(store, monkeypatch, count=1)
+    cases = [
+        ('{"a": 1}', {"a": 1}),  # already single-encoded
+        ("plain text", "plain text"),  # not JSON: untouched
+        ('"plain"', "plain"),  # intended string arg: untouched
+        ({"a": 1}, {"a": 1}),  # dict shape: dumped to a string
+    ]
+    responses = []
+    for raw, _ in cases:
+        responses.append(
+            httpx.Response(
+                200,
+                json=reply(
+                    tool={"name": "lookup", "arguments": raw}, finish="tool_calls"
+                ),
+            )
+        )
+    calls = iter(responses)
+
+    def handler(request):
+        return next(calls)
+
+    for raw, want in cases:
+        payload, status, _ = run(store, configuration, handler)
+        assert status == 200
+        arguments = payload["choices"][0]["message"]["tool_calls"][0]["function"][
+            "arguments"
+        ]
+        try:
+            decoded = json.loads(arguments)
+        except ValueError:
+            decoded = arguments
+        assert decoded == want
