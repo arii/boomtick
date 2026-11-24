@@ -1,6 +1,7 @@
 import asyncio
 import json
 import os
+import re
 import time
 import uuid
 from collections import defaultdict, deque
@@ -179,6 +180,30 @@ def upstream_cooldown(response, payload, openrouter=False):
     return delay
 
 
+TPM_LIMIT = re.compile(
+    r"tokens per minute \(TPM\): Limit (\d+)(?:, Used (\d+), Requested (\d+))?"
+)
+TRY_AGAIN = re.compile(r"try again in (?:(\d+)m)?(?:(\d+(?:\.\d+)?)(ms|s))?")
+
+
+def tpm_details(payload):
+    """(limit, used, requested, wait seconds) from a Groq TPM error body; None when absent."""
+    error = payload.get("error")
+    message = error.get("message") if isinstance(error, dict) else None
+    match = TPM_LIMIT.search(message) if isinstance(message, str) else None
+    if not match:
+        return None
+    limit, used, requested = (int(g) if g else None for g in match.groups())
+    wait = 0.0
+    again = TRY_AGAIN.search(message)
+    if again:
+        minutes, amount, unit = again.groups()
+        wait = int(minutes or 0) * 60 + float(amount or 0) / (
+            1000 if unit == "ms" else 1
+        )
+    return limit, used, requested, wait
+
+
 def error_response(message, status):
     return JSONResponse({"error": {"message": message}}, status_code=status)
 
@@ -299,6 +324,8 @@ class Gateway:
         self.unavailable_cooldowns = {}
         # (provider, model) -> smallest estimated size upstream rejected with HTTP 413.
         self.too_large = {}
+        # (provider, model) -> TPM limit Groq stated in an error body.
+        self.tpm_limits = {}
         self.google_signatures = {}
         self.lock = asyncio.Lock()
         self.sleep = sleep
@@ -366,9 +393,10 @@ class Gateway:
         Read-only. Rate waits (RPM, Retry-After, transport) stay with reserve().
         """
         key = (provider["id"], model["id"])
-        if model.get("tpm") is not None and size > model["tpm"]:
+        limit = self.tpm_limits.get(key, model.get("tpm"))
+        if limit is not None and size > limit:
             return (
-                f"request too large: ~{size} tokens exceeds {model['tpm']} TPM limit",
+                f"request too large: ~{size} tokens exceeds {limit} TPM limit",
                 False,
             )
         if key in self.too_large and size >= self.too_large[key]:
@@ -837,6 +865,9 @@ class Gateway:
                         attempt["prompt_tokens"] * model["input_price"]
                         + attempt["completion_tokens"] * model["output_price"]
                     )
+                details = tpm_details(payload) if provider["id"] == "groq" else None
+                if details:
+                    self.tpm_limits[key] = details[0]
                 if response.status_code == 413 and provider["id"] == "groq":
                     # Size-specific, so never retried: remember the size and route on.
                     self.too_large[key] = min(self.too_large.get(key, size), size)
@@ -846,6 +877,13 @@ class Gateway:
                     cooldown = upstream_cooldown(
                         response, payload, provider["id"] == "openrouter"
                     )
+                    if (
+                        details
+                        and None not in details[:3]
+                        and (details[1] + details[2] > details[0])
+                    ):
+                        # Groq states the exact wait; it replaces the 60s default.
+                        cooldown = details[3] or cooldown
                     self.cooldowns[key] = max(
                         self.cooldowns.get(key, 0), self.clock() + cooldown
                     )
