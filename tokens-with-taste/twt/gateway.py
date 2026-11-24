@@ -233,6 +233,15 @@ def eligible_models(catalog, provider, body):
     return candidates
 
 
+def is_error_list(payload, status):
+    return (
+        status >= 400
+        and isinstance(payload, list)
+        and bool(payload)
+        and all(isinstance(row, dict) and "error" in row for row in payload)
+    )
+
+
 def payment_required(payload):
     error = payload.get("error")
     if not isinstance(error, dict):
@@ -820,6 +829,9 @@ class Gateway:
                         "error": {"message": "Upstream returned a non-JSON response"},
                         "raw_text": response.text,
                     }
+                if is_error_list(payload, response.status_code):
+                    # Google's OpenAI-compatible endpoint wraps errors as [{"error": ...}].
+                    payload = payload[0]
                 if not isinstance(payload, dict):
                     payload = {
                         "error": {"message": "Upstream returned a non-object response"},
