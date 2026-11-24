@@ -97,7 +97,9 @@ def test_models_endpoint_hides_disabled_cached_provider(store, monkeypatch):
             ) as client:
                 return (await client.get("/v1/models")).json()
 
-    assert not any(m["owned_by"] == "sambanova" for m in asyncio.run(scenario())["data"])
+    assert not any(
+        m["owned_by"] == "sambanova" for m in asyncio.run(scenario())["data"]
+    )
 
 
 def test_unknown_exclusion_fails_closed(store, monkeypatch):
