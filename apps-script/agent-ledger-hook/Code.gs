@@ -1,7 +1,9 @@
 const OWNER = 'arii';
 const FIELDS = ['Agent / Source', 'Item / Note', 'Status', 'Link'];
 const LABELS = {'ledger-intake': '0e8a16', insight: '5319e7'};
-const INTAKE_STATE = 'intake-day';
+// One submission at a time: the check-and-create below runs under the script lock.
+// A submission that can't get the lock in time is not filed and gets one Later reply.
+const LOCK_WAIT_MS = 30000;
 const ISSUE_PREFIX = /^\[issue\][ \t]+([a-z0-9][a-z0-9_.-]*):[ \t]+([^\r\n]+)/;
 const HTTPS_LINK = /^https:\/\/(?:\[[\da-f:.]+\]|[^\s/?#:@\\"<>`]+)(?::\d+)?(?:[/?#][^\s\\"<>`]*)?$/i;
 const INTAKE_COLUMNS = ['intake_id', 'dedupe_hash', 'missing_fields', 'status'];
@@ -175,12 +177,18 @@ function onFormSubmit(e) {
   }
 
   const lock = LockService.getScriptLock();
-  lock.waitLock(30000);
+  if (!lock.tryLock(LOCK_WAIT_MS)) {
+    // Concurrency guard: never file without the lock (that is how duplicates happen),
+    // and never fail silently either. The row stays unprocessed; resubmitting retries it.
+    submitOutcome(e.range, row.source, 'Later', 'Busy: another Ledger submission was being filed. Resubmit to retry.', '');
+    console.info('Agent Ledger: lock busy, submission not filed.');
+    return;
+  }
   try {
     const keys = intakeKeys(row, store);
     writeIntakeColumns(e.range, keys);
     intake(row, e.range, store, props);
-    // Remember the title/repo only once an issue exists, so a capped or failed run is not a duplicate.
+    // Remember the title/repo only once an issue exists, so a failed run is not a duplicate.
     const issueUrl = store.getProperty('created:' + dedupKey(row));
     if (keys.status === 'NEW' && issueUrl) store.setProperty(HASH_MARKER + keys.dedupe_hash, issueUrl);
   } finally {
@@ -205,22 +213,6 @@ function intake(row, range, store, props) {
     submitDone(range, row.source, key, issueUrl, store);
     return;
   }
-  const cap = Number(props.MAX_ISSUES_PER_DAY || 5);
-  if (!Number.isSafeInteger(cap) || cap < 0) {
-    throw new Error('MAX_ISSUES_PER_DAY must be a non-negative integer.');
-  }
-  const day = new Date().toISOString().slice(0, 10);
-  const saved = JSON.parse(store.getProperty(INTAKE_STATE) || 'null');
-  const state = saved && saved.day === day ? saved : {day, count: 0, notified: false};
-  if (state.count >= cap) {
-    if (!state.notified) {
-      submitOutcome(range, row.source, 'Later', 'Daily issue cap reached (' + cap + ', UTC).', '');
-      state.notified = true;
-      store.setProperty(INTAKE_STATE, JSON.stringify(state));
-    }
-    return;
-  }
-
   const [, repo, rawTitle] = ISSUE_PREFIX.exec(row.note);
   const token = installationToken(props, repo);
   const repoPath = '/repos/' + OWNER + '/' + encodeURIComponent(repo);
@@ -236,8 +228,7 @@ function intake(row, range, store, props) {
     body: issueBody(row, key, range.getRow()),
     labels: Object.keys(LABELS),
   });
-  state.count += 1;
-  store.setProperties({[marker]: issue.html_url, [INTAKE_STATE]: JSON.stringify(state)});
+  store.setProperty(marker, issue.html_url);
   submitDone(range, row.source, key, issue.html_url, store);
 }
 
