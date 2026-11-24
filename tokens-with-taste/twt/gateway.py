@@ -334,6 +334,29 @@ def normalize_tool_arguments(payload):
             )
 
 
+def cloudflare_messages(messages):
+    """Workers AI accepts only string message content: join text parts, null becomes ""."""
+    if not isinstance(messages, list):
+        return messages
+    flat = []
+    for message in messages:
+        content = message.get("content") if isinstance(message, dict) else ""
+        if isinstance(message, dict) and not isinstance(content, str):
+            if content is None:
+                content = ""
+            elif isinstance(content, list):
+                content = "\n".join(
+                    part["text"]
+                    for part in content
+                    if isinstance(part, dict) and isinstance(part.get("text"), str)
+                )
+            else:
+                content = json.dumps(content, default=str)
+            message = {**message, "content": content}
+        flat.append(message)
+    return flat
+
+
 def google_tool_signature(call):
     extra = call.get("extra_content")
     google = extra.get("google") if isinstance(extra, dict) else None
@@ -978,6 +1001,10 @@ class Gateway:
                     "enable_thinking": False,
                     **body.get("chat_template_kwargs", {}),
                 }
+            if provider["id"] == "cloudflare":
+                attempt["request"]["messages"] = cloudflare_messages(
+                    attempt["request"].get("messages")
+                )
             request_start = self.clock()
             try:
                 dispatch["started"] = True

@@ -1567,3 +1567,65 @@ def test_tool_arguments_passthrough_shapes(store, monkeypatch):
         except ValueError:
             decoded = arguments
         assert decoded == want
+
+
+CONTENT_PARTS_REQUEST = {
+    **REQUEST,
+    "model": "route:default",
+    "messages": [
+        {
+            "role": "user",
+            "content": [
+                {"type": "text", "text": "fix the bug"},
+                {"type": "text", "text": "in gateway.py"},
+            ],
+        },
+        {
+            "role": "assistant",
+            "content": None,
+            "tool_calls": [
+                {
+                    "id": "call_1",
+                    "type": "function",
+                    "function": {"name": "read", "arguments": "{}"},
+                }
+            ],
+        },
+        {"role": "tool", "tool_call_id": "call_1", "content": "file text"},
+    ],
+}
+
+
+def test_cloudflare_gets_string_content_for_parts_and_null(store, monkeypatch):
+    # Workers AI rejects array and null content with HTTP 400 (#1459).
+    configuration = setup(store, monkeypatch, count=1, provider_ids=("cloudflare",))
+    sent = []
+
+    def handler(request):
+        sent.append(json.loads(request.content))
+        return httpx.Response(200, json=reply())
+
+    _, status, headers = run(store, configuration, handler, CONTENT_PARTS_REQUEST)
+    assert status == 200 and headers["X-Provider-Used"] == "cloudflare"
+    messages = sent[0]["messages"]
+    assert [m["content"] for m in messages] == [
+        "fix the bug\nin gateway.py",
+        "",
+        "file text",
+    ]
+    assert (
+        messages[1]["tool_calls"] == CONTENT_PARTS_REQUEST["messages"][1]["tool_calls"]
+    )
+
+
+def test_other_providers_keep_content_parts_and_null(store, monkeypatch):
+    configuration = setup(store, monkeypatch, count=1, provider_ids=("groq",))
+    sent = []
+
+    def handler(request):
+        sent.append(json.loads(request.content))
+        return httpx.Response(200, json=reply())
+
+    _, status, _ = run(store, configuration, handler, CONTENT_PARTS_REQUEST)
+    assert status == 200
+    assert sent[0]["messages"] == CONTENT_PARTS_REQUEST["messages"]
