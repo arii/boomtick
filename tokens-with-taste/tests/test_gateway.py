@@ -556,6 +556,69 @@ def test_empty_message_truncated_by_length_names_the_token_budget(store, monkeyp
     assert second["reason"] == "success"
 
 
+@pytest.mark.parametrize(
+    "prompt,context,cap,budget,finish,expected,recover",
+    [
+        (3740, 262144, 262144, "5", "length", 16384, True),
+        (6863, 262144, 262144, "5", "length", 16384, False),
+        (6863, 16863, 12000, "5", "length", 10000, True),
+        (3740, 262144, 10000, "5", "length", 10000, True),
+        (6863, 15055, 262144, "5", "length", None, False),
+        (3740, 262144, 262144, "0.005", "length", None, False),
+        (3740, 262144, 262144, "5", "stop", None, False),
+    ],
+)
+def test_nebius_empty_length_retry(
+    store, monkeypatch, prompt, context, cap, budget, finish, expected, recover
+):
+    monkeypatch.setenv("TWT_DAILY_BUDGET_USD", budget)
+    configuration = setup(store, monkeypatch, count=1, provider_ids=("nebius",))
+    model = store.models()[0]
+    model.update(
+        id="nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B",
+        input_price=0.00000006,
+        output_price=0.00000024,
+        context_length=context,
+        max_output_tokens=cap,
+    )
+    store.replace_models("nebius", [model])
+    sent = []
+
+    def handler(request):
+        sent.append(json.loads(request.content))
+        if recover and len(sent) == 2:
+            return httpx.Response(
+                200, json=reply(tool={"name": "edit", "arguments": "{}"})
+            )
+        payload = reply(prompt=prompt, completion=sent[-1]["max_tokens"], finish=finish)
+        payload["choices"][0]["message"]["content"] = ""
+        return httpx.Response(200, json=payload)
+
+    payload, status, headers = run(
+        store,
+        configuration,
+        handler,
+        {**REQUEST, "model": "route:strong", "max_tokens": 8192},
+    )
+    assert [r["max_tokens"] for r in sent] == ([8192, expected] if expected else [8192])
+    assert {r["model"] for r in sent} == {model["id"]}
+    assert status == (200 if recover else 502)
+    if recover:
+        assert payload["choices"][0]["message"]["tool_calls"]
+    trace = store.trace(headers["X-Trace-Id"])
+    called = [a for a in trace["attempts"] if a["called"]]
+    assert len(called) == len(sent)
+    assert trace["cost_usd"] == pytest.approx(sum(a["cost_usd"] for a in called))
+    assert called[0]["cost_usd"] == pytest.approx(
+        prompt * 0.00000006 + 8192 * 0.00000024
+    )
+    if budget == "0.005":
+        assert (
+            trace["attempts"][-1]["reason"]
+            == "daily budget reached or paid model price unknown"
+        )
+
+
 @pytest.mark.parametrize("upstream_status", [200, 400, 403])
 def test_payment_required_error_body_falls_through(store, monkeypatch, upstream_status):
     configuration = setup(store, monkeypatch)

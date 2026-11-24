@@ -227,6 +227,24 @@ def estimate_request_tokens(body):
     return -(-chars // 4) + output
 
 
+def nebius_length_retry(request, model, prompt_tokens):
+    limits = {
+        key: request[key]
+        for key in ("max_tokens", "max_completion_tokens")
+        if key in request
+    }
+    context = model.get("context_length")
+    output_cap = model.get("max_output_tokens")
+    if not limits or any(
+        type(n) is not int or n <= 0 for n in (*limits.values(), context, output_cap)
+    ):
+        return None
+    old = max(limits.values())
+    prompt = max(prompt_tokens or 0, estimate_request_tokens(request) - old)
+    new = min(2 * old, output_cap, context - prompt)
+    return {key: new for key in limits} if new > old else None
+
+
 def eligible_models(catalog, provider, body):
     candidates = [m for m in catalog if m["provider"] == provider["id"] and m["chat"]]
     requested = body.get("model", "default")
@@ -421,24 +439,25 @@ class Gateway:
             return "overload cooldown", True
         return None
 
-    async def reserve(self, model, key, budget, remaining, *, defer_retry_after=False):
+    async def reserve(
+        self, model, key, budget, remaining, *, defer_retry_after=False, retry_cost=None
+    ):
         waited = 0
         while True:
             async with self.lock:
-                if (
-                    budget is not None
-                    and not model["free"]
-                    and (
-                        self.store.spend_today() >= budget
+                if budget is not None and not model["free"]:
+                    spent = self.store.spend_today()
+                    if (
+                        spent >= budget
+                        or (retry_cost is not None and spent + retry_cost > budget)
                         or model["input_price"] is None
                         or model["output_price"] is None
-                    )
-                ):
-                    return (
-                        "daily budget reached or paid model price unknown",
-                        waited,
-                        None,
-                    )
+                    ):
+                        return (
+                            "daily budget reached or paid model price unknown",
+                            waited,
+                            None,
+                        )
                 current = self.clock()
                 if self.unavailable_cooldowns.get(key, 0) > current:
                     return "model unavailable cooldown", waited, None
@@ -665,8 +684,11 @@ class Gateway:
         names_models = set()
         replayed = False
         waited = 0
-        while pending or (
-            routed and rate_deadlines and not hard_failure and not replayed
+        length_retry = None
+        while (
+            length_retry
+            or pending
+            or (routed and rate_deadlines and not hard_failure and not replayed)
         ):
             if trace["trace_id"] in self.cancelled or (
                 disconnected and await disconnected()
@@ -679,7 +701,7 @@ class Gateway:
                 }
                 trace["http_status"] = 499
                 break
-            if not pending:
+            if not pending and length_retry is None:
                 delay = min(
                     max(0, min(rate_deadlines) - self.clock()),
                     self.free_wait_seconds - waited,
@@ -690,7 +712,13 @@ class Gateway:
                 pending.extend(ordered)
                 replayed = True
                 continue
-            provider = pending.popleft()
+            retrying_length = length_retry is not None
+            retry_limits = retry_cost = None
+            if retrying_length:
+                provider, retry_model, retry_limits, retry_cost = length_retry
+                length_retry = None
+            else:
+                provider = pending.popleft()
             attempt = {
                 "provider": provider["id"],
                 "model": None,
@@ -721,12 +749,14 @@ class Gateway:
                 attempt["reason"] = "strict privacy excluded"
                 continue
             candidates = eligible_models(catalog, provider, body)
+            if retrying_length:
+                candidates = [m for m in candidates if m["id"] == retry_model]
             if not candidates:
                 attempt["reason"] = (
                     "no synced eligible chat model matching requested model/free-tier/tools/JSON capabilities; run twt sync"
                 )
                 continue
-            size = estimate_request_tokens(body)
+            size = estimate_request_tokens({**body, **(retry_limits or {})})
             ranked = sorted(candidates, key=model_rank)
             # Fall back only within the top model's free/paid class so a provider
             # ordered as free never reaches a paid model ahead of other free providers.
@@ -777,6 +807,7 @@ class Gateway:
                 budget,
                 self.free_wait_seconds - waited,
                 defer_retry_after=routed,
+                retry_cost=retry_cost,
             )
             waited += delay
             if reason:
@@ -820,7 +851,7 @@ class Gateway:
                 attempt["cost_usd"] = 0.0
             trace["provider"] = provider["id"]
             trace["model"] = model["id"]
-            attempt["request"] = {**body, "model": model["id"]}
+            attempt["request"] = {**body, **(retry_limits or {}), "model": model["id"]}
             if google_history is not None:
                 attempt["request"]["messages"] = google_history
             attempt["request"].pop("provider_models", None)
@@ -989,6 +1020,42 @@ class Gateway:
                             " before any visible output; raise max_tokens or lower"
                             " reasoning effort)"
                         )
+                    if (
+                        provider["id"] == "nebius"
+                        and not retrying_length
+                        and response.status_code == 200
+                        and all(
+                            c.get("finish_reason") == "length"
+                            for c in payload["choices"]
+                        )
+                        and len(empty) == len(payload["choices"])
+                        and (
+                            limits := nebius_length_retry(
+                                attempt["request"], model, attempt["prompt_tokens"]
+                            )
+                        )
+                    ):
+                        cost = 0
+                        if budget is not None and not model["free"]:
+                            prior = [
+                                a["cost_usd"]
+                                if a["cost_usd"] is not None
+                                else a.get("cost_upper_bound_usd")
+                                for a in trace["attempts"]
+                                if a["called"] and a is not attempt
+                            ]
+                            bound = cost_upper_bound(
+                                {**attempt["request"], **limits}, model, attempt
+                            ).get("cost_upper_bound_usd")
+                            if (
+                                bound is None
+                                or None in prior
+                                or attempt["cost_usd"] is None
+                            ):
+                                cost = float("inf")
+                            else:
+                                cost = sum(prior) + attempt["cost_usd"] + bound
+                        length_retry = provider, model["id"], limits, cost
                     continue
                 attempt["reason"] = "success"
                 if provider["id"] == "google":
