@@ -185,7 +185,10 @@ provider and model, status, latency, tokens (prompt/completion/reasoning/visible
 cost, flags, full request and response. Each attempt is also stored separately
 in `attempts(trace_id, ordinal, data)`: provider/model, timestamp, called/skip,
 reason, HTTP status, latency, full sent payload/received payload, tokens and
-cost. Skips are retained too. `tool_calls` stores canonical signatures scoped
+cost. When Google receives tool calls made by other providers (no
+`thought_signature`), those assistant turns and their tool results are sent as
+plain text and the attempt records `tool_history_conversion` (turn and result
+counts, reason). Signed Google turns stay structured. Skips are retained too. `tool_calls` stores canonical signatures scoped
 by session. Authorization is never part of recorded payloads.
 
 | Flag | Exact trigger | Report recommendation |

@@ -84,34 +84,120 @@ def tool_history(response):
     return [*REQUEST["messages"], message, *results]
 
 
-def test_google_skips_unsigned_tool_history_from_groq(store, monkeypatch):
+CONVERTED_CALL = "[tool call call_1: lookup({})]"
+CONVERSION = {
+    "assistant_turns": 1,
+    "tool_results": 1,
+    "reason": "unsigned tool calls from other providers sent to Google as text",
+}
+
+
+def assert_text_only(messages):
+    assert messages[1] == {
+        "role": "assistant",
+        "content": "answer\n" + CONVERTED_CALL,
+    }
+    assert messages[2] == {"role": "user", "content": "[tool result call_1]: found"}
+
+
+def test_google_converts_unsigned_tool_history_from_groq(store, monkeypatch):
     configuration = setup(store, monkeypatch, provider_ids=("google", "groq"))
     tool_reply = reply(tool={"name": "lookup", "arguments": "{}"}, finish="tool_calls")
     sent = []
 
     def handler(request):
-        sent.append(request.url.host)
+        sent.append((request.url.host, json.loads(request.content)["messages"]))
         if len(sent) == 1:
             return httpx.Response(503, json={"error": {"message": "overloaded"}})
         return httpx.Response(200, json=tool_reply if len(sent) == 2 else reply())
 
     first, status, headers = run(store, configuration, handler, session="spec")
     assert status == 200 and headers["X-Provider-Used"] == "groq"
+    history = tool_history(first)
+    original = json.loads(json.dumps(history))
+    body = {**REQUEST, "messages": history}
+    _, status, headers = run(store, configuration, handler, body, session="spec")
+    assert status == 200 and headers["X-Provider-Used"] == "google"
+    assert [host for host, _ in sent] == ["google.test", "groq.test", "google.test"]
+    assert_text_only(sent[2][1])
+    assert history == original
+    google = store.trace(headers["X-Trace-Id"])["attempts"][0]
+    assert google["called"] and google["reason"] == "success"
+    assert google["tool_history_conversion"] == CONVERSION
+
+
+def test_google_mixed_tool_history_keeps_signed_turn_structured(store, monkeypatch):
+    configuration = setup(store, monkeypatch, provider_ids=("google", "groq"))
+    signed = reply(tool={"name": "lookup", "arguments": "{}"}, finish="tool_calls")
+    signed_call = signed["choices"][0]["message"]["tool_calls"][0]
+    signed_call["extra_content"] = {"google": {"thought_signature": "native"}}
+    foreign = reply(tool={"name": "lookup", "arguments": "{}"}, finish="tool_calls")
+    foreign["choices"][0]["message"]["tool_calls"][0]["id"] = "call_9"
+    signed_turn = tool_history(signed)
+    foreign_turn = tool_history(foreign)[1:]
+    foreign_turn[1]["content"] = "other"
+    messages = [*signed_turn, *foreign_turn, {"role": "user", "content": "next"}]
+    seen = []
+
+    def handler(request):
+        seen.append(json.loads(request.content)["messages"])
+        return httpx.Response(200, json=reply())
+
     _, status, headers = run(
+        store, configuration, handler, {**REQUEST, "messages": messages}
+    )
+    assert status == 200 and headers["X-Provider-Used"] == "google"
+    sent = seen[0]
+    assert sent[1]["tool_calls"] == [signed_call]
+    assert sent[2] == {"role": "tool", "tool_call_id": "call_1", "content": "found"}
+    assert sent[3] == {
+        "role": "assistant",
+        "content": "answer\n[tool call call_9: lookup({})]",
+    }
+    assert sent[4] == {"role": "user", "content": "[tool result call_9]: other"}
+    assert sent[5] == messages[-1]
+    google = store.trace(headers["X-Trace-Id"])["attempts"][0]
+    assert google["tool_history_conversion"] == CONVERSION
+
+
+def test_google_signed_history_records_no_conversion(store, monkeypatch):
+    configuration = setup(store, monkeypatch, provider_ids=("google", "groq"))
+    signed = reply(tool={"name": "lookup", "arguments": "{}"}, finish="tool_calls")
+    signed["choices"][0]["message"]["tool_calls"][0]["extra_content"] = {
+        "google": {"thought_signature": "native"}
+    }
+    _, _, headers = run(
         store,
         configuration,
-        handler,
-        {**REQUEST, "messages": tool_history(first)},
-        session="spec",
+        lambda request: httpx.Response(200, json=reply()),
+        {**REQUEST, "messages": tool_history(signed)},
+    )
+    google = store.trace(headers["X-Trace-Id"])["attempts"][0]
+    assert "tool_history_conversion" not in google
+
+
+def test_other_provider_gets_original_history_after_google_fails(store, monkeypatch):
+    configuration = setup(store, monkeypatch, provider_ids=("google", "groq"))
+    tool_reply = reply(tool={"name": "lookup", "arguments": "{}"}, finish="tool_calls")
+    history = tool_history(tool_reply)
+    seen = {}
+
+    def handler(request):
+        seen[request.url.host] = json.loads(request.content)["messages"]
+        if request.url.host == "google.test":
+            return httpx.Response(503, json={"error": {"message": "overloaded"}})
+        return httpx.Response(200, json=reply())
+
+    _, status, headers = run(
+        store, configuration, handler, {**REQUEST, "messages": history}
     )
     assert status == 200 and headers["X-Provider-Used"] == "groq"
-    assert sent == ["google.test", "groq.test", "groq.test"]
+    assert_text_only(seen["google.test"])
+    assert seen["groq.test"] == history
+    assert seen["groq.test"][1]["tool_calls"] and seen["groq.test"][2]["role"] == "tool"
     google, groq = store.trace(headers["X-Trace-Id"])["attempts"]
-    assert (
-        not google["called"]
-        and google["reason"] == "Google tool history missing thought_signature"
-    )
-    assert groq["called"] and groq["reason"] == "success"
+    assert google["tool_history_conversion"] == CONVERSION
+    assert "tool_history_conversion" not in groq
 
 
 @pytest.mark.parametrize("client_preserves_signature", [True, False])
@@ -131,10 +217,13 @@ def test_google_reuses_its_tool_signature(
         sent.append(request.url.host)
         if len(sent) == 1:
             return httpx.Response(200, json=tool_reply)
-        if request.url.host == "google.test":
-            history = json.loads(request.content)["messages"]
+        history = json.loads(request.content)["messages"]
+        if client_preserves_signature or len(sent) == 2:
             assert history[1]["tool_calls"] == calls
             assert [m["tool_call_id"] for m in history[2:]] == ["call_1", "call_2"]
+        else:
+            assert "tool_calls" not in history[1]
+            assert [m["role"] for m in history[2:]] == ["user", "user"]
         return httpx.Response(200, json=reply())
 
     async def scenario():
@@ -155,12 +244,10 @@ def test_google_reuses_its_tool_signature(
             if not client_preserves_signature:
                 assert "extra_content" not in body["messages"][1]["tool_calls"][0]
                 _, status, headers = await gateway.complete(body, session="other")
-                assert status == 200 and headers["X-Provider-Used"] == "groq"
+                assert status == 200 and headers["X-Provider-Used"] == "google"
 
     asyncio.run(scenario())
-    assert sent == ["google.test", "google.test"] + (
-        [] if client_preserves_signature else ["groq.test"]
-    )
+    assert sent == ["google.test"] * (2 if client_preserves_signature else 3)
 
 
 def test_google_reuses_signature_without_session(store, monkeypatch):
@@ -198,11 +285,13 @@ def test_google_reuses_signature_without_session(store, monkeypatch):
     assert sent == ["google.test", "google.test"]
 
 
-def test_google_sessionless_unsigned_history_still_skips(store, monkeypatch):
+def test_google_sessionless_unsigned_history_is_sent_as_text(store, monkeypatch):
     configuration = setup(store, monkeypatch, provider_ids=("google", "groq"))
     tool_reply = reply(tool={"name": "lookup", "arguments": "{}"}, finish="tool_calls")
+    seen = []
 
     def handler(request):
+        seen.append(json.loads(request.content)["messages"])
         return httpx.Response(200, json=reply())
 
     _, status, headers = run(
@@ -211,12 +300,10 @@ def test_google_sessionless_unsigned_history_still_skips(store, monkeypatch):
         handler,
         {**REQUEST, "messages": tool_history(tool_reply)},
     )
-    assert status == 200 and headers["X-Provider-Used"] == "groq"
+    assert status == 200 and headers["X-Provider-Used"] == "google"
+    assert_text_only(seen[0])
     google = store.trace(headers["X-Trace-Id"])["attempts"][0]
-    assert (
-        not google["called"]
-        and google["reason"] == "Google tool history missing thought_signature"
-    )
+    assert google["called"] and google["tool_history_conversion"] == CONVERSION
 
 
 @pytest.mark.parametrize(
