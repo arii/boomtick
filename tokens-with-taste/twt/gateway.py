@@ -365,10 +365,31 @@ class Gateway:
 
     def google_tool_history(self, messages, session):
         # Gemini requires a signature on the first call of each parallel batch.
-        # Restore Google's metadata that OpenAI clients may drop; skip Google
-        # rather than passing through foreign or unverifiable tool history.
+        # Restore Google's metadata that OpenAI clients may drop. Tool calls
+        # made by other providers have no signature, so for Google only they
+        # become plain text turns, and their tool results follow as user text.
         history = []
+        converted_ids = set()
+        info = {"assistant_turns": 0, "tool_results": 0}
         for message in messages:
+            if (
+                isinstance(message, dict)
+                and message.get("role") == "tool"
+                and message.get("tool_call_id") in converted_ids
+            ):
+                content = message.get("content")
+                if content is None:
+                    content = ""
+                elif not isinstance(content, str):
+                    content = json.dumps(content, default=str)
+                history.append(
+                    {
+                        "role": "user",
+                        "content": f"[tool result {message['tool_call_id']}]: {content}",
+                    }
+                )
+                info["tool_results"] += 1
+                continue
             calls = (
                 message.get("tool_calls")
                 if isinstance(message, dict) and message.get("role") == "assistant"
@@ -396,12 +417,33 @@ class Gateway:
                     extra["google"] = {**google, "thought_signature": signature}
                     call = {**call, "extra_content": extra}
                 restored.append(call)
-            if not isinstance(restored[0], dict) or not google_tool_signature(
-                restored[0]
-            ):
-                return None
-            history.append({**message, "tool_calls": restored})
-        return history
+            if isinstance(restored[0], dict) and google_tool_signature(restored[0]):
+                history.append({**message, "tool_calls": restored})
+                continue
+            lines = []
+            for call in restored:
+                call = call if isinstance(call, dict) else {}
+                function = call.get("function")
+                function = function if isinstance(function, dict) else {}
+                call_id = call.get("id")
+                arguments = function.get("arguments")
+                if not isinstance(arguments, str):
+                    arguments = json.dumps(arguments, default=str)
+                lines.append(
+                    f"[tool call {call_id}: {function.get('name')}({arguments})]"
+                )
+                if isinstance(call_id, str):
+                    converted_ids.add(call_id)
+            content = message.get("content")
+            parts = [content] if isinstance(content, str) and content else []
+            history.append(
+                {
+                    **{k: v for k, v in message.items() if k != "tool_calls"},
+                    "content": "\n".join(parts + lines),
+                }
+            )
+            info["assistant_turns"] += 1
+        return history, info
 
     def remember_google_signatures(self, payload, session):
         for choice in payload["choices"]:
@@ -764,12 +806,14 @@ class Gateway:
             attempt["model"] = ranked[0]["id"]
             google_history = None
             if provider["id"] == "google":
-                google_history = self.google_tool_history(
+                google_history, conversion = self.google_tool_history(
                     body.get("messages", []), session
                 )
-                if google_history is None:
-                    attempt["reason"] = "Google tool history missing thought_signature"
-                    continue
+                if conversion["assistant_turns"]:
+                    attempt["tool_history_conversion"] = {
+                        **conversion,
+                        "reason": "unsigned tool calls from other providers sent to Google as text",
+                    }
             if "local_model" in provider:
                 try:
                     await require_local_ollama(self.client)
