@@ -801,6 +801,86 @@ def test_groq_tool_hallucination_moves_to_next_groq_model(store, monkeypatch):
     )
 
 
+def test_groq_tool_hallucination_list_wrapped_body_is_classified_the_same(
+    store, monkeypatch
+):
+    configuration = groq_models(store, monkeypatch, ("groq", "cloudflare"))
+    sent = []
+    handler = sent_models(
+        sent,
+        lambda host, model: (
+            httpx.Response(400, json=[HALLUCINATED_TOOL])
+            if model == "alpha"
+            else httpx.Response(200, json=reply())
+        ),
+    )
+
+    async def scenario():
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+            gateway = Gateway(store, client, configuration)
+            result = await gateway.complete({**REQUEST, "model": "route:default"})
+            return gateway, result
+
+    gateway, (_, status, headers) = asyncio.run(scenario())
+    assert status == 200 and headers["X-Provider-Used"] == "groq"
+    assert sent == [("groq.test", "alpha"), ("groq.test", "beta")]
+    failed, succeeded = store.trace(headers["X-Trace-Id"])["attempts"]
+    assert failed["model"] == "alpha" and failed["reason"] == HALLUCINATION_REASON
+    assert failed["response"] == HALLUCINATED_TOOL
+    assert succeeded["model"] == "beta" and succeeded["reason"] == "success"
+    assert not any(
+        [
+            gateway.cooldowns,
+            gateway.overload_cooldowns,
+            gateway.unavailable_cooldowns,
+            gateway.transport_cooldowns,
+        ]
+    )
+
+
+def test_groq_tool_hallucination_after_a_blocked_sibling_reaches_third_model(
+    store, monkeypatch
+):
+    configuration = groq_models(
+        store, monkeypatch, ("groq",), ("alpha", "beta", "gamma")
+    )
+    sent = []
+    handler = sent_models(
+        sent,
+        lambda host, model: (
+            httpx.Response(400, json=HALLUCINATED_TOOL)
+            if model == "beta"
+            else httpx.Response(200, json=reply())
+        ),
+    )
+
+    async def scenario():
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+            gateway = Gateway(store, client, configuration)
+            blocked_until = float("inf")
+            gateway.overload_cooldowns[("groq", "alpha")] = blocked_until
+            result = await gateway.complete({**REQUEST, "model": "route:default"})
+            return gateway, blocked_until, result
+
+    gateway, blocked_until, (_, status, headers) = asyncio.run(scenario())
+    assert status == 200 and headers["X-Provider-Used"] == "groq"
+    assert sent == [("groq.test", "beta"), ("groq.test", "gamma")]
+    attempts = store.trace(headers["X-Trace-Id"])["attempts"]
+    # A pre-dispatch block of one sibling is skipped without its own attempt row.
+    assert [(a["model"], a["reason"]) for a in attempts] == [
+        ("beta", HALLUCINATION_REASON),
+        ("gamma", "success"),
+    ]
+    assert gateway.overload_cooldowns == {("groq", "alpha"): blocked_until}
+    assert not any(
+        [
+            gateway.cooldowns,
+            gateway.unavailable_cooldowns,
+            gateway.transport_cooldowns,
+        ]
+    )
+
+
 def test_groq_tool_hallucination_on_only_model_routes_to_next_provider(
     store, monkeypatch
 ):
