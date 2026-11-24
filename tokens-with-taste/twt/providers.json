@@ -221,6 +221,13 @@
           "context_length": 8192,
           "max_output_tokens": 2048,
           "chat": true
+        },
+        "@cf/ibm-granite/granite-4.0-h-micro": {
+          "free": true,
+          "context_length": 131000,
+          "max_output_tokens": 2048,
+          "chat": true,
+          "tools": true
         }
       },
       "verified": {
@@ -235,6 +242,14 @@
         "rpm": {
           "checked": "2026-11-16",
           "source": "https://developers.cloudflare.com/workers-ai/platform/limits/"
+        },
+        "tools": {
+          "checked": "2026-11-24",
+          "source": "https://developers.cloudflare.com/workers-ai/models/granite-4.0-h-micro/"
+        },
+        "free_allocation": {
+          "checked": "2026-11-24",
+          "source": "https://developers.cloudflare.com/workers-ai/platform/pricing/"
         }
       },
       "unverified": "Authenticated account availability, quota and billing: needs API key",
