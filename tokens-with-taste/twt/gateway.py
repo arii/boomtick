@@ -296,6 +296,38 @@ def payment_required(payload):
     )
 
 
+def normalize_tool_arguments(payload):
+    """Rewrite each tool_calls[].function.arguments as a single-encoded JSON
+    string: some providers (Cloudflare Granite) double-encode it — a JSON
+    string whose decoded content is another JSON string — which downstream
+    clients reject as invalid tool args."""
+    for choice in payload.get("choices") or []:
+        message = choice.get("message") if isinstance(choice, dict) else None
+        if not isinstance(message, dict):
+            continue
+        for call in message.get("tool_calls") or []:
+            function = call.get("function") if isinstance(call, dict) else None
+            if not isinstance(function, dict):
+                continue
+            arguments = function.get("arguments")
+            if not isinstance(arguments, str):
+                if arguments is not None:
+                    function["arguments"] = json.dumps(arguments, default=str)
+                continue
+            try:
+                inner = json.loads(arguments)
+            except ValueError:
+                continue
+            if isinstance(inner, str):
+                try:
+                    inner = json.loads(inner)
+                except ValueError:
+                    continue
+            function["arguments"] = (
+                inner if isinstance(inner, str) else json.dumps(inner, default=str)
+            )
+
+
 def google_tool_signature(call):
     extra = call.get("extra_content")
     google = extra.get("google") if isinstance(extra, dict) else None
@@ -1139,6 +1171,7 @@ class Gateway:
                                 cost = sum(prior) + attempt["cost_usd"] + bound
                         length_retry = provider, model["id"], limits, cost
                     continue
+                normalize_tool_arguments(payload)
                 attempt["reason"] = "success"
                 if provider["id"] == "google":
                     self.remember_google_signatures(payload, session)
