@@ -33,13 +33,25 @@ def _branch(worktree):
     return res.stdout.strip() if res.returncode == 0 else ""
 
 
-def changed_vs_base(worktree, base):
+def _base_ref(worktree, base):
+    remote_ref = f"refs/remotes/origin/{base}"
+    probe = _run(["git", "show-ref", "--verify", "--quiet", remote_ref], worktree)
+    if probe.returncode == 1:
+        # A local-only base has no remote-tracking ref.
+        return f"refs/heads/{base}"
+    return remote_ref
+
+
+def changed_vs_base(worktree, base_ref):
     """Committed files on this branch since base (merge-base diff)."""
     res = _run(
-        ["git", "diff", "--name-only", "--no-renames", f"{base}...HEAD"], worktree
+        ["git", "diff", "--name-only", "--no-renames", f"{base_ref}...HEAD", "--"],
+        worktree,
     )
     if res.returncode != 0:
-        return []
+        raise SubmitError(
+            f"Failed to compare {base_ref}...HEAD: {(res.stderr or '').strip()}"
+        )
     return [l for l in (res.stdout or "").splitlines() if l.strip()]
 
 
@@ -79,11 +91,14 @@ def submit(
     if dirty:
         ref = f" (#{issue})" if issue is not None else ""
         commit_sha = _commit(worktree, dirty, f"feat(agent): {title}{ref}")
-    committed = changed_vs_base(worktree, base)
+    base_ref = _base_ref(worktree, base)
+    committed = changed_vs_base(worktree, base_ref)
     leftover = [f for f in ls.changed_files(worktree) if f != "session.json"]
     scope_files = sorted(set(committed) | set(leftover))
     if not scope_files:
-        raise SubmitError("No changes to submit (branch matches base)")
+        raise SubmitError(
+            f"No changes to submit (branch matches base: {base_ref}...HEAD)"
+        )
     scope = {"checked": False, "allowed": [], "disallowed": [], "skipped": False}
     if issue_text and not skip_scope and not scope_gate.check_override():
         ok, allowed, disallowed = scope_gate.check_scope(
