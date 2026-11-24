@@ -4,13 +4,14 @@ Applies to the boomtick Gemini code review (`action.yml`, `lib/codeReviewOrchest
 
 ## What fails the check and what only warns
 
-The check goes red only when the review verdict is `fail` (an open HIGH finding) and the consuming workflow sets `fail-on-verdict: 'true'`. Everything else exits 0.
+The verdict gate goes red only when the verdict is `fail` and the consuming workflow sets `fail-on-verdict: 'true'`. The warning rows below apply when there is no prior open HIGH finding.
 
 | Situation | Reason string in the verdict file, step summary and `blocking-findings` output | Verdict | Exit |
 | --- | --- | --- | --- |
 | Review completed, no blocking finding | none | `pass` | 0 |
 | Review completed, open HIGH finding | none (findings listed as `- [HIGH] file:line - issue`) | `fail` | 1 with `fail-on-verdict: 'true'`, else 0 |
-| `GEMINI_API_KEY` missing or model discovery finds no verified model | `UNHANDLED_ERROR` | `warn` | 0 |
+| `GEMINI_API_KEY` not configured (runner skips review) | `MISSING_API_KEY` | `warn` | 0 |
+| Model discovery finds no verified model | `UNHANDLED_ERROR` | `warn` | 0 |
 | API key rejected (401, `API_KEY_INVALID`) | `MISSING_API_KEY` | `warn` | 0 |
 | Gemini outage or other unhandled error in a review task | `UNHANDLED_ERROR` | `warn` | 0 |
 | Rate limit (429) | `RATE_LIMIT` | `warn` | 0 |
@@ -18,7 +19,7 @@ The check goes red only when the review verdict is `fail` (an open HIGH finding)
 | Model findings block malformed | `PARSE_ERROR` | `warn` | 0 |
 | Diff larger than `max_diff_chars` (default 250000) | `isTruncated` in the verdict file, no reason string | `warn` | 0 |
 
-Infra problems never block a merge. A hard error in the runner itself (for example the verdict step crashing) is not a review result and still fails the step.
+Infra problems do not block a merge on their own. If a prior review left an open HIGH finding, a skipped or incomplete review keeps that finding open and the verdict stays `fail`. This applies to empty and low-impact-only diffs, truncated diffs, and incomplete review tasks (for example, rate limits or truncated replies). A hard error in the runner itself (for example the verdict step crashing) is not a review result and still fails the step.
 
 ## Review cap and red-at-cap
 
@@ -30,14 +31,6 @@ A red verdict at the cap is resolved in only two ways, never automatically:
 2. A repository admin bypasses branch protection to merge.
 
 There is no auto-retry and no override input. Re-running at the cap stays red.
-
-## Known gaps against this policy
-
-Tests marked `MISMATCH` in `reviewPolicyMatrix.test.ts` (`it.fails`) show runs that turn a prior FAIL into a green or warn result today. These need a decision from Ari before any code change:
-
-- No code change detected (including a lockfile-only diff): `pass`, exit 0.
-- Diff truncated on a later run: `warn`, exit 0.
-- Every review task rate limited or model output truncated on a later run: `warn`, exit 0.
 
 ## Where to read the verdict
 

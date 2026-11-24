@@ -1,6 +1,6 @@
 /**
  * Pins the approved AI-review policy (arii/boomtick#1403):
- *  (a) infra problems never block merges: the verdict is WARN and the step exits 0;
+ *  (a) infra problems warn and exit 0 when there is no prior FAIL;
  *  (b) a FAIL verdict with open HIGH findings stays red until the findings are resolved, including on
  *      later runs that are skipped, truncated or at the review cap. Nothing flips it to pass on its own.
  *
@@ -99,7 +99,11 @@ async function parsed(text: string) {
 }
 
 /** Same code path as the action: orchestrate, then the verdict gate with fail-on-verdict as given. */
-async function run(client: Client, failOnVerdict = true): Promise<Outcome> {
+async function run(
+  client: Client,
+  failOnVerdict = true,
+  execute = () => orchestrate(client, [client.reportTitle]),
+): Promise<Outcome> {
   gh.posted = [];
   const verdictPath = path.join(workDir, 'artifacts', 'gemini-code-review-verdict.json');
   fs.rmSync(verdictPath, { force: true });
@@ -108,7 +112,7 @@ async function run(client: Client, failOnVerdict = true): Promise<Outcome> {
   fs.writeFileSync(outputFile, '');
   fs.writeFileSync(summaryFile, '');
 
-  await orchestrate(client, [client.reportTitle]);
+  await execute();
 
   const previous = process.exitCode;
   process.exitCode = undefined;
@@ -271,17 +275,38 @@ describe('review policy matrix (#1403)', () => {
     });
   });
 
+  it.each([false, true])('the missing-key runner skip preserves a prior FAIL when present (%s)', async hasPriorFail => {
+    const { runReviewScript } = await import('../../scripts/utils/reviewScriptRunner');
+    const { getPreviousReviewState } = await import('../../lib/visualReviewUtils');
+    gh.prevState = hasPriorFail ? { findings: [open()] } : undefined;
+    const orchestrateGemini = vi.fn(async () => undefined);
+    const argv = process.argv;
+    process.argv = [...argv.slice(0, 2), 'gemini'];
+    try {
+      const r = await run(geminiClient, true, () => runReviewScript({
+        geminiClient,
+        orchestrateGemini,
+        scriptName: 'code review',
+        getPreviousState: () => getPreviousReviewState(geminiClient.reportTitle),
+      }));
+      const verdict = hasPriorFail ? 'fail' : 'warn';
+      expect([r.fileVerdict, r.gateVerdict, r.exitCode]).toEqual([verdict, verdict, hasPriorFail ? 1 : 0]);
+      expect(r.skipReason).toBe('MISSING_API_KEY');
+      if (hasPriorFail) expect(r.state?.findings).toEqual([open()]);
+      expect(orchestrateGemini).not.toHaveBeenCalled();
+    } finally {
+      process.argv = argv;
+    }
+  });
+
   describe('(b) a prior FAIL stays red', () => {
-    const priorFail = () => ({ findings: [open()] });
+    const priorFail = () => ({ findings: [open({ snippet: 'a prior snippet absent from the current diff' })] });
     const expectRed = (r: Outcome) => {
       expect([r.fileVerdict, r.gateVerdict, r.exitCode]).toEqual(['fail', 'fail', 1]);
       expect(r.message).toContain('- [HIGH] src/app.ts:3 - User input is concatenated into a SQL query');
     };
 
-    // KNOWN MISMATCH with decision (b), not fixed here (behavior change for Ari). `it.fails` passes while the
-    // code is wrong and starts failing once it is fixed, which is the cue to switch these to plain `it`.
-    // Observed: the verdict file is written as pass and the step exits 0. Expected: fail, exit 1.
-    it.fails('MISMATCH: later run with no reviewable change (low-impact files only): still fail, exit 1, prior findings listed', async () => {
+    it('later run with no reviewable change (low-impact files only): still fail, exit 1, prior findings listed', async () => {
       setChange(LOW_IMPACT_ONLY);
       gh.prevState = priorFail();
       const invoke = vi.fn();
@@ -289,8 +314,7 @@ describe('review policy matrix (#1403)', () => {
       expect(invoke).not.toHaveBeenCalled();
     });
 
-    it.fails('MISMATCH: later run with no code change at all: still fail, exit 1', async () => {
-      // An empty diff takes the "No code changes detected" exit, which passes null as the previous state.
+    it('later run with no code change at all: still fail, exit 1', async () => {
       git('reset', '-q', '--hard', baseSha);
       gh.prevState = priorFail();
       const r = await run(cannedClient(vi.fn()));
@@ -317,20 +341,29 @@ describe('review policy matrix (#1403)', () => {
       }
     });
 
-    it.fails('MISMATCH: later run with a truncated diff: still fail, exit 1, prior findings listed', async () => {
+    it('later run with a truncated diff: still fail, exit 1, prior findings listed', async () => {
       setChange(HUGE);
       gh.prevState = priorFail();
-      expectRed(await run(cannedClient(vi.fn())));
+      const invoke = vi.fn();
+      const r = await run(cannedClient(invoke));
+      expectRed(r);
+      expect(r.posted).toEqual([{ verdict: 'fail' }]);
+      expect(invoke).not.toHaveBeenCalled();
     }, 30000);
 
-    it.fails('MISMATCH: later run where every review task is rate limited: still fail, exit 1', async () => {
+    it('later run where every review task is rate limited: still fail, exit 1', async () => {
       gh.prevState = priorFail();
       expectRed(await run(cannedClient(() => { throw new Error('429 rate limit'); })));
     });
 
-    it.fails('MISMATCH: later run where the model output is truncated: still fail, exit 1', async () => {
+    it('later run where the model output is truncated: still fail, exit 1', async () => {
       gh.prevState = priorFail();
       expectRed(await run(cannedClient(async role => ({ ...(await parsed(reviewText('PASS'))), role, isTruncated: true, llmVerdict: 'warn' }))));
+    });
+
+    it('later run with malformed findings and an empty findings array: still fail, exit 1', async () => {
+      gh.prevState = priorFail();
+      expectRed(await run(cannedClient(() => parsed('[VERDICT: PASS]\n<findings>{not json</findings>'))));
     });
 
     it('a later review that still reports the finding open stays fail', async () => {

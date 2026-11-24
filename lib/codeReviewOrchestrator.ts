@@ -3,7 +3,7 @@ import * as path from 'path';
 import { IMPACT_CONFIG } from '../scripts/impact-analysis.config';
 import { ARTIFACTS_DIR } from './visualReviewConstants';
 import { postPRComment, countExistingReviews, getPreviousReviewState } from './visualReviewUtils';
-import { runWithConcurrencyLimit, checkReviewQuota, writeVerdictJson, writeGracefulExitVerdict, createTaskErrorResult } from './sharedUtils';
+import { runWithConcurrencyLimit, checkReviewQuota, writeVerdictJson, writeGracefulExitVerdict, createTaskErrorResult, isOpenBlockingFinding } from './sharedUtils';
 import { calculateEstimatedTokens, cleanupFeedback, batchFiles, calculateReviewHash, pruneCache, filterLowImpactFiles, filterUnifiedDiffByAST } from './codeReviewUtils';
 import type { CodeReviewSummary, CodeReviewResult, CodeReviewState, CodeReviewRole } from './codeReviewTypes';
 import { execFile as execFileCb, spawn } from 'child_process';
@@ -535,19 +535,21 @@ export async function getCodeDiffSummary(targetFiles?: string[]): Promise<CodeRe
 function generateTruncatedReviewMarkdown(
   summary: CodeReviewSummary,
   client: CodeReviewClientStrategy,
-  iteration: number = 1
+  iteration: number,
+  verdict: 'warn' | 'fail'
 ): string {
   console.warn(`⚠️  Diff is too large (${summary.fullDiff?.length} chars) — skipping AI review and requesting human review.`);
   const prNumber = process.env.PR_NUMBER;
   const prLink = prNumber ? `[PR #${prNumber}](https://github.com/${process.env.GITHUB_REPOSITORY}/pull/${prNumber})` : 'this PR';
 
   const statSummary = summary.diffStat ? `\n\nDIFF STAT SUMMARY:\n${summary.diffStat}` : '';
+  const verdictHeader = verdict === 'fail' ? '### 🔴 Verdict: CHANGES REQUESTED' : '### 🟡 Verdict: WARNINGS FOUND';
 
   return `## ${client.reportTitle}
 
 > ${client.botTagline}
 
-### 🟡 Verdict: WARNINGS FOUND
+${verdictHeader}
 
 **Review Iteration:** #${iteration} of ${MAX_REVIEWS_PER_PR}
 **Reviewing:** ${prLink}
@@ -642,14 +644,14 @@ export async function orchestrateCodeReview(
   if (isQuotaMet) return;
 
   const initialSummary = await getCodeDiffSummary();
+  const prevState = await getPreviousReviewState<CodeReviewState>(client.reportTitle);
   if (!initialSummary.diffContext) {
     console.log(`✅ No code changes detected — skipping agent review.`);
     await fs.promises.writeFile(agentReportPath, `## ${client.reportTitle}\n\nNo code changes detected.\n`);
-    await writeGracefulExitVerdict(client.reportFileName, ARTIFACTS_DIR, null);
+    await writeGracefulExitVerdict(client.reportFileName, ARTIFACTS_DIR, prevState);
     return;
   }
 
-  const prevState = await getPreviousReviewState<CodeReviewState>(client.reportTitle);
   const rawChangedFiles = Array.isArray(initialSummary.changedFiles) ? initialSummary.changedFiles : [];
 
   const changedFiles = filterLowImpactFiles(rawChangedFiles, IMPACT_CONFIG.LOW_IMPACT_PATHS);
@@ -664,17 +666,19 @@ export async function orchestrateCodeReview(
   const filteredSummary = await getCodeDiffSummary(changedFiles);
 
   if (filteredSummary.isTruncated) {
-    const report = generateTruncatedReviewMarkdown(filteredSummary, client, iteration);
+    const highCount = prevState?.findings?.filter(isOpenBlockingFinding).length ?? 0;
+    const verdict = highCount > 0 ? 'fail' : 'warn';
+    const report = generateTruncatedReviewMarkdown(filteredSummary, client, iteration, verdict);
     await fs.promises.writeFile(agentReportPath, report);
-    await postPRComment(report, client.reportTitle, prevState, 'warn');
+    await postPRComment(report, client.reportTitle, prevState, verdict);
 
     const safeReportFileName = path.basename(client.reportFileName);
     const verdictPath = path.join(ARTIFACTS_DIR, `${safeReportFileName.replace('.md', '')}-verdict.json`);
     await writeVerdictJson(verdictPath, {
-      passed: true,
-      highCount: 0,
+      passed: verdict !== 'fail',
+      highCount,
       routes: [],
-      llmVerdict: 'warn',
+      llmVerdict: verdict,
       isTruncated: true,
       state: prevState || { findings: [] }
     });
@@ -704,7 +708,7 @@ export async function orchestrateCodeReview(
 
   await postPRComment(report, client.reportTitle, finalResult.state, finalResult.llmVerdict);
 
-  const openHighFindings = finalResult.state?.findings?.filter(f => f.status === 'open' && (f.severity === 'HIGH' || f.severity === 'error')) || [];
+  const openHighFindings = finalResult.state?.findings?.filter(isOpenBlockingFinding) || [];
   const isFail = finalResult.llmVerdict === 'fail';
 
   const safeReportFileName = path.basename(client.reportFileName);
@@ -966,19 +970,23 @@ function aggregateReviewResults(
     modelNames,
   } = combineReviewMetrics(allResults);
 
-  restoreOmittedCodeFindings(aggregatedFindings, prevState, initialSummary);
+  const incomplete = allResults.length === 0 || isTruncated || skipReasons.size > 0 || allResults.some(result => result.parseError);
+  const priorBlocking = incomplete ? prevState?.findings?.filter(isOpenBlockingFinding) ?? [] : [];
+  const priorBlockingIds = new Set(priorBlocking.map(finding => finding.id));
+  const findings = aggregatedFindings.filter(finding => !priorBlockingIds.has(finding.id)).concat(priorBlocking);
+  restoreOmittedCodeFindings(findings, prevState, initialSummary);
 
   return {
     feedback: aggregatedFeedback,
-    findings: aggregatedFindings,
+    findings,
     tokens: totalTokens,
     inputTokens: totalInputTokens,
     outputTokens: totalOutputTokens,
     cacheTokens: totalCacheTokens,
     cost: totalCost,
-    llmVerdict: finalVerdict,
+    llmVerdict: priorBlocking.length > 0 ? 'fail' : finalVerdict,
     state: {
-      findings: aggregatedFindings,
+      findings,
       cache: pruneCache({ ...prevState?.cache, ...newCache }),
     },
     modelName: Array.from(modelNames).join(', '),
