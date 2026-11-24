@@ -296,6 +296,16 @@ def payment_required(payload):
     )
 
 
+_UNPARSEABLE = object()
+
+
+def _decode_json(text):
+    try:
+        return json.loads(text)
+    except ValueError:
+        return _UNPARSEABLE
+
+
 def normalize_tool_arguments(payload):
     """Rewrite each tool_calls[].function.arguments as a single-encoded JSON
     string: some providers (Cloudflare Granite) double-encode it — a JSON
@@ -314,15 +324,11 @@ def normalize_tool_arguments(payload):
                 if arguments is not None:
                     function["arguments"] = json.dumps(arguments, default=str)
                 continue
-            try:
-                inner = json.loads(arguments)
-            except ValueError:
-                continue
+            inner = _decode_json(arguments)
             if isinstance(inner, str):
-                try:
-                    inner = json.loads(inner)
-                except ValueError:
-                    continue
+                inner = _decode_json(inner)
+            if inner is _UNPARSEABLE:
+                continue
             function["arguments"] = (
                 inner if isinstance(inner, str) else json.dumps(inner, default=str)
             )
