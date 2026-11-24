@@ -1,9 +1,10 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { ARTIFACTS_DIR } from '../../lib/visualReviewConstants';
-import { writeVerdictJson } from '../../lib/sharedUtils';
+import { isOpenBlockingFinding, writeVerdictJson } from '../../lib/sharedUtils';
+import type { CodeReviewState } from '../../lib/codeReviewTypes';
 
-export async function writeMissingApiKeyVerdict(reportFileName: string, reportTitle: string, clientName: string): Promise<void> {
+export async function writeMissingApiKeyVerdict(reportFileName: string, reportTitle: string, clientName: string, prevState?: CodeReviewState): Promise<void> {
   if (!reportFileName || !reportTitle || !clientName) {
     throw new Error('writeMissingApiKeyVerdict requires valid non-empty string arguments.');
   }
@@ -21,9 +22,9 @@ export async function writeMissingApiKeyVerdict(reportFileName: string, reportTi
     path.join(ARTIFACTS_DIR, safeFileName),
     `## ${reportTitle}\n\nSkipped: No ${clientName} provided.\n`
   );
+  const highCount = prevState?.findings?.filter(isOpenBlockingFinding).length ?? 0;
   await writeVerdictJson(
     path.join(ARTIFACTS_DIR, `${safeFileName.replace('.md', '')}-verdict.json`),
-    { passed: true, highCount: 0, routes: [], llmVerdict: 'warn', skipReason: 'MISSING_API_KEY', state: { findings: [] } }
+    { passed: highCount === 0, highCount, routes: [], llmVerdict: highCount > 0 ? 'fail' : 'warn', skipReason: 'MISSING_API_KEY', state: highCount > 0 ? prevState : { findings: [] } }
   );
 }
-

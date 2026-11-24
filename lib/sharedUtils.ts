@@ -33,9 +33,11 @@ export async function writeVerdictJson(verdictPath: string, data: any): Promise<
  * must not be turned into a pass just because this run did not look at the code.
  */
 export function deriveVerdictFromPrevState(prevState: any): 'pass' | 'fail' {
-  const findings: Array<{ status?: string; severity?: string }> = Array.isArray(prevState?.findings) ? prevState.findings : [];
-  const hasOpenHigh = findings.some(f => f.status === 'open' && (f.severity === 'HIGH' || f.severity === 'error'));
-  return hasOpenHigh ? 'fail' : 'pass';
+  return Array.isArray(prevState?.findings) && prevState.findings.some(isOpenBlockingFinding) ? 'fail' : 'pass';
+}
+
+export function isOpenBlockingFinding(finding: { status?: string; severity?: string }): boolean {
+  return finding.status === 'open' && (finding.severity === 'HIGH' || finding.severity === 'error');
 }
 
 export async function writeGracefulExitVerdict(
