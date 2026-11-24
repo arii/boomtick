@@ -163,6 +163,62 @@ def test_google_reuses_its_tool_signature(
     )
 
 
+def test_google_reuses_signature_without_session(store, monkeypatch):
+    # X-Session-Id is optional, so clients that send none and drop
+    # extra_content must still get Google's own signature restored.
+    configuration = setup(store, monkeypatch, provider_ids=("google", "groq"))
+    tool_reply = reply(tool={"name": "lookup", "arguments": "{}"}, finish="tool_calls")
+    tool_reply["choices"][0]["message"]["tool_calls"][0]["extra_content"] = {
+        "google": {"thought_signature": "native-signature"}
+    }
+    sent = []
+
+    def handler(request):
+        sent.append(request.url.host)
+        if len(sent) == 1:
+            return httpx.Response(200, json=tool_reply)
+        history = json.loads(request.content)["messages"]
+        assert history[1]["tool_calls"][0]["extra_content"] == {
+            "google": {"thought_signature": "native-signature"}
+        }
+        return httpx.Response(200, json=reply())
+
+    async def scenario():
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+            gateway = Gateway(store, client, configuration)
+            first, status, headers = await gateway.complete(REQUEST)
+            assert status == 200 and headers["X-Provider-Used"] == "google"
+            history = tool_history(first)
+            del history[1]["tool_calls"][0]["extra_content"]
+            body = {**REQUEST, "messages": history}
+            _, status, headers = await gateway.complete(body)
+            assert status == 200 and headers["X-Provider-Used"] == "google"
+
+    asyncio.run(scenario())
+    assert sent == ["google.test", "google.test"]
+
+
+def test_google_sessionless_unsigned_history_still_skips(store, monkeypatch):
+    configuration = setup(store, monkeypatch, provider_ids=("google", "groq"))
+    tool_reply = reply(tool={"name": "lookup", "arguments": "{}"}, finish="tool_calls")
+
+    def handler(request):
+        return httpx.Response(200, json=reply())
+
+    _, status, headers = run(
+        store,
+        configuration,
+        handler,
+        {**REQUEST, "messages": tool_history(tool_reply)},
+    )
+    assert status == 200 and headers["X-Provider-Used"] == "groq"
+    google = store.trace(headers["X-Trace-Id"])["attempts"][0]
+    assert (
+        not google["called"]
+        and google["reason"] == "Google tool history missing thought_signature"
+    )
+
+
 @pytest.mark.parametrize(
     "payload",
     [

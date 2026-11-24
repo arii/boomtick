@@ -363,10 +363,13 @@ class Gateway:
             for call in calls:
                 call_id = call.get("id") if isinstance(call, dict) else None
                 if (
-                    session
-                    and isinstance(call_id, str)
+                    isinstance(call_id, str)
                     and not google_tool_signature(call)
-                    and (signature := self.google_signatures.get((session, call_id)))
+                    and (
+                        signature := self.google_signatures.get(
+                            (session or None, call_id)
+                        )
+                    )
                 ):
                     extra = call.get("extra_content")
                     extra = dict(extra) if isinstance(extra, dict) else {}
@@ -383,8 +386,6 @@ class Gateway:
         return history
 
     def remember_google_signatures(self, payload, session):
-        if not session:
-            return
         for choice in payload["choices"]:
             calls = choice["message"].get("tool_calls")
             for call in calls if isinstance(calls, list) else []:
@@ -392,7 +393,7 @@ class Gateway:
                 if isinstance(call_id, str) and (
                     signature := google_tool_signature(call)
                 ):
-                    self.google_signatures[session, call_id] = signature
+                    self.google_signatures[session or None, call_id] = signature
                     if len(self.google_signatures) > GOOGLE_SIGNATURE_CACHE_SIZE:
                         self.google_signatures.pop(next(iter(self.google_signatures)))
 
