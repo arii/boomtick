@@ -334,6 +334,37 @@ def normalize_tool_arguments(payload):
             )
 
 
+def cloudflare_messages(messages):
+    """Workers AI accepts only string message content: join text parts, null becomes "".
+
+    Returns (messages, dropped): dropped counts non-text parts (images, audio) that
+    have no string form and are left out, so the attempt can record it."""
+    if not isinstance(messages, list):
+        return messages, 0
+    flat = []
+    dropped = 0
+    for message in messages:
+        content = message.get("content") if isinstance(message, dict) else ""
+        if isinstance(message, dict) and not isinstance(content, str):
+            if content is None:
+                content = ""
+            elif isinstance(content, list):
+                texts = [
+                    part["text"]
+                    for part in content
+                    if isinstance(part, dict)
+                    and part.get("type") == "text"
+                    and isinstance(part.get("text"), str)
+                ]
+                dropped += len(content) - len(texts)
+                content = "\n".join(texts)
+            else:
+                content = json.dumps(content, default=str)
+            message = {**message, "content": content}
+        flat.append(message)
+    return flat, dropped
+
+
 def google_tool_signature(call):
     extra = call.get("extra_content")
     google = extra.get("google") if isinstance(extra, dict) else None
@@ -978,6 +1009,15 @@ class Gateway:
                     "enable_thinking": False,
                     **body.get("chat_template_kwargs", {}),
                 }
+            if provider["id"] == "cloudflare":
+                attempt["request"]["messages"], dropped = cloudflare_messages(
+                    attempt["request"].get("messages")
+                )
+                if dropped:
+                    attempt["content_conversion"] = {
+                        "dropped_parts": dropped,
+                        "reason": "Workers AI accepts only string content; non-text parts left out",
+                    }
             request_start = self.clock()
             try:
                 dispatch["started"] = True

@@ -6,7 +6,7 @@ from email.utils import format_datetime
 import httpx
 import pytest
 from twt.catalog import providers
-from twt.gateway import Gateway, create_app, retry_seconds
+from twt.gateway import Gateway, cloudflare_messages, create_app, retry_seconds
 
 REQUEST = {
     "model": "default",
@@ -1567,3 +1567,132 @@ def test_tool_arguments_passthrough_shapes(store, monkeypatch):
         except ValueError:
             decoded = arguments
         assert decoded == want
+
+
+CONTENT_PARTS_REQUEST = {
+    **REQUEST,
+    "model": "route:default",
+    "messages": [
+        {
+            "role": "user",
+            "content": [
+                {"type": "text", "text": "fix the bug"},
+                {"type": "text", "text": "in gateway.py"},
+            ],
+        },
+        {
+            "role": "assistant",
+            "content": None,
+            "tool_calls": [
+                {
+                    "id": "call_1",
+                    "type": "function",
+                    "function": {"name": "read", "arguments": "{}"},
+                }
+            ],
+        },
+        {"role": "tool", "tool_call_id": "call_1", "content": "file text"},
+    ],
+}
+
+
+def test_cloudflare_gets_string_content_for_parts_and_null(store, monkeypatch):
+    # Workers AI rejects array and null content with HTTP 400 (#1459).
+    configuration = setup(store, monkeypatch, count=1, provider_ids=("cloudflare",))
+    sent = []
+
+    def handler(request):
+        sent.append(json.loads(request.content))
+        return httpx.Response(200, json=reply())
+
+    _, status, headers = run(store, configuration, handler, CONTENT_PARTS_REQUEST)
+    assert status == 200 and headers["X-Provider-Used"] == "cloudflare"
+    messages = sent[0]["messages"]
+    assert [m["content"] for m in messages] == [
+        "fix the bug\nin gateway.py",
+        "",
+        "file text",
+    ]
+    assert (
+        messages[1]["tool_calls"] == CONTENT_PARTS_REQUEST["messages"][1]["tool_calls"]
+    )
+
+
+def test_other_providers_keep_content_parts_and_null(store, monkeypatch):
+    configuration = setup(store, monkeypatch, count=1, provider_ids=("groq",))
+    sent = []
+
+    def handler(request):
+        sent.append(json.loads(request.content))
+        return httpx.Response(200, json=reply())
+
+    _, status, _ = run(store, configuration, handler, CONTENT_PARTS_REQUEST)
+    assert status == 200
+    assert sent[0]["messages"] == CONTENT_PARTS_REQUEST["messages"]
+
+
+@pytest.mark.parametrize(
+    ("content", "expected", "dropped"),
+    [
+        ("plain", "plain", 0),
+        (None, "", 0),
+        ([{"type": "text", "text": "a"}, {"type": "text", "text": "b"}], "a\nb", 0),
+        ([{"type": "image_url", "image_url": {"url": "x"}}], "", 1),
+        ([{"type": "text", "text": "a"}, {"type": "image_url", "text": "x"}], "a", 1),
+        (["bare string part", {"type": "text", "text": "a"}], "a", 1),
+        ([], "", 0),
+        ({"type": "text", "text": "a"}, '{"type": "text", "text": "a"}', 0),
+    ],
+)
+def test_cloudflare_messages_content_shapes(content, expected, dropped):
+    messages, count = cloudflare_messages([{"role": "user", "content": content}])
+    assert messages == [{"role": "user", "content": expected}]
+    assert count == dropped
+
+
+def test_cloudflare_messages_leaves_other_shapes_and_input_alone():
+    original = [{"role": "assistant", "tool_calls": []}, "not a dict"]
+    messages, count = cloudflare_messages(original)
+    assert messages == [
+        {"role": "assistant", "tool_calls": [], "content": ""},
+        "not a dict",
+    ]
+    assert count == 0 and original == [
+        {"role": "assistant", "tool_calls": []},
+        "not a dict",
+    ]
+    assert cloudflare_messages(None) == (None, 0)
+
+
+def test_cloudflare_dropped_parts_are_recorded_and_fallback_gets_the_original(
+    store, monkeypatch
+):
+    configuration = setup(store, monkeypatch, provider_ids=("cloudflare", "groq"))
+    request = {
+        **CONTENT_PARTS_REQUEST,
+        "messages": [
+            {
+                "role": "user",
+                "content": [
+                    {"type": "text", "text": "describe"},
+                    {"type": "image_url", "image_url": {"url": "https://x.test/a.png"}},
+                ],
+            }
+        ],
+    }
+    sent = {}
+
+    def handler(request_):
+        sent[request_.url.host] = json.loads(request_.content)
+        if request_.url.host == "cloudflare.test":
+            return httpx.Response(503, json={"error": {"message": "busy"}})
+        return httpx.Response(200, json=reply())
+
+    _, status, headers = run(store, configuration, handler, request)
+    assert status == 200 and headers["X-Provider-Used"] == "groq"
+    assert sent["cloudflare.test"]["messages"] == [
+        {"role": "user", "content": "describe"}
+    ]
+    assert sent["groq.test"]["messages"] == request["messages"]
+    first = store.trace(headers["X-Trace-Id"])["attempts"][0]
+    assert first["content_conversion"]["dropped_parts"] == 1
