@@ -199,14 +199,54 @@ def test_cloudflare_static_models_sync(store, monkeypatch):
             return await sync(store, client)
 
     messages = asyncio.run(scenario())
-    assert "cloudflare: synced 3 models" in messages
+    assert "cloudflare: synced 4 models" in messages
     cf_models = [m for m in store.models() if m["provider"] == "cloudflare"]
-    assert len(cf_models) == 3
+    assert len(cf_models) == 4
     assert retired not in {model["id"] for model in cf_models}
     assert "@cf/meta/llama-3.2-1b-instruct" not in {m["id"] for m in cf_models}
-    assert all(
-        m["free"] and m["chat"] and m["context_length"] == 8192 for m in cf_models
-    )
+    assert all(m["free"] and m["chat"] and m["context_length"] for m in cf_models)
+
+
+def test_cloudflare_sync_marks_documented_function_calling_model_tools(
+    store, monkeypatch
+):
+    monkeypatch.setenv("CLOUDFLARE_API_TOKEN", "mock-token")
+    monkeypatch.setenv("CLOUDFLARE_ACCOUNT_ID", "mock-account")
+
+    def handler(request):
+        if str(request.url) == PRICE_URL:
+            return httpx.Response(200, json={})
+        return httpx.Response(200, json={"data": []})
+
+    async def scenario():
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+            await sync(store, client)
+
+    asyncio.run(scenario())
+    cf_models = [m for m in store.models() if m["provider"] == "cloudflare"]
+    tool_ids = {m["id"] for m in cf_models if m["tools"] and m["free"] and m["chat"]}
+    assert tool_ids == {"@cf/ibm-granite/granite-4.0-h-micro"}
+
+    configuration = [p for p in providers() if p["id"] == "cloudflare"]
+    upstream = []
+
+    def chat_handler(request):
+        upstream.append(json.loads(request.content)["model"])
+        return httpx.Response(200, json=reply())
+
+    body = {
+        "model": "default",
+        "messages": [{"role": "user", "content": "hello"}],
+        "tools": [
+            {
+                "type": "function",
+                "function": {"name": "lookup", "parameters": {"type": "object"}},
+            }
+        ],
+    }
+    _, status, headers = run(store, configuration, chat_handler, body)
+    assert status == 200 and headers["X-Provider-Used"] == "cloudflare"
+    assert upstream == ["@cf/ibm-granite/granite-4.0-h-micro"]
 
 
 def test_sync_keeps_410_retired_static_model_out_across_syncs(store, monkeypatch):
@@ -226,9 +266,9 @@ def test_sync_keeps_410_retired_static_model_out_across_syncs(store, monkeypatch
             return [await sync(store, client), await sync(store, client)]
 
     messages = asyncio.run(scenario())
-    assert all("cloudflare: synced 2 models" in m for m in messages)
+    assert all("cloudflare: synced 3 models" in m for m in messages)
     ids = {m["id"] for m in store.models() if m["provider"] == "cloudflare"}
-    assert retired not in ids and len(ids) == 2
+    assert retired not in ids and len(ids) == 3
 
 
 def test_sync_reinstates_retired_model_only_when_provider_lists_it(store, monkeypatch):
