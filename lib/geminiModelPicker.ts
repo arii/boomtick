@@ -28,6 +28,23 @@ for (const model of GEMINI_MODELS_METADATA) {
 let cachedModels: string[] | null = null;
 
 /**
+ * " (STATUS, REASON)" from a Google API error body, e.g. " (INVALID_ARGUMENT, API_KEY_INVALID)",
+ * so a failed model list says why. Only the status and reason codes are kept: the message
+ * text is not logged.
+ */
+async function googleErrorReason(res: { json: () => Promise<unknown> }): Promise<string> {
+  try {
+    const body = await res.json() as { error?: { status?: unknown; details?: { reason?: unknown }[] } };
+    const codes = [body?.error?.status, ...(body?.error?.details ?? []).map(d => d?.reason)]
+      .filter((c): c is string => typeof c === 'string' && /^[A-Z_]{3,64}$/.test(c));
+    return codes.length ? ` (${codes.join(', ')})` : '';
+  } catch (error) {
+    console.warn(`Gemini models error body unreadable: ${error instanceof Error ? error.name : 'unknown'}`);
+    return '';
+  }
+}
+
+/**
  * Fetches available Gemini models from the API.
  */
 async function resolveAvailableGeminiModels(): Promise<string[]> {
@@ -49,7 +66,7 @@ async function resolveAvailableGeminiModels(): Promise<string[]> {
     clearTimeout(timeoutId);
 
     if (!res.ok) {
-      console.warn(`⚠️ Failed to fetch Gemini models: ${res.status} ${res.statusText}`);
+      console.warn(`⚠️ Failed to fetch Gemini models: ${res.status} ${res.statusText}${await googleErrorReason(res)}`);
       return [];
     }
 
