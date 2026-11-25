@@ -112,7 +112,7 @@ jobs:
         # checkout's td entry point. The pinned shared setup installs globally.
         run: |
           python3 -m venv .venv
-          .venv/bin/python -m pip install -e ./cli
+          .venv/bin/python -m pip install -e ./cli -r cli/requirements-dev.txt
           test -x .venv/bin/python3
           test -x .venv/bin/td
 
