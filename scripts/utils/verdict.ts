@@ -25,6 +25,6 @@ export async function writeMissingApiKeyVerdict(reportFileName: string, reportTi
   const highCount = prevState?.findings?.filter(isOpenBlockingFinding).length ?? 0;
   await writeVerdictJson(
     path.join(ARTIFACTS_DIR, `${safeFileName.replace('.md', '')}-verdict.json`),
-    { passed: highCount === 0, highCount, routes: [], llmVerdict: highCount > 0 ? 'fail' : 'warn', skipReason: 'MISSING_API_KEY', state: highCount > 0 ? prevState : { findings: [] } }
+    { passed: false, highCount, routes: [], llmVerdict: highCount > 0 ? 'fail' : 'warn', skipReason: 'MISSING_API_KEY', state: highCount > 0 ? prevState : { findings: [] } }
   );
 }
