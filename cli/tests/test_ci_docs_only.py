@@ -128,7 +128,7 @@ class SmokeDocsGateTests(unittest.TestCase):
         self.assertIn("BASE_SHA: ${{ github.event.pull_request.base.sha }}", workflow)
         self.assertIn("HEAD_SHA: ${{ github.event.pull_request.head.sha }}", workflow)
         steps = workflow.split("      - ")[1:]
-        self.assertEqual(len(steps), 9)
+        self.assertEqual(len(steps), 10)
         self.assertEqual(
             [step.splitlines()[0] for step in steps[:3]],
             [
@@ -142,7 +142,10 @@ class SmokeDocsGateTests(unittest.TestCase):
                 self.assertIn("if: steps.diff.outputs.docs_only != 'true'", step)
                 self.assertNotIn("continue-on-error", step)
         self.assertIn("&& steps.check-image.outputs.exists != 'true'", workflow)
-        self.assertIn('gemini_api_key: "MOCK_KEY"', workflow)
+        self.assertIn('gemini_api_key: ""', workflow)
+        self.assertNotIn('gemini_api_key: "MOCK_KEY"', workflow)
+        self.assertIn("docker run --rm --network none", workflow)
+        self.assertIn('test "$status" -eq 1', workflow)
 
 
 if __name__ == "__main__":
