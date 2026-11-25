@@ -306,6 +306,31 @@ def _decode_json(text):
         return _UNPARSEABLE
 
 
+def unoffered_tool_names(body, payload):
+    """Tool names in reply tool_calls that the request did not offer in `tools`.
+
+    Only requests that offer tools are checked; without a tool list there is
+    nothing to validate against.
+    """
+    if not body.get("tools"):
+        return []
+    offered = {
+        tool["function"].get("name")
+        for tool in body.get("tools") or []
+        if isinstance(tool, dict) and isinstance(tool.get("function"), dict)
+    }
+    names = []
+    for choice in payload.get("choices") or []:
+        message = choice.get("message") if isinstance(choice, dict) else None
+        calls = message.get("tool_calls") if isinstance(message, dict) else None
+        for call in calls if isinstance(calls, list) else []:
+            function = call.get("function") if isinstance(call, dict) else None
+            name = function.get("name") if isinstance(function, dict) else None
+            if name not in offered:
+                names.append(name)
+    return names
+
+
 def normalize_tool_arguments(payload):
     """Rewrite each tool_calls[].function.arguments as a single-encoded JSON
     string: some providers (Cloudflare Granite) double-encode it — a JSON
@@ -1256,6 +1281,18 @@ class Gateway:
                             else:
                                 cost = sum(prior) + attempt["cost_usd"] + bound
                         length_retry = provider, model["id"], limits, cost
+                    continue
+                if routed and unoffered_tool_names(body, payload):
+                    # Same handling as Groq's own 400 for this (#1447), for providers that
+                    # return the bad call with HTTP 200. The attempt keeps its cost.
+                    hallucinated.add(key)
+                    attempt["reason"] = (
+                        "upstream HTTP 200: model called a tool not in request.tools"
+                    )
+                    if any(
+                        (provider["id"], m["id"]) not in hallucinated for m in ranked
+                    ):
+                        pending.appendleft(provider)
                     continue
                 normalize_tool_arguments(payload)
                 attempt["reason"] = "success"
