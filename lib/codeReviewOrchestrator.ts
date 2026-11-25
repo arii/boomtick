@@ -580,6 +580,8 @@ export function generateCodeReviewMarkdown(
     verdictHeader = '### 🟡 Verdict: WARNINGS FOUND';
   }
 
+  if (result.skipReason || result.isTruncated) verdictHeader = '### 🔴 Review execution incomplete';
+
   const findings = result.state?.findings || [];
   const openFindings = findings.filter(f => f.status === 'open');
   const highCount = openFindings.filter(f => f.severity === 'HIGH' || f.severity === 'error').length;
@@ -592,7 +594,8 @@ export function generateCodeReviewMarkdown(
   }
   const modelLine = result.modelName ? `**Model:** ${result.modelName}\n` : '';
 
-  const displayFeedback = cleanupFeedback(result.feedback);
+  const diagnostic = result.skipReason ? `**Review incomplete:** ${result.skipReason}\n\n` : '';
+  const displayFeedback = diagnostic + cleanupFeedback(result.feedback);
 
   return `## ${client.reportTitle}
 
@@ -717,7 +720,7 @@ export async function orchestrateCodeReview(
   const safeReportFileName = path.basename(client.reportFileName);
   const verdictPath = path.join(ARTIFACTS_DIR, `${safeReportFileName.replace('.md', '')}-verdict.json`);
   await writeVerdictJson(verdictPath, {
-    passed: !isFail,
+    passed: !isFail && !finalSkipReason && !isTruncated,
     highCount: openHighFindings.length || (isFail ? 1 : 0),
     routes: [],
     llmVerdict: finalResult.llmVerdict,
@@ -883,11 +886,7 @@ function combineReviewMetrics(allResults: CodeReviewResult[]): {
 
   for (const res of allResults) {
     if (res.feedback) {
-      if (res.feedback.startsWith('Error: failed to execute')) {
-        console.warn(`⚠️  Skipping failed review output for ${res.role}`);
-      } else {
-        aggregatedFeedback += `\n\n#### [${res.role}] Review\n${res.feedback}`;
-      }
+      aggregatedFeedback += `\n\n#### [${res.role}] Review\n${res.feedback}`;
     }
     if (res.state?.findings) {
       aggregatedFindings.push(...res.state.findings);
@@ -960,7 +959,7 @@ function restoreOmittedCodeFindings(
   }
 }
 
-function aggregateReviewResults(
+export function aggregateReviewResults(
   allResults: CodeReviewResult[],
   prevState: CodeReviewState | undefined,
   newCache: Record<string, CodeReviewResult>,
@@ -981,6 +980,8 @@ function aggregateReviewResults(
     modelNames,
   } = combineReviewMetrics(allResults);
 
+  if (allResults.length === 0) skipReasons.add('NO_REVIEW_RESULTS');
+  if (allResults.length > 0 && !aggregatedFeedback) skipReasons.add('EMPTY_REVIEW');
   const incomplete = allResults.length === 0 || isTruncated || skipReasons.size > 0 || allResults.some(result => result.parseError);
   // A finding reported by a task that did complete keeps that task's status (a resolved
   // finding stays resolved). Prior findings nobody reported come back through
