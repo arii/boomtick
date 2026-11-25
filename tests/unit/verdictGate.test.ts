@@ -231,3 +231,14 @@ describe('postPRComment own-PR fallback', () => {
     await expect(postPRComment('## T\nbody', 'T', { findings: [] }, 'fail')).rejects.toThrow('GitHub API error 500');
   });
 });
+
+
+describe('container smoke contract', () => {
+  it('tests missing-key failure without network and never sends a fake provider key', () => {
+    const workflow = fs.readFileSync(new URL('../../.github/workflows/smoke-test-impact-analysis.yml', import.meta.url), 'utf8');
+    expect(workflow).toContain('docker run --rm --network none');
+    expect(workflow).toContain('test "$status" -eq 1');
+    expect(workflow).toContain('.passed == false and .skipReason == "MISSING_API_KEY"');
+    expect(workflow).not.toContain('gemini_api_key: "MOCK_KEY"');
+  });
+});
