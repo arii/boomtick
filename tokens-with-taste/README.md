@@ -95,6 +95,17 @@ unknown. Ties keep configured order. Providers skipped without a call (disabled,
 missing credentials, strict privacy, no eligible model) keep their configured
 position, so their skip reasons appear in the same place in the trace.
 
+Some providers are off by default (`default_disabled` in `providers.json`) and
+are invisible to sync, routing and model listings until named in
+`TWT_ENABLED_PROVIDERS` (comma-separated; unknown IDs fail closed). Runware is
+the only one (spec only, not yet live): its OpenAI-compatible endpoint
+`https://api.runware.ai/v1` and three documented AIR model IDs are recorded
+from [Runware's compatibility docs](https://runware.ai/docs/platform/openai).
+Its model listing is not verified, so sync uses that static list without
+contacting Runware. No Runware prices are recorded, so its models are paid with
+unknown prices: a cost ceiling or daily budget skips them. Prices, output
+limits, tool support and data retention need verification before enabling.
+
 For accounts without access to a provider, set `TWT_DISABLED_PROVIDERS` to a
 comma-separated list of provider IDs, for example `TWT_DISABLED_PROVIDERS=mistral`.
 Exclusions override credentials, cached catalog rows, per-provider model pins and

@@ -10,23 +10,35 @@ OPENROUTER_URL = "https://openrouter.ai/api/v1/models"
 OLLAMA_URL = "http://127.0.0.1:11434"
 
 
-def providers():
+def _all_providers():
     return json.loads(files("twt").joinpath("providers.json").read_text())["providers"]
+
+
+def _provider_ids(name):
+    ids = {
+        item.strip().lower()
+        for item in os.environ.get(name, "").split(",")
+        if item.strip()
+    }
+    unknown = ids - {p["id"] for p in _all_providers()}
+    if unknown:
+        raise ValueError(f"Unknown {name}: " + ", ".join(sorted(unknown)))
+    return ids
+
+
+def providers():
+    """Hosted providers. `default_disabled` ones need TWT_ENABLED_PROVIDERS."""
+    enabled = _provider_ids("TWT_ENABLED_PROVIDERS")
+    return [
+        p
+        for p in _all_providers()
+        if not p.get("default_disabled") or p["id"] in enabled
+    ]
 
 
 def disabled_providers():
     """Explicit account exclusions override credentials and cached catalog rows."""
-    disabled = {
-        item.strip().lower()
-        for item in os.environ.get("TWT_DISABLED_PROVIDERS", "").split(",")
-        if item.strip()
-    }
-    unknown = disabled - {p["id"] for p in providers()}
-    if unknown:
-        raise ValueError(
-            "Unknown TWT_DISABLED_PROVIDERS: " + ", ".join(sorted(unknown))
-        )
-    return disabled
+    return _provider_ids("TWT_DISABLED_PROVIDERS")
 
 
 def configured_providers():
@@ -45,7 +57,11 @@ def configured_providers():
 
 
 def catalog_models(store, configuration):
-    disabled = disabled_providers()
+    # Cached rows of a default-off provider stay hidden once it is no longer enabled.
+    enabled = {p["id"] for p in providers()}
+    disabled = disabled_providers() | {
+        p["id"] for p in _all_providers() if p["id"] not in enabled
+    }
     local_model = next(
         (p["local_model"] for p in configuration if "local_model" in p), None
     )

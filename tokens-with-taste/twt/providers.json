@@ -257,6 +257,38 @@
         }
       },
       "unverified": "Authenticated account availability, quota and billing: needs API key"
+    },
+    {
+      "id": "runware",
+      "base_url": "https://api.runware.ai/v1",
+      "key_env": "RUNWARE_API_KEY",
+      "map_prefix": "runware",
+      "default_disabled": true,
+      "strict": false,
+      "trains_on_free_tier": null,
+      "models": {
+        "zai:glm@5.3-flash": {
+          "chat": true
+        },
+        "moonshotai:kimi@k3": {
+          "chat": true
+        },
+        "deepseek:v4@flash": {
+          "chat": true
+        }
+      },
+      "verified": {
+        "endpoint": {
+          "checked": "2026-11-24",
+          "source": "https://runware.ai/docs/platform/openai"
+        },
+        "model_ids": {
+          "checked": "2026-11-24",
+          "source": "https://runware.ai/docs/platform/openai"
+        }
+      },
+      "unverified": "Per-model prices, output limits, tool support and data retention; authenticated account and billing: needs API key",
+      "discovery_blocked": "Runware model listing path and response schema not verified"
     }
   ]
 }
