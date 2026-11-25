@@ -622,7 +622,13 @@ class Gateway:
             waited += delay
 
     async def complete(
-        self, body, privacy="standard", session=None, trace_id=None, disconnected=None
+        self,
+        body,
+        privacy="standard",
+        session=None,
+        trace_id=None,
+        disconnected=None,
+        max_cost=None,
     ):
         trace_id = trace_id or str(uuid.uuid4())
         if not self.store.reserve_trace(trace_id):
@@ -634,14 +640,16 @@ class Gateway:
         dispatch = {"started": False}
         try:
             return await self._complete(
-                body, privacy, session, trace_id, disconnected, dispatch
+                body, privacy, session, trace_id, disconnected, dispatch, max_cost
             )
         except BaseException:
             if not dispatch["started"]:
                 self.store.release_trace(trace_id)
             raise
 
-    async def _complete(self, body, privacy, session, trace_id, disconnected, dispatch):
+    async def _complete(
+        self, body, privacy, session, trace_id, disconnected, dispatch, max_cost=None
+    ):
         started = self.clock()
         original_body = dict(body)
         body = {**body, "stream": False}
@@ -978,15 +986,11 @@ class Gateway:
                 }
                 trace["http_status"] = 499
                 break
-            attempt["called"] = True
-            if (
+            free_model = (
                 model["free"]
                 and model["input_price"] == 0
                 and model["output_price"] == 0
-            ):
-                attempt["cost_usd"] = 0.0
-            trace["provider"] = provider["id"]
-            trace["model"] = model["id"]
+            )
             attempt["request"] = {**body, **(retry_limits or {}), "model": model["id"]}
             if google_history is not None:
                 attempt["request"]["messages"] = google_history
@@ -1018,6 +1022,42 @@ class Gateway:
                         "dropped_parts": dropped,
                         "reason": "Workers AI accepts only string content; non-text parts left out",
                     }
+            if max_cost is not None and not free_model:
+                # Request cost ceiling (X-Max-Cost-Usd): this attempt's worst case plus every
+                # earlier called attempt's actual or reserved cost must fit, or it is never sent.
+                bound = cost_upper_bound(attempt["request"], model).get(
+                    "cost_upper_bound_usd"
+                )
+                committed = [
+                    a["cost_usd"]
+                    if a["cost_usd"] is not None
+                    else a.get("cost_upper_bound_usd")
+                    for a in trace["attempts"]
+                    if a["called"]
+                ]
+                if (
+                    bound is None
+                    or None in committed
+                    or sum(committed) + bound > max_cost
+                ):
+                    attempt["reason"] = (
+                        "request cost ceiling: paid attempt cost cannot be bounded"
+                        if bound is None or None in committed
+                        else f"request cost ceiling: worst case ${sum(committed) + bound:.9f}"
+                        f" exceeds ${max_cost:.9f}"
+                    )
+                    attempt["request"] = None
+                    attempt.pop("content_conversion", None)
+                    async with self.lock:
+                        window = self.calls[key]
+                        if reservation in window:
+                            window.remove(reservation)
+                    continue
+            attempt["called"] = True
+            if free_model:
+                attempt["cost_usd"] = 0.0
+            trace["provider"] = provider["id"]
+            trace["model"] = model["id"]
             request_start = self.clock()
             try:
                 dispatch["started"] = True
@@ -1377,6 +1417,8 @@ def create_app(store=None, client=None, configuration=None):
     async def models():
         return {
             "object": "list",
+            # Clients that need a hard spend bound check this before sending X-Max-Cost-Usd.
+            "features": ["request_cost_ceiling"],
             "data": [
                 {
                     "id": f"{m['provider']}/{m['id']}",
@@ -1425,12 +1467,23 @@ def create_app(store=None, client=None, configuration=None):
                 trace_id = str(uuid.UUID(trace_id))
             except ValueError:
                 return error_response("X-Trace-Id must be a UUID", 400)
+        max_cost = request.headers.get("X-Max-Cost-Usd")
+        if max_cost is not None:
+            try:
+                max_cost = float(max_cost)
+                if not 0 <= max_cost < float("inf"):
+                    raise ValueError
+            except ValueError:
+                return error_response(
+                    "X-Max-Cost-Usd must be a finite nonnegative number", 400
+                )
         payload, status, response_headers = await gateway.complete(
             body,
             privacy,
             request.headers.get("X-Session-Id"),
             trace_id,
             request.is_disconnected,
+            max_cost,
         )
         return JSONResponse(payload, status_code=status, headers=response_headers)
 

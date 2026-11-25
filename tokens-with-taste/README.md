@@ -158,6 +158,17 @@ UTC-day spend reaches it, paid models are skipped, while free models remain
 eligible. Paid models with unknown prices are also skipped when a budget is
 configured. This is a **pre-check**, not a reservation or billing hard cap:
 in-flight requests can cross the threshold, and external usage is not visible.
+Optional request header `X-Max-Cost-Usd` (finite, nonnegative; otherwise 400)
+is a per-request ceiling. Before each paid attempt the gateway adds that
+attempt's worst case (the `cost_upper_bound_usd` estimate below: one prompt
+token per request byte plus overhead, and the full output limit) to the actual
+or reserved cost of every earlier attempt in the request. If the sum exceeds
+the ceiling, or a cost cannot be bounded (unknown price, no output limit), the
+attempt is skipped without dispatch and its reason starts with
+`request cost ceiling`. Zero-priced free models always pass. The bound is a
+heuristic estimate, not certified provider billing: it assumes the provider
+bills at catalog prices and honors `max_tokens`. `/v1/models`
+lists `request_cost_ceiling` in `features` so clients can check support first.
 An exhausted waterfall returns an error with every skip/failure reason,
 including every missing credential env var. No mock completion is available.
 
