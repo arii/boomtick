@@ -165,8 +165,9 @@ token per request byte plus overhead, and the full output limit) to the actual
 or reserved cost of every earlier attempt in the request. If the sum exceeds
 the ceiling, or a cost cannot be bounded (unknown price, no output limit), the
 attempt is skipped without dispatch and its reason starts with
-`request cost ceiling`. Zero-priced free models always pass. The bound assumes
-the provider bills at catalog prices and honors `max_tokens`. `/v1/models`
+`request cost ceiling`. Zero-priced free models always pass. The bound is a
+heuristic estimate, not certified provider billing: it assumes the provider
+bills at catalog prices and honors `max_tokens`. `/v1/models`
 lists `request_cost_ceiling` in `features` so clients can check support first.
 An exhausted waterfall returns an error with every skip/failure reason,
 including every missing credential env var. No mock completion is available.
