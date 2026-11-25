@@ -1,6 +1,6 @@
 /**
- * Pins the approved AI-review policy (arii/boomtick#1403):
- *  (a) infra problems warn and exit 0 when there is no prior FAIL;
+ * Pins review findings preservation and execution correctness (#1403, remote-server#1605):
+ *  (a) infra problems retain their verdict but execution exits 1, independent of findings policy;
  *  (b) a FAIL verdict with open HIGH findings stays red until the findings are resolved, including on
  *      later runs that are skipped, truncated or at the review cap. Nothing flips it to pass on its own.
  *
