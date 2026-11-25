@@ -125,10 +125,8 @@ jobs:
 
       - name: Run CLI Tests
         if: steps.determine_target.outputs.target == 'cli' || steps.determine_target.outputs.target == 'all'
-        run: |
-          cd cli
-          pip install -e .
-          pytest tests/
+        # Tests resolve audit directories relative to the repository root.
+        run: .venv/bin/python -m pytest cli/tests/
 
       - name: Build MCP Tool
         run: pnpm --filter @arii/boomtick-mcp build
