@@ -194,7 +194,7 @@ describe('review policy matrix (#1403)', () => {
     });
   });
 
-  describe('(a) infra problems warn and pass', () => {
+  describe('(a) infra problems fail loudly, independent of findings policy', () => {
     const infraRows: Array<{ name: string; skipReason: string; client: () => Client }> = [
       {
         name: 'GEMINI_API_KEY missing, model discovery finds nothing (UNHANDLED_ERROR: "No verified active catalog Gemini model")',
@@ -250,23 +250,23 @@ describe('review policy matrix (#1403)', () => {
     ];
 
     for (const row of infraRows) {
-      it(`${row.name}: warn, exit 0 with fail-on-verdict true and false`, async () => {
+      it(`${row.name}: warn verdict, exit 1 with fail-on-verdict true and false`, async () => {
         const client = row.client();
         const strict = await run(client, true);
-        expect([strict.fileVerdict, strict.gateVerdict, strict.exitCode]).toEqual(['warn', 'warn', 0]);
+        expect([strict.fileVerdict, strict.gateVerdict, strict.exitCode]).toEqual(['warn', 'warn', 1]);
         expect(strict.skipReason).toContain(row.skipReason);
         expect(strict.message).toContain(row.skipReason);
         const lenient = await run(client, false);
-        expect([lenient.fileVerdict, lenient.gateVerdict, lenient.exitCode]).toEqual(['warn', 'warn', 0]);
+        expect([lenient.fileVerdict, lenient.gateVerdict, lenient.exitCode]).toEqual(['warn', 'warn', 1]);
       });
     }
 
-    it('truncated diff (isTruncated, no model call): warn, exit 0', async () => {
+    it('truncated diff (isTruncated, no model call): warn verdict, exit 1', async () => {
       setChange(HUGE);
       const invoke = vi.fn();
       const r = await run(cannedClient(invoke));
       expect(invoke).not.toHaveBeenCalled();
-      expect([r.fileVerdict, r.gateVerdict, r.exitCode]).toEqual(['warn', 'warn', 0]);
+      expect([r.fileVerdict, r.gateVerdict, r.exitCode]).toEqual(['warn', 'warn', 1]);
     }, 30000);
 
     it('own-PR COMMENT fallback never changes the exit code (see verdictGate.test.ts)', async () => {
@@ -294,7 +294,7 @@ describe('review policy matrix (#1403)', () => {
         getPreviousState: () => getPreviousReviewState(geminiClient.reportTitle),
       }));
       const verdict = hasPriorFail ? 'fail' : 'warn';
-      expect([r.fileVerdict, r.gateVerdict, r.exitCode]).toEqual([verdict, verdict, hasPriorFail ? 1 : 0]);
+      expect([r.fileVerdict, r.gateVerdict, r.exitCode]).toEqual([verdict, verdict, 1]);
       expect(r.skipReason).toBe('MISSING_API_KEY');
       if (hasPriorFail) expect(r.state?.findings).toEqual([open()]);
       expect(orchestrateGemini).not.toHaveBeenCalled();
@@ -392,7 +392,8 @@ describe('review policy matrix (#1403)', () => {
       }));
       expect(r.state?.findings?.every(f => f.status === 'resolved')).toBe(true);
       expect(r.fileVerdict).not.toBe('fail');
-      expect(r.exitCode).toBe(0);
+      expect(r.exitCode).toBe(1);
+      expect(r.message).toContain('RATE_LIMIT');
     });
 
     it('an incomplete result is not cached, so the next run with the same diff calls the model again', async () => {
