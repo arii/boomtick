@@ -22,6 +22,7 @@ class ReleaseSchemaToolchainTests(unittest.TestCase):
         self.assertIn("test -x .venv/bin/td", provision)
         self.assertNotIn("continue-on-error", provision)
         self.assertNotIn("|| true", provision)
+        self.assertIn("run: .venv/bin/python -m pytest cli/tests/", workflow)
 
     def test_verifier_keeps_fail_closed_venv_contract(self):
         """Repair setup rather than weakening the verifier contract."""
