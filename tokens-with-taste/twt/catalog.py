@@ -57,7 +57,11 @@ def configured_providers():
 
 
 def catalog_models(store, configuration):
-    disabled = disabled_providers()
+    # Cached rows of a default-off provider stay hidden once it is no longer enabled.
+    enabled = {p["id"] for p in providers()}
+    disabled = disabled_providers() | {
+        p["id"] for p in _all_providers() if p["id"] not in enabled
+    }
     local_model = next(
         (p["local_model"] for p in configuration if "local_model" in p), None
     )

@@ -10,6 +10,7 @@ from twt.catalog import (
     configured_providers,
     disabled_providers,
     providers,
+    catalog_models,
     sync,
 )
 from twt.gateway import Gateway
@@ -114,3 +115,15 @@ def test_unpriced_runware_is_never_dispatched_under_a_cost_ceiling(store, monkey
     assert status == 503
     assert not any(a["called"] for a in trace["attempts"])
     assert "cannot be bounded" in trace["attempts"][0]["reason"]
+
+
+def test_cached_runware_rows_are_hidden_after_it_is_turned_off(store, monkeypatch):
+    monkeypatch.setenv("TWT_ENABLED_PROVIDERS", "runware")
+    monkeypatch.setenv("RUNWARE_API_KEY", "test-only-placeholder")
+    run_sync(
+        store,
+        lambda r: public_catalogs(r) or httpx.Response(200, json={"data": []}),
+    )
+    assert {m["provider"] for m in catalog_models(store, providers())} == {"runware"}
+    monkeypatch.delenv("TWT_ENABLED_PROVIDERS")
+    assert catalog_models(store, providers()) == []
