@@ -359,6 +359,36 @@ def normalize_tool_arguments(payload):
             )
 
 
+def bound_tool_calls(payload, max_fanout=20):
+    """Bound multi-tool fan-out and deduplicate identical tool calls."""
+    for choice in payload.get("choices") or []:
+        message = choice.get("message") if isinstance(choice, dict) else None
+        if not isinstance(message, dict):
+            continue
+        calls = message.get("tool_calls")
+        if not isinstance(calls, list):
+            continue
+        seen = set()
+        deduped = []
+        for call in calls:
+            if not isinstance(call, dict):
+                continue
+            func = (
+                call.get("function") if isinstance(call.get("function"), dict) else {}
+            )
+            call_id = call.get("id")
+            name = func.get("name") or call.get("name")
+            args = func.get("arguments") or call.get("arguments")
+            key = (call_id, name, str(args))
+            if key in seen:
+                continue
+            seen.add(key)
+            deduped.append(call)
+            if len(deduped) >= max_fanout:
+                break
+        message["tool_calls"] = deduped
+
+
 def cloudflare_messages(messages):
     """Workers AI accepts only string message content: join text parts, null becomes "".
 
@@ -683,6 +713,7 @@ class Gateway:
             "trace_id": trace_id or str(uuid.uuid4()),
             "timestamp": now(),
             "route": body.get("model", "default"),
+            "routing_decision": body.get("routing_decision"),
             "privacy": privacy,
             "session_id": session,
             "provider": None,
@@ -1295,6 +1326,7 @@ class Gateway:
                         pending.appendleft(provider)
                     continue
                 normalize_tool_arguments(payload)
+                bound_tool_calls(payload)
                 attempt["reason"] = "success"
                 if provider["id"] == "google":
                     self.remember_google_signatures(payload, session)
@@ -1455,15 +1487,35 @@ def create_app(store=None, client=None, configuration=None):
         return {
             "object": "list",
             # Clients that need a hard spend bound check this before sending X-Max-Cost-Usd.
-            "features": ["request_cost_ceiling"],
+            "features": ["request_cost_ceiling", "task_routing"],
             "data": [
                 {
                     "id": f"{m['provider']}/{m['id']}",
                     "object": "model",
                     "owned_by": m["provider"],
+                    "provider": m["provider"],
+                    "model_id": m["id"],
+                    "free": bool(m.get("free", False)),
+                    "tools": bool(m.get("tools", False)),
+                    "chat": bool(m.get("chat", True)),
+                    "context_length": m.get("context_length"),
+                    "max_output_tokens": m.get("max_output_tokens"),
+                    "input_price": m.get("input_price"),
+                    "output_price": m.get("output_price"),
                 }
                 for m in catalog_models(storage, gateway.providers)
-                if m["chat"]
+                if m["chat"] and not m["id"].endswith(":batch")
+            ],
+        }
+
+    @app.get("/v1/catalog")
+    async def catalog():
+        return {
+            "object": "list",
+            "data": [
+                m
+                for m in catalog_models(storage, gateway.providers)
+                if not m["id"].endswith(":batch")
             ],
         }
 
@@ -1514,6 +1566,8 @@ def create_app(store=None, client=None, configuration=None):
                 return error_response(
                     "X-Max-Cost-Usd must be a finite nonnegative number", 400
                 )
+        if "routing_decision" not in body and request.headers.get("X-Routing-Decision"):
+            body["routing_decision"] = request.headers.get("X-Routing-Decision")
         payload, status, response_headers = await gateway.complete(
             body,
             privacy,

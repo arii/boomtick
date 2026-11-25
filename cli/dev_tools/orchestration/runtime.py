@@ -242,6 +242,38 @@ class RuntimeMixin(QualityMixin):
                 "message": str(e),
             }
 
+        # 5. TokensWithTaste Provider Health & Spendability Probe
+        try:
+            twt_db_path = (
+                os.environ.get("TWT_DB")
+                or os.environ.get("TWT_CATALOG_DB")
+                or os.path.expanduser("~/.local/share/twt/catalog.sqlite3")
+            )
+            if os.path.exists(twt_db_path):
+                import sqlite3
+
+                conn = sqlite3.connect(twt_db_path)
+                try:
+                    providers_count = conn.execute(
+                        "SELECT provider, count(*) FROM models WHERE id NOT LIKE '%:batch' GROUP BY provider"
+                    ).fetchall()
+                    results["twt_catalog"] = "configured"
+                    results["checks"]["twt_catalog"] = {
+                        "status": "ok",
+                        "path": twt_db_path,
+                        "providers": {p: c for p, c in providers_count},
+                    }
+                finally:
+                    conn.close()
+            else:
+                results["twt_catalog"] = "missing"
+                results["checks"]["twt_catalog"] = {
+                    "status": "warning",
+                    "message": f"TwT catalog not found at {twt_db_path}",
+                }
+        except Exception as e:
+            results["checks"]["twt_catalog"] = {"status": "warning", "message": str(e)}
+
         return results
 
     def generate_ci_summary_report(self) -> str:
