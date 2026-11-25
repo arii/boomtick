@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.23.1](https://github.com/arii/boomtick/compare/cli-v0.23.0...cli-v0.23.1) (2026-11-25)
+
+
+### Bug Fixes
+
+* provision release schema toolchain in the checkout venv ([#1470](https://github.com/arii/boomtick/issues/1470)) ([3a4ed40](https://github.com/arii/boomtick/commit/3a4ed4057f3b188ec45fbdbad6f58810417e92a9))
+
 ## [0.23.0](https://github.com/arii/boomtick/compare/cli-v0.22.0...cli-v0.23.0) (2026-11-25)
 
 
