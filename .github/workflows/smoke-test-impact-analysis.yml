@@ -81,11 +81,28 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
+      - name: Verify missing-key review fails loudly offline
+        if: steps.diff.outputs.docs_only != 'true'
+        env:
+          IMAGE_TAG: ghcr.io/arii/boomtick:${{ github.sha }}
+        run: |
+          rm -f artifacts/gemini-code-review-verdict.json artifacts/gemini-code-review.md
+          status=0
+          docker run --rm --network none \
+            -v "${{ github.workspace }}":/github/workspace \
+            -w /github/workspace \
+            "$IMAGE_TAG" node /workspace/dist/runner.cjs gemini || status=$?
+          test "$status" -eq 1
+          jq -e '.passed == false and .skipReason == "MISSING_API_KEY"' \
+            artifacts/gemini-code-review-verdict.json
+          grep -q 'Skipped: No GEMINI_API_KEY provided' artifacts/gemini-code-review.md
+
       - name: Smoke Test Impact Analysis Action
         if: steps.diff.outputs.docs_only != 'true'
         uses: ./.github/actions/impact-analysis
         with:
           github_token: ${{ steps.app-token.outputs.token }}
-          gemini_api_key: "MOCK_KEY"
+          # Review failure is tested offline above, never send a fake key to a live provider.
+          gemini_api_key: ""
           pr-number: ${{ inputs.pr-number }}
           container_image: ghcr.io/arii/boomtick:${{ github.sha }}
