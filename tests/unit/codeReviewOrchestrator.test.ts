@@ -1,3 +1,4 @@
+import { aggregateReviewResults } from '../../lib/codeReviewOrchestrator';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { reconcileVerdict, fetchPRGoal, clearCachedPRGoal, formatLinkedIssues, generateCodeReviewMarkdown } from '../../lib/codeReviewOrchestrator';
 
@@ -277,6 +278,19 @@ describe('generateCodeReviewMarkdown formatting', () => {
     invokeReview: vi.fn(),
   };
 
+  it('keeps execution diagnostics visible instead of posting an empty review', () => {
+    const markdown = generateCodeReviewMarkdown({
+      feedback: 'Error: failed to execute STYLE review. Details: provider unavailable',
+      tokens: 0, cost: 0, modelName: 'unknown', llmVerdict: 'warn',
+      skipReason: 'UNHANDLED_ERROR', findings: [], state: { findings: [] },
+    }, mockClient);
+    expect(markdown).toContain('Review incomplete');
+    expect(markdown).toContain('Review execution incomplete');
+    expect(markdown).not.toContain('WARNINGS FOUND');
+    expect(markdown).toContain('UNHANDLED_ERROR');
+    expect(markdown).toContain('provider unavailable');
+  });
+
   it('renders APPROVED verdict banner, review iteration line, and findings summary when llmVerdict is pass', () => {
     const markdown = generateCodeReviewMarkdown(
       {
@@ -341,5 +355,22 @@ describe('generateCodeReviewMarkdown formatting', () => {
     expect(markdown).toContain('### 🟡 Verdict: WARNINGS FOUND');
     expect(markdown).toContain('**Review Iteration:** #3 of 10');
     expect(markdown).toContain('**Findings:** 0 blocking · 1 warning(s) · 0 clean.');
+  });
+});
+
+
+describe('execution diagnostics survive aggregation', () => {
+  it('retains failed task details and reason instead of an empty green-looking report', () => {
+    const result = aggregateReviewResults([{
+      feedback: 'Error: failed to execute STYLE review. Details: provider unavailable',
+      role: 'STYLE', tokens: 0, cost: 0, modelName: 'unknown', llmVerdict: 'warn',
+      skipReason: 'UNHANDLED_ERROR', findings: [], state: { findings: [] },
+    }], undefined, {}, { diffContext: 'changed code' }, 1);
+    expect(result.feedback).toContain('provider unavailable');
+    expect(result.skipReason).toBe('UNHANDLED_ERROR');
+  });
+  it('names missing results explicitly', () => {
+    expect(aggregateReviewResults([], undefined, {}, { diffContext: 'code' }, 1).skipReason)
+      .toBe('NO_REVIEW_RESULTS');
   });
 });

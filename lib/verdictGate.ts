@@ -15,6 +15,7 @@ export interface BlockingFinding {
 export interface VerdictFileData {
   llmVerdict?: string;
   skipReason?: string;
+  isTruncated?: boolean;
   state?: {
     findings?: Array<{
       status?: string;
@@ -74,7 +75,13 @@ export function evaluateVerdictGate(
 ): VerdictGateResult {
   const raw = data?.llmVerdict;
   const verdict: GateVerdict = raw === 'pass' || raw === 'warn' || raw === 'fail' ? raw : 'unknown';
-  const shouldFail = options.failOnVerdict && verdict === 'fail';
+  // Execution failure is not a review verdict or a policy gate. Never report it as success.
+  const executionReasons = new Set([
+    'RATE_LIMIT', 'MISSING_API_KEY', 'UNHANDLED_ERROR', 'PARSE_ERROR', 'TRUNCATED', 'NO_REVIEW_RESULTS', 'EMPTY_REVIEW',
+  ]);
+  const executionFailed = verdict === 'unknown' || data?.isTruncated === true || (data?.skipReason ?? '')
+    .split(',').some(reason => executionReasons.has(reason.trim()));
+  const shouldFail = executionFailed || (options.failOnVerdict && verdict === 'fail');
 
   let blockingFindings: BlockingFinding[] = [];
   if (verdict === 'fail') {
@@ -97,7 +104,11 @@ export function evaluateVerdictGate(
   }
 
   let message: string;
-  if (verdict === 'fail' && blockingFindings.length === 0) {
+  if (executionFailed) {
+    const reason = data?.skipReason || (data?.isTruncated ? 'TRUNCATED' : 'MISSING_OR_INVALID_VERDICT');
+    message = `AI review execution failed: ${sanitizeText(reason)}. No completed review is established.`;
+    if (blockingFindings.length) message += `\n${blockingFindings.slice(0, MAX_LISTED).map(formatFinding).join('\n')}`;
+  } else if (verdict === 'fail' && blockingFindings.length === 0) {
     message = 'AI review verdict: FAIL. The review returned FAIL without parseable findings.';
   } else if (verdict === 'fail') {
     const lines = blockingFindings.slice(0, MAX_LISTED).map(formatFinding);
@@ -111,9 +122,10 @@ export function evaluateVerdictGate(
   }
 
   let note = '';
-  if (shouldFail) note = '\nThis check fails because fail-on-verdict is enabled.\n';
+  if (executionFailed) note = '\nThis check fails because review execution did not complete, independent of fail-on-verdict.\n';
+  else if (shouldFail) note = '\nThis check fails because fail-on-verdict is enabled.\n';
   else if (verdict === 'warn') {
-    note = '\nWARN does not fail this check, including when the reviewer could not run (see the reason above).\n';
+    note = '\nA completed WARN verdict does not fail this check. Execution failures are reported separately.\n';
   }
   const summaryMarkdown = `### AI review verdict: ${verdict.toUpperCase()}\n\n${escapeMarkdown(message)}\n${note}`;
 
@@ -139,7 +151,7 @@ export function publishVerdictGate(
     fs.appendFileSync(env.GITHUB_STEP_SUMMARY, `${result.summaryMarkdown}\n`);
   }
   if (result.shouldFail) {
-    console.log(`::error title=AI review verdict: FAIL::${escapeAnnotation(result.message)}`);
+    console.log(`::error title=AI review failure::${escapeAnnotation(result.message)}`);
     console.error(result.message);
     process.exitCode = 1;
   }
