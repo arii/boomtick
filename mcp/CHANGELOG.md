@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.13.1](https://github.com/arii/boomtick/compare/mcp-v0.13.0...mcp-v0.13.1) (2026-11-25)
+
+
+### Bug Fixes
+
+* resolve open issues (MCP smoke, packed install, td install, spec headings, billing status) ([#1372](https://github.com/arii/boomtick/issues/1372)) ([56d16f4](https://github.com/arii/boomtick/commit/56d16f4e9cc9c25e4a36bae9e31ef3bbe7228bc2))
+
 ## [0.13.0](https://github.com/arii/boomtick/compare/mcp-v0.12.0...mcp-v0.13.0) (2026-11-20)
 
 

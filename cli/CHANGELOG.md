@@ -1,5 +1,27 @@
 # Changelog
 
+## [0.23.0](https://github.com/arii/boomtick/compare/cli-v0.22.0...cli-v0.23.0) (2026-11-25)
+
+
+### Features
+
+* **mcp:** support Gemini CLI user settings registration ([#1398](https://github.com/arii/boomtick/issues/1398)) ([8c05856](https://github.com/arii/boomtick/commit/8c05856a29f3490b234351f8b672b7979269a5da))
+* **proofloop:** observer extension, auto-repeat replay loop and real-service backend ([#1362](https://github.com/arii/boomtick/issues/1362)) ([c9d0297](https://github.com/arii/boomtick/commit/c9d029741e737ea029674af80a79b665f8c0500f))
+* **td:** add --issue to verify-scope for the current issue's spec ([#1439](https://github.com/arii/boomtick/issues/1439)) ([a0c62ee](https://github.com/arii/boomtick/commit/a0c62ee55460de42037ed37fb5d2289b692e3043))
+* **ux:** capture paired served revisions with DOM provenance ([#1355](https://github.com/arii/boomtick/issues/1355)) ([989ab3d](https://github.com/arii/boomtick/commit/989ab3df0703cfe5b8a6fb8e4cee84a3bce0f06d))
+
+
+### Bug Fixes
+
+* **ci:** gate Smoke Docker work on prose-only PRs ([#1359](https://github.com/arii/boomtick/issues/1359)) ([6e95297](https://github.com/arii/boomtick/commit/6e95297a744baaf6f251fc941a78d6b6ba22b781))
+* **cli:** remove unused duckduckgo-search dependency ([#1353](https://github.com/arii/boomtick/issues/1353)) ([b0be990](https://github.com/arii/boomtick/commit/b0be99073bf7762a30201006cd3663e808fcd61d))
+* **cli:** restore pylint score above fail-under 9.5 ([#1366](https://github.com/arii/boomtick/issues/1366)) ([145fd20](https://github.com/arii/boomtick/commit/145fd208ef514f5011d965e6da6b6dd3ce894af0))
+* **preflight:** audit boomtick real paths, report targets and violations ([#1386](https://github.com/arii/boomtick/issues/1386)) ([#1406](https://github.com/arii/boomtick/issues/1406)) ([5a8638f](https://github.com/arii/boomtick/commit/5a8638f5f29387ea58040df97b587cb9f5ec3f32))
+* resolve open issues (MCP smoke, packed install, td install, spec headings, billing status) ([#1372](https://github.com/arii/boomtick/issues/1372)) ([56d16f4](https://github.com/arii/boomtick/commit/56d16f4e9cc9c25e4a36bae9e31ef3bbe7228bc2))
+* **slop:** ratchet swallowed control-flow handlers and fail closed ([#1399](https://github.com/arii/boomtick/issues/1399)) ([a27839b](https://github.com/arii/boomtick/commit/a27839b3a278ca0e9e36a755a6a9d9d4a3c9d290))
+* **td:** submit compares HEAD to origin/&lt;base&gt;, fails loudly on diff errors ([#1458](https://github.com/arii/boomtick/issues/1458)) ([#1461](https://github.com/arii/boomtick/issues/1461)) ([5c3bf7a](https://github.com/arii/boomtick/commit/5c3bf7a6090de05be3a26fbc6c669562e680c668))
+* **ux:** fail closed on audit failures and missing route discovery ([#1387](https://github.com/arii/boomtick/issues/1387)) ([#1405](https://github.com/arii/boomtick/issues/1405)) ([0abd458](https://github.com/arii/boomtick/commit/0abd458d55f65fff5705d946bbcaf2b86f4b2707))
+
 ## [0.22.0](https://github.com/arii/boomtick/compare/cli-v0.21.0...cli-v0.22.0) (2026-11-20)
 
 
