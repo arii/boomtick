@@ -107,6 +107,15 @@ jobs:
         with:
           setup-python: 'true'
 
+      - name: Provision release schema toolchain
+        # verify:schemas deliberately requires this exact venv and the current
+        # checkout's td entry point. The pinned shared setup installs globally.
+        run: |
+          python3 -m venv .venv
+          .venv/bin/python -m pip install -e ./cli
+          test -x .venv/bin/python3
+          test -x .venv/bin/td
+
       - name: Install Node Dependencies
         run: pnpm install --frozen-lockfile
 
