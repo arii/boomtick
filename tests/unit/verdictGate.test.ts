@@ -16,16 +16,17 @@ describe('evaluateVerdictGate', () => {
     expect(r.shouldFail).toBe(false);
   });
 
-  it('keeps warn green and reports the skip reason', () => {
+  it('fails incomplete execution and reports the skip reason', () => {
     const r = evaluateVerdictGate({ llmVerdict: 'warn', skipReason: 'TRUNCATED' }, { failOnVerdict: true });
-    expect(r.shouldFail).toBe(false);
+    expect(r.shouldFail).toBe(true);
     expect(r.message).toContain('TRUNCATED');
   });
 
-  it('treats a missing verdict as unknown and does not fail', () => {
+  it('fails a missing verdict loudly', () => {
     const r = evaluateVerdictGate(undefined, { failOnVerdict: true });
     expect(r.verdict).toBe('unknown');
-    expect(r.shouldFail).toBe(false);
+    expect(r.shouldFail).toBe(true);
+    expect(r.message).toContain('MISSING_OR_INVALID_VERDICT');
   });
 
   it('fails on fail when opted in and names severity, file:line and issue', () => {
@@ -82,6 +83,20 @@ describe('evaluateVerdictGate', () => {
   });
 });
 
+describe('execution failures are not policy verdicts', () => {
+  it.each(['RATE_LIMIT', 'MISSING_API_KEY', 'UNHANDLED_ERROR', 'PARSE_ERROR', 'TRUNCATED'])(
+    'fails %s even with the findings gate disabled', skipReason => {
+      const result = evaluateVerdictGate({ llmVerdict: 'warn', skipReason }, { failOnVerdict: false });
+      expect(result.shouldFail).toBe(true);
+      expect(result.message).toContain(skipReason);
+      expect(result.message).toContain('No completed review');
+    }
+  );
+  it('leaves an actual completed warning nonblocking', () => {
+    expect(evaluateVerdictGate({ llmVerdict: 'warn' }, { failOnVerdict: true }).shouldFail).toBe(false);
+  });
+});
+
 describe('untrusted finding text', () => {
   const evil = {
     llmVerdict: 'fail',
@@ -119,7 +134,7 @@ describe('untrusted finding text', () => {
     }
   });
 
-  it('sanitizes the warn skipReason and states that warn stays green', () => {
+  it('does not interpret injected text as an execution reason', () => {
     const r = evaluateVerdictGate({ llmVerdict: 'warn', skipReason: 'RATE_LIMIT\n::add-mask::s' }, { failOnVerdict: true });
     expect(r.shouldFail).toBe(false);
     expect(r.message.split('\n')).toHaveLength(1);
@@ -148,7 +163,7 @@ describe('publishVerdictGate and readVerdictFile', () => {
     expect(fs.readFileSync(out, 'utf8')).toMatch(/^verdict=fail\nblocking-findings<<EOF_[0-9a-f]+\nAI review verdict: FAIL/);
     expect(fs.readFileSync(sum, 'utf8')).toContain('AI review verdict: FAIL');
     const annotation = String(log.mock.calls[0][0]);
-    expect(annotation.startsWith('::error title=AI review verdict: FAIL::')).toBe(true);
+    expect(annotation.startsWith('::error title=AI review failure::')).toBe(true);
     expect(annotation).not.toContain('\n');
     expect(annotation).toContain('%0A');
   });
