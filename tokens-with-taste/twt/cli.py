@@ -124,3 +124,7 @@ def main(argv=None):
             print(json.dumps(report(store.traces(args.since)), indent=2))
     finally:
         store.close()
+
+
+if __name__ == "__main__":
+    main()

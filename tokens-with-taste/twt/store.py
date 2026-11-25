@@ -34,6 +34,7 @@ class Store:
             CREATE TABLE IF NOT EXISTS tool_calls (
                 session TEXT NOT NULL, signature TEXT NOT NULL,
                 PRIMARY KEY(session, signature));
+            DELETE FROM models WHERE id LIKE '%:batch';
         """)
         self.db.commit()
         os.chmod(self.path, 0o600)
@@ -75,7 +76,9 @@ class Store:
     def models(self):
         return [
             json.loads(r[0])
-            for r in self.db.execute("SELECT data FROM models ORDER BY provider,id")
+            for r in self.db.execute(
+                "SELECT data FROM models WHERE id NOT LIKE '%:batch' ORDER BY provider,id"
+            )
         ]
 
     def reserve_trace(self, trace_id):

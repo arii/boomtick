@@ -161,7 +161,11 @@ def normalize(provider, row, prices, router):
     )
     if provider.get("free_prototyping"):
         free = True
-    chat = known.get("chat", "text" in outputs if outputs else mode == "chat")
+    chat = (
+        False
+        if model_id.endswith(":batch")
+        else known.get("chat", "text" in outputs if outputs else mode == "chat")
+    )
     if "supported_parameters" in reference:
         tools = known.get("tools", "tools" in params)
         json_mode = known.get("json", "response_format" in params)
@@ -365,7 +369,7 @@ async def sync(store, client=None, configuration=None):
             models = [
                 normalize(provider, row, prices, router)
                 for row in rows
-                if row["id"] not in retired
+                if row["id"] not in retired and not row["id"].endswith(":batch")
             ]
             store.replace_models(provider["id"], models)
             messages.append(f"{provider['id']}: synced {len(models)} models")
