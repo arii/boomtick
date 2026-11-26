@@ -216,3 +216,6 @@ cli/dev_tools/cli-commands-schema.json
 
 # td RAG index + lockfile hashes — local build artifacts, never commit.
 .td_rag/
+
+# Agent plan artifacts
+.agents/plans/
