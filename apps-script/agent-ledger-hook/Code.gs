@@ -264,7 +264,7 @@ function scanPendingRows() {
   }
   // Outcome rows appended while scanning land below processedTo's rows but are
   // covered by advancing to the live last row: they are results, not intake.
-  store.setProperty(SCAN_WATERMARK, String(Math.max(processedTo, sheet.getLastRow())));
+  store.setProperty(SCAN_WATERMARK, String(processedTo));
 }
 
 function intake(row, range, store, props) {
