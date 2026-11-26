@@ -6,6 +6,8 @@ const LABELS = {'ledger-intake': '0e8a16', insight: '5319e7'};
 const LOCK_WAIT_MS = 30000;
 const ISSUE_PREFIX = /^\[issue\][ \t]+([a-z0-9][a-z0-9_.-]*):[ \t]+([^\r\n]+)/;
 const HTTPS_LINK = /^https:\/\/(?:\[[\da-f:.]+\]|[^\s/?#:@\\"<>`]+)(?::\d+)?(?:[/?#][^\s\\"<>`]*)?$/i;
+const TASK_KEY = /^task-[a-z0-9-]+$/i;
+const SCAN_WATERMARK = 'LAST_SCANNED_ROW';
 const INTAKE_COLUMNS = ['intake_id', 'dedupe_hash', 'missing_fields', 'status'];
 // The one canonical list of required fields, in the order missing_fields reports them.
 // Each maps to the note section it is parsed from, or to the [issue] prefix for title and repo.
@@ -56,7 +58,7 @@ function eligible(row, props) {
   if (!match || !match[2].trim() || !allowlist(props.ALLOWED_REPOS).includes(match[1])) {
     return false;
   }
-  return !row.link || HTTPS_LINK.test(row.link);
+  return !row.link || HTTPS_LINK.test(row.link) || TASK_KEY.test(row.link);
 }
 
 function taskFields(note) {
@@ -175,25 +177,94 @@ function onFormSubmit(e) {
     console.info('Agent Ledger: ignored ineligible submission.');
     return;
   }
-
-  const lock = LockService.getScriptLock();
-  if (!lock.tryLock(LOCK_WAIT_MS)) {
+  if (processRow(row, e.range, store, props) === 'busy') {
     // Concurrency guard: never file without the lock (that is how duplicates happen),
     // and never fail silently either. The row stays unprocessed; resubmitting retries it.
     submitOutcome(e.range, row.source, 'Later', 'Busy: another Ledger submission was being filed. Resubmit to retry.', '');
     console.info('Agent Ledger: lock busy, submission not filed.');
-    return;
   }
+}
+
+// Files one eligible row: writes the intake columns, creates or dedupes the
+// GitHub issue, and records the dedupe hash once an issue exists.
+// Returns 'busy' when the script lock is held by another run; the caller
+// decides whether to report that (form path) or retry later (scan path).
+function processRow(row, range, store, props) {
+  const lock = LockService.getScriptLock();
+  if (!lock.tryLock(LOCK_WAIT_MS)) return 'busy';
   try {
+    // A form submission and a scan tick can race on the same row; if the
+    // intake columns are already written, the row is already processed.
+    const sheet = range.getSheet();
+    const headers = sheet.getRange(1, 1, 1, Math.max(sheet.getLastColumn(), 1)).getValues()[0]
+      .map(cell => String(cell).trim());
+    const intakeColumn = headers.indexOf('intake_id');
+    if (intakeColumn >= 0 && sheet.getRange(range.getRow(), intakeColumn + 1).getValue()) return 'done';
     const keys = intakeKeys(row, store);
-    writeIntakeColumns(e.range, keys);
-    intake(row, e.range, store, props);
+    writeIntakeColumns(range, keys);
+    intake(row, range, store, props);
     // Remember the title/repo only once an issue exists, so a failed run is not a duplicate.
     const issueUrl = store.getProperty('created:' + dedupKey(row));
     if (keys.status === 'NEW' && issueUrl) store.setProperty(HASH_MARKER + keys.dedupe_hash, issueUrl);
+    return 'done';
   } finally {
     lock.releaseLock();
   }
+}
+
+// Adds the manual scan control to the spreadsheet menu bar.
+function onOpen() {
+  SpreadsheetApp.getUi().createMenu('Agent Ledger')
+    .addItem('Process new rows', 'scanPendingRows')
+    .addToUi();
+}
+
+// Catches rows written directly to the response sheet (Sheets API appends and
+// manual edits), which never fire the form-submit trigger. Install as a
+// time-driven trigger (daily) and run on demand from the Agent Ledger menu
+// in the spreadsheet. The watermark starts at the current
+// last row on first run, so historical rows are never scanned; rows the scan
+// cannot file get SKIPPED in the hook-owned status column and are not retried.
+function scanPendingRows() {
+  const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+  if (!spreadsheet) throw new Error('scanPendingRows must run in the spreadsheet-bound script.');
+  const sheet = spreadsheet.getSheets().find(candidate => candidate.getFormUrl()) || spreadsheet.getSheets()[0];
+  const store = PropertiesService.getScriptProperties();
+  const props = store.getProperties();
+  const watermark = Number(store.getProperty(SCAN_WATERMARK) || 0);
+  if (!watermark) {
+    store.setProperty(SCAN_WATERMARK, String(sheet.getLastRow()));
+    console.info('Agent Ledger: scan watermark armed at row ' + sheet.getLastRow() + '.');
+    return;
+  }
+  const headers = sheet.getRange(1, 1, 1, Math.max(sheet.getLastColumn(), 1)).getValues()[0]
+    .map(cell => String(cell).trim());
+  const column = name => headers.indexOf(name);
+  const lastRow = sheet.getLastRow();
+  let processedTo = watermark;
+  for (let rowNumber = watermark + 1; rowNumber <= lastRow; rowNumber++) {
+    const values = sheet.getRange(rowNumber, 1, 1, headers.length).getValues()[0];
+    const cell = name => String(values[column(name)] || '');
+    if (cell('intake_id') || cell('status')) {
+      processedTo = rowNumber;
+      continue;
+    }
+    const row = {
+      source: cell('Agent / Source'), note: cell('Item / Note'), status: cell('Status'),
+      link: cell('Link'), timestamp: cell('Timestamp'),
+    };
+    const range = sheet.getRange(rowNumber, 1);
+    if (!eligible(row, props)) {
+      writeIntakeColumns(range, {intake_id: '', dedupe_hash: '', missing_fields: '', status: 'SKIPPED'});
+      processedTo = rowNumber;
+      continue;
+    }
+    if (processRow(row, range, store, props) === 'busy') break;
+    processedTo = rowNumber;
+  }
+  // Outcome rows appended while scanning land below processedTo's rows but are
+  // covered by advancing to the live last row: they are results, not intake.
+  store.setProperty(SCAN_WATERMARK, String(Math.max(processedTo, sheet.getLastRow())));
 }
 
 function intake(row, range, store, props) {
