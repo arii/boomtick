@@ -1,4 +1,5 @@
 import json
+from pathlib import Path
 from dev_tools.handlers.mcp_installer import detect_and_install_mcp, update_host_config
 
 

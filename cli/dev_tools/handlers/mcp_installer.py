@@ -22,6 +22,10 @@ HOST_CONFIG_MAP = {
         Path.home() / ".vscode" / "mcp.json",
         Path(".vscode/mcp.json"),
     ],
+    "boomtick-mcp": [
+        Path.home() / ".boomtick-mcp" / "settings.json",
+        Path(".boomtick-mcp/settings.json"),
+    ],
 }
 
 DEFAULT_MCP_CONFIG = {"command": "boomtick-mcp"}
@@ -60,6 +64,8 @@ def detect_and_install_mcp(
         if file_exists or parent_exists or custom_path:
             entry = dict(mcp_entry)
             if host == "gemini":
+                entry["env"] = {"GITHUB_TOKEN": "$GITHUB_TOKEN", **entry.get("env", {})}
+            if host == "boomtick-mcp":
                 entry["env"] = {"GITHUB_TOKEN": "$GITHUB_TOKEN", **entry.get("env", {})}
             status, msg = update_host_config(path_obj, entry, dry_run=dry_run)
             results.append(
