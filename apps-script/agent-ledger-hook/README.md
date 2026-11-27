@@ -70,3 +70,12 @@ Full live acceptance is still open in [#1402](https://github.com/arii/boomtick/i
 If the issue was created but the `Done` response failed, resubmit the same data to retry the response without opening another issue.
 
 Only `Act` submissions with an allowlisted source, an allowlisted repo in the prefix and an empty or HTTPS link are eligible. The first line of the note supplies the title; the full note and link go in the issue. The dedup key is the first 16 hexadecimal characters of SHA-256 over the exact link, or over `source|note` when the link is blank. The hook never fetches submitted links. The Form is not an authentication boundary. There is no daily filing cap. Instead a concurrency guard serializes filing: each submission holds the script lock for its whole check-and-create (dedup marker, title hash and the GitHub search for an existing ledger issue). A submission that can't get the lock within 30 s files nothing and posts one `Later` reply starting `Busy:`; resubmitting retries it. A `MAX_ISSUES_PER_DAY` Script Property, or a leftover `intake-day` property, is ignored. Failed executions appear under **Executions** in Apps Script.
+
+## Rows written directly to the Sheet
+
+Form submissions are processed immediately by the `onFormSubmit` trigger. Rows written directly to the response Sheet (Sheets API appends by Drive-connected agents, manual edits) never fire that trigger, so `scanPendingRows` processes them through the same `processRow` filing path:
+
+- Install `scanPendingRows` as a time-driven trigger (daily). The spreadsheet also gains an **Agent Ledger** menu (`onOpen`) with **Process new rows** for an on-demand run of the same scan.
+- A `LAST_SCANNED_ROW` script property is the high-water mark. On first run it is armed at the current last row, so historical rows are never scanned. To process a known set of rows below the current end of the sheet, set `LAST_SCANNED_ROW` to the row just before them before the first run.
+- Rows above the watermark with intake columns already written are skipped. Rows that are not eligible intake rows get `SKIPPED` in the hook-owned `status` column and are never retried. Eligible rows are filed exactly like form submissions, under the same script lock, and the watermark advances only past rows actually processed; outcome rows appended during a scan are covered so they are not scanned as intake.
+- The `Link` column may hold an `https://` URL or a `task-<key>`; both are accepted by `eligible()` and both feed the same dedupe key.

@@ -286,7 +286,12 @@ describe('Agent Ledger submit writes intake columns', () => {
     const writes: { row: number; col: number; values: string[][] }[] = [];
     const sheet = {
       getLastColumn: () => grid[0].length,
-      getRange: (r: number, c: number, nr: number, nc: number) => ({
+      getLastRow: () => grid.length,
+      getFormUrl: () => 'https://example.com/ledger-form',
+      getRange: (r: number, c: number, nr: number = 1, nc: number = 1) => ({
+        getRow: () => r,
+        getSheet: () => sheet,
+        getValue: () => (grid[r - 1] || [])[c - 1] ?? '',
         getValues: () => Array.from({ length: nr }, (_, i) =>
           Array.from({ length: nc }, (_, j) => (grid[r - 1 + i] || [])[c - 1 + j] ?? '')),
         setValues: (values: string[][]) => {
@@ -301,19 +306,27 @@ describe('Agent Ledger submit writes intake columns', () => {
     const outcome = vi.fn();
     const releaseLock = vi.fn();
     const request = vi.fn((path: string) => path.endsWith('/issues') ? { html_url: 'https://example.com/issue/1' } : {});
-    const { onFormSubmit } = runInNewContext(source + `
+    const spreadsheet = {
+      getSheets: () => [sheet],
+    };
+    const { onFormSubmit, processRow, scanPendingRows } = runInNewContext(source + `
       installationToken = () => 'fixture-token';
       hasLedgerIssue = () => false;
       github = request;
       submitOutcome = outcome;
-      ({ onFormSubmit });`, {
+      ({ onFormSubmit, processRow, scanPendingRows });`, {
       ...context,
       request,
       outcome,
       console: { info: () => undefined },
+      SpreadsheetApp: { getActiveSpreadsheet: () => spreadsheet },
       PropertiesService: { getScriptProperties: () => store },
       LockService: { getScriptLock: () => ({ tryLock: () => lockFree, releaseLock }) },
-    }) as { onFormSubmit: (event: object) => void };
+    }) as {
+      onFormSubmit: (event: object) => void;
+      processRow: (row: object, range: object, store: object, props: object) => string;
+      scanPendingRows: () => void;
+    };
     const submit = (note: string, overrides: Record<string, string> = {}) => {
       const rowNumber = grid.length + 1;
       const values: Record<string, string> = { 'Agent / Source': row.source, 'Item / Note': note, Status: 'Act', Link: '', ...overrides };
@@ -326,7 +339,7 @@ describe('Agent Ledger submit writes intake columns', () => {
     };
     const cells = (rowNumber: number) => Object.fromEntries(grid[0].map((name, i) => [name, grid[rowNumber - 1][i]]));
     const issues = () => request.mock.calls.filter(([path]) => path.endsWith('/issues')).length;
-    return { grid, writes, submit, cells, issues, outcome, stored, releaseLock };
+    return { grid, writes, submit, cells, issues, outcome, stored, releaseLock, processRow, scanPendingRows, sheet };
   }
 
   const fullHash = sha('check queue\narii/remote-server');
@@ -450,5 +463,46 @@ describe('Agent Ledger submit writes intake columns', () => {
     h.submit('[issue] other-repo: Nope');
     expect(h.writes).toEqual([]);
     expect(h.grid[0]).toEqual(HEADERS);
+  });
+
+  it('skips processing if intake_id is already present on the row', () => {
+    const h = setup([...HEADERS, 'intake_id', 'dedupe_hash', 'missing_fields', 'status']);
+    const rowNumber = h.submit(row.note);
+    expect(h.issues()).toBe(1);
+    const range = h.sheet.getRange(rowNumber, 1);
+    const rowObj = {
+      source: row.source,
+      note: row.note,
+      status: 'Act',
+      link: '',
+      timestamp: '11/26/2026',
+    };
+    const store = {
+      getProperty: (k: string) => h.stored.get(k),
+      setProperty: (k: string, v: string) => h.stored.set(k, v),
+      getProperties: () => ({ ...config }),
+    };
+    const result = h.processRow(rowObj, range, store, config);
+    expect(result).toBe('done');
+    expect(h.issues()).toBe(1);
+  });
+
+  it('arms watermark at current last row on initial scan run', () => {
+    const h = setup();
+    h.grid.push(['11/26/2026', row.source, row.note, 'Act', '']);
+    expect(h.stored.get('LAST_SCANNED_ROW')).toBeUndefined();
+    h.scanPendingRows();
+    expect(h.stored.get('LAST_SCANNED_ROW')).toBe('2');
+    expect(h.issues()).toBe(0);
+  });
+
+  it('scans pending rows after watermark and advances watermark', () => {
+    const h = setup();
+    h.stored.set('LAST_SCANNED_ROW', '1');
+    h.grid.push(['11/26/2026', row.source, row.note, 'Act', '']);
+    h.scanPendingRows();
+    expect(h.stored.get('LAST_SCANNED_ROW')).toBe('2');
+    expect(h.issues()).toBe(1);
+    expect(h.cells(2)).toMatchObject({ status: 'NEW' });
   });
 });
