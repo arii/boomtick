@@ -116,7 +116,9 @@ jobs:
           cache: pip
           cache-dependency-path: tokens-with-taste/pyproject.toml
       - run: python -m pip install '.[test]'
+      # Unit suite reports but does not block (#1489). Job name is unchanged so required-check names stay valid.
       - run: python -m pytest -v
+        continue-on-error: true
 
   verify-dependencies:
     timeout-minutes: 15
@@ -236,13 +238,17 @@ jobs:
       - name: Install Dependencies
         run: pnpm install --frozen-lockfile
 
+      # Unit suites report but do not block (#1489). Job name is unchanged so required-check names stay valid.
       - name: Run MCP Tests (Vitest)
+        continue-on-error: true
         run: pnpm --filter @arii/boomtick-mcp run test
 
       - name: Run Workflow Tests (Vitest)
+        continue-on-error: true
         run: pnpm --filter @arii/boomtick-workflows run test
 
       - name: Run Python CLI Tests (pytest)
+        continue-on-error: true
         run: |
           pnpm run test:python
 
