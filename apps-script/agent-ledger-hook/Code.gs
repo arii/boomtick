@@ -199,7 +199,7 @@ function processRow(row, range, store, props) {
     const headers = sheet.getRange(1, 1, 1, Math.max(sheet.getLastColumn(), 1)).getValues()[0]
       .map(cell => String(cell).trim());
     const intakeColumn = headers.indexOf('intake_id');
-    if (intakeColumn >= 0 && sheet.getRange(range.getRow(), intakeColumn + 1).getValue()) return 'done';
+    if (intakeColumn >= 0 && sheet.getRange(range.getRow(), intakeColumn + 1, 1, 1).getValues()[0][0]) return 'done';
     const keys = intakeKeys(row, store);
     writeIntakeColumns(range, keys);
     intake(row, range, store, props);
