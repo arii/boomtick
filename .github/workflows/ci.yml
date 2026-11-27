@@ -116,9 +116,7 @@ jobs:
           cache: pip
           cache-dependency-path: tokens-with-taste/pyproject.toml
       - run: python -m pip install '.[test]'
-      # Unit suite reports but does not block (#1489). Job name is unchanged so required-check names stay valid.
       - run: python -m pytest -v
-        continue-on-error: true
 
   verify-dependencies:
     timeout-minutes: 15
@@ -238,17 +236,25 @@ jobs:
       - name: Install Dependencies
         run: pnpm install --frozen-lockfile
 
-      # Unit suites report but do not block (#1489). Job name is unchanged so required-check names stay valid.
-      - name: Run MCP Tests (Vitest)
-        continue-on-error: true
-        run: pnpm --filter @arii/boomtick-mcp run test
+      # #1489: functional integration vitest files stay blocking (the package `test` script also runs the
+      # build, contract/schema sync and, for workflows, `tsc --noEmit`, so those gates stay blocking too).
+      # The full suites then run non-blocking so unit-only failures report without blocking.
+      # Job name is unchanged so required-check names stay valid.
+      - name: Run MCP integration tests (Vitest, blocking)
+        run: pnpm --filter @arii/boomtick-mcp run test src/mcp/http.test.ts src/lib/session_manager.roundtrip.test.ts
 
-      - name: Run Workflow Tests (Vitest)
+      - name: Run MCP unit tests (Vitest, non-blocking)
         continue-on-error: true
-        run: pnpm --filter @arii/boomtick-workflows run test
+        run: pnpm --filter @arii/boomtick-mcp exec vitest run
+
+      - name: Run Workflow integration tests (Vitest, blocking)
+        run: pnpm --filter @arii/boomtick-workflows run test src/gateway.test.ts
+
+      - name: Run Workflow unit tests (Vitest, non-blocking)
+        continue-on-error: true
+        run: pnpm --filter @arii/boomtick-workflows exec vitest run
 
       - name: Run Python CLI Tests (pytest)
-        continue-on-error: true
         run: |
           pnpm run test:python
 
