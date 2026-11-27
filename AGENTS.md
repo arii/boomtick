@@ -116,7 +116,7 @@ Config path: `~/.cursor/mcp.json` or `.cursor/mcp.json`
 - No new dependency without saying what it replaces or enables.
 - No placeholder code that returns fake success. Fail loudly or don't ship it.
 - Docs describe what exists. Verify every path, script and workflow you mention.
-- Before reporting done, run `td preflight` and paste the result. Also run `python3 .agents/scripts/audit-ai-slop.py`, which CI runs and preflight does not. Tests are not required per change: unit suites report in CI but do not block, and only functional integration checks gate a merge (#1489).
+- Before reporting done, run `td preflight` and paste the result. Also run `python3 .agents/scripts/audit-ai-slop.py`, which CI runs and preflight does not. Tests are not required per change. Vitest unit suites report in CI without blocking; functional integration checks gate a merge, and the Python suites still block until they are split into integration and unit (#1489).
 
 ## 5. Code Map
 
