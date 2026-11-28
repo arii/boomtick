@@ -192,15 +192,18 @@ KEY_LIMIT_COOLDOWN_SECONDS = 300
 def refused_before_usage(payload):
     # Return a short reason when an upstream 403 refused the request before
     # any billable usage, else None.
-    error = payload.get('error') if isinstance(payload, dict) else None
+    error = payload.get("error") if isinstance(payload, dict) else None
     if not isinstance(error, dict):
         return None
-    metadata = error.get('metadata')
-    if isinstance(metadata, dict) and metadata.get('limit_source') == 'openrouter_key_limit':
-        return 'upstream key limit: paid attempt refused at $0 cap'
-    message = error.get('message')
-    if isinstance(message, str) and 'do not have access to model' in message:
-        return 'upstream access denied: key has no access to model'
+    metadata = error.get("metadata")
+    if (
+        isinstance(metadata, dict)
+        and metadata.get("limit_source") == "openrouter_key_limit"
+    ):
+        return "upstream key limit: paid attempt refused at $0 cap"
+    message = error.get("message")
+    if isinstance(message, str) and "do not have access to model" in message:
+        return "upstream access denied: key has no access to model"
     return None
 
 
@@ -639,8 +642,8 @@ class Gateway:
         current = self.clock()
         if self.unavailable_cooldowns.get(key, 0) > current:
             return "model unavailable cooldown", True
-        if not model['free'] and self.paid_refusal_cooldowns.get(key, 0) > current:
-            return 'paid attempt refused at $0 cap', True
+        if not model["free"] and self.paid_refusal_cooldowns.get(key, 0) > current:
+            return "paid attempt refused at $0 cap", True
         if self.overload_cooldowns.get(key, 0) > current:
             return "overload cooldown", True
         return None
@@ -667,8 +670,11 @@ class Gateway:
                 current = self.clock()
                 if self.unavailable_cooldowns.get(key, 0) > current:
                     return "model unavailable cooldown", waited, None
-                if not model['free'] and self.paid_refusal_cooldowns.get(key, 0) > current:
-                    return 'paid attempt refused at $0 cap', waited, None
+                if (
+                    not model["free"]
+                    and self.paid_refusal_cooldowns.get(key, 0) > current
+                ):
+                    return "paid attempt refused at $0 cap", waited, None
                 window = self.calls[key]
                 while window and window[0] <= current - 60:
                     window.popleft()
@@ -1226,14 +1232,16 @@ class Gateway:
                     continue
                 refusal = refused_before_usage(payload)
                 if response.status_code == 403 and refusal is not None:
-                    attempt['cost_usd'] = 0.0
-                    attempt['refused_before_usage'] = True
-                    attempt['reason'] = refusal
-                    self.paid_refusal_cooldowns[key] = self.clock() + KEY_LIMIT_COOLDOWN_SECONDS
+                    attempt["cost_usd"] = 0.0
+                    attempt["refused_before_usage"] = True
+                    attempt["reason"] = refusal
+                    self.paid_refusal_cooldowns[key] = (
+                        self.clock() + KEY_LIMIT_COOLDOWN_SECONDS
+                    )
                     if routed:
                         continue
                     response_payload = payload
-                    trace['http_status'] = response.status_code
+                    trace["http_status"] = response.status_code
                     break
                 if (
                     provider["id"] == "google"
