@@ -29,4 +29,17 @@ describe('Publish Runner Workflow Validation', () => {
     expect(verifyStep.run).toContain('command -v python || command -v python3');
     expect(verifyStep.run).toContain('boomtick-review:test');
   });
+  it('should not mask registry publish failures and should verify each registry after publishing', () => {
+    const workflowPath = path.join(__dirname, '../../.github/workflows/publish-runner.yml');
+    const parsed = yaml.parse(fs.readFileSync(workflowPath, 'utf-8'));
+    const steps: Array<{ name?: string; 'continue-on-error'?: boolean }> = (parsed.jobs['publish-docker'] || parsed.jobs['publish-artifacts']).steps;
+
+    for (const name of ['Publish MCP to npm', 'Publish CLI to PyPI']) {
+      const step = steps.find((s) => s.name === name);
+      expect(step, name).toBeDefined();
+      expect(step?.['continue-on-error'], name).toBeUndefined();
+    }
+    expect(steps.find((s) => s.name === 'Verify MCP version is on npm')).toBeDefined();
+    expect(steps.find((s) => s.name === 'Verify CLI version is on PyPI')).toBeDefined();
+  });
 });
