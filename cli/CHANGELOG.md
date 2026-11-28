@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.24.0](https://github.com/arii/boomtick/compare/cli-v0.23.1...cli-v0.24.0) (2026-11-28)
+
+
+### Features
+
+* **twt:** expose catalog metadata and bound tool fan-out for task routing ([#1455](https://github.com/arii/boomtick/issues/1455)) ([#1472](https://github.com/arii/boomtick/issues/1472)) ([df2f59b](https://github.com/arii/boomtick/commit/df2f59bd34192424c315aa99f8a45cf14989db75))
+
+
+### Bug Fixes
+
+* **repair:** autonomous repair for issue [#1374](https://github.com/arii/boomtick/issues/1374) ([#1478](https://github.com/arii/boomtick/issues/1478)) ([0aa1453](https://github.com/arii/boomtick/commit/0aa1453e5f1ab1035366e96cc37bdea91ad98cfe))
+* **review:** stop reporting incomplete execution as success ([#1476](https://github.com/arii/boomtick/issues/1476)) ([aab29dc](https://github.com/arii/boomtick/commit/aab29dc2c3339b3420af9cfd1c46b63a3182da41))
+
 ## [0.23.1](https://github.com/arii/boomtick/compare/cli-v0.23.0...cli-v0.23.1) (2026-11-25)
 
 
