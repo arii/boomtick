@@ -784,6 +784,7 @@ class Gateway:
             self.store.save_trace(trace)
             return trace["response"], 400, trace_headers(trace)
         route_providers = self.providers
+        strong_selections = {}
         if body.get("model") == "route:strong":
             try:
                 selections = json.loads(os.environ.get("TWT_STRONG_MODELS", "{}"))
@@ -796,6 +797,7 @@ class Gateway:
                     raise ValueError(
                         "expected configured provider IDs and nonempty model IDs"
                     )
+                strong_selections = selections
                 route_providers = [
                     {
                         **provider,
@@ -855,19 +857,11 @@ class Gateway:
                 return trace["response"], 500, trace_headers(trace)
         ordered = order_providers(route_providers, catalog, body, privacy)
         if body.get("model") == "route:strong":
-            # Preserve free-provider order and all existing admission/budget checks.
-            # Local is first, Nebius is last, even when price ranking ties.
-            ordered.sort(
-                key=lambda provider: (
-                    0
-                    if "local_model" in provider
-                    else 3
-                    if provider["id"] == "nebius"
-                    else 1
-                    if any(m["free"] for m in eligible_models(catalog, provider, body))
-                    else 2
-                )
-            )
+            config_order = list(strong_selections.keys()) + [
+                p["id"] for p in route_providers if p["id"] not in strong_selections
+            ]
+            rank = {pid: idx for idx, pid in enumerate(config_order)}
+            ordered.sort(key=lambda provider: rank.get(provider["id"], len(rank)))
         pending = deque(ordered)
         retried = set()
         rate_deadlines = []

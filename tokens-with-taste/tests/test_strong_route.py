@@ -59,8 +59,6 @@ def test_strong_local_free_nebius_order_and_receipt(store, monkeypatch):
     assert status == 200
     assert sent == [
         "local-strong",
-        "nvidia-strong",
-        "openrouter-strong",
         "nebius-strong",
     ]
     trace = store.trace(headers["X-Trace-Id"])
@@ -222,7 +220,6 @@ def test_strong_route_http_order_models_and_receipt(store, monkeypatch):
     response, receipts = asyncio.run(scenario())
     assert response.status_code == 200
     assert [model for _, model in sent] == [
-        "local-strong",
         "google-strong",
         "groq-strong",
         "nebius-strong",
@@ -245,7 +242,6 @@ def test_strong_route_http_order_models_and_receipt(store, monkeypatch):
     assert receipt["prompt_tokens"] is None
     trace = store.trace(receipt["trace_id"])
     assert [(a["provider"], a["model"]) for a in trace["attempts"] if a["called"]] == [
-        ("ollama", "local-strong"),
         ("google", "google-strong"),
         ("groq", "groq-strong"),
         ("nebius", "nebius-strong"),
@@ -347,7 +343,7 @@ def test_strong_route_falls_through_to_nebius_when_local_unavailable(
 
     response, receipts = asyncio.run(scenario())
     assert response.status_code == 200
-    assert sent == ["nvidia-strong", "openrouter-strong", "nebius-strong"]
+    assert sent == ["nebius-strong"]
     assert len(receipts) == 1
     assert (receipts[0]["provider"], receipts[0]["model"]) == (
         "nebius",
