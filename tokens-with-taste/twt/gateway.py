@@ -186,6 +186,27 @@ TPM_LIMIT = re.compile(
 TRY_AGAIN = re.compile(r"try again in (?:(\d+)m)?(?:(\d+(?:\.\d+)?)(ms|s))?")
 
 
+KEY_LIMIT_COOLDOWN_SECONDS = 300
+
+
+def refused_before_usage(payload):
+    # Return a short reason when an upstream 403 refused the request before
+    # any billable usage, else None.
+    error = payload.get("error") if isinstance(payload, dict) else None
+    if not isinstance(error, dict):
+        return None
+    metadata = error.get("metadata")
+    if (
+        isinstance(metadata, dict)
+        and metadata.get("limit_source") == "openrouter_key_limit"
+    ):
+        return "upstream key limit: paid attempt refused at $0 cap"
+    message = error.get("message")
+    if isinstance(message, str) and "do not have access to model" in message:
+        return "upstream access denied: key has no access to model"
+    return None
+
+
 def tpm_details(payload):
     """(limit, used, requested, wait seconds) from a Groq TPM error body; None when absent."""
     error = payload.get("error")
@@ -262,7 +283,10 @@ def eligible_models(catalog, provider, body):
             for m in candidates
             if requested in (m["id"], f"{provider['id']}/{m['id']}")
         ]
-    if default_route and provider.get("free_only"):
+    # Strong is a paid tier: the free-only filter is default-route
+    # behaviour. A strong candidate is the catalog model for the
+    # provider configured strong model, paid or free.
+    if default_route and not strong_route and provider.get("free_only"):
         candidates = [m for m in candidates if m["free"]]
     if body.get("tools"):
         candidates = [m for m in candidates if m["tools"]]
@@ -489,6 +513,7 @@ class Gateway:
         self.transport_cooldowns = {}
         self.overload_cooldowns = {}
         self.unavailable_cooldowns = {}
+        self.paid_refusal_cooldowns = {}
         # (provider, model) -> smallest estimated size upstream rejected with HTTP 413.
         self.too_large = {}
         # (provider, model) -> TPM limit Groq stated in an error body.
@@ -617,6 +642,8 @@ class Gateway:
         current = self.clock()
         if self.unavailable_cooldowns.get(key, 0) > current:
             return "model unavailable cooldown", True
+        if not model["free"] and self.paid_refusal_cooldowns.get(key, 0) > current:
+            return "paid attempt refused at $0 cap", True
         if self.overload_cooldowns.get(key, 0) > current:
             return "overload cooldown", True
         return None
@@ -643,6 +670,11 @@ class Gateway:
                 current = self.clock()
                 if self.unavailable_cooldowns.get(key, 0) > current:
                     return "model unavailable cooldown", waited, None
+                if (
+                    not model["free"]
+                    and self.paid_refusal_cooldowns.get(key, 0) > current
+                ):
+                    return "paid attempt refused at $0 cap", waited, None
                 window = self.calls[key]
                 while window and window[0] <= current - 60:
                     window.popleft()
@@ -1198,6 +1230,19 @@ class Gateway:
                         f"upstream payment required (HTTP {response.status_code})"
                     )
                     continue
+                refusal = refused_before_usage(payload)
+                if response.status_code == 403 and refusal is not None:
+                    attempt["cost_usd"] = 0.0
+                    attempt["refused_before_usage"] = True
+                    attempt["reason"] = refusal
+                    self.paid_refusal_cooldowns[key] = (
+                        self.clock() + KEY_LIMIT_COOLDOWN_SECONDS
+                    )
+                    if routed:
+                        continue
+                    response_payload = payload
+                    trace["http_status"] = response.status_code
+                    break
                 if (
                     provider["id"] == "google"
                     and response.status_code == 400
